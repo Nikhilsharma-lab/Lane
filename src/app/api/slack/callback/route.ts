@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     console.error(`[slack] connecting a workspace failed: ${install.reason}`);
     return back(request, "failed");
   }
-  await saveSlackConnection({ orgId: admin.orgId, userId: admin.userId }, install, { tokenKey: slack.tokenKey });
+  await saveSlackConnection(admin, install, { tokenKey: slack.tokenKey });
   revalidatePath("/settings/profile");
   return back(request, "connected");
 }

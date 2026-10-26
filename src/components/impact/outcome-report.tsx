@@ -9,14 +9,14 @@ import SegmentedControl from "@/components/arc/segmented-control/segmented-contr
 import { Select } from "@/components/arc/select/select"
 import { guardrailComparisonPhrase, type GuardrailOperator } from "@/lib/guardrail-comparison"
 import { metricChart } from "@/lib/impact-chart-view"
-import type { ImpactPeriod } from "@/lib/impact-period"
+import { periodLabel, type ImpactPeriod } from "@/lib/impact-period"
 import { actualText, baselineLabelOf, changeText, NOTHING_MEASURED, predictedText, totalText, valueText } from "@/lib/impact-presenter"
 import { iterationsHref } from "@/lib/same-problem-rules"
 import type { CorrectedValue, IterationNote, LearnedLine, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
 import { journeyDate } from "@/lib/request-journey"
 import { requestDetailHref } from "@/lib/request-workspace"
-import { parsePeriodKey, periodChoices, periodKey, periodLabel, periodOfKind, type PeriodKind } from "./impact-period"
+import { parsePeriodKey, periodChoices, periodKey, periodOfKind, type PeriodKind } from "./period-picker"
 import { MetricChart } from "./metric-chart"
 import { printInLight } from "./print-in-light"
 import { QuarterNotes, type QuarterNoteEditorTarget } from "./quarter-notes"
@@ -95,7 +95,7 @@ function TotalLine({ line }: { line: ResultLine }) {
     <ul className={styles.lineRequests} aria-label={`Requests counted in ${line.metric}`}>
       {line.results.map(result => <li key={result.requestId}>
         {result.requests.map((request, index) => <span key={request.requestId}>{index > 0 && ", "}<RequestLink {...request} /></span>)}
-        {result.corrections.length > 0 && <> <Badge size="sm" tone="warning">Corrected</Badge></>}
+        {result.correctedFrom && <> <Badge size="sm" tone="warning">Corrected</Badge></>}
       </li>)}
     </ul>
   </article>
@@ -109,7 +109,7 @@ function Totals({ report }: { report: OutcomeReport }) {
       : report.totals.length === 0
         ? <p className={styles.note}>{NOTHING_MEASURED}</p>
         : <>
-          <p className={styles.note}>Results add up only when they share a Metric definition, audience and window. Corrected results count as recorded at closing; the Request shows the correction.</p>
+          <p className={styles.note}>Results add up only when they share a Metric definition, audience and window. A result corrected after closing counts at its corrected value; the Request keeps the original.</p>
           <div className={styles.lines}>{report.totals.map(line => <TotalLine key={JSON.stringify([line.definitionId, line.metric, line.unit, line.audience, line.platform, line.window])} line={line} />)}</div>
         </>}
   </section>
@@ -129,13 +129,19 @@ function Guardrails({ guardrails }: { guardrails: ReportGuardrail[] }) {
   </div>
 }
 
+/** The result counted, marked Corrected with the value recorded at closing when a Correction stated another one. */
+function ActualResult({ result }: { result: ResultView }) {
+  const original = result.correctedFrom
+  return <>{actualText(result)}{original && <> <Badge size="sm" tone="warning">Corrected</Badge> ({actualText({ ...result, ...original })} at closing)</>}</>
+}
+
 function MeasuredFacts({ result }: { result: ResultView }) {
-  if (result.form === "pass_fail") return <Fact label="Result">{actualText(result)}</Fact>
+  if (result.form === "pass_fail") return <Fact label="Result"><ActualResult result={result} /></Fact>
   return <>
     {result.baselineSource !== null && result.baseline !== null && <Fact label={baselineLabelOf(result.baselineSource)}>{valueText(result.baseline, result.unit)}</Fact>}
     {result.baselineState === "unknown" && <Fact label="Baseline">Unknown</Fact>}
     {result.baselineState === "new_capability" && <Fact label="Baseline">New capability, no change</Fact>}
-    <Fact label="Actual">{actualText(result)}</Fact>
+    <Fact label="Actual"><ActualResult result={result} /></Fact>
     {result.change !== null && <Fact label="Change">{changeText(result.change, result.unit, result.changeUnit)}</Fact>}
   </>
 }
@@ -179,7 +185,7 @@ function ClosedWithoutResult({ groups }: { groups: ReportClosedGroup[] }) {
   return <section className={styles.block} aria-labelledby="report-closed-heading">
     <h2 id="report-closed-heading" className={styles.heading}>Closed without a result</h2>
     {groups.length === 0 ? <p className={styles.note}>None this period.</p> : <>
-      <p className={styles.note}>Released, then closed without a measured result. Not in any total.</p>
+      <p className={styles.note}>Closed without a measured result: Released in this period, or closed in it before any release. Not in any total.</p>
       {groups.map(group => <section key={group.reasonCode} className={styles.project} aria-labelledby={`report-closed-${group.reasonCode}`}>
         <h3 id={`report-closed-${group.reasonCode}`} className={styles.projectHeading}>{group.label} <span className={styles.count}>{group.requests.length}</span></h3>
         <ul className={styles.entries}>{group.requests.map(item => <li key={item.requestId} className={styles.entry}>
@@ -188,7 +194,9 @@ function ClosedWithoutResult({ groups }: { groups: ReportClosedGroup[] }) {
           <p className={styles.problem}>{item.problem}</p>
           <dl className={styles.facts}>
             <Fact label="Project">{item.projectName ?? "No Project"}</Fact>
-            <Fact label="Released"><time dateTime={item.releaseDate}>{journeyDate(item.releaseDate)}</time></Fact>
+            {item.releaseDate
+              ? <Fact label="Released"><time dateTime={item.releaseDate}>{journeyDate(item.releaseDate)}</time></Fact>
+              : <Fact label="Closed before any release"><time dateTime={item.closedOn}>{journeyDate(item.closedOn)}</time></Fact>}
             {item.reason && <Fact label="Reason">{item.reason}</Fact>}
           </dl>
           {item.corrected.map(value => <Corrected key={value.field} value={value} />)}

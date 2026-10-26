@@ -9,6 +9,12 @@ describe("a saved view's filters", () => {
     expect(savedViewFilters({ status: "all", project: "none" })).toEqual({ status: "all", project: "none" });
   });
 
+  it("keeps the list of Guest submissions waiting to be taken on", () => {
+    expect(savedViewFilters({ status: "waiting", project: "all" })).toEqual({ status: "waiting", project: "all" });
+    expect(readSavedViewFilters({ status: "waiting", project: WEBSITE })).toEqual({ status: "waiting", project: WEBSITE });
+    expect(savedViewHref({ status: "waiting", project: "all" })).toBe("/?status=waiting");
+  });
+
   it("reads back what was saved", () => {
     expect(readSavedViewFilters({ status: "measuring", project: WEBSITE })).toEqual({ status: "measuring", project: WEBSITE });
   });

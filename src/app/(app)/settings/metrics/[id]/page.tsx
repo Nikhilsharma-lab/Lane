@@ -33,7 +33,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   if (workspace.role === "guest") redirect("/");
 
   const [{ id }, { section }] = await Promise.all([params, searchParams]);
-  const library = { orgId: workspace.orgId };
+  const library = workspace;
   const [definition, history, unitLocked] = await Promise.all([readMetricDefinition(library, id), readMetricDefinitionHistory(library, id), metricDefinitionUnitLocked(library, id)]);
   if (!definition) notFound();
   const archived = !!definition.archivedAt;
@@ -46,7 +46,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   const [keptDefinition, everyDefinition, uses] = await Promise.all([
     definition.mergedIntoId ? readMetricDefinition(library, definition.mergedIntoId) : null,
     isAdmin && !merged ? listMetricDefinitions(library, { includeArchived: true }) : [],
-    merged ? null : loadDefinitionUses({ userId: workspace.userId, orgId: workspace.orgId, role: workspace.role }, definition.id),
+    merged ? null : loadDefinitionUses({ userId: workspace.userId, orgId: workspace.orgId, role: workspace.role }, definition.id, { now: new Date() }),
   ]);
   const candidates = everyDefinition.filter(other => other.id !== definition.id && !other.mergedIntoId && other.unit === definition.unit)
     .map(other => ({ id: other.id, name: other.name, archived: !!other.archivedAt }));

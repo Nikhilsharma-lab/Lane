@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildDefinitionUses, buildImpactDashboard, buildIterations, buildOutcomeReport, buildTeammateWork, teammateIdsOf, type ImpactDefinition, type ImpactPeriod, type ImpactRow, type ImpactViewer } from "./impact-read-model";
+import { buildDefinitionUses, buildImpactDashboard, buildIterations, buildOutcomeReport, buildTeammateWork, teammateIdsOf, type ImpactDefinition, type ImpactRow, type ImpactViewer } from "./impact-read-model";
+import type { ImpactPeriod } from "./impact-period";
 import type { ExpectedImpact } from "./request-impact";
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "./request-outcome";
 import type { ReleaseFact, ReleaseState } from "./request-release";
@@ -744,7 +745,7 @@ describe("Outcome report (#208): up to date and at a glance", () => {
       measuredAug("b", 2),
       stillDue("c", 3),
       row({ id: "d", requestNumber: 4, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), exceptionClosure: exceptionClosure("rolled_back", "Broke checkout") }),
-      // Closed without a result before it was ever Released: it never shipped, so it is in no period.
+      // Closed without a result (10 Sep) before it was ever Released: it never shipped, but it was closed in Q3.
       row({ id: "e", requestNumber: 5, createdBy: MEMBER, status: "in_progress", exceptionClosure: exceptionClosure("other", "Dropped", null) }),
       // Released in October, outside the period.
       row({ id: "f", requestNumber: 6, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_OCT) }),
@@ -753,12 +754,39 @@ describe("Outcome report (#208): up to date and at a glance", () => {
     ];
     const report = buildOutcomeReport(MEMBER_VIEWER, rows, { now: NOW, period: Q3 })!;
     expect(report.asOf).toBe("2026-10-23");
-    expect(report.atAGlance).toEqual({ shipped: 4, measured: 2, stillDue: 1, closedWithoutResult: 1 });
+    expect(report.atAGlance).toEqual({ shipped: 4, measured: 2, stillDue: 1, closedWithoutResult: 2 });
   });
 
   it("counts Released operational work as shipped but never as still due, since it is never measured", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: null, noMeasurableImpactReason: "Design token rename" })];
     expect(buildOutcomeReport(MEMBER_VIEWER, rows, { now: NOW, period: Q3 })!.atAGlance).toEqual({ shipped: 1, measured: 0, stillDue: 0, closedWithoutResult: 0 });
+  });
+});
+
+describe("Outcome report: closed without a result before any Release (decision 2026-10-26)", () => {
+  const unreleased = (id: string, requestNumber: number, closedAt: string) =>
+    row({ id, requestNumber, createdBy: MEMBER, status: "in_progress", exceptionClosure: { ...exceptionClosure("rolled_back", `Dropped ${id}`, null), closedAt } });
+
+  it("lists it under Closed without a result in the period it was closed, never as shipped or in a total", () => {
+    const rows = [unreleased("a", 1, "2026-09-30T23:30:00.000Z"), unreleased("b", 2, "2026-10-01T00:30:00.000Z"), closedRow("c", 3, plan(), 46, [])];
+    const q3 = buildOutcomeReport(MEMBER_VIEWER, rows, { now: NOW, period: Q3 })!;
+    expect(q3.atAGlance).toEqual({ shipped: 1, measured: 1, stillDue: 0, closedWithoutResult: 1 });
+    expect(q3.closedWithoutResult).toMatchObject([{ reasonCode: "rolled_back", requests: [{ requestNumber: 1, releaseDate: null, closedOn: "2026-09-30", reason: "Dropped a" }] }]);
+    expect(q3.projects.flatMap(section => requestIds(section.requests))).toEqual([3]);
+    expect(q3.totals!.flatMap(line => line.results.map(result => result.requestNumber))).toEqual([3]);
+    const q4 = buildOutcomeReport(MEMBER_VIEWER, rows, { now: NOW, period: { kind: "quarter", year: 2026, quarter: 4 } })!;
+    expect(q4.atAGlance).toEqual({ shipped: 0, measured: 0, stillDue: 0, closedWithoutResult: 1 });
+    expect(q4.closedWithoutResult[0].requests.map(item => item.requestNumber)).toEqual([2]);
+  });
+
+  it("keeps Released work closed without a result in its release's period, whenever it was closed", () => {
+    const released = row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), exceptionClosure: { ...exceptionClosure("rolled_back", "Broke Safari"), closedAt: "2026-10-05T09:00:00.000Z" } });
+    expect(buildOutcomeReport(MEMBER_VIEWER, [released], { now: NOW, period: Q3 })!.closedWithoutResult[0].requests[0]).toMatchObject({ releaseDate: "2026-08-10", closedOn: "2026-10-05" });
+    expect(buildOutcomeReport(MEMBER_VIEWER, [released], { now: NOW, period: { kind: "quarter", year: 2026, quarter: 4 } })!.closedWithoutResult).toEqual([]);
+  });
+
+  it("isn't an empty report when the only thing in the period was closed before any Release", () => {
+    expect(buildOutcomeReport(MEMBER_VIEWER, [unreleased("a", 1, "2026-09-30T12:00:00.000Z")], { now: NOW, period: Q3 })!.emptyMessage).toBeNull();
   });
 });
 
@@ -904,9 +932,52 @@ describe("Outcome report (#208): closed without a result and corrections", () =>
       { field: "actual", label: "Actual result", value: "48%", at: "2026-09-14T09:00:00.000Z" },
       { field: "evidence", label: "Evidence", value: "Warehouse query", at: "2026-09-13T09:00:00.000Z" },
     ]);
-    // The original result stays as recorded; the Request page keeps both.
-    expect(entry.outcome).toMatchObject({ kind: "measured", result: { actual: 46 } });
+    // Text-only Corrections (from before corrected values were recorded) leave the closing value counted.
+    expect(entry.outcome).toMatchObject({ kind: "measured", result: { actual: 46, correctedFrom: null } });
     expect(report.closedWithoutResult[0].requests[0]).toMatchObject({ reason: "Dropped", corrected: [{ field: "reason", label: "Reason", value: "Merged into LAN-9" }] });
+  });
+});
+
+describe("Outcome report: a corrected result counts at its corrected value (decision 2026-10-26)", () => {
+  const corrected = (value: ClosureCorrection["value"], revision = 2, text = "Re-ran the export"): ClosureCorrection =>
+    ({ operationId: `op-v${revision}`, fingerprint: "fc", actorId: MEMBER, at: `2026-09-1${revision}T09:00:00.000Z`, field: "actual", correction: text, reason: "Wrong export", value, revision });
+  const adoption = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+
+  it("counts the latest corrected value in the totals, marked corrected, with the value recorded at closing kept", () => {
+    const rows = [
+      closedRow("a", 1, adoption, 130, [definedAs(ADOPTERS)], { closureCorrections: [corrected({ kind: "numeric", actual: 140 }, 2), corrected({ kind: "numeric", actual: 135 }, 3)] }),
+      closedRow("b", 2, adoption, 120, [definedAs(ADOPTERS)]),
+    ];
+    const [line] = totalsOf(rows, Q3);
+    // 135 - 100 corrected, plus 120 - 100 as recorded.
+    expect(line.summed).toEqual({ count: 2, change: 55 });
+    expect(line.results.map(result => [result.requestNumber, result.actual, result.change, result.correctedFrom])).toEqual([
+      [1, 135, 35, { actual: 130, verdict: null }],
+      [2, 120, 20, null],
+    ]);
+  });
+
+  it("shows the corrected value on the report's Request, and not again among its corrected text", () => {
+    const rows = [closedRow("a", 1, adoption, 130, [definedAs(ADOPTERS)], { closureCorrections: [corrected({ kind: "numeric", actual: 140 }, 2, "It was 140")] })];
+    const [entry] = reportEntries(rows, Q3);
+    expect(entry.outcome).toMatchObject({ kind: "measured", result: { actual: 140, change: 40, correctedFrom: { actual: 130 } } });
+    expect(entry.corrected).toEqual([]);
+  });
+
+  it("tallies a Pass/fail check at its corrected answer", () => {
+    const check = plan({ key: "check" });
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: check, outcomeClosure: measuredClosure(check, RELEASE_AUG, 0, { passed: false, evidence: "a" }), closureCorrections: [corrected({ kind: "pass_fail", passed: true })] }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: check, outcomeClosure: measuredClosure(check, RELEASE_AUG, 0, { passed: false, evidence: "b" }) }),
+    ];
+    const [line] = totalsOf(rows, Q3);
+    expect(line.verdicts).toEqual({ good: 1, bad: 1 });
+    expect(line.results[0]).toMatchObject({ verdict: "good", correctedFrom: { actual: null, verdict: "bad" } });
+  });
+
+  it("keeps counting the closing value after a text-only Correction of the actual result", () => {
+    const rows = [closedRow("a", 1, adoption, 130, [definedAs(ADOPTERS)], { closureCorrections: [{ ...corrected(undefined, 2), value: undefined }] })];
+    expect(totalsOf(rows, Q3)[0].summed).toEqual({ count: 1, change: 30 });
   });
 });
 

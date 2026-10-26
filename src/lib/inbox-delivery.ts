@@ -1,10 +1,10 @@
 import "server-only";
 
-import { after } from "next/server";
+import { afterResponse } from "./after-response";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db, deliveryLog, deliveryPreferences, organizations, profiles, requestAgreements, requests, type DeliveryChannel } from "@/db";
-import type { MemberAuth } from "./auth-guard";
+import type { MemberAuth, WorkspacePermission } from "./auth-guard";
 import { loadNeedsYou } from "./data/inbox";
 import { deliveryMessage, guestMessage } from "./delivery-message";
 import { appOrigin, emailDelivery, slackDelivery, type SlackDelivery } from "./feature-switches";
@@ -12,6 +12,7 @@ import type { NeedsYouItem, NeedsYouKind } from "./inbox-read-model";
 import { idempotencyKeyOf, recordingMessenger, resendMessenger, slackMessenger, type Messenger, type SendResult } from "./messenger";
 import { slackTokenFor } from "./slack-connection";
 import { journeyStatusCondition, requesterColumn } from "./request-journey-sql";
+import { canChangeThings, canContribute, clerkWorkspacePermission } from "./role-rules";
 import type { Reviewer } from "./request-reviewer-rules";
 import { workspaceMember, workspaceRoster } from "./workspace-roster";
 
@@ -49,7 +50,8 @@ export type DeliveryRun = {
 /** Totals only: no person, address or item ever leaves this module in a report. */
 export type DeliveryReport = { sent: number; skipped: number; failed: number };
 
-type Recipient = { userId: string; email: string; role: "admin" | "member" };
+/** An Admin or Member: only they are asked to act. */
+type Recipient = { userId: string; email: string; role: WorkspacePermission };
 
 /** The messenger the switches choose for this run. A new stand-in each run, so nothing piles up in memory. */
 export function switchedMessenger(): Messenger {
@@ -69,9 +71,11 @@ const runOf = (run: Partial<DeliveryRun> = {}): DeliveryRun => ({
 async function recipientsOf(orgId: string): Promise<Map<string, Recipient>> {
   const people = await workspaceRoster(orgId);
   const recipients = new Map<string, Recipient>();
-  for (const person of people)
-    if (person.nominee.kind === "member" && (person.role === "org:admin" || person.role === "org:member"))
-      recipients.set(person.nominee.userId, { userId: person.nominee.userId, email: person.email, role: person.role === "org:admin" ? "admin" : "member" });
+  for (const person of people) {
+    const role = clerkWorkspacePermission(person.role);
+    if (person.nominee.kind === "member" && role && canChangeThings(role))
+      recipients.set(person.nominee.userId, { userId: person.nominee.userId, email: person.email, role });
+  }
   return recipients;
 }
 
@@ -94,18 +98,19 @@ async function workspaceNameOf(orgId: string): Promise<string> {
  * Sends one item on one channel: claimed in the log first, so a concurrent or repeated run skips it, then sent.
  * A send that fails releases its claim, so a later run (or Email, when Slack can't reach the person) can send it.
  */
-async function sendOne(
-  orgId: string,
-  recipient: Pick<Recipient, "userId" | "email">,
-  item: Pick<NeedsYouItem, "requestId" | "key">,
-  channel: "email" | "slack",
-  messenger: Messenger,
-  copyOf: () => { subject: string; text: string },
-  run: DeliveryRun,
-): Promise<SendResult | "already"> {
+async function sendOne({ orgId, recipient, item, channel, messenger, copyOf, now }: {
+  orgId: string;
+  recipient: Pick<Recipient, "userId" | "email">;
+  item: Pick<NeedsYouItem, "requestId" | "key">;
+  channel: "email" | "slack";
+  messenger: Messenger;
+  /** The message, written only once the send is claimed. */
+  copyOf: () => { subject: string; text: string };
+  now: Date;
+}): Promise<SendResult | "already"> {
   const [claimed] = await db
     .insert(deliveryLog)
-    .values({ orgId, userId: recipient.userId, requestId: item.requestId, itemKey: item.key, channel, outcome: messenger.outcome, sentAt: run.now })
+    .values({ orgId, userId: recipient.userId, requestId: item.requestId, itemKey: item.key, channel, outcome: messenger.outcome, sentAt: now })
     .onConflictDoNothing()
     .returning({ id: deliveryLog.id });
   if (!claimed) return "already";
@@ -142,13 +147,13 @@ async function sendItems(
     }
     let result: SendResult | "already" | null = null;
     if (channel === "slack" && slackDm) {
-      result = await sendOne(orgId, recipient, item, "slack", slackDm, () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "slack" }), run);
+      result = await sendOne({ orgId, recipient, item, channel: "slack", messenger: slackDm, copyOf: () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "slack" }), now: run.now });
       if (result !== "already" && !result.ok && result.useEmail) {
         console.error(`[inbox-delivery] Slack DM not possible, sending by email: ${result.reason}`);
         result = null;
       }
     }
-    result ??= await sendOne(orgId, recipient, item, "email", run.messenger, () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "email" }), run);
+    result ??= await sendOne({ orgId, recipient, item, channel: "email", messenger: run.messenger, copyOf: () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "email" }), now: run.now });
     if (result === "already") report.skipped++;
     else if (result.ok) report.sent++;
     else {
@@ -252,14 +257,19 @@ export async function deliverGuestEmail(target: { orgId: string; requestId: stri
   const closure = row.measured ? "measured" as const : row.withoutResult ? "without_result" as const : null;
   if (target.kind === "closed" && !closure) return report;
   const guest = await workspaceMember(target.orgId, row.createdBy);
-  if (!guest || guest.role === "org:viewer" || !guest.email) return report;
+  // A Guest made a Viewer since (or given a role Lane doesn't know) gets no Guest email.
+  const guestRole = guest && clerkWorkspacePermission(guest.role);
+  if (!guest || !guestRole || !canContribute(guestRole) || !guest.email) return report;
   const workspaceName = await workspaceNameOf(target.orgId);
   const copy = () => guestMessage(
     target.kind === "taken_on" ? { kind: "taken_on", takerName: row.takerName } : { kind: "closed", closure: closure! },
     { requestId: target.requestId, requestNumber: row.requestNumber, title: row.title, reframedProblem: row.reframedProblem },
     { appUrl: settled.appUrl, workspaceName },
   );
-  const result = await sendOne(target.orgId, { userId: row.createdBy, email: guest.email }, { requestId: target.requestId, key: `guest_${target.kind}:${target.requestId}` }, "email", settled.messenger, copy, settled);
+  const result = await sendOne({
+    orgId: target.orgId, recipient: { userId: row.createdBy, email: guest.email }, item: { requestId: target.requestId, key: `guest_${target.kind}:${target.requestId}` },
+    channel: "email", messenger: settled.messenger, copyOf: copy, now: settled.now,
+  });
   if (result === "already") report.skipped++;
   else if (result.ok) report.sent++;
   else {
@@ -274,17 +284,7 @@ export type GuestEmailKind = "taken_on" | "closed";
 
 /** Sends a Guest's email after the action's response, as `deliverAfterResponse` does for Needs-you items. */
 export function deliverGuestEmailAfterResponse(target: { orgId: string; requestId: string; kind: GuestEmailKind }) {
-  try {
-    after(async () => {
-      try {
-        await deliverGuestEmail(target);
-      } catch (error) {
-        console.error(`[inbox-delivery] Guest email after an action failed: ${error instanceof Error ? error.name : "error"}`);
-      }
-    });
-  } catch {
-    // `after` throws outside a request scope; there is nothing to deliver after.
-  }
+  afterResponse("inbox-delivery", () => deliverGuestEmail(target));
 }
 
 /**
@@ -292,15 +292,5 @@ export function deliverGuestEmailAfterResponse(target: { orgId: string; requestI
  * waits on email. Outside a request (a script, a test) there is no response to wait for, and nothing is sent.
  */
 export function deliverAfterResponse(target: { orgId: string; requestId: string }) {
-  try {
-    after(async () => {
-      try {
-        await deliverRequestNeedsYou(target);
-      } catch (error) {
-        console.error(`[inbox-delivery] delivery after an action failed: ${error instanceof Error ? error.name : "error"}`);
-      }
-    });
-  } catch {
-    // `after` throws outside a request scope; there is nothing to deliver after.
-  }
+  afterResponse("inbox-delivery", () => deliverRequestNeedsYou(target));
 }

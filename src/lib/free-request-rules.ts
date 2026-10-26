@@ -1,8 +1,9 @@
 /**
  * #213 (spec #195, item 5): the Free Requests rules. Client-safe and pure; the billing module (src/lib/billing.ts)
- * gives them a workspace's stored state. Every new workspace gets 4 Free Requests with the whole product, for any
- * number of people and no time limit. The allowance belongs to the company email domain of the workspace's creator,
- * or, for a personal email domain such as gmail.com, to that one person.
+ * gives them a workspace's stored state. 4 Free Requests come with the whole product, for any number of people and no
+ * time limit. The allowance belongs to the company email domain of the workspace's creator, or, for a personal email
+ * domain such as gmail.com, to that one person. Decision 2026-10-26: the 4 are shared by every workspace with the same
+ * allowance, so a second workspace from a company domain gets whatever is left (the first used 1: the second gets 3).
  */
 
 export const FREE_REQUESTS = 4;
@@ -10,29 +11,33 @@ export const FREE_REQUESTS = 4;
 export type PlanState = "free" | "paying" | "lapsed";
 export type AllowanceKind = "company_domain" | "personal_email";
 
-/** What a workspace's billing row says. `allowance` is null until the creator's allowance has been looked up. */
+/**
+ * What a workspace's billing row says: Requests counted here, and the allowance it shares (null until the creator's
+ * allowance has been looked up) with how many Requests the other workspaces sharing it have counted.
+ */
 export type FreeRequestsState = {
   planState: PlanState;
   used: number;
-  allowance: { kind: AllowanceKind; domain: string; held: boolean } | null;
+  allowance: { kind: AllowanceKind; domain: string; usedElsewhere: number } | null;
 };
 
 export type FreeRequests = {
+  /** Always the 4 of the allowance, however many workspaces share it. */
   total: number;
+  /** Counted in this workspace. */
   used: number;
   left: number;
-  /** Set when another workspace from the creator's domain (or the same person) already holds the allowance. */
-  usedElsewhere: { kind: AllowanceKind; domain: string } | null;
+  /** Set when other workspaces from the creator's company domain (or of the same person) used some of the 4. */
+  usedElsewhere: { kind: AllowanceKind; domain: string; used: number } | null;
 };
 
 export function freeRequestsOf(state: FreeRequestsState): FreeRequests {
-  const elsewhere = state.allowance && !state.allowance.held ? state.allowance : null;
-  const total = elsewhere ? 0 : FREE_REQUESTS;
+  const elsewhere = state.allowance && state.allowance.usedElsewhere > 0 ? state.allowance : null;
   return {
-    total,
+    total: FREE_REQUESTS,
     used: state.used,
-    left: Math.max(0, total - state.used),
-    usedElsewhere: elsewhere && { kind: elsewhere.kind, domain: elsewhere.domain },
+    left: Math.max(0, FREE_REQUESTS - state.used - (elsewhere?.usedElsewhere ?? 0)),
+    usedElsewhere: elsewhere && { kind: elsewhere.kind, domain: elsewhere.domain, used: elsewhere.usedElsewhere },
   };
 }
 
@@ -41,9 +46,23 @@ export const ADMIN_NEEDS_TO_PAY =
 
 /** Why the 5th Request is refused, in the words of the person who gets refused. */
 export function freeRequestsUsedReason(free: FreeRequests): string {
-  if (free.usedElsewhere?.kind === "company_domain") return `The Free Requests for ${free.usedElsewhere.domain} were already used by another workspace.`;
-  if (free.usedElsewhere) return "The person who created this workspace already used their Free Requests in another workspace.";
-  return `This workspace has used its ${FREE_REQUESTS} Free Requests.`;
+  const elsewhere = free.usedElsewhere;
+  if (!elsewhere) return `This workspace has used its ${FREE_REQUESTS} Free Requests.`;
+  const company = elsewhere.kind === "company_domain";
+  if (free.used > 0) return company
+    ? `This workspace and another from ${elsewhere.domain} have used the ${FREE_REQUESTS} Free Requests for ${elsewhere.domain}.`
+    : `This workspace and another created by the same person have used their ${FREE_REQUESTS} Free Requests.`;
+  return company
+    ? `The Free Requests for ${elsewhere.domain} were already used by another workspace.`
+    : "The person who created this workspace already used their Free Requests in another workspace.";
+}
+
+/** While some are left: that the 4 are shared with another workspace, which has used some. Null when none are shared. */
+export function freeRequestsSharedNote(free: FreeRequests): string | null {
+  const elsewhere = free.usedElsewhere;
+  if (!elsewhere || free.left === 0) return null;
+  const whose = elsewhere.kind === "company_domain" ? `another workspace from ${elsewhere.domain}` : "another workspace created by the same person";
+  return `${free.left} of ${FREE_REQUESTS} Free Requests left. They are shared with ${whose}, which used ${elsewhere.used}.`;
 }
 
 /**

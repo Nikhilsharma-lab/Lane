@@ -15,6 +15,12 @@ export type MemberAuth = {
   role: WorkspacePermission;
 };
 export type AdminAuth = MemberAuth & { role: "admin" };
+/**
+ * The one shape modules that act within a workspace take: the workspace, or the workspace and the person. A guard's
+ * `MemberAuth` (or a page's workspace context) passes as it is, so callers never rebuild `{ orgId, userId }`.
+ */
+export type WorkspaceScope = Pick<MemberAuth, "orgId">;
+export type WorkspacePerson = Pick<MemberAuth, "orgId" | "userId">;
 
 async function activeClerkMembership(
   expectedOrgId: string

@@ -19,7 +19,7 @@ export async function startSlackConnect(_data: Record<string, never>, context: {
   const slack = slackDelivery();
   if (!slack.on) return { error: "Slack isn't available in Lane yet." };
 
-  const state = signInstallState({ orgId: auth.orgId, userId: auth.userId }, { secret: slack.clientSecret, now: new Date() });
+  const state = signInstallState(auth, { secret: slack.clientSecret, now: new Date() });
   return { ok: true as const, url: slackAuthorizeUrl({ clientId: slack.clientId, redirectUri: `${appOrigin()}/api/slack/callback`, state }) };
 }
 

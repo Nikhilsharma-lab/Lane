@@ -17,6 +17,10 @@ export class RequestChangeError extends Error {}
 export function insist(value: unknown, message: string): asserts value {
   if (!value) throw new RequestChangeError(message);
 }
+/** Refuses the change with `message`, as `insist` does when its condition fails. */
+export function refuse(message: string): never {
+  throw new RequestChangeError(message);
+}
 export type StoredRequest = typeof requests.$inferSelect;
 export type ChangeResult<Extra = object> = { success: true; revision: number } & Extra;
 

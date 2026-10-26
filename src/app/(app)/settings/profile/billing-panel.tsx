@@ -22,8 +22,8 @@ const day = (at: Date | null) => at && journeyDay(at.toISOString());
  */
 export async function billingPanel(workspace: Pick<WorkspaceContext, "orgId" | "role">, checkout?: string): Promise<ReactNode> {
   if (workspace.role !== "admin") return undefined;
-  await decideFreeRequests({ orgId: workspace.orgId });
-  const [{ planState, free }, plan] = await Promise.all([readFreeRequests({ orgId: workspace.orgId }), readPlan({ orgId: workspace.orgId })]);
+  await decideFreeRequests(workspace);
+  const [{ planState, free }, plan] = await Promise.all([readFreeRequests(workspace), readPlan(workspace)]);
   const enforced = billingEnforced();
   const provider = paymentProvider() !== null;
   const availability: PlanCheckout = !enforced ? "not_charging" : provider ? "available" : "unavailable";

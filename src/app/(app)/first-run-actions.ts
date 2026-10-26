@@ -16,7 +16,7 @@ export async function updateFirstRun(data: { change: string; step?: string }, co
   const auth = await requireActiveMember(context.orgId);
   if (!auth) return { error: await refusal("You can't change the first run in this workspace.") };
 
-  const result = await changeFirstRun({ orgId: auth.orgId, userId: auth.userId }, change);
+  const result = await changeFirstRun(auth, change);
   if ("refused" in result)
     return { error: result.refused === "not_a_step" ? "That step isn't part of your first run." : "Your first run isn't ready yet. Reload the page and try again." };
   // Only skip, finish and reopen change what the pages show; a step read is already on screen.

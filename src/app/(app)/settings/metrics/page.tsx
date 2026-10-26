@@ -28,7 +28,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
 
   const { section, show } = await searchParams;
   const view = show === "archived" ? "archived" : "active";
-  const all = await listMetricDefinitions({ orgId: workspace.orgId }, { includeArchived: view === "archived" });
+  const all = await listMetricDefinitions(workspace, { includeArchived: view === "archived" });
   const definitions = view === "archived" ? all.filter(definition => definition.archivedAt && !definition.mergedIntoId) : all;
   // #210: a Viewer reads the library and adds or edits nothing.
   const canEdit = canChangeThings(workspace.role);

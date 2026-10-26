@@ -17,7 +17,9 @@
  * comments, Looks good and invite accepted. A read item has cleared and is not in the Inbox. A Guest gets only
  * items about their own submissions.
  */
+import type { WorkspacePermission } from "./auth-guard"
 import { journeyStatus, requesterOf, type JourneyFacts } from "./request-journey"
+import { canChangeThings, readsWholeWorkspace } from "./role-rules"
 import type { Reviewer } from "./request-reviewer-rules"
 import { DAY_MS, daysUntil } from "./utc-day"
 
@@ -28,7 +30,7 @@ export type ForYourInformationKind = (typeof FOR_YOUR_INFORMATION_KINDS)[number]
 /** The stored notification kinds that date a review ask: the ask itself, and the reset an edit sends. */
 export const REVIEW_ASK_KINDS = ["review_requested", "review_reset"] as const
 
-export type InboxViewer = { userId: string; role: "admin" | "member" | "guest" | "viewer" }
+export type InboxViewer = { userId: string; role: WorkspacePermission }
 
 /** One stored notification as the loader reads it, with the Request's author for the Guest rule. */
 export type StoredNotification = {
@@ -101,11 +103,11 @@ const FYI = new Set<string>(FOR_YOUR_INFORMATION_KINDS)
 export const isForYourInformation = (type: string): type is ForYourInformationKind => FYI.has(type)
 
 /** Whether the person is ever asked to act: Admins and Members only. */
-export const getsNeedsYou = (viewer: Pick<InboxViewer, "role">) => viewer.role === "admin" || viewer.role === "member"
+export const getsNeedsYou = (viewer: Pick<InboxViewer, "role">) => canChangeThings(viewer.role)
 
 /** A Guest follows only their own submissions; everyone else, anything addressed to them. */
 function visibleTo(viewer: InboxViewer, row: StoredNotification) {
-  if (viewer.role !== "guest") return true
+  if (readsWholeWorkspace(viewer.role)) return true
   return row.requestId !== null && row.requestCreatedBy === viewer.userId
 }
 

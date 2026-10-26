@@ -58,7 +58,7 @@ describe("the first Request guide (#217)", () => {
 
   it("shows the Free Requests left", () => {
     expect(text(render({ step: "free_requests" }))).toContain("4 of 4 Free Requests left.")
-    const used = { planState: "free" as const, free: { total: 0, used: 0, left: 0, usedElsewhere: { kind: "company_domain" as const, domain: "example.com" } } }
+    const used = { planState: "free" as const, free: { total: 4, used: 0, left: 0, usedElsewhere: { kind: "company_domain" as const, domain: "example.com", used: 4 } } }
     expect(text(render({ step: "free_requests", free: used }))).toContain("The Free Requests for example.com were already used by another workspace.")
   })
 

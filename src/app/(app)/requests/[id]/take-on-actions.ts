@@ -1,5 +1,5 @@
 "use server";
-import { changeRequest, fingerprintOf, insist } from "@/lib/request-change-store";
+import { changeRequest, fingerprintOf, insist, refuse } from "@/lib/request-change-store";
 import type { RequestChangeContext } from "@/lib/request-reviewer-rules";
 import { personName } from "@/lib/request-journey-access";
 import { deliverGuestEmailAfterResponse } from "@/lib/inbox-delivery";
@@ -25,12 +25,12 @@ export async function takeOnGuestSubmission(context: RequestChangeContext) {
       : undefined,
     apply: async (tx, { request, auth, roster }) => {
       insist(request.guestSubmission, "Only a Guest submission can be taken on.");
-      if (request.takenOnBy) insist(false, `${await personName(tx, roster, request.takenOnBy)} already took this on.`);
+      if (request.takenOnBy) refuse(`${await personName(tx, roster, request.takenOnBy)} already took this on.`);
       // A Guest who has since become a Member can't take their own submission on: someone else answers for it.
       insist(auth.userId !== request.createdBy, "You filed this one. Ask a teammate to take it on.");
       // #213: taking it on counts as a new Request, so it waits while an Admin needs to pay.
-      const block = await newRequestBlock({ orgId: auth.orgId }, tx);
-      if (block) insist(false, block);
+      const block = await newRequestBlock(auth, tx);
+      if (block) refuse(block);
       return { set: { takenOnBy: auth.userId, takenOnAt: new Date() } };
     },
   });

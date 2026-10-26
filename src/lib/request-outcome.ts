@@ -25,22 +25,28 @@ export const LEARNED_MAX_LENGTH = 280;
 const ONE_LINE = /^[^\r\n]*$/;
 /** Optional on closing: trimmed, one line; left blank, nothing is stored. */
 const learnedLine = z.string().trim().max(LEARNED_MAX_LENGTH).regex(ONE_LINE).optional().transform(value => value || undefined);
+/** An actual result as recorded: a number, or whether the Pass/fail check passed. */
+const resultValueSchema = z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('numeric'), actual: z.number().finite() }).strict(),
+    z.object({ kind: z.literal('pass_fail'), passed: z.boolean() }).strict(),
+]);
+/** The value a Correction of the actual result states (decision 2026-10-26: Corrections count in totals). */
+export type ResultValue = z.infer<typeof resultValueSchema>;
 export const outcomeChangeSchema = z.discriminatedUnion('kind', [
     z.object({
         kind: z.literal('measured'),
-        primary: z.discriminatedUnion('kind', [
-            z.object({ kind: z.literal('numeric'), actual: z.number().finite() }).strict(),
-            z.object({ kind: z.literal('pass_fail'), passed: z.boolean() }).strict(),
-        ]),
+        primary: resultValueSchema,
         // Actual values in the agreed guardrail order; every agreed guardrail needs one.
         guardrails: z.array(z.number().finite()).max(20),
         evidence: text, observedFrom: date, observedTo: date,
         learned: learnedLine,
     }).strict(),
     z.object({ kind: z.literal('exception'), reasonCode: z.enum(EXCEPTION_REASONS), reason: z.string().trim().max(4000), learned: learnedLine }).strict(),
-    z.object({ kind: z.literal('correction'), field: z.enum(CORRECTION_FIELDS), correction: text, reason: text }).strict()
+    z.object({ kind: z.literal('correction'), field: z.enum(CORRECTION_FIELDS), correction: text, reason: text, value: resultValueSchema.optional() }).strict()
         // A Correction of What we learned is one line, like the original.
-        .refine(change => change.field !== 'learned' || (change.correction.length <= LEARNED_MAX_LENGTH && ONE_LINE.test(change.correction))),
+        .refine(change => change.field !== 'learned' || (change.correction.length <= LEARNED_MAX_LENGTH && ONE_LINE.test(change.correction)))
+        // A Correction of the actual result says what it was, so totals can count it; no other part carries a value.
+        .refine(change => (change.field === 'actual') === (change.value !== undefined)),
 ]);
 /** Each closure kind only has its own parts to correct. */
 export function correctableFields(kind: 'measured' | 'exception'): readonly typeof CORRECTION_FIELDS[number][] {
@@ -91,6 +97,8 @@ export type ClosureCorrection = {
     field: typeof CORRECTION_FIELDS[number];
     correction: string;
     reason: string;
+    /** The corrected actual result (field `actual` only, since 0053). Older text-only Corrections have none and leave the closing value counted. */
+    value?: ResultValue;
     revision: number;
 };
 export type AgreedResult = {

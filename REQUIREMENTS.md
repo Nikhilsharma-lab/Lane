@@ -763,10 +763,18 @@ Reporting requirements for the bounded design:
   date as of" date, At a glance counts (shipped, measured, still due, closed without a result), totals for quarters
   and years only (never months), a section per current Project then "No Project" with each Request's problem,
   prediction, result with guardrails or result due date, latest Corrections marked "corrected" and Follow-ups, and
-  Closed without a result by reason. Totals use values as recorded at closing; Corrections are shown, not summed.
-  Released operational work is listed with its reason. Work never Released (including work closed without a result
-  before release) is in no period. Everyone except Guests sees it; nobody is named, grouped or ranked. Integration
-  branch only.
+  Closed without a result by reason. Released operational work is listed with its reason. Work never Released is in
+  no period, except work closed without a result before release (below). Everyone except Guests sees it; nobody is
+  named, grouped or ranked. Integration branch only.
+  **Corrections count in totals, decided 2026-10-26 (review of #195; supersedes "Totals use values as recorded at
+  closing; Corrections are shown, not summed"):** when a result is corrected after closing, quarter/year totals and
+  the Outcome report use the corrected value, marked "corrected"; the original stays visible on the Request. A
+  Correction of the actual result therefore records a structured value beside its text (a number for a numeric metric,
+  passed or not for a Pass/fail check; migration 0053). Older text-only Corrections keep counting the closing value.
+  Corrections stay protected and append-only.
+  **Closed without a result before any Release, decided 2026-10-26:** it appears in the Outcome report under "Closed
+  without a result" (and its At a glance count) in the period it was closed (UTC). It is never counted as shipped or
+  in any total.
   **What we learned, Quarter note and printing, approved 2026-10-25 (#195, #209):** both closing forms (with a
   measured result, and Closed without a result) have an optional one-line What we learned box (up to 280 characters),
   stored with the closure (migration 0043). After closing it changes only by a Correction ("What we learned"); the
@@ -910,8 +918,11 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   Member takes it on, not when it is filed. The database keeps the count (migration 0046), so no path skips it.
 - The allowance belongs to the company email domain of the workspace's Clerk creator; for a personal email domain
   (Gmail, Outlook, iCloud and the like) it belongs to that one address (read without `+tags`, and for Gmail without
-  dots). The first workspace Lane sees for a domain or address holds the 4; a later one gets none and is told the
-  Free Requests were already used by another workspace. It is decided once, when Lane first sees the workspace
+  dots). **Shared, decided 2026-10-26 (review of #195; supersedes "a later one gets none"):** every workspace with
+  the same company domain shares its 4, so a second one gets whatever is left (the first used 1: the second gets 3);
+  once all 4 are used, the second is told they were already used by another workspace. A personal address's 4 are
+  likewise shared only by that person's workspaces. Filing the last one locks the shared allowance, so two workspaces
+  can't both take it. A workspace's allowance is decided once, when Lane first sees the workspace
   (or, for workspaces Lane saw before 0046, when an Admin opens Billing or someone files while billing is enforced);
   if Lane can't find the creator it stays undecided and the workspace keeps its 4.
 - Once they are used and there is no paid plan (or the plan lapsed), creating a new Request, a follow-up, or taking

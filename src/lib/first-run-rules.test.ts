@@ -73,8 +73,8 @@ describe("what the first run's action accepts", () => {
 });
 
 describe("the Free Requests line", () => {
-  const free = (left: number, usedElsewhere: { kind: "company_domain" | "personal_email"; domain: string } | null = null) =>
-    ({ total: usedElsewhere ? 0 : 4, used: 4 - left, left, usedElsewhere });
+  const free = (left: number, usedElsewhere: { kind: "company_domain" | "personal_email"; domain: string; used: number } | null = null) =>
+    ({ total: 4, used: 4 - left - (usedElsewhere?.used ?? 0), left, usedElsewhere });
 
   it("says how many of the 4 are left", () => {
     expect(freeRequestsNote("free", free(4))).toBe("4 of 4 Free Requests left.");
@@ -83,7 +83,8 @@ describe("the Free Requests line", () => {
   });
 
   it("says when another workspace already used them, and when the workspace pays", () => {
-    expect(freeRequestsNote("free", free(0, { kind: "company_domain", domain: "example.com" }))).toBe("The Free Requests for example.com were already used by another workspace.");
+    expect(freeRequestsNote("free", free(0, { kind: "company_domain", domain: "example.com", used: 4 }))).toBe("The Free Requests for example.com were already used by another workspace.");
+    expect(freeRequestsNote("free", free(3, { kind: "company_domain", domain: "example.com", used: 1 }))).toBe("3 of 4 Free Requests left. They are shared with another workspace from example.com, which used 1.");
     expect(freeRequestsNote("paying", free(0))).toBe("This workspace pays for Lane, so creating Requests has no limit.");
   });
 });

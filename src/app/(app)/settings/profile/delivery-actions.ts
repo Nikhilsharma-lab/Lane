@@ -20,7 +20,7 @@ export async function updateDeliveryPreference(data: { channel: string }, contex
   if (parsed.data.channel === "slack" && !(await slackConnected(auth.orgId)))
     return { error: "Slack isn't connected to this workspace. Choose Email or Off, or ask an Admin to connect Slack." };
 
-  await saveDeliveryChoice({ orgId: auth.orgId, userId: auth.userId }, parsed.data.channel);
+  await saveDeliveryChoice(auth, parsed.data.channel);
   revalidatePath("/settings/profile");
   return { success: true };
 }

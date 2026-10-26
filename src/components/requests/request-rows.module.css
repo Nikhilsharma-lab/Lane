@@ -129,10 +129,9 @@
   .row[data-compact-row] .properties > [data-row-property="createdAt"] { display: none; }
 }
 @container (max-width: 640px) {
-  /* Sketch reservation (2026-10-11 creation-to-outcome sketch): a later trailing
-     token, span[data-row-property="waiting"], is hidden here with every other
-     property except the assignee and the due tag (#133), so phones never have to fit it. */
-  .row[data-compact-row] .properties > span:not([data-row-property="pickedUpBy"], [data-row-property="due"]) { display: none; }
+  /* Phones keep the assignee, the due tag (#133) and a Guest submission's
+     "Waiting to be taken on" tag (review of #195: none are forgotten); every other property is hidden. */
+  .row[data-compact-row] .properties > span:not([data-row-property="pickedUpBy"], [data-row-property="due"], [data-row-property="waiting"]) { display: none; }
   .row[data-compact-row] .properties { flex: none; max-width: none; }
 }
 @media (max-width: 640px) {

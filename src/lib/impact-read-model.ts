@@ -14,8 +14,11 @@
  *   a line per saved name and unit, never shared with a definition's. Percentages are never summed.
  * - Verified (pass/fail) results are tallied as good or bad, never summed.
  * - A result shared by several Requests (the same observation) is counted once; every Request is listed.
+ * - A result corrected after closing counts at its latest corrected value (`correctedFrom` keeps the value recorded at
+ *   closing); a text-only Correction from before corrected values were recorded leaves the closing value counted.
  * - Operational work and Requests closed without a result are never in a line or total.
- * - A Request with no release date is never in a period; the period is the release date (UTC).
+ * - A Request is in the period of its release date (UTC). One never Released is in no period, except one closed without a
+ *   result before any Release: it is listed (never as shipped or in a total) in the period it was closed (UTC).
  * - Nothing per person: no totals, averages, scores or rankings for anyone.
  */
 import { agreedResult, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, guardrailHeld, type ClosureCorrection, type ExceptionReason, type OutcomeClosure, type OutcomeException } from "./request-outcome";
@@ -28,14 +31,14 @@ import { releaseMeasurement, valueBeforeReleaseFor } from "./request-release-fac
 import type { ReleaseFact, ReleaseState } from "./request-release";
 import { DAY_MS, utcDay } from "./utc-day";
 import type { WorkspacePermission } from "./auth-guard";
-import { inPeriod, periodLabel, quarterOf, quartersOf, type ImpactPeriod, type Month, type Quarter } from "./impact-period";
+import { inPeriod, periodLabel, quarterOf, quartersOf, type ImpactPeriod, type Quarter } from "./impact-period";
 import { iterationLabel } from "./same-problem-rules";
 
 /** A Viewer (#210) reads exactly what a Member reads; only a Guest is narrowed to their own Requests. */
 export type ImpactViewer = { userId: string; orgId: string; role: WorkspacePermission };
-export type { ImpactPeriod, Month };
 export type ImpactOptions = {
-  now?: Date;
+  /** The time the page is read at. Time is a parameter: the read model never reads the clock. */
+  now: Date;
   period?: ImpactPeriod | null;
   /** The workspace's Quarter notes (#209), each with its last editor's name. The loader reads only the period's quarters. */
   quarterNotes?: QuarterNote[];
@@ -128,9 +131,12 @@ export type ResultView = {
   baselineSource: BaselineSource | null;
   /** The planning baseline entered at Request creation, shown beside the predicted change so the plan stays visible. */
   plannedBaseline: number | null;
+  /** The actual result counted: the latest corrected value, else the one recorded at closing. */
   actual: number | null;
   change: number | null;
   verdict: Verdict | null;
+  /** The result as recorded at closing, set only when a Correction stated another value (shown marked "corrected"). */
+  correctedFrom: { actual: number | null; verdict: Verdict | null } | null;
   predictedTarget: number | null;
   predictedChange: number | null;
   releaseDate: string;
@@ -285,16 +291,26 @@ function guardrailViews(row: ImpactRow, closure: OutcomeClosure): GuardrailView[
   });
 }
 
+/** The latest Correction of the actual result that stated a value of the closure's own form, if any. */
+function correctedResultOf(row: ImpactRow, closure: OutcomeClosure): ClosureCorrection | null {
+  return row.closureCorrections.filter(correction => correction.field === "actual" && correction.value?.kind === closure.primary.kind)
+    .sort((a, b) => a.revision - b.revision).at(-1) ?? null;
+}
+
+const verdictOf = (passed: boolean | null): Verdict | null => passed === null ? null : passed ? "good" : "bad";
+
 function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
   const prediction = predictionOf(closure.expected, row.definitions);
-  const passed = closure.primary.kind === "pass_fail" ? closure.primary.passed : null;
-  const actual = closure.primary.kind === "numeric" ? closure.primary.actual : null;
+  const recorded = { actual: closure.primary.kind === "numeric" ? closure.primary.actual : null, verdict: verdictOf(closure.primary.kind === "pass_fail" ? closure.primary.passed : null) };
+  const correctedTo = correctedResultOf(row, closure)?.value ?? null;
+  const actual = correctedTo ? correctedTo.kind === "numeric" ? correctedTo.actual : null : recorded.actual;
+  const verdict = correctedTo ? verdictOf(correctedTo.kind === "pass_fail" ? correctedTo.passed : null) : recorded.verdict;
   // Change is measured from the value recorded before release (#151 decision 3). A release recorded before that has none,
   // so it keeps the planning baseline, and every view labels it as such. A new capability or unknown baseline has no change.
   const planned = prediction.baselineState === "known" ? prediction.baseline : null;
-  const recorded = valueBeforeReleaseFor(row.releaseState, closure.release);
-  const baselineSource: BaselineSource | null = planned === null ? null : recorded ? "release" : "planning";
-  const baseline = baselineSource === "release" ? recorded!.value : planned;
+  const before = valueBeforeReleaseFor(row.releaseState, closure.release);
+  const baselineSource: BaselineSource | null = planned === null ? null : before ? "release" : "planning";
+  const baseline = baselineSource === "release" ? before!.value : planned;
   const change = baseline !== null && actual !== null ? actual - baseline : null;
   return {
     requestId: row.id,
@@ -314,7 +330,8 @@ function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
     plannedBaseline: prediction.baseline,
     actual,
     change,
-    verdict: passed === null ? null : passed ? "good" : "bad",
+    verdict,
+    correctedFrom: correctedTo ? recorded : null,
     predictedTarget: prediction.target,
     predictedChange: prediction.predictedChange,
     releaseDate: closure.release.exposureDate,
@@ -465,9 +482,9 @@ function entriesForPerson(visible: ImpactRow[], personId: string, now: Date): My
  * A teammate's list (spec story 12): the same entries as My work, for one person, shown to a non-guest viewer.
  * Null for a guest, who has no view of anyone else's Requests. Holds no totals, averages, scores or rankings.
  */
-export function buildTeammateWork(viewer: ImpactViewer, rows: ImpactRow[], personId: string, options: ImpactOptions = {}): MyWorkEntry[] | null {
+export function buildTeammateWork(viewer: ImpactViewer, rows: ImpactRow[], personId: string, options: ImpactOptions): MyWorkEntry[] | null {
   if (viewer.role === "guest") return null;
-  return entriesForPerson(visibleTo(viewer, rows), personId, options.now ?? new Date());
+  return entriesForPerson(visibleTo(viewer, rows), personId, options.now);
 }
 
 /** A person a non-guest may open a list for, by name. */
@@ -545,9 +562,9 @@ function byProjectGroups<Use extends RequestRef>(items: { row: ImpactRow; use: U
  * Uses follow the definitions each Request resolves to now, so a definition merged into this one brings its Requests.
  * Null for a guest, who can't open the Metrics library.
  */
-export function buildDefinitionUses(viewer: ImpactViewer, rows: ImpactRow[], definitionId: string, options: ImpactOptions = {}): DefinitionUses | null {
+export function buildDefinitionUses(viewer: ImpactViewer, rows: ImpactRow[], definitionId: string, options: ImpactOptions): DefinitionUses | null {
   if (viewer.role === "guest") return null;
-  const now = options.now ?? new Date();
+  const { now } = options;
   const visible = visibleTo(viewer, rows);
   const main = visible.flatMap(row => {
     if (definitionAt(row.definitions, 0)?.id !== definitionId) return [];
@@ -585,10 +602,10 @@ export function buildDefinitionUses(viewer: ImpactViewer, rows: ImpactRow[], def
  * The Impact page for one viewer (#208): My work (unchanged since #155) and the Outcome report for the chosen period.
  * The period only shapes the report; My work lists every Request the viewer requested or picked up.
  */
-export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions = {}): ImpactDashboard {
-  const now = options.now ?? new Date();
+export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions): ImpactDashboard {
+  const { now } = options;
   const myWork = entriesForPerson(visibleTo(viewer, rows), viewer.userId, now);
-  return { myWork: { requests: myWork }, outcomeReport: buildOutcomeReport(viewer, rows, { ...options, now }) };
+  return { myWork: { requests: myWork }, outcomeReport: buildOutcomeReport(viewer, rows, options) };
 }
 
 /** A guardrail as the report shows it: its limit, and what was measured once the result is recorded (null until then). */
@@ -624,13 +641,16 @@ export type OutcomeReportEntry = RequestRef & {
 export type LearnedLine = { text: string; corrected: boolean };
 
 /**
- * A closed record's value as its latest Correction states it, shown marked "corrected". The record itself never changes
- * (its numbers stay as recorded at closing); the Request page shows the original beside every Correction.
+ * A closed record's part as its latest Correction words it, shown marked "corrected". The record itself never changes;
+ * the Request page shows the original beside every Correction. A stated corrected result is in `ResultView` instead.
  */
 export type CorrectedValue = { field: ClosureCorrection["field"]; label: string; value: string; at: string };
 
-/** A Request Released in the period and then closed without a result. */
-export type ReportClosedItem = RequestRef & { problem: string; projectName: string | null; releaseDate: string; reason: string; corrected: CorrectedValue[]; learned: LearnedLine | null; iteration: IterationNote | null };
+/**
+ * A Request closed without a result: Released in the period, or (`releaseDate` null) closed in the period before any
+ * Release. `closedOn` is the UTC day it was closed.
+ */
+export type ReportClosedItem = RequestRef & { problem: string; projectName: string | null; releaseDate: string | null; closedOn: string; reason: string; corrected: CorrectedValue[]; learned: LearnedLine | null; iteration: IterationNote | null };
 
 /** One quarter's place for its Quarter note at the end of the report (#209): the note, or null when none is written. */
 export type QuarterNoteSlot = { year: number; quarter: Quarter; label: string; note: Omit<QuarterNote, "year" | "quarter"> | null };
@@ -646,13 +666,16 @@ export type OutcomeReport = {
   period: ImpactPeriod;
   /** The UTC date the report is up to date as of: it is live, read when the page is opened. */
   asOf: string;
-  /** Requests Released in the period: all of them, those with a measured result, those still due, and those closed without one. */
+  /**
+   * Requests Released in the period: all of them, those with a measured result and those still due; and those closed
+   * without a result, Released in the period or closed in it before any Release.
+   */
   atAGlance: { shipped: number; measured: number; stillDue: number; closedWithoutResult: number };
   /** One line per Metric definition match (#151 rules, #201). Quarters and years only: null for a month, so small samples don't mislead. */
   totals: ResultLine[] | null;
   projects: OutcomeReportSection[];
   closedWithoutResult: ReportClosedGroup[];
-  /** Set only when nothing was Released in the period. */
+  /** Set only when nothing was Released in the period, nor closed in it before any Release. */
   emptyMessage: string | null;
   /** The Quarter notes the report ends with: the quarter's own, all four of a year's (empty ones included), none for a month. */
   quarterNotes: QuarterNoteSlot[];
@@ -717,23 +740,28 @@ function quarterNoteSlots(period: ImpactPeriod, notes: QuarterNote[]): QuarterNo
   });
 }
 
-/** The latest Correction of each corrected field, in the Correction form's field order. What we learned has its own line (`learnedOf`). */
+/**
+ * The latest Correction of each corrected field, in the Correction form's field order. What we learned has its own line
+ * (`learnedOf`), and an actual result corrected to a stated value shows in the result itself (`correctedFrom`).
+ */
 function correctedValues(row: ImpactRow): CorrectedValue[] {
-  return CORRECTION_FIELD_OPTIONS.filter(({ value }) => value !== "learned").flatMap(({ value: field, label }) => {
+  const statedResult = row.outcomeClosure ? correctedResultOf(row, row.outcomeClosure) : null;
+  return CORRECTION_FIELD_OPTIONS.filter(({ value }) => value !== "learned" && !(value === "actual" && statedResult)).flatMap(({ value: field, label }) => {
     const latest = row.closureCorrections.filter(correction => correction.field === field).sort((a, b) => a.revision - b.revision).at(-1);
     return latest ? [{ field, label, value: latest.correction, at: latest.at }] : [];
   });
 }
 
-function closedGroups(released: { row: ImpactRow; releaseDate: string }[], notes: Map<string, IterationNote>): ReportClosedGroup[] {
+function closedGroups(closed: { row: ImpactRow; releaseDate: string | null }[], notes: Map<string, IterationNote>): ReportClosedGroup[] {
   return EXCEPTION_REASON_OPTIONS.flatMap(({ value: reasonCode, label }) => {
-    const requests = byRequestNumber(released.flatMap(({ row, releaseDate }) => row.exceptionClosure?.reasonCode === reasonCode ? [{
+    const requests = byRequestNumber(closed.flatMap(({ row, releaseDate }) => row.exceptionClosure?.reasonCode === reasonCode ? [{
       requestId: row.id,
       requestNumber: row.requestNumber,
       title: row.title,
       problem: row.problem,
       projectName: row.projectName,
       releaseDate,
+      closedOn: utcDay(new Date(row.exceptionClosure.closedAt)),
       reason: row.exceptionClosure.reason,
       corrected: correctedValues(row),
       learned: learnedOf(row),
@@ -747,15 +775,18 @@ function closedGroups(released: { row: ImpactRow; releaseDate: string }[], notes
  * The Outcome report for a viewer and a period (#208, spec stories 88–103), grouped by release date (UTC). Null for a
  * guest, who receives nothing. With no period chosen it reports the current quarter.
  */
-export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions = {}): OutcomeReport | null {
+export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions): OutcomeReport | null {
   if (viewer.role === "guest") return null;
-  const now = options.now ?? new Date();
+  const { now } = options;
   const period = options.period ?? quarterOf(now);
   const visible = visibleTo(viewer, rows);
   const released = visible.flatMap(row => {
     const releaseDate = releaseDateOf(row);
     return releaseDate !== null && inPeriod(releaseDate, period) ? [{ row, releaseDate }] : [];
   });
+  // Closed without a result before any Release: never shipped, so it belongs to the period it was closed in.
+  const closedUnreleased = visible.flatMap(row => row.exceptionClosure && releaseDateOf(row) === null && inPeriod(utcDay(new Date(row.exceptionClosure.closedAt)), period) ? [{ row, releaseDate: null }] : []);
+  const closed = [...released.filter(({ row }) => row.exceptionClosure), ...closedUnreleased];
   // Closed without a result has its own list, by reason; every other Released Request sits in its current Project.
   const notes = iterationNotes(visible);
   const projects = byProjectGroups(released.flatMap(({ row, releaseDate }) => row.exceptionClosure ? [] : [{ row, use: reportEntryOf(row, releaseDate, now, visible, notes) }]))
@@ -765,7 +796,7 @@ export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], opti
     measured: released.filter(({ row }) => row.outcomeClosure).length,
     // Operational work is never measured, so it is never still due, even once Released.
     stillDue: projects.flatMap(section => section.requests).filter(entry => entry.outcome.kind === "still_due").length,
-    closedWithoutResult: released.filter(({ row }) => row.exceptionClosure).length,
+    closedWithoutResult: closed.length,
   };
   const results = released.flatMap(({ row }) => row.outcomeClosure ? [measuredResult(row, row.outcomeClosure)] : []);
   const totals = period.kind === "month" ? null : linesOf(results);
@@ -775,8 +806,8 @@ export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], opti
     atAGlance,
     totals,
     projects,
-    closedWithoutResult: closedGroups(released, notes),
-    emptyMessage: released.length === 0 ? `Nothing was Released in ${periodLabel(period)}.` : null,
+    closedWithoutResult: closedGroups(closed, notes),
+    emptyMessage: released.length === 0 && closed.length === 0 ? `Nothing was Released in ${periodLabel(period)}.` : null,
     quarterNotes: quarterNoteSlots(period, options.quarterNotes ?? []),
   };
 }
@@ -842,9 +873,9 @@ function iterationOutcome(row: ImpactRow, now: Date): IterationOutcome {
  * marked with its number. Follow-ups are never iterations unless also linked as Same problem. Null for a Request in
  * no group, and for a guest, who sees no links. Nothing by person.
  */
-export function buildIterations(viewer: ImpactViewer, rows: ImpactRow[], requestId: string, options: ImpactOptions = {}): Iterations | null {
+export function buildIterations(viewer: ImpactViewer, rows: ImpactRow[], requestId: string, options: ImpactOptions): Iterations | null {
   if (viewer.role === "guest") return null;
-  const now = options.now ?? new Date();
+  const { now } = options;
   const visible = visibleTo(viewer, rows);
   const group = visible.find(row => row.id === requestId)?.sameProblemGroup;
   const members = group ? sameProblemGroups(visible).get(group) : undefined;

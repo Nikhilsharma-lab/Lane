@@ -59,7 +59,7 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             // Every metric comes from this workspace's Metrics library; one the Request already saved may stay (#198).
             let plan = complete.success ? complete.data : null;
             if (plan) {
-                const checked = await checkPredictionMetrics({ orgId: auth.orgId }, plan, stored.expectedImpact);
+                const checked = await checkPredictionMetrics(auth, plan, stored.expectedImpact);
                 if ("error" in checked)
                     return { error: checked.error };
                 plan = checked.impact as typeof plan;

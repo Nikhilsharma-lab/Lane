@@ -3,6 +3,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 
 import { db, profiles, slackConnections } from "@/db";
+import type { WorkspacePerson } from "./auth-guard";
 import { slackDelivery, type SlackDelivery } from "./feature-switches";
 import { openSlackToken, sealSlackToken } from "./slack-token";
 
@@ -44,7 +45,7 @@ export async function slackTokenFor(orgId: string, slack: SlackDelivery = slackD
 
 /** Saves (or replaces) the workspace's connection, sealing the token first. */
 export async function saveSlackConnection(
-  { orgId, userId }: { orgId: string; userId: string },
+  { orgId, userId }: WorkspacePerson,
   install: { token: string; teamId: string; teamName: string },
   { tokenKey }: { tokenKey: Buffer },
 ) {

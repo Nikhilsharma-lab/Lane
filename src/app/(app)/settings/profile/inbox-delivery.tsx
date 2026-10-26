@@ -11,6 +11,6 @@ import { DeliveryForm } from "./delivery-form";
  */
 export async function inboxDeliveryPanel(workspace: Pick<WorkspaceContext, "orgId" | "userId" | "email" | "role">): Promise<ReactNode> {
   if (!canChangeThings(workspace.role)) return undefined;
-  const state = await readDeliveryState({ orgId: workspace.orgId, userId: workspace.userId });
+  const state = await readDeliveryState(workspace);
   return <DeliveryForm initialChoice={state.choice} slackOffered={state.slackOffered} choseSlack={state.choseSlack} email={workspace.email ?? ""} orgId={workspace.orgId} />;
 }

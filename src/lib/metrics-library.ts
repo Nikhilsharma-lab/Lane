@@ -5,6 +5,7 @@ import { and, asc, eq, isNull, max, ne, sql, type SQL, type SQLWrapper } from "d
 import { db, metricDefinitionAliases, metricDefinitionHistory, metricDefinitions, profiles, requestExpectedImpactRevisions, requests, type MetricDefinitionHistoryKind } from "@/db";
 import { metricUnitName, STARTER_METRIC_KEYS, type MetricChoice, type MetricDefinitionInput, type MetricUnit, type StarterMetricKey } from "@/lib/metric-definition-rules";
 import { savedMetricsOf, type SavedMetric } from "@/lib/saved-metrics";
+import type { WorkspaceScope } from "@/lib/auth-guard";
 
 /**
  * The Metrics library (#195 item 1, #196). The only module that reads or writes Metric definitions and
@@ -41,7 +42,7 @@ export type MetricDefinitionHistoryEntry = {
   createdAt: Date;
 };
 
-export type MetricsWorkspace = { orgId: string };
+export type MetricsWorkspace = WorkspaceScope;
 
 const STARTER_METRICS: Record<StarterMetricKey, { name: string; unit: MetricUnit; howCounted: string }> = {
   conversion: { name: "Conversion rate", unit: "percent", howCounted: "Share of people who start the step and finish it, within the measurement window." },

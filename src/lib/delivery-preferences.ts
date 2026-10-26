@@ -3,6 +3,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 
 import { db, deliveryPreferences } from "@/db";
+import type { WorkspacePerson } from "./auth-guard";
 import { DEFAULT_DELIVERY_CHOICE, type DeliveryChoice } from "./delivery-preference-rules";
 import { slackConnected } from "./slack-connection";
 
@@ -19,7 +20,7 @@ export type DeliveryState = {
  * #206/#207: a person's delivery choice in a workspace, as Settings shows it. No row is Email. A saved Slack DM
  * stays saved when Slack is disconnected, and items go by Email until Slack is connected again.
  */
-export async function readDeliveryState({ orgId, userId }: { orgId: string; userId: string }): Promise<DeliveryState> {
+export async function readDeliveryState({ orgId, userId }: WorkspacePerson): Promise<DeliveryState> {
   const [[row], slackOffered] = await Promise.all([
     db
       .select({ channel: deliveryPreferences.channel })
@@ -32,12 +33,12 @@ export async function readDeliveryState({ orgId, userId }: { orgId: string; user
   return { choice, slackOffered, choseSlack: saved === "slack" };
 }
 
-export async function readDeliveryChoice(person: { orgId: string; userId: string }): Promise<DeliveryChoice> {
+export async function readDeliveryChoice(person: WorkspacePerson): Promise<DeliveryChoice> {
   return (await readDeliveryState(person)).choice;
 }
 
 /** Saves the choice for this person and workspace; the caller has already checked who they are. */
-export async function saveDeliveryChoice({ orgId, userId }: { orgId: string; userId: string }, channel: DeliveryChoice) {
+export async function saveDeliveryChoice({ orgId, userId }: WorkspacePerson, channel: DeliveryChoice) {
   await db
     .insert(deliveryPreferences)
     .values({ orgId, userId, channel, updatedAt: new Date() })

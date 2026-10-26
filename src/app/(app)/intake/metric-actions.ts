@@ -25,7 +25,7 @@ export async function listPredictionMetrics(input: { impact: unknown }, context:
   if (!auth) return { error: await refusal("You can't use the Metrics library in this workspace.") };
   try {
     return {
-      ...await predictionMetricChoices({ orgId: auth.orgId }, input?.impact ?? null),
+      ...await predictionMetricChoices(auth, input?.impact ?? null),
       canOpenLibrary: readsWholeWorkspace(auth.role),
       canAddMetrics: canChangeThings(auth.role),
     };
@@ -51,7 +51,7 @@ export async function addPredictionMetric(data: { name: string; unit: string }, 
   const auth = await requireCanChange(context.orgId);
   if (!auth) return { error: await refusal("Guests can't add metrics to the Metrics library. Pick one that's there, or ask a Member to add it.") };
   try {
-    const result = await addOrOfferMetricDefinition({ orgId: auth.orgId }, auth.userId, parsed.data);
+    const result = await addOrOfferMetricDefinition(auth, auth.userId, parsed.data);
     if (!result.existing) {
       revalidatePath("/settings/metrics");
       revalidatePath(`/settings/metrics/${result.metric.id}`);

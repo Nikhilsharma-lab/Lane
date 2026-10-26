@@ -8,6 +8,7 @@ import { organizations } from "./users";
  * `workspace_billing`: one row per workspace. `freeRequestsUsed` is kept by database triggers on `requests` (every
  * Request created, deleted ones included; a Guest submission once taken on) and never goes down. `allowanceKey` /
  * `holdsAllowance` are decided once: the workspace either holds its creator's allowance or another workspace does.
+ * Every workspace with the same `allowanceKey` shares its 4 Free Requests (decision 2026-10-26); holding is a record.
  * `planState` is set from the payment provider (#214): paying once a checkout completes. Migration 0047 adds what the
  * provider reports (customer, subscription, billing period, first payment) and the founding discount's place:
  * `foundingReservedUntil` while a checkout with it is open, `foundingStartsAt` (set once) once paid with it. The
@@ -49,7 +50,7 @@ export const workspaceBilling = pgTable(
   ],
 );
 
-/** A company email domain or a personal email address, and the one workspace that holds its Free Requests. */
+/** A company email domain or a personal email address, and the first workspace that claimed its (shared) Free Requests. */
 export const freeRequestAllowances = pgTable(
   "free_request_allowances",
   {

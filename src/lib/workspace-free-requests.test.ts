@@ -40,10 +40,11 @@ async function firstLoad(userId: string, orgId: string, orgRole = "org:admin") {
 }
 const freeRequests = async (orgId: string) => (await (await import("./billing")).readFreeRequests({ orgId })).free;
 
-it("gives the first workspace from a company domain its 4 Free Requests, and tells a second one they were used", async () => {
+it("gives the first workspace from a company domain its 4 Free Requests, and a second one whatever is left of them", async () => {
   expect(await firstLoad("wfr_founder", "org_wfr_first")).toMatchObject({ needsOnboarding: false, orgId: "org_wfr_first" });
   expect(await freeRequests("org_wfr_first")).toEqual({ total: 4, used: 0, left: 4, usedElsewhere: null });
+  await connection`insert into requests(org_id,title,description,created_by) values ('org_wfr_first','Work','A Request.','wfr_founder')`;
   // The second workspace is first opened by someone who didn't create it; its creator's address still decides.
   expect(await firstLoad("wfr_founder", "org_wfr_second", "org:member")).toMatchObject({ orgId: "org_wfr_second" });
-  expect(await freeRequests("org_wfr_second")).toEqual({ total: 0, used: 0, left: 0, usedElsewhere: { kind: "company_domain", domain: "wfr-acme.example" } });
+  expect(await freeRequests("org_wfr_second")).toEqual({ total: 4, used: 0, left: 3, usedElsewhere: { kind: "company_domain", domain: "wfr-acme.example", used: 1 } });
 });
