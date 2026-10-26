@@ -79,7 +79,11 @@ export async function prepareMoveCoordination(page: Page, orgId: string, fixture
 export async function verifyMoveCancellations(page: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture) {
   for (const surface of navigationSurfaces) {
     await page.setViewportSize({ width: surface.width, height: 900 }); await page.emulateMedia({ colorScheme: surface.colorScheme });
-    await page.goto("/?project=none"); await sidebar(page, "All Requests");
+    // Sidebar scopes at / intentionally replace history. Enter the list from a
+    // real detail route so native Back/Forward traverses genuine app entries.
+    await page.goto(`/requests/${fixture.a.id}`);
+    await expect(page.getByRole("region", { name: "Journey", exact: true })).toBeVisible();
+    await sidebar(page, "All Requests");
     await selectMoveRows(page, [fixture.a, fixture.b, fixture.c]);
     const change = await beginCoordinatedChange(page, orgId, "bulk-pickup", [fixture.a.id, fixture.b.id], recorder, () => bar(page).getByRole("button", { name: "Pick up", exact: true }).press("Enter"));
     await expect(confirmation(page)).toBeVisible(); await expect(confirmation(page)).toContainText(fixture.b.title);
@@ -92,8 +96,8 @@ export async function verifyMoveCancellations(page: Page, orgId: string, fixture
     await selectMoveRows(page, [fixture.a, fixture.b, fixture.c]);
     const history = await beginCoordinatedChange(page, orgId, "bulk-pickup", [fixture.a.id, fixture.b.id], recorder, () => bar(page).getByRole("button", { name: "Pick up", exact: true }).press("Enter"));
     await expect(confirmation(page)).toBeVisible(); await page.goBack();
-    await expect(page).toHaveURL(url => url.searchParams.get("project") === "none"); await page.goForward();
-    await expect(page).toHaveURL(url => !url.searchParams.has("project"));
+    await expect(page).toHaveURL(url => url.pathname === `/requests/${fixture.a.id}`); await page.goForward();
+    await expect(page).toHaveURL(url => url.pathname === "/");
     if (await confirmation(page).isVisible()) await confirmation(page).getByRole("button", { name: "Pick up anyway", exact: true }).press("Enter");
     await expect(confirmation(page)).toBeHidden(); await expect(bar(page)).toBeHidden(); await history.cancelled();
     await capture(`${surface.width}-${surface.colorScheme}-navigation-scope-return-zero-write`);
@@ -221,8 +225,16 @@ export async function verifyPendingMoveNavigation(page: Page, orgId: string, fix
   await capture("saved-single-navigation-return-no-stale-prompt-or-focus");
   const undo = await beginCoordinatedChange(page, orgId, "undo", [fixture.b.id], recorder, () => doneToast(page, fixture.b).getByRole("button", { name: "Undo", exact: true }).press("Enter")); await undo.finish();
   await sidebar(page, "All Requests"); await selectMoveRows(page, [fixture.b, fixture.c]);
+  const heldUrl = page.url();
   const batch = await beginCoordinatedChange(page, orgId, "bulk-done", [fixture.b.id, fixture.c.id], recorder, () => bar(page).getByRole("button", { name: "Mark Done", exact: true }).press("Enter"), true);
-  await batch.received(); await sidebar(page, "No Project"); await sidebar(page, "All Requests");
+  await batch.received();
+  for (const scope of ["No Project", "All Requests"]) {
+    await chooseSidebarProject(page, scope);
+    await expect(page.getByRole("dialog", { name: "Navigation", exact: true })).toBeHidden();
+    await expect(page.getByRole("navigation", { name: "Primary navigation", exact: true }).getByRole("link", { name: scope, exact: true })).toHaveAttribute("aria-current", "page");
+    // Local scope changes immediately; #172 deliberately holds URL mirroring until the write settles.
+    await expect(page).toHaveURL(heldUrl);
+  }
   await expect(bar(page)).toBeHidden(); await page.locator("#lane-main").focus();
   const announcements = await page.locator('[data-slot="list-announcer"]').allTextContents();
   await batch.finish(); await expect(page.locator("#lane-main")).toBeFocused(); await expect(bar(page)).toBeHidden(); await expect(bulkToast(page)).toHaveCount(0); await expect(isItLivePrompt(page)).toBeHidden();
