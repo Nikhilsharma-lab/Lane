@@ -29,6 +29,7 @@ import type { ReleaseFact, ReleaseState } from "./request-release";
 import { DAY_MS, utcDay } from "./utc-day";
 import type { WorkspacePermission } from "./auth-guard";
 import { inPeriod, periodLabel, quarterOf, quartersOf, type ImpactPeriod, type Month, type Quarter } from "./impact-period";
+import { iterationLabel } from "./same-problem-rules";
 
 /** A Viewer (#210) reads exactly what a Member reads; only a Guest is narrowed to their own Requests. */
 export type ImpactViewer = { userId: string; orgId: string; role: WorkspacePermission };
@@ -65,6 +66,10 @@ export type ImpactRow = {
   expectedImpact: ExpectedImpact | null;
   noMeasurableImpactReason: string | null;
   followUpOf: string | null;
+  /** When the Request was filed: the order of its Same problem group's Iterations (#218). */
+  createdAt: Date;
+  /** The Same problem group the Request is in (#218), or null. Never a Follow-up's link, which is `followUpOf`. */
+  sameProblemGroup: string | null;
   /**
    * The Metric definitions this Request's metrics count under now (after any merge), by saved position: 0 the main
    * metric, then guardrails from 1. They resolve the prediction a result is judged against: the closed result's
@@ -608,6 +613,8 @@ export type OutcomeReportEntry = RequestRef & {
   learned: LearnedLine | null;
   /** The Follow-up Requests linked to this one that the viewer may see. */
   followUps: RequestRef[];
+  /** Its place among the attempts at its problem (#218), "3rd iteration", or null when it is in no Same problem group. */
+  iteration: IterationNote | null;
 };
 
 /**
@@ -623,7 +630,7 @@ export type LearnedLine = { text: string; corrected: boolean };
 export type CorrectedValue = { field: ClosureCorrection["field"]; label: string; value: string; at: string };
 
 /** A Request Released in the period and then closed without a result. */
-export type ReportClosedItem = RequestRef & { problem: string; projectName: string | null; releaseDate: string; reason: string; corrected: CorrectedValue[]; learned: LearnedLine | null };
+export type ReportClosedItem = RequestRef & { problem: string; projectName: string | null; releaseDate: string; reason: string; corrected: CorrectedValue[]; learned: LearnedLine | null; iteration: IterationNote | null };
 
 /** One quarter's place for its Quarter note at the end of the report (#209): the note, or null when none is written. */
 export type QuarterNoteSlot = { year: number; quarter: Quarter; label: string; note: Omit<QuarterNote, "year" | "quarter"> | null };
@@ -670,7 +677,7 @@ function reportGuardrails(row: ImpactRow, source: ExpectedImpact | null): Report
   });
 }
 
-function reportEntryOf(row: ImpactRow, releaseDate: string, now: Date, visible: ImpactRow[]): OutcomeReportEntry {
+function reportEntryOf(row: ImpactRow, releaseDate: string, now: Date, visible: ImpactRow[], notes: Map<string, IterationNote>): OutcomeReportEntry {
   const state = impactStateOf(row);
   const source = row.outcomeClosure?.expected ?? (state.kind === "measured" ? state.plan : null);
   const release = row.releaseState?.release ?? null;
@@ -692,6 +699,7 @@ function reportEntryOf(row: ImpactRow, releaseDate: string, now: Date, visible: 
     corrected: correctedValues(row),
     learned: learnedOf(row),
     followUps: followUpsOf(row, visible),
+    iteration: notes.get(row.id) ?? null,
   };
 }
 
@@ -717,7 +725,7 @@ function correctedValues(row: ImpactRow): CorrectedValue[] {
   });
 }
 
-function closedGroups(released: { row: ImpactRow; releaseDate: string }[]): ReportClosedGroup[] {
+function closedGroups(released: { row: ImpactRow; releaseDate: string }[], notes: Map<string, IterationNote>): ReportClosedGroup[] {
   return EXCEPTION_REASON_OPTIONS.flatMap(({ value: reasonCode, label }) => {
     const requests = byRequestNumber(released.flatMap(({ row, releaseDate }) => row.exceptionClosure?.reasonCode === reasonCode ? [{
       requestId: row.id,
@@ -729,6 +737,7 @@ function closedGroups(released: { row: ImpactRow; releaseDate: string }[]): Repo
       reason: row.exceptionClosure.reason,
       corrected: correctedValues(row),
       learned: learnedOf(row),
+      iteration: notes.get(row.id) ?? null,
     }] : []));
     return requests.length > 0 ? [{ reasonCode, label, requests }] : [];
   });
@@ -748,7 +757,8 @@ export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], opti
     return releaseDate !== null && inPeriod(releaseDate, period) ? [{ row, releaseDate }] : [];
   });
   // Closed without a result has its own list, by reason; every other Released Request sits in its current Project.
-  const projects = byProjectGroups(released.flatMap(({ row, releaseDate }) => row.exceptionClosure ? [] : [{ row, use: reportEntryOf(row, releaseDate, now, visible) }]))
+  const notes = iterationNotes(visible);
+  const projects = byProjectGroups(released.flatMap(({ row, releaseDate }) => row.exceptionClosure ? [] : [{ row, use: reportEntryOf(row, releaseDate, now, visible, notes) }]))
     .map(({ projectId, name, uses }) => ({ projectId, name, requests: uses }));
   const atAGlance = {
     shipped: released.length,
@@ -765,8 +775,95 @@ export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], opti
     atAGlance,
     totals,
     projects,
-    closedWithoutResult: closedGroups(released),
+    closedWithoutResult: closedGroups(released, notes),
     emptyMessage: released.length === 0 ? `Nothing was Released in ${periodLabel(period)}.` : null,
     quarterNotes: quarterNoteSlots(period, options.quarterNotes ?? []),
   };
+}
+
+/** A Request's place among the attempts at its problem (#218): its number in its group and "3rd iteration". */
+export type IterationNote = { number: number; label: string };
+
+/** How an Iteration stands: its measured result, its reason when Closed without a result, operational work, or still due. */
+export type IterationOutcome =
+  | { kind: "measured"; result: ResultView }
+  | { kind: "closed_without_result"; reasonCode: ExceptionReason; label: string; reason: string }
+  | { kind: "operational"; reason: string }
+  /** `due` is null until it is Released. */
+  | { kind: "still_due"; due: { dueDate: string; dueLabel: string } | null };
+
+/** One attempt at the problem: what it predicted beside what happened. `current` marks the Request being read. */
+export type IterationEntry = RequestRef & IterationNote & {
+  current: boolean;
+  journey: JourneyLabel;
+  predicted: Prediction | null;
+  outcome: IterationOutcome;
+};
+
+/** "Iterations of this problem" on a Request page (#218): its Same problem group, oldest first. */
+export type Iterations = { current: IterationNote; iterations: IterationEntry[] };
+
+/**
+ * Every visible Request's Same problem group, oldest first by filing time (then number), keyed by group. A group the
+ * viewer sees only one Request of is no group. Numbers are worked out here, every time, and never stored.
+ */
+function sameProblemGroups(visible: ImpactRow[]): Map<string, ImpactRow[]> {
+  const groups = new Map<string, ImpactRow[]>();
+  for (const row of visible) if (row.sameProblemGroup) groups.set(row.sameProblemGroup, [...(groups.get(row.sameProblemGroup) ?? []), row]);
+  for (const [key, members] of groups) {
+    if (members.length < 2) groups.delete(key);
+    else members.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.requestNumber - b.requestNumber);
+  }
+  return groups;
+}
+
+function iterationNotes(visible: ImpactRow[]): Map<string, IterationNote> {
+  const notes = new Map<string, IterationNote>();
+  for (const members of sameProblemGroups(visible).values()) members.forEach((row, index) => notes.set(row.id, { number: index + 1, label: iterationLabel(index + 1) }));
+  return notes;
+}
+
+function iterationOutcome(row: ImpactRow, now: Date): IterationOutcome {
+  if (row.outcomeClosure) return { kind: "measured", result: measuredResult(row, row.outcomeClosure) };
+  if (row.exceptionClosure) {
+    const { reasonCode, reason } = row.exceptionClosure;
+    return { kind: "closed_without_result", reasonCode, label: EXCEPTION_REASON_OPTIONS.find(option => option.value === reasonCode)?.label ?? "Closed without a result", reason };
+  }
+  const state = impactStateOf(row);
+  if (state.kind === "operational") return { kind: "operational", reason: state.reason };
+  const release = row.releaseState?.release ?? null;
+  const due = releaseMeasurement(release, now);
+  return { kind: "still_due", due: release && due ? { dueDate: release.dueDate, dueLabel: due.label } : null };
+}
+
+/**
+ * "Iterations of this problem" for one Request (#218, spec stories 153–155): its Same problem group, oldest first,
+ * each with its status, prediction and result (or reason, when Closed without a result), the Request being read
+ * marked with its number. Follow-ups are never iterations unless also linked as Same problem. Null for a Request in
+ * no group, and for a guest, who sees no links. Nothing by person.
+ */
+export function buildIterations(viewer: ImpactViewer, rows: ImpactRow[], requestId: string, options: ImpactOptions = {}): Iterations | null {
+  if (viewer.role === "guest") return null;
+  const now = options.now ?? new Date();
+  const visible = visibleTo(viewer, rows);
+  const group = visible.find(row => row.id === requestId)?.sameProblemGroup;
+  const members = group ? sameProblemGroups(visible).get(group) : undefined;
+  if (!members) return null;
+  const iterations = members.map((row, index): IterationEntry => {
+    const state = impactStateOf(row);
+    const source = row.outcomeClosure?.expected ?? (state.kind === "measured" ? state.plan : null);
+    return {
+      requestId: row.id,
+      requestNumber: row.requestNumber,
+      title: row.title,
+      number: index + 1,
+      label: iterationLabel(index + 1),
+      current: row.id === requestId,
+      journey: journeyStatus(row).label,
+      predicted: source ? predictionOf(source, row.definitions) : null,
+      outcome: iterationOutcome(row, now),
+    };
+  });
+  const current = iterations.find(entry => entry.current)!;
+  return { current: { number: current.number, label: current.label }, iterations };
 }

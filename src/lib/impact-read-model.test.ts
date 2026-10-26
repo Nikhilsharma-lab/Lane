@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDefinitionUses, buildImpactDashboard, buildOutcomeReport, buildTeammateWork, teammateIdsOf, type ImpactDefinition, type ImpactPeriod, type ImpactRow, type ImpactViewer } from "./impact-read-model";
+import { buildDefinitionUses, buildImpactDashboard, buildIterations, buildOutcomeReport, buildTeammateWork, teammateIdsOf, type ImpactDefinition, type ImpactPeriod, type ImpactRow, type ImpactViewer } from "./impact-read-model";
 import type { ExpectedImpact } from "./request-impact";
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "./request-outcome";
 import type { ReleaseFact, ReleaseState } from "./request-release";
@@ -96,6 +96,9 @@ function row(over: Partial<ImpactRow> & Pick<ImpactRow, "id" | "requestNumber" |
     noMeasurableImpactReason: null,
     followUpOf: null,
     definitions: [],
+    // Filed one day apart, in number order, unless a test says otherwise.
+    createdAt: new Date(Date.UTC(2026, 0, over.requestNumber)),
+    sameProblemGroup: null,
     ...over,
   };
 }
@@ -1015,5 +1018,94 @@ describe("Outcome report (#209): Quarter notes", () => {
     expect(report(Q3).emptyMessage).toBe("Nothing was Released in Q3 2026.");
     expect(buildOutcomeReport(ADMIN_VIEWER, [], { now: NOW, period: Q3, quarterNotes: notes })).toEqual(report(Q3));
     expect(buildOutcomeReport(GUEST_VIEWER, [], { now: NOW, period: Q3, quarterNotes: notes })).toBeNull();
+  });
+});
+
+describe("Same problem iterations (#218)", () => {
+  const GROUP = "group-checkout";
+  const VIEWER_ROLE = viewer("user_viewer", "viewer");
+  const rolledBack = (id: string, requestNumber: number, over: Partial<ImpactRow> = {}) =>
+    row({ id, requestNumber, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), exceptionClosure: exceptionClosure("rolled_back", "Broke Safari checkout"), sameProblemGroup: GROUP, ...over });
+  /** Three attempts at one problem, filed in the order c, a, b (numbers don't decide the order: filing time does). */
+  const attempts = () => [
+    closedRow("a", 7, plan(), 46, [], { sameProblemGroup: GROUP, createdAt: new Date("2026-03-01T00:00:00Z") }),
+    row({ id: "b", requestNumber: 3, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_OCT), sameProblemGroup: GROUP, createdAt: new Date("2026-06-01T00:00:00Z") }),
+    rolledBack("c", 9, { createdAt: new Date("2026-01-15T00:00:00Z") }),
+    row({ id: "d", requestNumber: 4, createdBy: MEMBER }),
+  ];
+
+  it("lists the group oldest first, numbered from 1, with the Request being read highlighted", () => {
+    const iterations = buildIterations(MEMBER_VIEWER, attempts(), "a", { now: NOW })!;
+    expect(iterations.iterations.map(entry => [entry.requestNumber, entry.number, entry.label, entry.current])).toEqual([
+      [9, 1, "1st iteration", false],
+      [7, 2, "2nd iteration", true],
+      [3, 3, "3rd iteration", false],
+    ]);
+    expect(iterations.current).toEqual({ number: 2, label: "2nd iteration" });
+  });
+
+  it("shows each iteration's status, prediction and result, or its reason when Closed without a result", () => {
+    const [first, second, third] = buildIterations(MEMBER_VIEWER, attempts(), "b", { now: NOW })!.iterations;
+    expect(first).toMatchObject({ title: "Request 9", journey: "Closed without a result", outcome: { kind: "closed_without_result", label: "Rolled back", reason: "Broke Safari checkout" } });
+    expect(second).toMatchObject({ journey: "Closed", predicted: { baseline: 40, target: 50 }, outcome: { kind: "measured", result: { actual: 46 } } });
+    expect(third).toMatchObject({ journey: "Measuring", predicted: { target: 50 }, outcome: { kind: "still_due", due: { dueDate: "2026-10-31", dueLabel: "Due in 8 days" } } });
+  });
+
+  it("says when an iteration isn't Released yet, and when it is operational work", () => {
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, sameProblemGroup: GROUP }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, sameProblemGroup: GROUP, expectedImpact: null, noMeasurableImpactReason: "Copy change only" }),
+    ];
+    expect(buildIterations(MEMBER_VIEWER, rows, "a", { now: NOW })!.iterations.map(entry => entry.outcome)).toEqual([
+      { kind: "still_due", due: null },
+      { kind: "operational", reason: "Copy change only" },
+    ]);
+  });
+
+  it("works the number out again when the group changes: it is never stored", () => {
+    const rows = attempts().filter(entry => entry.id !== "c");
+    expect(buildIterations(MEMBER_VIEWER, rows, "a", { now: NOW })!.current).toEqual({ number: 1, label: "1st iteration" });
+  });
+
+  it("names the 11th to 13th and the 21st to 23rd iterations as people say them", () => {
+    const many = Array.from({ length: 23 }, (_, index) => row({ id: `r${index + 1}`, requestNumber: index + 1, createdBy: MEMBER, sameProblemGroup: GROUP }));
+    const labels = buildIterations(MEMBER_VIEWER, many, "r1", { now: NOW })!.iterations.map(entry => entry.label);
+    expect([labels[0], labels[1], labels[2], labels[3], labels[10], labels[11], labels[12], labels[20], labels[21], labels[22]]).toEqual([
+      "1st iteration", "2nd iteration", "3rd iteration", "4th iteration", "11th iteration", "12th iteration", "13th iteration", "21st iteration", "22nd iteration", "23rd iteration",
+    ]);
+  });
+
+  it("doesn't count a Follow-up as an iteration unless it is also linked as Same problem", () => {
+    const rows = [...attempts(), row({ id: "e", requestNumber: 5, createdBy: MEMBER, followUpOf: "a", createdAt: new Date("2026-09-01T00:00:00Z") })];
+    expect(buildIterations(MEMBER_VIEWER, rows, "a", { now: NOW })!.iterations.map(entry => entry.requestNumber)).toEqual([9, 7, 3]);
+    expect(buildIterations(MEMBER_VIEWER, rows, "e", { now: NOW })).toBeNull();
+    const linked = rows.map(entry => entry.id === "e" ? { ...entry, sameProblemGroup: GROUP } : entry);
+    expect(buildIterations(MEMBER_VIEWER, linked, "a", { now: NOW })!.iterations.map(entry => entry.requestNumber)).toEqual([9, 7, 3, 5]);
+  });
+
+  it("has nothing for a Request in no group", () => {
+    expect(buildIterations(MEMBER_VIEWER, attempts(), "d", { now: NOW })).toBeNull();
+  });
+
+  it("shows a Viewer every link, and a guest none", () => {
+    expect(buildIterations(VIEWER_ROLE, attempts(), "a", { now: NOW })).toEqual(buildIterations(MEMBER_VIEWER, attempts(), "a", { now: NOW }));
+    const own = attempts().map(entry => ({ ...entry, createdBy: GUEST }));
+    expect(buildIterations(GUEST_VIEWER, own, "a", { now: NOW })).toBeNull();
+  });
+
+  it("names no person in the list", () => {
+    const iterations = buildIterations(MEMBER_VIEWER, attempts(), "a", { now: NOW });
+    expect(keysOf(iterations).filter(key => /total|average|score|rank|person|people|createdBy|assignedTo/i.test(key))).toEqual([]);
+  });
+
+  it("gives each Request in the Outcome report its iteration note, and none to a Request in no group", () => {
+    const report = buildOutcomeReport(MEMBER_VIEWER, [...attempts(), closedRow("f", 6, plan(), 44, [])], { now: NOW, period: YEAR_2026 })!;
+    const entries = report.projects.flatMap(section => section.requests);
+    expect(entries.map(entry => [entry.requestNumber, entry.iteration])).toEqual([
+      [3, { number: 3, label: "3rd iteration" }],
+      [6, null],
+      [7, { number: 2, label: "2nd iteration" }],
+    ]);
+    expect(report.closedWithoutResult.flatMap(group => group.requests).map(entry => [entry.requestNumber, entry.iteration])).toEqual([[9, { number: 1, label: "1st iteration" }]]);
   });
 });

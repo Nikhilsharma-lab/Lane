@@ -1,12 +1,12 @@
 import "server-only"
 
 import { seeable } from "@/lib/request-access"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, type SQL } from "drizzle-orm"
 
-import { db, profiles, projects, quarterNotes, requests } from "@/db"
+import { db, profiles, projects, quarterNotes, requests, sameProblemMembers } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
 import { quarterOf, quartersOf, type ImpactPeriod, type Quarter } from "@/lib/impact-period"
-import { buildDefinitionUses, buildImpactDashboard, buildTeammateWork, teammateIdsOf, type DefinitionUses, type ImpactDashboard, type ImpactDefinition, type ImpactViewer, type ImpactOptions, type ImpactRow, type MyWorkEntry, type QuarterNote, type Teammate } from "@/lib/impact-read-model"
+import { buildDefinitionUses, buildImpactDashboard, buildIterations, buildTeammateWork, teammateIdsOf, type DefinitionUses, type ImpactDashboard, type Iterations, type ImpactDefinition, type ImpactViewer, type ImpactOptions, type ImpactRow, type MyWorkEntry, type QuarterNote, type Teammate } from "@/lib/impact-read-model"
 import { resolveSavedMetrics, type ResolvedSavedMetric } from "@/lib/metrics-library"
 import { FORMER_MEMBER } from "@/lib/request-journey"
 
@@ -40,7 +40,8 @@ async function loadQuarterNotes(auth: MemberAuth, period: ImpactPeriod): Promise
   return notes.map(note => ({ ...note, quarter: note.quarter as Quarter, editorName: note.editorName || FORMER_MEMBER, editedAt: note.editedAt.toISOString() }))
 }
 
-export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
+/** The rows the read model is given. `where` narrows them further (one Same problem group, #218); visibility always applies. */
+export async function loadImpactRows(auth: MemberAuth, where?: SQL): Promise<ImpactRow[]> {
   const rows = await db
     .select({
       id: requests.id,
@@ -62,10 +63,13 @@ export async function loadImpactRows(auth: MemberAuth): Promise<ImpactRow[]> {
       expectedImpact: requests.expectedImpact,
       noMeasurableImpactReason: requests.noMeasurableImpactReason,
       followUpOf: requests.followUpOf,
+      createdAt: requests.createdAt,
+      sameProblemGroup: sameProblemMembers.groupId,
     })
     .from(requests)
     .leftJoin(projects, and(eq(requests.projectId, projects.id), eq(projects.orgId, auth.orgId)))
-    .where(seeable(auth))
+    .leftJoin(sameProblemMembers, and(eq(sameProblemMembers.requestId, requests.id), eq(sameProblemMembers.orgId, auth.orgId)))
+    .where(where ? and(seeable(auth), where) : seeable(auth))
 
   // #201: totals and names follow the Metric definitions each Request's metrics resolve to now, through the Metrics
   // library. A closed result is judged against its frozen expectation; anything else against its Expected impact.
@@ -89,6 +93,16 @@ function definitionsOf(metrics: ResolvedSavedMetric[]): ImpactDefinition[] {
 export async function loadDefinitionUses(auth: MemberAuth, definitionId: string, options: ImpactOptions = {}): Promise<DefinitionUses | null> {
   if (auth.role === "guest") return null
   return buildDefinitionUses(viewerOf(auth), await loadImpactRows(auth), definitionId, options)
+}
+
+/**
+ * "Iterations of this problem" for one Request (#218): only its Same problem group's rows are read, with the same
+ * rows and rules as the Impact page. Null for a guest (who sees no links) and for a Request in no group.
+ */
+export async function loadIterations(auth: MemberAuth, requestId: string, groupId: string | null, options: ImpactOptions = {}): Promise<Iterations | null> {
+  if (auth.role === "guest" || !groupId) return null
+  const rows = await loadImpactRows(auth, eq(sameProblemMembers.groupId, groupId))
+  return buildIterations(viewerOf(auth), rows, requestId, options)
 }
 
 /** A teammate's Requests, requested or picked up, for a non-guest viewer (spec story 12). Null for a guest. */

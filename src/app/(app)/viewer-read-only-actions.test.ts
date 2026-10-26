@@ -54,6 +54,8 @@ async function workspaceState() {
     quarterNotes: await connection`select count(*)::int as n from quarter_notes where org_id = ${ORG}`,
     slack: await connection`select count(*)::int as n from slack_connections where org_id = ${ORG}`,
     billing: await connection`select plan_state, founding_reserved_until from workspace_billing where org_id = ${ORG}`,
+    sameProblem: await connection`select request_id, group_id from same_problem_members where org_id = ${ORG} order by request_id`,
+    sameProblemHistory: await connection`select count(*)::int as n from same_problem_events where org_id = ${ORG}`,
   };
 }
 
@@ -79,6 +81,9 @@ beforeAll(async () => {
   await connection`insert into request_agreements (org_id, request_id, reviewers) values (${ORG}, ${membersRequest}, ${connection.json([
     { id: reviewerId, nominee: { kind: "member", userId: VIEWER }, displayNameAtSelection: "Viewer", addedBy: MEMBER, note: "", decision: null },
   ])}::jsonb)`;
+  // #218: two Requests already linked as Same problem, so removing a link has something to remove.
+  const sameProblem = randomUUID();
+  await connection`insert into same_problem_members (org_id,request_id,group_id,added_by) values (${ORG},${ownRequest},${sameProblem},${MEMBER}), (${ORG},${membersRequest},${sameProblem},${MEMBER})`;
   [{ id: definitionId }] = await connection`insert into metric_definitions (org_id,name,unit,created_by) values (${ORG},'Signups','count',${MEMBER}) returning id`;
   [{ id: otherDefinitionId }] = await connection`insert into metric_definitions (org_id,name,unit,created_by) values (${ORG},'Sign-ups','count',${MEMBER}) returning id`;
 });
@@ -121,6 +126,8 @@ describe("every change is refused for a Viewer", () => {
     ["close with a result", async () => (await import("./requests/[id]/outcome-actions")).changeRequestOutcome(change(ownRequest), measured)],
     ["close without a result", async () => (await import("./requests/[id]/outcome-actions")).changeRequestOutcome(change(ownRequest), { kind: "exception", reasonCode: "rolled_back", reason: "Reverted" })],
     ["take on a Guest submission", async () => (await import("./requests/[id]/take-on-actions")).takeOnGuestSubmission(change(guestSubmission))],
+    ["link Requests as Same problem", async () => (await import("./requests/[id]/same-problem-actions")).linkSameProblem({ requestId: guestSubmission, otherRequestId: ownRequest }, ctx)],
+    ["remove a Same problem link", async () => (await import("./requests/[id]/same-problem-actions")).removeSameProblemLink({ requestId: membersRequest }, ctx)],
     ["create a follow-up", async () => (await import("./requests/[id]/outcome-actions")).createFollowUpRequest(change(ownRequest), { reason: "The result was mixed" })],
     ["add a Metric definition", async () => (await import("./settings/metrics/actions")).addMetricDefinition({ name: "Refunds", unit: "count" }, ctx)],
     ["edit a Metric definition", async () => (await import("./settings/metrics/actions")).editMetricDefinition({ id: definitionId, name: "Signups (all)", unit: "count" }, ctx)],
@@ -159,6 +166,11 @@ describe("what a Viewer still reads", () => {
     const release = await (await import("./requests/[id]/release-actions")).readRequestRelease(ownRequest, ctx);
     const actions = (release as { actions: Record<string, { allowed: boolean; reason?: string }> }).actions;
     expect(Object.values(actions).every((a) => !a.allowed && a.reason === "Viewers can read this Request but can’t change it.")).toBe(true);
+  });
+
+  it("shows a Viewer every Same problem link, with nothing to change", async () => {
+    const view = await (await import("./requests/[id]/same-problem-actions")).readSameProblem(ownRequest, ctx);
+    expect(view).toMatchObject({ shown: true, canChange: false, iterations: { iterations: [{ requestId: ownRequest }, { requestId: membersRequest }] } });
   });
 
   it("lists labels and library metrics for reading, with nothing to add", async () => {

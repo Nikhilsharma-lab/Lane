@@ -48,7 +48,7 @@ function row(over: Partial<ImpactRow> & Pick<ImpactRow, "id" | "requestNumber">)
   return {
     orgId: ORG, title: `Request ${over.requestNumber}`, problem: `Problem ${over.requestNumber}`, createdBy: MEMBER_ID, takenOnBy: null, assignedTo: null, projectId: null, projectName: null,
     status: "done", releaseState: released(AUG), outcomeClosure: null, exceptionClosure: null, closureCorrections: [],
-    expectedImpact: plan(), noMeasurableImpactReason: null, followUpOf: null, definitions: [], ...over,
+    expectedImpact: plan(), noMeasurableImpactReason: null, followUpOf: null, definitions: [], createdAt: new Date(Date.UTC(2026, 0, over.requestNumber)), sameProblemGroup: null, ...over,
   }
 }
 
@@ -154,6 +154,23 @@ describe("Outcome report: Projects and Requests", () => {
     const markup = html(Q3)
     expect(section(markup, "Checkout", 3)).toContain("Follow-up Requests LAN-6 Request 6")
     expect(markup).toContain('href="/requests/f"')
+  })
+})
+
+describe("Outcome report: Same problem iterations (#218)", () => {
+  const grouped = ROWS.map(entry => ["a", "d"].includes(entry.id) ? { ...entry, sameProblemGroup: "group-checkout" } : entry)
+
+  it("notes a Request's iteration, linking to its group on the Request page", () => {
+    const markup = html(Q3, grouped)
+    // a was filed first, d second: d is the 2nd iteration, closed without a result.
+    expect(markup).toContain('href="/requests/a#iterations"')
+    expect(section(markup, "Checkout", 3)).toContain("1st iteration of this problem")
+    expect(section(markup, "Closed without a result")).toContain("2nd iteration of this problem")
+    expect(markup).toContain('href="/requests/d#iterations"')
+  })
+
+  it("adds no note to a Request in no group", () => {
+    expect(text(html(Q3))).not.toContain("iteration")
   })
 })
 

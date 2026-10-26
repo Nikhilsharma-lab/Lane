@@ -11,7 +11,8 @@ import { guardrailComparisonPhrase, type GuardrailOperator } from "@/lib/guardra
 import { metricChart } from "@/lib/impact-chart-view"
 import type { ImpactPeriod } from "@/lib/impact-period"
 import { actualText, baselineLabelOf, changeText, NOTHING_MEASURED, predictedText, totalText, valueText } from "@/lib/impact-presenter"
-import type { CorrectedValue, LearnedLine, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
+import { iterationsHref } from "@/lib/same-problem-rules"
+import type { CorrectedValue, IterationNote, LearnedLine, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
 import { journeyDate } from "@/lib/request-journey"
 import { requestDetailHref } from "@/lib/request-workspace"
@@ -54,6 +55,12 @@ function Learned({ learned }: { learned: LearnedLine | null }) {
     <h5 className={styles.subheading}>What we learned</h5>
     <p className={styles.problem}>{learned.text}{learned.corrected && <> <Badge size="sm" tone="warning">Corrected</Badge></>}</p>
   </div>
+}
+
+/** #218: its place among the attempts at its problem, linking to the Same problem group on the Request page. */
+function Iteration({ requestId, iteration }: { requestId: string; iteration: IterationNote | null }) {
+  if (!iteration) return null
+  return <p className={styles.note}><Link href={iterationsHref(requestId)}>{iteration.label}<span className="sr-only"> of this problem</span></Link></p>
 }
 
 function PeriodPicker({ period, now, onPeriodChange }: { period: ImpactPeriod; now: Date; onPeriodChange?: (period: ImpactPeriod) => void }) {
@@ -139,6 +146,7 @@ function ReportRequest({ entry }: { entry: OutcomeReportEntry }) {
   return <li className={styles.entry}>
     <article aria-labelledby={headingId} className={styles.article}>
       <h4 id={headingId} className={styles.entryHead}><RequestLink {...entry} /> <Badge size="sm">{entry.journey}</Badge></h4>
+      <Iteration requestId={entry.requestId} iteration={entry.iteration} />
       <p className={styles.problem}>{entry.problem}</p>
       <dl className={styles.facts}>
         <Fact label="Released"><time dateTime={entry.releaseDate}>{journeyDate(entry.releaseDate)}</time></Fact>
@@ -176,6 +184,7 @@ function ClosedWithoutResult({ groups }: { groups: ReportClosedGroup[] }) {
         <h3 id={`report-closed-${group.reasonCode}`} className={styles.projectHeading}>{group.label} <span className={styles.count}>{group.requests.length}</span></h3>
         <ul className={styles.entries}>{group.requests.map(item => <li key={item.requestId} className={styles.entry}>
           <p className={styles.entryHead}><RequestLink {...item} /></p>
+          <Iteration requestId={item.requestId} iteration={item.iteration} />
           <p className={styles.problem}>{item.problem}</p>
           <dl className={styles.facts}>
             <Fact label="Project">{item.projectName ?? "No Project"}</Fact>

@@ -8,6 +8,7 @@ import { DeleteRequest } from "@/app/(app)/requests/[id]/delete-request"
 import { closureLabel } from "@/lib/request-outcome"
 import { RequestTimeline } from "./request-timeline"
 import { GuestSubmissionNotice } from "./guest-submission-notice"
+import { SameProblemSection } from "./same-problem-section"
 import { RequestDetailView, type RequestAttachment, type RequestComment, type RequestDetail } from "./detail-view"
 
 /**
@@ -41,7 +42,11 @@ export function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, r
   const pickupRequester = changes ? null : request.creatorName || "the Requester"
   const closure = closureLabel(request)
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin, readOnly }} peekStrip={peekStrip}
-    requestPanels={<RequestTimeline key={request.id} request={request} orgId={orgId} isGuest={isGuest} readOnly={readOnly} />}
+    requestPanels={<>
+      <RequestTimeline key={request.id} request={request} orgId={orgId} isGuest={isGuest} readOnly={readOnly} />
+      {/* #218: Same problem links. Guests see none. */}
+      {!isGuest && <SameProblemSection key={`iterations-${request.id}`} requestId={request.id} requestNumber={request.requestNumber} orgId={orgId} />}
+    </>}
     lifecycleActions={request.agreementBlocked ? <a href="#journey">{closure ?? "Closed"}</a> : <LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
     guestSubmission={guestSubmission}
     editRequest={request.status === "open" && changes ? <><EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} withoutPrediction={isGuest} /><DeleteRequest requestId={request.id} title={request.title} orgId={orgId} /></> : undefined}
