@@ -39,3 +39,10 @@
   .shell[data-linear-preview-auto-collapse] .navigation:not([data-peeking]) { visibility: hidden; }
   .shell[data-linear-preview-auto-collapse] .resizeHandle { display: none; }
 }
+/* Print and save as PDF (#209): the page's content alone, at full length, without the sidebar or the pane's frame. */
+@media print {
+  .shell { display: block; height: auto; overflow: visible; padding: 0; background: none; }
+  .navigation, .resizeHandle, .skip { display: none; }
+  .main { overflow: visible; border: 0; border-radius: 0; }
+  .content { overflow: visible; }
+}

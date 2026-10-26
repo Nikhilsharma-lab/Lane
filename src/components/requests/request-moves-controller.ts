@@ -200,6 +200,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
 
   const moveMany = async (targets: BulkMoveTarget[], kind: LifecycleMove, options: {
     isGuest: boolean
+    readOnly?: boolean
     /** Selection's retained operation/scope, independent of workspace navigation. */
     current: () => boolean
     onStart?: (count: number) => void

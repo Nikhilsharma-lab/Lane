@@ -3,8 +3,8 @@ import { MeasurementPlanSummary } from "./measurement-plan-summary"
 import { measurementAudienceLabel, measurementPlatformLabel } from "@/lib/request-measurement"
 
 /** Plan item 2.5: Request detail passes id="expected-impact", a stable region its strip and stories address; the heading takes `${id}-heading`. */
-export function ExpectedImpactSummary({ impact, id }: { impact: ExpectedImpact | IncompleteMeasurement; id?: string }) {
-  if (impact.kind === "measurement") return <MeasurementPlanSummary id={id} plan={impact} />
+export function ExpectedImpactSummary({ impact, id, metricNames }: { impact: ExpectedImpact | IncompleteMeasurement; id?: string; metricNames?: Record<string, string> }) {
+  if (impact.kind === "measurement") return <MeasurementPlanSummary id={id} plan={impact} metricNames={metricNames} />
   const values = impact.kind === "metric"
     ? [
       { label: "Metric", value: impact.metric },

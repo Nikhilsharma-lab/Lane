@@ -85,7 +85,7 @@ test("⌘K and Ctrl+K open the palette on the list, a Request and Settings, for 
         await page.goto("/");
         await expect(page.getByText("Palette acceptance request").first()).toBeVisible();
         await openAndClose(page, surface, key, async () => {
-          for (const name of ["New Request", "Search workspace", "Notifications", "Keyboard shortcuts"])
+          for (const name of ["New Request", "Search workspace", "Inbox", "Keyboard shortcuts"])
             await expect(option(page, name)).toBeAttached();
           await expect(option(page, "All Requests", "Requests")).toBeAttached();
           await expect(option(page, "Members", "Settings")).toBeAttached();
@@ -105,26 +105,26 @@ test("⌘K and Ctrl+K open the palette on the list, a Request and Settings, for 
         await expect(page.getByRole("button", { name: /Search settings/ })).toBeVisible();
         await openAndClose(page, surface, key, async () => {
           await expect(option(page, "Preferences", "Settings")).toBeAttached();
-          // Settings has no search pane, ? overlay or bell, so the palette leaves those out there.
-          for (const name of ["Search workspace", "Notifications", "Keyboard shortcuts"])
+          // Settings has no search pane or ? overlay, so the palette leaves those out there; the Inbox is a page (#204).
+          await expect(option(page, "Inbox")).toBeAttached();
+          for (const name of ["Search workspace", "Keyboard shortcuts"])
             await expect(option(page, name)).toHaveCount(0);
         });
       }
 
-      // The entries run as their own buttons and keys do, on every surface. Phones keep the bell inside the
-      // closed navigation, so its panel must still open in view.
+      // The entries run as their own buttons and keys do, on every surface.
       await page.goto("/");
       await expect(page.getByText("Palette acceptance request").first()).toBeVisible();
       await run(page, "Search workspace");
       await expect(page.locator('#lane-main input[type="search"]')).toBeFocused();
       await page.keyboard.press("Escape");
 
-      await run(page, "Notifications");
-      const bell = page.getByRole("dialog", { name: "Notifications", exact: true });
-      await expect(bell).toBeVisible();
-      await expectInViewport(page, bell);
-      await page.keyboard.press("Escape");
-      await expect(bell).toBeHidden();
+      // #204: the bell's popover became the Inbox page.
+      await run(page, "Inbox");
+      await expect(page).toHaveURL(/\/inbox$/);
+      await expect(page.getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
+      await page.goto("/");
+      await expect(page.getByText("Palette acceptance request").first()).toBeVisible();
 
       await run(page, "Keyboard shortcuts");
       const shortcuts = page.getByRole("dialog", { name: "Keyboard shortcuts", exact: true });

@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { loadProjects } from "@/lib/data/projects";
 import { loadLabels } from "@/lib/data/labels";
-import { loadUnreadCount } from "@/lib/data/notifications";
+import { loadSavedViews } from "@/lib/data/saved-views";
+import { countNeedsYou } from "@/lib/data/inbox";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
@@ -13,6 +14,8 @@ import { PickupConfirmationProvider } from "@/components/requests/pickup-confirm
 import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
 import { IsItLiveProvider } from "@/components/requests/is-it-live-prompt";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
+import { canChangeThings, canContribute } from "@/lib/role-rules";
+import { followSeatChangesAfterResponse } from "@/lib/billing";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
 // and the composer opens from every page under this layout, so the function
@@ -29,13 +32,32 @@ export default async function AppLayout({
   const member = await getMember();
   if (!member) return (await auth()).redirectToSignIn();
 
-  // The unread count is not awaited here. It streams to the Suspense-wrapped
+  // The bell's count (#205: Needs-you items, worked out from Request state;
+  // nothing is written) is not awaited here. It streams to the Suspense-wrapped
   // bell, so it never holds up the first byte. A failed count leaves the badge
   // empty, as a failed client fetch did before; it never breaks the shell.
-  const unreadCount = loadUnreadCount(member).catch(() => 0);
-  const [result, projects, labels] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member)]);
+  const needsYouCount = countNeedsYou(member).catch(() => 0);
+  // #219: the person's own saved views for the navigation. A failed read leaves the group out; it never breaks the shell.
+  const [result, projects, labels, savedViews] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member), loadSavedViews(member).catch(() => [])]);
   if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
+  // #215: a paying workspace's seats follow Clerk memberships; checked after the response, at most every 10 minutes.
+  followSeatChangesAfterResponse({ orgId: result.orgId });
+
+  const shell = (
+    <Sidebar
+      workspaceName={result.workspaceName}
+      fullName={result.fullName}
+      email={result.email}
+      role={result.role}
+      orgId={result.orgId}
+      userId={result.userId}
+      needsYouCount={needsYouCount}
+      savedViews={savedViews}
+    >
+      {children}
+    </Sidebar>
+  );
 
   return (
     <RequestListViewProvider key={`${result.orgId}:${result.userId}`}>
@@ -50,19 +72,10 @@ export default async function AppLayout({
       <IsItLiveProvider orgId={result.orgId}>
       <WorkspaceProjectsProvider key={`${result.orgId}:${result.userId}`} orgId={result.orgId} initialProjects={projects}>
         <WorkspaceLabelsProvider orgId={result.orgId} initial={labels}>
-        <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={member.role !== "guest"}>
-          <Sidebar
-            workspaceName={result.workspaceName}
-            fullName={result.fullName}
-            email={result.email}
-            role={result.role}
-            orgId={result.orgId}
-            userId={result.userId}
-            unreadCount={unreadCount}
-          >
-            {children}
-          </Sidebar>
-        </NewRequestProvider>
+        {/* #210: a Viewer files nothing, so no composer, no C shortcut and no palette entry open one. */}
+        {canContribute(member.role)
+          ? <NewRequestProvider context={{ orgId: result.orgId }} draftOwnerId={result.userId} canAddReviewers={canChangeThings(member.role)} withoutPrediction={member.role === "guest"}>{shell}</NewRequestProvider>
+          : shell}
         </WorkspaceLabelsProvider>
       </WorkspaceProjectsProvider>
       </IsItLiveProvider>

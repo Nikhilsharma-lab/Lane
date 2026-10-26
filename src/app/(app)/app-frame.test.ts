@@ -19,8 +19,11 @@ import ListLoading from "./loading"
 import DetailLoading from "./requests/[id]/loading"
 import IntakeLoading from "./intake/loading"
 import ImpactLoading from "./impact/loading"
+import InboxLoading from "./inbox/loading"
 import ProfileLoading from "./settings/profile/loading"
 import MembersLoading from "./settings/members/loading"
+import MetricsLoading from "./settings/metrics/loading"
+import MetricDefinitionLoading from "./settings/metrics/[id]/loading"
 import AppError from "./error"
 import RootError from "../error"
 import NotFound from "../not-found"
@@ -47,11 +50,14 @@ const skeletons: [string, string, ComponentType, string, string][] = [
   ["requests/[id]/loading.tsx", "/requests/x", DetailLoading, "detail", "Loading selected Request"],
   ["intake/loading.tsx", "/intake", IntakeLoading, "intake", "Loading New Request"],
   ["impact/loading.tsx", "/impact", ImpactLoading, "impact", "Loading impact"],
+  ["inbox/loading.tsx", "/inbox", InboxLoading, "inbox", "Loading your Inbox"],
 ]
 
 const settingsSkeletons: [string, string, ComponentType, string][] = [
   ["settings/profile/loading.tsx", "/settings/profile", ProfileLoading, "Loading Profile settings"],
   ["settings/members/loading.tsx", "/settings/members", MembersLoading, "Loading Members"],
+  ["settings/metrics/loading.tsx", "/settings/metrics", MetricsLoading, "Loading Metrics"],
+  ["settings/metrics/[id]/loading.tsx", "/settings/metrics/x", MetricDefinitionLoading, "Loading metric"],
 ]
 
 describe("(app) loading frames", () => {

@@ -1,26 +1,31 @@
 import { z } from "zod";
-export const reviewerIdentitySchema = z.discriminatedUnion("kind", [
-  z
-    .object({ kind: z.literal("member"), userId: z.string().min(1).max(200) })
-    .strict(),
-  z
-    .object({
-      kind: z.literal("invitation"),
-      invitationId: z.string().min(1).max(200),
-      email: z.email().max(320),
-    })
-    .strict(),
-]);
+/**
+ * A Reviewer is always a teammate on a paid seat: an Admin or a Member of the
+ * workspace (#211). Email-address and pending-invitation Reviewers are retired.
+ */
+export const reviewerIdentitySchema = z
+  .object({ kind: z.literal("member"), userId: z.string().min(1).max(200) })
+  .strict();
 export type ReviewerIdentity = z.infer<typeof reviewerIdentitySchema>;
+/** Why the server refuses anyone who isn't an Admin or a Member as a Reviewer. */
+export const PAID_SEATS_ONLY = "Only Admins and Members can be Reviewers.";
+/**
+ * The refusal for reviewer picks that didn't parse: a pick that isn't a
+ * workspace member (an email address, an invitation) is refused for not being
+ * on a paid seat; anything else is a malformed pick.
+ */
+export function reviewerPickRefusal(nominees: unknown) {
+  const notAMember = Array.isArray(nominees) && nominees.some((nominee) =>
+    typeof nominee !== "object" || nominee === null || (nominee as { kind?: unknown }).kind !== "member");
+  return notAMember ? PAID_SEATS_ONLY : "Choose people to review.";
+}
 /** A hidden ceiling against runaway lists; the screen says nothing unless someone reaches it. */
 export const MAX_REVIEWERS = 20;
 export const REVIEW_NOTE_MAX = 500;
 export const REVIEW_REASON_MAX = 4000;
-/** One identity per reviewer: a member, or an invitation until the invitee answers. */
+/** One identity per reviewer. */
 export function reviewerKey(n: ReviewerIdentity) {
-  return n.kind === "member"
-    ? `member:${n.userId}`
-    : `invitation:${n.invitationId}`;
+  return `member:${n.userId}`;
 }
 /** A reviewer's answer. A concern carries its reason. */
 export type ReviewDecision = {
@@ -93,7 +98,7 @@ export type ReviewState = {
 export function reviewStateOf(
   reviewers: { name: string; decision: { kind: ReviewDecision["kind"]; reason: string } | null; counts: boolean }[],
 ): ReviewState | null {
-  // A reviewer who left the workspace, or whose invitation lapsed, no longer counts (§4.4).
+  // A reviewer who left the workspace or lost their paid seat no longer counts (§4.4).
   const counted = reviewers.filter(({ counts }) => counts);
   const concerns = counted.flatMap(({ name, decision }) =>
     decision?.kind === "concern" ? [{ name, reason: decision.reason }] : [],

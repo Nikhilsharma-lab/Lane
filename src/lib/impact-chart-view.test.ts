@@ -7,9 +7,9 @@ import { metricChart } from "./impact-chart-view"
 
 function result(over: Partial<ResultView> & Pick<ResultView, "requestNumber">): ResultView {
   return {
-    requestId: `req-${over.requestNumber}`, title: `Request ${over.requestNumber}`, metric: "Conversion rate", form: "numeric",
+    requestId: `req-${over.requestNumber}`, title: `Request ${over.requestNumber}`, definitionId: null, metric: "Conversion rate", form: "numeric",
     unit: "%", changeUnit: "percentage points", audience: "all", platform: "all", window: "30 days after release",
-    baselineState: "known", baseline: 40, baselineSource: "planning", plannedBaseline: 40, actual: 46, change: 6, verdict: null, predictedTarget: 50, predictedChange: 10,
+    baselineState: "known", baseline: 40, baselineSource: "planning", plannedBaseline: 40, actual: 46, change: 6, verdict: null, correctedFrom: null, predictedTarget: 50, predictedChange: 10,
     releaseDate: "2026-08-10", observedFrom: "2026-08-10", observedTo: "2026-09-09", evidence: "Released", guardrails: [],
     corrections: [], requests: [], ...over,
   }
@@ -17,7 +17,7 @@ function result(over: Partial<ResultView> & Pick<ResultView, "requestNumber">): 
 
 function line(over: Partial<ResultLine> & { results: ResultView[] }): ResultLine {
   return {
-    metric: "Conversion rate", form: "numeric", unit: "%", changeUnit: "percentage points", audience: "all", platform: "all",
+    definitionId: null, metric: "Conversion rate", form: "numeric", unit: "%", changeUnit: "percentage points", audience: "all", platform: "all",
     window: "30 days after release", count: over.results.length, summed: null, verdicts: null, ...over,
   }
 }

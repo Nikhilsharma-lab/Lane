@@ -24,6 +24,10 @@ vi.mock("@/db", async () => {
       boundary.beforeNames();
       return { rows: boundary.names.filter(([id]) => params.includes(id)) };
     }
+    if (sql.includes('from "quarter_notes"')) return { rows: [] };
+    if (sql.includes('from "metric_definitions"')) return { rows: ["conversion", "adoption", "error", "support", "csat", "duration", "events"].map(key =>
+      [key, key, key === "duration" ? "seconds" : key === "events" ? "count" : "percent", null, null, null, null, key, null, "2026-01-01", "2026-01-01"]) };
+    if (!sql.includes('from "requests"')) return { rows: [] };
     const read = ++boundary.reads;
     if (boundary.fail === "requests") throw new Error("Query boundary unavailable");
     boundary.beforeRows();
@@ -31,7 +35,7 @@ vi.mock("@/db", async () => {
       id: `request-${read}`, org_id: "org_impact", request_number: read, title: `Saved snapshot ${read}`,
       created_by: "viewer", assigned_to: "teammate", status: "open", closure_corrections: [],
     };
-    const columns = [...sql.slice(0, sql.indexOf(" from ")).matchAll(/"(?:requests|projects)"\."([^"]+)"/g)];
+    const columns = [...sql.slice(0, sql.indexOf(" from ")).matchAll(/"(?:requests|projects|same_problem_members)"\."([^"]+)"/g)];
     return { rows: (boundary.rows ?? [row]).map(value => columns.map(([, name]) => value[name] ?? null)) };
   }, { schema }) };
 });
@@ -51,7 +55,7 @@ afterEach(() => vi.useRealTimers());
 it("loads the selected-person page with one visible Request read", async () => {
   await ImpactPage({ searchParams: Promise.resolve({ period: "2026-q4", person: "teammate" }) });
   expect(boundary.reads).toBe(1);
-  expect(boundary.queries).toHaveLength(2);
+  expect(boundary.queries.filter(query => query.sql.includes('from "profiles"'))).toHaveLength(1);
 });
 
 it("derives the dashboard and selected teammate from one visible Request snapshot", async () => {
@@ -59,8 +63,8 @@ it("derives the dashboard and selected teammate from one visible Request snapsho
   expect(boundary.reads).toBe(1);
   expect(result.dashboard.myWork.requests).toMatchObject([{ requestId: "request-1", title: "Saved snapshot 1" }]);
   expect(result.person).toMatchObject({ id: "teammate", name: "Avery", entries: [{ requestId: "request-1", title: "Saved snapshot 1" }] });
-  expect(result.dashboard.wholeOrg?.period).toEqual({ kind: "quarter", year: 2026, quarter: 4 });
-  expect(boundary.queries).toHaveLength(2);
+  expect(result.dashboard.outcomeReport?.period).toEqual({ kind: "quarter", year: 2026, quarter: 4 });
+  expect(boundary.queries.filter(query => query.sql.includes('from "profiles"'))).toHaveLength(1);
 });
 
 const member = { userId: "viewer", orgId: "org_impact", role: "member" as const };
@@ -101,7 +105,7 @@ it.each([
   expect(result.person?.id ?? null).toBe(chosen);
   if (role === "guest") {
     expect(result.teammates).toEqual([]);
-    expect(result.dashboard.wholeOrg).toBeNull();
+    expect(result.dashboard.outcomeReport).toBeNull();
   }
 });
 
@@ -111,7 +115,7 @@ it("skips name queries when all visible Requests belong only to the viewer", asy
   expect(result.teammates).toEqual([]);
   expect(result.person).toBeNull();
   expect(result.dashboard.myWork.requests).toHaveLength(1);
-  expect(boundary.queries).toHaveLength(1);
+  expect(boundary.queries.filter(query => query.sql.includes('from "profiles"'))).toHaveLength(0);
 });
 
 it("uses the handover Requester, deduplicates people and resolves a selected person's saved name once", async () => {
@@ -142,13 +146,13 @@ it.each(["member", "guest"] as const)("keeps SQL workspace/guest restrictions an
   const query = boundary.queries[0];
   expect(query.sql).toContain('"requests"."org_id" =');
   expect(query.sql).toContain('"projects"."org_id" =');
-  expect(query.params).toEqual(role === "guest" ? ["org_impact", "org_impact", "viewer"] : ["org_impact", "org_impact"]);
+  expect(query.params).toEqual(role === "guest" ? ["org_impact", "org_impact", "org_impact", "viewer"] : ["org_impact", "org_impact", "org_impact"]);
   if (role === "guest") {
     expect(query.sql).toContain('"requests"."created_by" =');
-    expect(result.dashboard.wholeOrg).toBeNull();
-    expect(result.dashboard.byProject.flatMap(project => project.requests.map(entry => entry.requestId))).toEqual(["measuring"]);
+    expect(result.dashboard.outcomeReport).toBeNull();
+
   } else {
-    expect(result.dashboard.byProject.flatMap(project => project.requests.map(entry => entry.requestId))).toEqual(["measuring", "other-person"]);
+    expect(result.dashboard.outcomeReport!.projects.flatMap(project => project.requests.map(entry => entry.requestId))).toEqual(["measuring"]);
   }
 });
 
@@ -156,21 +160,21 @@ it.each(["requests", "names"] as const)("propagates a failed %s query through th
   boundary.fail = failure;
   await expect(ImpactPage({ searchParams: Promise.resolve({ person: "teammate" }) })).rejects.toMatchObject({ cause: { message: "Query boundary unavailable" } });
   expect(boundary.reads).toBe(1);
-  expect(boundary.queries).toHaveLength(failure === "requests" ? 1 : 2);
+  expect(boundary.queries.filter(query => query.sql.includes('from "profiles"'))).toHaveLength(failure === "requests" ? 0 : 1);
 });
 
 it("retains genuine empty states after a successful empty Request read", async () => {
   boundary.rows = [];
   const result = await loadImpactPage(member, { personId: "teammate" });
-  expect(result).toMatchObject({ dashboard: { myWork: { requests: [] }, byProject: [], wholeOrg: { lines: [], emptyMessage: "Nothing measured this period yet" } }, teammates: [], person: null });
-  expect(boundary.queries).toHaveLength(1);
+  expect(result).toMatchObject({ dashboard: { myWork: { requests: [] }, outcomeReport: { projects: [], totals: [], emptyMessage: "Nothing was Released in Q4 2026." } }, teammates: [], person: null });
+  expect(boundary.queries.filter(query => query.sql.includes('from "profiles"'))).toHaveLength(0);
 });
 
 it("captures the default day before the Request read and respects an explicit clock", async () => {
   boundary.rows = [measuringRow()];
   boundary.beforeRows = () => vi.setSystemTime(new Date("2026-10-26T00:00:00Z"));
   const result = await loadImpactPage(member, { personId: "teammate", period: { kind: "year", year: 2025 } });
-  expect(result.dashboard.wholeOrg?.period).toEqual({ kind: "year", year: 2025 });
+  expect(result.dashboard.outcomeReport?.period).toEqual({ kind: "year", year: 2025 });
   expect(result.dashboard.myWork.requests[0].stillDue?.dueLabel).toBe("Due in 1 day");
   expect(result.person?.entries[0].stillDue?.dueLabel).toBe("Due in 1 day");
   const controlled = await loadImpactPage(member, { personId: "teammate", now: new Date("2026-10-23T00:00:00Z") });

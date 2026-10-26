@@ -1,0 +1,9 @@
+/* "Link a Request" (#218). Theme and bridge names only. */
+.body { display: grid; gap: var(--space-3); min-width: 0; }
+.muted { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); }
+.error { margin: 0; color: var(--danger); font-size: var(--text-sm); }
+.results { display: grid; margin: 0; padding: 0; list-style: none; min-width: 0; }
+.result { display: flex; align-items: center; gap: var(--space-3); min-width: 0; padding-block: var(--space-2); }
+.result + .result { border-top: var(--border-width) solid var(--border-subtle); }
+.name { flex: 1; min-width: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.code { color: var(--text-secondary); }

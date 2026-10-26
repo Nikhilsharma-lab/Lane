@@ -30,6 +30,17 @@ describe("The journey in the list (#133)", () => {
     expect(shown("all")).toHaveLength(journey.length)
   })
 
+  it("lists only Guest submissions waiting to be taken on (review of #195, story: none are forgotten)", () => {
+    const rows: OverviewRequest[] = [
+      { ...base, id: "waiting", title: "Waiting", status: "open", guestSubmission: "waiting" },
+      { ...base, id: "taken", title: "Taken on", status: "open", guestSubmission: "taken_on" },
+      { ...base, id: "member", title: "Filed by a Member", status: "open", guestSubmission: null },
+      { ...base, id: "plain", title: "Older row", status: "open" },
+    ]
+    expect(rows.filter(row => matchesListFilters(row, { ...all, status: "waiting" }, now)).map(row => row.id)).toEqual(["waiting"])
+    expect(shown("waiting")).toEqual([])
+  })
+
   it("groups the board into a column per journey status, in journey order", () => {
     const groups = groupRequestRows([...journey].reverse(), "status")
     expect(groups.map(group => group.label)).toEqual(["Open", "In progress", "Done", "Measuring", "Closed"])

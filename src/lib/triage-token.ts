@@ -91,7 +91,8 @@ export function createTriageToken(
     purpose: existingRequestId ? "edit" : "create",
     orgId: context.orgId,
     userId: context.userId,
-    expectedImpact: existingRequestId ? reviewedImpactSchema.safeParse(input.expectedImpact).data ?? null : reviewedImpactSchema.parse(input.expectedImpact),
+    // A Guest's new Request carries no prediction (#212); everyone else's must.
+    expectedImpact: existingRequestId || input.expectedImpact == null ? reviewedImpactSchema.safeParse(input.expectedImpact).data ?? null : reviewedImpactSchema.parse(input.expectedImpact),
     projectId: input.projectId ?? null,
     requestType: sourceRequestType(input),
     labelKeys: input.labelKeys,
@@ -111,7 +112,7 @@ export function createTriageToken(
 
 export function verifyTriageToken(
   token: string,
-  context: { orgId: string; userId: string },
+  context: { orgId: string; userId: string; withoutPrediction?: boolean },
   existingRequestId?: string
 ): TriageTokenVerification {
   const [encoded, suppliedSignature, ...extra] = token.split(".");
@@ -160,6 +161,8 @@ export function verifyTriageToken(
       if (parsed.data.requestId !== existingRequestId) return { valid: false, reason: "context_mismatch" };
       return { valid: true, payload: parsed.data };
     }
+    // A Guest files without a prediction (#212): theirs is never saved, whatever the review held.
+    if (context.withoutPrediction) return { valid: true, payload: { ...parsed.data, expectedImpact: null } };
     if (parsed.data.expectedImpact === null) return { valid: false, reason: "impact_required" };
     if (measurementRequestTypeIssue(parsed.data.expectedImpact, parsed.data.requestType)) return { valid: false, reason: "invalid" };
     return { valid: true, payload: parsed.data };

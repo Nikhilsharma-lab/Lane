@@ -6,6 +6,7 @@ import { db, projects, workspaceLabels } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
 import { accessibleProjectsWhere } from "@/lib/project-access";
 import { DEFAULT_LABELS, type RequestLabel } from "@/lib/request-labels";
+import { canChangeThings } from "@/lib/role-rules";
 
 export type LabelCatalogue = { labels: RequestLabel[]; canCreate: boolean };
 
@@ -25,5 +26,5 @@ export async function loadLabels(auth: MemberAuth): Promise<LabelCatalogue> {
         : undefined,
     ))
     .orderBy(asc(workspaceLabels.name));
-  return { labels: [...DEFAULT_LABELS, ...labels], canCreate: auth.role !== "guest" };
+  return { labels: [...DEFAULT_LABELS, ...labels], canCreate: canChangeThings(auth.role) };
 }

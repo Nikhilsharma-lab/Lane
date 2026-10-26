@@ -10,7 +10,13 @@ import styles from "./requests-overview.module.css"
  * the first Request replaces only this content and nothing around it moves.
  * The C hint is CSS-gated to fine pointers, so server and client markup match;
  * on touch, `aria-keyshortcuts` on the links still exposes the shortcut. */
-export function RequestsWelcome({ canInvite, isGuest }: { canInvite: boolean; isGuest: boolean }) {
+export function RequestsWelcome({ canInvite, isGuest, readOnly = false }: { canInvite: boolean; isGuest: boolean; readOnly?: boolean }) {
+  // A Viewer (#210) files nothing, so the welcome only says where the team's Requests will appear.
+  if (readOnly) return (
+    <div data-requests-welcome className={styles.welcome}>
+      <EmptyState label="No Requests yet" title="No Requests yet" description="Requests your team files appear here, with their predictions and results." icon={<Inbox data-icon-size="2xl" />} />
+    </div>
+  )
   return (
     <div data-requests-welcome className={styles.welcome}>
       <EmptyState

@@ -42,7 +42,7 @@ export function DetailConversation({ comments, children }: { comments: Conversat
           <p className={styles.commentText}>{comment.body}</p>
         </div>
       </li>
-    })}</ul> : null}
+    })}</ul> : children ? null : <p className={styles.secondaryText}>No comments yet.</p>}
     {children}
   </section>
 }

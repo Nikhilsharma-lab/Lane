@@ -63,3 +63,37 @@ describe("SidebarView frame", () => {
     expect(html.match(/data-test-palette/g)).toHaveLength(1);
   });
 });
+
+// #210: a Viewer files nothing, so the sidebar has no New Request control for them.
+describe("SidebarView for a Viewer", () => {
+  const as = (role: string) => renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
+    workspaceName: "Lane Studio", fullName: "Test Viewer", email: "viewer@example.test", role, pathname: "/", projects: [], notifications: null,
+  })));
+  it("leaves out New Request, and keeps it for a Member", () => {
+    expect(as("member")).toContain('aria-label="New Request"');
+    expect(as("viewer")).not.toContain('aria-label="New Request"');
+    expect(as("viewer")).toContain("All Requests");
+  });
+});
+
+// #219: a person's saved views sit in the navigation, each opening the Requests list with its filters.
+describe("SidebarView saved views", () => {
+  const withViews = (savedViews: { id: string; name: string; filters: { status: "open" | "all"; project: string } }[]) => renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
+    workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test", role: "viewer", pathname: "/inbox", projects: [], notifications: null, savedViews,
+  })));
+  const group = (html: string) => /<section[^>]*aria-label="Your views"[^>]*>[\s\S]*?<\/section>/.exec(html)?.[0] ?? null;
+
+  it("lists each view by name, linking to the list with its filters", () => {
+    const html = group(withViews([
+      { id: "v1", name: "Open work", filters: { status: "open", project: "all" } },
+      { id: "v2", name: "Website", filters: { status: "all", project: websiteId } },
+    ]));
+    expect(html).not.toBeNull();
+    const links = [...html!.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>[\s\S]*?<\/a>/g)].map(([link, href]) => [link.replace(/<[^>]+>/g, ""), href.replaceAll("&amp;", "&")]);
+    expect(links).toEqual([["Open work", "/?status=open"], ["Website", `/?project=${websiteId}`]]);
+  });
+
+  it("shows no group until the person saves a view", () => {
+    expect(group(withViews([]))).toBeNull();
+  });
+});

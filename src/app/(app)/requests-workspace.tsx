@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation"
 import { getMember, getWorkspace } from "@/lib/ensure-workspace"
 import { loadRequestList } from "@/lib/data/requests"
+import { loadSavedViews } from "@/lib/data/saved-views"
+import { firstRunSlot } from "@/components/first-run/first-run-slot"
 import { RequestsOverview } from "./requests-overview"
 
 /**
@@ -18,9 +20,13 @@ export async function RequestsWorkspace() {
   // Project filter. The list loads every active Request (capped) plus the
   // latest Done, and the browser filters it. The loader keeps the workspace
   // and guest guards (src/lib/data/requests.ts).
-  const [workspace, list] = await Promise.all([
-    getWorkspace(),
+  // #217: the first run is read after getWorkspace, which records a workspace Lane hasn't seen before, and
+  // alongside the list.
+  // #219: the person's own saved views (the layout's read, shared within this render).
+  const [[workspace, firstRun], list, savedViews] = await Promise.all([
+    getWorkspace().then(async ws => [ws, ws && !ws.needsOnboarding ? await firstRunSlot(member, ws.workspaceName, "list") : null] as const),
     loadRequestList(member),
+    loadSavedViews(member).catch(() => []),
   ])
   if (!workspace) redirect("/login")
   if (workspace.needsOnboarding) redirect("/onboarding")
@@ -32,9 +38,12 @@ export async function RequestsWorkspace() {
     activeCapped={list.activeCapped}
     hasOlderFinished={list.hasOlderFinished}
     isGuest={member.role === "guest"}
+    readOnly={member.role === "viewer"}
     // The welcome is about the workspace, never about the current filter.
     canInvite={member.role === "admin"}
     context={{ orgId: member.orgId }}
-    viewer={{ id: member.userId, name: workspace.fullName, isAdmin: member.role === "admin" }}
+    viewer={{ id: member.userId, name: workspace.fullName, isAdmin: member.role === "admin", readOnly: member.role === "viewer" }}
+    firstRun={firstRun ?? undefined}
+    savedViews={savedViews}
   />
 }

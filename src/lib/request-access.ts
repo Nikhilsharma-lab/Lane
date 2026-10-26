@@ -10,8 +10,10 @@ export { canChange, canSee } from "./request-access-rules";
  *
  * - **See:** everyone in the Request's workspace, except a guest, who sees
  *   only the Requests they created. Anything else reads as missing.
- * - **Change:** its creator (a guest included) or a workspace admin. Which
- *   status allows which change stays with each change.
+ * - **Change:** its creator (a guest included) or a workspace admin, never a
+ *   Viewer (#210). Once a Member takes a Guest submission on (#212), that Member
+ *   changes it in the Guest's place. Which status allows which change stays
+ *   with each change.
  *
  * Each rule comes as a Drizzle condition (`seeable`, `changeable`), a raw SQL
  * fragment for hand-written statements (`seeableSql`), and a check on a row
@@ -20,7 +22,7 @@ export { canChange, canSee } from "./request-access-rules";
 
 type Access = Pick<MemberAuth, "orgId" | "userId" | "role">;
 /** The `requests` table or an alias of it. */
-type RequestColumns = { orgId: AnyColumn; createdBy: AnyColumn };
+type RequestColumns = { orgId: AnyColumn; createdBy: AnyColumn; takenOnBy: AnyColumn };
 
 /** Requests `auth` can see, as a condition on `table` (the requests table or an alias). */
 export function seeable(auth: Access, table: RequestColumns = requests): SQL {
@@ -36,10 +38,12 @@ export function seeableSql(auth: Access, table: RequestColumns = requests): SQL 
 
 /** Requests `auth` can change, as a condition on `table`. */
 export function changeable(auth: Access, table: RequestColumns = requests): SQL {
-  return and(eq(table.orgId, auth.orgId), auth.role === "admin" ? undefined : eq(table.createdBy, auth.userId))!;
+  if (auth.role === "viewer") return sql`false`;
+  return and(eq(table.orgId, auth.orgId), auth.role === "admin" ? undefined : sql`coalesce(${table.takenOnBy}, ${table.createdBy}) = ${auth.userId}`)!;
 }
 
 /** `changeable` as a boolean column, for a list or detail query to offer edits. */
 export function changeableColumn(auth: Access, table: RequestColumns = requests): SQL<boolean> {
-  return sql<boolean>`(${auth.role === "admin"} or ${table.createdBy} = ${auth.userId})`;
+  if (auth.role === "viewer") return sql<boolean>`false`;
+  return sql<boolean>`(${auth.role === "admin"} or coalesce(${table.takenOnBy}, ${table.createdBy}) = ${auth.userId})`;
 }

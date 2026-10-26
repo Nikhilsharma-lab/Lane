@@ -3,7 +3,7 @@
  * supports, in one map. The `?` overlay renders from it, and a unit test keeps
  * it free of clashes. Handlers own registration; this map only describes them.
  */
-export type ShortcutScope = "anywhere" | "list" | "preview" | "detail" | "notifications" | "forms"
+export type ShortcutScope = "anywhere" | "list" | "preview" | "detail" | "inbox" | "forms"
 
 export type Shortcut = {
   /** The keys as shown, one entry per interchangeable alternative ("J" or "↓"); a chord is one string ("Shift F10"). Keys that do different things get their own entries. */
@@ -20,7 +20,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     { keys: ["["], label: "Show or hide sidebar" },
     { keys: ["?"], label: "Show or hide keyboard shortcuts" },
     { keys: ["⌘ K", "Ctrl K"], label: "Open command palette" },
-    // The toast region's name is "Messages (Alt+T)" (src/app/layout.tsx), apart from the sidebar's Notifications inbox.
+    // The toast region's name is "Messages (Alt+T)" (src/app/layout.tsx), apart from the sidebar's Inbox.
     { keys: ["Alt T"], label: "Go to messages, such as Undo" },
   ] },
   { scope: "list", title: "Requests list", shortcuts: [
@@ -47,14 +47,14 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     { keys: ["K"], label: "Previous Request" },
     { keys: ["Esc"], label: "Close a form or menu, then back to Requests" },
   ] },
-  // Plan item 2.7 (decision 8.10): inside the open notifications popover. Enter is the row's own activation; Esc is the popover's.
-  { scope: "notifications", title: "Notifications", shortcuts: [
-    { keys: ["J", "↓"], label: "Next notification" },
-    { keys: ["K", "↑"], label: "Previous notification" },
-    { keys: ["Home"], label: "First notification" },
-    { keys: ["End"], label: "Last notification" },
-    { keys: ["Enter"], label: "Open the Request" },
-    { keys: ["Esc"], label: "Close notifications" },
+  // Plan item 2.7 (decision 8.10) and #204: on the Inbox page. Enter is the row's own activation; Esc is the preview's.
+  { scope: "inbox", title: "Inbox", shortcuts: [
+    { keys: ["J", "↓"], label: "Next item" },
+    { keys: ["K", "↑"], label: "Previous item" },
+    { keys: ["Home"], label: "First item" },
+    { keys: ["End"], label: "Last item" },
+    { keys: ["Enter"], label: "Open the Request beside the list" },
+    { keys: ["Esc"], label: "Close the preview, back to its item" },
   ] },
   { scope: "forms", title: "Forms", shortcuts: [
     { keys: ["⌘ Enter", "Ctrl Enter"], label: "Submit" },

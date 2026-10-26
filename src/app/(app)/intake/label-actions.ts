@@ -1,7 +1,7 @@
 "use server";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, workspaceLabels } from "@/db";
-import { guardActiveMember, guardMemberOrAbove } from "@/lib/auth-guard";
+import { guardActiveMember, guardCanChange } from "@/lib/auth-guard";
 import { DEFAULT_LABELS, labelInputSchema, type RequestLabel } from "@/lib/request-labels";
 import { canUseProject } from "@/lib/project-access";
 import { loadLabels } from "@/lib/data/labels";
@@ -14,7 +14,7 @@ export async function listLabels(context: {orgId:string}): Promise<{success:true
  } catch {return {success:false,error:"Labels could not be loaded. Try again."};}
 }
 export async function createLabel(input:unknown,context:{orgId:string}): Promise<{success:true;label:RequestLabel} | {success:false;error:string;sessionExpired?:true}> {
- const auth = await guardMemberOrAbove(context.orgId, "Only workspace members and admins can create labels.");
+ const auth = await guardCanChange(context.orgId, "Only workspace members and admins can create labels.");
  if ("error" in auth) return { success: false, ...auth };
  const parsed=labelInputSchema.safeParse(input);
  if (!parsed.success) return {success:false,error:parsed.error.issues[0].message};

@@ -30,6 +30,7 @@ describe("Private Request attachment contract", () => {
   });
 
   it("derives identity from the session and scopes every reservation", () => {
+    expect(ACTIONS).toContain("guardCanContribute(context.orgId,");
     expect(ACTIONS).toContain("eq(requests.orgId, orgId)");
     expect(ACTIONS).toContain("eq(requests.createdBy, userId)");
     expect(ACTIONS).toContain("uploadedBy: auth.userId");

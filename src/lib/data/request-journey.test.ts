@@ -189,3 +189,19 @@ it("the production refresh mechanism discards an older actual combined read", as
   expect(await initial).toBe(false);
   expect(shown).toEqual([42]);
 });
+
+
+it("keeps a taken-on Guest submission's Requester and saved correction facts in the combined Viewer journey", async () => {
+  boundary.session.orgRole = "org:viewer";
+  boundary.row = {
+    guest_submission: true, taken_on_by: "viewer", release_state: null,
+    exception_closure: { kind: "exception", actorId: "viewer", ownerId: "viewer", learned: "The original need changed.", closedAt: "2026-10-23T00:00:00Z", reasonCode: "other", reason: "Stopped", revision: 2 },
+    closure_corrections: [{ actorId: "historian", field: "reason", correction: "More context", reason: "Checked", revision: 3 }],
+  };
+  const result = await journey();
+  expect(result.release.requesterId).toBe("viewer");
+  expect(result.outcome).toMatchObject({ requesterId: "viewer", state: "closed", closure: { learned: "The original need changed." }, corrections: [{ correction: "More context" }] });
+  expect(Object.values(result.release.actions).every(action => !action.allowed)).toBe(true);
+  expect(result.release.actions).toEqual(result.outcome.actions);
+  expect([boundary.authReads, boundary.primaryReads, boundary.rosterReads]).toEqual([1, 1, 1]);
+});

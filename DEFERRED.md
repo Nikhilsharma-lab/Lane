@@ -245,16 +245,40 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   assignee/commenter) proves insufficient for real teams. The bar is "people are missing things they
   need to act on," not "people want to watch everything."
 
-- **Email notifications beyond authentication and workspace invitations.** What: transactional email alongside
-  in-app notifications for request activity. Why: Resend is configured for auth and invitation delivery, but
-  broader notification email is not part of the current MVP and would add preference/noise concerns.
-  Plane ref: `EmailNotificationLog` model, email sending in `notification_task.py`. Trigger: real pilot users
-  repeatedly miss request activity that the in-app surface should have made actionable.
+- ~~**Email notifications beyond authentication and workspace invitations.**~~ BUILT for Needs-you items only
+  (#195 item 2, #206, 2026-10-25, on the integration branch): one email per item, once, through Resend, switched
+  off until approved (`LANE_EMAIL_DELIVERY`, `CRON_SECRET`; see REQUIREMENTS.md "Inbox delivery"). Still deferred:
+  email for For-your-information activity (comments, pickup, Done), which stays inside Lane by design.
+  Trigger for that remainder: real pilot users repeatedly miss activity the Inbox should have made actionable.
 
-- **Notification preferences.** What: per-user booleans controlling which notification types generate
-  email. Why: meaningless without request-activity email notifications. Plane ref: `UserNotificationPreference` model
-  (`property_change`, `state_change`, `comment`, `mention`, `issue_completed` booleans).
-  Trigger: email notifications exist.
+- ~~**Notification preferences.**~~ BUILT as one choice per person per workspace (#206): Email (default),
+  Slack DM (while an Admin has Slack connected, #207) or Off. Per-type toggles stay deferred; trigger: people ask to
+  keep one kind of Needs-you email and stop another.
+
+- **Switching Inbox email on.** What: set `LANE_EMAIL_DELIVERY=1`, `RESEND_API_KEY`, `LANE_EMAIL_FROM` (a domain
+  verified in Resend) and `CRON_SECRET`, and add `"crons": [{ "path": "/api/inbox/daily", "schedule": "0 7 * * *" }]`
+  to `vercel.json` in the same change. Why: built behind the switch so nothing is sent before approval. Trigger:
+  Nikhil approves the email service and migration 0041 is on the target database.
+
+- **Switching Slack DM on.** What: create the Lane Slack app as the #195 build plan describes ("The Slack app"), then
+  set `LANE_SLACK_DELIVERY=1`, `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `LANE_SLACK_TOKEN_KEY`. Why: built behind
+  the switch (#207) so nothing reaches Slack before approval; until then Settings → Slack says Slack isn't available
+  and nobody can choose Slack DM. Trigger: Nikhil approves the Slack app and migration 0042 is on the target database.
+
+- **Switching billing enforcement on.** What: set `LANE_BILLING_ENFORCED=1`. Why: Free Requests are counted and
+  shown (#213) but nothing is blocked, so pilot workspaces are never stopped before billing is approved. The switch
+  also turns on paying (#214): checkout is offered only while it is on. Trigger, all of: about 10 target teams have
+  been asked what they'd pay (and the $30/$36 prices confirmed or changed in `src/lib/billing-plan-rules.ts`); Lane
+  is on Supabase Pro and Vercel Pro (`AGENTS.md`: no payment on Hobby); Nikhil approves Stripe as an external
+  service; migrations 0046, 0047 and 0048 are on the target database; and the five Stripe names in `.env.example` are set
+  (the webhook endpoint, the two per-seat prices matching Lane's, and the 40%-for-24-months founding coupon).
+  Without the Stripe names, switching it on would leave a workspace with no way to pay (the server warns by name).
+  Also in Stripe (#216), migration 0049 on the target database first: send the webhook endpoint
+  `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`,
+  `customer.subscription.paused` and `customer.subscription.resumed`; set up the customer portal so customers can
+  update payment methods, see invoice history, switch between the yearly and monthly prices (same product), and
+  cancel at the end of the billing period; and under subscription retries, cancel the subscription when all retries
+  fail (an unpaid plan stays lapsed until the card is updated otherwise).
 
 - **Notification tabs (All/Mentions).** What: tabbed notification panel with separate unread counts
   per tab. Why: without @mentions there's only one category. Plane ref: `NOTIFICATION_TABS` constant,
@@ -266,10 +290,11 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   `ENotificationFilterType` enum, `FILTER_TYPE_OPTIONS`, filter logic in `NotificationViewSet.list`.
   Trigger: team size / notification volume makes scanning the full list slow.
 
-- **Cursor pagination for notifications.** What: replace `LIMIT 30` with cursor-based pagination +
-  "load more." Why: 30 is more than enough for MVP volumes. Plane ref: `BasePaginator` mixin,
+- **Cursor pagination for notifications.** What: replace the Inbox page's `LIMIT 100` (`INBOX_LIMIT`, #204; the
+  bell popover's 30 is gone) with cursor-based pagination + "load more." Why: read items clear, so 100 unread is
+  more than enough for MVP volumes; Mark all read still clears every item. Plane ref: `BasePaginator` mixin,
   `ENotificationLoader.PAGINATION_LOADER`, `NotificationCardListRoot` "load more" UI.
-  Trigger: teams regularly hit the 30-notification cap.
+  Trigger: people regularly hit the 100-item cap.
 
 - **Notification panel form (inbox pane / dedicated route).** What: Lane uses a popover; Plane uses
   a dedicated `/notifications` route with a master-detail two-pane layout (notification list 3/12 +

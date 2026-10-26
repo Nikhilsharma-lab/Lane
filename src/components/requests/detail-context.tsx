@@ -9,7 +9,8 @@ import { usePublishOpenRequest } from "./list-view-state"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { useRequestNavigation } from "./request-navigation"
 
-export type DetailViewer = { id: string; name: string; isAdmin?: boolean }
+/** Who is reading. `readOnly` is a Viewer (#210): they read everything and are offered nothing that changes it. */
+export type DetailViewer = { id: string; name: string; isAdmin?: boolean; readOnly?: boolean }
 
 export type DetailRequestValue = {
   /** The server row through the pending-mutation overlay: a move or a priority shows in the same frame. */
@@ -93,14 +94,14 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
   }, arrival)
 
   // #103: the shell's current Request, with the same edit and pickup rules as the panel and the strip's button.
-  const { id, status, priority, createdBy, agreementBlocked, reviewState, pickupBlockedReason } = request
+  const { id, status, priority, createdBy, takenOnBy, agreementBlocked, reviewState, pickupBlockedReason } = request
   const source = arrival ? "page" : "peek"
   const current = useMemo<CurrentRequest>(() => ({
     id, code, name, status, priority, source,
-    canEdit: canEditRequest({ status, createdBy }, viewer),
+    canEdit: canEditRequest({ status, createdBy, takenOnBy }, viewer),
     agreementBlocked: agreementBlocked ?? false, reviewState: reviewState ?? null,
     pickupBlockedReason: pickupBlockedReason ?? null,
-  }), [id, code, name, status, priority, source, viewer, createdBy, agreementBlocked, reviewState, pickupBlockedReason])
+  }), [id, code, name, status, priority, source, viewer, createdBy, takenOnBy, agreementBlocked, reviewState, pickupBlockedReason])
   usePublishOpenRequest(current)
 
   const peek = !arrival

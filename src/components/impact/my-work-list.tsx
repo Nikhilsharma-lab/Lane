@@ -37,12 +37,14 @@ function ResultDetail({ entry }: { entry: MyWorkEntry }) {
 
 function MeasuredFacts({ result }: { result: ResultView }) {
   const { baselineState, baselineSource, baseline, plannedBaseline, actual, change, predictedTarget, predictedChange, unit, changeUnit, window, metric, corrections, evidence } = result
+  // A Correction that stated another value is what counts; the Correction itself is listed below.
+  const corrected = result.correctedFrom ? " (corrected)" : ""
   return <div className={styles.result}>
     <p className={styles.metric}>{metric}</p>
     <dl className={styles.facts}>
-      {result.form === "pass_fail" ? <div><dt>Result</dt><dd>{actualText(result)}</dd></div> : null}
+      {result.form === "pass_fail" ? <div><dt>Result</dt><dd>{actualText(result)}{corrected}</dd></div> : null}
       {result.form === "numeric" && baselineSource !== null && baseline !== null ? <div><dt>{baselineLabelOf(baselineSource)}</dt><dd>{valueText(baseline, unit)}</dd></div> : null}
-      {result.form === "numeric" && actual !== null ? <div><dt>Actual</dt><dd>{valueText(actual, unit)}</dd></div> : null}
+      {result.form === "numeric" && actual !== null ? <div><dt>Actual</dt><dd>{valueText(actual, unit)}{corrected}</dd></div> : null}
       {change !== null && changeUnit !== null ? <div><dt>Change</dt><dd>{changeText(change, unit, changeUnit)}</dd></div> : null}
       {predictedChange !== null && changeUnit !== null ? <div><dt>Predicted change</dt><dd>{changeText(predictedChange, unit, changeUnit)}</dd></div> : null}
       {predictedChange !== null && plannedBaseline !== null ? <div><dt>Planned baseline</dt><dd>{valueText(plannedBaseline, unit)}</dd></div> : null}

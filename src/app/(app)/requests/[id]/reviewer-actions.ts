@@ -1,23 +1,20 @@
 "use server";
 import { canChange, seeable } from "@/lib/request-access";
+import { canChangeThings } from "@/lib/role-rules";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
-import { guardActiveMember, guardMemberOrAbove, type MemberAuth } from "@/lib/auth-guard";
+import { guardActiveMember, guardCanChange, type MemberAuth } from "@/lib/auth-guard";
 import {
   addReviewersSchema,
   removeReviewerSchema,
   answerReviewSchema,
   reviewerKey,
+  reviewerPickRefusal,
   type RequestChangeContext,
   type Reviewer,
 } from "@/lib/request-reviewer-rules";
-import {
-  workspaceRoster,
-  pendingInvitations,
-  resolveInvitedMember,
-  type WorkspacePerson,
-} from "@/lib/workspace-roster";
+import { workspaceRoster, type WorkspacePerson } from "@/lib/workspace-roster";
 import { appendReviewers, notifyReviewers, reviewerViews } from "@/lib/request-reviewers";
 import {
   changeRequest,
@@ -26,6 +23,7 @@ import {
   type RequestTx,
   type StoredRequest,
 } from "@/lib/request-change-store";
+import { deliverAfterResponse } from "@/lib/inbox-delivery";
 
 type ReviewersRow = typeof requestAgreements.$inferSelect;
 
@@ -80,6 +78,13 @@ function changeReviewers(
   });
 }
 
+/** #206: once a change is saved, the Needs-you items it caused leave Lane after the response. */
+async function delivering<T extends object>(context: RequestChangeContext, change: Promise<T>): Promise<T> {
+  const result = await change;
+  if ("success" in result) deliverAfterResponse({ orgId: context.orgId, requestId: context.requestId });
+  return result;
+}
+
 async function saveReviewers(
   tx: RequestTx,
   request: StoredRequest,
@@ -102,11 +107,12 @@ async function saveReviewers(
       .values({ orgId: request.orgId, requestId: request.id, reviewers });
 }
 
-/** Any non-guest member asks people to look at an Open Request. Only admins invite by email. */
+/** An Admin or Member asks other Admins or Members to look at an Open Request. */
 export async function addReviewers(context: RequestChangeContext, input: unknown) {
   const parsed = addReviewersSchema.safeParse(input);
-  if (!parsed.success) return { error: "Choose people to review." };
-  return changeReviewers(
+  if (!parsed.success)
+    return { error: reviewerPickRefusal((input as { nominees?: unknown } | null)?.nominees) };
+  return delivering(context, changeReviewers(
     context,
     parsed.data,
     "reviewers_added",
@@ -122,7 +128,7 @@ export async function addReviewers(context: RequestChangeContext, input: unknown
       await saveReviewers(tx, request, reviewersRow, reviewers);
       await notifyReviewers(tx, request, auth.userId, asked);
     },
-  );
+  ));
 }
 
 /** The requester or an admin takes someone off an Open Request. */
@@ -156,7 +162,7 @@ export async function answerReview(context: RequestChangeContext, input: unknown
   if (!parsed.success) return { error: "Invalid review answer." };
   if (parsed.data.kind === "concern" && !parsed.data.reason)
     return { error: "Say what concerns you." };
-  return changeReviewers(
+  const answered = changeReviewers(
     context,
     parsed.data,
     "reviewed",
@@ -164,19 +170,6 @@ export async function answerReview(context: RequestChangeContext, input: unknown
       const reviewers = structuredClone(reviewersRow?.reviewers ?? []);
       const reviewer = reviewers.find((r) => r.id === parsed.data.reviewerId);
       insist(reviewer, "This review was removed. Reload to see the latest.");
-      if (reviewer.nominee.kind === "invitation") {
-        insist(
-          await resolveInvitedMember(auth.orgId, reviewer.nominee, auth.userId),
-          "Only the invited person can answer, once they have joined and verified their email.",
-        );
-        insist(
-          !reviewers.some(
-            (r) => r.nominee.kind === "member" && r.nominee.userId === auth.userId,
-          ),
-          "You are already a reviewer on this Request.",
-        );
-        reviewer.nominee = { kind: "member", userId: auth.userId };
-      }
       insist(
         reviewer.nominee.userId === auth.userId,
         "Only the named reviewer can answer.",
@@ -197,6 +190,8 @@ export async function answerReview(context: RequestChangeContext, input: unknown
       ]);
     },
   );
+  // A Concern needs the Requester; Looks good is For your information and stays inside Lane.
+  return parsed.data.kind === "concern" ? delivering(context, answered) : answered;
 }
 
 export async function readReviews(
@@ -229,7 +224,8 @@ export async function readReviews(
       requestId,
       revision: request.agreementRevision,
       open,
-      canAdd: open && auth.role !== "guest",
+      canAdd: open && canChangeThings(auth.role),
+      /** An Admin can invite someone to the workspace; nobody becomes a Reviewer by invitation. */
       canInvite: open && auth.role === "admin",
       canRemove: open && canChange(auth, request),
       /** People the picker leaves out: the viewer, the requester and anyone already reviewing. */
@@ -250,17 +246,16 @@ export async function readReviews(
   }
 }
 
-/** Members to choose from, plus pending invitations for admins. */
+/**
+ * The people a Reviewer can be chosen from: the workspace's Admins and
+ * Members only (#211). `canInvite` tells the picker whether to point an Admin
+ * to Members settings or tell anyone else to ask an Admin.
+ */
 export async function loadReviewerPeople(context: { orgId: string }) {
-  const auth = await guardMemberOrAbove(context.orgId, "Workspace unavailable.");
+  const auth = await guardCanChange(context.orgId, "Workspace unavailable.");
   if ("error" in auth) return auth;
   try {
-    return {
-      people: [
-        ...(await workspaceRoster(auth.orgId)),
-        ...(auth.role === "admin" ? await pendingInvitations(auth.orgId) : []),
-      ],
-    };
+    return { people: await workspaceRoster(auth.orgId), canInvite: auth.role === "admin" };
   } catch {
     return { error: "Could not load people. Try again." };
   }

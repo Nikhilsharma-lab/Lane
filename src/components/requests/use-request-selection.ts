@@ -24,7 +24,8 @@ function focusKept() {
   return active instanceof HTMLElement && active !== document.body && active.isConnected && isShown(active) && !active.matches(":disabled")
 }
 
-export function useRequestSelection(scope: string, rows: OverviewRequest[], context?: { orgId: string }, isGuest = false) {
+/** `readOnly` is a Viewer (#210): rows can be selected and copied, but the bar offers no move. */
+export function useRequestSelection(scope: string, rows: OverviewRequest[], context?: { orgId: string }, isGuest = false, readOnly = false) {
   const refresh = useServerRefresh()
   // Plan item 2.4: selection changes speak in the list's one region; the bar shows "n selected".
   const announce = useListAnnouncer()
@@ -115,7 +116,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   }
 
   // The bulk bar offers a move only when every selected row allows the same one (plan item 2.4).
-  const offered = context ? selected.map(row => availableMove(row, { isGuest })?.move ?? null) : []
+  const offered = context ? selected.map(row => availableMove(row, { isGuest, readOnly })?.move ?? null) : []
   const availableAction: LifecycleMove | null = offered.length && offered.every(move => move !== null && move === offered[0]) ? offered[0] : null
   const action = current.pending && current.pending.kind !== "copy" ? current.pending.kind : availableAction
 
@@ -130,7 +131,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
       const outcome = await moves.moveMany(selected.map(row => ({
         ...moveTarget(row), status: row.status, agreementBlocked: row.agreementBlocked,
         pickupBlockedReason: row.pickupBlockedReason, requester: row.canEdit ? null : row.creatorName || "the Requester",
-      })), availableAction, { isGuest, current,
+      })), availableAction, { isGuest, readOnly, current,
         onStart: count => {
           setState(previous => ({ ...previous, pending: { kind: availableAction, count }, error: "", failedCount: 0, message: "" }))
           announce(`Working on ${count} selected ${count === 1 ? "Request" : "Requests"}.`, { key: "selection" })

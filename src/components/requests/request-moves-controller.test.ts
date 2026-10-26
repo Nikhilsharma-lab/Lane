@@ -362,3 +362,26 @@ it("navigation during explicit session recovery detaches presentation but preser
   expect(a.shown("r1", "in_progress").status).toBe("done")
   expect(a.stack.toasts).toEqual([])
 })
+
+
+it.each(["pick-up", "done"] as const)("opening a personal saved view invalidates the pending %s invocation", async kind => {
+  const a = app()
+  const move = a.moves.move(request, kind)
+  const call = kind === "done" ? await a.sent() : null
+  a.navigation.selectList({ status: "done", project: "none", savedView: "my-view" })
+  if (call) call.response.resolve({ success: true })
+  else a.confirmation.settle(true)
+  expect(await move).toMatchObject({ status: kind === "done" ? "success" : "cancelled" })
+  expect(a.calls).toHaveLength(kind === "done" ? 1 : 0)
+  expect(a.isItLive).not.toHaveBeenCalled()
+  expect(a.shown("r1", "in_progress").status).toBe(kind === "done" ? "done" : "in_progress")
+})
+
+it.each([{ isGuest: true }, { isGuest: false, readOnly: true }])("offers no bulk move or confirmation for %j", async viewer => {
+  const a = app()
+  const result = await a.moves.moveMany([{ ...request, status: "open", requester: null }], "pick-up", { ...viewer, current: () => true })
+  expect(result).toMatchObject({ status: "success", moved: [], failed: [{ id: "r1" }] })
+  expect(a.asked()).toBeNull()
+  expect(a.calls).toEqual([])
+  expect(a.shown().status).toBe("open")
+})

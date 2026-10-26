@@ -280,3 +280,16 @@ describe("workspace Requests navigation", () => {
     unmount()
   })
 })
+
+
+it("opens a saved view through navigation and clears its association on an ordinary Project choice", () => {
+  const app = workspace("/requests/a")
+  const current = app.sidebar.continuation()
+  app.sidebar.selectList({ status: "done", project: "named", savedView: "personal-view" })
+  expect(current()).toBe(false)
+  expect(app.view()).toMatchObject({ status: "done", project: "named", savedView: "personal-view", pagination: { pageIndex: 0 } })
+  expect(app.view().localFilters).toBe(app.original.localFilters)
+  expect(app.push).toHaveBeenCalledExactlyOnceWith("/?status=done&project=named")
+  app.palette.selectList({ project: "named" })
+  expect(app.view().savedView).toBeUndefined()
+})

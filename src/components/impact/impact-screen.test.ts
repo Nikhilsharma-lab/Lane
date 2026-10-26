@@ -15,8 +15,8 @@ const GUEST: ImpactViewer = { userId: "user_guest", orgId: ORG, role: "guest" }
 
 function row(over: Partial<ImpactRow> & Pick<ImpactRow, "id" | "requestNumber" | "title" | "createdBy">): ImpactRow {
   return {
-    orgId: ORG, assignedTo: null, projectId: null, projectName: null, status: "open", releaseState: null, outcomeClosure: null,
-    exceptionClosure: null, closureCorrections: [], expectedImpact: null, noMeasurableImpactReason: null, followUpOf: null, ...over,
+    orgId: ORG, problem: `Problem ${over.requestNumber}`, assignedTo: null, projectId: null, projectName: null, status: "open", releaseState: null, outcomeClosure: null,
+    exceptionClosure: null, closureCorrections: [], expectedImpact: null, noMeasurableImpactReason: null, followUpOf: null, definitions: [], takenOnBy: null, createdAt: new Date(Date.UTC(2026, 0, over.requestNumber)), sameProblemGroup: null, ...over,
   }
 }
 
@@ -36,9 +36,9 @@ describe("Dashboard screen: the guest rule", () => {
     expect(markup).toContain("Guest&#x27;s own request")
     expect(markup).not.toContain("Member&#x27;s request")
     expect(markup).not.toContain('role="tablist"')
-    expect(markup).not.toContain("Whole org")
-    expect(markup).not.toContain("By project")
-    expect(markup).not.toContain("Measured results")
+    expect(markup).not.toContain("Outcome report")
+    expect(markup).not.toContain("At a glance")
+    expect(markup).not.toContain("Up to date as of")
   })
 
   it("offers a guest no teammate links, even if a list is passed in", () => {
@@ -48,11 +48,11 @@ describe("Dashboard screen: the guest rule", () => {
   })
 })
 
-describe("Dashboard screen: the three tabs", () => {
-  it("gives a non-guest three tabs, with My work selected and announced", () => {
+describe("Impact screen: My work and Outcome report tabs (#208)", () => {
+  it("gives a non-guest two tabs, My work and Outcome report, with My work selected and announced", () => {
     const markup = screen(MEMBER)
     expect(markup).toContain('role="tablist"')
-    expect([...markup.matchAll(/role="tab"/g)]).toHaveLength(3);
+    expect([...markup.matchAll(/role="tab"[^>]*>([^<]*)</g)].map(match => match[1])).toEqual(["My work", "Outcome report"]);
     const selected = [...markup.matchAll(/<button[^>]*aria-selected="true"[^>]*>([^<]*)<\/button>/g)].map(match => match[1]);
     expect(selected).toEqual(["My work"])
     expect(markup).toContain('aria-selected="false"')
@@ -60,32 +60,38 @@ describe("Dashboard screen: the three tabs", () => {
 
   it("links each tab to the panel it controls, and labels each panel by its tab", () => {
     const markup = screen(ADMIN)
-    for (const id of ["my-work", "by-project", "whole-org"]) {
+    for (const id of ["my-work", "outcome-report"]) {
       expect(markup).toContain(`aria-controls="impact-panel-${id}"`)
       expect(markup).toContain(`id="impact-panel-${id}" role="tabpanel" aria-labelledby="impact-tab-${id}"`)
     }
   })
 
-  it("gives a non-guest the same results under each tab as an admin, with the org view", () => {
-    const markup = screen(MEMBER)
-    expect(markup).toContain("Whole org")
-    expect(markup).toContain("By project")
-    expect(markup).toContain("Guest&#x27;s own request")
+  it("gives a member the same Outcome report as an admin", () => {
+    const report = (markup: string) => markup.slice(markup.indexOf('id="impact-panel-outcome-report"'))
+    expect(report(screen(MEMBER))).toContain("Up to date as of")
+    expect(report(screen(MEMBER))).toBe(report(screen(ADMIN)))
+  })
+
+  it("opens the Outcome report first when the page asks for it", () => {
+    const markup = screen(MEMBER, { initialTab: "outcome-report" })
+    const selected = [...markup.matchAll(/<button[^>]*aria-selected="true"[^>]*>([^<]*)<\/button>/g)].map(match => match[1]);
+    expect(selected).toEqual(["Outcome report"])
+    expect(markup).toMatch(/id="impact-panel-my-work"[^>]*hidden/)
   })
 })
 
 describe("nextTab: the keyboard rule for the tabs", () => {
   it("moves with the arrow keys, wrapping at the ends", () => {
-    expect(nextTab("my-work", "ArrowRight")).toBe("by-project")
-    expect(nextTab("whole-org", "ArrowRight")).toBe("my-work")
-    expect(nextTab("my-work", "ArrowLeft")).toBe("whole-org")
-    expect(nextTab("by-project", "ArrowDown")).toBe("whole-org")
+    expect(nextTab("my-work", "ArrowRight")).toBe("outcome-report")
+    expect(nextTab("outcome-report", "ArrowRight")).toBe("my-work")
+    expect(nextTab("my-work", "ArrowLeft")).toBe("outcome-report")
+    expect(nextTab("my-work", "ArrowDown")).toBe("outcome-report")
   })
 
   it("jumps to the first and last tab with Home and End, and ignores other keys", () => {
-    expect(nextTab("by-project", "Home")).toBe("my-work")
-    expect(nextTab("by-project", "End")).toBe("whole-org")
-    expect(nextTab("by-project", "Enter")).toBeNull()
+    expect(nextTab("outcome-report", "Home")).toBe("my-work")
+    expect(nextTab("my-work", "End")).toBe("outcome-report")
+    expect(nextTab("my-work", "Enter")).toBeNull()
   })
 })
 

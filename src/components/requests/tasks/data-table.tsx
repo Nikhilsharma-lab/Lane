@@ -92,8 +92,10 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const { rows: currentRows, pageIndex, pageCount } = model.page
   const { title, requestType } = model.filters
   const project = projectFilter === "all" ? "" : projectFilter
-  const selectionScope = viewResets.selection(view, { orgId: context?.orgId, isGuest })
-  const selection = useRequestSelection(selectionScope, visibleRows, context, isGuest)
+  // A Viewer (#210) files nothing and moves nothing: no New Request in the Open group, no bulk move.
+  const readOnly = viewer?.readOnly ?? false
+  const selectionScope = viewResets.selection(view, { orgId: context?.orgId, isGuest, readOnly })
+  const selection = useRequestSelection(selectionScope, visibleRows, context, isGuest, readOnly)
   const announce = useListAnnouncer()
   // Plan item 2.12: the Request preview beside the list. Space or the row menu opens it; it follows
   // the list's active row (J and K), and phones keep full-page navigation.
@@ -296,7 +298,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
                   {collapsed ? <ChevronRight aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}<span>{group.label}</span>
                   <span className={styles.groupCount}>{count}</span>
                 </button></h2></div>
-                {presentation && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content="New Request"><NewRequestLink tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
+                {presentation && !readOnly && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content="New Request"><NewRequestLink tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
               </div>
               <div id={id} hidden={collapsed}>{rows.map(request => renderRow(request, 2))}</div>
             </div>

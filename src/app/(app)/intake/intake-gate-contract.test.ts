@@ -38,6 +38,7 @@ describe("Intake Gate contract", () => {
   it("derives identity from the session and binds review state to context", () => {
     expect(LAYOUT).toContain('context={{ orgId: result.orgId }}');
     expect(PAGE).not.toContain("userId:");
+    expect(ACTIONS).toContain("guardCanContribute(context.orgId,");
     expect(ACTIONS).toContain("userId: auth.userId");
     expect(TOKEN).toContain("requestId: existingRequestId ?? randomUUID()");
     expect(TOKEN).toContain('purpose: existingRequestId ? "edit" : "create"');

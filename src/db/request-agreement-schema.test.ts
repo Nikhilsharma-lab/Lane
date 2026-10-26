@@ -73,13 +73,9 @@ it("turns filled seats into reviewers in seat order, keeping answers and droppin
       decision: { kind: "concern", actorId: "seat_developer", at: "2026-10-20T02:00:00Z", reason: "The API cannot do this yet" },
     },
   ]);
+  // 0031 kept the invited developer seat as an invitation reviewer; 0044 (#211) retires invitation reviewers.
   expect(partly).toEqual([
     expect.objectContaining({ nominee: { kind: "member", userId: "seat_pm" }, decision: null }),
-    expect.objectContaining({
-      nominee: { kind: "invitation", invitationId: "inv_seat", email: "invited@seat.test" },
-      displayNameAtSelection: "invited@seat.test",
-      decision: null,
-    }),
   ]);
 });
 it("keeps existing Requests without invented agreement or exception closure", async () => {
@@ -113,15 +109,14 @@ it("accepts an empty list, twenty reviewers, Looks good and a concern with a rea
     reviewer("b", { kind: "concern", actorId: "b", at: "2026-10-21", reason: "Too big" }),
   ])).toBe(true);
 });
-it("rejects more than twenty, a repeated person, a concern without a reason, an answer by someone else and an answered invitation", async () => {
+it("rejects more than twenty, a repeated person, a concern without a reason, an answer by someone else and an invitation", async () => {
   const invitation = { ...reviewer("x"), nominee: { kind: "invitation", invitationId: "inv_1", email: "x@example.test" } };
   for (const invalid of [
     Array.from({ length: 21 }, (_, i) => reviewer(`person_${i}`)),
     [reviewer("a"), reviewer("a")],
-    [invitation, { ...invitation, id: crypto.randomUUID() }],
+    [invitation],
     [reviewer("a", { kind: "concern", actorId: "a", at: "2026-10-21", reason: " " })],
     [reviewer("a", { kind: "looks_good", actorId: "b", at: "2026-10-21", reason: "" })],
-    [{ ...invitation, decision: { kind: "looks_good", actorId: "x", at: "2026-10-21", reason: "" } }],
     [reviewer("a", { kind: "agree", actorId: "a", at: "2026-10-21", reason: "" })],
     [{ ...reviewer("a"), unknown: true }],
     [{ ...reviewer("a"), note: "x".repeat(501) }],

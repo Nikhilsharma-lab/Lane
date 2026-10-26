@@ -5,13 +5,14 @@ import { Button } from "@/components/arc/button/button";
 import { clerkOrganizationAppearance } from "./clerk-appearance";
 import { SettingsCard } from "@/components/settings/settings-card";
 
-/** Clerk retains the membership list, invitations and all authorization. */
+/** Clerk retains the membership list, invitations and all authorization. Lane's own Members cards invite people
+ * and change roles (#210); removing someone from the workspace stays in Clerk's members page, for Admins. */
 export function ClerkMembersProfile() {
   const clerk = useClerk();
-  const { isLoaded, organization, membership } = useOrganization();
-  return <SettingsCard title="Members and invitations" description="View the people in your workspace and their access."
-      footer={membership?.role === "org:admin" ? "As a workspace admin, you can invite teammates and manage their access. PM, Designer, and Developer are profile labels, not access permissions." : "You can view members. Only workspace admins can invite teammates or change access. PM, Designer, and Developer are profile labels, not access permissions."}
-      action={<Button variant="secondary" size="sm" disabled={!isLoaded || !organization} onClick={() => clerk.openOrganizationProfile({ appearance: clerkOrganizationAppearance, __experimental_startPath: "/organization-members" })}>Manage members</Button>} />;
+  const { isLoaded, organization } = useOrganization();
+  return <SettingsCard title="Remove someone" description="Removing a person from this workspace happens in Clerk, which keeps every membership."
+      footer="Their Requests, comments and results stay in Lane."
+      action={<Button variant="secondary" size="sm" disabled={!isLoaded || !organization} onClick={() => clerk.openOrganizationProfile({ appearance: clerkOrganizationAppearance, __experimental_startPath: "/organization-members" })}>Manage members in Clerk</Button>} />;
 }
 
 export function ClerkWorkspaceProfile() {

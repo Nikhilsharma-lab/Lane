@@ -74,7 +74,7 @@ it("the Due soon or overdue condition selects exactly the Requests with a due ta
 })
 
 it("the Requester column names each Request's Requester as requesterOf does (bell reminders)", async () => {
-  const rows = await db.select({ title: requests.title, column: requesterColumn, createdBy: requests.createdBy, releaseState: requests.releaseState }).from(requests).where(inOrg)
+  const rows = await db.select({ title: requests.title, column: requesterColumn, createdBy: requests.createdBy, takenOnBy: requests.takenOnBy, releaseState: requests.releaseState }).from(requests).where(inOrg)
   expect(rows.find(row => row.title === "In progress, handed over")!.column).toBe("journey_next")
   for (const row of rows) expect([row.title, row.column]).toEqual([row.title, requesterOf(row)])
 })

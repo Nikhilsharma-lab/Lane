@@ -44,7 +44,7 @@ const ADMIN = "user_test_admin_a", MEMBER = "user_test_member_a", OTHER_ADMIN = 
 const GUEST = "user_read_routes_guest";
 const MARK = `Read route probe ${randomUUID().slice(0, 8)}`;
 const memberRequest = randomUUID(), guestRequest = randomUUID(), foreignRequest = randomUUID(), project = randomUUID();
-const notificationIds = Array.from({ length: 4 }, () => randomUUID());
+const notificationIds = Array.from({ length: 8 }, () => randomUUID());
 
 const actAs = (userId: string | null, orgRole = "org:member", orgId: string | null = ORG) => { session.userId = userId; session.orgId = orgId; session.orgRole = orgRole; };
 const get = (handler: (request: Request) => Promise<Response>, path: string, params: Record<string, string>) =>
@@ -60,9 +60,14 @@ beforeAll(async () => {
   await db.insert(projects).values({ id: project, orgId: ORG, name: `${MARK} project`, createdBy: MEMBER });
   await db.insert(notifications).values([
     { id: notificationIds[0], userId: MEMBER, orgId: ORG, type: "request_picked_up", requestId: memberRequest, actorId: ADMIN },
-    { id: notificationIds[1], userId: MEMBER, orgId: ORG, type: "invite_accepted", requestId: null, actorId: ADMIN, readAt: new Date() },
+    { id: notificationIds[1], userId: MEMBER, orgId: ORG, type: "invite_accepted", requestId: null, actorId: ADMIN },
     { id: notificationIds[2], userId: MEMBER, orgId: OTHER_ORG, type: "request_done", requestId: foreignRequest, actorId: OTHER_ADMIN },
     { id: notificationIds[3], userId: GUEST, orgId: ORG, type: "invite_accepted", requestId: null, actorId: ADMIN },
+    // #204: a read item has cleared, and a review ask is not For your information.
+    { id: notificationIds[4], userId: MEMBER, orgId: ORG, type: "request_done", requestId: memberRequest, actorId: ADMIN, readAt: new Date() },
+    { id: notificationIds[5], userId: MEMBER, orgId: ORG, type: "review_requested", requestId: memberRequest, actorId: ADMIN },
+    { id: notificationIds[6], userId: GUEST, orgId: ORG, type: "request_picked_up", requestId: guestRequest, actorId: ADMIN },
+    { id: notificationIds[7], userId: GUEST, orgId: ORG, type: "comment_added", requestId: guestRequest, actorId: ADMIN, readAt: new Date() },
   ]);
 });
 beforeEach(() => {
@@ -118,16 +123,18 @@ describe("GET /api/notifications", () => {
     expect((await get(notificationList, "/api/notifications", { org: ORG })).status).toBe(403);
   });
 
-  it("returns the caller's notifications for this workspace only", async () => {
+  it("returns the caller's unread For-your-information items for this workspace only", async () => {
     const response = await get(notificationList, "/api/notifications", { org: ORG });
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    const rows = (await response.json()).notifications as { id: string; requestNumber: number | null; reframedProblem: string | null; requestTitle: string | null }[];
+    const rows = (await response.json()).forYourInformation as { id: string; requestNumber: number | null; reframedProblem: string | null; requestTitle: string | null }[];
     const ids = rows.map(item => item.id);
     expect(ids).toContain(notificationIds[0]);
     expect(ids).toContain(notificationIds[1]);
     expect(ids).not.toContain(notificationIds[2]);
     expect(ids).not.toContain(notificationIds[3]);
+    expect(ids).not.toContain(notificationIds[4]);
+    expect(ids).not.toContain(notificationIds[5]);
     // Plan item 2.7: the row reads "LAN-n · reframed problem", so the payload carries the saved code and the problem; an invite carries neither.
     const requestRow = rows.find(item => item.id === notificationIds[0])!;
     expect(requestRow.requestNumber).toBeGreaterThan(0);
@@ -139,8 +146,8 @@ describe("GET /api/notifications", () => {
 
   it("hides workspace-wide events from a guest", async () => {
     actAs(GUEST, "org:guest");
-    const ids = (await (await get(notificationList, "/api/notifications", { org: ORG })).json()).notifications.map((item: { id: string }) => item.id);
-    expect(ids).not.toContain(notificationIds[3]);
+    const ids = (await (await get(notificationList, "/api/notifications", { org: ORG })).json()).forYourInformation.map((item: { id: string }) => item.id);
+    expect(ids).toEqual([notificationIds[6]]);
   });
 });
 
@@ -152,15 +159,18 @@ describe("GET /api/notifications/unread", () => {
     expect((await get(unread, "/api/notifications/unread", { org: ORG })).status).toBe(403);
   });
 
-  it("counts only unread notifications visible in this workspace", async () => {
+  it("counts the bell's Needs-you items, and apart from them the unread For-your-information items visible in this workspace", async () => {
     const response = await get(unread, "/api/notifications/unread", { org: ORG });
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    const { count } = await response.json();
-    expect(count).toBeGreaterThanOrEqual(1);
+    const { count, unread: fyi } = await response.json();
+    expect(count).toEqual(expect.any(Number));
+    // At least the pickup and the invite (other files may leave rows for this shared member).
+    expect(fyi).toBeGreaterThanOrEqual(2);
     actAs(GUEST, "org:guest");
-    // The guest's only notification is workspace-wide, which guests never see.
-    expect(await (await get(unread, "/api/notifications/unread", { org: ORG })).json()).toEqual({ count: 0 });
+    // No Needs-you items for a Guest. The pickup on their own Request; not the read comment, and not the
+    // workspace-wide invite guests never see.
+    expect(await (await get(unread, "/api/notifications/unread", { org: ORG })).json()).toEqual({ count: 0, unread: 1 });
   });
 });
 

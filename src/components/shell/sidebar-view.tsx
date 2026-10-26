@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ChartColumn, Rows3 } from "lucide-react";
+import { Bookmark, ChartColumn, Rows3 } from "lucide-react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
 import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
 import { isSameTabRequestLink, useRequestNavigation } from "@/components/requests/request-navigation";
@@ -13,6 +13,8 @@ import { requestListHref } from "@/lib/request-workspace";
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { rowJourney } from "@/lib/request-overview";
+import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
+import { openSavedView, savedViewHref, viewInNavigation, type SavedView } from "@/lib/saved-view-nav";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
@@ -41,15 +43,20 @@ export interface SidebarViewProps {
   /** One workspace search. The signal aborts it when a newer query replaces it (plan items 1.16 and 2.8). */
   onSearch?: (input: WorkspaceSearchInput, signal?: AbortSignal) => Promise<WorkspaceSearchResponse>;
   workspaceSwitcher?: UserMenuWorkspaces;
+  /** #219: the person's own saved views, read by the (app) layout. */
+  savedViews?: SavedView[];
 }
 
+const noViews: SavedView[] = [];
+/** Saved view rows share the navigation with Projects, so their ids carry a prefix. */
+const VIEW_ID = "view:";
 const noProjects: ProjectOption[] = [];
 const unavailableSearch = async (): Promise<WorkspaceSearchResponse> => ({ success: false, error: { code: "search_failed", message: "Search is unavailable in this preview." } });
 // Plan item 2.0: each page's strip carries the expand control, so phones keep a way into navigation.
 const expandButton = <SidebarExpandButton />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, savedViews = noViews }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
   const { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, true, openAutoPeek);
   // No peek while the panel slides (plan item 2.4).
@@ -66,16 +73,23 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // re-render it. Fixtures without the provider fall back to the props.
   const navigation = useRequestNavigation();
   const listContext = useRequestListContext();
-  const { status: filter, project: projectFilter } = listContext;
-  // Real hrefs preserve native gestures; only ordinary activation enters the shared boundary.
+  const { status: filter, project: projectFilter, savedView: openViewId } = listContext;
+  // Already on "/", a plain click on a Requests list link (All Requests, a
+  // Project, No Project) changes the view in place with no request; the URL
+  // follows through history.replaceState. onNavigate has already set the
+  // context. Modified clicks and every other route keep navigating.
   const renderLink = useCallback(({ href, onClick, ...props }: WorkspaceLinkProps) => {
     if (href === "/intake") return <NewRequestLink {...props} onClick={event => {
       if (!isSameTabRequestLink(event)) return;
       navigation.invalidate(); onClick?.(event);
     }} />;
     return <Link href={href} {...props} onClick={event => {
-      if (typeof href !== "string" || !navigation.followLink(event, href, href === "/" ? { project: "all" } : undefined)) return;
+      if (typeof href !== "string" || !isSameTabRequestLink(event)) return;
+      // A saved-view row owns its filters and identity through onNavigate.
+      const current = navigation.continuation();
       onClick?.(event);
+      if (!current()) { event.preventDefault(); return; }
+      navigation.followLink(event, href, href === "/" ? { project: "all" } : undefined);
     }} />;
   }, [navigation]);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -130,10 +144,13 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // Issue #102: the palette opens search as / does. Settings has no search pane, so no opener there.
   useShellOpener("search", () => openSearch(), !pathname.startsWith("/settings/"));
   const isRequests = pathname === "/" || pathname.startsWith("/requests/");
-  const active = isRequests ? projectFilter === "all" ? "requests" : projectFilter : pathname;
+  // #219: an open saved view is the list's place in the navigation, and its name the list's crumb.
+  const viewActive = viewInNavigation(savedViews, openViewId, pathname);
+  const openView = openSavedView(savedViews, openViewId);
+  const active = viewActive ? VIEW_ID + viewActive : isRequests ? projectFilter === "all" ? "requests" : projectFilter : pathname;
   const project = projects.find(item => item.id === projectFilter);
-  const section = pathname.startsWith("/settings/") ? "Settings" : pathname === "/intake" ? "New Request" : project?.name ?? (projectFilter === "none" ? "No Project" : "Requests");
-  const page = pathname === "/settings/profile" ? "Profile" : pathname === "/settings/members" ? "Members" : pathname.startsWith("/requests/") ? "Request detail" : pathname === "/impact" ? "Impact" : null;
+  const section = pathname.startsWith("/settings/") ? "Settings" : pathname === "/intake" ? "New Request" : openView?.name ?? project?.name ?? (projectFilter === "none" ? "No Project" : "Requests");
+  const page = pathname === "/settings/profile" ? "Profile" : pathname === "/settings/members" ? "Members" : pathname.startsWith("/requests/") ? "Request detail" : pathname === "/impact" ? "Impact" : pathname === "/inbox" ? "Inbox" : null;
   // Plan item 2.0: the ancestors the topbar used to show. Each page's strip adds
   // its own name as the current crumb. Memoised, so typing in the list filter
   // does not re-render the strips (plan item 1.14).
@@ -150,6 +167,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
       // #159: the impact Dashboard, for every role (a guest sees only their own Requests on it).
       { id: "/impact", name: "Impact", href: "/impact", icon: <ChartColumn strokeWidth={1.75} /> },
     ] },
+    ...(savedViews.length ? [{ id: "views", name: "Your views", items: savedViews.map(view => ({ id: VIEW_ID + view.id, name: view.name, href: savedViewHref(view.filters), icon: <Bookmark strokeWidth={1.75} /> })) }] : []),
   ];
   // Settings has its own Arc navigation and search. Preserve all workspace state
   // above this boundary so returning to Requests restores the same view.
@@ -165,13 +183,17 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>
       <div className={styles.sidebarPanel} data-sidebar-panel="">
       <WorkspaceSidebar className={styles.sidebar} layoutManaged forceDesktopLayout projectTree workspace={{ id: "current", name: workspaceName, initial: workspaceName.trim().slice(0, 1).toUpperCase() || "L" }}
-        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={role === "guest" ? undefined : "/settings/members"} onSignOut={onSignOut}
+        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={role === "admin" || role === "member" ? "/settings/members" : undefined} canCompose={role !== "viewer"} help={FIRST_RUN_HELP} onSignOut={onSignOut}
         groups={groups} projects={[...projects.map(item => ({ ...item, href: requestListHref(filter, item.id) })), { id: "none", name: "No Project", href: requestListHref(filter, "none") }]}
         activeId={searchOpen ? "search" : active} currentPage={searchOpen ? "Search" : page ?? section} loading={projectsLoading} error={projectsError} onRetry={onRetryProjects}
         onSearch={openSearch} searchActive={searchOpen}
         workspaces={workspaceSwitcher ?? { items: [{ id: "current", name: workspaceName }], currentId: "current", onSelect: () => {} }}
         onCreateProject={onCreateProject ? async name => { const created = await onCreateProject(name); return { ...created, href: requestListHref("all", created.id) }; } : undefined}
-        onNavigate={() => { dismissPeek(); closeSearch(false); }}
+        onNavigate={({ id }) => {
+          dismissPeek(); closeSearch(false);
+          const view = id.startsWith(VIEW_ID) ? savedViews.find(item => VIEW_ID + item.id === id) : undefined;
+          if (view) navigation.selectList({ ...view.filters, savedView: view.id });
+        }}
         renderLink={renderLink} notifications={notifications} onMobileOpenChange={setMobileOpen} />
       </div>
     </aside>

@@ -1,6 +1,7 @@
 /**
  * The list's status views (URL `?status=`): every Request, each of the five journey statuses
- * (request-journey.ts), and "due" for Measuring Requests due soon, due today or overdue (#133).
+ * (request-journey.ts), "due" for Measuring Requests due soon, due today or overdue (#133), and "waiting" for Guest
+ * submissions waiting to be taken on (review of #195), which are always Open.
  */
 export const REQUEST_STATUS_FILTERS = [
   "all",
@@ -10,11 +11,12 @@ export const REQUEST_STATUS_FILTERS = [
   "measuring",
   "closed",
   "due",
+  "waiting",
 ] as const
 
 /** Each status view's words, shared by the list's views, its filter menu and the ⌘K palette. */
 export const REQUEST_STATUS_FILTER_LABELS = {
-  all: "All", open: "Open", in_progress: "In progress", done: "Done", measuring: "Measuring", closed: "Closed", due: "Due soon or overdue",
+  all: "All", open: "Open", in_progress: "In progress", done: "Done", measuring: "Measuring", closed: "Closed", due: "Due soon or overdue", waiting: "Waiting to be taken on",
 } as const satisfies Record<(typeof REQUEST_STATUS_FILTERS)[number], string>
 
 export type RequestStatusFilter = (typeof REQUEST_STATUS_FILTERS)[number]
@@ -23,8 +25,8 @@ export type RequestStatusFilter = (typeof REQUEST_STATUS_FILTERS)[number]
 export const FINISHED_VIEWS = ["all", "done", "measuring", "closed", "due"] as const satisfies readonly RequestStatusFilter[]
 export type FinishedView = (typeof FINISHED_VIEWS)[number]
 
-/** The finished view a status view pages through, or null for Open and In progress (always loaded in full). */
-export const finishedViewOf = (status: RequestStatusFilter): FinishedView | null => status === "open" || status === "in_progress" ? null : status
+/** The finished view a status view pages through, or null for Open, In progress and waiting Guest submissions (Open, always loaded in full). */
+export const finishedViewOf = (status: RequestStatusFilter): FinishedView | null => status === "open" || status === "in_progress" || status === "waiting" ? null : status
 // "all", "none", or a Project ID. IDs are authorized at the server boundary.
 export type RequestProjectFilter = string
 

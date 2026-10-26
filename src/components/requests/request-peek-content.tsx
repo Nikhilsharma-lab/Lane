@@ -169,7 +169,7 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
 
   return <PreviewFrame>
     <RequestDetailPane request={request} comments={detail.comments} attachments={detail.attachments} returnHref="/" orgId={orgId} isGuest={isGuest}
-      currentUserId={viewer.id} viewerName={viewer.name} isAdmin={viewer.isAdmin}
+      currentUserId={viewer.id} viewerName={viewer.name} isAdmin={viewer.isAdmin} readOnly={viewer.readOnly}
       peekStrip={slots => <PeekStrip {...slots} onClose={onClose} onOpenFullPage={onOpenFullPage} />} />
   </PreviewFrame>
 }

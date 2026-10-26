@@ -86,6 +86,41 @@ describe("checkServerEnv", () => {
     expect(checkServerEnv({ env, vercelEnv: "preview" }).warnings).toEqual([]);
   });
 
+  it("warns, by name only, when Inbox email is switched on without what it needs (#206)", () => {
+    const env = { ...completeEnv(), LANE_EMAIL_DELIVERY: "1" };
+    const warnings = checkServerEnv({ env, vercelEnv: "preview" }).warnings;
+    expect(warnings).toHaveLength(1);
+    for (const name of ["RESEND_API_KEY", "LANE_EMAIL_FROM", "CRON_SECRET"]) expect(warnings[0]).toContain(name);
+    expect(warnings.join(" ")).not.toContain(SENTINEL);
+
+    const complete = { ...env, RESEND_API_KEY: SENTINEL, LANE_EMAIL_FROM: SENTINEL, CRON_SECRET: SENTINEL };
+    expect(checkServerEnv({ env: complete, vercelEnv: "preview" }).warnings).toEqual([]);
+    // Off by default: nothing to warn about.
+    expect(checkServerEnv({ env: completeEnv(), vercelEnv: "preview" }).warnings).toEqual([]);
+  });
+
+  it("warns, by name only, when Slack DM is switched on without what it needs (#207)", () => {
+    const env = { ...completeEnv(), LANE_SLACK_DELIVERY: "1", SLACK_CLIENT_ID: SENTINEL };
+    const warnings = checkServerEnv({ env, vercelEnv: "preview" }).warnings;
+    expect(warnings).toHaveLength(1);
+    for (const name of ["SLACK_CLIENT_SECRET", "LANE_SLACK_TOKEN_KEY"]) expect(warnings[0]).toContain(name);
+    expect(warnings[0]).not.toContain("SLACK_CLIENT_ID");
+    expect(warnings.join(" ")).not.toContain(SENTINEL);
+    const complete = { ...env, SLACK_CLIENT_SECRET: SENTINEL, LANE_SLACK_TOKEN_KEY: SENTINEL };
+    expect(checkServerEnv({ env: complete, vercelEnv: "preview" }).warnings).toEqual([]);
+  });
+
+  it("warns, by name only, when billing is enforced without a way to pay (#214)", () => {
+    const env = { ...completeEnv(), LANE_BILLING_ENFORCED: "1", STRIPE_SECRET_KEY: SENTINEL };
+    const warnings = checkServerEnv({ env, vercelEnv: "preview" }).warnings;
+    expect(warnings).toHaveLength(1);
+    for (const name of ["STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_YEARLY", "STRIPE_PRICE_MONTHLY", "STRIPE_FOUNDING_COUPON"]) expect(warnings[0]).toContain(name);
+    expect(warnings[0]).not.toContain("STRIPE_SECRET_KEY");
+    expect(warnings.join(" ")).not.toContain(SENTINEL);
+    const complete = { ...env, STRIPE_WEBHOOK_SECRET: SENTINEL, STRIPE_PRICE_YEARLY: SENTINEL, STRIPE_PRICE_MONTHLY: SENTINEL, STRIPE_FOUNDING_COUPON: SENTINEL };
+    expect(checkServerEnv({ env: complete, vercelEnv: "preview" }).warnings).toEqual([]);
+  });
+
   it("reads VERCEL_ENV from the env when not given explicitly", () => {
     const env = completeEnv();
     env.VERCEL_ENV = "production";

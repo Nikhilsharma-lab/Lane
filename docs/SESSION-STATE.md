@@ -1,5 +1,26 @@
 # Shared Claude / Codex handoff
 
+## #167 / main #195 compatibility — isolated review candidate
+
+Prepared on `codex/spec-167-main-reconcile`, from through-#175 `f7ad5a9` and pinned
+main `3e6de934`; integration `355e09e` is unchanged and already an ancestor. The
+29 conflicts are resolved with explicit one-snapshot expiry/capability guards,
+one-snapshot Impact/Journey loading, saved-view navigation ownership, Viewer bulk
+availability and exact checkout guards for incoming database tests. Main migrations
+0013–0053 and its new pre-migration fixtures are preserved.
+
+Bootstrap52, application2787 (one skipped), UI965, focused64, full tsc/lint/design
+and production build pass. Combined-tree browser verification and independent
+review remain pending. Later #175 toast-exit fix is not yet included. This is not
+#175 acceptance or #176 implementation. Full boundary: `testing/main-compatibility.md`.
+
+Main's 17-route baseline is retained unchanged. Original existing routes are within
+budget, but three new main routes correctly fail its old inventory. Detail grows
+2,122 bytes versus freshly built main (74 over2048) and2,478 versus main's committed
+baseline (430 over). A separate proposal awaits the final #175 fix/build; no bundle
+pass or approval claimed. Immutable original receipt is preserved for #176.
+
+
 ## #175 Oct26 browser correction — idempotent history restoration
 
 Actual zero-write browser run7 reproduced a return-focus update loop on cd0430f:

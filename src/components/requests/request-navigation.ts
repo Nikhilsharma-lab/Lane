@@ -3,8 +3,10 @@
 import { createContext, useContext, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { requestListContextFromHref, requestListHref, type RequestListContext } from "@/lib/request-workspace"
-import { planListUrlSync, withListContext, type DetailSessionPatch, type ListUrlSyncInput, type ListViewState, type SetListView } from "./list-view-state"
+import { planListUrlSync, withListContext, withSavedView, type DetailSessionPatch, type ListUrlSyncInput, type ListViewState, type SetListView } from "./list-view-state"
 import { settleSequence, type DetailSequence } from "./request-sequence"
+
+type ListSelection = Partial<RequestListContext> & { savedView?: string }
 
 type NavigationState = { getView: () => ListViewState; setView: SetListView; setDetailSession: (patch: DetailSessionPatch) => void }
 type NavigationBrowser = {
@@ -48,12 +50,13 @@ export function createRequestNavigation(state: NavigationState) {
     pendingPath = `/requests/${id}`
     state.setDetailSession({ sequence, focusTitleOnArrival: button === null, focusOnArrival: button })
   }
-  function selectList(next: Partial<RequestListContext>, browser: NavigationBrowser) {
+  function selectList(next: ListSelection, browser: NavigationBrowser) {
     const location = browser.location()
     const supersedesRoute = pendingPath !== null && pendingPath !== location.pathname
     invalidate()
     listSelectionPending = true
-    const selected = withListContext(state.getView(), next)
+    const filtered = withListContext(state.getView(), next)
+    const selected = withSavedView(filtered, next.savedView ? { id: next.savedView, filters: filtered } : null)
     state.setView(next.project !== undefined && selected.pagination.pageIndex !== 0
       ? { ...selected, pagination: { ...selected.pagination, pageIndex: 0 } } : selected)
     if (location.pathname !== "/") {
@@ -137,7 +140,7 @@ export function bindRequestNavigation(controller: RequestNavigation, browser: Na
     previewChanged: controller.previewChanged,
     onHistoryReturn: controller.onHistoryReturn,
     prepareDetail: controller.prepareDetail, arrive: controller.arrive,
-    selectList: (next: Partial<RequestListContext>) => controller.selectList(next, browser),
+    selectList: (next: ListSelection) => controller.selectList(next, browser),
     open: (href: string) => controller.open(href, browser),
     replaceDetail: (id: string, intent: DetailIntent) => controller.replaceDetail(id, intent, browser),
     followLink(event: LinkActivation, href: string, listIntent?: Partial<RequestListContext>) {

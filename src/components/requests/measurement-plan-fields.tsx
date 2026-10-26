@@ -16,10 +16,12 @@ import type { RequestType } from "@/lib/request-constants"
 import {
   changeMetricUnit, createMeasurementGuardrail, createMeasurementPrimary,
   MAX_MEASUREMENT_GUARDRAILS, MEASUREMENT_SCOPE_NAME_MAX,
-  measurementPlanSchema, measurementRequestTypeIssue,
+  measurementPlanSchema, measurementRequestTypeIssue, measurementUnitOptions, pickDefinition,
 } from "@/lib/request-measurement"
-import { measurementEditorValue, measurementEditorChanges, editorUnitOptions, type EditorPlan, type EditorPrimary, type EditorGuardrail, type EditorMetric } from "@/lib/request-measurement-editor"
-import { MeasurementMetricPicker } from "./measurement-metric-picker"
+import type { MetricChoice } from "@/lib/metric-definition-rules"
+import { measurementEditorValue, measurementEditorChanges, editorMetricLabel, editorUnitOptions, upgradePlanMetrics, type EditorPlan, type EditorPrimary, type EditorGuardrail, type EditorMetric } from "@/lib/request-measurement-editor"
+import { MeasurementMetricPicker, METRICS_PAGE } from "./measurement-metric-picker"
+import { useMetricLibrary, type MetricLibrary } from "./use-metric-library"
 import styles from "./measurement-plan-fields.module.css"
 
 type Metric = EditorMetric
@@ -63,9 +65,11 @@ function CompactSelect({ id, label, value, options, onChange, disabled, error, i
   </div>
 }
 
-function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions, onUnitChange, unitLabel, disabled, noBaseline = false, error, unrestricted = false, hideLabel = false }: {
+function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions, onUnitChange, unitLabel, unitLocked = false, disabled, noBaseline = false, error, unrestricted = false, hideLabel = false }: {
   id: string; label: string; value: number | null; onChange: (value: number | null) => void
   metricKey: Metric["key"]; unit: Metric["unit"]; unitOptions?: Option[]; onUnitChange?: (unit: Metric["unit"]) => void; unitLabel?: string
+  /** The unit is the Metric definition's (#198): shown, not chosen. */
+  unitLocked?: boolean
   disabled?: boolean; noBaseline?: boolean; error?: string; unrestricted?: boolean; hideLabel?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -107,7 +111,7 @@ function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions,
       <div className={styles.unitControl}>
         <CompactSelect id={`${id}-unit`} label={unitLabel ?? `${label} unit`} hideLabel value={unit} options={unitOptions ?? []}
           selectedLabel={unit === "percent" ? "%" : unit === "seconds" ? "sec" : unit === "minutes" ? "min" : unit === "count" ? "Count" : undefined}
-          placeholder="Unit" disabled={disabled || !unitOptions?.length} onChange={next => onUnitChange?.(next as Metric["unit"])} />
+          placeholder="Unit" disabled={disabled || unitLocked || !unitOptions?.length} onChange={next => onUnitChange?.(next as Metric["unit"])} />
       </div>
     </div>
     {message && <p id={`${id}-message`} className={styles.error} role="alert">{message}</p>}
@@ -122,15 +126,22 @@ function SectionHeader({ title, action, optional }: { title: string; action?: Re
 }
 
 /** All saved formats use this one renderer and its controls. */
-export function MeasurementPlanFields<T extends PlanImpactDraft>({ value, onChange, ...props }: {
+export function MeasurementPlanFields<T extends PlanImpactDraft>({ value, onChange, orgId, ...props }: {
   value: T; onChange: (value: T) => void
   requestType: RequestType | null; disabled?: boolean; submitted?: boolean
+  /** The workspace whose Metrics library the pickers offer (#198). */
+  orgId?: string
 }) {
   const source = JSON.stringify(expectedImpactDraftSchema.parse(value))
   const [editor, setEditor] = useState(() => ({ source, plan: measurementEditorValue(value) }))
   if (editor.source !== source) setEditor({ source, plan: measurementEditorValue(value) })
   const recovery = value.kind !== "measurement" ? value.guardrailEdit : undefined
-  return <><MeasurementFields value={editor.plan} legacy={value.kind !== "measurement"}
+  const legacy = value.kind !== "measurement"
+  const library = useMetricLibrary(orgId, value)
+  // An older plan shows (and, once changed, saves) its metrics as the library's definitions (#198). Nothing is
+  // written until the person changes something, so opening an older Request never rewrites it.
+  const shown = !legacy && library.status === "ready" ? upgradePlanMetrics(editor.plan, library.saved) : { plan: editor.plan, unresolved: [] }
+  return <><MeasurementFields value={shown.plan} legacy={legacy} library={library} unresolved={shown.unresolved}
     onChange={next => {
       const converted = measurementEditorChanges(next, value)
       const saved = { ...converted, ...(recovery ? { guardrailEdit: recovery } : {}) } as T
@@ -154,9 +165,10 @@ export function MeasurementPlanFields<T extends PlanImpactDraft>({ value, onChan
   </>
 }
 
-function MeasurementFields({ value, onChange, requestType, disabled = false, submitted = false, legacy }: {
+function MeasurementFields({ value, onChange, requestType, disabled = false, submitted = false, legacy, library, unresolved }: {
   value: EditorPlan; onChange: (value: EditorPlan) => void
   requestType: RequestType | null; disabled?: boolean; submitted?: boolean; legacy: boolean
+  library: MetricLibrary; unresolved: string[]
 }) {
   const prefix = useId()
   const addRef = useRef<HTMLButtonElement>(null)
@@ -189,8 +201,11 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
   const measurement = value.measurement
   const primaryException = requestType === "new_feature" && primary.noBaseline
   const typeIssue = measurementRequestTypeIssue(legacy ? { kind: "metric", noBaseline: primary.noBaseline, baseline: primary.current } : value, requestType)
-  const changePrimary = (next: Partial<EditorPrimary>) => onChange({ ...value, version: 4, primary: { ...primary, ...next } })
-  const changeGuardrail = (index: number, next: Partial<EditorGuardrail>) => onChange({ ...value, version: 4, guardrails: value.guardrails.map((guardrail, position) => position === index ? { ...guardrail, ...next } : guardrail) })
+  const changePrimary = (next: Partial<EditorPrimary>) => onChange({ ...value, primary: { ...primary, ...next } })
+  const changeGuardrail = (index: number, next: Partial<EditorGuardrail>) => onChange({ ...value, guardrails: value.guardrails.map((guardrail, position) => position === index ? { ...guardrail, ...next } : guardrail) })
+  // A library metric's unit is the definition's (#198); only the older Metric format keeps its own unit choice.
+  const unitOptionsOf = (metric: Metric) => legacy ? editorUnitOptions(metric)
+    : measurementUnitOptions(metric.key).filter(option => option.value === metric.unit)
   function changeUnit(metric: Metric, next: Metric["unit"], update: (metric: Metric) => void) {
     const conversion = ["seconds", "minutes"].includes(metric.unit) && ["seconds", "minutes"].includes(next)
     if (metric.unit !== next && !conversion && (metric.current !== null || ("target" in metric && metric.target !== null) || ("limit" in metric && metric.limit !== null))) {
@@ -207,17 +222,23 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
       : "Custom date range"
     // The default 30-day window names itself like any other (critique 2.3); only a missing window reads as the placeholder.
     : legacy ? measurement.windowDays === null ? "Measurement dates" : `${measurement.windowDays} days after release` : windows.find(option => option.value === String(measurement.windowDays))?.label ?? "Measurement dates"
-  const metricPicker = (metric: Metric, path: string, update: (key: Metric["key"], name?: string) => void, guardrail = false) => <MeasurementMetricPicker
-    id={`${prefix}-${path}-key`} metric={metric} guardrail={guardrail} disabled={disabled}
-    error={error(`${path}.key`) || error(`${path}.name`)} onSelect={update} />
+  const metricPicker = (metric: Metric, path: string, update: (choice: MetricChoice | "check") => void, guardrail = false) => {
+    const definition = metric.key === "definition" ? library.metrics.find(choice => choice.id === metric.definitionId) : undefined
+    const label = metric.key === "definition" ? definition?.name ?? (metric.name.trim() || null) : metric.key === "check" ? "Pass/fail check" : metric.key ? editorMetricLabel(metric) : null
+    return <MeasurementMetricPicker id={`${prefix}-${path}-key`} label={label} selectedId={metric.key === "definition" ? metric.definitionId ?? null : null}
+      passFailSelected={metric.key === "check"} guardrail={guardrail} disabled={disabled} library={library}
+      error={error(`${path}.key`) || error(`${path}.name`)} onPick={update} />
+  }
 
   return <section id="intake-expected-impact" aria-label="Request measurement" tabIndex={-1} className={styles.plan}>
     <fieldset disabled={disabled} className={styles.body}>
       <section className={styles.section} aria-label="Primary metric">
-        <SectionHeader title="Primary metric" />
+        <SectionHeader title="Primary metric" action={library.canOpenLibrary && <a className={styles.headerLink} href={METRICS_PAGE} target="_blank" rel="noopener noreferrer">
+          Metrics library<span className="sr-only"> (opens in a new tab)</span></a>} />
         <div className={styles.metricRow}>
-          {metricPicker(primary, "primary", (key, name) => { setNotice(""); onChange({ ...value, version: 4, primary: { ...createMeasurementPrimary(key), ...(name ? { name, unit: "percent" } : {}) } }) })}
+          {metricPicker(primary, "primary", choice => { setNotice(""); onChange({ ...value, primary: choice === "check" ? createMeasurementPrimary("check") : pickDefinition(createMeasurementPrimary(), choice) }) })}
         </div>
+        {unresolved.length > 0 && <p className={styles.hint} role="status">{`Pick ${unresolved.map(name => `“${name}”`).join(", ")} again from the Metrics library. ${unresolved.length === 1 ? "It isn't" : "They aren't"} in the library in the unit saved here.`}</p>}
         {primary.key && (primary.key === "check" ? <>
           <CompactSelect id={`${prefix}-check`} label="Test case" value={legacy && !primary.check && value.verificationResult !== undefined ? "saved" : primary.check} options={legacy && value.verificationResult !== undefined ? [{ value: "saved", label: "Saved verified result" }, ...checkOptions] : checkOptions} placeholder="Choose a test case"
             disabled={disabled} error={error("primary.check")} onChange={check => onChange({ ...value,
@@ -231,11 +252,11 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
           <div className={styles.twoColumns}>
             <NumberField unrestricted={legacy} id={`${prefix}-current`} label="Current value" value={primary.current} metricKey={primary.key} unit={primary.unit} disabled={disabled} noBaseline={primaryException}
               error={error("primary.current", primary.current !== null)} onChange={current => changePrimary({ current })}
-              unitOptions={editorUnitOptions(primary)}
-              onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, version: 4, primary: metric as EditorPrimary }))} />
+              unitOptions={unitOptionsOf(primary)} unitLocked={!legacy}
+              onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
             <NumberField unrestricted={legacy} id={`${prefix}-target`} label="Target after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
               error={error("primary.target", primary.target !== null)} onChange={target => changePrimary({ target })}
-              unitOptions={editorUnitOptions(primary)} onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, version: 4, primary: metric as EditorPrimary }))} />
+              unitOptions={unitOptionsOf(primary)} unitLocked={!legacy} onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
           </div>
           {(requestType === "new_feature" || primary.noBaseline) && primary.key && <Checkbox
             label="No existing data. This is a brand-new feature." checked={primary.noBaseline} disabled={disabled}
@@ -298,14 +319,14 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               onChange({ ...value, guardrails: value.guardrails.filter((_, position) => position !== index) })
             }}>Remove</Button>} />
           <div className={styles.guardrailControls}>
-            {metricPicker(guardrail, path, (key, name) => changeGuardrail(index, { ...createMeasurementGuardrail(key as EditorGuardrail["key"]), ...(name ? { name, unit: "percent" } : {}) }), true)}
+            {metricPicker(guardrail, path, choice => { if (choice !== "check") changeGuardrail(index, pickDefinition(createMeasurementGuardrail(), choice)) }, true)}
           {guardrail.key && <div className={styles.thresholdRow}>
             <CompactSelect id={`${prefix}-${path}-boundary`} label="Comparison" hideLabel value={guardrail.operator}
               indicatorPosition="left" options={boundaries.map(option => ({ ...option, trailing: option.symbol }))} disabled={disabled}
               onChange={operator => changeGuardrail(index, { operator: operator as EditorGuardrail["operator"] })} />
             <NumberField hideLabel unrestricted={legacy} id={`${prefix}-${path}-limit`} label="Value" value={guardrail.limit} metricKey={guardrail.key} unit={guardrail.unit} disabled={disabled}
               error={error(`${path}.limit`, guardrail.limit !== null)} onChange={limit => changeGuardrail(index, { limit })}
-              unitOptions={editorUnitOptions(guardrail)} onUnitChange={unit => changeUnit(guardrail, unit, metric => changeGuardrail(index, metric as EditorGuardrail))} />
+              unitOptions={unitOptionsOf(guardrail)} unitLocked={!legacy} onUnitChange={unit => changeUnit(guardrail, unit, metric => changeGuardrail(index, metric as EditorGuardrail))} />
           </div>}
           </div>
 

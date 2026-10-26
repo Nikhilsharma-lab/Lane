@@ -2,21 +2,21 @@
 
 import Link from "next/link"
 import { useRef, useState, type KeyboardEvent } from "react"
-import type { ImpactDashboard, ImpactPeriod, Teammate, MyWorkEntry } from "@/lib/impact-read-model"
-import { ByProjectTab } from "./by-project-tab"
+import type { ImpactPeriod } from "@/lib/impact-period"
+import type { ImpactDashboard, Teammate, MyWorkEntry } from "@/lib/impact-read-model"
 import { impactHref } from "./impact-href"
 import { MyWorkTab, TeammateWorkList } from "./my-work-list"
-import { WholeOrgTab } from "./whole-org-tab"
+import { OutcomeReportView } from "./outcome-report"
+import type { QuarterNoteEditorTarget } from "./quarter-notes"
 import styles from "./impact-screen.module.css"
 
-// The Dashboard screen (#159): three tabs for a non-guest, My work alone for a guest. It renders the read model's
-// output and computes no totals. Read only: no add, edit, notify or export controls.
+// The Impact screen (#159, #208): My work and the Outcome report for a non-guest, My work alone for a guest. It
+// renders the read model's output and computes no totals. Read only: no add, edit, notify or export controls.
 
-export type TabId = "my-work" | "by-project" | "whole-org";
+export type TabId = "my-work" | "outcome-report";
 const TABS: { id: TabId; label: string }[] = [
   { id: "my-work", label: "My work" },
-  { id: "by-project", label: "By project" },
-  { id: "whole-org", label: "Whole org" },
+  { id: "outcome-report", label: "Outcome report" },
 ];
 
 /** Where a tab key moves the selection: arrows wrap, Home and End jump to the ends. Null for any other key. */
@@ -31,19 +31,24 @@ export function nextTab(current: TabId, key: string): TabId | null {
 
 export type ImpactScreenProps = {
   dashboard: ImpactDashboard;
+  /** The period chosen in the URL, kept on teammate links. Null when none is chosen (the report shows the current quarter). */
   period: ImpactPeriod | null;
   /** The people a non-guest may open a list for. Empty for a guest. */
   teammates: Teammate[];
   /** The teammate chosen in the URL, with their Requests. Null when none is chosen. */
   person: { id: string; name: string; entries: MyWorkEntry[] } | null;
-  onPeriodChange?: (period: ImpactPeriod | null) => void;
+  onPeriodChange?: (period: ImpactPeriod) => void;
+  /** The tab open first. The page opens the Outcome report when the address names a period and no teammate. */
+  initialTab?: TabId;
+  /** Set for an Admin only (#209): where Quarter note edits go. The server refuses anyone else. */
+  quarterNoteEditor?: QuarterNoteEditorTarget;
 };
 
-export function ImpactScreen({ dashboard, period, teammates, person, onPeriodChange }: ImpactScreenProps) {
-  const [selected, setSelected] = useState<TabId>("my-work");
+export function ImpactScreen({ dashboard, period, teammates, person, onPeriodChange, initialTab = "my-work", quarterNoteEditor = null }: ImpactScreenProps) {
+  const [selected, setSelected] = useState<TabId>(initialTab);
   const tabs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
-  // The read model returns no Whole org view for a guest, so a guest sees My work alone, with no tabs.
-  const isGuest = dashboard.wholeOrg === null;
+  // The read model returns no Outcome report for a guest, so a guest sees My work alone, with no tabs.
+  const report = dashboard.outcomeReport;
 
   const onKeyDown = (current: TabId) => (event: KeyboardEvent<HTMLButtonElement>) => {
     const next = nextTab(current, event.key);
@@ -54,7 +59,7 @@ export function ImpactScreen({ dashboard, period, teammates, person, onPeriodCha
   };
 
   const myWork = <MyWorkTab entries={dashboard.myWork.requests} />;
-  // Teammates are for a non-guest only; the read model returns no Whole org view, and no teammates, for a guest.
+  // Teammates are for a non-guest only; the read model returns no Outcome report, and no teammates, for a guest.
   const teammateLists = <>
     {teammates.length > 0 && <section className={styles.people} aria-labelledby="impact-teammates-heading">
       <h2 id="impact-teammates-heading" className={styles.heading}>Teammates</h2>
@@ -71,14 +76,13 @@ export function ImpactScreen({ dashboard, period, teammates, person, onPeriodCha
     </section>}
   </>;
 
-  if (isGuest) return <div className={styles.screen}>
+  if (report === null) return <div className={styles.screen}>
     <section aria-label="My work">{myWork}</section>
   </div>;
 
   const panels: Record<TabId, React.ReactNode> = {
     "my-work": <>{myWork}{teammateLists}</>,
-    "by-project": <ByProjectTab projects={dashboard.byProject} />,
-    "whole-org": <WholeOrgTab view={dashboard.wholeOrg} period={period} onPeriodChange={onPeriodChange} />,
+    "outcome-report": <OutcomeReportView report={report} onPeriodChange={onPeriodChange} quarterNoteEditor={quarterNoteEditor} />,
   };
 
   return <div className={styles.screen}>

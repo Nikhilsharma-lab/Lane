@@ -94,7 +94,7 @@ function usePropertyControls(inSheet = false) {
   const { journey, due } = useDetailJourney()
   const status = request.status
   const priority = request.priority
-  const move = availableMove({ status, agreementBlocked: request.agreementBlocked, pickupBlockedReason: request.pickupBlockedReason }, { isGuest })
+  const move = availableMove({ status, agreementBlocked: request.agreementBlocked, pickupBlockedReason: request.pickupBlockedReason }, { isGuest, readOnly: viewer.readOnly })
   const priorityText = REQUEST_PRIORITY_LABELS[priority]
   const priorityGlyph = <span className={styles.priorityGlyph} data-priority={priority}><PriorityGlyph priority={priority} /></span>
   const selectMove = (kind: LifecycleMove) => {

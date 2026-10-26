@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
-import { REQUEST_STATUS_FILTERS, requestDetailHref } from "@/lib/request-workspace"
+import { REQUEST_STATUS_FILTERS, finishedViewOf, requestDetailHref } from "@/lib/request-workspace"
 import { columns } from "@/components/requests/tasks/columns"
 import type { ReactElement } from "react"
 
@@ -18,6 +18,7 @@ const DETAIL_VIEW = source("src/components/requests/detail-view.tsx")
 // Plan item 2.12: the detail pane both the Request page and the list's preview render.
 const DETAIL_PANE = source("src/components/requests/request-detail-pane.tsx")
 const REQUEST_STYLES = source("src/components/requests/requests.module.css")
+const ROW_STYLES = source("src/components/requests/request-rows.module.css")
 const DATA_TABLE = source("src/components/requests/tasks/data-table.tsx")
 const SIDEBAR_VIEW = source("src/components/shell/sidebar-view.tsx")
 const NEXT_CONFIG = source("next.config.ts")
@@ -96,6 +97,20 @@ describe("Requests workspace contract", () => {
     }
   })
 
+  it("lists waiting Guest submissions as a view of Open work, always loaded in full", () => {
+    expect(finishedViewOf("waiting")).toBeNull()
+  })
+
+  it("shows the Waiting to be taken on tag at every width, phones included", () => {
+    const rules = ROW_STYLES.replace(/\/\*[\s\S]*?\*\//g, "")
+    const hidden = [...rules.matchAll(/([^{}]*)\{\s*display:\s*none;?\s*\}/g)].map(match => match[1])
+    for (const selector of hidden) {
+      expect(selector, selector).not.toMatch(/data-row-property="waiting"\]\s*$/)
+      // A rule hiding every property but a few must name the tag among those it keeps.
+      if (/\.properties > span:not\(/.test(selector)) expect(selector).toContain('[data-row-property="waiting"]')
+    }
+  })
+
   it("preserves native deep links and the five journey status views plus Due soon or overdue (#133)", () => {
     const titleLink = columns.find(column => column.key === "title")!.render({
       id: "request-1", title: "Example Request", reframedProblem: null,
@@ -103,7 +118,7 @@ describe("Requests workspace contract", () => {
     }, "in_progress", "project-1") as ReactElement<{ href: string }>
     // Canonical /requests/[id]: the list context lives in the layout's list view state.
     expect(titleLink.props.href).toBe("/requests/request-1")
-    expect(REQUEST_STATUS_FILTERS).toEqual(["all", "open", "in_progress", "done", "measuring", "closed", "due"])
+    expect(REQUEST_STATUS_FILTERS).toEqual(["all", "open", "in_progress", "done", "measuring", "closed", "due", "waiting"])
     expect(requestDetailHref("request-1", "all")).toBe("/requests/request-1")
     expect(requestDetailHref("request-1", "in_progress")).toBe("/requests/request-1?status=in_progress")
   })

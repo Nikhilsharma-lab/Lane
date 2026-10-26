@@ -2,7 +2,7 @@ import postgres from "postgres";
 import { requireTestDatabase } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-/** Migration 0034: reminders are actor-less notifications, written at most once a UTC day. */
+/** Migration 0034: the times a Request was picked up and marked Done (its stored reminders were retired by 0040). */
 const ORG = "org_reminder_schema";
 let sql: ReturnType<typeof postgres>;
 let requestId: string;
@@ -20,21 +20,9 @@ afterAll(async () => {
   await sql.end();
 });
 
-const remind = (type: string, at: string, request: string | null = requestId) =>
-  sql`insert into notifications(user_id,org_id,type,request_id,actor_id,created_at) values ('reminder_requester',${ORG},${type}::notification_type,${request},null,${at}::timestamptz)`;
-
-describe("reminder notifications", () => {
-  it.each(["release_reminder", "result_due_soon", "result_due", "result_overdue"])("%s is written once per Request, recipient and UTC day", async (type) => {
-    await remind(type, "2026-10-25T00:10:00Z");
-    // Late evening in New York is still the same UTC day.
-    await expect(remind(type, "2026-10-25T23:50:00Z")).rejects.toThrow(/notifications_reminder_once_a_day/);
-    await expect(remind(type, "2026-10-26T00:00:00Z")).resolves.toBeDefined();
-  });
-  it("keeps an actor on every other kind, and a Request on every reminder", async () => {
-    await expect(remind("comment_added", "2026-10-25T12:00:00Z")).rejects.toThrow(/notifications_actor_check/);
-    await expect(remind("result_due", "2026-10-27T12:00:00Z", null)).rejects.toThrow(/notifications_reminder_request_check/);
-  });
-  it("still lets an event that is not a reminder notify a person twice in a day", async () => {
+// The stored reminders 0034 added were retired by 0040 (#205); retired-reminders-schema.test.ts covers that.
+describe("notifications", () => {
+  it("lets an event notify a person twice in a day", async () => {
     const twice = sql`insert into notifications(user_id,org_id,type,request_id,actor_id) values ('reminder_requester',${ORG},'comment_added',${requestId},'reminder_requester'),('reminder_requester',${ORG},'comment_added',${requestId},'reminder_requester')`;
     await expect(twice).resolves.toBeDefined();
   });
