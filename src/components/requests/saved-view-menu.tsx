@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, type FormEvent } from "react"
-import { Bookmark } from "lucide-react"
+import { Bookmark, ChevronDown } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog"
 import { DropdownMenu, type DropdownItem } from "@/components/arc/dropdown-menu/dropdown-menu"
@@ -91,7 +91,8 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
 
   return <span ref={control} className={styles.control}>
     {open
-      ? <DropdownMenu label="Saved view" icon={<Bookmark data-icon-size="sm" strokeWidth={1.75} />} items={items}
+      ? <DropdownMenu label="Saved view" items={items}
+          trigger={<Button variant="secondary" size="sm" aria-label="Saved view"><Bookmark data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /><span className={styles.label}>Saved view</span><ChevronDown data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /></Button>}
           onCloseAutoFocus={event => {
             const next = afterMenu.current
             if (!next) return
@@ -99,7 +100,7 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
             afterMenu.current = null
             show(next)
           }} />
-      : <Button variant="secondary" size="sm" onClick={() => show("save")}><Bookmark data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />Save view</Button>}
+      : <Button variant="secondary" size="sm" aria-label="Save view" onClick={() => show("save")}><Bookmark data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /><span className={styles.label}>Save view</span></Button>}
     {/* An update's failure has no dialog to speak in; it is read here. */}
     {error && !dialogOpen && <span className={styles.error} role="alert">{error}</span>}
     <Dialog open={dialogOpen} onOpenChange={next => { if (!pending && !next) setDialogOpen(false) }}>
