@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { parsePeriodKey, periodChoices, periodKey, periodLabel, periodOfKind } from "./impact-period"
+import { periodLabel } from "@/lib/impact-period"
+import { parsePeriodKey, periodChoices, periodKey, periodOfKind } from "./period-picker"
 
 // The Outcome report's period picker (#208): a month, a quarter or a year, read from and written to the URL.
 

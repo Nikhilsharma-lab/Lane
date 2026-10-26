@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildDefinitionUses, buildImpactDashboard, buildIterations, buildOutcomeReport, buildTeammateWork, teammateIdsOf, type ImpactDefinition, type ImpactPeriod, type ImpactRow, type ImpactViewer } from "./impact-read-model";
+import { buildDefinitionUses, buildImpactDashboard, buildIterations, buildOutcomeReport, buildTeammateWork, teammateIdsOf, type ImpactDefinition, type ImpactRow, type ImpactViewer } from "./impact-read-model";
+import type { ImpactPeriod } from "./impact-period";
 import type { ExpectedImpact } from "./request-impact";
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "./request-outcome";
 import type { ReleaseFact, ReleaseState } from "./request-release";

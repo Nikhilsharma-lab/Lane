@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { PageStrip } from "@/components/shell/page-strip";
 import { ImpactScreenLive } from "@/components/impact/impact-screen-live";
-import { parsePeriodKey } from "@/components/impact/impact-period";
+import { parsePeriodKey } from "@/components/impact/period-picker";
 import { getMember } from "@/lib/ensure-workspace";
 import { loadImpactDashboard, loadTeammates, loadTeammateWork } from "@/lib/data/impact";
 

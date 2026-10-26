@@ -31,12 +31,11 @@ import { releaseMeasurement, valueBeforeReleaseFor } from "./request-release-fac
 import type { ReleaseFact, ReleaseState } from "./request-release";
 import { DAY_MS, utcDay } from "./utc-day";
 import type { WorkspacePermission } from "./auth-guard";
-import { inPeriod, periodLabel, quarterOf, quartersOf, type ImpactPeriod, type Month, type Quarter } from "./impact-period";
+import { inPeriod, periodLabel, quarterOf, quartersOf, type ImpactPeriod, type Quarter } from "./impact-period";
 import { iterationLabel } from "./same-problem-rules";
 
 /** A Viewer (#210) reads exactly what a Member reads; only a Guest is narrowed to their own Requests. */
 export type ImpactViewer = { userId: string; orgId: string; role: WorkspacePermission };
-export type { ImpactPeriod, Month };
 export type ImpactOptions = {
   /** The time the page is read at. Time is a parameter: the read model never reads the clock. */
   now: Date;

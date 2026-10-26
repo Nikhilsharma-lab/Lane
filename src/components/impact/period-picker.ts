@@ -3,8 +3,6 @@ import { periodLabel, type ImpactPeriod, type Month } from "@/lib/impact-period"
 // The Outcome report's period picker (#208): a month, a quarter or a year. The route reads the key from the URL and
 // passes parsePeriodKey's result to the read model, which does the grouping by release date. Nothing is totalled here.
 
-export { periodLabel }
-
 export type PeriodKind = ImpactPeriod["kind"]
 export type PeriodChoice = { key: string; label: string; period: ImpactPeriod }
 
