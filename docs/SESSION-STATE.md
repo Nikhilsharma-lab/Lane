@@ -1,5 +1,29 @@
 # Shared Claude / Codex handoff
 
+## #175 Oct26 browser correction — restore a toast during its exit
+
+Actual-component real-timer evidence reproduced Not yet restoring the same Done
+operation during the toast exit: its reused timer was exhausted and its retained
+element stayed inert. The correction observes the existing queue sequence when
+resetting/restarting the timer, and reapplies current hidden/inert state on presence.
+ID/action ownership, duration, pause behavior, motion and public APIs are unchanged.
+Official Arc source was read; only the installed local source hash is updated.
+
+The existing Mark Done browser helper now requires a trusted Not yet activation
+while the original toast is connected and inert, then reacquires the unique visible,
+non-inert, focusable Undo before the ordinary one-shot action. A missed exit interval
+fails this regression; it cannot silently pass as fully expired restoration. The
+fresh-account suite is authored, not run under current account quota. External
+zero-DB actual-component before/during/after expiry and phone reduced-motion exit
+cases pass; UI688, full tsc/lint/design and production build pass. Retained-workspace
+acceptance remains paused for this clean source and independent reviews.
+
+Exact evidence: `/private/tmp/lane-spec-175-browser-evidence.md` and
+`/private/tmp/lane-spec-175-toast-diagnostic/fixed-four-cases-receipt.json`.
+Original bundle still fails: Requests +2354, detail +2855, Impact/Intake +2091,
+Settings +2089 bytes; each is +24 from the history fix. Existing proposed baseline
+passes unchanged. No new budget approval or original compliance is claimed.
+
 ## #175 Oct26 browser correction — idempotent history restoration
 
 Actual zero-write browser run7 reproduced a return-focus update loop on cd0430f:
