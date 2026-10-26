@@ -1,5 +1,23 @@
 # Shared Claude / Codex handoff
 
+## #175 Oct26 browser helper correction — bulk toast title
+
+Run11 saved LAN-19 Pickup/Done and LAN-16/17 bulk Done, then the test's
+whole-toast anchored text selector failed on Arc's hidden `Success: ` prefix.
+The retained screenshot and accessibility tree show both Undo actions visible.
+The helper now matches the exact title descendant. No product source changed.
+Full TypeScript and affected helper lint pass. An external actual Arc/controller
+browser diagnostic proves old selector 0, corrected selector 1, both Undo actions
+visible and the bulk Undo focusable; no database/provider calls or page errors.
+
+All 23 hosted operation receipts are preserved. LAN-16/17/18/19 remain Done;
+no Release or Undo followed this failure. The owned browser/runtime are stopped,
+the pause latch is set, and retained in-memory Undo owners were lost with context
+closure. Acceptance is incomplete; no hidden Undo, reset or Done replay is allowed.
+Evidence: `/private/tmp/lane-spec-175-browser-evidence.md` and
+`/private/tmp/lane-spec-175-bulk-toast-diagnostic/receipt.json`.
+
+
 ## #175 Oct26 browser correction — restore a toast during its exit
 
 Actual-component real-timer evidence reproduced Not yet restoring the same Done
