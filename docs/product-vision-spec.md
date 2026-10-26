@@ -88,3 +88,6 @@ mobile apps, AI-generated designs, and release detection from dev tools.
 
 - `PRODUCT.md` and `REQUIREMENTS.md` no longer say "…and its journeys": journeys live in design tools.
 - Each item above becomes its own build plan, in this order.
+- 2026-10-25: the eight before-launch items are specified together in one approved spec,
+  [#195](https://github.com/Nikhilsharma-lab/Lane/issues/195), and built together in
+  [PR #220](https://github.com/Nikhilsharma-lab/Lane/pull/220).
