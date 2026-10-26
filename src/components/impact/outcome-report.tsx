@@ -95,7 +95,7 @@ function TotalLine({ line }: { line: ResultLine }) {
     <ul className={styles.lineRequests} aria-label={`Requests counted in ${line.metric}`}>
       {line.results.map(result => <li key={result.requestId}>
         {result.requests.map((request, index) => <span key={request.requestId}>{index > 0 && ", "}<RequestLink {...request} /></span>)}
-        {result.corrections.length > 0 && <> <Badge size="sm" tone="warning">Corrected</Badge></>}
+        {result.correctedFrom && <> <Badge size="sm" tone="warning">Corrected</Badge></>}
       </li>)}
     </ul>
   </article>
@@ -109,7 +109,7 @@ function Totals({ report }: { report: OutcomeReport }) {
       : report.totals.length === 0
         ? <p className={styles.note}>{NOTHING_MEASURED}</p>
         : <>
-          <p className={styles.note}>Results add up only when they share a Metric definition, audience and window. Corrected results count as recorded at closing; the Request shows the correction.</p>
+          <p className={styles.note}>Results add up only when they share a Metric definition, audience and window. A result corrected after closing counts at its corrected value; the Request keeps the original.</p>
           <div className={styles.lines}>{report.totals.map(line => <TotalLine key={JSON.stringify([line.definitionId, line.metric, line.unit, line.audience, line.platform, line.window])} line={line} />)}</div>
         </>}
   </section>
@@ -129,13 +129,19 @@ function Guardrails({ guardrails }: { guardrails: ReportGuardrail[] }) {
   </div>
 }
 
+/** The result counted, marked Corrected with the value recorded at closing when a Correction stated another one. */
+function ActualResult({ result }: { result: ResultView }) {
+  const original = result.correctedFrom
+  return <>{actualText(result)}{original && <> <Badge size="sm" tone="warning">Corrected</Badge> ({actualText({ ...result, ...original })} at closing)</>}</>
+}
+
 function MeasuredFacts({ result }: { result: ResultView }) {
-  if (result.form === "pass_fail") return <Fact label="Result">{actualText(result)}</Fact>
+  if (result.form === "pass_fail") return <Fact label="Result"><ActualResult result={result} /></Fact>
   return <>
     {result.baselineSource !== null && result.baseline !== null && <Fact label={baselineLabelOf(result.baselineSource)}>{valueText(result.baseline, result.unit)}</Fact>}
     {result.baselineState === "unknown" && <Fact label="Baseline">Unknown</Fact>}
     {result.baselineState === "new_capability" && <Fact label="Baseline">New capability, no change</Fact>}
-    <Fact label="Actual">{actualText(result)}</Fact>
+    <Fact label="Actual"><ActualResult result={result} /></Fact>
     {result.change !== null && <Fact label="Change">{changeText(result.change, result.unit, result.changeUnit)}</Fact>}
   </>
 }

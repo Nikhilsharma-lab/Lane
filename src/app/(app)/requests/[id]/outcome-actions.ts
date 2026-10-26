@@ -43,7 +43,10 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
             const closedAt = now.toISOString();
             if (change.kind === 'correction') {
                 insist(correctableFields(request.outcomeClosure ? 'measured' : 'exception').includes(change.field), 'Choose a part of this closure to correct.');
-                return { set: { closureCorrections: [...request.closureCorrections, { operationId: context.operationId, fingerprint, actorId: auth.userId, at: closedAt, field: change.field, correction: change.correction, reason: change.reason, revision }] } };
+                // A corrected actual result has the closure's own form: a number for a metric, passed or not for a check.
+                const form = request.outcomeClosure?.primary.kind;
+                insist(!change.value || change.value.kind === form, form === 'numeric' ? 'Record the corrected actual value.' : 'Record whether the check passed.');
+                return { set: { closureCorrections: [...request.closureCorrections, { operationId: context.operationId, fingerprint, actorId: auth.userId, at: closedAt, field: change.field, correction: change.correction, reason: change.reason, ...(change.value ? { value: change.value } : {}), revision }] } };
             }
             const release = request.releaseState?.release ?? null;
             if (change.kind === 'measured') {

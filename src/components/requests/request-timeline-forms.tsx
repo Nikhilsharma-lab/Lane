@@ -120,23 +120,30 @@ export function CloseWithoutResultForm({ requestId, orgId, revision, onSaved, on
   </form>
 }
 
-export function ClosureCorrectionForm({ requestId, orgId, revision, onSaved, onCancel, closureKind }: FormProps & { closureKind: "measured" | "exception" }) {
+export function ClosureCorrectionForm({ requestId, orgId, revision, onSaved, onCancel, closureKind, result = null }: FormProps & { closureKind: "measured" | "exception"; result?: { kind: "numeric"; unit: string } | { kind: "pass_fail" } | null }) {
   const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: OUTCOME_FAILED })
   const [field, setField] = useState("")
   const [text, setText] = useState("")
   const [reason, setReason] = useState("")
+  // Decision 2026-10-26: a corrected actual result states its value, which quarter and year totals then count.
+  const [value, setValue] = useState("")
+  const correctsResult = field === "actual" && result !== null
   return <form className={styles.stack} aria-busy={busy} onSubmit={e => {
     e.preventDefault()
-    const input = { kind: "correction" as const, field: field as typeof CORRECTION_FIELD_OPTIONS[number]["value"], correction: text, reason }
+    const corrected = !correctsResult ? undefined : result.kind === "numeric" ? { kind: "numeric" as const, actual: Number(value) } : { kind: "pass_fail" as const, passed: value === "passed" }
+    const input = { kind: "correction" as const, field: field as typeof CORRECTION_FIELD_OPTIONS[number]["value"], correction: text, reason, ...(corrected ? { value: corrected } : {}) }
     void save(input, revision, context => changeRequestOutcome(context, input)).then(saved => { if (saved) onSaved() })
   }}>
-    <p>Corrections appear beside the original closure. They never change its result, evidence or target.</p>
+    <p>Corrections appear beside the original closure, which stays as recorded. A corrected actual result is what quarter and year totals count.</p>
     <Select label="What needs correcting" options={CORRECTION_FIELD_OPTIONS.filter(o => correctableFields(closureKind).includes(o.value))} value={field} onValueChange={setField} disabled={busy} />
+    {correctsResult && (result.kind === "numeric"
+      ? <Input label={`Corrected actual (${result.unit})`} type="number" step="any" required value={value} onChange={e => setValue(e.target.value)} disabled={busy} />
+      : <Select label="Corrected result" options={[{ value: "passed", label: "Passed" }, { value: "failed", label: "Did not pass" }]} value={value} onValueChange={setValue} disabled={busy} />)}
     {field === "learned"
       ? <Input label="Correction" required maxLength={LEARNED_MAX_LENGTH} value={text} onChange={e => setText(e.target.value.replace(/[\r\n]+/g, " "))} disabled={busy} description="The new What we learned line. The original stays on the Request." />
-      : <Textarea label="Correction" required maxLength={4000} value={text} onChange={e => setText(e.target.value)} disabled={busy} />}
+      : <Textarea label={correctsResult ? "What was wrong" : "Correction"} required maxLength={4000} value={text} onChange={e => setText(e.target.value)} disabled={busy} />}
     <Textarea label="Correction reason" required maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy} />
-    <Controls busy={busy} error={error} submit={busy ? "Saving…" : "Save correction"} disabled={!field} onCancel={onCancel} />
+    <Controls busy={busy} error={error} submit={busy ? "Saving…" : "Save correction"} disabled={!field || (correctsResult && !value)} onCancel={onCancel} />
   </form>
 }
 

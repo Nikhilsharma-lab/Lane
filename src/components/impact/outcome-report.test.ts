@@ -150,6 +150,18 @@ describe("Outcome report: Projects and Requests", () => {
     expect(checkout).toContain("Actual 46%")
   })
 
+  it("counts a result corrected to a new value at that value, marked Corrected, with the value recorded at closing", () => {
+    const fixed: ClosureCorrection = { ...correction, operationId: "op-v", correction: "The export missed a day", value: { kind: "numeric", actual: 140 } }
+    const rows = [row({ id: "b", requestNumber: 2, projectId: "p1", projectName: "Checkout", expectedImpact: ADOPTION, outcomeClosure: closure(ADOPTION, 130, "e2"), closureCorrections: [fixed] })]
+    const markup = html(Q3, rows)
+    expect(section(markup, "Checkout", 3)).toContain("Actual 140 Corrected (130 at closing)")
+    expect(section(markup, "Checkout", 3)).not.toContain("The export missed a day")
+    const totals = section(markup, "Totals")
+    expect(totals).toContain("+40 in total")
+    expect(totals).toContain("A result corrected after closing counts at its corrected value")
+    expect(totals).toContain("LAN-2 Request 2 Corrected")
+  })
+
   it("lists each Request's Follow-up Requests as links", () => {
     const markup = html(Q3)
     expect(section(markup, "Checkout", 3)).toContain("Follow-up Requests LAN-6 Request 6")

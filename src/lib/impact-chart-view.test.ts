@@ -9,7 +9,7 @@ function result(over: Partial<ResultView> & Pick<ResultView, "requestNumber">): 
   return {
     requestId: `req-${over.requestNumber}`, title: `Request ${over.requestNumber}`, definitionId: null, metric: "Conversion rate", form: "numeric",
     unit: "%", changeUnit: "percentage points", audience: "all", platform: "all", window: "30 days after release",
-    baselineState: "known", baseline: 40, baselineSource: "planning", plannedBaseline: 40, actual: 46, change: 6, verdict: null, predictedTarget: 50, predictedChange: 10,
+    baselineState: "known", baseline: 40, baselineSource: "planning", plannedBaseline: 40, actual: 46, change: 6, verdict: null, correctedFrom: null, predictedTarget: 50, predictedChange: 10,
     releaseDate: "2026-08-10", observedFrom: "2026-08-10", observedTo: "2026-09-09", evidence: "Released", guardrails: [],
     corrections: [], requests: [], ...over,
   }

@@ -904,9 +904,52 @@ describe("Outcome report (#208): closed without a result and corrections", () =>
       { field: "actual", label: "Actual result", value: "48%", at: "2026-09-14T09:00:00.000Z" },
       { field: "evidence", label: "Evidence", value: "Warehouse query", at: "2026-09-13T09:00:00.000Z" },
     ]);
-    // The original result stays as recorded; the Request page keeps both.
-    expect(entry.outcome).toMatchObject({ kind: "measured", result: { actual: 46 } });
+    // Text-only Corrections (from before corrected values were recorded) leave the closing value counted.
+    expect(entry.outcome).toMatchObject({ kind: "measured", result: { actual: 46, correctedFrom: null } });
     expect(report.closedWithoutResult[0].requests[0]).toMatchObject({ reason: "Dropped", corrected: [{ field: "reason", label: "Reason", value: "Merged into LAN-9" }] });
+  });
+});
+
+describe("Outcome report: a corrected result counts at its corrected value (decision 2026-10-26)", () => {
+  const corrected = (value: ClosureCorrection["value"], revision = 2, text = "Re-ran the export"): ClosureCorrection =>
+    ({ operationId: `op-v${revision}`, fingerprint: "fc", actorId: MEMBER, at: `2026-09-1${revision}T09:00:00.000Z`, field: "actual", correction: text, reason: "Wrong export", value, revision });
+  const adoption = plan({ key: "adoption", unit: "count", current: 100, target: 150 });
+
+  it("counts the latest corrected value in the totals, marked corrected, with the value recorded at closing kept", () => {
+    const rows = [
+      closedRow("a", 1, adoption, 130, [definedAs(ADOPTERS)], { closureCorrections: [corrected({ kind: "numeric", actual: 140 }, 2), corrected({ kind: "numeric", actual: 135 }, 3)] }),
+      closedRow("b", 2, adoption, 120, [definedAs(ADOPTERS)]),
+    ];
+    const [line] = totalsOf(rows, Q3);
+    // 135 - 100 corrected, plus 120 - 100 as recorded.
+    expect(line.summed).toEqual({ count: 2, change: 55 });
+    expect(line.results.map(result => [result.requestNumber, result.actual, result.change, result.correctedFrom])).toEqual([
+      [1, 135, 35, { actual: 130, verdict: null }],
+      [2, 120, 20, null],
+    ]);
+  });
+
+  it("shows the corrected value on the report's Request, and not again among its corrected text", () => {
+    const rows = [closedRow("a", 1, adoption, 130, [definedAs(ADOPTERS)], { closureCorrections: [corrected({ kind: "numeric", actual: 140 }, 2, "It was 140")] })];
+    const [entry] = reportEntries(rows, Q3);
+    expect(entry.outcome).toMatchObject({ kind: "measured", result: { actual: 140, change: 40, correctedFrom: { actual: 130 } } });
+    expect(entry.corrected).toEqual([]);
+  });
+
+  it("tallies a Pass/fail check at its corrected answer", () => {
+    const check = plan({ key: "check" });
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: check, outcomeClosure: measuredClosure(check, RELEASE_AUG, 0, { passed: false, evidence: "a" }), closureCorrections: [corrected({ kind: "pass_fail", passed: true })] }),
+      row({ id: "b", requestNumber: 2, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), expectedImpact: check, outcomeClosure: measuredClosure(check, RELEASE_AUG, 0, { passed: false, evidence: "b" }) }),
+    ];
+    const [line] = totalsOf(rows, Q3);
+    expect(line.verdicts).toEqual({ good: 1, bad: 1 });
+    expect(line.results[0]).toMatchObject({ verdict: "good", correctedFrom: { actual: null, verdict: "bad" } });
+  });
+
+  it("keeps counting the closing value after a text-only Correction of the actual result", () => {
+    const rows = [closedRow("a", 1, adoption, 130, [definedAs(ADOPTERS)], { closureCorrections: [{ ...corrected(undefined, 2), value: undefined }] })];
+    expect(totalsOf(rows, Q3)[0].summed).toEqual({ count: 1, change: 30 });
   });
 });
 

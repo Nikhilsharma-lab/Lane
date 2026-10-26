@@ -120,7 +120,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
       case "voidRelease": return <VoidReleaseForm {...form} />
       case "close": return agreed && <MeasuredCloseForm {...form} agreed={agreed} release={release.release} />
       case "closeWithoutResult": return <CloseWithoutResultForm {...form} />
-      case "correctClosure": return closure && <ClosureCorrectionForm {...form} closureKind={closure.kind} />
+      case "correctClosure": return closure && <ClosureCorrectionForm {...form} closureKind={closure.kind} result={closure.kind === "measured" ? closure.primary.kind === "numeric" ? { kind: "numeric", unit: closure.primary.unit } : { kind: "pass_fail" } : null} />
       case "followUp": return <FollowUpForm {...form} onCreated={id => router.push(`/requests/${id}`)} />
       case "handover": return <HandoverForm {...form} people={release.people} />
     }
@@ -154,7 +154,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
       {/* #209: the line as given at closing; a Correction below shows any new wording beside it. */}
       {closure.learned && <p>What we learned: {closure.learned}</p>}
       {!!outcome.corrections.length && <div className={styles.facts}><h4>Corrections</h4><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
-        <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.correction}</p>
+        <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
         <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on {day(c.at)}.</p>
       </li>)}</ol></div>}
     </div>

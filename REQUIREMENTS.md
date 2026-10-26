@@ -763,10 +763,18 @@ Reporting requirements for the bounded design:
   date as of" date, At a glance counts (shipped, measured, still due, closed without a result), totals for quarters
   and years only (never months), a section per current Project then "No Project" with each Request's problem,
   prediction, result with guardrails or result due date, latest Corrections marked "corrected" and Follow-ups, and
-  Closed without a result by reason. Totals use values as recorded at closing; Corrections are shown, not summed.
-  Released operational work is listed with its reason. Work never Released (including work closed without a result
-  before release) is in no period. Everyone except Guests sees it; nobody is named, grouped or ranked. Integration
-  branch only.
+  Closed without a result by reason. Released operational work is listed with its reason. Work never Released is in
+  no period, except work closed without a result before release (below). Everyone except Guests sees it; nobody is
+  named, grouped or ranked. Integration branch only.
+  **Corrections count in totals, decided 2026-10-26 (review of #195; supersedes "Totals use values as recorded at
+  closing; Corrections are shown, not summed"):** when a result is corrected after closing, quarter/year totals and
+  the Outcome report use the corrected value, marked "corrected"; the original stays visible on the Request. A
+  Correction of the actual result therefore records a structured value beside its text (a number for a numeric metric,
+  passed or not for a Pass/fail check; migration 0053). Older text-only Corrections keep counting the closing value.
+  Corrections stay protected and append-only.
+  **Closed without a result before any Release, decided 2026-10-26:** it appears in the Outcome report under "Closed
+  without a result" (and its At a glance count) in the period it was closed (UTC). It is never counted as shipped or
+  in any total.
   **What we learned, Quarter note and printing, approved 2026-10-25 (#195, #209):** both closing forms (with a
   measured result, and Closed without a result) have an optional one-line What we learned box (up to 280 characters),
   stored with the closure (migration 0043). After closing it changes only by a Correction ("What we learned"); the
