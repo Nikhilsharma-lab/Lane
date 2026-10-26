@@ -1,4 +1,4 @@
-import type { Ref } from "react"
+import { useEffect, useRef, type Ref } from "react"
 import Link from "next/link"
 import { Badge } from "@/components/arc/badge/badge"
 import { Button } from "@/components/arc/button/button"
@@ -79,6 +79,15 @@ function Iteration({ entry, canChange, removing, onRemove }: { entry: IterationE
  * and Members link and remove; a Viewer reads; a guest never gets here. Follow-ups are listed in the journey, apart.
  */
 export function SameProblemView({ requestNumber, state, onOpenLink, onRemove, onRetry, removing = null, actionError, announcement, linkButtonRef, headingRef }: SameProblemViewProps) {
+  // The Outcome report's iteration note links to #iterations, which renders after the page: bring it into view once read.
+  const arrived = useRef(false)
+  useEffect(() => {
+    if (state.kind !== "ready" || arrived.current) return
+    arrived.current = true
+    if (window.location.hash !== `#${ITERATIONS_SECTION_ID}`) return
+    const frame = window.requestAnimationFrame(() => document.getElementById(ITERATIONS_SECTION_ID)?.scrollIntoView({ block: "start" }))
+    return () => window.cancelAnimationFrame(frame)
+  }, [state])
   const heading = <h2 id={HEADING_ID} ref={headingRef} tabIndex={-1} className={styles.heading}>Iterations of this problem</h2>
   if (state.kind === "loading") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={HEADING_ID} className={styles.section}>
     <div className={styles.header}>{heading}</div>

@@ -71,16 +71,6 @@ export function SameProblemSection({ requestId, requestNumber, orgId }: { reques
     return () => { active = false }
   }, [requestId, orgId, show])
 
-  // The Outcome report's iteration note links to #iterations, which renders after the page: bring it into view once read.
-  const arrived = useRef(false)
-  useEffect(() => {
-    if (state.kind !== "ready" || arrived.current) return
-    arrived.current = true
-    if (window.location.hash !== `#${ITERATIONS_SECTION_ID}`) return
-    const frame = window.requestAnimationFrame(() => document.getElementById(ITERATIONS_SECTION_ID)?.scrollIntoView({ block: "start" }))
-    return () => window.cancelAnimationFrame(frame)
-  }, [state])
-
   async function link(candidate: LinkCandidate): Promise<string | null> {
     try {
       const result = await callAction(() => linkSameProblem({ requestId, otherRequestId: candidate.requestId }, { orgId }))
