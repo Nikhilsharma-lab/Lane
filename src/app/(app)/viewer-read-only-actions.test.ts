@@ -191,4 +191,17 @@ describe("what a Viewer still reads", () => {
     expect(await updateFirstRun({ change: "skip" }, ctx)).toEqual({ success: true });
     expect(await connection`select steps, skipped_at is not null as skipped from first_run_progress where org_id = ${ORG} and user_id = ${VIEWER}`).toEqual([{ steps: ["inbox"], skipped: true }]);
   });
+
+  // #219: a saved view is personal state too (the spec lets Viewers save views), and it changes nothing in the workspace.
+  it("keeps a Viewer's own saved views theirs to save, rename, update and delete", async () => {
+    const { saveView, renameSavedView, updateSavedView, deleteSavedView } = await import("./saved-view-actions");
+    const before = await workspaceState();
+    const saved = await saveView({ name: "Open work", filters: { status: "open", project: "all" } }, ctx);
+    expect(saved).toMatchObject({ ok: true, view: { name: "Open work" } });
+    const id = (saved as { view: { id: string } }).view.id;
+    expect(await renameSavedView({ id, name: "Open now" }, ctx)).toMatchObject({ ok: true });
+    expect(await updateSavedView({ id, filters: { status: "due", project: "none" } }, ctx)).toMatchObject({ ok: true });
+    expect(await deleteSavedView({ id }, ctx)).toEqual({ ok: true });
+    expect(await workspaceState()).toEqual(before);
+  });
 });
