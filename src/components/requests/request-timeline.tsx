@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/arc/button/button"
 import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
 import { readRequestOutcome } from "@/app/(app)/requests/[id]/outcome-actions"
+import { callAction } from "@/lib/action-call"
 import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import { FORMER_MEMBER, journeyDate, journeyDay as day, type JourneyAction } from "@/lib/request-journey"
@@ -28,7 +29,7 @@ const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished
 /** Both journey reads, or the error to show; never throws. */
 async function readViews(requestId: string, orgId: string): Promise<Views | { error: string }> {
   try {
-    const [release, outcome] = await Promise.all([readRequestRelease(requestId, { orgId }), readRequestOutcome(requestId, { orgId })])
+    const [release, outcome] = await Promise.all([callAction(() => readRequestRelease(requestId, { orgId })), callAction(() => readRequestOutcome(requestId, { orgId }))])
     if ("error" in release) return { error: release.error || LOAD_FAILED }
     if ("error" in outcome) return { error: outcome.error || LOAD_FAILED }
     return { release, outcome }
