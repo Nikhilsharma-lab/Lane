@@ -191,7 +191,7 @@ _Avoid_: Custom metric, KPI
 
 **Pass/fail check**:
 A yes-or-no goal, such as "keyboard users can finish checkout". It is not a Metric
-definition and never adds up.
+definition and never adds up. Its result is Passed or Didn't pass, in those words everywhere.
 _Avoid_: Metric, test
 
 ## Retired words
