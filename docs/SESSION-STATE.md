@@ -1,5 +1,28 @@
 # Shared Claude / Codex handoff
 
+## #175 Oct26 browser correction — idempotent history restoration
+
+Actual zero-write browser run7 reproduced a return-focus update loop on cd0430f:
+plain Back focused the row without warnings; Back with the real Keyboard shortcuts
+modal open emitted three maximum-depth warnings while the already-visible row's
+focus was rejected by the modal. The existing restoreRequest allocated a fresh
+view on each effect attempt, recreating its own callback dependency before the
+pending focus frame settled. It now returns the previous view when the page/group
+already matches, and otherwise updates only the necessary page/group. Existing
+20-frame retry, effect dependencies, history marker and modal ownership stay intact.
+
+Source checks: focused84 navigation/list-view/moves/grid tests, UI688, full tsc/lint,
+design and production build pass. Actual browser green/durable regression merge
+remain separate; no new database reset or hosted writes by the implementer.
+Evidence: `/private/tmp/lane-spec-175-evidence.md`; diagnosis and retained actual
+red: `/private/tmp/lane-spec-175-history-diagnosis.md`.
+
+Current original bundle: Requests +2330 (282 over2048), detail +2831 (783 over),
+Impact/Intake +2067 (19 over), Settings +2065 (17 over). Requests grows68 bytes
+from the preview correction; other routes unchanged. Existing175 proposed baseline
+passes unchanged; no additional refresh/approval or original compliance claimed.
+Exact receipt: `/private/tmp/lane-spec-175-history-bundle-bytes.json`.
+
 ## #175 Oct26 review correction — preview lifetime, acceptance pending
 
 Spec review found that local preview replacement/closure did not invalidate shared

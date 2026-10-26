@@ -108,3 +108,15 @@ Current exact receipt: `/private/tmp/lane-spec-175-preview-bundle-bytes.json`.
 Focused99, UI688, full TypeScript/lint/design and production build pass. The real
 preview replacement/closure browser cases and independent delta review remain
 pending; controller tests do not prove DataTable's rendered effect by themselves.
+
+The later native-history correction makes the existing row-restoration view update
+idempotent. Actual browser red showed the same visible row with the shell modal
+owning focus: fresh equivalent views restarted the return-focus effect repeatedly.
+The updater now keeps the previous view when page/group already match and still
+reveals an off-page/collapsed Request. Focus timing and modal behavior are unchanged.
+Red trace and diagnosis: `/private/tmp/lane-spec-175-history-diagnosis.md`; browser
+green remains a separate gate. Existing focused84/UI688/static/design/build pass.
+Its final build measures Requests513305 (+2330 original, 282 over),68 bytes above
+the preview correction; all other routes retain the preceding measurement. Existing
+proposal passes unchanged. Exact current receipt:
+`/private/tmp/lane-spec-175-history-bundle-bytes.json`.

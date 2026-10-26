@@ -224,7 +224,17 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const restoreRequest = useCallback((id: string) => {
     const index = matching.findIndex(row => row.id === id)
     const group = groups.find(item => item.rows.some(row => row.id === id))
-    if (index >= 0) setView(previous => ({ ...previous, collapsedGroups: previous.collapsedGroups.filter(key => key !== group?.key), pagination: { ...previous.pagination, pageIndex: Math.floor(index / previous.pagination.pageSize) } }))
+    if (index >= 0) setView(previous => {
+      const pageIndex = Math.floor(index / previous.pagination.pageSize)
+      const collapsed = group !== undefined && previous.collapsedGroups.includes(group.key)
+      // A modal may temporarily refuse row focus. Keep this callback's inputs
+      // stable while the existing focus attempt waits, rather than restarting it.
+      if (!collapsed && pageIndex === previous.pagination.pageIndex) return previous
+      return { ...previous,
+        collapsedGroups: collapsed ? previous.collapsedGroups.filter(key => key !== group.key) : previous.collapsedGroups,
+        pagination: pageIndex === previous.pagination.pageIndex ? previous.pagination : { ...previous.pagination, pageIndex },
+      }
+    })
     // The returning row also takes the grid's tab stop.
     if (index >= 0) setGridActive(`r:${id}`)
   }, [matching, groups, setView, setGridActive])
