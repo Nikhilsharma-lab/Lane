@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { beginCoordinatedChange, forbidTriage, type CoordinationRecorder } from "./move-coordination-transport";
-import { chooseSidebarProject, navigationSurfaces, type NavigationRequest } from "./request-navigation";
+import { navigationSurfaces, type NavigationRequest } from "./request-navigation";
 import { commandPalette, paletteOption, runPaletteCommand } from "./command-palette";
 import { doneToast, toastRegion } from "./mark-done-undo";
 import { isItLivePrompt } from "./journey";
@@ -11,8 +11,19 @@ const row = (page: Page, request: NavigationRequest) => page.locator(`#request-r
 const bar = (page: Page) => page.locator("[data-request-selection-bar]");
 const confirmation = (page: Page) => page.getByRole("dialog", { name: "Pick up anyway?", exact: true });
 const bulkToast = (page: Page) => toastRegion(page).locator("li").filter({ hasText: /^2 Requests marked Done/ });
+async function chooseMoveProject(page: Page, name: string) {
+  // Keep the pointer out of the hover opener during these keyboard flows. A
+  // genuine open peek correctly owns Escape before Request selection does.
+  for (const label of ["Open navigation", "Expand sidebar"]) {
+    const opener = page.getByRole("button", { name: label, exact: true });
+    if (await opener.isVisible()) await opener.press("Enter");
+  }
+  const link = page.getByRole("navigation", { name: "Primary navigation", exact: true }).getByRole("link", { name, exact: true });
+  await link.focus(); await expect(link).toBeFocused(); await link.press("Enter");
+  await expect(page.locator("#lane-sidebar")).not.toHaveAttribute("data-peeking", "true");
+}
 async function sidebar(page: Page, name: string) {
-  await chooseSidebarProject(page, name);
+  await chooseMoveProject(page, name);
   await expect(page.getByRole("dialog", { name: "Navigation", exact: true })).toBeHidden();
   await expect(page).toHaveURL(url => url.pathname === "/" && (name !== "No Project" || url.searchParams.get("project") === "none"));
 }
@@ -76,8 +87,8 @@ export async function prepareMoveCoordination(page: Page, orgId: string, fixture
 }
 
 /** No lifecycle writes: real selection, one confirmation, Cancel/Escape and native history invalidation. */
-export async function verifyMoveCancellations(page: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture) {
-  for (const surface of navigationSurfaces) {
+export async function verifyMoveCancellations(page: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture, surfaces: readonly (typeof navigationSurfaces)[number][] = navigationSurfaces) {
+  for (const surface of surfaces) {
     await page.setViewportSize({ width: surface.width, height: 900 }); await page.emulateMedia({ colorScheme: surface.colorScheme });
     // Sidebar scopes at / intentionally replace history. Enter the list from a
     // real detail route so native Back/Forward traverses genuine app entries.
@@ -93,6 +104,7 @@ export async function verifyMoveCancellations(page: Page, orgId: string, fixture
     await confirmation(page).getByRole("button", { name: "Cancel", exact: true }).press("Enter");
     await expect(confirmation(page)).toBeHidden(); await change.cancelled();
     await expect(bar(page)).toContainText("3 selected");
+    await expect(page.locator("#lane-sidebar")).not.toHaveAttribute("data-peeking", "true");
     await row(page, fixture.c).focus(); await page.keyboard.press("Escape"); await expect(bar(page)).toBeHidden();
     await selectMoveRows(page, [fixture.a, fixture.b, fixture.c]);
     const history = await beginCoordinatedChange(page, orgId, "bulk-pickup", [fixture.a.id, fixture.b.id], recorder, () => bar(page).getByRole("button", { name: "Pick up", exact: true }).press("Enter"));
@@ -230,7 +242,7 @@ export async function verifyPendingMoveNavigation(page: Page, orgId: string, fix
   const batch = await beginCoordinatedChange(page, orgId, "bulk-done", [fixture.b.id, fixture.c.id], recorder, () => bar(page).getByRole("button", { name: "Mark Done", exact: true }).press("Enter"), true);
   await batch.received();
   for (const scope of ["No Project", "All Requests"]) {
-    await chooseSidebarProject(page, scope);
+    await chooseMoveProject(page, scope);
     await expect(page.getByRole("dialog", { name: "Navigation", exact: true })).toBeHidden();
     await expect(page.getByRole("navigation", { name: "Primary navigation", exact: true }).getByRole("link", { name: scope, exact: true })).toHaveAttribute("aria-current", "page");
     // Local scope changes immediately; #172 deliberately holds URL mirroring until the write settles.
