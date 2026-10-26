@@ -61,6 +61,11 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     if (!entry) { entry = { bindings: new Set(), presentation: null, operation: null, draft: null, recordOwner: null, unpersisted: null }; intakeScopes.set(deps.scope, entry); }
     return entry;
   };
+  const anotherRetainedOwner = () => {
+    const entry = scope();
+    return entry.recordOwner !== null && entry.recordOwner !== identity && entry.bindings.has(entry.recordOwner) && record.read() !== null;
+  };
+  const retainedOwnerError = "Another open form still has this Request’s unfinished files. Return to that form to retry or skip them.";
   const storageError = "Your Request is saved, but this browser could not keep upload recovery information. Keep this tab open and try again.";
   const record = {
     read() {
@@ -284,13 +289,15 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
       cancelCheck();
       entry.bindings.delete(identity);
       if (entry.presentation === identity) entry.presentation = null;
-      if (!operation && state.get().requestId && state.get().phase !== "complete") return perform(async () => {});
-      else releaseScope(deps.scope, entry);
+      const cleanup = !operation && state.get().requestId && state.get().phase !== "complete" ? perform(async () => {}) : undefined;
+      releaseScope(deps.scope, entry);
+      return cleanup;
     },
     async save(input: { run: () => Promise<SaveResponse>; title: string; attachments: QueuedAttachment[]; saved: (result: SavedRequest) => void; failed: (failure: SaveFailure | null) => void }) {
       if (state.get().requestId) return;
       const attachments = input.attachments.map(file => ({ ...file }));
       await perform(async current => {
+        if (anotherRetainedOwner()) { state.set({ ...state.get(), error: retainedOwnerError }); return; }
         const retained = record.read();
         if (retained) {
           state.set({ ...state.get(), phase: "lost", lost: retained, error: "An earlier Request still has unfinished files. Check those files before saving this draft." });
@@ -331,9 +338,10 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
         }
       });
     },
-    recoveryRecord() { return scope().operation ? null : record.read(); },
+    recoveryRecord() { return scope().operation || anotherRetainedOwner() ? null : record.read(); },
     async recover() {
       if (state.get().requestId) return;
+      if (anotherRetainedOwner()) { state.set({ ...state.get(), error: retainedOwnerError }); return; }
       await perform(async current => {
         const lost = record.read();
         if (!lost) return;

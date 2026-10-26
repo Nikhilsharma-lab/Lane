@@ -1,19 +1,29 @@
 # Shared Claude / Codex handoff
 
-## #176 Intake coordination — initial isolated source candidate
+## #176 Intake coordination — isolated source ready for review
 
 Based on exact integration `355e09e` then reviewed compatibility `a54dbf1` in
 `codex/spec-167-176`. Root released independent local implementation because the
 actual #169/#172 blockers are accepted; this does not accept #175/compatibility
-browser work or merge integration. New/Edit now use one stable production owner
-for check/save/upload/recovery, with separate operation/presentation and scoped
+browser work or merge integration. New/Edit use one stable production owner for
+check/save/upload/recovery, with separate operation/presentation and scoped
 record/draft ownership. Reservation persistence precedes PUT, failed cleanup stays
-reachable, and stale form callbacks cannot affect the current host. Real owner
-and New/Edit adapter tests replace the copied save harness. UI989/94 passes;
-full TypeScript, affected lint and design pass. Application/build/bundle and
-actual-form candidate checks are pending.
-See `testing/intake-coordination.md` and external `lane-spec-176-evidence.md`.
+reachable, and stale forms cannot affect the current host. A mounted/hidden owner
+retains its Files; a second form cannot mistake them for orphan metadata.
 
+Initial source `ae026523` passed UI989/tsc/affected lint/design. Final source passes
+UI992/94, full TypeScript/repository lint/design and production build. Application
+2,811 passed/one skipped before the final client-only correction; the suite reset
+only this checkout's guarded local target after bootstrap52. Exact pre/post-check
+boundaries, actual-form candidate/browser and review work still pending:
+`testing/intake-coordination.md` and external `lane-spec-176-evidence.md`.
+
+Inherited 17-route proposal passes unchanged. Original existing routes fit (+332
+Requests/+355 detail) but its old inventory lacks three main-added routes. Detail
+is +2,193 versus fresh pinned main (145 over) and +2,549 versus committed main
+(501 over); other routes fit. No new baseline or waiver approval. Original/fresh
+receipts remain immutable; user main's later DB-URL-only change is root's separate
+final reconciliation, not silently included in this pinned comparison.
 
 ## #167 / main #195 compatibility — isolated review candidate
 

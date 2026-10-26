@@ -359,8 +359,9 @@ it("an earlier owner cannot clear a newer recovery record even for the same save
   let stored: UnfinishedUploads | null = null;
   const record = { read: () => stored, write: (value: UnfinishedUploads) => { stored = value.files.length ? value : null; return true; }, clear: () => { stored = null; return true; } };
   const finalize = async () => ({ success: false as const, error: { code: "storage_unavailable" as const, message: "Not finalized." } });
-  const first = owner({ scope, record, finalize });
+  const first = owner({ scope, record, finalize, discard: async () => ({ success: false, error: { code: "storage_unavailable", message: "Cleanup not confirmed." } }) });
   await first.session.save({ run: async () => ({ success: true, requestId: "same-request" }), title: "First", attachments: [{ key: "a", file: new File(["a"], "a.png", { type: "image/png" }), status: "queued", progress: 0, attachmentId: null, error: null }], saved: () => {}, failed: () => {} });
+  await first.session.detach();
   const second = owner({ scope, record, finalize });
   await second.session.recover(); second.session.dismissLost();
   await second.session.save({ run: async () => ({ success: true, requestId: "same-request" }), title: "Second", attachments: [{ key: "b", file: new File(["b"], "b.png", { type: "image/png" }), status: "queued", progress: 0, attachmentId: null, error: null }], saved: () => {}, failed: () => {} });
@@ -369,4 +370,31 @@ it("an earlier owner cannot clear a newer recovery record even for the same save
   expect(stored).toEqual(before);
   expect(record.read()?.files[0].attachmentId).toBe("attachment-b.png");
   await second.session.detach();
+});
+
+it("does not treat a still-mounted owner's retained Files as orphan recovery", async () => {
+  const scope = crypto.randomUUID();
+  let stored: UnfinishedUploads | null = null;
+  let discards = 0;
+  const record = { read: () => stored, write: (value: UnfinishedUploads) => { stored = value.files.length ? value : null; return true; }, clear: () => { stored = null; return true; } };
+  const first = owner({ scope, record, finalize: async () => ({ success: false, error: { code: "storage_unavailable", message: "Not finalized." } }) });
+  await first.session.save({ run: async () => ({ success: true, requestId: "saved-request" }), title: "Retained", attachments: [{ key: "a", file: new File(["a"], "a.png", { type: "image/png" }), status: "queued", progress: 0, attachmentId: null, error: null }], saved: () => {}, failed: () => {} });
+  const second = owner({ scope, record, discard: async () => { discards++; return { success: true }; } });
+  expect(second.session.recoveryRecord()).toBeNull();
+  await second.session.recover();
+  expect(discards).toBe(0);
+  expect(record.read()?.files[0].attachmentId).toBe("attachment-a.png");
+  await second.session.detach(); await first.session.detach();
+});
+
+it.each([false, true])("a mounted form with no remaining recovery record does not block another save (first saved: %s)", async success => {
+  const scope = crypto.randomUUID();
+  const first = owner({ scope });
+  await first.session.save({ run: async () => success ? { success: true, requestId: "first" } : { success: false, error: { code: "save_failed", message: "Not saved." } }, title: "First", attachments: [], saved: () => {}, failed: () => {} });
+  const second = owner({ scope });
+  let saves = 0;
+  await second.session.save({ run: async () => { saves++; return { success: true, requestId: "second" }; }, title: "Second", attachments: [], saved: () => {}, failed: () => {} });
+  expect(saves).toBe(1);
+  expect(second.finished).toEqual(["second"]);
+  await first.session.detach(); await second.session.detach();
 });
