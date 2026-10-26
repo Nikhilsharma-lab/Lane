@@ -5,9 +5,20 @@ import { callAction } from "@/lib/action-call"
 import { linkSameProblem, readSameProblem, removeSameProblemLink } from "@/app/(app)/requests/[id]/same-problem-actions"
 import { formatRequestCode } from "@/lib/request-code"
 import type { LinkCandidate } from "./same-problem-link-model"
-import { SameProblemView, type SameProblemState } from "./same-problem-view"
+import type { SameProblemState } from "./same-problem-view"
+import styles from "./same-problem.module.css"
 
-// The search dialog loads only when someone opens it, so the Request page carries just the list.
+/** What shows while the list's code or its read is on the way. */
+function Loading() {
+  return <section id="iterations" aria-labelledby="iterations-heading" className={styles.section}>
+    <div className={styles.header}><h2 id="iterations-heading" className={styles.heading}>Iterations of this problem</h2></div>
+    <p role="status" className={styles.muted}>Loading Iterations…</p>
+  </section>
+}
+
+// The list loads after the page and the search dialog only when someone opens it, so the Request page's first load
+// carries just this adapter.
+const SameProblemView = dynamic(() => import("./same-problem-view").then(module => module.SameProblemView), { ssr: false, loading: Loading })
 const SameProblemLinkDialog = dynamic(() => import("./same-problem-link-dialog"), { ssr: false })
 
 const LOAD_FAILED = "Could not load the Iterations. Try again."
