@@ -14,8 +14,12 @@ retain their Requester-directed explanation. Partial results retain successful
 changes and only unsuccessful/unready selections, preserving refusal versus an
 uncertain thrown response. No per-Request forward loop or new server API exists.
 
-Each invocation captures the shared workspace navigation continuation. The bulk
-caller also owns a selection Symbol and the existing view scope. Navigation or a
+Each invocation captures the shared workspace navigation continuation.
+DataTable's committed preview identity also reaches that owner before paint:
+replacement and closure invalidate earlier presentation; the same preview keeps
+its pending work. This includes J/K, filters, the responsive breakpoint and Arc's
+exit interval. It does not cancel on a move hook's unmount or ordinary palette close.
+The bulk caller also owns a selection Symbol and the existing view scope. Navigation or a
 scope change during confirmation returns cancelled before any optimistic patch or
 action. Once execution is handed to the existing runner, settlement, rollback,
 refresh and explicit session-expiry recovery remain unconditional. Presentation
@@ -70,12 +74,12 @@ original-budget compliance.
 
 ## Measured bundle proposal
 
-The final Node 24.22.0/Next 16.3.8 build exceeds the original #167 budget on Requests
+The initial #175 Node 24.22.0/Next 16.3.8 build exceeds the original #167 budget on Requests
 and Request detail. The inherited #174 proposed baseline passes, but that is not
 original-budget compliance. A separate measured #175 refresh is proposed under the
 existing PR policy, pending Nikhil's approval by merging; tolerance stays 2,048 bytes.
 
-| Route | Original gzip bytes | Current gzip bytes | Cumulative growth | Above 2,048 |
+| Route | Original gzip bytes | Initial proposed gzip bytes | Cumulative growth | Above 2,048 |
 | --- | ---: | ---: | ---: | ---: |
 | `/` | 510975 | 513191 | 2216 | 168 |
 | `/requests/[id]` | 508554 | 511358 | 2804 | 756 |
@@ -94,3 +98,13 @@ Exact receipts: `/private/tmp/lane-spec-175-bundle-bytes.json` and
 `/private/tmp/lane-spec-175-original-bundle.log`. Preserve the original baseline
 through #176 and final PR review; this proposal does not approve the prior waiver
 or any release.
+
+After the Oct26 preview-lifetime correction, the same toolchain measures Requests
+513237 bytes (+2262 original, 214 over), detail 511385 (+2831, 783 over),
+Impact/Intake +2067 (19 over) and Settings +2065 (17 over). The additional shared
+navigation binding costs 46 bytes on Requests and 27 on other workspace routes.
+The existing proposed baseline passes unchanged; it is not refreshed again.
+Current exact receipt: `/private/tmp/lane-spec-175-preview-bundle-bytes.json`.
+Focused99, UI688, full TypeScript/lint/design and production build pass. The real
+preview replacement/closure browser cases and independent delta review remain
+pending; controller tests do not prove DataTable's rendered effect by themselves.

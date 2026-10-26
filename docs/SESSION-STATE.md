@@ -1,5 +1,29 @@
 # Shared Claude / Codex handoff
 
+## #175 Oct26 review correction — preview lifetime, acceptance pending
+
+Spec review found that local preview replacement/closure did not invalidate shared
+navigation. DataTable now reports its committed preview identity before paint;
+the navigation owner ignores unchanged identity and invalidates changed/closed
+preview presentation, including deferred focus. Submitted writes still settle and
+retained explicit Undo still works. No move-hook unmount cancellation, Arc timing
+change or server/data change. The existing main application result remains valid;
+no new database reset was run for this client binding.
+
+Behavioral red: with the production preview seam bound but invalidation omitted,
+both replacement and closure wrongly opened Is it live. Restored fix passes
+focused99, UI688, full tsc/lint/design and production build. The actual DataTable
+effect and held preview response cases remain the browser acceptance boundary.
+Evidence: `/private/tmp/lane-spec-175-evidence.md` and `preview-*` logs there.
+
+Current original cumulative bundle: Requests +2262 (214 over2048), detail +2831
+(783 over), Impact/Intake +2067 (19 over), Settings +2065 (17 over). Existing #175
+proposed baseline passes without another refresh (+46 Requests/+27 other workspace
+routes); this is not original compliance or approval. Exact current receipt:
+`/private/tmp/lane-spec-175-preview-bundle-bytes.json`. Preserve original comparison
+through #176; main-merge approval remains pending. Source handoff for delta reviews
+and browser only; no hosted action, integration edit, push or deployment.
+
 ## #175 implemented — independent review and browser acceptance pending
 
 Isolated branch `codex/spec-167-175` starts from accepted integration `355e09e`.

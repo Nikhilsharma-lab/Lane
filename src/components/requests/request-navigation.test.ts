@@ -197,6 +197,33 @@ describe("workspace Requests navigation", () => {
     expect(focus).toHaveBeenCalledOnce()
   })
 
+  it("keeps unchanged preview work but cancels deferred focus across replacement and close", () => {
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal("requestAnimationFrame", (fn: FrameRequestCallback) => frames.push(fn))
+    vi.stubGlobal("cancelAnimationFrame", vi.fn())
+    const app = workspace(), focus = vi.fn()
+    app.sidebar.previewChanged("a")
+    const current = app.sidebar.continuation()
+    app.sidebar.deferFocus(focus)
+    app.palette.previewChanged("a")
+    expect(current()).toBe(true)
+    frames[0](0)
+    expect(focus).toHaveBeenCalledOnce()
+    focus.mockClear()
+    app.sidebar.deferFocus(focus)
+    app.palette.previewChanged("b")
+    frames[1](0)
+    app.sidebar.deferFocus(focus)
+    app.palette.previewChanged(null)
+    frames[2](0)
+    app.palette.previewChanged("a")
+    expect(current()).toBe(false)
+    expect(focus).not.toHaveBeenCalled()
+    expect(app.push).not.toHaveBeenCalled()
+    expect(app.replace).not.toHaveBeenCalled()
+    expect(app.view()).toBe(app.original)
+  })
+
   it("invalidates pending work on history, cleanup/setup and an A to B to A return", () => {
     const events = new EventTarget()
     const app = workspace()

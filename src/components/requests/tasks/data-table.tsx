@@ -174,6 +174,9 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // across every page, so detail can offer previous and next. The row menu's
   // "Open Request" and Enter both click the title link, so one capture covers all three.
   const navigation = useRequestNavigation()
+  // All preview paths converge here: pointer/menu, active row, close, filters and
+  // breakpoint changes. Invalidate before paint, not after Arc's exit unmount.
+  useLayoutEffect(() => { navigation.previewChanged(shownPeek) }, [navigation, shownPeek])
   const captureOpen = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     const link = event.target instanceof Element ? event.target.closest("a[data-request-title]") : null

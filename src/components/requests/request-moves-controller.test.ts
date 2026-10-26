@@ -77,6 +77,44 @@ it("a submitted Done settles after navigation without opening an old prompt", as
   expect(a.isItLive).not.toHaveBeenCalled()
 })
 
+it.each(["r2", null])("replacing or closing preview r1 (%s) keeps settlement and explicit Undo without stale presentation", async next => {
+  const a = app()
+  a.navigation.previewChanged("r1")
+  const move = a.moves.move(request, "done")
+  const call = await a.sent()
+  a.navigation.previewChanged(next)
+  // Returning to the same preview must not revive its earlier invocation.
+  a.navigation.previewChanged("r1")
+  call.response.resolve({ success: true })
+  expect(await move).toMatchObject({ status: "success" })
+  expect(a.shown("r1", "in_progress").status).toBe("done")
+  expect(a.isItLive).not.toHaveBeenCalled()
+  a.undoStore.get()!.undo()
+  const reverse = await a.sent(1)
+  expect(reverse.name).toBe("undoMarkDone")
+  reverse.response.resolve({ success: true })
+  await vi.waitFor(() => expect(a.stack.toasts[0].title).toBe("Back to In progress"))
+  expect(a.afterMove).toHaveBeenCalledTimes(1)
+  expect(a.shown("r1", "done").status).toBe("in_progress")
+})
+
+it("an unchanged preview keeps its pending confirmation but a replacement cancels before submission", async () => {
+  const a = app()
+  a.navigation.previewChanged("r1")
+  const move = a.moves.move(request, "pick-up")
+  a.navigation.previewChanged("r1")
+  a.confirmation.settle(true)
+  ;(await a.sent()).response.resolve({ success: true })
+  expect(await move).toMatchObject({ status: "success" })
+
+  const abandoned = a.moves.move({ ...request, id: "r2" }, "pick-up")
+  a.navigation.previewChanged("r2")
+  a.confirmation.settle(true)
+  expect(await abandoned).toEqual({ status: "cancelled" })
+  expect(a.calls).toHaveLength(1)
+  expect(a.shown("r2").status).toBe("open")
+})
+
 it("a late pickup failure rolls back and refreshes without announcing into a new view", async () => {
   const a = app()
   const move = a.moves.move({ id: "r1", name: "LAN-1" }, "pick-up")

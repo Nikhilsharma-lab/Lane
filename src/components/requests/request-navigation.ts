@@ -33,6 +33,7 @@ export function createRequestNavigation(state: NavigationState) {
   let arrival: { id: string; sequence: DetailSequence | null; button: "previous" | "next" | null } | null = null
   let cancelFocus: (() => void) | null = null
   let rememberHistoryReturn: (() => void) | null = null
+  let previewId: string | null = null
   function invalidate() {
     generation += 1
     cancelFocus?.(); cancelFocus = null
@@ -66,6 +67,12 @@ export function createRequestNavigation(state: NavigationState) {
   }
   return {
     invalidate, prepareDetail, selectList,
+    /** Local preview replacement/close is navigation too; an unchanged render is not. */
+    previewChanged(id: string | null) {
+      if (previewId === id) return
+      previewId = id
+      invalidate()
+    },
     planListUrl(input: Omit<ListUrlSyncInput, "current" | "localSelectionPending">) {
       const current = state.getView()
       const href = requestListHref(current.status, current.project)
@@ -127,6 +134,7 @@ type RequestNavigation = ReturnType<typeof createRequestNavigation>
 export function bindRequestNavigation(controller: RequestNavigation, browser: NavigationBrowser) {
   return {
     invalidate: controller.invalidate, continuation: controller.continuation, deferFocus: controller.deferFocus,
+    previewChanged: controller.previewChanged,
     onHistoryReturn: controller.onHistoryReturn,
     prepareDetail: controller.prepareDetail, arrive: controller.arrive,
     selectList: (next: Partial<RequestListContext>) => controller.selectList(next, browser),
