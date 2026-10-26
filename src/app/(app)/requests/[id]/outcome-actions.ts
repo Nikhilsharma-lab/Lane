@@ -96,7 +96,7 @@ export async function createFollowUpRequest(context: RequestChangeContext, input
         apply: async (tx, { request: original, auth, roster, fingerprint }) => {
             allow(journeyActionsFor(original, auth, roster, await personName(tx, roster, requesterOf(original)), new Date()).followUp);
             // #213: a follow-up is a new Request, so it counts and waits while an Admin needs to pay.
-            const block = await newRequestBlock({ orgId: auth.orgId }, tx);
+            const block = await newRequestBlock(auth, tx);
             if (block) refuse(block);
             const [follow] = await tx.insert(requests).values({ ...requestContent(original), orgId: auth.orgId, createdBy: auth.userId, measurementDraft: original.measurementDraft, followUpOf: original.id, agreementRevision: 1 }).returning({ id: requests.id });
             const [reviewersRow] = await tx.select().from(requestAgreements).where(and(eq(requestAgreements.requestId, original.id), eq(requestAgreements.orgId, auth.orgId)));

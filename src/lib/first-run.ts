@@ -4,7 +4,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { and, eq, sql } from "drizzle-orm";
 
 import { db, firstRunProgress, requests } from "@/db";
-import type { MemberAuth } from "./auth-guard";
+import type { MemberAuth, WorkspacePerson } from "./auth-guard";
 import { readFreeRequests, type WorkspaceFreeRequests } from "./billing";
 import {
   firstRunGuideFor, firstRunView, startingProgress, withStepRead, type FirstRunChange, type FirstRunGuide, type FirstRunProgress, type FirstRunView,
@@ -17,7 +17,7 @@ import {
  * caller's job: pages pass the session's member, actions pass the guard's.
  */
 
-type Person = { orgId: string; userId: string };
+type Person = WorkspacePerson;
 
 export type FirstRunData = {
   /** What to show now; null when the person skipped or finished it (help reopens it). */

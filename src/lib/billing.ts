@@ -9,6 +9,7 @@ import { billingEnforced } from "./feature-switches";
 import { PLAN_FLOWS, paymentProvider, type BillingAccount, type CheckoutRequest, type PaymentEvent, type PaymentProvider, type PortalFlow } from "./payment-provider";
 import { allowanceKeyOf, creationBlock, freeRequestsOf, type FreeRequests, type FreeRequestsState, type PlanState } from "./free-request-rules";
 import { afterResponse } from "./after-response";
+import type { WorkspaceScope } from "./auth-guard";
 import type { RequestTx } from "./request-change-store";
 import { workspaceRoster } from "./workspace-roster";
 
@@ -25,7 +26,7 @@ import { workspaceRoster } from "./workspace-roster";
  * membership, only the number the provider bills; a paying workspace's seats follow Clerk (`followSeatChanges`).
  */
 
-type Workspace = { orgId: string };
+type Workspace = WorkspaceScope;
 type Exec = typeof db | RequestTx;
 
 /**

@@ -29,7 +29,7 @@ export async function takeOnGuestSubmission(context: RequestChangeContext) {
       // A Guest who has since become a Member can't take their own submission on: someone else answers for it.
       insist(auth.userId !== request.createdBy, "You filed this one. Ask a teammate to take it on.");
       // #213: taking it on counts as a new Request, so it waits while an Admin needs to pay.
-      const block = await newRequestBlock({ orgId: auth.orgId }, tx);
+      const block = await newRequestBlock(auth, tx);
       if (block) refuse(block);
       return { set: { takenOnBy: auth.userId, takenOnAt: new Date() } };
     },

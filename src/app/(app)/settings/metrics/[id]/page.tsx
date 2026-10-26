@@ -33,7 +33,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   if (workspace.role === "guest") redirect("/");
 
   const [{ id }, { section }] = await Promise.all([params, searchParams]);
-  const library = { orgId: workspace.orgId };
+  const library = workspace;
   const [definition, history, unitLocked] = await Promise.all([readMetricDefinition(library, id), readMetricDefinitionHistory(library, id), metricDefinitionUnitLocked(library, id)]);
   if (!definition) notFound();
   const archived = !!definition.archivedAt;

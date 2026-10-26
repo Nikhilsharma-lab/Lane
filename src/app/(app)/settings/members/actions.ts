@@ -85,7 +85,7 @@ export async function changeMemberRole(data: { userId: string; role: string; con
     return { error: "The role couldn't be changed. Try again." };
   }
   // The role is changed in Clerk either way; a seat change the provider missed is made by the next check.
-  await followSeatChanges({ orgId: auth.orgId });
+  await followSeatChanges(auth);
   revalidatePath("/settings/members");
   return { success: true };
 }

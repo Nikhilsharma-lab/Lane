@@ -34,7 +34,7 @@ export async function addMetricDefinition(data: DefinitionData, context: { orgId
   const auth = await requireCanChange(context.orgId);
   if (!auth) return { error: await refusal(LIBRARY_REFUSAL) };
 
-  const result = await addToLibrary({ orgId: auth.orgId }, auth.userId, parsed.data);
+  const result = await addToLibrary(auth, auth.userId, parsed.data);
   if ("error" in result) return refused(result);
   revalidate(result.id);
   return { ok: true, id: result.id };
@@ -47,7 +47,7 @@ export async function editMetricDefinition(data: DefinitionData & { id: string }
   if (!auth) return { error: await refusal(LIBRARY_REFUSAL) };
 
   const id = String(data.id);
-  const result = await editInLibrary({ orgId: auth.orgId }, auth.userId, id, parsed.data);
+  const result = await editInLibrary(auth, auth.userId, id, parsed.data);
   if ("error" in result) return refused(result);
   if (result.changed) revalidate(id);
   return { ok: true };

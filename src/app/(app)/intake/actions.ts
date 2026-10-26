@@ -148,7 +148,7 @@ export async function runTriage(
   // submission isn't a new Request until a Member takes it on, so a Guest can still file.
   if (existingRequestId === undefined && auth.role !== "guest") {
     try {
-      const block = await newRequestBlock({ orgId: auth.orgId });
+      const block = await newRequestBlock(auth);
       if (block) return { success: false, error: { code: "billing_blocked", message: block } };
     } catch (error) {
       console.error("[intake] Free Requests check failed:", error);
@@ -200,7 +200,7 @@ export async function runTriage(
   let reviewed: RequestInput & z.output<typeof requestEditSourceSchema> = { expectedImpact: null, ...parsed.data };
   if (reviewed.expectedImpact?.kind === "measurement") {
     try {
-      const checked = await checkPredictionMetrics({ orgId: auth.orgId }, reviewed.expectedImpact, storedImpact);
+      const checked = await checkPredictionMetrics(auth, reviewed.expectedImpact, storedImpact);
       if ("error" in checked) return { success: false, error: { code: "validation", field: "expectedImpact", message: checked.error } };
       reviewed = { ...reviewed, expectedImpact: checked.impact as typeof reviewed.expectedImpact };
     } catch (error) {
@@ -335,7 +335,7 @@ export async function saveRequest(
     }
     // A definition archived (or moved) since the review can't be newly picked (#198).
     if (payload.expectedImpact?.kind === "measurement") {
-      const checked = await checkPredictionMetrics({ orgId: auth.orgId }, payload.expectedImpact);
+      const checked = await checkPredictionMetrics(auth, payload.expectedImpact);
       if ("error" in checked) return { success: false, error: { code: "validation", field: "expectedImpact", message: checked.error } };
       payload = { ...payload, expectedImpact: checked.impact as typeof payload.expectedImpact };
     }
@@ -372,7 +372,7 @@ export async function saveRequest(
     const outcome = !checked && !review.reviewers.length ? { rows: await insertRequest(db), block: null } : await db.transaction(async (tx): Promise<{ rows: Awaited<ReturnType<typeof insertRequest>>; block: string | null }> => {
       // #213: the check that counts, under the workspace lock that numbers new Requests. A retried save of a
       // Request already created goes on to find it below.
-      const block = checked ? await newRequestBlock({ orgId: auth.orgId }, tx) : null;
+      const block = checked ? await newRequestBlock(auth, tx) : null;
       if (block) {
         const [already] = await tx.select({ id: requests.id }).from(requests)
           .where(and(eq(requests.id, payload.requestId), eq(requests.orgId, auth.orgId), eq(requests.createdBy, auth.userId)));

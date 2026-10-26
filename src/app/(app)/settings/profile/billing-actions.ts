@@ -35,7 +35,7 @@ export async function startPlanCheckout(data: { period: "yearly" | "monthly" }, 
     return { error: "Couldn’t count this workspace’s seats. Try again." };
   }
   const [profile] = await db.select({ email: profiles.email }).from(profiles).where(eq(profiles.id, auth.userId));
-  const started = await startCheckout({ orgId: auth.orgId }, { period: parsed.data.period, seats, email: profile?.email ?? null, origin: appOrigin() }, provider);
+  const started = await startCheckout(auth, { period: parsed.data.period, seats, email: profile?.email ?? null, origin: appOrigin() }, provider);
   return started.ok ? { ok: true as const, url: started.url } : { error: started.error };
 }
 
@@ -53,6 +53,6 @@ export async function openBillingPage(data: { flow: PortalFlow }, context: { org
   if (!auth) return { error: await refusal("Only Admins can change billing in this workspace.") };
   const provider = paymentProvider();
   if (!provider) return { error: BILLING_PAGES_UNAVAILABLE };
-  const opened = await openProviderPage({ orgId: auth.orgId }, { flow: parsed.data.flow, origin: appOrigin() }, provider);
+  const opened = await openProviderPage(auth, { flow: parsed.data.flow, origin: appOrigin() }, provider);
   return opened.ok ? { ok: true as const, url: opened.url } : { error: opened.error };
 }
