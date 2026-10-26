@@ -7,6 +7,7 @@ import { db, profiles, requests, sameProblemEvents, sameProblemMembers } from "@
 import type { MemberAuth } from "@/lib/auth-guard";
 import { seeable } from "@/lib/request-access";
 import { FORMER_MEMBER } from "@/lib/request-journey";
+import type { SameProblemHistoryLine } from "@/lib/same-problem-rules";
 
 /**
  * Same problem links (#218). Groups live in `same_problem_members` (one group at most per Request); each Request's
@@ -23,15 +24,7 @@ export const SAME_PROBLEM_COPY = {
   notLinked: "This Request isn’t linked as Same problem.",
 } as const;
 
-/** One line of a Request's link history: who linked it with which Request, or took it out, and when. */
-export type SameProblemHistoryLine = {
-  id: string;
-  kind: "linked" | "removed";
-  actorName: string;
-  at: string;
-  /** Linked: the Request it was linked with. Removed: null when this Request was taken out, else the Request whose removal ended its group. */
-  other: { requestId: string; requestNumber: number } | null;
-};
+export type { SameProblemHistoryLine };
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

@@ -65,6 +65,8 @@ export default defineConfig({
       "src/lib/external-store.test.ts",
       "src/components/requests/request-timeline-model.test.ts",
       "src/components/requests/viewer-request-detail.test.ts",
+      "src/components/requests/same-problem-view.test.ts",
+      "src/components/requests/same-problem-link-model.test.ts",
       "src/components/requests/is-it-live.test.ts",
       "src/components/requests/measurement-metric-picker.test.ts",
       "src/lib/prediction-metrics.test.ts",

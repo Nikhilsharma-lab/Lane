@@ -20,6 +20,17 @@ export function iterationLabel(number: number): string {
   return `${ordinal(number)} iteration`;
 }
 
+/** One line of a Request's link history: who linked it with which Request, or took it out, and when. */
+export type SameProblemHistoryLine = {
+  id: string;
+  kind: "linked" | "removed";
+  actorName: string;
+  /** ISO time. */
+  at: string;
+  /** Linked: the Request it was linked with. Removed: null when this Request was taken out, else the Request whose removal ended its group. */
+  other: { requestId: string; requestNumber: number } | null;
+};
+
 /** Where a Request page lists its group's Iterations: the Outcome report's iteration note links here. */
 export const ITERATIONS_SECTION_ID = "iterations";
 
