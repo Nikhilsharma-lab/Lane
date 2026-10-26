@@ -150,9 +150,30 @@ export async function verifyPartialPickup(page: Page, second: Page, orgId: strin
   await capture("real-partial-pickup-retains-failed-and-unready", { requests: { a: fixture.a.id, b: fixture.b.id, c: fixture.c.id }, batchCalls: batch.count(), result });
 }
 
-export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture) {
+/** Retained-fixture continuation after B's confirmed Pickup; no duplicate B write.
+ * Mixed readiness remains separately evidenced by the preceding cancellation cases.
+ */
+export async function verifyPartialPickupAfterConfirmedB(page: Page, second: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture) {
   await page.goto(`/requests/${fixture.c.id}`); await setCurrentValue(page, orgId, fixture.c, recorder, "62");
-  const pickup = await beginCoordinatedChange(page, orgId, "pickup", [fixture.c.id], recorder, () => page.getByRole("button", { name: "Pick up", exact: true }).press("Enter")); await pickup.finish();
+  await page.goto("/"); await selectMoveRows(page, [fixture.a, fixture.c]);
+  await second.goto(`/requests/${fixture.c.id}`);
+  const single = await beginCoordinatedChange(second, orgId, "pickup", [fixture.c.id], recorder, () => second.getByRole("button", { name: "Pick up", exact: true }).press("Enter"));
+  await single.finish(); await expect(second.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible();
+  const batch = await beginCoordinatedChange(page, orgId, "bulk-pickup", [fixture.a.id, fixture.c.id], recorder, () => bar(page).getByRole("button", { name: "Pick up", exact: true }).press("Enter"));
+  const [result] = await batch.received(); await batch.finish();
+  expect(result.moved).toEqual([fixture.a.id]); expect(result.failed).toEqual([expect.objectContaining({ id: fixture.c.id })]);
+  await expect(bar(page)).toContainText("1 selected"); await expect(row(page, fixture.c)).toHaveAttribute("aria-selected", "true");
+  await expect(row(page, fixture.a)).toHaveAttribute("aria-selected", "false"); await expect(bar(page).getByRole("alert")).toContainText("no longer Open");
+  await capture("real-partial-pickup-after-retained-reviewer-pickup", { requests: { a: fixture.a.id, staleC: fixture.c.id, retainedB: fixture.b.id }, batchCalls: batch.count(), result, readinessCoverage: "Separately retained mixed-readiness confirmation cases" });
+}
+
+export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture, cAlreadyRestoredAndPickedUp = false) {
+  await page.goto(`/requests/${fixture.c.id}`);
+  // This option requires confirmed saved receipts from the retained continuation above.
+  if (!cAlreadyRestoredAndPickedUp) {
+    await setCurrentValue(page, orgId, fixture.c, recorder, "62");
+    const pickup = await beginCoordinatedChange(page, orgId, "pickup", [fixture.c.id], recorder, () => page.getByRole("button", { name: "Pick up", exact: true }).press("Enter")); await pickup.finish();
+  }
   await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible();
   const done = await beginCoordinatedChange(page, orgId, "done", [fixture.c.id], recorder, () => page.getByRole("button", { name: "Mark Done", exact: true }).press("Enter")); await done.finish();
   await expect(isItLivePrompt(page)).toBeVisible(); await isItLivePrompt(page).getByRole("button", { name: "Not yet", exact: true }).press("Enter"); await expect(isItLivePrompt(page)).toBeHidden();
