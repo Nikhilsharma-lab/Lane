@@ -9,18 +9,25 @@ one-snapshot Impact/Journey loading, saved-view navigation ownership, Viewer bul
 availability and exact checkout guards for incoming database tests. Main migrations
 0013–0053 and its new pre-migration fixtures are preserved.
 
-Bootstrap52, application2787 (one skipped), UI965, focused64, full tsc/lint/design
-and production build pass. Initial compatibility review: Standards0, Spec2P2. Both consumer findings are
-corrected in97a7c17; the isolated actual-component regressions and UI968 pass.
-Reviewed #175 toast-exit fix6e1f197 is now merged; final combined checks and
-delta reviews remain pending. Signed-in combined-tree acceptance remains separate. This is not
-#175 acceptance or #176 implementation. Full boundary: `testing/main-compatibility.md`.
+Bootstrap 52 and application 2,787 (one skipped) remain valid; the subsequent changes
+are client/docs/tests only. Final UI 968/92, focused 76, full tsc/lint/design and
+production build pass. Initial compatibility review was Standards 0 / Spec 2 P2; both
+consumer gaps are corrected in `97a7c17`. Reviewed #175 toast fix `6e1f197` is merged in
+`b48b9e62`, retaining both Arc adaptation records. Eleven isolated zero-database
+component cases pass: Inbox entry/preview/navigation suppress stale prompts while
+keeping Undo, focus and native gestures; palette status keeps the saved-view title
+and Save changes. Router/actions/remote preview content are controlled boundaries,
+not signed-in saved-data acceptance. Final delta reviews and combined signed-in
+acceptance remain pending. This is not #175 acceptance or #176 implementation.
+Full boundary: `testing/main-compatibility.md`.
 
-Main's 17-route baseline is retained unchanged. Original existing routes are within
-budget, but three new main routes correctly fail its old inventory. Detail grows
-2,122 bytes versus freshly built main (74 over2048) and2,478 versus main's committed
-baseline (430 over). A separate proposal awaits the final #175 fix/build; no bundle
-pass or approval claimed. Immutable original receipt is preserved for #176.
+A separate measured 17-route baseline proposal retains tolerance 2,048. Original
+existing routes are within (+340 Requests/+360 detail), but three main-added routes
+correctly fail its old inventory. Detail grows 2,198 bytes versus fresh main
+(150 over) and 2,554 versus main's committed baseline (506 over); other routes fit.
+The proposed baseline passes; main-merge approval remains pending. Immutable
+original and fresh-main receipts are retained for #176 and the full-PR comparison.
+
 
 ## #175 Oct26 browser correction — restore a toast during its exit
 

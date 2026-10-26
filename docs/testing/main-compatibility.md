@@ -1,9 +1,10 @@
 # #167 compatibility with main #195
 
-This isolated merge combines through-#175 `f7ad5a9` with main `3e6de934`. It preserves
+This isolated merge combines through-#175 `f7ad5a9` with main `3e6de934`, then
+incorporates reviewed #175 toast correction `6e1f197` and consumer fix `97a7c17`. It preserves
 both histories and main's approved Metrics, Inbox, Guest/Viewer, billing, first-run,
 same-problem and saved-view behavior. It does not accept #175, implement #176, or
-claim a browser, hosted migration, provider or deployment pass.
+claim signed-in browser acceptance, a hosted migration, provider or deployment pass.
 
 The explicit action guards use one Clerk session snapshot. Only absent authentication
 carries `sessionExpired`; wrong-workspace and capability refusals never replay.
@@ -55,27 +56,38 @@ Verification on Node 24.22.0 / Next 16.3.8, local only:
 - Saved-view regression failed on missing saved identity, then passed through the
   production navigation owner. Viewer selection regression failed on unchanged
   scope, then passed with the read-only scope binding.
-- Combined navigation/list/moves: 64 tests pass. Full UI: 965 tests in 91 files pass.
+- Combined navigation/moves/read-state/consumer checks: 76 tests pass. Final full UI:
+  968 tests in 92 files pass.
 - Full application: 2,787 pass, one skipped; 251 files pass and two are skipped.
   This includes real local database authorization, Intake, attachment accounting,
   batch changes, replay, migrations, metrics, delivery and billing tests; external
   services are mocked at their existing test boundaries.
 - Full TypeScript, ESLint, design/provenance and production build pass.
-- Runtime checks for this combined tree remain pending. Earlier #167 browser results
-  are historical evidence, not acceptance of this merge. The later #175 toast-exit
-  correction must still be incorporated and checked.
+- Signed-in runtime checks for this combined tree remain pending. Earlier #167
+  browser results are historical evidence, not acceptance of this merge. The
+  isolated consumer renderer is a separate proof boundary described above.
+- Initial independent review: Standards 0, Spec 2 P2; both consumer findings are fixed.
+  Final delta review remains pending. Reviewed #175 toast restoration is merged,
+  with both upstream provenance and compatibility sidebar adaptation preserved.
 
-Bundle receipt (same masked environment as the separately built pinned main): all
-17 main routes remain in the checked-in baseline, tolerance 2,048 unchanged. Against
-the immutable original #167 baseline, existing routes are within budget (Requests
-+264 bytes; detail +284), but the original check correctly rejects main's three new
-routes. Against fresh pinned main, detail grows 2,122 bytes, 74 over budget; against
-main's committed baseline it grows 2,478, 430 over. Every other route is within.
-The checked-in main baseline is unchanged here. A separately measured proposal is
-pending the later #175 correction and final combined build; there is no bundle-pass
-or waiver-approval claim.
+Bundle proposal (same masked environment as separately built pinned main): all
+17 main routes remain in the generated baseline, tolerance 2,048 unchanged. Against
+the immutable original #167 baseline, every existing route is within budget
+(Requests +340 bytes; detail +360), but the original check correctly rejects main's
+three new routes: Inbox, Metrics library and Metric detail. Against fresh pinned
+main, detail grows 2,198 bytes, 150 over budget; against main's committed baseline
+it grows 2,554, 506 over. Every other route is within in both main comparisons.
+All three pre-proposal checks fail for those recorded reasons.
+
+The separate **proposed** baseline refresh records this final build's complete
+17-route inventory. The growth is the shared navigation/moves/Undo ownership,
+including Inbox lifetime bindings, saved-view editing intent and the reviewed toast
+restoration. It introduces no dependency or additional product surface. Passing
+the refreshed baseline does not establish original-budget compliance or approval.
+Approval by final PR merge remains pending. Original and pinned-main receipts stay
+immutable for the cumulative #176/final-PR comparison; no byte-golf was attempted.
 
 External receipts: `/private/tmp/lane-spec-167-reconcile-evidence.md`,
-`/private/tmp/lane-spec-167-reconcile-bundle-comparison.json`, and
+`/private/tmp/lane-spec-167-reconcile-final-bundle-comparison.json`, and
 `/private/tmp/lane-spec-167-main-build-evidence.md`. No integration/main edits,
 push, deployment, application runtime, or hosted actions by this implementer.
