@@ -9,7 +9,7 @@ describe("paletteEntries", () => {
   it("lists a member's entries in order with nothing typed", () => {
     expect(ids(base)).toEqual([
       "new-request", "search",
-      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due",
+      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due", "view:waiting",
       "project:p1", "project:p2", "project:none",
       "settings:profile", "settings:preferences", "settings:inbox-delivery", "settings:account-security", "settings:workspace", "settings:members", "settings:metrics", "settings:coming-soon",
       "inbox",
@@ -26,7 +26,7 @@ describe("paletteEntries", () => {
   it("gives a Viewer every place to read, no New Request, and no Members or Inbox delivery", () => {
     expect(ids({ ...base, role: "viewer" })).toEqual([
       "search",
-      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due",
+      "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due", "view:waiting",
       "project:p1", "project:p2", "project:none",
       "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:metrics", "settings:coming-soon",
       "inbox",
