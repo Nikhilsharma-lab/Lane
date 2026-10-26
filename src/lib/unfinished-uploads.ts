@@ -94,6 +94,6 @@ export function writeUnfinishedUploads(storage: UploadsStorage, scope: string, r
   }
 }
 
-export function clearUnfinishedUploads(storage: UploadsStorage, scope: string): void {
-  try { storage.removeItem(unfinishedUploadsKey(scope)); } catch { /* Storage can be unavailable. */ }
+export function clearUnfinishedUploads(storage: UploadsStorage, scope: string): boolean {
+  try { storage.removeItem(unfinishedUploadsKey(scope)); return true; } catch { return false; }
 }

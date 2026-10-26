@@ -1,5 +1,20 @@
 # Shared Claude / Codex handoff
 
+## #176 Intake coordination — initial isolated source candidate
+
+Based on exact integration `355e09e` then reviewed compatibility `a54dbf1` in
+`codex/spec-167-176`. Root released independent local implementation because the
+actual #169/#172 blockers are accepted; this does not accept #175/compatibility
+browser work or merge integration. New/Edit now use one stable production owner
+for check/save/upload/recovery, with separate operation/presentation and scoped
+record/draft ownership. Reservation persistence precedes PUT, failed cleanup stays
+reachable, and stale form callbacks cannot affect the current host. Real owner
+and New/Edit adapter tests replace the copied save harness. UI989/94 passes;
+full TypeScript, affected lint and design pass. Application/build/bundle and
+actual-form candidate checks are pending.
+See `testing/intake-coordination.md` and external `lane-spec-176-evidence.md`.
+
+
 ## #167 / main #195 compatibility — isolated review candidate
 
 Prepared on `codex/spec-167-main-reconcile`, from through-#175 `f7ad5a9` and pinned

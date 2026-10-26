@@ -20,6 +20,8 @@ export default defineConfig({
       "src/app/**/requests-welcome.test.ts",
       "src/app/**/intake/attachment-recovery.test.ts",
       "src/app/**/intake/intake-session.test.ts",
+      "src/app/**/intake/intake-owner.test.ts",
+      "src/app/**/intake/intake-save.test.ts",
       "src/app/**/intake/intake-gate-contract.test.ts",
       "src/lib/intake-draft.test.ts",
       "src/lib/request-workspace.test.ts",
