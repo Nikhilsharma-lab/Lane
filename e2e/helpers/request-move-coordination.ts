@@ -86,8 +86,9 @@ export async function verifyMoveCancellations(page: Page, orgId: string, fixture
     await sidebar(page, "All Requests");
     await selectMoveRows(page, [fixture.a, fixture.b, fixture.c]);
     const change = await beginCoordinatedChange(page, orgId, "bulk-pickup", [fixture.a.id, fixture.b.id], recorder, () => bar(page).getByRole("button", { name: "Pick up", exact: true }).press("Enter"));
-    await expect(confirmation(page)).toBeVisible(); await expect(confirmation(page)).toContainText(fixture.b.title);
-    await expect(confirmation(page)).not.toContainText(fixture.c.title);
+    await expect(confirmation(page)).toBeVisible(); await expect(confirmation(page)).toContainText(fixture.b.code);
+    await expect(confirmation(page).getByRole("listitem")).toHaveCount(1);
+    await expect(confirmation(page)).not.toContainText(fixture.c.code);
     await capture(`${surface.width}-${surface.colorScheme}-one-confirmation-mixed-readiness`);
     await confirmation(page).getByRole("button", { name: "Cancel", exact: true }).press("Enter");
     await expect(confirmation(page)).toBeHidden(); await change.cancelled();
