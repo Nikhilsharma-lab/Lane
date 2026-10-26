@@ -58,8 +58,10 @@ export async function setCurrentValue(page: Page, orgId: string, request: Naviga
   } finally { await gate.close(); }
 }
 
-export async function prepareMoveCoordination(page: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture) {
-  await page.goto(`/requests/${fixture.c.id}`); await setCurrentValue(page, orgId, fixture.c, recorder, "");
+export async function prepareMoveCoordination(page: Page, orgId: string, fixture: MoveFixtures, recorder: CoordinationRecorder, capture: MoveCapture, resumeAfterConfirmedEdit = false) {
+  await page.goto(`/requests/${fixture.c.id}`);
+  // Retained-fixture callers may resume only after an exact saved-response/inventory receipt.
+  if (!resumeAfterConfirmedEdit) await setCurrentValue(page, orgId, fixture.c, recorder, "");
   await expect(page.getByText("Required before pickup", { exact: true })).toBeVisible();
   await capture("current-value-empty-without-ai");
   await page.goto(`/requests/${fixture.b.id}`);
