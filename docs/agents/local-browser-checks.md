@@ -1,0 +1,99 @@
+# Signed-in browser checks on a local database
+
+How to walk a change in the running app, signed in, without touching Lane Staging's data or the Clerk user
+count. Use it for the browser half of "Verify production components in the running app".
+
+Hard limits for every walk:
+
+- The app talks to a **local** database. `.env.local`'s `DATABASE_URL` is Lane Staging, which lags the repo's
+  migrations; hosted migrations are Nikhil-run.
+- Reuse an existing `lane-e2e-*` Clerk user. Never create or delete Clerk users: the development instance has a
+  100-user limit. If no `lane-e2e-*` user exists, stop and ask Nikhil.
+- Any Clerk organization you create is temporary, marked in `privateMetadata`, and deleted before you hand back.
+- Walk scripts, logs and screenshots live in a scratch folder outside the repo (`/tmp/lane-<ticket>-scratch/`).
+
+## 1. Local database with the full schema
+
+Any vitest run creates and migrates the database named by `DATABASE_URL` (`src/test/global-setup.ts`). Pick a
+name no test run uses, because every vitest run against a name wipes it:
+
+```sh
+DATABASE_URL=postgresql://nikhilsharma@localhost:5432/lane_test_dev_<ticket> pnpm exec vitest run src/lib/env.test.ts
+```
+
+Done when the output shows `[test-setup] lane_test_dev_<ticket> reset from … migrations 0013–<latest>`.
+
+## 2. Dev server env
+
+Copy `.env.local` from the main checkout (read-only source) and swap only the database:
+
+```sh
+cp /Users/nikhilsharma/Documents/Work/Lane/.env.local . && chmod 600 .env.local
+sed -E 's#^DATABASE_URL=.*#DATABASE_URL=postgresql://nikhilsharma@localhost:5432/lane_test_dev_<ticket>#' .env.local > .env.dev-local
+chmod 600 .env.dev-local
+LANE_ENV_FILE=.env.dev-local pnpm dev            # add -p 3200 if :3000 is busy
+```
+
+`next.config.ts` loads `LANE_ENV_FILE`. Keep the default `.next` dist dir (a custom `NEXT_DIST_DIR` makes
+`next dev` edit `tsconfig.json`). Feature switches (`LANE_CUSTOM_ROLES`, `LANE_BILLING_ENFORCED`, …, see
+`.env.example`) go in `.env.dev-local` only for the walk.
+
+Done when `curl -sI http://localhost:3000/login` is 200 and `/` redirects to `/login`.
+
+## 3. Seed script: users, temporary organization, rows
+
+A Node script in the scratch folder loads packages from the worktree with
+`createRequire("<worktree>/package.json")` (`postgres`, `@clerk/backend` from `node_modules/.pnpm`) and reads
+`.env.dev-local`. Before anything else it refuses to run unless `DATABASE_URL` is exactly your local dev database
+and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` starts with `pk_test_`.
+
+- `setup`:
+  1. Find users: `clerk.users.getUserList({ query: "lane-e2e", limit: 50 })`, keeping those with a `lane-e2e`
+     email. Take as many as the walk needs (Admin, Member, …).
+  2. Create the organization: `clerk.organizations.createOrganization({ name, createdBy: admin.id, privateMetadata: { lane<ticket>: true } })`,
+     then `createOrganizationMembership({ organizationId, userId, role: "org:member" })` per teammate.
+  3. Insert the local rows the way `provisionTestWorkspace` in `e2e/helpers/cleanup.ts` does: `profiles` (with a
+     `role` label, which skips onboarding), `organizations`, finished `first_run_progress` rows unless the walk
+     covers the first run, then whatever Projects/Requests the walk needs.
+  4. Write ids and emails to `state.json` in the scratch folder.
+- `teardown`: read `state.json`, fetch the organization, refuse unless its `privateMetadata` carries your marker,
+  `deleteOrganization`, then `delete from organizations where id = …` locally.
+
+To walk organization creation itself, sign in a reused user and create the workspace through Clerk's task in
+the browser; delete that organization in teardown the same way (check `createdBy` and its name first).
+
+## 4. Walk script: sign in with a Clerk testing token
+
+Use `@playwright/test`'s `chromium` and `@clerk/testing/playwright`. Set `process.env.CLERK_PUBLISHABLE_KEY` and
+`CLERK_SECRET_KEY` from `.env.dev-local`, then:
+
+```js
+await clerkSetup();                                   // once per script: fetches the testing token
+const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const page = await context.newPage();
+await setupClerkTestingToken({ page });
+await page.goto(`${base}/login`);
+await clerk.signIn({ page, emailAddress: state.memberEmail });   // no password, no email sent
+await page.evaluate(async id => { await window.Clerk.setActive({ organization: id }); }, state.orgId);
+```
+
+One context per person; log `pageerror` and console errors. Invitations in a walk go to `…+clerk_test@example.com`
+addresses so Clerk sends no email. A whole e2e spec can run this way by hand against the local server
+(`e2e/helpers/test-user.ts`'s `signInTestUser` is the same sequence).
+
+Cover: light and dark (Settings → Profile theme), 390/768/1024/1440 with no horizontal overflow, keyboard only
+(focus order, focus return after dialogs/menus, Escape), accessible names and live announcements in the DOM,
+and loading, empty, error (go offline with `context.setOffline(true)`) and long-content states.
+
+## 5. Roles and providers the dev instance lacks
+
+The Clerk development instance has no `org:guest` or `org:viewer` role, and Stripe/Slack/email are off. For those
+walks, make an **uncommitted** local change (e.g. map `org:member` to `"guest"` in `clerkWorkspacePermission`, or a
+walk-only stand-in provider), walk, then revert it. Confirm `git status` is clean afterwards and say in the hand-back
+that the role was simulated; the action tests are the real coverage.
+
+## 6. Clean up and record
+
+Run `teardown`, stop the dev server, `dropdb -h localhost lane_test_dev_<ticket>`, and remove `.env.dev-local` if
+you created it. Done when the temporary organization is gone from Clerk, `git status` shows only your intended
+changes, and the hand-back lists what was walked and what was not (VoiceOver itself, simulated roles, hosted runs).
