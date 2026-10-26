@@ -46,7 +46,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   const [keptDefinition, everyDefinition, uses] = await Promise.all([
     definition.mergedIntoId ? readMetricDefinition(library, definition.mergedIntoId) : null,
     isAdmin && !merged ? listMetricDefinitions(library, { includeArchived: true }) : [],
-    merged ? null : loadDefinitionUses({ userId: workspace.userId, orgId: workspace.orgId, role: workspace.role }, definition.id),
+    merged ? null : loadDefinitionUses({ userId: workspace.userId, orgId: workspace.orgId, role: workspace.role }, definition.id, { now: new Date() }),
   ]);
   const candidates = everyDefinition.filter(other => other.id !== definition.id && !other.mergedIntoId && other.unit === definition.unit)
     .map(other => ({ id: other.id, name: other.name, archived: !!other.archivedAt }));

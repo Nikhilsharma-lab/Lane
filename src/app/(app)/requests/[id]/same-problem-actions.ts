@@ -55,7 +55,7 @@ export async function readSameProblem(requestId: string, context: { orgId: strin
     if (auth.role === "guest") return { shown: false };
     const group = await sameProblemGroupOf(auth, requestId);
     if (group === undefined) return { error: UNAVAILABLE };
-    const [iterations, history] = await Promise.all([loadIterations(auth, requestId, group), readSameProblemHistory(auth, requestId)]);
+    const [iterations, history] = await Promise.all([loadIterations(auth, requestId, group, { now: new Date() }), readSameProblemHistory(auth, requestId)]);
     return { shown: true, iterations, history, canChange: canChangeThings(auth.role) };
   } catch {
     return { error: "Could not load the Iterations. Try again." };

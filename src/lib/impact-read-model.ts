@@ -38,7 +38,8 @@ import { iterationLabel } from "./same-problem-rules";
 export type ImpactViewer = { userId: string; orgId: string; role: WorkspacePermission };
 export type { ImpactPeriod, Month };
 export type ImpactOptions = {
-  now?: Date;
+  /** The time the page is read at. Time is a parameter: the read model never reads the clock. */
+  now: Date;
   period?: ImpactPeriod | null;
   /** The workspace's Quarter notes (#209), each with its last editor's name. The loader reads only the period's quarters. */
   quarterNotes?: QuarterNote[];
@@ -482,9 +483,9 @@ function entriesForPerson(visible: ImpactRow[], personId: string, now: Date): My
  * A teammate's list (spec story 12): the same entries as My work, for one person, shown to a non-guest viewer.
  * Null for a guest, who has no view of anyone else's Requests. Holds no totals, averages, scores or rankings.
  */
-export function buildTeammateWork(viewer: ImpactViewer, rows: ImpactRow[], personId: string, options: ImpactOptions = {}): MyWorkEntry[] | null {
+export function buildTeammateWork(viewer: ImpactViewer, rows: ImpactRow[], personId: string, options: ImpactOptions): MyWorkEntry[] | null {
   if (viewer.role === "guest") return null;
-  return entriesForPerson(visibleTo(viewer, rows), personId, options.now ?? new Date());
+  return entriesForPerson(visibleTo(viewer, rows), personId, options.now);
 }
 
 /** A person a non-guest may open a list for, by name. */
@@ -562,9 +563,9 @@ function byProjectGroups<Use extends RequestRef>(items: { row: ImpactRow; use: U
  * Uses follow the definitions each Request resolves to now, so a definition merged into this one brings its Requests.
  * Null for a guest, who can't open the Metrics library.
  */
-export function buildDefinitionUses(viewer: ImpactViewer, rows: ImpactRow[], definitionId: string, options: ImpactOptions = {}): DefinitionUses | null {
+export function buildDefinitionUses(viewer: ImpactViewer, rows: ImpactRow[], definitionId: string, options: ImpactOptions): DefinitionUses | null {
   if (viewer.role === "guest") return null;
-  const now = options.now ?? new Date();
+  const { now } = options;
   const visible = visibleTo(viewer, rows);
   const main = visible.flatMap(row => {
     if (definitionAt(row.definitions, 0)?.id !== definitionId) return [];
@@ -602,10 +603,10 @@ export function buildDefinitionUses(viewer: ImpactViewer, rows: ImpactRow[], def
  * The Impact page for one viewer (#208): My work (unchanged since #155) and the Outcome report for the chosen period.
  * The period only shapes the report; My work lists every Request the viewer requested or picked up.
  */
-export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions = {}): ImpactDashboard {
-  const now = options.now ?? new Date();
+export function buildImpactDashboard(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions): ImpactDashboard {
+  const { now } = options;
   const myWork = entriesForPerson(visibleTo(viewer, rows), viewer.userId, now);
-  return { myWork: { requests: myWork }, outcomeReport: buildOutcomeReport(viewer, rows, { ...options, now }) };
+  return { myWork: { requests: myWork }, outcomeReport: buildOutcomeReport(viewer, rows, options) };
 }
 
 /** A guardrail as the report shows it: its limit, and what was measured once the result is recorded (null until then). */
@@ -775,9 +776,9 @@ function closedGroups(closed: { row: ImpactRow; releaseDate: string | null }[], 
  * The Outcome report for a viewer and a period (#208, spec stories 88–103), grouped by release date (UTC). Null for a
  * guest, who receives nothing. With no period chosen it reports the current quarter.
  */
-export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions = {}): OutcomeReport | null {
+export function buildOutcomeReport(viewer: ImpactViewer, rows: ImpactRow[], options: ImpactOptions): OutcomeReport | null {
   if (viewer.role === "guest") return null;
-  const now = options.now ?? new Date();
+  const { now } = options;
   const period = options.period ?? quarterOf(now);
   const visible = visibleTo(viewer, rows);
   const released = visible.flatMap(row => {
@@ -873,9 +874,9 @@ function iterationOutcome(row: ImpactRow, now: Date): IterationOutcome {
  * marked with its number. Follow-ups are never iterations unless also linked as Same problem. Null for a Request in
  * no group, and for a guest, who sees no links. Nothing by person.
  */
-export function buildIterations(viewer: ImpactViewer, rows: ImpactRow[], requestId: string, options: ImpactOptions = {}): Iterations | null {
+export function buildIterations(viewer: ImpactViewer, rows: ImpactRow[], requestId: string, options: ImpactOptions): Iterations | null {
   if (viewer.role === "guest") return null;
-  const now = options.now ?? new Date();
+  const { now } = options;
   const visible = visibleTo(viewer, rows);
   const group = visible.find(row => row.id === requestId)?.sameProblemGroup;
   const members = group ? sameProblemGroups(visible).get(group) : undefined;

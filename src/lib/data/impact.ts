@@ -20,8 +20,8 @@ function viewerOf(auth: MemberAuth): ImpactViewer {
 }
 
 /** The Impact page for the signed-in viewer: My work and the Outcome report (#208). Screens render this and compute nothing themselves. */
-export async function loadImpactDashboard(auth: MemberAuth, options: ImpactOptions = {}): Promise<ImpactDashboard> {
-  const period = options.period ?? quarterOf(options.now ?? new Date())
+export async function loadImpactDashboard(auth: MemberAuth, options: ImpactOptions): Promise<ImpactDashboard> {
+  const period = options.period ?? quarterOf(options.now)
   const [rows, notes] = await Promise.all([loadImpactRows(auth), loadQuarterNotes(auth, period)])
   return buildImpactDashboard(viewerOf(auth), rows, { ...options, period, quarterNotes: notes })
 }
@@ -90,7 +90,7 @@ function definitionsOf(metrics: ResolvedSavedMetric[]): ImpactDefinition[] {
  * Every Request the viewer may see that used one Metric definition (#203), for its page in the Metrics library.
  * Null for a guest. The same rows and rules as the Impact page, so visibility and results never differ.
  */
-export async function loadDefinitionUses(auth: MemberAuth, definitionId: string, options: ImpactOptions = {}): Promise<DefinitionUses | null> {
+export async function loadDefinitionUses(auth: MemberAuth, definitionId: string, options: ImpactOptions): Promise<DefinitionUses | null> {
   if (auth.role === "guest") return null
   return buildDefinitionUses(viewerOf(auth), await loadImpactRows(auth), definitionId, options)
 }
@@ -99,14 +99,14 @@ export async function loadDefinitionUses(auth: MemberAuth, definitionId: string,
  * "Iterations of this problem" for one Request (#218): only its Same problem group's rows are read, with the same
  * rows and rules as the Impact page. Null for a guest (who sees no links) and for a Request in no group.
  */
-export async function loadIterations(auth: MemberAuth, requestId: string, groupId: string | null, options: ImpactOptions = {}): Promise<Iterations | null> {
+export async function loadIterations(auth: MemberAuth, requestId: string, groupId: string | null, options: ImpactOptions): Promise<Iterations | null> {
   if (auth.role === "guest" || !groupId) return null
   const rows = await loadImpactRows(auth, eq(sameProblemMembers.groupId, groupId))
   return buildIterations(viewerOf(auth), rows, requestId, options)
 }
 
 /** A teammate's Requests, requested or picked up, for a non-guest viewer (spec story 12). Null for a guest. */
-export async function loadTeammateWork(auth: MemberAuth, personId: string, options: ImpactOptions = {}): Promise<MyWorkEntry[] | null> {
+export async function loadTeammateWork(auth: MemberAuth, personId: string, options: ImpactOptions): Promise<MyWorkEntry[] | null> {
   const rows = await loadImpactRows(auth)
   return buildTeammateWork(viewerOf(auth), rows, personId, options)
 }

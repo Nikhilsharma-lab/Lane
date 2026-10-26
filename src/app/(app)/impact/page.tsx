@@ -13,10 +13,12 @@ export default async function ImpactPage({ searchParams }: { searchParams: Promi
 
   const { period: periodKey, person: personId } = await searchParams;
   const period = parsePeriodKey(periodKey);
-  const [dashboard, teammates] = await Promise.all([loadImpactDashboard(member, { period }), loadTeammates(member)]);
+  // The page reads the clock once; the read model is given the time.
+  const now = new Date();
+  const [dashboard, teammates] = await Promise.all([loadImpactDashboard(member, { now, period }), loadTeammates(member)]);
   // Only a person on the viewer's own list can be opened; anything else in the URL is ignored.
   const chosen = personId ? teammates.find(teammate => teammate.id === personId) ?? null : null;
-  const entries = chosen ? await loadTeammateWork(member, chosen.id, { period }) : null;
+  const entries = chosen ? await loadTeammateWork(member, chosen.id, { now, period }) : null;
 
   return <>
     <PageStrip title="Impact" heading />
