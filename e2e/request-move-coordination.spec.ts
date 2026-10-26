@@ -4,6 +4,7 @@ import { createRequestThroughIntake, createReviewTeam } from "./helpers/reviewer
 import { signInTestUser } from "./helpers/test-user";
 import { assertE2ETarget } from "./helpers/safety";
 import { assertLocalUndoTarget } from "./helpers/server-action-identity";
+import { verifyNativeHistoryFocus } from "./helpers/request-history-focus";
 import type { CoordinationRecorder } from "./helpers/move-coordination-transport";
 import { prepareMoveCoordination, verifyMoveCancellations, verifyPartialPickup, verifyPartialBulkUndo, verifyPendingMoveNavigation, type MoveFixtures } from "./helpers/request-move-coordination";
 
@@ -44,6 +45,14 @@ test("single and batch moves preserve their distinct contracts across real navig
       await testInfo.attach(name, { body: await page.screenshot({ animations: "disabled" }), contentType: "image/png" });
       if (receipt) await attach(`${name}-receipt`, receipt);
     };
+    const readSavedRequests = async () => {
+      const sql = postgres(assertE2ETarget().databaseUrl, { ssl: "require", max: 1 });
+      try {
+        return await sql.begin("read only", tx => tx`select id,status,agreement_revision,release_state,expected_impact from requests where org_id=${team.orgId} order by id`);
+      } finally { await sql.end(); }
+    };
+    const beforeHistory = await readSavedRequests();
+    await verifyNativeHistoryFocus(page, fixture.a, capture, async () => { expect(await readSavedRequests()).toEqual(beforeHistory); });
     await prepareMoveCoordination(page, team.orgId, fixture, recorder, capture);
     await verifyMoveCancellations(page, team.orgId, fixture, recorder, capture);
     await verifyPartialPickup(page, second, team.orgId, fixture, recorder, capture);
