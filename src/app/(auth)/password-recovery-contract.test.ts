@@ -44,6 +44,8 @@ describe("Clerk password recovery and invitation return", () => {
   it("tells Clerk which Lane origins and reset-password path may complete hosted redirects", () => {
     expect(LAYOUT).toContain("allowedRedirectOrigins");
     expect(LAYOUT).toContain("https://lane-staging.vercel.app");
-    expect(LAYOUT).toContain('"reset-password": "/reset-password"');
+    // The browser's taskUrls and the proxy's task redirect share one map (D1, #257).
+    expect(LAYOUT).toContain("taskUrls={SESSION_TASK_URLS}");
+    expect(source("src/lib/session-task-urls.ts")).toContain('"reset-password": "/reset-password"');
   });
 });
