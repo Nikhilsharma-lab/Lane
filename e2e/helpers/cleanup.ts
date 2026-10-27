@@ -243,3 +243,27 @@ export async function deleteTestWorkspace(orgId: string): Promise<void> {
   await client.organizations.deleteOrganization(orgId);
   forgetOrganization(orgId);
 }
+
+/** #258: Open Requests with one unread For-your-information item each, so both the Requests list and the Inbox have several rows to preview. */
+export async function seedPreviewFixtures(userId: string, titles: string[]): Promise<string[]> {
+  const orgId = await getTestWorkspaceId(userId);
+  const sql = database();
+  try {
+    const ids: string[] = [];
+    for (const title of titles) {
+      const id = randomUUID();
+      await sql`
+        INSERT INTO requests (id, org_id, title, description, status, created_by)
+        VALUES (${id}, ${orgId}, ${title}, 'A Request the preview reads ahead.', 'open', ${userId})
+      `;
+      await sql`
+        INSERT INTO notifications (user_id, org_id, type, request_id, actor_id, read_at)
+        VALUES (${userId}, ${orgId}, 'comment_added', ${id}, ${userId}, NULL)
+      `;
+      ids.push(id);
+    }
+    return ids;
+  } finally {
+    await sql.end();
+  }
+}

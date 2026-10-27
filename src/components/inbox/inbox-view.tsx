@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import notificationStyles from "@/components/arc/notification-center/notification-center.module.css";
 import { LocalTime, localLabel, useInBrowser } from "@/components/requests/local-time";
+import { usePeekLoadAhead } from "@/components/requests/request-peek";
 import { useIntentPrefetch } from "@/components/requests/use-intent-prefetch";
 import { PageStrip } from "@/components/shell/page-strip";
 import { notificationRow } from "@/components/shell/notification-copy";
@@ -72,10 +73,13 @@ function InboxRow({ item, active, selected, pending, onSelect, onToggleRead }: {
   const copy = notificationRow(item, live ? localLabel(item.createdAt) : undefined);
   const href = item.requestId ? requestDetailHref(item.requestId, "all") : "";
   const prefetch = useIntentPrefetch(href);
-  return <li className={styles.row} data-inbox-item={item.id} data-unread={unread || undefined} aria-current={selected || undefined}>
+  // #258: resting on the item, by keyboard or pointer, reads its Request into the preview (an accepted invite opens Members instead).
+  const loadAhead = usePeekLoadAhead(item.type === "invite_accepted" ? null : item.requestId);
+  return <li className={styles.row} data-inbox-item={item.id} data-unread={unread || undefined} aria-current={selected || undefined}
+    onPointerEnter={event => { if (event.pointerType !== "touch") loadAhead.schedule("pointer"); }} onPointerLeave={() => loadAhead.cancel()}>
     <span className={styles.lead} aria-hidden="true">{unread && <span className={notificationStyles.unreadDot} />}</span>
     <button type="button" className={styles.open} data-inbox-open tabIndex={active ? 0 : -1} aria-label={copy.name}
-      onClick={() => onSelect(item)} onFocus={() => { if (href) prefetch.schedule(); }} onBlur={() => prefetch.cancel()}>
+      onClick={() => onSelect(item)} onFocus={() => { if (href) prefetch.schedule(); loadAhead.schedule("focus"); }} onBlur={() => { prefetch.cancel(); loadAhead.cancel(); }}>
       <span className={styles.primary}>{copy.primary}</span>
       <span className={styles.secondary}>{copy.secondary && `${copy.secondary} · `}<LocalTime iso={item.createdAt} />{copy.detail && ` · “${copy.detail}”`}</span>
     </button>
@@ -95,10 +99,12 @@ function NeedsYouRow({ item, active, selected, onSelect }: {
   const live = useInBrowser();
   const copy = needsYouRow(item, live ? localLabel(item.since) : undefined);
   const prefetch = useIntentPrefetch(requestDetailHref(item.requestId, "all"));
-  return <li className={styles.row} data-inbox-item={item.key} data-needs-you="" aria-current={selected || undefined}>
+  const loadAhead = usePeekLoadAhead(item.requestId);
+  return <li className={styles.row} data-inbox-item={item.key} data-needs-you="" aria-current={selected || undefined}
+    onPointerEnter={event => { if (event.pointerType !== "touch") loadAhead.schedule("pointer"); }} onPointerLeave={() => loadAhead.cancel()}>
     <span className={styles.lead} aria-hidden="true" />
     <button type="button" className={styles.open} data-inbox-open tabIndex={active ? 0 : -1} aria-label={copy.name}
-      onClick={() => onSelect(item)} onFocus={() => prefetch.schedule()} onBlur={() => prefetch.cancel()}>
+      onClick={() => onSelect(item)} onFocus={() => { prefetch.schedule(); loadAhead.schedule("focus"); }} onBlur={() => { prefetch.cancel(); loadAhead.cancel(); }}>
       <span className={styles.primary}>{copy.primary}</span>
       <span className={styles.secondary}>{copy.secondary}{copy.showsTime && <> · <LocalTime iso={item.since} /></>}{copy.detail && ` · “${copy.detail}”`}</span>
     </button>
