@@ -7,6 +7,7 @@ import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toa
 import { SpeedInsights } from "@/components/speed-insights";
 import { WebVitals } from "@/components/web-vitals";
 import { reportsSpeedInsights } from "@/lib/speed-insights";
+import { SESSION_TASK_URLS } from "@/lib/session-task-urls";
 // The one theme file, Arc's foundation (in a lower cascade layer) and the bridge all load through
 // globals.css; src/styles/theme.css explains its two halves.
 import "./globals.css";
@@ -88,10 +89,7 @@ export default function RootLayout({
           signInFallbackRedirectUrl="/"
           signUpFallbackRedirectUrl="/onboarding"
           allowedRedirectOrigins={allowedRedirectOrigins}
-          taskUrls={{
-            "choose-organization": "/login",
-            "reset-password": "/reset-password",
-          }}
+          taskUrls={SESSION_TASK_URLS}
         >
           <ThemeProvider>
             <ToastStackProvider>
