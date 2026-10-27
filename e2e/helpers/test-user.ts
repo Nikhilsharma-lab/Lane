@@ -88,6 +88,8 @@ async function borrowTestUser(client: ClerkClient, password: string): Promise<Te
     } catch {
       continue;
     }
+    // The list can be minutes old when Clerk is slow: re-read the user, so one another run took meanwhile is left alone.
+    if ("laneE2EBorrowedBy" in (await client.users.getUser(candidate.id)).privateMetadata) continue;
     await client.users.updateUserMetadata(candidate.id, { privateMetadata: borrowMarker });
     // Another run marking the same user at the same moment: the last mark wins and the other moves on.
     const marked = await client.users.getUser(candidate.id);

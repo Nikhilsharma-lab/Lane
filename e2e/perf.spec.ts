@@ -701,6 +701,29 @@ test("holding J over 10 rows starts at most one full detail prefetch", async ({ 
   expect(prefetched.length).toBeLessThanOrEqual(BUDGET.heldJPrefetches)
 })
 
+// #258 speed fix 1: opening the account menu fully prefetches Settings → Profile, plus Members for an Admin or a
+// Member (the perf session is a Member), before anything in the menu is chosen. `next dev` never prefetches, so
+// this lives here rather than in e2e/settings-load-ahead.spec.ts.
+test("opening the account menu prefetches Settings before any click", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto("/")
+  const trigger = page.getByRole("button", { name: /^Account menu/ })
+  await expect(trigger).toBeVisible()
+  await page.waitForLoadState("networkidle")
+  const settings = new Set<string>()
+  page.on("request", request => {
+    const { pathname } = new URL(request.url())
+    // A full prefetch fetches the page itself, not just the route tree or one segment.
+    if (isRscRequest(request) && !request.headers()["next-router-segment-prefetch"] && pathname.startsWith("/settings/")) settings.add(pathname)
+  })
+  await page.waitForTimeout(500)
+  expect([...settings], "Settings must not load before the account menu opens").toEqual([])
+  await trigger.click()
+  await expect(page.getByRole("menuitem", { name: "Settings" })).toBeVisible()
+  await expect.poll(() => [...settings].sort()).toEqual(["/settings/members", "/settings/profile"])
+  expect(new URL(page.url()).pathname).toBe("/")
+})
+
 test("a sidebar toggle at 4x CPU changes the content width once with at most 2 long animation frames", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await openList(page)

@@ -38,6 +38,8 @@ export interface WorkspaceSidebarProps {
   user: { name: string; email: string };
   settingsHref: string;
   membersHref?: string;
+  /** Lane #258: runs each time the account menu opens (once per open), so the parent can load its destinations ahead. */
+  onAccountMenuOpen?: () => void;
   /** Lane #217: a help link in the account menu (the first-run guide). */
   help?: { label: string; href: string };
   /** Lane #210: false hides the New Request control for someone who can't file (a Viewer). */
@@ -352,7 +354,7 @@ function usePageLock(locked: boolean) {
   }, [locked]);
 }
 
-export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, help, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onAccountMenuOpen, help, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
   const reduce = useReducedMotionSafe();
   const phone = usePhone() && !forceDesktopLayout;
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -458,6 +460,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
   useRailShortcut(frame, () => { if (workspaces?.pendingId) return; if (phone) { if (drawer) closeDrawer(); else openDrawer(); } else if (!layoutManaged) setRail(!collapsed); }, layoutManaged && !phone);
 
   function onAccountOpenChange(open: boolean) {
+    if (open && !menuOpen.current) onAccountMenuOpen?.();
     menuOpen.current = open;
     setAccountOpen(open);
     if (!open && phone) requestAnimationFrame(() => {
