@@ -15,6 +15,24 @@ describe("clerkOrganizationAppearance", () => {
     expect(clerkAccountAppearance.elements).not.toHaveProperty("navbarMobileMenuRow");
   });
 
+  // #257 D4: Clerk lays the organization window out as a two-column grid (navigation, page). With the navigation
+  // hidden, the page fell into the narrow first column; the window keeps one full-width column instead.
+  it("drops the hidden navigation's column so the page uses the window's full width", () => {
+    expect(clerkOrganizationAppearance.elements.cardBox).toMatchObject({ gridTemplateColumns: "minmax(0, 1fr)" });
+    expect(clerkOrganizationAppearance.elements.cardBox).toMatchObject(clerkAccountAppearance.elements.cardBox);
+    expect(clerkAccountAppearance.elements.cardBox).not.toHaveProperty("gridTemplateColumns");
+  });
+
+  // #257 D4: Clerk caps a member's preview at a fixed width and cuts the email off with an ellipsis; an Admin about
+  // to remove someone sees the whole name and email, wrapping when the column is narrow.
+  it("shows a member's name and email in full instead of cutting them off", () => {
+    const elements: Record<string, unknown> = clerkOrganizationAppearance.elements;
+    expect(elements.userPreview).toMatchObject({ maxWidth: "100%" });
+    for (const key of ["userPreviewMainIdentifierText", "userPreviewSecondaryIdentifier"]) {
+      expect(elements[key], key).toMatchObject({ whiteSpace: "normal", overflowWrap: "anywhere" });
+    }
+  });
+
   it("never hides Clerk's page and form titles", () => {
     const elements = clerkOrganizationAppearance.elements as Record<string, unknown>;
     for (const key of ["header", "headerTitle", "headerSubtitle", "profileSectionTitle"]) expect(elements[key]).toBeUndefined();
