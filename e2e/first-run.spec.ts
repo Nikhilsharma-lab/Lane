@@ -34,7 +34,8 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     const client = await assertOwnedOrganization(orgId);
     await client.organizations.createOrganizationMembership({ organizationId: orgId, userId: teammate.id, role: "org:member" });
     await client.users.updateUser(teammate.id, { firstName: "Riley", lastName: "Reviewer" });
-    const sql = postgres(assertE2ETarget().databaseUrl, { ssl: "require", max: 1 });
+    const { databaseUrl, ssl } = assertE2ETarget();
+    const sql = postgres(databaseUrl, { ssl, max: 1 });
     try {
       await sql`insert into profiles(id,full_name,email,role) values (${teammate.id},'Riley Reviewer',${teammate.email},'designer')`;
     } finally {

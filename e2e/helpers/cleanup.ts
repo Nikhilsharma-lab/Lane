@@ -7,9 +7,9 @@ import { createClerkTestOrganization } from "./test-user";
 type FunctionalRole = "pm" | "designer" | "developer";
 
 function database() {
-  const { databaseUrl } = assertE2ETarget();
+  const { databaseUrl, ssl } = assertE2ETarget();
   return postgres(databaseUrl, {
-    ssl: "require",
+    ssl,
     max: 1,
     idle_timeout: 5,
   });

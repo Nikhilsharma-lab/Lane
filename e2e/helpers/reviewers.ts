@@ -38,8 +38,9 @@ export async function createReviewTeam(browser: Browser, ownerPage: Page) {
     role: "pm",
   });
   const client = await assertOwnedOrganization(orgId);
-  const sql = postgres(assertE2ETarget().databaseUrl, {
-    ssl: "require",
+  const { databaseUrl, ssl } = assertE2ETarget();
+  const sql = postgres(databaseUrl, {
+    ssl,
     max: 1,
   });
   try {

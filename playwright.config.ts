@@ -5,11 +5,21 @@ import { assertE2ETarget } from "./e2e/helpers/safety";
 // Clerk testing tokens only work with a Development instance. Load its keys
 // from the ignored local env, then overlay Lane Staging's database settings.
 // Production credentials are never used by this harness.
+//
+// #257: LANE_E2E_LOCAL_DATABASE=1 runs against a local `lane_test_*` database
+// instead (DATABASE_URL from the shell, which .env.local doesn't override), with
+// the app on E2E_BASE_URL's local port; e2e/helpers/safety.ts checks both.
+// LANE_E2E_REUSE_USERS=1 lets fixtures borrow existing lane-e2e users when Clerk's
+// development instance is at its user cap (e2e/helpers/test-user.ts), on one worker
+// so two workers never borrow the same user. docs/agents/local-browser-checks.md §7.
+const localDatabase = process.env.LANE_E2E_LOCAL_DATABASE === "1";
+const borrowUsers = process.env.LANE_E2E_REUSE_USERS === "1";
 dotenv.config({ path: ".env.local" });
-dotenv.config({ path: ".env.staging.local", override: true });
-
-if (process.env.STAGING_DATABASE_URL) {
-  process.env.DATABASE_URL = process.env.STAGING_DATABASE_URL;
+if (!localDatabase) {
+  dotenv.config({ path: ".env.staging.local", override: true });
+  if (process.env.STAGING_DATABASE_URL) {
+    process.env.DATABASE_URL = process.env.STAGING_DATABASE_URL;
+  }
 }
 
 // Plan item 1.15b: e2e/perf.spec.ts measures a running production build and
@@ -46,10 +56,12 @@ function e2eConfig() {
   // serverless runtime pooling without changing the pinned staging identity.
   const runtimeDatabaseUrl = new URL(target.databaseUrl);
   if (runtimeDatabaseUrl.hostname.endsWith(".pooler.supabase.com")) runtimeDatabaseUrl.port = "6543";
+  const port = new URL(target.baseURL).port || "3100";
   return defineConfig({
     testDir: "./e2e",
     timeout: 120_000,
     retries: 0,
+    ...(borrowUsers ? { workers: 1 } : {}),
     expect: { timeout: 15_000 },
     // The perf spec runs only in the perf configuration above.
     testIgnore: /perf\.spec\.ts/,
@@ -74,13 +86,13 @@ function e2eConfig() {
       ? undefined
       : {
           command:
-            "LANE_ENV_FILE=/dev/null NEXT_DIST_DIR=.next-e2e PORT=3100 node node_modules/next/dist/bin/next dev",
+            `LANE_ENV_FILE=/dev/null NEXT_DIST_DIR=.next-e2e PORT=${port} node node_modules/next/dist/bin/next dev`,
           env: {
             ...process.env,
             LANE_ENV_FILE: "/dev/null",
             NEXT_DIST_DIR: ".next-e2e",
             DATABASE_URL: runtimeDatabaseUrl.toString(),
-            PORT: "3100",
+            PORT: port,
           },
           url: target.baseURL,
           reuseExistingServer: false,
