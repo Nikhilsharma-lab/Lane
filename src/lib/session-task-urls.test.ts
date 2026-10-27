@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { sessionTaskRedirect } from "./session-task-urls";
+import { SIGN_IN_URL, SIGN_UP_URL, sessionTaskRedirect } from "./session-task-urls";
 
 const at = (path: string) => sessionTaskRedirect(new URL(path, "https://app.uselane.app"))?.toString() ?? null;
 
@@ -17,6 +19,7 @@ describe("sessionTaskRedirect", () => {
     expect(at("/login/tasks/choose-organization?redirect_url=%2F")).toBe("https://app.uselane.app/login?redirect_url=%2F");
     expect(at("/login/tasks/reset-password?redirect_url=%2F")).toBe("https://app.uselane.app/reset-password?redirect_url=%2F");
     expect(at("/login/tasks/setup-mfa")).toBe("https://app.uselane.app/login");
+    expect(at("/login/tasks/constructor")).toBe("https://app.uselane.app/login");
   });
 
   it("does the same under the sign-up page, Clerk's other task base", () => {
@@ -28,5 +31,26 @@ describe("sessionTaskRedirect", () => {
     for (const path of ["/", "/login", "/login?redirect_url=%2F", "/signup", "/reset-password", "/onboarding", "/requests/LAN-7", "/login/taskslist", "/tasks", "/requests/tasks"]) {
       expect(at(path)).toBeNull();
     }
+  });
+});
+
+// Clerk's task addresses sit under the sign-in and sign-up pages, so the layout, the proxy and the task
+// address all read the two pages from one place.
+describe("sign-in and sign-up pages", () => {
+  const source = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
+
+  it("are Lane's /login and /signup", () => {
+    expect(SIGN_IN_URL).toBe("/login");
+    expect(SIGN_UP_URL).toBe("/signup");
+  });
+
+  it("are what the browser's ClerkProvider and the proxy's clerkMiddleware are given", () => {
+    const layout = source("src/app/layout.tsx");
+    expect(layout).toContain("signInUrl={SIGN_IN_URL}");
+    expect(layout).toContain("signUpUrl={SIGN_UP_URL}");
+    const proxy = source("src/proxy.ts");
+    expect(proxy).toContain("signInUrl: SIGN_IN_URL");
+    expect(proxy).toContain("signUpUrl: SIGN_UP_URL");
+    for (const file of [layout, proxy]) expect(file).not.toMatch(/["']\/(?:login|signup)["']/);
   });
 });
