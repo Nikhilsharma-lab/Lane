@@ -1,11 +1,12 @@
 "use client"
 
-import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useSyncExternalStore, type MouseEvent } from "react"
+import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useMemo, useRef, useSyncExternalStore, type MouseEvent } from "react"
 import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/react"
 import { Button } from "@/components/arc/button/button"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import type { OverviewRequest } from "@/lib/request-overview"
+import { PREFETCH_INTENT_MS } from "./use-intent-prefetch"
 import styles from "./request-peek.module.css"
 
 /** Who is reading, from the list page's own render: the pane names them on Pick up and on a posted comment. */
@@ -30,6 +31,35 @@ export function usePeekAvailable() {
 /** The row menu's Preview: opens the preview on that Request. Null where the preview is not available. */
 export const RequestPeekOpener = createContext<((id: string) => void) | null>(null)
 export const useRequestPeekOpener = () => useContext(RequestPeekOpener)
+
+/** #258: reads a Request into the preview's memory before it opens. `focus` is keyboard focus
+ * landing on its row, `pointer` the pointer resting on it. Null where the preview is not offered. */
+export type PeekLoadAhead = (requestId: string, via: "focus" | "pointer") => void
+export const RequestPeekLoadAhead = createContext<PeekLoadAhead | null>(null)
+
+/** Reads one Request into the preview's memory (request-peek-memory.ts). The memory comes with its own
+ * small chunk, shared with the preview's content, so the list's first load does not carry it. */
+export function loadPeekAhead(orgId: string, viewerId: string, requestId: string) {
+  void import("./request-peek-memory").then(memory => memory.loadPeekAhead(orgId, viewerId, requestId), () => undefined)
+}
+
+/**
+ * #258: a row's preview load ahead, on the signals rows already prefetch Request pages on: `schedule`
+ * once the person rests on the row for PREFETCH_INTENT_MS, `cancel` when they move on, so a held J
+ * reads only the row it stops on. Does nothing without a Request or where the preview is not offered.
+ */
+export function usePeekLoadAhead(requestId: string | null | undefined) {
+  const load = useContext(RequestPeekLoadAhead)
+  const timer = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+  return useMemo(() => ({
+    schedule: (via: "focus" | "pointer") => {
+      window.clearTimeout(timer.current)
+      if (load && requestId) timer.current = window.setTimeout(() => load(requestId, via), PREFETCH_INTENT_MS)
+    },
+    cancel: () => window.clearTimeout(timer.current),
+  }), [load, requestId])
+}
 
 export type RequestPeekProps = {
   requestId: string

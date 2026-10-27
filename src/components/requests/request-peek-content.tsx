@@ -12,9 +12,10 @@ import { PageStrip, PageStripProvider } from "@/components/shell/page-strip"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { CopyButton } from "./copy-button"
 import { useDetailRequest } from "./detail-context"
-import type { RequestAttachment, RequestComment, RequestDetail } from "./detail-view"
+import type { RequestDetail } from "./detail-view"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { RequestDetailPane } from "./request-detail-pane"
+import { peekEntry, peekKey, readPeek, storePeek, storePeekFailure, subscribePeek } from "./request-peek-memory"
 import type { RequestPeekProps } from "./request-peek"
 import { PREFETCH_INTENT_MS } from "./use-intent-prefetch"
 import detailStyles from "./detail.module.css"
@@ -45,45 +46,6 @@ function PreviewSkeleton({ onClose }: { onClose: () => void }) {
   </section>
 }
 
-type Detail = { request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[] }
-/** `session`: a 401 or 403. The copy shown can no longer be trusted, so it is replaced, not kept. */
-type Entry = { status: "ready"; detail: Detail } | { status: "unavailable" } | { status: "error"; message: string; session?: boolean }
-
-// Plan item 2.12: what the preview last read for each Request, for this page's life and this viewer
-// and workspace only, so J back to a Request shows it at once while a fresh copy loads.
-const entries = new Map<string, Entry>()
-const listeners = new Set<() => void>()
-const MAX_ENTRIES = 30
-function write(key: string, entry: Entry) {
-  entries.delete(key)
-  entries.set(key, entry)
-  if (entries.size > MAX_ENTRIES) entries.delete(entries.keys().next().value!)
-  for (const notify of listeners) notify()
-}
-function subscribe(listener: () => void) {
-  listeners.add(listener)
-  return () => { listeners.delete(listener) }
-}
-
-type Wire = {
-  request: Omit<RequestDetail, "createdAt"> & { createdAt: string }
-  comments: (Omit<RequestComment, "createdAt"> & { createdAt: string })[]
-  attachments: (Omit<RequestAttachment, "uploadedAt"> & { uploadedAt: string | null })[]
-}
-
-/** Reads one Request through the GET route (plan items 1.16 and 2.12), never a server action. */
-async function fetchDetail(orgId: string, id: string, signal: AbortSignal): Promise<Entry> {
-  const response = await fetch(`/api/requests/${encodeURIComponent(id)}?${new URLSearchParams({ org: orgId })}`, { headers: { Accept: "application/json" }, signal })
-  const body = await response.json().catch(() => null) as (Wire & { error?: string }) | null
-  if (response.status === 404) return { status: "unavailable" }
-  if (!response.ok || !body?.request) return { status: "error", message: body?.error ?? "This Request could not be loaded. Try again.", session: response.status === 401 || response.status === 403 }
-  return { status: "ready", detail: {
-    request: { ...body.request, createdAt: new Date(body.request.createdAt) },
-    comments: body.comments.map(comment => ({ ...comment, createdAt: new Date(comment.createdAt) })),
-    attachments: body.attachments.map(attachment => ({ ...attachment, uploadedAt: attachment.uploadedAt ? new Date(attachment.uploadedAt) : null })),
-  } }
-}
-
 /** The preview's strip: its code, copy, Open full page, Edit Request and the one lifecycle action. */
 function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: ReactNode; editAction?: ReactNode; onClose: () => void; onOpenFullPage: RequestPeekProps["onOpenFullPage"] }) {
   const { request, code, formsOpen } = useDetailRequest()
@@ -110,8 +72,8 @@ function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: R
  * preview never shows an older state than the row beside it.
  */
 export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewer, onClose, onOpenFullPage }: RequestPeekProps) {
-  const key = `${orgId}:${viewer.id}:${requestId}`
-  const entry = useSyncExternalStore(subscribe, () => entries.get(key), () => undefined)
+  const key = peekKey(orgId, viewer.id, requestId)
+  const entry = useSyncExternalStore(subscribePeek, () => peekEntry(key), () => undefined)
   const overlay = usePendingMutations()
   const [retry, setRetry] = useState(0)
   const detail = entry?.status === "ready" ? entry.detail : null
@@ -122,17 +84,11 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
     const controller = new AbortController()
     // A held J passes many rows: only the one the person stops on is read.
     const timer = window.setTimeout(() => {
-      fetchDetail(orgId, requestId, controller.signal).then(next => {
+      readPeek(orgId, requestId, controller.signal).then(next => {
         // An abort while the body was read is not a failure: a newer read is on its way.
-        if (controller.signal.aborted) return
-        // A failed refresh keeps the copy already shown, unless the session itself changed.
-        if (next.status === "error" && !next.session && entries.get(key)?.status === "ready") return
-        write(key, next)
-      }, (error: unknown) => {
-        if (controller.signal.aborted) return
-        if (entries.get(key)?.status !== "ready") write(key, { status: "error", message: error instanceof Error && error.name === "TypeError" ? "Check your connection and try again." : "This Request could not be loaded. Try again." })
-      })
-    }, entries.has(key) ? 0 : PREFETCH_INTENT_MS)
+        if (!controller.signal.aborted) storePeek(key, next)
+      }, (error: unknown) => { if (!controller.signal.aborted) storePeekFailure(key, error) })
+    }, peekEntry(key) ? 0 : PREFETCH_INTENT_MS)
     return () => { window.clearTimeout(timer); controller.abort() }
   }, [key, orgId, requestId, serverRow, unsyncedComment, retry])
 

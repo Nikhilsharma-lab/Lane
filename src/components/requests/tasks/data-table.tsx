@@ -26,7 +26,7 @@ import { matchCountText, requestCount } from "../request-row-label"
 import { useRequestGrid } from "../use-request-grid"
 import { gridKeysFor, requestIdOf } from "../request-grid-keys"
 import { focusRowWhenShown, restoreRequestFocus } from "../list-focus"
-import { RequestPeek, RequestPeekOpener, preloadRequestPeek, usePeekAvailable, type PeekViewer } from "../request-peek"
+import { RequestPeek, RequestPeekLoadAhead, RequestPeekOpener, loadPeekAhead, preloadRequestPeek, usePeekAvailable, type PeekLoadAhead, type PeekViewer } from "../request-peek"
 import { captureSequence } from "../request-sequence"
 import type { RequestColumn } from "./columns"
 import styles from "../request-rows.module.css"
@@ -111,6 +111,16 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     setSummaryOpen(false)
     preloadRequestPeek()
   }, [announce])
+  // #258: resting on a row reads it ahead of the preview. An open preview follows the focused row and
+  // reads it itself, so focus then reads nothing more; resting the pointer on another row still does.
+  const orgId = context?.orgId
+  const viewerId = viewer?.id
+  const loadAhead = useCallback<PeekLoadAhead>((id, via) => {
+    if (!orgId || !viewerId || (via === "focus" && peekIdRef.current)) return
+    // The preview's code too, so a click after resting the pointer never waits on it.
+    preloadRequestPeek()
+    loadPeekAhead(orgId, viewerId, id)
+  }, [orgId, viewerId])
   // Plan item 2.4 (decision 8.24): the list is a treegrid when grouped and a
   // grid when not, with the row as its one tab stop (use-request-grid.ts).
   const grouped = grouping !== "none"
@@ -256,7 +266,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const gridLabel = projectName ? `${projectName} Requests` : projectFilter === "none" ? "Requests without a Project" : isGuest ? "My Requests" : "Requests"
   const renderRow = (request: OverviewRequest, level?: number) => <RequestRow key={request.id} request={request} columns={columns} visibility={columnVisibility} filter={filter} projectFilter={projectFilter} level={level}
     tabbable={grid.tabbable === `r:${request.id}`} checked={selection.selected.some(row => row.id === request.id)} disabled={selection.busy} onCheckedChange={checked => selection.toggle(request.id, checked)} />
-  return <RequestPeekOpener value={peekFromMenu}><div ref={layoutRef} className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
+  return <RequestPeekOpener value={peekFromMenu}><RequestPeekLoadAhead value={peekAvailable ? loadAhead : null}><div ref={layoutRef} className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
     <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
     <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={changeSummary} summaryTrigger={summaryTrigger}
@@ -303,5 +313,5 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     </AnimatePresence>
     </div>
     <RequestSelectionBar busy={selection.busy} count={selection.count} action={selection.action} allSelected={selection.allSelected} error={selection.error} message={selection.message} actions={selection.actions} />
-  </div></RequestPeekOpener>
+  </div></RequestPeekLoadAhead></RequestPeekOpener>
 }
