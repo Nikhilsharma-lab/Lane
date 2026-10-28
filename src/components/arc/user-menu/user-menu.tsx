@@ -65,6 +65,9 @@ export interface UserMenuProps {
   /** Desktop submenu, or a second page within the existing mobile sheet. */
   workspaces?: UserMenuWorkspaces;
   onSignOut?: () => void | Promise<unknown>;
+  /** Lane #259: an app router's navigation for a plain click on an `href` item, instead of a full page load. Links to
+   * another site, and hash links on the current page, stay with the browser. Without it every link is followed natively. */
+  onNavigate?: (href: string) => void;
   signOutLabel?: string;
   signOutKeys?: string[];
   align?: "start" | "center" | "end";
@@ -86,6 +89,8 @@ type OpenReason = "first" | "last" | "pointer" | null;
 const compactQuery = "(max-width: 639px)";
 const subscribeCompact = (change: () => void) => { const query = window.matchMedia(compactQuery); query.addEventListener("change", change); return () => query.removeEventListener("change", change); };
 const subscribeNothing = () => () => {};
+/** Lane #259: a link to another page of this app (not another site, nor a hash on this page, which the browser handles in place). */
+const inApp = (href: string) => { const url = new URL(href, location.href); return url.origin === location.origin && (!url.hash || url.pathname + url.search !== location.pathname + location.search); };
 const statusLabel = (status: UserStatus) => userStatuses.find(option => option.value === status)?.label ?? status;
 const enter = [...motionTokens.ease.enter] as [number, number, number, number];
 const standard = [...motionTokens.ease.standard] as [number, number, number, number];
@@ -159,7 +164,7 @@ function focusStop(stop: HTMLElement | undefined, scroll = false) {
   if (scroll) target?.scrollIntoView({ block: "nearest" });
 }
 
-export function UserMenu({ user, status: statusProp, defaultStatus = "available", onStatusChange, theme: themeProp, defaultTheme = "system", onThemeChange, showTheme = true, items = [], workspaces, onSignOut, signOutLabel = "Sign out", signOutKeys, align = "end", showName = false, open: openProp, defaultOpen = false, onOpenChange, portal = true, ref, className }: UserMenuProps) {
+export function UserMenu({ user, status: statusProp, defaultStatus = "available", onStatusChange, theme: themeProp, defaultTheme = "system", onThemeChange, showTheme = true, items = [], workspaces, onSignOut, onNavigate, signOutLabel = "Sign out", signOutKeys, align = "end", showName = false, open: openProp, defaultOpen = false, onOpenChange, portal = true, ref, className }: UserMenuProps) {
   const id = useId();
   const menuId = `${id}-menu`;
   const triggerId = `${id}-trigger`;
@@ -564,7 +569,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
           return item.href ? <motion.a key={item.label} href={item.href} role="menuitem" aria-current={item.current ? "page" : undefined} tabIndex={-1}
             aria-disabled={!!(workspaces?.pendingId || switchingId) || undefined}
             className={styles.item} data-stop="item" data-label={item.label} variants={row} onPointerMove={onItemPointerMove}
-            onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (workspacePending.current || workspaces?.pendingId) { event.preventDefault(); return; } close(true); item.onSelect?.(); }}>{contents}</motion.a>
+            onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (workspacePending.current || workspaces?.pendingId) { event.preventDefault(); return; } close(true); item.onSelect?.(); if (onNavigate && inApp(item.href!)) { event.preventDefault(); onNavigate(item.href!); } }}>{contents}</motion.a>
             : <motion.button key={item.label} type="button" role="menuitem" tabIndex={-1} className={styles.item} data-stop="item" data-label={item.label} variants={row}
               aria-disabled={!!(workspaces?.pendingId || switchingId) || undefined}
               onPointerMove={onItemPointerMove} onClick={() => { if (workspacePending.current || workspaces?.pendingId) return; close(true); item.onSelect?.(); }}>{contents}</motion.button>;

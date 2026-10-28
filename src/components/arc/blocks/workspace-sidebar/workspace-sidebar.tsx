@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 // Licensed Arc Pro workspace-sidebar. Lane data/route adapters are documented in arc-sources.md.
 // Arc Pro source (https://uiarc.dev), used under the Arc Pro license as part of the Lane app.
 // It is not covered by any license of this repository and may not be reused outside Lane.
@@ -356,6 +357,8 @@ function usePageLock(locked: boolean) {
 
 export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onAccountMenuOpen, help, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
   const reduce = useReducedMotionSafe();
+  // Lane #259: the account menu's Lane destinations open inside the app, so Settings loaded ahead shows at once.
+  const router = useRouter();
   const phone = usePhone() && !forceDesktopLayout;
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [drawer, setDrawer] = useState(false);
@@ -526,7 +529,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
       <div className={styles.header}>
         <div className={styles.identityRow}>
         <div className={styles.accountSlot}>
-          <UserMenu ref={accountTrigger} user={user} showName={!rail} showTheme={false} align="start"
+          <UserMenu ref={accountTrigger} user={user} showName={!rail} showTheme={false} align="start" onNavigate={href => router.push(href)}
             className={styles.accountTrigger} open={accountOpen} onOpenChange={onAccountOpenChange}
             items={[
               { label: "Settings", icon: <Settings />, href: settingsHref, current: activeId === settingsHref, onSelect: () => select(settingsHref, "Settings") },
