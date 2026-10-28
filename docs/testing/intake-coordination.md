@@ -33,9 +33,39 @@ impact behavior and existing optimistic queue. The shared action boundary alone
 handles explicit pre-write session expiry; ambiguous transport failures do not
 permit replay.
 
-## Verification boundary
+## Oct28 review correction and current source
 
-Final source checks: UI 992 tests across 94 files, full TypeScript, full repository
+Review of `a93d724b` found Standards 0 / Spec 1 P2: Open Request after removing the
+final failed file lost its explicit navigation intent. Fix `1f69bdd0` carries
+`open: true` through the existing confirmed-cleanup, operation and presentation
+checks. Skip retains its default completion. The owner regression first observed
+`open: false`, then passed; it also covers clear failure/retry, duplicate completion
+and detach while cleanup waits. Focused owner/recovery/save tests: 51 passed.
+The browser agent separately retained the actual New host red at a93; corrected
+candidate browser verification remains pending at this source handoff.
+
+Compatibility merge `74141b42` includes reviewed `e06982c6`, preserving #175's
+helper and all five incoming f638 database URL files exactly. Only SESSION-STATE
+conflicted, and both histories were retained. Final checks on the merged source:
+UI 995/94, full TypeScript, repository lint, design and production build pass.
+No database reset was repeated; incoming pure DB URL tests remain for the final
+guarded integration suite. Earlier application evidence below is not attributed
+to the new main files. Root retains integration and final main-config merge work.
+
+The inherited 17-route proposal still passes without rebaselining. Exact merged
+source deltas: original Requests +331/detail +354 bytes, with its three missing
+main-added routes correctly failing inventory; fresh current main f638 detail
++2,192 (144 over 2,048), committed f638 detail +2,548 (500 over). Every other route
+fits. Fresh f638 measurements equal the prior 3e6 reference byte-for-byte; both
+remain immutable and separately attributed. This is not waiver approval.
+Authoritative new receipts: `/private/tmp/lane-spec-176-open-final-fresh-bundle.json`
+and `/private/tmp/lane-spec-176-open-final-bundle-comparison.json`. Historical
+checks and measurements below remain scoped to the initial reviewed candidate.
+
+
+## Initial reviewed candidate
+
+Initial reviewed a93 source checks: UI 992 tests across 94 files, full TypeScript, full repository
 lint, design checks and production build pass. Coverage includes actual owner save,
 per-file recovery, real record-before-PUT ordering, two-owner same-Request/draft
 races, Leave at each awaited stage, detached continuation, cancelled AI and the

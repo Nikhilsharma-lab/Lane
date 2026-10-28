@@ -1,5 +1,32 @@
 # Shared Claude / Codex handoff
 
+## #176 Oct28 review correction and compatibility merge
+
+The P2 review correction is `1f69bdd0`: after the final failed file is removed,
+Open Request now carries `open: true` through the owner's confirmed cleanup and
+current presentation callback. Ordinary Skip remains unchanged. Production-owner
+red/green covers the explicit navigation intent, a failed clear followed by retry,
+one-shot completion and detach during cleanup; focused 51 tests pass. The actual
+New host red at `a93d724b` is retained by the browser agent; candidate browser green
+and independent delta review remain separate acceptance work.
+
+Reviewed compatibility `e06982c6` is merged in `74141b42`. The only conflict was
+this handoff; both histories remain below. The #175 helper and all five incoming
+main `f638003c` database URL files are byte-identical to their reviewed sources.
+Integration `355e09e` remains an ancestor and untouched. Main's subsequent
+`94e73312` Vercel configuration change is reserved for root's final integration.
+
+Checks on frozen `74141b42`: UI995/94, full TypeScript/repository lint/design and
+production build pass. No application database reset was repeated; the incoming
+DB URL tests remain for the final guarded integration suite. The inherited
+17-route proposal passes unchanged. Original existing routes fit (+331 Requests,
++354 detail), while three main-added routes correctly fail the original inventory.
+Detail is +2,192 versus fresh current-main f638 (144 over) and +2,548 versus its
+committed baseline (500 over); all other routes fit 2,048. No new proposal or
+budget approval. Prior original/3e6/f638 receipts are preserved separately.
+Full boundary: `testing/intake-coordination.md` and external
+`lane-spec-176-evidence.md` / `lane-spec-176-open-final-bundle-comparison.json`.
+
 ## #176 Intake coordination — isolated source ready for review
 
 Based on exact integration `355e09e` then reviewed compatibility `a54dbf1` in
