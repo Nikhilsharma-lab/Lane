@@ -50,6 +50,39 @@ async function watchForSkeleton(page: Page) {
 }
 const sawSkeleton = (page: Page) => page.evaluate(() => (window as unknown as SkeletonWatch).sawPreviewSkeleton);
 
+type Opening = { clickAt: number | null; contentAt: number | null; panelLoading: boolean };
+type OpeningWatch = Window & { previewOpening: Opening };
+
+/**
+ * #259: what the next click's preview waits on: the scripts the page starts between the click and the Request's
+ * title showing in the preview, and whether the panel's own loading state (its code not ready) is drawn first.
+ * After a rest both stay empty, so the first preview on a page shows as fast as later ones. Call the returned
+ * check once the content shows.
+ */
+async function watchOpening(page: Page) {
+  await page.evaluate(() => {
+    const opening: Opening = { clickAt: null, contentAt: null, panelLoading: false };
+    (window as unknown as OpeningWatch).previewOpening = opening;
+    performance.setResourceTimingBufferSize(2000);
+    performance.clearResourceTimings();
+    addEventListener("click", () => { opening.clickAt = performance.now(); }, { capture: true, once: true });
+    const check = () => {
+      const panel = document.querySelector("[data-request-peek]");
+      if (opening.clickAt === null || opening.contentAt !== null || !panel) return;
+      if (panel.querySelector('[aria-label="Loading Request preview"]')) opening.panelLoading = true;
+      if (panel.querySelector("h2") && !panel.querySelector("[data-skeleton]")) opening.contentAt = performance.now();
+    };
+    new MutationObserver(check).observe(document.body, { subtree: true, childList: true, attributes: true });
+  });
+  return () => page.evaluate(() => {
+    const { clickAt, contentAt, panelLoading } = (window as unknown as OpeningWatch).previewOpening;
+    const scripts = (performance.getEntriesByType("resource") as PerformanceResourceTiming[])
+      .filter(entry => entry.initiatorType === "script" && entry.startTime >= (clickAt ?? Infinity) && entry.startTime <= (contentAt ?? Infinity))
+      .map(entry => new URL(entry.name).pathname);
+    return { shown: contentAt !== null, scripts, panelLoading };
+  });
+}
+
 /** Opens `path`, pointer out of the way, and waits until the app is live: the New Request composer's idle preload marks a hydrated page. */
 async function openLive(page: Page, path: string) {
   await page.mouse.move(5, 5);
@@ -96,10 +129,13 @@ test("the Request preview loads ahead on the Requests list and the Inbox", async
       expect(reads).toEqual([ids[1]]);
 
       await watchForSkeleton(page);
+      const opening = await watchOpening(page);
       await title.click();
       await expect(preview).toHaveAttribute("data-request-id", ids[1]);
       await expect(preview.getByRole("heading", { level: 2, name: (await title.textContent())!, exact: true })).toBeVisible();
       expect(await sawSkeleton(page)).toBe(false);
+      // #259: the rest loaded all of the preview's code, so the first opening on this page waits on no code.
+      expect(await opening()).toEqual({ shown: true, scripts: [], panelLoading: false });
       // Opening still reads a fresh copy behind the loaded one.
       await expect.poll(() => reads).toEqual([ids[1], ids[1]]);
 
@@ -154,10 +190,12 @@ test("the Request preview loads ahead on the Requests list and the Inbox", async
       expect(reads).toEqual([read]);
 
       await watchForSkeleton(page);
+      const opening = await watchOpening(page);
       await open.click();
       await expect(preview).toHaveAttribute("data-request-id", read);
       await expect(preview.getByRole("heading", { level: 2, name: /^Preview ahead / })).toBeVisible();
       expect(await sawSkeleton(page)).toBe(false);
+      expect(await opening()).toEqual({ shown: true, scripts: [], panelLoading: false });
 
       await page.keyboard.press("Escape");
       await expect(page.locator("[data-request-peek]")).toHaveCount(0);

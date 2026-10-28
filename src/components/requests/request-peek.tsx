@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useSyncExternalStore, type MouseEvent } from "react"
+import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type ComponentType, type MouseEvent } from "react"
 import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/react"
 import { Button } from "@/components/arc/button/button"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
@@ -13,8 +13,13 @@ import styles from "./request-peek.module.css"
 export type PeekViewer = { id: string; name: string; isAdmin: boolean; readOnly?: boolean }
 
 /** Plan item 2.12: the content, the Request detail pane and its islands, is its own chunk, fetched
- * once a row takes focus so the first Space rarely waits. The panel itself loads with the list. */
-export const preloadRequestPeek = () => { void import("./request-peek-content").catch(() => undefined) }
+ * once a row takes focus so the first Space rarely waits. The panel itself loads with the list.
+ * #259: with it, the code the content loads on first show (the Iterations list), so the first opening fetches none. */
+export const preloadRequestPeek = () => { void import("./request-peek-content").then(module => { loadedContent = module.RequestPeekContent; module.preloadSameProblemView() }, () => undefined) }
+/** #259: the content once its code has arrived. A preview opened after that renders it directly: through lazy() it
+ * would wait a turn on the arrived code and show the panel's loading state, and React holds a reveal after a loading
+ * state for 300 ms. */
+let loadedContent: ComponentType<RequestPeekProps> | undefined
 
 /** Phones keep full-page navigation; the preview needs a fine pointer and room beside the list. */
 const AVAILABLE = "(min-width: 768px) and (pointer: fine)"
@@ -45,7 +50,7 @@ export type RequestPeekProps = {
 }
 
 // A chunk that fails to load (an old tab after a deploy, or offline) says so in the panel, never in place of the list.
-const RequestPeekContent = lazy(() => import("./request-peek-content").then(module => ({ default: module.RequestPeekContent }), () => ({ default: PreviewFailed })))
+const LazyContent = lazy(() => import("./request-peek-content").then(module => ({ default: loadedContent = module.RequestPeekContent }), () => ({ default: PreviewFailed })))
 
 /** Until the content's chunk arrives (it is fetched once a row takes focus, so rarely): the panel's
  * place and its way out. The content renders the full skeleton while it reads the Request. */
@@ -79,6 +84,8 @@ export function RequestPeek(props: RequestPeekProps) {
   const reduced = !!useReducedMotion()
   const present = useIsPresent()
   const panel = useRef<HTMLElement>(null)
+  // Chosen once for this panel, so the content never remounts when its code arrives.
+  const [Content] = useState(() => loadedContent ?? LazyContent)
 
   // Capture, so the first Esc closes the preview before the list's own Esc clears the selection.
   const escape = useEffectEvent((event: KeyboardEvent) => {
@@ -100,7 +107,7 @@ export function RequestPeek(props: RequestPeekProps) {
       initial={reduced ? { opacity: 0 } : { x: "104%" }} animate={{ x: "0%", opacity: 1 }} exit={reduced ? { opacity: 0 } : { x: "104%", transition: leave }}
       transition={reduced ? { duration: motionTokens.duration.instant } : enter}>
       {/* Until the chunk arrives the panel shows the skeleton, never an empty frame. */}
-      <Suspense fallback={<PreviewLoading onClose={onClose} />}><RequestPeekContent key={requestId} {...props} /></Suspense>
+      <Suspense fallback={<PreviewLoading onClose={onClose} />}><Content key={requestId} {...props} /></Suspense>
     </motion.section>
   </motion.div>
 }
