@@ -1,5 +1,30 @@
 # Shared Claude / Codex handoff
 
+## Oct 28 combined candidate for browser acceptance
+
+Merge `bb189421` combines reviewed #176 `c7f14a5d` and navigation `fed612f3` with
+both histories preserved. Both independent review axes reported zero outstanding
+findings on those inputs. Only this handoff conflicted; both evidence sections
+remain below. The entire tracked tree excluding this handoff equals c7f14a5d plus
+the exact incoming navigation owner/test and main-compatibility documentation.
+Integration remains `355e09e`; upstream `94e73312` Vercel/cron configuration remains
+reserved for final integration. This source merge does not accept #175 or #176.
+
+Fresh combined checks: 111 focused navigation/Intake UI tests across seven files,
+full TypeScript and masked Node24 production build pass. The initial sandboxed
+build stalled at compile and was explicitly stopped (130); its unchanged-command
+authorized retry outside the sandbox passed (0). No source/dependency/env change,
+DB reset or hosted action accompanied this merge. Previous full UI/application,
+lint/design and isolated-browser checks retain their recorded input boundaries.
+Combined signed-in held-action and private-file browser acceptance remains pending.
+
+All 17 routes measured at tolerance 2,048. Unchanged proposal passes (+74 Requests,
++154 detail); original existing routes fit (+414/+514), but its three main-added
+routes fail inventory. Fresh f638 detail +2,352 is 304 over; committed f638 detail
++2,708 is 660 over. Other routes fit both main comparisons. No baseline refresh or
+waiver approval. Receipt: `/private/tmp/lane-spec-176-combined-merge.md`; fresh
+measurements: `/private/tmp/lane-spec-176-combined-bundle-comparison.json`.
+
 ## #176 Oct28 reachable Leave source handoff
 
 Product `a3c37a1f` makes existing New/Edit X/Escape reach the existing saved-upload
