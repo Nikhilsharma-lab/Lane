@@ -248,12 +248,12 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     releaseScope(deps.scope, entry);
     return true;
   }
-  function finish(current: () => boolean) {
+  function finish(current: () => boolean, options?: { open?: boolean }) {
     const { requestId, phase } = state.get();
     if (!requestId || phase === "complete") return;
     if (!record.clear()) { state.set({ ...state.get(), phase: "recovery" }); return; }
     state.set({ ...state.get(), phase: "complete" });
-    if (current()) presentation?.finish(requestId);
+    if (current()) presentation?.finish(requestId, options);
   }
   return {
     getSnapshot: state.get, subscribe: state.subscribe,
@@ -386,7 +386,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
         state.set({ ...state.get(), files: state.get().files.filter(file => file.key !== key) });
       });
     },
-    async continueWithout() {
+    async continueWithout({ open = false }: { open?: boolean } = {}) {
       const { requestId, phase } = state.get();
       if (!requestId || phase === "complete") return;
       await perform(async current => {
@@ -394,7 +394,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
         for (const file of unfinished) {
           if (await discardFailed(file, requestId) === "failed") return;
         }
-        finish(current);
+        finish(current, { open });
       });
     },
     async retry(keys?: string[]) {

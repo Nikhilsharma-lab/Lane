@@ -1314,7 +1314,7 @@ export default function RequestEditor({
             {stage === "attachment_recovery" && !hasPendingUploads && (
               <Button
                 type="button"
-                onClick={() => void session.continueWithout()}
+                onClick={() => void session.continueWithout({ open: true })}
               >
                 Open Request
               </Button>

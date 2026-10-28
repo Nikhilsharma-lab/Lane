@@ -398,3 +398,43 @@ it.each([false, true])("a mounted form with no remaining recovery record does no
   expect(second.finished).toEqual(["second"]);
   await first.session.detach(); await second.session.detach();
 });
+
+it.each([false, true])("preserves the completion intent after the final failed file is removed (explicit Open: %s)", async open => {
+  let canClear = false;
+  let retained: UnfinishedUploads | null = null;
+  const app = owner({ put: async () => { throw new Error("Transfer failed"); },
+    record: { read: () => retained, write: value => { retained = value.files.length ? value : null; return true; }, clear: () => { if (!canClear) return false; retained = null; return true; } } });
+  const completions: { requestId: string; open: boolean }[] = [];
+  app.session.bind({ busy: () => {}, finish: (requestId, options) => { completions.push({ requestId, open: options?.open ?? false }); } });
+  await app.session.save({ run: async () => ({ success: true, requestId: "saved-request" }), title: "Problem",
+    attachments: [{ key: "a", file: new File(["bytes"], "a.png", { type: "image/png" }), status: "queued", progress: 0, attachmentId: null, error: null }], saved: () => {}, failed: () => {} });
+  await app.session.remove("a");
+  expect(app.session.getSnapshot().files).toEqual([]);
+  if (open) await app.session.continueWithout({ open: true });
+  else await app.session.continueWithout();
+  expect(completions).toEqual([]);
+  expect(app.session.getSnapshot().phase).toBe("recovery");
+  canClear = true;
+  if (open) await app.session.continueWithout({ open: true });
+  else await app.session.continueWithout();
+  await app.session.continueWithout({ open: true });
+  expect(completions).toEqual([{ requestId: "saved-request", open }]);
+  await app.session.detach();
+});
+
+it("an explicit Open waiting for cleanup does not navigate after its presentation detaches", async () => {
+  const cleanup = Promise.withResolvers<{ success: true }>();
+  let discards = 0;
+  const app = owner({ finalize: async () => ({ success: false, error: { code: "storage_unavailable", message: "Could not finalize." } }),
+    discard: async () => { discards++; return cleanup.promise; } });
+  await app.session.save({ run: async () => ({ success: true, requestId: "saved-request" }), title: "Problem",
+    attachments: [{ key: "a", file: new File(["bytes"], "a.png", { type: "image/png" }), status: "queued", progress: 0, attachmentId: null, error: null }], saved: () => {}, failed: () => {} });
+  const opening = app.session.continueWithout({ open: true });
+  await app.session.continueWithout({ open: true });
+  await app.session.detach();
+  cleanup.resolve({ success: true });
+  await opening;
+  expect(discards).toBe(1);
+  expect(app.finished).toEqual([]);
+  expect(app.record()).toBeNull();
+});
