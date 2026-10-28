@@ -7,6 +7,7 @@ type Memory = typeof import("./request-peek-memory")
 const ORG = "org_1"
 const VIEWER = "user_1"
 const ID = "11111111-1111-4111-8111-111111111111"
+const TARGET = { orgId: ORG, viewerId: VIEWER, requestId: ID }
 
 const body = (title: string) => JSON.stringify({
   request: { id: ID, title, createdAt: "2026-10-01T10:00:00.000Z" },
@@ -28,14 +29,14 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-const shown = () => memory.peekEntry(memory.peekKey(ORG, VIEWER, ID))
+const shown = () => memory.peekEntry(memory.peekKey(TARGET))
 const title = () => { const entry = shown(); return entry?.status === "ready" ? entry.detail.request.title : null }
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
-const open = (signal = new AbortController().signal) => memory.readForPreview(ORG, VIEWER, ID, signal, { opening: true })
+const open = (signal = new AbortController().signal) => memory.readForPreview(TARGET, signal, { opening: true })
 
 describe("Request preview memory (#258)", () => {
   it("opening the preview while a read ahead is in flight waits on that read instead of reading again", async () => {
-    memory.readAhead(ORG, VIEWER, ID)
+    memory.readAhead(TARGET)
     expect(reads).toHaveLength(1)
     open()
     await settle()
@@ -47,7 +48,7 @@ describe("Request preview memory (#258)", () => {
   })
 
   it("opening on a stored copy shows it and reads a fresh copy behind it", async () => {
-    memory.readAhead(ORG, VIEWER, ID)
+    memory.readAhead(TARGET)
     reads[0].answer(new Response(body("Read ahead"), { status: 200 }))
     await settle()
     open()
@@ -60,7 +61,7 @@ describe("Request preview memory (#258)", () => {
   })
 
   it("an open undone at once (React's development double effect) reads nothing", async () => {
-    memory.readAhead(ORG, VIEWER, ID)
+    memory.readAhead(TARGET)
     reads[0].answer(new Response(body("Read ahead"), { status: 200 }))
     await settle()
     const undone = new AbortController()
@@ -72,12 +73,12 @@ describe("Request preview memory (#258)", () => {
   })
 
   it("resting again reads nothing more while a read is in flight or the copy is fresh", async () => {
-    memory.readAhead(ORG, VIEWER, ID)
-    memory.readAhead(ORG, VIEWER, ID)
+    memory.readAhead(TARGET)
+    memory.readAhead(TARGET)
     expect(reads).toHaveLength(1)
     reads[0].answer(new Response(body("Read ahead"), { status: 200 }))
     await settle()
-    memory.readAhead(ORG, VIEWER, ID)
+    memory.readAhead(TARGET)
     expect(reads).toHaveLength(1)
   })
 
@@ -86,13 +87,13 @@ describe("Request preview memory (#258)", () => {
     open()
     await vi.advanceTimersByTimeAsync(100)
     expect(reads).toHaveLength(1)
-    memory.readAhead(ORG, VIEWER, ID)
+    memory.readAhead(TARGET)
     expect(reads).toHaveLength(1)
   })
 
   it("a later change still reads a fresh copy while a read ahead is in flight", async () => {
-    memory.readAhead(ORG, VIEWER, ID)
-    memory.readForPreview(ORG, VIEWER, ID, new AbortController().signal, { opening: false })
+    memory.readAhead(TARGET)
+    memory.readForPreview(TARGET, new AbortController().signal, { opening: false })
     await settle()
     // No copy is shown yet, so the preview waits out the rest delay before its own read.
     await new Promise(resolve => setTimeout(resolve, 120))
@@ -100,7 +101,7 @@ describe("Request preview memory (#258)", () => {
   })
 
   it("says the connection failed when the read ahead the preview waited on never reached the route", async () => {
-    memory.readAhead(ORG, VIEWER, ID)
+    memory.readAhead(TARGET)
     open()
     await settle()
     reads[0].fail(new TypeError("Failed to fetch"))
@@ -110,7 +111,7 @@ describe("Request preview memory (#258)", () => {
   })
 
   it("a closed preview leaves no error behind for an offline read ahead", async () => {
-    memory.readAhead(ORG, VIEWER, ID)
+    memory.readAhead(TARGET)
     const closed = new AbortController()
     open(closed.signal)
     await settle()

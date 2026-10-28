@@ -20,7 +20,9 @@ const FRESH_MS = 30_000
 /** #258: the read in flight for each Request, so a read ahead and the preview never read one Request twice at once. */
 const inFlight = new Map<string, { ahead: boolean; read: Promise<Entry> }>()
 
-export const peekKey = (orgId: string, viewerId: string, requestId: string) => `${orgId}:${viewerId}:${requestId}`
+/** One Request as one viewer in one workspace sees it: the memory keeps a copy per target. */
+export type PeekTarget = { orgId: string; viewerId: string; requestId: string }
+export const peekKey = ({ orgId, viewerId, requestId }: PeekTarget) => `${orgId}:${viewerId}:${requestId}`
 export const peekEntry = (key: string) => memory.get(key)?.entry
 export function subscribePeek(listener: () => void) {
   listeners.add(listener)
@@ -78,8 +80,9 @@ function startRead(key: string, ahead: boolean, read: Promise<Entry>) {
  * stores them, so its "unavailable" and error states still show. If a fresher read lands first, this
  * older one is dropped.
  */
-export function readAhead(orgId: string, viewerId: string, requestId: string) {
-  const key = peekKey(orgId, viewerId, requestId)
+export function readAhead(target: PeekTarget) {
+  const { orgId, requestId } = target
+  const key = peekKey(target)
   const before = memory.get(key)
   if (inFlight.has(key) || (before && Date.now() - before.writtenAt < FRESH_MS)) return
   startRead(key, true, fetchDetail(orgId, requestId)).then(next => { if (memory.get(key) === before) store(key, next) },
@@ -93,8 +96,9 @@ export function readAhead(orgId: string, viewerId: string, requestId: string) {
  * behind a stored copy, or after the rest delay when there is none, so a held J reads only the
  * Request it stops on. `signal` aborts it (and a read not yet started) when the preview moves on or closes.
  */
-export function readForPreview(orgId: string, viewerId: string, requestId: string, signal: AbortSignal, { opening }: { opening: boolean }) {
-  const key = peekKey(orgId, viewerId, requestId)
+export function readForPreview(target: PeekTarget, signal: AbortSignal, { opening }: { opening: boolean }) {
+  const { orgId, requestId } = target
+  const key = peekKey(target)
   const read = () => {
     const ahead = inFlight.get(key)
     if (opening && ahead?.ahead) {

@@ -23,7 +23,7 @@ export function useListLoadAhead(orgId: string | undefined, viewerId: string | u
   return useMemo<PeekLoadAhead | null>(() => !offered || !orgId || !viewerId ? null : (requestId, via) => {
     if (via === "focus" && open.current) return
     preloadRequestPeek()
-    void import("./request-peek-memory").then(memory => memory.readAhead(orgId, viewerId, requestId), () => undefined)
+    void import("./request-peek-memory").then(memory => memory.readAhead({ orgId, viewerId, requestId }), () => undefined)
   }, [offered, orgId, viewerId])
 }
 
