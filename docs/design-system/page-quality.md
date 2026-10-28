@@ -38,3 +38,34 @@ gitignored, so the summary lives here.
 | #167 common Request moves (#175), Oct26 history correction | 2026-10-26 | Design contracts pass; modal/focus timing unchanged | Actual zero-write modal/native-Back red retained; idempotent restoration updater passes focused84/UI688/static/build; browser green pending | Original cumulative Requests +2,330 (282 over2,048), detail +2,831 (783 over), Impact/Intake +2,067 (19 over), Settings +2,065 (17 over). Requests grows68 bytes; other routes unchanged. Existing175 proposed baseline passes without another refresh; exact receipt `/private/tmp/lane-spec-175-history-bundle-bytes.json` | Main-merge waiver approval and browser acceptance remain separate pending gates |
 
 | #167 compatibility with main #195 | 2026-10-26 | Full design/provenance pass; both combined sidebar and reviewed toast adaptations retained | Application2787 remains valid; final UI968/focused76/tsc/lint/build pass. Initial Standards0/Spec2P2; both actual-consumer findings corrected. Isolated zero-DB renderer11 cases pass; final delta reviews and signed-in combined acceptance pending | **PROPOSED** full17-route baseline refresh, tolerance2048 unchanged. Original existing routes within (Requests+340/detail+360); original correctly rejects three main-added routes. Fresh-main detail+2198 (150 over); main-committed detail+2554 (506 over). Other routes within. Refreshed check passes, which is not original compliance or approval | Main-merge proposal approval pending; see `../testing/main-compatibility.md` |
+
+## #167 final source integration — measured waiver proposal (2026-10-28)
+
+The policy in the MVP launch plan §2.2 permits a baseline update with a written
+waiver when a route exceeds 2 KB gzip. The existing 17-route proposed baseline is
+retained unchanged for Nikhil to approve by merging; this entry does not approve
+it or claim original-budget compliance. No tolerance increase or further baseline
+refresh accompanies final source integration.
+
+Combined client source c902f6c8 (product bb189421), measured with Node24.22.0 and
+Next16.3.8, passes the proposal at Requests +74/detail +154 bytes. Against the
+immutable original #167 baseline, existing routes fit (Requests +414/detail +514),
+but Inbox and both Metrics routes correctly fail the old inventory. Against fresh
+f638 main, detail grows +2352 bytes, 304 above the unchanged2048 tolerance; against
+f638's committed baseline it grows +2708, 660 above. Other routes fit both main
+comparisons (Requests +1659 fresh / +2040 committed). Exact17-route measurements,
+baseline hashes and failed gates remain in
+`/private/tmp/lane-spec-176-combined-bundle-comparison.json`.
+
+The proposed exception covers the required shared lifecycle/recovery and
+navigation ownership delivered through the existing detail/list/Intake consumers,
+including the confirmed Leave and pending-route fixes. It does not authorize new
+features or waive functional/visual acceptance. Integration7cae8bd1 preserves that
+client tree exactly and adds only upstream94e73312 Vercel configuration; it has
+not been independently rebuilt for this documentation mapping.
+
+Combined full UI999/94, focused111, TypeScript/lint/design and production build
+pass on their recorded c902 source. Actual #175/#176 acceptance and CI remain
+pending. The inherited Inbox rollback red and unavailable ordinary retry/mobile
+checks remain recorded in `../testing/main-compatibility.md` and DEFERRED.md;
+there is no whole-app visual or private-Storage all-clear.

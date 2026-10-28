@@ -1,5 +1,38 @@
 # Shared Claude / Codex handoff
 
+## Oct 28 final source integration — acceptance still pending
+
+`8371a5fb` merges reviewed combined candidate `c902f6c8`; `7cae8bd1` preserves
+upstream `94e73312`'s exact Vercel cron configuration. Before these docs, the entire
+tree equalled c902f6c8 plus that one file. All nine increment sources are now in
+`codex/spec-167-integration`; accepted #168–#174 remain complete, while #175/#176
+actual browser acceptance is pending. This supersedes older source-sequencing
+notes, not their evidence limits. No main merge, deployment, push or cleanup.
+
+Combined c902 source checks: focused111/7, full UI999/94, TypeScript/full ESLint,
+design42 plus token/Arc67/brand9, and masked production build pass. Bootstrap52
+and guarded application2827/one skipped belong to824d1bae before the client-only
+Leave/navigation deltas. No DB reset for this exact source union. Fresh integration
+route type generation, TypeScript, full ESLint and design42/contracts pass. Exact
+source mapping and pending independent review mapping are in the external
+`/private/tmp/lane-spec-167-source-integration.md` receipt. PR stays draft; CI and
+signed-in/private Storage results are not inferred from source checks.
+
+The inherited Inbox confirmed-read/failed-unread rollback red is retained and
+deferred before first paying customer in DEFERRED.md. Main f638 has the same
+read-state/list behavior. Fresh Inbox correctly omits the saved-read FYI after
+context closure, leaving ordinary unread retry/mobile-read checks unverified;
+no hidden state restoration or direct setup write was used. Full boundary and
+durable safe evidence manifest: `testing/main-compatibility.md`.
+
+Measured bundle proposal remains unchanged, not approved: original existing
+Requests/detail +414/+514 fit; original inventory lacks three main-added routes.
+Fresh f638 detail +2352 (304 over2048), committed f638 +2708 (660 over); other
+routes fit. Proposed baseline passes +74/+154. Measurements are the c902 client
+tree, preserved exactly here; upstream94 changes only Vercel configuration.
+Written proposal: `design-system/page-quality.md`; no baseline/tolerance change.
+Keep all task and unrelated worktrees until final acceptance/CI and safe cleanup.
+
 ## Oct 28 combined candidate for browser acceptance
 
 Merge `bb189421` combines reviewed #176 `c7f14a5d` and navigation `fed612f3` with

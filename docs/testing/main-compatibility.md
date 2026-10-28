@@ -1,5 +1,37 @@
 # #167 compatibility with main #195
 
+## Oct 28 source integration and inherited Inbox failure
+
+Source integration `8371a5fb` preserves reviewed combined candidate `c902f6c8`;
+`7cae8bd1` additionally preserves upstream `94e73312`'s exact `vercel.json` cron
+entry. Before documentation updates, the complete tree equalled c902f6c8 plus that
+one upstream file. This is source preparation, not #175/#176 acceptance or a
+deployment. The PR remains draft; final review mapping and browser work remain.
+
+On c902f6c8, combined focused navigation/Intake111, full UI999/94, full TypeScript,
+ESLint, design42 plus token/Arc67/brand9 contracts, and masked production build
+pass. Guarded bootstrap52/application2827 with one skipped ran on824d1bae before
+the later client-only Leave/navigation corrections. No reset was repeated for
+the source union. Exact sources and command exits remain in external
+`lane-spec-176-root-combined-checks.md` and `lane-spec-176-combined-merge.md`.
+
+The signed-in compatibility walk exposed an inherited Inbox failure: confirmed
+read `a6e53f32`, then unread `b7645f59` refused before dispatch, leaves the saved
+notification read but displays its initial unread row with error feedback. The
+read-state/list modules and relevant adapter sequence are unchanged from f638;
+the navigation/session changes did not introduce this lost confirmed patch.
+The source diagnosis and scope assessment are retained, and the focused repair
+is a pre-launch item in `../../DEFERRED.md`. The original red is not relabelled
+green. After context closure, a fresh Inbox correctly omits the saved-read item;
+ordinary unread retry/mobile-read checks therefore remain unverified. No hidden
+state restoration, fixture reset or direct setup write was used to continue.
+
+Sixteen explicitly reviewed safe reports/receipts/screens/test logs are preserved
+outside throwaway worktrees under
+`/Users/nikhilsharma/.codex/visualizations/2026/10/23/01a169ec-0c9f-7c53-b22d-b14541ab4859/spec-167-evidence/manifest-reviewed.json`.
+This archive excludes env/auth/Flight/capability material. It is not an all-cases
+browser pass; current private-file acceptance and final CI remain separate.
+
 ## Oct 28: pending route owns navigation during mutation settlement
 
 Product correction `935d5475`, based on compatibility `e06982c6`, prevents the old
