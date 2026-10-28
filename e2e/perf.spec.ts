@@ -722,6 +722,17 @@ test("opening the account menu prefetches Settings before any click", async ({ p
   await expect(page.getByRole("menuitem", { name: "Settings" })).toBeVisible()
   await expect.poll(() => [...settings].sort()).toEqual(["/settings/members", "/settings/profile"])
   expect(new URL(page.url()).pathname).toBe("/")
+
+  // #259: choosing Settings navigates inside the app, so the page loaded ahead shows at once. A full page load
+  // would throw away this document, and the mark with it.
+  await page.evaluate(() => { (window as Window & { __laneSameDocument?: true }).__laneSameDocument = true })
+  const clicked = await now(page)
+  await page.getByRole("menuitem", { name: "Settings" }).click()
+  await expect(page).toHaveURL(/\/settings\/profile$/)
+  await expect(page.getByRole("button", { name: /Search settings/ })).toBeVisible()
+  const shown = await now(page)
+  expect(await page.evaluate(() => (window as Window & { __laneSameDocument?: true }).__laneSameDocument), "choosing Settings reloaded the page").toBe(true)
+  report("account menu Settings click to the Settings page", [shown - clicked], "ms", 500)
 })
 
 test("a sidebar toggle at 4x CPU changes the content width once with at most 2 long animation frames", async ({ page }) => {
