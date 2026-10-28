@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import notificationStyles from "@/components/arc/notification-center/notification-center.module.css";
 import { LocalTime, localLabel, useInBrowser } from "@/components/requests/local-time";
-import { useRowLoadAhead } from "@/components/requests/request-peek";
+import { useRowLoadAhead } from "@/components/requests/request-peek-load-ahead";
 import { PageStrip } from "@/components/shell/page-strip";
 import { notificationRow } from "@/components/shell/notification-copy";
 import { nextNotificationId, notificationCommand } from "@/components/shell/notification-keys";

@@ -116,9 +116,10 @@ export async function removeMemberInClerk(page: Page, member: Person) {
 
 /**
  * Settings → Workspace details → Manage workspace fits the browser window; with `inFull`, its profile, Leave and
- * Delete organization are shown in full and apart.
+ * Delete organization are shown in full and apart. A Member's window (`asMember`) offers no Update profile or
+ * Delete organization, so only its profile and Leave organization are checked.
  */
-export async function checkManageWorkspace(page: Page, workspaceName: string, { inFull }: { inFull: boolean }) {
+export async function checkManageWorkspace(page: Page, workspaceName: string, { inFull, asMember = false }: { inFull: boolean; asMember?: boolean }) {
   await showSettingsSection(page, "Workspace details");
   const opener = page.getByRole("button", { name: "Manage workspace", exact: true });
   await openByKeyboard(page, opener);
@@ -129,15 +130,16 @@ export async function checkManageWorkspace(page: Page, workspaceName: string, { 
   if (inFull) {
     // Each row is a title (a paragraph) and its content; the walk found the logo drawn over "Update profile".
     const title = (text: string) => dialog.getByRole("paragraph").filter({ hasText: new RegExp(`^${text}$`) });
+    const adminOnly = (part: Part) => asMember ? [] : [part];
     const parts: Part[] = [
       { label: "The Profile title", part: title("Profile") },
       { label: "The workspace logo", part: dialog.getByRole("img", { name: `${workspaceName}'s logo` }) },
       { label: "The workspace name", part: dialog.getByText(workspaceName, { exact: true }) },
-      { label: "Update profile", part: dialog.getByRole("button", { name: "Update profile" }) },
+      ...adminOnly({ label: "Update profile", part: dialog.getByRole("button", { name: "Update profile" }) }),
       { label: "The Leave organization title", part: title("Leave organization") },
       { label: "The Leave organization button", part: dialog.getByRole("button", { name: "Leave organization" }) },
-      { label: "The Delete organization title", part: title("Delete organization") },
-      { label: "The Delete organization button", part: dialog.getByRole("button", { name: "Delete organization" }) },
+      ...adminOnly({ label: "The Delete organization title", part: title("Delete organization") }),
+      ...adminOnly({ label: "The Delete organization button", part: dialog.getByRole("button", { name: "Delete organization" }) }),
     ];
     await expectShownInFull(dialog, parts);
     await expectNoOverlap(parts);

@@ -15,7 +15,9 @@ export const fixtureMetadata = { laneE2ERunId: runId };
 // back instead of deleting it.
 type BorrowedNames = { firstName: string | null; lastName: string | null };
 const borrowedUsers = new Map<string, BorrowedNames>();
-export const borrowMarker = { laneE2EBorrowedBy: runId };
+/** The privateMetadata key that marks a borrowed user; its value is the borrowing worker's run. */
+export const BORROW_KEY = "laneE2EBorrowedBy";
+export const borrowMarker = { [BORROW_KEY]: runId };
 export function recordBorrowedUser(id: string, names: BorrowedNames) {
   borrowedUsers.set(id, names);
 }
@@ -50,7 +52,7 @@ export async function assertOwnedUser(id: string) {
   if (!users.has(id) && !borrowed) throw new Error("[e2e] User has no creation or borrowing receipt in this worker.");
   const client = await safeClerkClient();
   const user = await client.users.getUser(id);
-  const marker = borrowed ? user.privateMetadata.laneE2EBorrowedBy : user.privateMetadata.laneE2ERunId;
+  const marker = borrowed ? user.privateMetadata[BORROW_KEY] : user.privateMetadata.laneE2ERunId;
   if (marker !== runId) throw new Error("[e2e] User ownership marker does not match.");
   return client;
 }

@@ -71,7 +71,7 @@ function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: R
  * preview never shows an older state than the row beside it.
  */
 export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewer, onClose, onOpenFullPage }: RequestPeekProps) {
-  const key = peekKey(orgId, viewer.id, requestId)
+  const key = peekKey({ orgId, viewerId: viewer.id, requestId })
   const entry = useSyncExternalStore(subscribePeek, () => peekEntry(key), () => undefined)
   const overlay = usePendingMutations()
   const [retry, setRetry] = useState(0)
@@ -86,7 +86,7 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
 
   useEffect(() => {
     const controller = new AbortController()
-    readForPreview(orgId, viewer.id, requestId, controller.signal, { opening })
+    readForPreview({ orgId, viewerId: viewer.id, requestId }, controller.signal, { opening })
     return () => controller.abort()
   }, [opening, orgId, viewer.id, requestId, serverRow, unsyncedComment, retry])
 

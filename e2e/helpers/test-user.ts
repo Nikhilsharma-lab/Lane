@@ -4,6 +4,7 @@ import type { Page } from "@playwright/test";
 import { safeClerkClient } from "./safety";
 import {
   assertOwnedUser,
+  BORROW_KEY,
   borrowMarker,
   borrowedUserNames,
   fixtureMetadata,
@@ -80,7 +81,7 @@ async function borrowTestUser(client: ClerkClient, password: string): Promise<Te
   const { data } = await client.users.getUserList({ query: "lane-e2e-", limit: 100 });
   for (const candidate of data) {
     const email = candidate.emailAddresses.map((e) => e.emailAddress).find((address) => BORROWABLE_EMAIL.test(address));
-    if (!email || borrowedUserNames(candidate.id) || "laneE2EBorrowedBy" in candidate.privateMetadata) continue;
+    if (!email || borrowedUserNames(candidate.id) || BORROW_KEY in candidate.privateMetadata) continue;
     const memberships = await client.users.getOrganizationMembershipList({ userId: candidate.id, limit: 1 });
     if (memberships.totalCount > 0) continue;
     try {
@@ -89,11 +90,11 @@ async function borrowTestUser(client: ClerkClient, password: string): Promise<Te
       continue;
     }
     // The list can be minutes old when Clerk is slow: re-read the user, so one another run took meanwhile is left alone.
-    if ("laneE2EBorrowedBy" in (await client.users.getUser(candidate.id)).privateMetadata) continue;
+    if (BORROW_KEY in (await client.users.getUser(candidate.id)).privateMetadata) continue;
     await client.users.updateUserMetadata(candidate.id, { privateMetadata: borrowMarker });
     // Another run marking the same user at the same moment: the last mark wins and the other moves on.
     const marked = await client.users.getUser(candidate.id);
-    if (marked.privateMetadata.laneE2EBorrowedBy !== borrowMarker.laneE2EBorrowedBy) continue;
+    if (marked.privateMetadata[BORROW_KEY] !== borrowMarker[BORROW_KEY]) continue;
     recordBorrowedUser(candidate.id, { firstName: candidate.firstName, lastName: candidate.lastName });
     await client.users.updateUser(candidate.id, FIXTURE_NAMES);
     return { id: candidate.id, email, password };
@@ -111,7 +112,7 @@ export async function deleteTestUser(id: string): Promise<void> {
   const borrowedNames = borrowedUserNames(id);
   if (borrowedNames) {
     await client.users.updateUser(id, { firstName: borrowedNames.firstName ?? "", lastName: borrowedNames.lastName ?? "" });
-    await client.users.updateUserMetadata(id, { privateMetadata: { laneE2EBorrowedBy: null } });
+    await client.users.updateUserMetadata(id, { privateMetadata: { [BORROW_KEY]: null } });
     forgetBorrowedUser(id);
     return;
   }
