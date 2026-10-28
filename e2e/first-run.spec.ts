@@ -1,9 +1,7 @@
 import { expect, test } from "@playwright/test";
-import postgres from "postgres";
 
-import { cleanupTestWorkspace } from "./helpers/cleanup";
+import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
 import { assertOwnedOrganization, registerBrowserTestOrganization } from "./helpers/fixtures";
-import { assertE2ETarget } from "./helpers/safety";
 import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
 
 // #217 (spec #195, item 6): one browser walkthrough of a new team's first run. Prior art: onboarding.spec.ts
@@ -34,8 +32,7 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     const client = await assertOwnedOrganization(orgId);
     await client.organizations.createOrganizationMembership({ organizationId: orgId, userId: teammate.id, role: "org:member" });
     await client.users.updateUser(teammate.id, { firstName: "Riley", lastName: "Reviewer" });
-    const { databaseUrl, ssl } = assertE2ETarget();
-    const sql = postgres(databaseUrl, { ssl, max: 1 });
+    const sql = e2eDatabase();
     try {
       await sql`insert into profiles(id,full_name,email,role) values (${teammate.id},'Riley Reviewer',${teammate.email},'designer')`;
     } finally {

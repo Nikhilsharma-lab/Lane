@@ -6,7 +6,8 @@ import { createClerkTestOrganization } from "./test-user";
 
 type FunctionalRole = "pm" | "designer" | "developer";
 
-function database() {
+/** The checked e2e database (assertE2ETarget), on one connection. Callers end it. */
+export function e2eDatabase() {
   const { databaseUrl, ssl } = assertE2ETarget();
   return postgres(databaseUrl, {
     ssl,
@@ -41,7 +42,7 @@ export async function provisionTestWorkspace(options: {
   const organizationId = await createClerkTestOrganization(options.userId, options.workspaceName);
   const client = await assertOwnedOrganization(organizationId);
   const organization = await client.organizations.getOrganization({ organizationId });
-  const sql = database();
+  const sql = e2eDatabase();
 
   try {
     await sql.begin(async (tx) => {
@@ -90,7 +91,7 @@ export async function provisionTestWorkspace(options: {
 
 export async function cleanupTestWorkspace(userId: string): Promise<void> {
   const { orgIds } = await ownedUserScope(userId);
-  const sql = database();
+  const sql = e2eDatabase();
 
   try {
     for (const orgId of orgIds) {
@@ -105,7 +106,7 @@ export async function cleanupTestWorkspace(userId: string): Promise<void> {
 export async function getProfileFullName(
   userId: string
 ): Promise<string | null> {
-  const sql = database();
+  const sql = e2eDatabase();
   try {
     const [row] = await sql<{ full_name: string }[]>`
       SELECT full_name FROM profiles WHERE id = ${userId}
@@ -117,7 +118,7 @@ export async function getProfileFullName(
 }
 
 export async function getProfileRole(userId: string): Promise<string | null> {
-  const sql = database();
+  const sql = e2eDatabase();
   try {
     const [row] = await sql<{ role: string }[]>`
       SELECT role FROM profiles WHERE id = ${userId}
@@ -130,7 +131,7 @@ export async function getProfileRole(userId: string): Promise<string | null> {
 
 export async function getTestWorkspaceId(userId: string): Promise<string> {
   await assertOwnedUser(userId);
-  const sql = database();
+  const sql = e2eDatabase();
   try {
     const [row] = await sql<{ id: string }[]>`
       SELECT id FROM organizations WHERE owner_id = ${userId}
@@ -150,7 +151,7 @@ export async function seedTestRequest(
   title: string
 ): Promise<{ id: string; orgId: string }> {
   const orgId = await getTestWorkspaceId(userId);
-  const sql = database();
+  const sql = e2eDatabase();
 
   try {
     const id = randomUUID();
@@ -175,7 +176,7 @@ export async function seedRowIdentityFixtures(
   userId: string
 ): Promise<{ requestId: string }> {
   const orgId = await getTestWorkspaceId(userId);
-  const sql = database();
+  const sql = e2eDatabase();
 
   try {
     await sql`
@@ -233,7 +234,7 @@ export async function seedRowIdentityFixtures(
 
 export async function deleteTestWorkspace(orgId: string): Promise<void> {
   const client = await assertOwnedOrganization(orgId);
-  const sql = database();
+  const sql = e2eDatabase();
   try {
     await sql`DELETE FROM organizations WHERE id = ${orgId}`;
   } finally {
@@ -248,7 +249,7 @@ export async function deleteTestWorkspace(orgId: string): Promise<void> {
 export async function seedPreviewFixtures(userId: string, titles: string[]): Promise<string[]> {
   const requests = [];
   for (const title of titles) requests.push(await seedTestRequest(userId, title));
-  const sql = database();
+  const sql = e2eDatabase();
   try {
     await sql`
       INSERT INTO notifications ${sql(requests.map(({ id, orgId }) => ({ user_id: userId, org_id: orgId, type: "comment_added", request_id: id, actor_id: userId, read_at: null })))}

@@ -4,12 +4,10 @@ import {
   type Page,
   type TestInfo,
 } from "@playwright/test";
-import postgres from "postgres";
 import { createTestUser, signInTestUser } from "./test-user";
 import { provisionAndSignIn } from "./auth";
-import { finishFirstRuns } from "./cleanup";
+import { e2eDatabase, finishFirstRuns } from "./cleanup";
 import { assertOwnedOrganization, assertOwnedUser } from "./fixtures";
-import { assertE2ETarget } from "./safety";
 import {
   intakeDraftScope,
   intakeDraftStorageKey,
@@ -38,11 +36,7 @@ export async function createReviewTeam(browser: Browser, ownerPage: Page) {
     role: "pm",
   });
   const client = await assertOwnedOrganization(orgId);
-  const { databaseUrl, ssl } = assertE2ETarget();
-  const sql = postgres(databaseUrl, {
-    ssl,
-    max: 1,
-  });
+  const sql = e2eDatabase();
   try {
     for (const [index, user] of users.slice(1).entries()) {
       await client.organizations.createOrganizationMembership({
