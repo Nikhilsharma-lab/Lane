@@ -24,7 +24,8 @@ import { PriorityGlyph, StatusGlyph, useRequestRowPresentation } from "./row-pre
 import { statusOfJourney } from "./tasks/statuses"
 import { DueTag, useDueNow } from "./due-tag"
 import { useListAnnouncer } from "./list-announcer"
-import { useRequestPeekOpener, useRowLoadAhead } from "./request-peek"
+import { useRequestPeekOpener } from "./request-peek"
+import { useRowLoadAhead } from "./request-peek-load-ahead"
 
 function RequestCodeControl({ code }: { code: string }) {
   const feedbackId = useId()
