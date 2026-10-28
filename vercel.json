@@ -5,5 +5,6 @@
     "deploymentEnabled": {
       "main": false
     }
-  }
+  },
+  "crons": [{ "path": "/api/inbox/daily", "schedule": "0 7 * * *" }]
 }
