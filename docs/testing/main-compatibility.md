@@ -1,5 +1,37 @@
 # #167 compatibility with main #195
 
+## Oct 28: pending route owns navigation during mutation settlement
+
+Product correction `935d5475`, based on compatibility `e06982c6`, prevents the old
+Requests URL mirror from restoring the list over an issued Inbox/detail/settings
+route. Presentation invalidation, including delayed preview cleanup, cancels stale
+work and focus without dropping that route ownership. An explicit newer list choice
+or native history still supersedes it; destination acknowledgement releases it.
+
+The local signed-in run ended on the saved-view list after held Done delivery,
+despite the intended Inbox activation. Its original click/history ordering was not
+recorded. A later ordinary Inbox activation succeeded with zero lifecycle writes.
+Two production-controller regressions independently reproduced the competing list
+write after the route push, including the late-preview variant. Installed Next's
+patched `replaceState` dispatches a router restore, establishing the conflicting
+writer mechanism; attributing the historical browser failure to that ordering
+remains an inference until a fresh held-action replay. Done remains saved, its Undo
+expired, and no hidden Undo, fixture reset or replay was used.
+
+Final Node 24 checks on this product source pass: focused 78/4 files, full UI 971/92,
+TypeScript, full ESLint, design (42 tests plus theme/Arc/brand contracts), and masked
+production build. No database suite was rerun for this client-only delta. Earlier
+application results retain their recorded source boundaries. All 17 routes remain:
+the inherited proposal passes at +20 bytes for Requests/detail. Original existing
+routes are within (+360/+380), while its three absent main routes correctly fail.
+Fresh `f638003c` main detail is +2,218 (170 over 2,048); committed main detail is
++2,574 (526 over); other routes fit. No new baseline was written or approved.
+Receipts: `/private/tmp/lane-spec-167-navigation-diagnosis.md`, the sibling
+`navigation-bundle-comparison.json`, and `navigation-final-*.log`. Review and signed-in
+held-action replay remain pending; this does not accept #175 or compatibility.
+
+## Earlier compatibility preparation
+
 This isolated merge combines through-#175 `f7ad5a9` with main `3e6de934`, then
 incorporates reviewed #175 toast correction `6e1f197` and consumer fix `97a7c17`. It preserves
 both histories and main's approved Metrics, Inbox, Guest/Viewer, billing, first-run,
