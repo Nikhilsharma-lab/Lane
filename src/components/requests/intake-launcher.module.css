@@ -3,6 +3,15 @@
   min-width: 0;
   min-height: 100%;
   place-items: center;
+  align-content: center;
+  gap: var(--space-6);
+}
+
+/* #217: the first-run guide below the launcher, inside the page's gutter. */
+.guide {
+  width: 100%;
+  min-width: 0;
+  padding: 0 var(--space-6) var(--space-6);
 }
 
 .emptyState {

@@ -66,7 +66,7 @@ async function expectRequestLanes(row: Locator) {
  */
 async function expectNotificationLanes(row: Locator) {
   const lead = row.locator('span[aria-hidden="true"]').first();
-  const content = row.locator("[data-notification-open]");
+  const content = row.locator("[data-inbox-open]");
   const toggle = row.getByRole("button", { name: /^Mark .+ (read|unread)$/ });
 
   await expect(lead).toHaveCSS("width", "16px");
@@ -131,16 +131,17 @@ test("rows and identities keep one contract on every surface", async ({
         { animations: "disabled" }
       );
 
-      // Plan item 2.7 (decision D7): the popover's rows carry data-notification-row; the trigger
-      // reads "Notifications, N unread" while the seeded notification is unread.
-      const notifications = page.getByRole("button", {
-        name: /^Notifications/,
+      // Plan item 2.7 (decision D7), #204 and #205: the Inbox page's rows carry data-inbox-item; the seeded
+      // notification is For your information (the bell link counts only Needs-you items, "Inbox, N need you").
+      const notifications = page.getByRole("link", {
+        name: /^Inbox/,
       });
       if (surface.viewport.width < 640) {
         await page.getByRole("button", { name: "Expand sidebar", exact: true }).click();
       }
       await notifications.click();
-      const notificationRow = page.locator("[data-notification-row]").first();
+      await expect(page).toHaveURL(/\/inbox$/);
+      const notificationRow = page.getByRole("region", { name: "For your information" }).locator("[data-inbox-item]").first();
       await expect(notificationRow).toBeVisible();
       await expectNotificationLanes(notificationRow);
       const readAction = notificationRow.getByRole("button", {

@@ -7,6 +7,11 @@
 > are core target requirements. Predictions begin at creation; the submitter owns results and closure.
 > Reasoned exception outcomes may close but are excluded from measured-impact totals.
 > **2026-10-21:** optional reviewers replace trio alignment and every later trio plan (`REQUIREMENTS.md` §4.4).
+> **2026-10-25:** the before-launch sequence is the approved consolidated spec, GitHub #195: Metrics library →
+> Inbox with email and Slack DM → Outcome report → Roles → Pricing and billing → First-run onboarding → Related
+> links → Saved views. Pilot teams get the first three before anyone is charged. Nikhil chose to build all eight
+> together on one integration branch (PR #220), with paid services switched off until each is approved;
+> after-launch items wait for real teams to ask (`docs/product-vision-spec.md`).
 
 `REQUIREMENTS.md` defines Lane's confirmed behaviour. This roadmap sequences focused increments through
 the product thesis: one source of truth, measurable impact, problem-first Intake and support for design

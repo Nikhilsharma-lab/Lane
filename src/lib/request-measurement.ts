@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { GUARDRAIL_OPERATORS } from "./guardrail-comparison";
 
-export const MEASUREMENT_METRIC_KEYS = ["conversion", "adoption", "error", "support", "csat", "duration", "events", "custom", "check", ""] as const;
+/** "definition" (v5, #198) names a Metric definition; the built-in keys and "custom" are how v2–v4 plans saved metrics. */
+export const MEASUREMENT_METRIC_KEYS = ["conversion", "adoption", "error", "support", "csat", "duration", "events", "custom", "check", "definition", ""] as const;
 export const MEASUREMENT_UNITS = ["percent", "count", "seconds", "minutes", ""] as const;
 export type MeasurementMetricKey = typeof MEASUREMENT_METRIC_KEYS[number];
 export type MeasurementUnit = typeof MEASUREMENT_UNITS[number];
@@ -19,11 +20,16 @@ export const MEASUREMENT_METRIC_OPTIONS: { value: Exclude<MeasurementMetricKey, 
   { value: "custom", label: "Add custom metric…" },
 ];
 export const GUARDRAIL_METRIC_OPTIONS = MEASUREMENT_METRIC_OPTIONS.filter(({ value }) => value !== "check");
+/** The saved-prediction version new and edited plans are saved in (#198): metrics name Metric definitions. */
+export const CURRENT_MEASUREMENT_VERSION = 5;
+const DEFINITION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const numberDraft = z.number().finite().nullable();
 const metricFields = {
   key: z.enum(MEASUREMENT_METRIC_KEYS), name: z.string().max(120),
   unit: z.enum(MEASUREMENT_UNITS), current: numberDraft,
+  /** v5: the Metric definition picked; `name` and `unit` are its copies at prediction time. Absent before v5. */
+  definitionId: z.string().regex(DEFINITION_ID).nullable().optional(),
 };
 const primaryDraftSchema = z.object({
   ...metricFields, target: numberDraft, noBaseline: z.boolean(),
@@ -34,7 +40,7 @@ const guardrailDraftSchema = z.object({
   operator: z.enum(GUARDRAIL_OPERATORS), limit: numberDraft,
 });
 export const measurementPlanDraftSchema = z.object({
-  kind: z.literal("measurement"), version: z.union([z.literal(2), z.literal(3), z.literal(4)]),
+  kind: z.literal("measurement"), version: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   primary: primaryDraftSchema,
   measurement: z.object({
     audience: z.enum(["all", "new", "returning", "custom"]),
@@ -72,6 +78,7 @@ export function measurementUnitOptions(key: MeasurementMetricKey): { value: Excl
 }
 export function measurementMetricLabel(metric: Pick<MeasurementPrimaryDraft, "key" | "name" | "unit">): string {
   if (metric.key === "custom") return metric.name.trim() || "Custom metric";
+  if (metric.key === "definition") return metric.name.trim() || "Metric";
   if (metric.unit === "count") {
     const counts = { conversion: "Conversions", adoption: "Users who adopted", error: "Users with errors", support: "Users who contacted support", csat: "Satisfied responses" };
     if (metric.key in counts) return counts[metric.key as keyof typeof counts];
@@ -79,14 +86,25 @@ export function measurementMetricLabel(metric: Pick<MeasurementPrimaryDraft, "ke
   return MEASUREMENT_METRIC_OPTIONS.find(({ value }) => value === metric.key)?.label ?? "Choose metric";
 }
 export function createMeasurementPrimary(key: MeasurementMetricKey = ""): MeasurementPrimaryDraft {
-  return { key, name: "", unit: key === "custom" || key === "check" || key === "" ? "" : key === "duration" ? "seconds" : key === "events" ? "count" : "percent", current: null, target: null, noBaseline: false, check: "" };
+  return { key, definitionId: null, name: "", unit: key === "custom" || key === "check" || key === "definition" || key === "" ? "" : key === "duration" ? "seconds" : key === "events" ? "count" : "percent", current: null, target: null, noBaseline: false, check: "" };
 }
 export function createMeasurementGuardrail(key: MeasurementMetricKey = ""): MeasurementGuardrailDraft {
   const { name, unit, current } = createMeasurementPrimary(key);
-  return { key, name, unit, current, noBaseline: false, operator: "at_most", limit: null };
+  return { key, definitionId: null, name, unit, current, noBaseline: false, operator: "at_most", limit: null };
 }
 export function createEmptyMeasurementPlan(): MeasurementPlanDraft {
-  return { kind: "measurement", version: 4, primary: createMeasurementPrimary(), measurement: { audience: "all", audienceName: "", platform: "all", platformName: "", windowDays: 30, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };
+  return { kind: "measurement", version: CURRENT_MEASUREMENT_VERSION, primary: createMeasurementPrimary(), measurement: { audience: "all", audienceName: "", platform: "all", platformName: "", windowDays: 30, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };
+}
+
+/**
+ * A metric with this Metric definition picked (#198): the reference plus a copy of its name and unit.
+ * Values entered in the same unit stay; others convert (seconds and minutes) or clear, as a unit change does.
+ */
+export function pickDefinition<T extends { key: string; unit: string; current: number | null; target?: number | null; limit?: number | null; check?: string; definitionId?: string | null; name: string }>(
+  metric: T, definition: { id: string; name: string; unit: Exclude<MeasurementUnit, ""> },
+): T & { key: "definition"; definitionId: string } {
+  const values = metric.key === "check" || metric.key === "" ? { ...metric, unit: definition.unit } : changeMetricUnit(metric, definition.unit);
+  return { ...values, ...("check" in metric ? { check: "" } : {}), key: "definition", definitionId: definition.id, name: definition.name, unit: definition.unit };
 }
 
 /** Unit changes never reinterpret 42 percent as 42 people. */
@@ -119,6 +137,11 @@ export const measurementPlanSchema = measurementPlanDraftSchema.extend({
   const issue = (path: (string | number)[], message: string) => context.addIssue({ code: "custom", path, message });
   const validateMetric = (metric: MeasurementPrimaryDraft | MeasurementGuardrailDraft, path: (string | number)[], guardrail: boolean) => {
     if (!metric.key) issue([...path, "key"], "Choose a metric");
+    // v5 metrics come only from the Metrics library (or the Pass/fail check); older versions never name a definition.
+    if (plan.version >= 5 ? metric.key !== "" && metric.key !== "check" && metric.key !== "definition" : metric.key === "definition")
+      issue([...path, "key"], "Choose a metric from the Metrics library");
+    if (metric.key === "definition" ? !metric.definitionId : metric.definitionId != null) issue([...path, "key"], "Choose a metric from the Metrics library");
+    if (metric.key === "definition" && !metric.name.trim()) issue([...path, "key"], "Choose a metric from the Metrics library");
     if (metric.key === "check") {
       if (guardrail) issue([...path, "key"], "Choose a numeric guardrail metric");
       else if (!(metric as MeasurementPrimaryDraft).check) issue([...path, "check"], "Choose a pass/fail check");

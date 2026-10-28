@@ -66,7 +66,8 @@ it("saves and reloads the complete editor fields on an older Request", async () 
     const editor = measurementEditorValue(original);
     editor.measurement = { ...editor.measurement, audience: "custom", audienceName: "Returning buyers", platform: "web", exactDates: true, startDate: "2026-10-01", endDate: "2026-10-15" };
     editor.guardrails[0].current = 2;
-    editor.guardrails.push({ ...editor.guardrails[0], name: "Additional guardrail", limit: 5 });
+    // A metric added now comes from the Metrics library (#198); this older format saves its name.
+    editor.guardrails.push({ ...editor.guardrails[0], key: "events", name: "Action count", unit: "count", limit: 5 });
     const changes = requestEditSchema.parse({ ...input(), expectedImpact: measurementEditorChanges(editor, original) });
     const result = await (await import("./edit-actions")).saveRequestEdits(id, { snapshot: requestEditSnapshot({ ...input(), expectedImpact: original }), changes }, { orgId: "org-edit" });
     expect(result).toMatchObject({ success: true });
@@ -108,11 +109,20 @@ it("promotes a completed historical draft and rejects stale partial saves", asyn
     await sql`update requests set expected_impact=null, measurement_draft=${sql.json(draft)} where id=${id}`;
     const stored = { ...input(), expectedImpact: null, measurementDraft: draft };
     const action = (await import("./edit-actions")).saveRequestEdits;
-    const completed = { ...draft, metric: "Revenue", unit: "USD", target: 20, reviewAfterDays: 14 };
+    const completed = { ...draft, metric: "Action count", unit: "count", target: 20, reviewAfterDays: 14 };
     expect(await action(id, { snapshot: requestEditSnapshot(stored), changes: { ...input(), expectedImpact: completed } }, { orgId: "org-edit" })).toEqual({ success: true });
     const [row] = await sql`select expected_impact,measurement_draft from requests where id=${id}`;
     expect(row).toEqual({ expected_impact: completed, measurement_draft: null });
     expect(await action(id, { snapshot: requestEditSnapshot(stored), changes: { ...input(), expectedImpact: draft } }, { orgId: "org-edit" })).toHaveProperty("error");
+});
+it("refuses a typed metric the Metrics library doesn't have on an older Request (#198)", async () => {
+    const original = { kind: "metric" as const, metric: "Revenue per visit", baseline: 0, target: 12.5, unit: "USD / visit", source: "Saved report", reviewAfterDays: 45 };
+    await sql`update requests set expected_impact=${sql.json(original)} where id=${id}`;
+    const action = (await import("./edit-actions")).saveRequestEdits;
+    const snapshot = requestEditSnapshot({ ...input(), expectedImpact: original });
+    expect(await action(id, { snapshot, changes: { ...input(), expectedImpact: { ...original, metric: "Revenue per order" } } }, { orgId: "org-edit" })).toEqual({ error: "Pick each metric from the Metrics library." });
+    // Keeping the saved typed metric, or picking one from the library, is fine.
+    expect(await action(id, { snapshot, changes: { ...input(), expectedImpact: { ...original, target: 13 } } }, { orgId: "org-edit" })).toEqual({ success: true });
 });
 
 it("allows a workspace admin to edit another creator's Open Request without changing ownership", async () => {

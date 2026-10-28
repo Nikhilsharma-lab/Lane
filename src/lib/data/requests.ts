@@ -9,9 +9,11 @@ import type { MemberAuth } from "@/lib/auth-guard"
 import type { Reviewer, ReviewState } from "@/lib/request-reviewer-rules"
 import { reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
+import { currentMetricNames } from "@/lib/metrics-library"
 import { journeyStatus } from "@/lib/request-journey"
 import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
 import type { FinishedView } from "@/lib/request-workspace"
+import { guestPickupRefusal, type GuestSubmissionState } from "@/lib/guest-submission"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
 // Plan item 1.9: the Requests workspace reads moved here from
@@ -45,14 +47,17 @@ const isActive = (row: Parameters<typeof journeyStatus>[0]) => ["open", "in_prog
 type ListRowRecord = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>[number]
 /** A list row carries why it can't be picked up yet and what its reviews leave
  * outstanding, never its measurement plan or its reviewers. */
-export type RequestListRow = Omit<ListRowRecord, "expectedImpact" | "reviewers"> & { pickupBlockedReason: string | null; reviewState: ReviewState | null }
+export type RequestListRow = Omit<ListRowRecord, "expectedImpact" | "reviewers" | "noMeasurableImpactReason"> & { pickupBlockedReason: string | null; reviewState: ReviewState | null }
 
 /** An Open Request's saved reviewers; after pickup nothing is outstanding. */
 const openReviewers = sql<Reviewer[] | null>`case when ${requests.status} = 'open' then (select ${requestAgreements.reviewers} from ${requestAgreements} where ${requestAgreements.requestId} = ${requests.id} and ${requestAgreements.orgId} = ${requests.orgId}) end`
 
-/** The pickup readiness every surface shows and the server enforces (request-lifecycle.ts). */
-function pickupBlockedReason(request: { status: string; expectedImpact: unknown; requestType: string | null }) {
-  return request.status === "open" ? measurementReadiness(request.expectedImpact, request.requestType) : null
+/** #212: a Guest submission still waiting to be taken on, one a Member took on, or not a Guest submission (null). */
+const guestSubmissionState = sql<GuestSubmissionState | null>`case when ${requests.guestSubmission} then case when ${requests.takenOnBy} is null then 'waiting' else 'taken_on' end end`
+
+/** The pickup readiness every surface shows and the server enforces (request-lifecycle.ts), a Guest submission's first (#212). */
+function pickupBlockedReason(request: { status: string; expectedImpact: unknown; requestType: string | null; guestSubmission: GuestSubmissionState | null; noMeasurableImpactReason: string | null }) {
+  return request.status === "open" ? guestPickupRefusal(request) ?? measurementReadiness(request.expectedImpact, request.requestType) : null
 }
 
 /** The saved reviewers stay on the server; screens get the review state. */
@@ -65,7 +70,7 @@ function withoutReviewers<T extends { reviewers: unknown }>({ reviewers, ...rest
  * the workspace (reviewStatesOf), the same rule as the reviewers panel. */
 async function toListRows(auth: MemberAuth, rows: ListRowRecord[]): Promise<RequestListRow[]> {
   const states = await reviewStatesOf(auth.orgId, rows)
-  return rows.map(({ expectedImpact, ...row }) => ({ ...withoutReviewers(row), pickupBlockedReason: pickupBlockedReason({ ...row, expectedImpact }), reviewState: states.get(row.id) ?? null }))
+  return rows.map(({ expectedImpact, noMeasurableImpactReason, ...row }) => ({ ...withoutReviewers(row), pickupBlockedReason: pickupBlockedReason({ ...row, expectedImpact, noMeasurableImpactReason }), reviewState: states.get(row.id) ?? null }))
 }
 
 export type RequestList = {
@@ -110,6 +115,8 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
       labelKeys: requests.labelKeys,
       priority: requests.priority,
       expectedImpact: requests.expectedImpact,
+      noMeasurableImpactReason: requests.noMeasurableImpactReason,
+      guestSubmission: guestSubmissionState,
     })
     .from(requests)
     .leftJoin(profiles, eq(requests.createdBy, profiles.id))
@@ -175,6 +182,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   if (!UUID_RE.test(requestId)) return null
   const creator = alias(profiles, "request_detail_creator")
   const selectedAssignee = alias(profiles, "request_detail_assignee")
+  const taker = alias(profiles, "request_detail_taker")
   const visible = and(eq(requests.id, requestId), seeable(auth))
   const [[request], requestComments, attachments] = await Promise.all([
     db
@@ -210,6 +218,9 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
         createdBy: requests.createdBy,
         createdAt: requests.createdAt,
         creatorName: creator.fullName,
+        guestSubmissionState,
+        takenOnBy: requests.takenOnBy,
+        takenOnByName: taker.fullName,
         assigneeName: selectedAssignee.fullName,
         assigneeAvatarUrl: selectedAssignee.avatarUrl,
         projectId: requests.projectId,
@@ -219,6 +230,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
       })
       .from(requests)
       .leftJoin(creator, eq(requests.createdBy, creator.id))
+      .leftJoin(taker, eq(requests.takenOnBy, taker.id))
       .leftJoin(
         selectedAssignee,
         eq(requests.assignedTo, selectedAssignee.id)
@@ -259,6 +271,14 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   ])
 
   if (!request) return null
-  const reviewState = (await reviewStatesOf(auth.orgId, [request])).get(request.id) ?? null
-  return { request: { ...withoutReviewers(request), reviewState, pickupBlockedReason: pickupBlockedReason(request) }, comments: requestComments, attachments }
+  const [states, metricNames] = await Promise.all([
+    reviewStatesOf(auth.orgId, [request]),
+    // The definitions' current names (#198); no statement unless the prediction names one.
+    currentMetricNames({ orgId: auth.orgId }, [request.expectedImpact]),
+  ])
+  const reviewState = states.get(request.id) ?? null
+  const { guestSubmissionState: state, takenOnByName, ...saved } = withoutReviewers(request)
+  // #212: who filed it and who took it on, for the Request's Guest submission notice.
+  const guestSubmission = state ? { state, submitterName: request.creatorName, takenOnBy: request.takenOnBy, takenOnByName } : null
+  return { request: { ...saved, guestSubmission, reviewState, metricNames, pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
 }

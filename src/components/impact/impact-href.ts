@@ -1,5 +1,5 @@
-import type { ImpactPeriod } from "@/lib/impact-read-model"
-import { periodKey } from "./impact-period"
+import type { ImpactPeriod } from "@/lib/impact-period"
+import { periodKey } from "./period-picker"
 
 /** The Dashboard's own address for a period and an optional teammate: the route reads both from the query. */
 export function impactHref({ period, person }: { period: ImpactPeriod | null; person?: string | null }): string {

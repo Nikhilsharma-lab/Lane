@@ -6,6 +6,7 @@ import { memo, useEffect, useId, useRef, useState } from "react"
 import { Check, Copy, RotateCcw } from "lucide-react"
 import { formatRequestCode } from "@/lib/request-code"
 import { concernMarker } from "@/lib/request-reviewer-rules"
+import { WAITING_TO_BE_TAKEN_ON } from "@/lib/guest-submission"
 import { Badge } from "@/components/arc/badge/badge"
 import { rowDue, rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants"
@@ -165,8 +166,9 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
         <button type="button" tabIndex={-1} className={styles.identityControl} data-status={journey.status} aria-haspopup="menu" aria-label={`Status: ${status.label}`}><StatusGlyph status={journey.status} /></button>
       </GlyphMenu>}
     {columns[0].render(request, filter, projectFilter)}
-    {/* Sketch reservation (2026-10-11): a later "waiting" token joins these as data-row-property="waiting"; see request-rows.module.css. */}
+    {/* The sketch's reserved "waiting" token (2026-10-11): a Guest submission waiting to be taken on (#212); see request-rows.module.css. */}
     <div className={styles.properties}>
+      {request.guestSubmission === "waiting" && <span data-row-property="waiting" aria-hidden="true"><Badge size="sm" tone="warning">{WAITING_TO_BE_TAKEN_ON}</Badge></span>}
       {concerns && <span data-row-property="concerns" aria-hidden="true"><Badge size="sm" tone="warning">{concerns}</Badge></span>}
       {due.kind !== "none" && <span data-row-property="due" aria-hidden="true"><DueTag signal={due} /></span>}
       {columns.filter(column => column.key !== "title" && (!presentation || (column.key !== "status" && !unset(column.key))) && visibility[column.key] !== false).map(column => <span key={column.key} data-row-property={column.key}>{column.render(request, filter, projectFilter)}</span>)}

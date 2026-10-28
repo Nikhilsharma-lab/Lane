@@ -5,14 +5,16 @@
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, Search, UserRound, Palette, ShieldCheck, Building2, Users, Clock } from "lucide-react";
+import { ArrowLeft, Search, UserRound, Palette, ShieldCheck, Building2, Users, Clock, ChartLine, Mail, MessageSquare, CreditCard } from "lucide-react";
 import { SettingsCommandPalette, relativeRect, type Rect, type Closing, type Result } from "@/components/arc/blocks/settings-command/settings-command";
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { WorkspaceIdentifier } from "./workspace-identifier";
 import { Badge } from "@/components/arc/badge/badge";
-import { settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection } from "./settings-catalog";
+import { settingsHref, settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection, showsSettingsInPlace, settingsSectionAt } from "./settings-catalog";
 import { SettingsCard } from "./settings-card";
 import { FutureSettings } from "./coming-soon-panel";
+import type { WorkspacePermission } from "@/lib/auth-guard";
+import { ROLE_NAMES } from "@/lib/role-rules";
 import styles from "./settings.module.css";
 
 function subscribe(listener: () => void) {
@@ -20,7 +22,9 @@ function subscribe(listener: () => void) {
   window.addEventListener(sectionEvent, listener);
   return () => { window.removeEventListener("popstate", listener); window.removeEventListener(sectionEvent, listener); };
 }
-const snapshot = () => new URLSearchParams(window.location.search).get("section") || (window.location.pathname === "/settings/members" ? "members" : "profile");
+const snapshot = () => new URLSearchParams(window.location.search).get("section")
+  || settingsSectionAt(window.location.pathname)
+  || (window.location.pathname === "/settings/members" ? "members" : "profile");
 
 /** / opens Settings search; ⌘K and Ctrl K are left to the app's command palette (issue #101). */
 export function opensSettingsSearch(event: { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean }, typing: boolean) {
@@ -28,12 +32,20 @@ export function opensSettingsSearch(event: { key: string; metaKey: boolean; ctrl
 }
 
 export type SettingsCommandAdapterProps = {
-  membership: string; workspaceName: string; workspaceId?: string; initialSection?: string; page?: "profile" | "members";
+  membership: string; workspaceName: string; workspaceId?: string; initialSection?: string; page?: "profile" | "members" | "metrics";
   account?: ReactNode; role?: ReactNode; appearance?: ReactNode; security?: ReactNode; members?: ReactNode; workspaceManagement?: ReactNode;
+  /** Rendered only by the Metrics page (/settings/metrics), which loads the library. */
+  metrics?: ReactNode;
+  /** #206 Inbox delivery: the person's choice for this workspace (Members and Admins). */
+  delivery?: ReactNode;
+  /** #207 Slack: the workspace's Slack connection (Admins only; pages render nothing for anyone else). */
+  slack?: ReactNode;
+  /** #213 Billing: the workspace's Free Requests left (Admins only; pages render nothing for anyone else). */
+  billing?: ReactNode;
 };
 
 /** Arc SettingsCommand frame, section navigation and search composition; Lane supplies permission-filtered rows and immediate saves. */
-export function SettingsCommandAdapter({ membership, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement }: SettingsCommandAdapterProps) {
+export function SettingsCommandAdapter({ membership, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
   const section = useSyncExternalStore(subscribe, snapshot, () => initialSection);
   const entries = useMemo(() => settingsEntries(membership), [membership]);
   const nav = useMemo(() => settingsNavigation(membership), [membership]);
@@ -41,7 +53,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
   const resolvedSection = requested?.soon ? "coming-soon" : section;
   const selected = nav.find(e => e.id === resolvedSection) ?? nav[0];
   const current = selected.id;
-  const icons = { profile: UserRound, preferences: Palette, "account-security": ShieldCheck, workspace: Building2, members: Users, "coming-soon": Clock };
+  const icons = { profile: UserRound, preferences: Palette, "account-security": ShieldCheck, workspace: Building2, members: Users, metrics: ChartLine, "inbox-delivery": Mail, slack: MessageSquare, billing: CreditCard, "coming-soon": Clock };
   const uid = useId();
   const reduce = !!useReducedMotion();
   const frame = useRef<HTMLDivElement>(null);
@@ -86,6 +98,9 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     if (!destination.current) requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
   }, []);
   function pick(result: Result) {
+    // A section with its own page (Metrics) loads there; every other section shows in place.
+    const href = settingsHref(result.def.section);
+    if (!showsSettingsInPlace(href, window.location.pathname)) { window.location.assign(href); return; }
     destination.current = result.def.target ?? `settings-${result.def.section}`;
     select(result.def.section);
     if (frame.current && trigger.current) setClosing({ to: relativeRect(trigger.current, frame.current), mode: "row" });
@@ -102,8 +117,12 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     profile: <>{account}<div id="role" tabIndex={-1}>{role}</div></>,
     preferences: <div id="theme" tabIndex={-1}>{appearance}</div>,
     "account-security": security,
-    workspace: <><SettingsCard title="Workspace details" description="Your current workspace and membership." footer="Workspace access is separate from your profile role."><div className={styles.rows}><div className={styles.row}><strong>Workspace name</strong><span className={styles.value}>{workspaceName}</span></div><div className={styles.row}><strong>Your access</strong><Badge>{membership === "admin" ? "Admin" : membership === "guest" ? "Guest" : "Member"}</Badge></div>{workspaceId && <WorkspaceIdentifier value={workspaceId} />}</div></SettingsCard>{workspaceManagement}</>,
+    workspace: <><SettingsCard title="Workspace details" description="Your current workspace and membership." footer="Workspace access is separate from your profile role."><div className={styles.rows}><div className={styles.row}><strong>Workspace name</strong><span className={styles.value}>{workspaceName}</span></div><div className={styles.row}><strong>Your access</strong><Badge>{ROLE_NAMES[membership as WorkspacePermission] ?? "Member"}</Badge></div>{workspaceId && <WorkspaceIdentifier value={workspaceId} />}</div></SettingsCard>{workspaceManagement}</>,
     members,
+    metrics,
+    "inbox-delivery": delivery,
+    slack,
+    billing,
     "coming-soon": <FutureSettings entries={entries.filter(entry => entry.soon)} />,
   };
 
@@ -122,8 +141,13 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     <aside className={styles.sidebar} inert={!!palette}>
       <nav aria-label="Settings" className={styles.navigation}><LayoutGroup id={`${uid}-nav`}>{[...new Set(nav.map(entry => entry.group))].map(group => <div key={group} className={styles.navGroup}><h2 className={styles.navGroupTitle}>{group}</h2><ul>
         {nav.filter(entry => entry.group === group).map(entry => { const Icon = icons[entry.id as keyof typeof icons]; return <li key={entry.id}>
-          <Link className={styles.navItem} href={`/settings/profile?section=${entry.id}`} aria-current={current === entry.id ? "page" : undefined}
-            onClick={event => { if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); select(entry.id); }}>
+          <Link className={styles.navItem} href={settingsHref(entry.id)} aria-current={current === entry.id ? "page" : undefined}
+            onClick={event => {
+              if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              // A section with its own page is a real navigation from anywhere else.
+              if (!showsSettingsInPlace(settingsHref(entry.id), window.location.pathname)) return;
+              event.preventDefault(); select(entry.id);
+            }}>
             {current === entry.id && <motion.span className={styles.navHighlight} layoutId="selection" transition={reduce ? { duration: 0 } : motionTokens.spring.morph} aria-hidden="true" />}
             <Icon aria-hidden="true" /><span>{entry.label}</span>
           </Link>

@@ -2,7 +2,7 @@
 
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db, projects } from "@/db";
-import { guardActiveMember } from "@/lib/auth-guard";
+import { guardActiveMember, guardCanContribute } from "@/lib/auth-guard";
 import { accessibleProjectsWhere } from "@/lib/project-access";
 import { projectInputSchema, type ProjectOption } from "@/lib/request-properties";
 
@@ -34,7 +34,7 @@ export async function createProject(
   input: { name: string; description?: string | null },
   context: { orgId: string },
 ): Promise<CreateProjectResponse> {
-  const auth = await guardActiveMember(context.orgId, "You do not have access to this workspace.");
+  const auth = await guardCanContribute(context.orgId, "You do not have access to this workspace.");
   if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionError : { code: "validation", message: auth.error } };
   const parsed = projectInputSchema.safeParse(input);
   if (!parsed.success) {

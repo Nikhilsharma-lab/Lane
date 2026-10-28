@@ -10,7 +10,7 @@ vi.mock("react", async importOriginal => {
 })
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(reads.search) }))
 
-import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, type ListViewState } from "./list-view-state"
+import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, withSavedView, type ListViewState } from "./list-view-state"
 import type { OverviewRequest } from "@/lib/request-overview"
 
 beforeEach(() => { reads.names = []; reads.search = "" })
@@ -30,6 +30,28 @@ describe("Request list view contexts (plan item 1.14)", () => {
     expect(renderInProvider(() => { const context = useRequestListContext(); return `${context?.status}:${context?.project}` })).toBe("in_progress:none")
     expect(reads.names).toEqual(["RequestListContext"])
     expect(renderInProvider(() => { const [view] = useRequestListView(); return `${view.status}:${view.project}:${view.grouping}` })).toBe("in_progress:none:status")
+  })
+})
+
+describe("an open saved view (#219)", () => {
+  const view = { status: "done", project: "none", pagination: { pageIndex: 2, pageSize: 25 } } as ListViewState
+  const saved = { id: "view-1", name: "Open work", filters: { status: "open" as const, project: "11111111-1111-4111-8111-111111111111" } }
+
+  it("applies its filters on the first page and remembers which view is open", () => {
+    expect(withSavedView(view, saved)).toMatchObject({ status: "open", project: saved.filters.project, savedView: "view-1", pagination: { pageIndex: 0, pageSize: 25 } })
+  })
+
+  it("stays open while the person changes the filters, so the change can be saved into it", () => {
+    expect(withListContext(withSavedView(view, saved), { status: "closed" })).toMatchObject({ status: "closed", savedView: "view-1" })
+  })
+
+  it("closes without touching the filters", () => {
+    expect(withSavedView(withSavedView(view, saved), null)).toMatchObject({ status: "open", project: saved.filters.project, savedView: undefined })
+  })
+
+  it("is part of the list context", () => {
+    reads.search = "status=open"
+    expect(renderInProvider(() => { const context = useRequestListContext(); return `${context.status}:${context.savedView ?? "none"}` })).toBe("open:none")
   })
 })
 

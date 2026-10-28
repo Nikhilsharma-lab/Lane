@@ -2,13 +2,14 @@ import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { cache } from "react";
 
 import { db, workspaces } from "@/db";
-import { clerkWorkspacePermission, type MemberAuth } from "@/lib/auth-guard";
+import { clerkWorkspacePermission, type MemberAuth, type WorkspacePermission } from "@/lib/auth-guard";
 import { loadShell } from "@/lib/data/shell";
+import { decideFreeRequests } from "@/lib/billing";
 
 export type WorkspaceContext = {
   userId: string;
   orgId: string;
-  role: "admin" | "member" | "guest";
+  role: WorkspacePermission;
   /** The functional label chosen at onboarding; Settings → Profile edits it. */
   profileRole: "pm" | "designer" | "developer";
   fullName: string;
@@ -90,6 +91,8 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
       })
       .returning({ name: workspaces.name });
     workspaceName = workspace.name;
+    // #213: the first time Lane sees a workspace, its Free Requests are decided from its Clerk creator.
+    await decideFreeRequests({ orgId }, { createdBy: organization.createdBy, userId, email: shell.email });
   }
 
   return {

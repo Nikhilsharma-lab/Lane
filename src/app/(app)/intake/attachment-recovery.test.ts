@@ -1,428 +1,133 @@
-import { describe, expect, it } from "vitest";
-import { createUploadSession, type QueuedAttachment } from "./intake-uploads";
+import { expect, it } from "vitest";
+import { readUnfinishedUploads, writeUnfinishedUploads, clearUnfinishedUploads, type UnfinishedUploads } from "@/lib/unfinished-uploads";
+import { createIntakeSession, type QueuedAttachment } from "./intake-uploads";
 
-type Attachment = {
-  key: string;
-  status: "failed" | "uploaded" | "queued" | "uploading";
-  attachmentId: string | null;
-  error?: string | null;
-  file?: { name: string; type: string; size: number };
-};
-type UploadsRecord = { requestId: string; title: string; files: { key: string; name: string; attachmentId: string | null }[] };
+const files = (keys = ["a", "b"]): QueuedAttachment[] => keys.map(key => ({ key, file: new File([`bytes-${key}`], `${key}.png`, { type: "image/png" }), status: "queued", progress: 0, attachmentId: null, error: null }));
 
-const fileOf = (key: string) => ({ name: `${key}.png`, type: "image/png", size: 5 });
-const failed = (key: string): Attachment => ({ key, status: "failed", attachmentId: null, file: fileOf(key) });
-
-/**
- * The upload session (intake-uploads.ts) with fake attachment actions, storage
- * and record. `confirm` is the composer's save step around uploadSaved: it
- * holds the one-operation lock, saves, then uploads every file, as onConfirm.
- */
-function recoveryHarness(files: Attachment[]) {
-  const state = {
-    files: files.map((file) => ({ ...file })),
-    stage: "attachment_recovery",
-    failure: null as unknown,
-    createdRequestId: "saved-request",
-    navigations: [] as string[],
-    cleanupIds: [] as string[],
-    failCleanup: new Set<string>(),
-    rejectCleanup: false,
-    alreadyUploaded: false,
-    uploadCalls: 0,
-    saveCalls: 0,
-    failUpload: true,
-    /** Upload outcomes in order; once empty, failUpload decides. */
-    outcomes: [] as boolean[],
-    failFinalize: false,
-    rejectFinalize: false,
-    recordCleared: 0,
-    // The unfinished-uploads record as the upload screen last wrote it.
-    record: {
-      requestId: "saved-request",
-      title: "",
-      files: files.map(({ key, file, attachmentId }) => ({ key, name: file?.name ?? key, attachmentId })),
-    } as UploadsRecord | null,
-    busy: [] as boolean[],
-    onSave: undefined as (() => void) | undefined,
-    onUpload: undefined as (() => void) | undefined,
-  };
-  const refs = {
-    operationInFlight: { current: false },
-    leftUploadScreen: { current: false },
-    unmounted: { current: false },
-    uploadsRequest: { current: null as string | null },
-    reservations: { current: new Map<string, string>() },
-  };
-  const session = () => createUploadSession({
-    refs,
-    prepare: async ({ fileName }) => ({ success: true, attachmentId: `reservation-${fileName.split(".")[0]}`, signedUrl: "https://test.invalid/upload", mimeType: "image/png" } as never),
-    put: async () => {
-      state.uploadCalls++;
-      state.onUpload?.();
-      const outcome = state.outcomes.length ? state.outcomes.shift() : !state.failUpload;
-      if (!outcome) throw new Error("upload network failure");
-    },
-    finalize: async () => {
-      if (state.failFinalize) throw new Error("Finalization response lost");
-      if (state.rejectFinalize) return { success: false, error: { code: "storage_unavailable", message: "Lane could not finish this upload." } } as never;
-      return { success: true } as never;
-    },
-    discard: async ({ attachmentId }) => {
-      state.cleanupIds.push(attachmentId);
-      if (state.failCleanup.has(attachmentId)) throw new Error("cleanup unavailable");
-      if (state.alreadyUploaded) return { success: true, alreadyUploaded: true } as never;
-      return (state.rejectCleanup
-        ? { success: false, error: { code: "session_expired", message: "Sign in again to remove this file." } }
-        : { success: true }) as never;
-    },
-    record: {
-      read: () => state.record,
-      write: (record) => { state.record = record.files.length ? record : null; },
-      clear: () => { state.recordCleared++; state.record = null; },
-    },
-    setAttachments: (update) => { state.files = update(state.files as unknown as QueuedAttachment[]) as unknown as Attachment[]; },
-    setBusy: (busy) => { state.busy.push(busy); },
-    finish: (id) => state.navigations.push(id),
+/** Only external transport/storage are controlled; save/retry/cleanup use the production owner. */
+function fixture(overrides: Partial<Parameters<typeof createIntakeSession>[0]> = {}) {
+  let record: UnfinishedUploads | null = null;
+  const prepared: string[] = [], transferred: string[] = [], discarded: string[] = [], finished: string[] = [];
+  const rejectFiles = new Set(["a.png", "b.png"]);
+  const rejectCleanup = new Set<string>();
+  let saves = 0;
+  const session = createIntakeSession({ scope: crypto.randomUUID(),
+    prepare: async ({ fileName }) => { prepared.push(fileName); return { success: true, attachmentId: `reserved-${fileName}`, signedUrl: "https://storage.invalid/upload", mimeType: "image/png" }; },
+    put: async (_url, file) => { transferred.push(file.name); if (rejectFiles.has(file.name)) throw new Error("Transfer failed"); },
+    finalize: async () => ({ success: true }),
+    discard: async ({ attachmentId }) => { discarded.push(attachmentId); if (rejectCleanup.has(attachmentId)) return { success: false, error: { code: "storage_unavailable", message: "Cleanup not confirmed." } }; return { success: true }; },
+    record: { read: () => record, write: value => { record = value.files.length ? value : null; return true; }, clear: () => { record = null; return true; } },
+    clearDraft: () => {}, ...overrides,
   });
-  const files$ = () => state.files as unknown as QueuedAttachment[];
-  async function confirm() {
-    if (refs.operationInFlight.current) return;
-    refs.operationInFlight.current = true;
-    state.busy.push(true);
-    try {
-      state.saveCalls++;
-      state.onSave?.();
-      const requestId = "saved-request";
-      state.createdRequestId = requestId;
-      if (!state.files.length) {
-        if (!session().unattended()) state.navigations.push(requestId);
-        return;
-      }
-      state.stage = "uploading";
-      const uploaded = await session().uploadSaved(requestId, "", files$());
-      if (uploaded === "uploaded") state.navigations.push(requestId);
-      else if (uploaded === "recovery") state.stage = "attachment_recovery";
-    } finally {
-      refs.operationInFlight.current = false;
-      if (!refs.unmounted.current) state.busy.push(false);
-      session().settleLeft();
-    }
-  }
-  return {
-    state, operationInFlight: refs.operationInFlight, leftUploadScreen: refs.leftUploadScreen, uploadsRequest: refs.uploadsRequest,
-    leave: () => session().leave(),
-    unmount: () => session().unmount(),
-    confirm,
-    retry: (subset: Attachment[], all: Attachment[] = state.files) => session().retry(subset as unknown as QueuedAttachment[], all as unknown as QueuedAttachment[], state.createdRequestId),
-    remove: (file: Attachment) => session().remove(file as unknown as QueuedAttachment, state.createdRequestId),
-    skip: () => session().continueWithout(files$(), state.createdRequestId),
+  session.attach({ busy: () => {}, finish: id => { finished.push(id); } });
+  return { session, prepared, transferred, discarded, finished, rejectFiles, rejectCleanup, record: () => record, saves: () => saves,
+    save: (attachments = files()) => session.save({ run: async () => { saves++; return { success: true, requestId: "saved-request" }; }, title: "Problem", attachments, saved: () => {}, failed: () => { throw new Error("A post-save failure was reported as a save failure"); } }),
   };
 }
 
-describe("attachment retry completion", () => {
-  // A failed file with no reservation is uploaded again; `outcomes` decides each upload.
-  function retryHarness(files: Attachment[], outcomes: boolean[]) {
-    const harness = recoveryHarness(files);
-    harness.state.outcomes = [...outcomes];
-    harness.state.failUpload = true;
-    return {
-      run: (subset: Attachment[]) => harness.retry(subset, files),
-      current: () => harness.state.files,
-      navigations: harness.state.navigations,
-      operationInFlight: harness.operationInFlight,
-    };
-  }
-  it("keeps recovery open when one of two failed files succeeds", async () => {
-    const files = [failed("a"), failed("b")];
-    const retry = retryHarness(files, [true]);
-    await retry.run([files[0]]);
-    expect(retry.current().map((file) => file.status)).toEqual(["uploaded", "failed"]);
-    expect(retry.navigations).toEqual([]);
-    expect(retry.operationInFlight.current).toBe(false);
-  });
-
-  it("navigates once after the last retained file succeeds despite stale render state", async () => {
-    const files: Attachment[] = [{ key: "a", status: "uploaded", attachmentId: "saved-a" }, failed("b")];
-    const retry = retryHarness(files, [true]);
-    await retry.run([files[1]]);
-    expect(files[1].status).toBe("failed");
-    expect(retry.current().map((file) => file.status)).toEqual(["uploaded", "uploaded"]);
-    expect(retry.navigations).toEqual(["saved-request"]);
-  });
-
-  it("does not finish when a retry batch still contains a failure", async () => {
-    const files = [failed("a"), failed("b")];
-    const retry = retryHarness(files, [true, false]);
-    await retry.run(files);
-    expect(retry.navigations).toEqual([]);
-  });
-
-  it("does not finish a nonempty outstanding queue after an empty retry", async () => {
-    const retry = retryHarness([failed("a")], []);
-    await retry.run([]);
-    expect(retry.navigations).toEqual([]);
-  });
+it("a per-file retry keeps its failed sibling and only finishes after the last file succeeds", async () => {
+  const app = fixture(); await app.save(); app.rejectFiles.clear();
+  await app.session.retry(["a"]);
+  expect(app.session.getSnapshot().files.map(file => file.status)).toEqual(["uploaded", "failed"]);
+  expect(app.finished).toEqual([]);
+  await app.session.retry([]);
+  expect(app.finished).toEqual([]);
+  await app.session.retry(["b"]);
+  await app.session.retry();
+  expect(app.transferred).toEqual(["a.png", "b.png", "a.png", "b.png"]);
+  expect(app.finished).toEqual(["saved-request"]);
+  expect(app.saves()).toBe(1);
+  await app.session.detach();
 });
 
-const reserved = (key: string): Attachment => ({
-  ...failed(key), attachmentId: `reservation-${key}`,
-  file: { name: `${key}.png`, type: "image/png", size: 5 },
+it("a retry batch with one failure stays in recovery", async () => {
+  const app = fixture(); await app.save(); app.rejectFiles.delete("a.png");
+  await app.session.retry();
+  expect(app.session.getSnapshot().phase).toBe("recovery");
+  expect(app.record()?.files.map(file => file.key)).toEqual(["b"]);
+  expect(app.finished).toEqual([]);
+  await app.session.detach();
 });
 
-describe("attachment cleanup failure recovery", () => {
-  it("recognizes a committed upload after a lost finalization response", async () => {
-    const harness = recoveryHarness([{ ...reserved("a"), status: "queued", attachmentId: null }]);
-    harness.state.failUpload = false;
-    harness.state.failFinalize = true;
-    harness.state.alreadyUploaded = true;
-    await harness.confirm();
-    expect(harness.state.files[0]).toMatchObject({ status: "uploaded", attachmentId: "reservation-a", error: null });
-    expect(harness.state.navigations).toEqual(["saved-request"]);
-    expect(harness.state.failure).toBeNull();
-  });
-
-  it.each(["retry", "remove", "skip"] as const)("recognizes an already-uploaded file during %s without replacing or hiding it", async (action) => {
-    const file = reserved("a");
-    const harness = recoveryHarness([file]);
-    harness.state.alreadyUploaded = true;
-    if (action === "retry") await harness.retry([file]);
-    else if (action === "remove") await harness.remove(file);
-    else await harness.skip();
-    expect(harness.state.files[0]).toMatchObject({ status: "uploaded", attachmentId: "reservation-a", error: null });
-    expect(harness.state.uploadCalls).toBe(0);
-    expect(harness.state.navigations).toEqual(action === "remove" ? [] : ["saved-request"]);
-  });
-
-  it.each(["retry", "remove", "skip"] as const)("preserves the file after an explicit cleanup failure during %s", async (action) => {
-    const file = reserved("a");
-    const harness = recoveryHarness([file]);
-    harness.state.rejectCleanup = true;
-    if (action === "retry") await harness.retry([file]);
-    else if (action === "remove") await harness.remove(file);
-    else await harness.skip();
-    expect(harness.state.files[0]).toMatchObject({
-      status: "failed", attachmentId: "reservation-a", error: "Sign in again to remove this file.",
-    });
-    expect(harness.state.uploadCalls).toBe(0);
-    expect(harness.state.navigations).toEqual([]);
-    expect(harness.operationInFlight.current).toBe(false);
-  });
-
-  it("keeps an already-created Request in recovery when initial upload and cleanup both throw", async () => {
-    const file = { ...reserved("a"), status: "queued" as const, attachmentId: null };
-    const harness = recoveryHarness([file]);
-    harness.state.failCleanup.add("reservation-a");
-    await expect(harness.confirm()).resolves.toBeUndefined();
-    expect(harness.state.stage).toBe("attachment_recovery");
-    expect(harness.state.failure).toBeNull();
-    expect(harness.state.saveCalls).toBe(1);
-    expect(harness.state.files[0]).toMatchObject({ status: "failed", attachmentId: "reservation-a" });
-    expect(harness.state.files[0].error).toBeTruthy();
-    expect(harness.state.navigations).toEqual([]);
-    expect(harness.operationInFlight.current).toBe(false);
-  });
-
-  it("does not reserve/upload again while an earlier cleanup is unconfirmed", async () => {
-    const file = reserved("a");
-    const harness = recoveryHarness([file]);
-    harness.state.failCleanup.add("reservation-a");
-    await expect(harness.retry([file])).resolves.toBeUndefined();
-    expect(harness.state.uploadCalls).toBe(0);
-    expect(harness.state.files[0]).toMatchObject({ status: "failed", attachmentId: "reservation-a" });
-    expect(harness.state.files[0].error).toBeTruthy();
-    expect(harness.state.navigations).toEqual([]);
-    expect(harness.operationInFlight.current).toBe(false);
-  });
-
-  it("retains the file after failed removal and allows a later successful removal", async () => {
-    const file = reserved("a");
-    const harness = recoveryHarness([file]);
-    harness.state.failCleanup.add("reservation-a");
-    await expect(harness.remove(file)).resolves.toBeUndefined();
-    expect(harness.state.files[0]).toMatchObject({ status: "failed", attachmentId: "reservation-a" });
-    expect(harness.state.files[0].error).toBeTruthy();
-    expect(harness.operationInFlight.current).toBe(false);
-    harness.state.failCleanup.clear();
-    await harness.remove(harness.state.files[0]);
-    expect(harness.state.files).toEqual([]);
-  });
-
-  it("keeps skip recovery open for failed cleanup, remembers successful cleanup, and can retry", async () => {
-    const harness = recoveryHarness([reserved("a"), reserved("b")]);
-    harness.state.failCleanup.add("reservation-b");
-    await expect(harness.skip()).resolves.toBeUndefined();
-    expect(harness.state.navigations).toEqual([]);
-    expect(harness.state.files[0].attachmentId).toBeNull();
-    expect(harness.state.files[1]).toMatchObject({ status: "failed", attachmentId: "reservation-b" });
-    expect(harness.state.files[1].error).toBeTruthy();
-    expect(harness.operationInFlight.current).toBe(false);
-    harness.state.failCleanup.clear();
-    await harness.skip();
-    expect(harness.state.cleanupIds).toEqual(["reservation-a", "reservation-b", "reservation-b"]);
-    expect(harness.state.navigations).toEqual(["saved-request"]);
-  });
+it.each(["throw", "typed"] as const)("recognizes an already committed upload after a %s finalization failure", async mode => {
+  const app = fixture({ finalize: async () => { if (mode === "throw") throw new Error("Response lost"); return { success: false, error: { code: "storage_unavailable", message: "Response unavailable." } }; }, discard: async () => ({ success: true, alreadyUploaded: true }) });
+  app.rejectFiles.clear(); await app.save(files(["a"]));
+  if (mode === "typed") await app.session.retry();
+  expect(app.prepared).toEqual(["a.png"]);
+  expect(app.transferred).toEqual(["a.png"]);
+  expect(app.session.getSnapshot().files[0].status).toBe("uploaded");
+  expect(app.finished).toEqual(["saved-request"]);
+  await app.session.detach();
 });
 
-describe("leaving the upload screen (plan item 2.3, S3)", () => {
-  const queued = (key: string): Attachment => ({ ...reserved(key), status: "queued", attachmentId: null });
-  const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
-  const snapshot = (value: unknown) => JSON.parse(JSON.stringify(value)) as unknown;
+it.each(["throw", "typed"] as const)("retains a failed reservation on %s cleanup and never reserves twice", async mode => {
+  let allow = false;
+  const app = fixture({ discard: async () => { if (allow) return { success: true }; if (mode === "throw") throw new Error("No response"); return { success: false, error: { code: "session_expired", message: "Sign in again." } }; } });
+  await app.save(files(["a"])); await app.session.retry(); await app.session.remove("a"); await app.session.continueWithout();
+  expect(app.prepared).toEqual(["a.png"]);
+  expect(app.record()?.files[0].attachmentId).toBe("reserved-a.png");
+  expect(app.finished).toEqual([]);
+  allow = true; await app.session.remove("a"); await app.session.continueWithout();
+  expect(app.finished).toEqual(["saved-request"]);
+  await app.session.detach();
+});
 
-  it("Leave page finishes the file in flight, starts no other, then clears its reservation and the record", async () => {
-    const harness = recoveryHarness([queued("a"), queued("b")]);
-    harness.state.stage = "framing";
-    harness.state.failUpload = false;
-    // The file in flight is stored but its finalization is refused, so its reservation stays open.
-    harness.state.rejectFinalize = true;
-    harness.state.onUpload = () => harness.leave();
-    await harness.confirm();
-    await settled();
-    expect(harness.state.uploadCalls).toBe(1);
-    expect(harness.state.stage).toBe("uploading");
-    expect(harness.state.navigations).toEqual([]);
-    expect(harness.state.cleanupIds).toEqual(["reservation-a"]);
-    expect(harness.state.recordCleared).toBe(1);
-    expect(harness.state.record).toBeNull();
-    expect(harness.state.busy).toEqual([true, false]);
-    expect(harness.operationInFlight.current).toBe(false);
-  });
+it("Skip remembers each confirmed cleanup and retries only the unresolved reservation", async () => {
+  const app = fixture(); app.rejectCleanup.add("reserved-a.png"); app.rejectCleanup.add("reserved-b.png");
+  await app.save(); app.rejectCleanup.delete("reserved-a.png");
+  await app.session.continueWithout();
+  expect(app.session.getSnapshot().files[0].attachmentId).toBeNull();
+  expect(app.session.getSnapshot().files[1].attachmentId).toBe("reserved-b.png");
+  const before = app.discarded.length; app.rejectCleanup.clear();
+  await app.session.continueWithout();
+  expect(app.discarded.slice(before)).toEqual(["reserved-b.png"]);
+  expect(app.finished).toEqual(["saved-request"]);
+  await app.session.detach();
+});
 
-  it("unmounting lets the uploads go on, follows them in the record, and clears it when they end", async () => {
-    const harness = recoveryHarness([queued("a"), queued("b"), queued("c")]);
-    harness.state.stage = "framing";
-    harness.state.failUpload = false;
-    const records: unknown[] = [];
-    // Back during the first upload; each later upload sees the record as a reload would.
-    harness.state.onUpload = () => {
-      if (harness.state.uploadCalls === 1) harness.unmount();
-      else records.push(snapshot(harness.state.record));
-    };
-    await harness.confirm();
-    await settled();
-    expect(harness.state.uploadCalls).toBe(3);
-    expect(records).toEqual([
-      { requestId: "saved-request", title: "", files: [{ key: "b", name: "b.png", attachmentId: "reservation-b" }, { key: "c", name: "c.png", attachmentId: null }] },
-      { requestId: "saved-request", title: "", files: [{ key: "c", name: "c.png", attachmentId: "reservation-c" }] },
-    ]);
-    // Every file was added, so nothing is reported later and no reservation is left.
-    expect(harness.state.record).toBeNull();
-    expect(harness.state.cleanupIds).toEqual([]);
-    // Nothing renders, navigates or releases the busy flag after unmount.
-    expect(harness.state.files.map((file) => file.status)).toEqual(["uploading", "queued", "queued"]);
-    expect(harness.state.stage).toBe("uploading");
-    expect(harness.state.navigations).toEqual([]);
-    expect(harness.state.busy).toEqual([true]);
-    expect(harness.operationInFlight.current).toBe(false);
-  });
+it.each(["retry", "remove", "skip"] as const)("serializes %s behind the current retry", async contender => {
+  const started = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  let pending = false;
+  const app = fixture({ put: async () => { if (pending) { started.resolve(); await release.promise; } else throw new Error("Offline"); } });
+  await app.save(files(["a"])); pending = true;
+  const retrying = app.session.retry(); await started.promise;
+  if (contender === "retry") await app.session.retry();
+  else if (contender === "remove") await app.session.remove("a");
+  else await app.session.continueWithout();
+  expect(app.prepared).toEqual(["a.png", "a.png"]);
+  expect(app.finished).toEqual([]);
+  release.resolve(); await retrying;
+  expect(app.finished).toEqual(["saved-request"]);
+  await app.session.detach();
+});
 
-  it("an unmounted composer's failed upload loses its reservation and the record when the loop ends", async () => {
-    const harness = recoveryHarness([queued("a"), queued("b")]);
-    harness.state.stage = "framing";
-    harness.state.failUpload = false;
-    harness.state.onUpload = () => {
-      if (harness.state.uploadCalls === 1) harness.unmount();
-      // The second file is stored but its finalization is refused.
-      else harness.state.rejectFinalize = true;
-    };
-    await harness.confirm();
-    expect(harness.state.uploadCalls).toBe(2);
-    await settled();
-    expect(harness.state.cleanupIds).toEqual(["reservation-b"]);
-    expect(harness.state.recordCleared).toBe(1);
-    expect(harness.state.record).toBeNull();
-    expect(harness.state.stage).toBe("uploading");
-    expect(harness.state.navigations).toEqual([]);
-  });
+it.each([false, true])("detached retry continues and keeps no record after confirmed cleanup (transfer fails: %s)", async fails => {
+  const started = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+  let retry = false;
+  const app = fixture({ put: async () => { if (!retry) throw new Error("Initial failure"); started.resolve(); await release.promise; if (fails) throw new Error("Retry failure"); } });
+  await app.save(files(["a"])); retry = true;
+  const running = app.session.retry(); await started.promise; await app.session.detach(); release.resolve(); await running;
+  expect(app.record()).toBeNull();
+  expect(app.finished).toEqual([]);
+  expect(app.session.getSnapshot().files[0].status).toBe(fails ? "failed" : "uploaded");
+});
 
-  it("a retry under way when the composer unmounts goes on and does not end the flow", async () => {
-    const harness = recoveryHarness([reserved("a"), reserved("b")]);
-    harness.uploadsRequest.current = "saved-request";
-    harness.state.failUpload = false;
-    harness.state.onUpload = () => { if (harness.state.uploadCalls === 1) harness.unmount(); };
-    await harness.retry(harness.state.files);
-    await settled();
-    expect(harness.state.uploadCalls).toBe(2);
-    // Each earlier reservation is cleared before its file is tried again.
-    expect(harness.state.cleanupIds).toEqual(["reservation-a", "reservation-b"]);
-    expect(harness.state.record).toBeNull();
-    expect(harness.state.navigations).toEqual([]);
-    expect(harness.state.busy).toEqual([true]);
-  });
+it.each(["refused", "rejected"] as const)("retains an unattended reservation after %s cleanup", async failure => {
+  const app = fixture({ discard: async () => { if (failure === "rejected") throw new Error("No response"); return { success: false, error: { code: "storage_unavailable", message: "Could not discard." } }; } });
+  await app.save(files(["a"])); await app.session.detach();
+  expect(app.record()).toEqual({ requestId: "saved-request", title: "Problem", files: [{ key: "a", name: "a.png", attachmentId: "reserved-a.png" }] });
+  expect(app.finished).toEqual([]);
+});
 
-  it("Back while the save is pending lists the Request but neither toasts nor navigates", async () => {
-    const harness = recoveryHarness([]);
-    harness.state.stage = "framing";
-    harness.state.record = null;
-    harness.state.onSave = () => harness.unmount();
-    await harness.confirm();
-    await settled();
-    expect(harness.state.saveCalls).toBe(1);
-    // finishCreatedRequest owns the toast and the push; it never runs.
-    expect(harness.state.navigations).toEqual([]);
-    expect(harness.state.record).toBeNull();
-    expect(harness.state.busy).toEqual([true]);
-    expect(harness.operationInFlight.current).toBe(false);
-  });
-
-  it("Back while the save is pending with files records them before the first upload, and the uploads go on", async () => {
-    const harness = recoveryHarness([queued("a"), queued("b")]);
-    harness.state.stage = "framing";
-    harness.state.failUpload = false;
-    // The upload screen never renders, so its effect never writes the record.
-    harness.state.record = null;
-    harness.state.onSave = () => harness.unmount();
-    const records: unknown[] = [];
-    // Each upload sees the record as a reload would.
-    harness.state.onUpload = () => records.push(snapshot(harness.state.record));
-    await harness.confirm();
-    await settled();
-    expect(harness.state.uploadCalls).toBe(2);
-    expect(records).toEqual([
-      { requestId: "saved-request", title: "", files: [{ key: "a", name: "a.png", attachmentId: "reservation-a" }, { key: "b", name: "b.png", attachmentId: null }] },
-      { requestId: "saved-request", title: "", files: [{ key: "b", name: "b.png", attachmentId: "reservation-b" }] },
-    ]);
-    // Every file was added: no record or reservation is left, and nothing navigates.
-    expect(harness.state.record).toBeNull();
-    expect(harness.state.cleanupIds).toEqual([]);
-    expect(harness.state.navigations).toEqual([]);
-    expect(harness.state.busy).toEqual([true]);
-    expect(harness.operationInFlight.current).toBe(false);
-  });
-
-  it("Back while the save is pending with a file that fails clears its reservation and the record when the loop ends", async () => {
-    const harness = recoveryHarness([queued("a")]);
-    harness.state.stage = "framing";
-    harness.state.failUpload = false;
-    harness.state.rejectFinalize = true;
-    harness.state.record = null;
-    harness.state.onSave = () => harness.unmount();
-    const records: unknown[] = [];
-    harness.state.onUpload = () => records.push(snapshot(harness.state.record));
-    await harness.confirm();
-    await settled();
-    expect(records).toEqual([
-      { requestId: "saved-request", title: "", files: [{ key: "a", name: "a.png", attachmentId: "reservation-a" }] },
-    ]);
-    expect(harness.state.cleanupIds).toEqual(["reservation-a"]);
-    expect(harness.state.recordCleared).toBe(1);
-    expect(harness.state.record).toBeNull();
-    expect(harness.state.navigations).toEqual([]);
-  });
-
-  it.each(["leave", "unmount"] as const)("%s settles at once when no upload is running", async (action) => {
-    const harness = recoveryHarness([queued("a")]);
-    harness.state.stage = "framing";
-    harness.state.failUpload = false;
-    // A refused finalization leaves the Request in recovery with an open reservation.
-    harness.state.rejectFinalize = true;
-    await harness.confirm();
-    expect(harness.state.stage).toBe("attachment_recovery");
-    expect(harness.state.recordCleared).toBe(0);
-    harness[action]();
-    await settled();
-    expect(harness.state.cleanupIds).toEqual(["reservation-a"]);
-    expect(harness.state.recordCleared).toBe(1);
-    expect(harness.state.navigations).toEqual([]);
-  });
+it("persists the reserved ID using the real record adapter before PUT", async () => {
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
+  const scope = crypto.randomUUID();
+  const record = { read: () => readUnfinishedUploads(storage, scope), write: (value: UnfinishedUploads) => writeUnfinishedUploads(storage, scope, value), clear: () => clearUnfinishedUploads(storage, scope) };
+  const atTransfer: (UnfinishedUploads | null)[] = [];
+  const app = fixture({ scope, record, put: async () => { atTransfer.push(record.read()); } });
+  await app.save(files(["a"]));
+  expect(atTransfer).toEqual([expect.objectContaining({ requestId: "saved-request", files: [{ key: "a", name: "a.png", attachmentId: "reserved-a.png" }] })]);
+  expect(record.read()).toBeNull();
+  await app.session.detach();
 });

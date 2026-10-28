@@ -1,0 +1,4 @@
+/* #204: the bell is the sidebar's link to the Inbox, one sidebar row high. */
+.trigger { height: var(--row, var(--size-inner-medium)); text-decoration: none; }
+/* The sidebar's own rows draw their selection with a moving highlight; the bell sits outside that group, so it takes the same value directly. */
+.trigger[aria-current="page"] { background: var(--selection-background, var(--row-active)); }

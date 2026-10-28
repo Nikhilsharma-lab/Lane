@@ -35,8 +35,8 @@ export function listViewModel(view: ListViewState, rows: OverviewRequest[]) {
  */
 export const viewResets = {
   /** The selection drops when what the list shows, or how, changes, or the workspace or role does. */
-  selection: (view: ListViewState, scope: { orgId?: string; isGuest: boolean }) =>
-    JSON.stringify([scope.orgId, scope.isGuest, view.status, view.project, view.localFilters, view.ordering, view.grouping, view.collapsedGroups, view.pagination]),
+  selection: (view: ListViewState, scope: { orgId?: string; isGuest: boolean; readOnly?: boolean }) =>
+    JSON.stringify([scope.orgId, scope.isGuest, scope.readOnly ?? false, view.status, view.project, view.localFilters, view.ordering, view.grouping, view.collapsedGroups, view.pagination]),
   /** The preview closes when a filter, order, grouping or page change leaves its Request off the page. */
   preview: (view: ListViewState) =>
     JSON.stringify([view.status, view.project, view.localFilters, view.ordering, view.grouping, view.pagination]),

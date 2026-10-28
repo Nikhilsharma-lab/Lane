@@ -61,7 +61,8 @@ describe("New Request composer host", () => {
     // Plan item 2.5: Request detail's phone Properties sheet, loaded on first open, is the Drawer's only importer.
     expect(sources.filter(({ source }) => /["']@\/components\/arc\/drawer\/drawer["']/.test(source)).map(({ path }) => path.replaceAll("\\", "/"))).toEqual([expect.stringMatching(/components\/requests\/detail-properties-drawer\.tsx$/)])
     const intakePage = read("src/app/(app)/intake/page.tsx")
-    expect(intakePage).toContain("<IntakeLauncher />")
+    // #217: the launcher may carry the first-run guide beside it, but no form.
+    expect(intakePage).toMatch(/<IntakeLauncher( guide=\{[^}]*\})? \/>/)
     expect(intakePage).not.toContain("intake-form")
   })
 })

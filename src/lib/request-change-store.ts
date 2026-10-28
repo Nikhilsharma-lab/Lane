@@ -8,7 +8,7 @@ import {
   workspaceRoster,
   type WorkspacePerson,
 } from "./workspace-roster";
-import { guardMemberOrAbove, type MemberAuth } from "./auth-guard";
+import { guardCanChange, type MemberAuth } from "./auth-guard";
 import {
   requestChangeContextSchema,
   type RequestChangeContext,
@@ -17,6 +17,10 @@ export type RequestTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export class RequestChangeError extends Error {}
 export function insist(value: unknown, message: string): asserts value {
   if (!value) throw new RequestChangeError(message);
+}
+/** Refuses the change with `message`, as `insist` does when its condition fails. */
+export function refuse(message: string): never {
+  throw new RequestChangeError(message);
 }
 export type StoredRequest = typeof requests.$inferSelect;
 export type ChangeResult<Extra = object> = { success: true; revision: number } & Extra;
@@ -72,7 +76,7 @@ export async function changeRequest<Extra extends object = object>(
 ): Promise<ChangeResult<Extra> | ActionFailure> {
   try {
     insist(requestChangeContextSchema.safeParse(context).success, change.messages.invalid);
-    const auth = await guardMemberOrAbove(context.orgId, change.messages.forbidden);
+    const auth = await guardCanChange(context.orgId, change.messages.forbidden);
     if ("error" in auth) return auth;
     // Fetched before locking; Clerk and Postgres cannot share a transaction.
     const roster = await workspaceRoster(auth.orgId);

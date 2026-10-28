@@ -6,12 +6,16 @@
 import type { ReleaseChange, ReleaseFact, ReleaseState } from './request-release';
 import { daysUntil } from './utc-day';
 
-/** The current Requester: the release record's, after any handover, else whoever created the Request. Authorship never changes. */
+/**
+ * The current Requester: the release record's, after any handover; else the Member who took a Guest submission on
+ * (#212); else whoever created the Request. Authorship never changes.
+ */
 export function requesterOf(request: {
     createdBy: string;
     releaseState?: ReleaseState | null;
+    takenOnBy: string | null;
 }): string {
-    return request.releaseState?.ownerId ?? request.createdBy;
+    return request.releaseState?.ownerId ?? request.takenOnBy ?? request.createdBy;
 }
 
 const plural = (n: number) => `${n} day${n === 1 ? '' : 's'}`;

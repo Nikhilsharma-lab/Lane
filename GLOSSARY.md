@@ -14,6 +14,37 @@ _Avoid_: Owner, release and outcome owner, creator (when meaning who closes)
 A teammate asked for an optional "Looks good" or "Raise a concern" before the work is picked up. Their answer never blocks pickup. See Reviewing a Request.
 _Avoid_: Approver, agreement
 
+## Workspace roles
+
+Every person in a workspace has exactly one of these four roles. Roles never mix: someone who needs to see
+everything and also file Requests is a Member.
+
+**Admin**:
+A Member who also manages the workspace's people and settings. Takes a paid seat.
+
+**Member**:
+A person who files and works Requests: picks them up, reviews them, records Releases and closes them. Takes a
+paid seat.
+_Avoid_: User, seat (when meaning the person)
+
+**Guest**:
+A free person who files Requests and sees only their own. A Member takes each submission on as its Requester.
+_Avoid_: Submitter, external requester, contributor
+
+**Viewer**:
+A free person who sees everything a Member sees, except managing people, and changes nothing: no filing,
+commenting or reviewing. Nothing ever needs a Viewer.
+_Avoid_: View-only member, observer, read-only member, stakeholder
+
+**Paid seat**:
+What each Admin and Member takes. Guests and Viewers are free and unlimited.
+_Avoid_: License, creator, maker
+
+**Free Requests**:
+The first four Requests every workspace gets before it pays, with no time limit. Deleting one does not give
+it back.
+_Avoid_: Trial, free plan, credits
+
 ## Request status
 
 A Request has one status line that is shown everywhere:
@@ -31,6 +62,7 @@ The work is finished but has not reached its audience yet.
 **Release**:
 The recorded moment the work reached its agreed audience. A release starts Measuring.
 _Avoid_: Launch, ship, deploy
+_Exception (2026-10-26)_: "Shipped" is allowed only in the Outcome report ("What we shipped", the At a glance count).
 
 **Measuring**:
 The work is live, and Lane is waiting for the measurement due date so the Requester can record the result.
@@ -53,11 +85,25 @@ _Avoid_: Edit, amendment
 A new Request linked to a released one, for further work. It starts again at Open, and reviewers answer it again.
 _Avoid_: Reopen, child Request
 
+## Linking Requests
+
+**Same problem link**:
+A link a Member or Admin makes by hand to say two Requests tackle the same problem. Linked Requests form one
+group: joining any Request in it joins them all. It can be added at any status and never changes a closed record.
+Guests never see it.
+_Avoid_: Related link, duplicate, parent
+
+**Iteration**:
+One Request in a Same problem group, numbered in the order the Requests were created, such as "3rd iteration".
+A Follow-up Request is not an iteration unless it is also linked as Same problem. Design rounds inside Figma are
+not iterations in Lane.
+_Avoid_: Attempt, try, version, round
+
 ## Reviewing a Request
 
 **Reviewer** (detail):
-A workspace member or admin, or an invited email address, asked to look at a Request before work starts.
-Optional; a Request may have none.
+A workspace member or admin on a paid seat, asked to look at a Request before work starts. Guests and
+email addresses without a seat cannot be Reviewers. Optional; a Request may have none.
 _Avoid_: approver, agreement seat, participant
 
 **Review answer**:
@@ -78,6 +124,55 @@ _Avoid_: gate, block
 
 **Design link**:
 The saved link to a Request's design, normally in Figma. Design discussion and decisions happen in Figma.
+
+## Inbox
+
+**Inbox**:
+A person's own list of what needs them and what happened to their work in Lane.
+_Avoid_: Notifications, feed, activity
+
+**Needs you**:
+An Inbox item only you can act on: a review asked of you, a concern on your Request, a Release to record,
+or a result due. It clears itself once the thing is done, and it never repeats.
+_Avoid_: Reminder, task, to-do
+
+**For your information**:
+An Inbox item about something that happened to your work. It clears when you read it.
+_Avoid_: Notification, update
+
+## Reporting
+
+**Outcome report**:
+The shared page showing everything Released in a month, quarter or year, with each Request's prediction and
+its result once known, grouped by Project. It is built from Request records, kept up to date as results
+arrive, and never shows people.
+_Avoid_: What we shipped, dashboard, impact summary, scorecard
+
+**What we learned**:
+The optional one line a Requester adds when closing a Request. It shows on the Request and in the Outcome report.
+_Avoid_: Retro, lesson, notes
+
+**Quarter note**:
+An optional short note an admin writes for one quarter, shown at the end of that quarter's Outcome report.
+_Avoid_: Summary, commentary
+
+## Metrics
+
+**Metrics library**:
+The workspace's shared list of Metric definitions. Every metric on a prediction or guardrail is picked from it.
+It never holds numbers.
+_Avoid_: Metric catalogue, KPI list
+
+**Metric definition**:
+One entry in the Metrics library: a name, a unit, a link to where the metric lives, and an optional line on
+how it is counted. Results add up only when they share a Metric definition, audience and window. A change in
+what is counted makes a new Metric definition, not an edit.
+_Avoid_: Custom metric, KPI
+
+**Pass/fail check**:
+A yes-or-no outcome on a prediction, such as "keyboard users can finish checkout". It is not a Metric
+definition and never adds up.
+_Avoid_: Metric, test
 
 ## Retired words
 

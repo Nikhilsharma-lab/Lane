@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { ReleaseFact, ReleaseState } from "./request-release"
-import { dueSignal, journeyActions, journeyOf, journeyStatus, remindersDue, type JourneyViewer } from "./request-journey"
+import { dueSignal, journeyActions, journeyOf, journeyStatus, type JourneyViewer } from "./request-journey"
 
 const released: ReleaseFact = { exposureDate: "2026-10-21", audience: "All shoppers", evidence: "Rollout log", dueDate: "2026-10-28", startDate: "2026-10-21", windowKind: "relative" }
 const releaseState = (release: ReleaseFact | null, ownerId = "requester"): ReleaseState => ({ version: 1, ownerId, release, history: [] })
@@ -80,7 +80,7 @@ describe("journeyActions", () => {
   const admin: JourneyViewer = { id: "admin", role: "admin", active: true }
   const guest: JourneyViewer = { id: "guest", role: "guest", active: true }
   const people = { requesterName: "Asha", requesterActive: true }
-  const base = { createdBy: "requester", releaseState: null, outcomeClosure: null, exceptionClosure: null }
+  const base = { createdBy: "requester", takenOnBy: null, releaseState: null, outcomeClosure: null, exceptionClosure: null }
   const open = { ...base, status: "open" } as const
   const inProgress = { ...base, status: "in_progress" } as const
   const done = { ...base, status: "done" } as const
@@ -152,74 +152,5 @@ describe("journeyActions", () => {
   it("gives someone whose workspace access has ended no actions", () => {
     const actions = journeyActions(measuring, { ...requester, active: false }, people, dueDay)
     for (const action of Object.values(actions)) expect(action).toEqual(no("Your workspace membership is no longer active."))
-  })
-})
-
-describe("remindersDue", () => {
-  const active = new Set(["requester", "builder", "teammate"])
-  const doneAt = new Date("2026-10-10T15:00:00Z")
-  const base = { createdBy: "requester", assignedTo: "builder", doneAt, outcomeClosure: null, exceptionClosure: null }
-  const done = { ...base, status: "done", releaseState: null } as const
-  const measuring = { ...base, status: "done", releaseState: releaseState(released) } as const
-  const on = (day: string) => new Date(day + "T09:00:00Z")
-
-  // Release reminder: to the assignee 3 days after Done, then weekly while still Done. Each reminder belongs
-  // to the day it was scheduled; opening Lane later that week still finds it (written once, keyed by `day`).
-  it.each([
-    ["2026-10-12", []],
-    ["2026-10-13", [{ kind: "release_reminder", recipientId: "builder", day: "2026-10-13" }]],
-    ["2026-10-19", [{ kind: "release_reminder", recipientId: "builder", day: "2026-10-13" }]],
-    ["2026-10-20", [{ kind: "release_reminder", recipientId: "builder", day: "2026-10-20" }]],
-  ])("on %s a Done Request owes %o", (day, expected) => {
-    expect(remindersDue(done, on(day), active)).toEqual(expected)
-  })
-
-  // Due date 2026-10-28. Due soon 3 days before, due on the day, overdue from the next day then weekly.
-  it.each([
-    ["2026-10-24", []],
-    ["2026-10-25", [{ kind: "result_due_soon", recipientId: "requester", day: "2026-10-25" }]],
-    ["2026-10-27", [{ kind: "result_due_soon", recipientId: "requester", day: "2026-10-25" }]],
-    ["2026-10-28", [{ kind: "result_due", recipientId: "requester", day: "2026-10-28" }]],
-    ["2026-10-29", [{ kind: "result_overdue", recipientId: "requester", day: "2026-10-29" }]],
-    ["2026-11-04", [{ kind: "result_overdue", recipientId: "requester", day: "2026-10-29" }]],
-    ["2026-11-05", [{ kind: "result_overdue", recipientId: "requester", day: "2026-11-05" }]],
-  ])("on %s a Measuring Request owes %o", (day, expected) => {
-    expect(remindersDue(measuring, on(day), active)).toEqual(expected)
-  })
-
-  it("stops after close, with or without a result", () => {
-    for (const closure of [{ outcomeClosure: measured }, { exceptionClosure: noResult }]) {
-      expect(remindersDue({ ...measuring, ...closure }, on("2026-11-05"), active)).toEqual([])
-      expect(remindersDue({ ...done, ...closure }, on("2026-10-20"), active)).toEqual([])
-    }
-  })
-  // A voided release puts the Request back at Done with no release: the release reminder starts again
-  // 3 days after the latest void, then weekly, and the result reminders stop until a new release.
-  const voidedOn = (...days: string[]): ReleaseState => ({ version: 1, ownerId: "requester", release: null, history: days.map((day, index) => ({ operationId: `op${index}`, fingerprint: "f", actorId: "teammate", at: `${day}T10:00:00Z`, input: { kind: "void" as const, reason: "Only staging", neverExposed: true as const }, previousRelease: released, release: null, previousOwnerId: "requester", ownerId: "requester", revision: 2 + index })) })
-  it.each([
-    ["2026-10-28", []],
-    ["2026-10-29", [{ kind: "release_reminder", recipientId: "builder", day: "2026-10-29" }]],
-    ["2026-11-04", [{ kind: "release_reminder", recipientId: "builder", day: "2026-10-29" }]],
-    ["2026-11-05", [{ kind: "release_reminder", recipientId: "builder", day: "2026-11-05" }]],
-  ])("after a release voided on 2026-10-26, on %s the Request owes %o", (day, expected) => {
-    expect(remindersDue({ ...done, releaseState: voidedOn("2026-10-26") }, on(day), active)).toEqual(expected)
-  })
-  it("counts from the latest void when a release was voided more than once", () => {
-    expect(remindersDue({ ...done, releaseState: voidedOn("2026-10-14", "2026-10-26") }, on("2026-10-28"), active)).toEqual([])
-    expect(remindersDue({ ...done, releaseState: voidedOn("2026-10-14", "2026-10-26") }, on("2026-10-29"), active)).toEqual([{ kind: "release_reminder", recipientId: "builder", day: "2026-10-29" }])
-  })
-  it("goes to the new Requester after a handover, never the former one", () => {
-    const handedOver = { ...measuring, releaseState: releaseState(released, "teammate") }
-    expect(remindersDue(handedOver, on("2026-10-28"), active)).toEqual([{ kind: "result_due", recipientId: "teammate", day: "2026-10-28" }])
-  })
-  it("never goes to a guest or anyone without active access", () => {
-    const guestRequester = { ...measuring, createdBy: "guest", releaseState: releaseState(released, "guest") }
-    expect(remindersDue(guestRequester, on("2026-10-28"), active)).toEqual([])
-    expect(remindersDue(done, on("2026-10-13"), new Set(["requester"]))).toEqual([])
-  })
-  it("owes nothing before Done, without an assignee, or without a Done time", () => {
-    expect(remindersDue({ ...done, status: "in_progress" }, on("2026-10-20"), active)).toEqual([])
-    expect(remindersDue({ ...done, assignedTo: null }, on("2026-10-20"), active)).toEqual([])
-    expect(remindersDue({ ...done, doneAt: null }, on("2026-10-20"), active)).toEqual([])
   })
 })

@@ -57,6 +57,7 @@ export async function RequestDetailWorkspace({ selectedRequestId }: { selectedRe
             viewerName={workspace.fullName}
             isAdmin={member.role === "admin"}
             isGuest={member.role === "guest"}
+            readOnly={member.role === "viewer"}
           />
         </ListAnnouncerProvider>
       ) : <RequestUnavailable key={selectedRequestId} returnHref={returnHref} requestId={selectedRequestId} />}

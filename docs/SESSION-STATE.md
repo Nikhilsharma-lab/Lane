@@ -1,5 +1,294 @@
 # Shared Claude / Codex handoff
 
+## Oct 28 combined candidate for browser acceptance
+
+Merge `bb189421` combines reviewed #176 `c7f14a5d` and navigation `fed612f3` with
+both histories preserved. Both independent review axes reported zero outstanding
+findings on those inputs. Only this handoff conflicted; both evidence sections
+remain below. The entire tracked tree excluding this handoff equals c7f14a5d plus
+the exact incoming navigation owner/test and main-compatibility documentation.
+Integration remains `355e09e`; upstream `94e73312` Vercel/cron configuration remains
+reserved for final integration. This source merge does not accept #175 or #176.
+
+Fresh combined checks: 111 focused navigation/Intake UI tests across seven files,
+full TypeScript and masked Node24 production build pass. The initial sandboxed
+build stalled at compile and was explicitly stopped (130); its unchanged-command
+authorized retry outside the sandbox passed (0). No source/dependency/env change,
+DB reset or hosted action accompanied this merge. Previous full UI/application,
+lint/design and isolated-browser checks retain their recorded input boundaries.
+Combined signed-in held-action and private-file browser acceptance remains pending.
+
+All 17 routes measured at tolerance 2,048. Unchanged proposal passes (+74 Requests,
++154 detail); original existing routes fit (+414/+514), but its three main-added
+routes fail inventory. Fresh f638 detail +2,352 is 304 over; committed f638 detail
++2,708 is 660 over. Other routes fit both main comparisons. No baseline refresh or
+waiver approval. Receipt: `/private/tmp/lane-spec-176-combined-merge.md`; fresh
+measurements: `/private/tmp/lane-spec-176-combined-bundle-comparison.json`.
+
+## #176 Oct28 reachable Leave source handoff
+
+Product `a3c37a1f` makes existing New/Edit X/Escape reach the existing saved-upload
+Leave confirmation. Confirmed Leave retires presentation, finishes only the current
+file, preserves cleanup metadata, and retires New's saved generation without stale
+completion feedback. Keep working/nested Escape, saving guards, AI cancellation
+and ordinary hidden-File recovery remain intact. Arc primitive/motion unchanged.
+
+Actual isolated New/Edit four-case red→green, plus two AI/hidden-File controls and
+one saved Retry case pass; one focused nested-Escape red was fixed without delays.
+Full UI996/94, TypeScript/repository lint/design/build pass. No DB reset for this
+client change. Root's fresh824 bootstrap52/application2827 (one skipped) remains
+separate and includes incoming main DB URL tests. Signed-in private-file acceptance
+and independent reviews remain pending; no provider/runtime in the live local
+browser checkout was changed by this implementation.
+
+Inherited bundle proposal passes unchanged. Original existing routes +393 Requests,
++493 detail fit; its3 main-added routes fail inventory. Fresh f638 detail+2331
+(283 over2048), committed f638 detail+2687 (639 over), all other routes fit. No
+rebaseline/waiver approval. Evidence: `testing/intake-coordination.md`, external
+`lane-spec-176-evidence.md`, and `lane-spec-176-leave-bundle-comparison.json`.
+
+## #176 Oct28 review correction and compatibility merge
+
+The P2 review correction is `1f69bdd0`: after the final failed file is removed,
+Open Request now carries `open: true` through the owner's confirmed cleanup and
+current presentation callback. Ordinary Skip remains unchanged. Production-owner
+red/green covers the explicit navigation intent, a failed clear followed by retry,
+one-shot completion and detach during cleanup; focused 51 tests pass. The actual
+New host red at `a93d724b` is retained by the browser agent; candidate browser green
+and independent delta review remain separate acceptance work.
+
+Reviewed compatibility `e06982c6` is merged in `74141b42`. The only conflict was
+this handoff; both histories remain below. The #175 helper and all five incoming
+main `f638003c` database URL files are byte-identical to their reviewed sources.
+Integration `355e09e` remains an ancestor and untouched. Main's subsequent
+`94e73312` Vercel configuration change is reserved for root's final integration.
+
+Checks on frozen `74141b42`: UI995/94, full TypeScript/repository lint/design and
+production build pass. No application database reset was repeated; the incoming
+DB URL tests remain for the final guarded integration suite. The inherited
+17-route proposal passes unchanged. Original existing routes fit (+331 Requests,
++354 detail), while three main-added routes correctly fail the original inventory.
+Detail is +2,192 versus fresh current-main f638 (144 over) and +2,548 versus its
+committed baseline (500 over); all other routes fit 2,048. No new proposal or
+budget approval. Prior original/3e6/f638 receipts are preserved separately.
+Full boundary: `testing/intake-coordination.md` and external
+`lane-spec-176-evidence.md` / `lane-spec-176-open-final-bundle-comparison.json`.
+
+## #176 Intake coordination — isolated source ready for review
+
+Based on exact integration `355e09e` then reviewed compatibility `a54dbf1` in
+`codex/spec-167-176`. Root released independent local implementation because the
+actual #169/#172 blockers are accepted; this does not accept #175/compatibility
+browser work or merge integration. New/Edit use one stable production owner for
+check/save/upload/recovery, with separate operation/presentation and scoped
+record/draft ownership. Reservation persistence precedes PUT, failed cleanup stays
+reachable, and stale forms cannot affect the current host. A mounted/hidden owner
+retains its Files; a second form cannot mistake them for orphan metadata.
+
+Initial source `ae026523` passed UI989/tsc/affected lint/design. Final source passes
+UI992/94, full TypeScript/repository lint/design and production build. Application
+2,811 passed/one skipped before the final client-only correction; the suite reset
+only this checkout's guarded local target after bootstrap52. Exact pre/post-check
+boundaries, actual-form candidate/browser and review work still pending:
+`testing/intake-coordination.md` and external `lane-spec-176-evidence.md`.
+
+Inherited 17-route proposal passes unchanged. Original existing routes fit (+332
+Requests/+355 detail) but its old inventory lacks three main-added routes. Detail
+is +2,193 versus fresh pinned main (145 over) and +2,549 versus committed main
+(501 over); other routes fit. No new baseline or waiver approval. Original/fresh
+receipts remain immutable; user main's later DB-URL-only change is root's separate
+final reconciliation, not silently included in this pinned comparison.
+
+## Oct 28 compatibility navigation correction
+
+Isolated product `935d5475` on `codex/spec-167-main-reconcile`, based on `e06982c6`,
+holds the old list URL mirror while a newer off-list route is pending. Late preview
+cleanup cannot erase that route intent; explicit list choices and native history
+still supersede it. Two production navigation reds are retained. Focused78/UI971,
+full TypeScript/lint/design/build pass. The original signed-in held-Done failure
+did not capture click/history order, so the source race is proven but its exact
+historical ordering is inferred. Actual held-action replay and delta reviews are
+pending; no expired Undo, lifecycle replay, DB reset or provider write occurred.
+
+All17 routes and tolerance2048 remain. Inherited proposal passes (+20 bytes),
+original existing Requests+360/detail+380 fit but its3 main-added routes fail;
+fresh f638 detail+2218 (170 over), committedmain+2574 (526 over). No baseline refresh
+or approval. Full evidence: `testing/main-compatibility.md` and external
+`/private/tmp/lane-spec-167-navigation-diagnosis.md`. Integration355 and frozen176
+are untouched; this branch is source preparation, not acceptance.
+
+## #167 compatibility refresh — reviewed #175 helper and pinned main
+
+The isolated compatibility branch now preserves reviewed #175 `3244d6c1` through
+merge `f5718de9` and main `f638003c` through merge `6cbbe712`, starting at reviewed
+compatibility candidate `a54dbf1f` (Standards 0 / Spec 0). The only conflict was this
+handoff; both sections are retained below. The #175 helper matches its source
+exactly, and all five incoming database URL files match pinned main exactly.
+No schema, UI, provider, database or runtime operation accompanied this refresh.
+
+Fresh Node 24 checks pass: full TypeScript, full ESLint, and design checks (42 tests,
+theme contract, Arc source and brand assets). The new pure database URL tests remain
+pending the required final guarded application suite: existing no-database configs
+do not include them, and no config/global-setup bypass was introduced. Prior app,
+UI and browser results below remain scoped to their recorded sources. Combined
+browser acceptance, final broad checks/reviews and #175 acceptance remain pending;
+integration `355e09e` is untouched. No hidden Undo, reset or Done replay is authorized.
+
+The fresh-main bundle comparison below is against old pinned main `3e6de934`, not
+current `f638003c`. Its immutable receipt and the original baseline are retained;
+fresh `f638003c` comparison is still required before claiming current-main budget
+compliance. The separate proposal is not main-merge approval. Refresh receipt:
+`/private/tmp/lane-spec-167-reconcile-refresh.md`.
+
+## #167 / main #195 compatibility — isolated review candidate
+
+Prepared on `codex/spec-167-main-reconcile`, from through-#175 `f7ad5a9` and pinned
+main `3e6de934`; integration `355e09e` is unchanged and already an ancestor. The
+29 conflicts are resolved with explicit one-snapshot expiry/capability guards,
+one-snapshot Impact/Journey loading, saved-view navigation ownership, Viewer bulk
+availability and exact checkout guards for incoming database tests. Main migrations
+0013–0053 and its new pre-migration fixtures are preserved.
+
+Bootstrap 52 and application 2,787 (one skipped) remain valid; the subsequent changes
+are client/docs/tests only. Final UI 968/92, focused 76, full tsc/lint/design and
+production build pass. Initial compatibility review was Standards 0 / Spec 2 P2; both
+consumer gaps are corrected in `97a7c17`. Reviewed #175 toast fix `6e1f197` is merged in
+`b48b9e62`, retaining both Arc adaptation records. Eleven isolated zero-database
+component cases pass: Inbox entry/preview/navigation suppress stale prompts while
+keeping Undo, focus and native gestures; palette status keeps the saved-view title
+and Save changes. Router/actions/remote preview content are controlled boundaries,
+not signed-in saved-data acceptance. Final delta reviews and combined signed-in
+acceptance remain pending. This is not #175 acceptance or #176 implementation.
+Full boundary: `testing/main-compatibility.md`.
+
+A separate measured 17-route baseline proposal retains tolerance 2,048. Original
+existing routes are within (+340 Requests/+360 detail), but three main-added routes
+correctly fail its old inventory. Detail grows 2,198 bytes versus fresh main
+(150 over) and 2,554 versus main's committed baseline (506 over); other routes fit.
+The proposed baseline passes; main-merge approval remains pending. Immutable
+original and fresh-main receipts are retained for #176 and the full-PR comparison.
+
+## #175 Oct26 browser helper correction — bulk toast title
+
+Run11 saved LAN-19 Pickup/Done and LAN-16/17 bulk Done, then the test's
+whole-toast anchored text selector failed on Arc's hidden `Success: ` prefix.
+The retained screenshot and accessibility tree show both Undo actions visible.
+The helper now matches the exact title descendant. No product source changed.
+Full TypeScript and affected helper lint pass. An external actual Arc/controller
+browser diagnostic proves old selector 0, corrected selector 1, both Undo actions
+visible and the bulk Undo focusable; no database/provider calls or page errors.
+
+All 23 hosted operation receipts are preserved. LAN-16/17/18/19 remain Done;
+no Release or Undo followed this failure. The owned browser/runtime are stopped,
+the pause latch is set, and retained in-memory Undo owners were lost with context
+closure. Acceptance is incomplete; no hidden Undo, reset or Done replay is allowed.
+Evidence: `/private/tmp/lane-spec-175-browser-evidence.md` and
+`/private/tmp/lane-spec-175-bulk-toast-diagnostic/receipt.json`.
+
+
+## #175 Oct26 browser correction — restore a toast during its exit
+
+Actual-component real-timer evidence reproduced Not yet restoring the same Done
+operation during the toast exit: its reused timer was exhausted and its retained
+element stayed inert. The correction observes the existing queue sequence when
+resetting/restarting the timer, and reapplies current hidden/inert state on presence.
+ID/action ownership, duration, pause behavior, motion and public APIs are unchanged.
+Official Arc source was read; only the installed local source hash is updated.
+
+The existing Mark Done browser helper now requires a trusted Not yet activation
+while the original toast is connected and inert, then reacquires the unique visible,
+non-inert, focusable Undo before the ordinary one-shot action. A missed exit interval
+fails this regression; it cannot silently pass as fully expired restoration. The
+fresh-account suite is authored, not run under current account quota. External
+zero-DB actual-component before/during/after expiry and phone reduced-motion exit
+cases pass; UI688, full tsc/lint/design and production build pass. Retained-workspace
+acceptance remains paused for this clean source and independent reviews.
+
+Exact evidence: `/private/tmp/lane-spec-175-browser-evidence.md` and
+`/private/tmp/lane-spec-175-toast-diagnostic/fixed-four-cases-receipt.json`.
+Original bundle still fails: Requests +2354, detail +2855, Impact/Intake +2091,
+Settings +2089 bytes; each is +24 from the history fix. Existing proposed baseline
+passes unchanged. No new budget approval or original compliance is claimed.
+
+## #175 Oct26 browser correction — idempotent history restoration
+
+Actual zero-write browser run7 reproduced a return-focus update loop on cd0430f:
+plain Back focused the row without warnings; Back with the real Keyboard shortcuts
+modal open emitted three maximum-depth warnings while the already-visible row's
+focus was rejected by the modal. The existing restoreRequest allocated a fresh
+view on each effect attempt, recreating its own callback dependency before the
+pending focus frame settled. It now returns the previous view when the page/group
+already matches, and otherwise updates only the necessary page/group. Existing
+20-frame retry, effect dependencies, history marker and modal ownership stay intact.
+
+Source checks: focused84 navigation/list-view/moves/grid tests, UI688, full tsc/lint,
+design and production build pass. Actual browser green/durable regression merge
+remain separate; no new database reset or hosted writes by the implementer.
+Evidence: `/private/tmp/lane-spec-175-evidence.md`; diagnosis and retained actual
+red: `/private/tmp/lane-spec-175-history-diagnosis.md`.
+
+Current original bundle: Requests +2330 (282 over2048), detail +2831 (783 over),
+Impact/Intake +2067 (19 over), Settings +2065 (17 over). Requests grows68 bytes
+from the preview correction; other routes unchanged. Existing175 proposed baseline
+passes unchanged; no additional refresh/approval or original compliance claimed.
+Exact receipt: `/private/tmp/lane-spec-175-history-bundle-bytes.json`.
+
+## #175 Oct26 review correction — preview lifetime, acceptance pending
+
+Spec review found that local preview replacement/closure did not invalidate shared
+navigation. DataTable now reports its committed preview identity before paint;
+the navigation owner ignores unchanged identity and invalidates changed/closed
+preview presentation, including deferred focus. Submitted writes still settle and
+retained explicit Undo still works. No move-hook unmount cancellation, Arc timing
+change or server/data change. The existing main application result remains valid;
+no new database reset was run for this client binding.
+
+Behavioral red: with the production preview seam bound but invalidation omitted,
+both replacement and closure wrongly opened Is it live. Restored fix passes
+focused99, UI688, full tsc/lint/design and production build. The actual DataTable
+effect and held preview response cases remain the browser acceptance boundary.
+Evidence: `/private/tmp/lane-spec-175-evidence.md` and `preview-*` logs there.
+
+Current original cumulative bundle: Requests +2262 (214 over2048), detail +2831
+(783 over), Impact/Intake +2067 (19 over), Settings +2065 (17 over). Existing #175
+proposed baseline passes without another refresh (+46 Requests/+27 other workspace
+routes); this is not original compliance or approval. Exact current receipt:
+`/private/tmp/lane-spec-175-preview-bundle-bytes.json`. Preserve original comparison
+through #176; main-merge approval remains pending. Source handoff for delta reviews
+and browser only; no hosted action, integration edit, push or deployment.
+
+## #175 implemented — independent review and browser acceptance pending
+
+Isolated branch `codex/spec-167-175` starts from accepted integration `355e09e`.
+Single and bulk lifecycle coordination now lives in `createRequestMoves` with real
+single/batch adapters. Selection retains its IDs/bar/focus. One advisory pickup
+confirmation precedes one batch action; partial results retain successful moves
+and failed/unready reasons. Bulk Undo has its own consumed operation, targets only
+successful Done IDs, preserves partial reversals and never replaces single Undo.
+
+Each invocation captures #172 navigation before confirmation. Selection also keeps
+its operation/scope identity. Before submission, abandonment sends no patch/write;
+after submission, shared settlement/session recovery/refresh always completes while
+stale view presentation and focus are suppressed. Existing own toasts finish in
+place; dismissed stale toasts do not reappear. Detail's former split confirmation
+now goes through the shared move, preserving pending-label timing and its immediate
+recoverable-action lock. The obsolete public confirmation bypass is removed.
+
+Verification: non-resetting bootstrap 52; guarded application 1,951 passed/one
+skipped on `lane_test_lane_spec_175_edbe4e377edcdd471d98`; final focused 95 and UI684;
+full TypeScript, ESLint, design and production build pass. Main application testing
+predates the final client-only detail confirmation binding; focused/UI/static cover
+it. No server/data changes or repeat reset. Browser helper merge, actual retained
+fixture acceptance and independent Standards/Spec review remain separate gates.
+
+**Proposed #175 bundle refresh, pending main-merge approval:** original cumulative
+Requests +2,216 bytes (168 over 2,048), detail +2,804 (756 over); Impact/Intake+2,040,
+Settings+2,038 remain within. The inherited proposal passes (+143 Requests/+780
+detail) but is not original compliance. No tolerance increase or byte-golf; retain
+the original #167 comparison through #176. Details: `docs/testing/request-moves.md`
+and `/private/tmp/lane-spec-175-evidence.md`. No hosted writes by the implementer,
+integration edit, main merge, push or deployment.
+
 ## #174 reviewed and integrated — seven of nine complete; #175 next
 
 Ticket [#174](https://github.com/Nikhilsharma-lab/Lane/issues/174) is merged at

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STRIPE_NAMES } from "./feature-switches";
 
 /**
  * Server env check (plan 6.1, I4/I5).
@@ -68,6 +69,33 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
     warnings.push(
       "NEXT_PUBLIC_SENTRY_DSN is not set. Errors will not reach GlitchTip (src/lib/error-reporting.ts).",
     );
+  }
+
+  // #206: Inbox email is off by default (src/lib/feature-switches.ts). Switched on, it needs these names.
+  if (env.LANE_EMAIL_DELIVERY === "1") {
+    const unset = ["RESEND_API_KEY", "LANE_EMAIL_FROM", "CRON_SECRET"].filter((name) => !env[name]?.trim());
+    if (unset.length)
+      warnings.push(
+        `LANE_EMAIL_DELIVERY is on but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without the Resend names nothing is sent; without CRON_SECRET the daily Inbox job refuses every call.`,
+      );
+  }
+
+  // #207: Slack DM is off by default (src/lib/feature-switches.ts). Switched on, it needs these names.
+  if (env.LANE_SLACK_DELIVERY === "1") {
+    const unset = ["SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET", "LANE_SLACK_TOKEN_KEY"].filter((name) => !env[name]?.trim());
+    if (unset.length)
+      warnings.push(
+        `LANE_SLACK_DELIVERY is on but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without them Slack stays unavailable: no connect button, no Slack DM choice, nothing sent to Slack.`,
+      );
+  }
+
+  // #214: billing enforced with no payment provider leaves a workspace whose Free Requests are used no way to pay.
+  if (env.LANE_BILLING_ENFORCED === "1") {
+    const unset = STRIPE_NAMES.filter((name) => !env[name]?.trim());
+    if (unset.length)
+      warnings.push(
+        `LANE_BILLING_ENFORCED is on but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without them nobody can pay, so a workspace whose Free Requests are used can't create Requests.`,
+      );
   }
 
   return { ok: missing.length === 0, missing, warnings };

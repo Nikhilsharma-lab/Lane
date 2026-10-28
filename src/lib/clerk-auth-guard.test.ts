@@ -82,7 +82,7 @@ describe("Clerk-backed workspace guards", () => {
       orgId: "org_lane",
       orgRole: "org:guest",
     };
-    const { requireActiveMember, requireMemberOrAbove } = await import(
+    const { requireActiveMember, requireCanChange, requireCanContribute } = await import(
       "./auth-guard"
     );
 
@@ -91,7 +91,35 @@ describe("Clerk-backed workspace guards", () => {
       orgId: "org_lane",
       role: "guest",
     });
-    await expect(requireMemberOrAbove("org_lane")).resolves.toBeNull();
+    await expect(requireCanContribute("org_lane")).resolves.toMatchObject({ role: "guest" });
+    await expect(requireCanChange("org_lane")).resolves.toBeNull();
+  });
+
+  // #210: a Viewer reads everything a Member reads and changes nothing.
+  it("lets a Clerk Viewer read but never change things", async () => {
+    session = { userId: "user_viewer", orgId: "org_lane", orgRole: "org:viewer" };
+    const { requireActiveMember, requireCanChange, requireCanContribute, requireOwnerOrAdmin } = await import("./auth-guard");
+
+    await expect(requireActiveMember("org_lane")).resolves.toEqual({ userId: "user_viewer", orgId: "org_lane", role: "viewer" });
+    await expect(requireCanChange("org_lane")).resolves.toBeNull();
+    await expect(requireCanContribute("org_lane")).resolves.toBeNull();
+    await expect(requireOwnerOrAdmin("org_lane")).resolves.toBeNull();
+  });
+
+  it("lets Admins and Members change things", async () => {
+    const { requireCanChange, requireCanContribute } = await import("./auth-guard");
+    for (const role of ["admin", "member"] as const) {
+      session = { userId: `user_${role}`, orgId: "org_lane", orgRole: `org:${role}` };
+      await expect(requireCanChange("org_lane")).resolves.toMatchObject({ role });
+      await expect(requireCanContribute("org_lane")).resolves.toMatchObject({ role });
+      await expect(requireCanChange("org_other")).resolves.toBeNull();
+    }
+  });
+
+  it("gives an unknown Clerk role no access at all", async () => {
+    session = { userId: "user_x", orgId: "org_lane", orgRole: "org:billing" };
+    const { requireActiveMember } = await import("./auth-guard");
+    await expect(requireActiveMember("org_lane")).resolves.toBeNull();
   });
 });
 
@@ -111,7 +139,23 @@ describe("action guard classification", () => {
     { userId: "real", orgId: "org_lane", orgRole: "org:guest" },
   ])("never marks workspace or role denial as expiry: %o", async denied => {
     session = denied;
-    const { guardMemberOrAbove } = await import("./auth-guard");
-    await expect(guardMemberOrAbove("org_lane", "Not found")).resolves.toEqual({ error: "Not found" });
+    const { guardCanChange } = await import("./auth-guard");
+    await expect(guardCanChange("org_lane", "Not found")).resolves.toEqual({ error: "Not found" });
   });
+});
+
+
+it("keeps Viewer personal state and Guest contributions distinct from replayable expiry in one auth read", async () => {
+  const { auth } = await import("@clerk/nextjs/server");
+  const { guardActiveMember, guardCanChange, guardCanContribute, guardOwnerOrAdmin, VIEWER_REFUSAL } = await import("./auth-guard");
+  for (const role of ["guest", "viewer", "member", "admin"] as const) {
+    session = { userId: "person", orgId: "org_lane", orgRole: `org:${role}` };
+    for (const guard of [guardActiveMember, guardCanContribute, guardCanChange, guardOwnerOrAdmin]) {
+      vi.mocked(auth).mockClear();
+      const result = await guard("org_lane", "Not permitted");
+      expect(auth).toHaveBeenCalledTimes(1);
+      const allowed = guard === guardActiveMember || (guard === guardCanContribute && role !== "viewer") || (guard === guardCanChange && ["admin", "member"].includes(role)) || (guard === guardOwnerOrAdmin && role === "admin");
+      expect(result).toEqual(allowed ? { userId: "person", orgId: "org_lane", role } : { error: role === "viewer" ? VIEWER_REFUSAL : "Not permitted" });
+    }
+  }
 });

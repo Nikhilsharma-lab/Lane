@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from "vitest"
 import { toastStack } from "@/test/toast-stack"
+import { requestNavigation } from "@/test/request-navigation"
 import type { CurrentRequest } from "@/components/requests/current-request"
 import { createMarkDoneUndoStore } from "@/components/requests/mark-done-undo"
 import { createPendingMutationsStore } from "@/components/requests/pending-mutations-provider"
 import { createPickupConfirmation } from "@/components/requests/pickup-confirmation"
 import { createRequestMoves, type RequestMoveActions } from "@/components/requests/request-moves-controller"
 import { copyAndSay } from "@/components/requests/use-copy"
-import { runOptimistic, type ActionResult } from "@/components/requests/use-optimistic-action"
+import { runOptimistic, runOptimisticBatch, type ActionResult } from "@/components/requests/use-optimistic-action"
 import { REQUEST_PRIORITIES, type RequestPriority } from "@/lib/request-constants"
 import type { PickupConfirmation } from "@/lib/request-reviewer-rules"
 import type { OverviewRequest } from "@/lib/request-overview"
@@ -33,7 +34,7 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
   const announce = vi.fn((text: string) => { said.push(text) })
   const calls: Call[] = []
   const action = (name: keyof RequestMoveActions) => (...args: unknown[]) => new Promise<ActionResult>((resolve, reject) => { calls.push({ name, args, resolve, reject }) })
-  const actions: RequestMoveActions = { markDone: action("markDone"), pickUpRequest: action("pickUpRequest"), undoMarkDone: action("undoMarkDone"), setRequestPriority: action("setRequestPriority") }
+  const actions: RequestMoveActions = { markDone: action("markDone"), pickUpRequest: action("pickUpRequest"), undoMarkDone: action("undoMarkDone"), setRequestPriority: action("setRequestPriority"), pickUpRequests: async () => ({ moved: [] }), markDoneMany: async () => ({ moved: [] }) }
 
   const pending = createPendingMutationsStore({ schedule: () => {}, now: () => 1 })
   const overlay = {
@@ -58,15 +59,16 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
   const undoStore = createMarkDoneUndoStore()
   undoStore.bind(stack.state)
   const isItLive = vi.fn()
+  const navigation = requestNavigation()
   const bindMoves = () => createRequestMoves({
-    orgId: "org1", announce, toast, update, optimistic: options => runOptimistic(optimisticDeps, options),
-    confirmPickup: confirmation.confirm, copyText, actions, undoStore, isItLive, refresh,
+    orgId: "org1", announce, toast, update, optimistic: options => runOptimistic(optimisticDeps, options), optimisticBatch: options => runOptimisticBatch(optimisticDeps, options),
+    confirmPickup: confirmation.confirm, copyText, actions, undoStore, isItLive, refresh, continuation: navigation.continuation,
   })
   let moves = bindMoves()
 
   const deps = (): PaletteActionDeps => ({
     request: current, viewer: { id: "u1", name: "Test Member" }, undo: undoStore.get(), moves,
-    open: () => {}, view: () => {}, project: () => {}, settings: () => {},
+    open: () => {}, view: () => {}, project: () => {}, settings: () => {}, go: () => {},
     link: id => `https://app.example.test/requests/${id}`,
   })
   /** Runs the entry the palette lists under this id, as Enter on it does. */
@@ -221,11 +223,11 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     const earlier = await a.sent(0)
     a.recreateMoves()
     a.run("mark-done")
-    const retained = a.undoStore.get()!.undo
+    const { undo: retained, toastId } = a.undoStore.get()!
     earlier.resolve({ error: "This Request changed." })
     await a.flush()
     expect(a.undoStore.get()).toBeNull()
-    expect(a.toasts[0]).toMatchObject({ title: "Could not update this Request", description: "An earlier change failed. Check this Request and try again.", action: undefined })
+    expect(a.toasts.find(toast => toast.id === toastId)).toMatchObject({ title: "Could not update this Request", description: "An earlier change failed. Check this Request and try again.", action: undefined })
     retained()
     await a.flush()
     expect(a.calls).toHaveLength(1)

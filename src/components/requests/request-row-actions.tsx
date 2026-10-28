@@ -11,6 +11,7 @@ import { usePendingMutations } from "./pending-mutations-provider"
 import { useListAnnouncer } from "./list-announcer"
 import { restoreRequestFocus, rowIndexOf } from "./list-focus"
 import { useRequestMoves } from "./request-moves"
+import { useRequestNavigation } from "./request-navigation"
 import { priorityOptions } from "./priority-options"
 import { PriorityGlyph, RequestRowPresentation, StatusGlyph, type RequestIdentity } from "./row-presentation"
 import { statuses } from "./tasks/statuses"
@@ -32,15 +33,18 @@ function useStableIdentities(rows: OverviewRequest[]) {
  * same actions as the detail page, plus the time-boxed undo of a Done move;
  * nothing here grants a guest more than today. Every move goes through the
  * pending-mutation overlay, so the row changes in the next frame (plan item 1.5). */
-export function RequestRowActions({ requests, context, isGuest, children }: {
+export function RequestRowActions({ requests, context, isGuest, readOnly = false, children }: {
   requests: OverviewRequest[]
   context: { orgId: string }
   isGuest: boolean
+  /** A Viewer (#210): the row menu only copies. */
+  readOnly?: boolean
   children: ReactNode
 }) {
   const overlay = usePendingMutations()
   // Plan item 2.4: optimistic changes speak in the list's one region when the patch begins.
   const announce = useListAnnouncer()
+  const { deferFocus } = useRequestNavigation()
   const { orgId } = context
 
   // Codes and priorities read through the overlay, so a priority change shows at once.
@@ -53,11 +57,11 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
   // page), focus the row that took its place and say where it went.
   const restoreFocus = useCallback((id: string, name: string) => {
     const index = rowIndexOf(id)
-    requestAnimationFrame(() => {
+    deferFocus(() => {
       const restored = restoreRequestFocus(id, { index })
       if (restored !== "row" && restored !== "none") announce(`${name} left this view.`, { key: "row-left" })
     })
-  }, [announce])
+  }, [announce, deferFocus])
 
   // Plan item 2.5: the moves, their toasts and their copy live in request-moves.ts, shared with Request detail.
   const moves = useRequestMoves({ orgId, announce, afterMove: restoreFocus })
@@ -106,6 +110,12 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
       const identity = identities[request.id] ?? { code: "", priority: request.priority ?? "none" }
       // The one shared rule (plan item 2.4): the row, the bulk bar and detail offer the same move,
       // and a pickup that isn't ready shows why instead of failing on the server.
+      const copyItem: ContextMenuItem = { id: "copy", label: "Copy", separatorBefore: !readOnly, icon: <Copy />, children: [
+        ...(identity.code ? [{ id: "code", label: "Copy code", onSelect: () => void copy(identity.code, "Code") }] : []),
+        { id: "title", label: "Copy title", onSelect: () => void copy(request.reframedProblem ?? request.title, "Title") },
+        { id: "link", label: "Copy link", onSelect: () => void copy(new URL(`/requests/${request.id}`, window.location.origin).href, "Link") },
+      ] }
+      if (readOnly) return [copyItem]
       const next = availableMove(request, { isGuest })
       const reason = next?.blockedReason ? pickupBlockedMessage(next.blockedReason, request.canEdit ? null : request.creatorName || "the Requester") : undefined
       return [
@@ -113,14 +123,10 @@ export function RequestRowActions({ requests, context, isGuest, children }: {
         ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, disabled: Boolean(reason), description: reason, onSelect: reason ? undefined : () => move(request, next.move) }] : []),
         { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={rowJourney(request).status} />, children: statusItems(request, next, reason) },
         ...(request.status !== "done" ? [{ id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) }] : []),
-        { id: "copy", label: "Copy", separatorBefore: true, icon: <Copy />, children: [
-          ...(identity.code ? [{ id: "code", label: "Copy code", onSelect: () => void copy(identity.code, "Code") }] : []),
-          { id: "title", label: "Copy title", onSelect: () => void copy(request.reframedProblem ?? request.title, "Title") },
-          { id: "link", label: "Copy link", onSelect: () => void copy(new URL(`/requests/${request.id}`, window.location.origin).href, "Link") },
-        ] },
+        copyItem,
       ]
     }
-  }, [copy, identities, isGuest, move, setPriority])
+  }, [copy, identities, isGuest, move, readOnly, setPriority])
 
   const presentation = useMemo(() => ({ identities, menuItems }), [identities, menuItems])
 

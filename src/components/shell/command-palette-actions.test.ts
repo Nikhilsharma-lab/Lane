@@ -17,7 +17,7 @@ function deps(overrides: Partial<Omit<PaletteActionDeps, "moves">> = {}, moves =
 }) {
   const value = {
     request: current() as CurrentRequest | null, viewer: { id: "u1", name: "Test Member" }, undo: null as PaletteActionDeps["undo"], moves,
-    open: vi.fn<PaletteActionDeps["open"]>(), view: vi.fn<PaletteActionDeps["view"]>(), project: vi.fn<PaletteActionDeps["project"]>(), settings: vi.fn<PaletteActionDeps["settings"]>(),
+    open: vi.fn<PaletteActionDeps["open"]>(), view: vi.fn<PaletteActionDeps["view"]>(), project: vi.fn<PaletteActionDeps["project"]>(), settings: vi.fn<PaletteActionDeps["settings"]>(), go: vi.fn<PaletteActionDeps["go"]>(),
     link: (id: string) => `https://app.example.test/requests/${id}`,
     ...overrides,
   } satisfies PaletteActionDeps
@@ -29,7 +29,7 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
     const reviewState = { concerns: [{ name: "Ana", reason: "Copy is unclear" }], unanswered: 1 }
     const d = deps({ request: current({ reviewState }) })
     runPaletteAction({ kind: "move", move: "pick-up", requestId: "r1" }, d)
-    // No `confirmed`: the hook's confirmPickup runs first, as from the row menu.
+    // The move owns pickup confirmation, as from the row menu.
     expect(d.moves.move).toHaveBeenCalledExactlyOnceWith({ id: "r1", name: "LAN-12", reviewState }, "pick-up", { assignee: undefined })
   })
 
@@ -78,7 +78,7 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
   })
 
   it.each([
-    [{ kind: "open", surface: "composer" }, "composer"], [{ kind: "open", surface: "search" }, "search"], [{ kind: "open", surface: "notifications" }, "notifications"], [{ kind: "open", surface: "shortcuts" }, "shortcuts"],
+    [{ kind: "open", surface: "composer" }, "composer"], [{ kind: "open", surface: "search" }, "search"], [{ kind: "open", surface: "shortcuts" }, "shortcuts"],
   ] as const)("opens %o through the shared opener", (action, surface) => {
     const d = deps()
     runPaletteAction(action, d)
@@ -90,6 +90,8 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
     runPaletteAction({ kind: "view", filter: "done" }, d)
     runPaletteAction({ kind: "project", projectId: "none" }, d)
     runPaletteAction({ kind: "settings", section: "members", href: "/settings/profile?section=members" }, d)
+    runPaletteAction({ kind: "go", href: "/inbox" }, d)
+    expect(d.go).toHaveBeenCalledExactlyOnceWith("/inbox")
     expect(d.view).toHaveBeenCalledWith("done")
     expect(d.project).toHaveBeenCalledWith("none")
     expect(d.settings).toHaveBeenCalledWith("members", "/settings/profile?section=members")
@@ -99,12 +101,12 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
 // The acknowledgement of each mutation, through the real moves, is command-palette-acknowledgement.test.ts.
 
 describe("what the palette offers where it is (#106)", () => {
-  it("leaves out search, the bell and the ? overlay where they are not mounted (Settings), and keeps New Request", () => {
+  it("leaves out search and the ? overlay where they are not mounted (Settings), and keeps New Request and the Inbox", () => {
     const entries = paletteEntries({ role: "member", request: null, undo: null, projects: [] })
     const ids = openableEntries(entries, surface => surface === "composer").map(entry => entry.id)
     expect(ids).toContain("new-request")
     expect(ids).not.toContain("search")
-    expect(ids).not.toContain("notifications")
+    expect(ids).toContain("inbox")
     expect(ids).not.toContain("shortcuts")
     expect(openableEntries(entries, () => true)).toHaveLength(entries.length)
   })

@@ -13,6 +13,8 @@ vi.mock("@/lib/ai/triage", () => ({
   triageRequest: async () => { boundary.aiCalls += 1; return { ok: false, kind: boundary.kind, status: boundary.status, error: new Error("Illustrative provider failure") }; },
 }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => boundary.limit }));
+// No database here: the Metrics library check (#198) passes the prediction through.
+vi.mock("@/lib/metrics-library", () => ({ checkPredictionMetrics: async (_workspace: unknown, impact: unknown) => ({ impact }) }));
 
 const input = { expectedImpact: { kind: "measurement" as const, version: 2 as const, primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 80, noBaseline: false, check: "" as const }, measurement: { audience: "all" as const, platform: "web" as const, windowDays: 30 as const, exactDates: false, startDate: "", endDate: "" }, guardrails: [] }, title: "Pricing is confusing", description: "Customers cannot compare the available plans.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: null };
 
@@ -67,6 +69,12 @@ describe("AI gate failures in the composer (plan item 2.3)", () => {
   it("asks for sign-in when the session ended, and keeps the draft", () => {
     expect(gateFailureNotice({ code: "session_expired", message: "Your session ended. Sign in again to continue this Request." }))
       .toEqual({ tone: "danger", title: "Your session ended", body: "Sign in again to continue. Your draft is kept.", signIn: true });
+  });
+
+  it("says an Admin needs to pay once the Free Requests are used (#213), and keeps the draft", () => {
+    const message = "This workspace has used its 4 Free Requests. An Admin needs to pay for Lane before anyone here can create a new Request or take on a Guest submission. Everything already filed keeps working.";
+    expect(gateFailureNotice({ code: "billing_blocked", message }))
+      .toEqual({ tone: "warning", title: "An Admin needs to pay", body: `${message} Your draft is kept.`, signIn: false });
   });
 
   it("keeps a field's own sentence when the unavailable part is the Project check", () => {

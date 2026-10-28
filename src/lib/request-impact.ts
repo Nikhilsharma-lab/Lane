@@ -160,6 +160,10 @@ export const requiredExpectedImpactSchema = expectedImpactDraftSchema.transform(
  */
 export const newRequestImpactSchema = requiredExpectedImpactSchema.superRefine((impact, context) => {
   if (impact.kind !== "measurement" && impact.kind !== "no_measurable_impact") context.addIssue({ code: "custom", message: "Choose what to measure for this Request" });
+  // #198: typed metrics are gone; a new prediction picks every metric from the Metrics library.
+  if (impact.kind === "measurement") [impact.primary, ...impact.guardrails].forEach((metric, index) => {
+    if (metric.key === "custom") context.addIssue({ code: "custom", path: index ? ["guardrails", index - 1, "key"] : ["primary", "key"], message: "Choose a metric from the Metrics library" });
+  });
 });
 
 /** How much of the Expected impact draft is filled in, for the composer's

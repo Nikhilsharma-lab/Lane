@@ -1,0 +1,39 @@
+/* #204: the Inbox page. The list on the left and the Request preview beside it, as the Requests list's
+   preview sits (request-peek.module.css overlays the body's trailing column). Tokens only. */
+.body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+.list { display: grid; align-content: start; gap: var(--space-6); min-width: 0; padding: var(--space-4) var(--space-6) var(--space-6); outline: none; }
+/* #205: Needs you over For your information, each a heading and its rows. */
+.section { display: grid; align-content: start; gap: var(--space-2); min-width: 0; }
+.quiet { margin: 0; padding-inline: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--text-sm--line-height); }
+.heading { display: flex; align-items: center; gap: var(--space-2); min-height: var(--size-inner-medium); }
+.heading h2 { margin: 0; color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--text-sm--line-height); }
+.items { display: grid; margin: 0; padding: 0; list-style: none; }
+/* The bell's 44px two-line row on the 2.4 row tokens: [dot] [Request and event] [toggle]. */
+.row { display: grid; grid-template-columns: var(--space-4) minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-1); min-height: var(--request-row-height); padding: var(--space-1) var(--space-2); border-radius: var(--request-row-radius); }
+.row[aria-current="true"] { background: var(--selection-background); }
+.lead { display: grid; place-items: center; }
+.open { display: grid; gap: 0; min-width: 0; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.primary { overflow: hidden; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--text-sm--line-height); text-overflow: ellipsis; white-space: nowrap; }
+/* An unread row carries the dot and medium weight on line 1; a read row reads in the secondary colour. */
+.row[data-unread] .primary { color: var(--foreground); font-weight: var(--weight-medium); }
+/* A Needs-you row is outstanding until the thing is done, so line 1 reads like an unread row (with no dot). */
+.row[data-needs-you] .primary { color: var(--foreground); font-weight: var(--weight-medium); }
+.secondary { overflow: hidden; color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--text-xs--line-height); text-overflow: ellipsis; white-space: nowrap; }
+.toggle { display: grid; width: var(--toolbar-icon-size); height: var(--toolbar-icon-size); place-items: center; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-muted); cursor: pointer; }
+.toggle[aria-disabled="true"] { opacity: var(--opacity-disabled); cursor: not-allowed; }
+.error { display: grid; justify-items: start; gap: var(--space-3); padding-block: var(--space-2); }
+.error p { margin: 0; color: var(--danger); font-size: var(--text-sm); }
+.preview { display: none; }
+.previewNote { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); }
+@media (hover: hover) and (pointer: fine) {
+  .row:hover { background: var(--interaction-hover); }
+  .toggle:hover { color: var(--foreground); }
+}
+/* Where the preview opens (request-peek.tsx: 768px wide and a fine pointer), the list keeps the leading column
+   and scrolls on its own; the preview's column holds the note until an item is opened. */
+@media (min-width: 768px) and (pointer: fine) {
+  .body { flex: 1; grid-template-columns: minmax(0, 1fr) min(calc(var(--spacing) * 142), 60%); height: calc(100% - var(--workspace-header-height)); }
+  .list { overflow-y: auto; overscroll-behavior: contain; }
+  .preview { display: grid; place-items: center; padding: var(--space-5); border-inline-start: var(--border-width) solid var(--border-subtle); }
+}
+@media (max-width: 640px) { .list { padding-inline: var(--space-4); } }

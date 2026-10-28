@@ -277,19 +277,20 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, pla
     animate(contentOpacity, target.content, fade);
   }, [contentOpacity, expanded, height, isPresent, opacity, reduce, scale, target.content, target.height, target.opacity, target.scale, target.y, y]);
 
-  // An update restarts the clock; pausing keeps whatever time is left.
-  useEffect(() => { remaining.current = toast.duration; }, [toast.version, toast.duration]);
+  // An update or a re-added queue entry restarts the clock; pausing keeps the time left.
+  useEffect(() => { remaining.current = toast.duration; }, [toast.seq, toast.version, toast.duration]);
   useEffect(() => {
     if (!isPresent || paused || !Number.isFinite(remaining.current) || toast.duration <= 0) return;
     const started = performance.now();
     const timer = window.setTimeout(() => store.dismiss(id), Math.max(remaining.current, 0));
     return () => { window.clearTimeout(timer); remaining.current -= performance.now() - started; };
-  }, [id, isPresent, paused, store, toast.version, toast.duration]);
+  }, [id, isPresent, paused, store, toast.seq, toast.version, toast.duration]);
 
   // Leaving: hand focus on before the toast turns inert, then fade out quickly. A closed toast sinks toward its edge; a thrown one keeps flying.
   useEffect(() => {
-    if (isPresent) return;
     const node = itemRef.current;
+    // A same-ID toast can return before its exit unmounts this element.
+    if (isPresent) { node?.toggleAttribute("inert", hidden); return; }
     if (node) {
       const active = document.activeElement;
       if (active instanceof HTMLElement && node.contains(active)) onHandOff(node, focusVisible(active));
@@ -302,7 +303,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, pla
       animate(scale, scale.get() * .96, motionTokens.spring.smooth);
     }
     animate(opacity, 0, { duration: swiped.current ? .22 : motionTokens.duration.exit, ease: standard }).then(done);
-  }, [isPresent, onHandOff, opacity, reduce, safeToRemove, scale, y]);
+  }, [hidden, isPresent, onHandOff, opacity, reduce, safeToRemove, scale, y]);
 
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     pointerType.current = event.pointerType;

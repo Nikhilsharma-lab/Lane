@@ -17,19 +17,15 @@ const STORAGE = source("src/lib/attachment-storage.ts");
 const REVIEW_DETAILS = source("src/components/requests/request-review-supporting-details.tsx");
 
 describe("Private Request attachment contract", () => {
-  it("creates the Request before uploading directly to private storage", () => {
-    expect(FORM).toContain("callAction(() => saveRequest(payload, context, picks))");
-    // The upload session (intake-uploads.ts) uploads the saved Request's files.
-    expect(FORM.indexOf("callAction(() => saveRequest(payload, context, picks))")).toBeLessThan(FORM.indexOf("uploads().uploadSaved(result.requestId"));
-    expect(FORM).toContain("setCreatedRequestId(result.requestId)");
-    expect(FORM).toContain("prepareAttachmentUpload");
-    expect(FORM).toContain("uploadToSignedUrl");
-    expect(FORM).toContain("finalizeAttachmentUpload");
+  it("explains that private files upload after the Request is saved", () => {
+    // Actual save/prepare/PUT ordering is exercised through createIntakeSession
+    // in attachment-recovery.test.ts, rather than inferred from source order.
     expect(FORM).toContain("Files upload after saving.");
     expect(REVIEW_DETAILS).toContain("Files upload after you save the Request.");
   });
 
   it("derives identity from the session and scopes every reservation", () => {
+    expect(ACTIONS).toContain("guardCanContribute(context.orgId,");
     expect(ACTIONS).toContain("eq(requests.orgId, orgId)");
     expect(ACTIONS).toContain("eq(requests.createdBy, userId)");
     expect(ACTIONS).toContain("uploadedBy: auth.userId");

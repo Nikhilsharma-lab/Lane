@@ -6,7 +6,7 @@ import { createRequestThroughIntake, type ReviewTeam } from "./helpers/reviewers
 import { assertE2ETarget } from "./helpers/safety";
 import { signInNativeTestUser, withNativeVisibility } from "./helpers/native-visibility";
 import { assertLocalUndoTarget } from "./helpers/server-action-identity";
-import { markDone, undoDriver, undoFromToast, undoSurfaces, verifyDoneFailure, verifyEarlyUndo, verifyEnding, verifyLatestPair, verifyPause, verifySavedStatusSkippedUndo, verifyReleaseFailureThenNewerPrompt, verifyUndoFailure, type UndoRecorder, type UndoRequest } from "./helpers/mark-done-undo";
+import { markDone, restoreDoneDuringExit, undoDriver, undoFromToast, undoSurfaces, verifyDoneFailure, verifyEarlyUndo, verifyEnding, verifyLatestPair, verifyPause, verifySavedStatusSkippedUndo, verifyReleaseFailureThenNewerPrompt, verifyUndoFailure, type UndoRecorder, type UndoRequest } from "./helpers/mark-done-undo";
 
 // This standard suite provisions one owned account and seven normal-UI Requests.
 // Quota-bound acceptance uses the same helpers with separately verified retained identities.
@@ -66,7 +66,7 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
       const record = capture(testInfo, view, `${surface.width}-${surface.colorScheme}`);
       if (index === 0) {
         await verifyDoneFailure(driver, record); await verifyEarlyUndo(driver, record);
-        await markDone(driver); await undoFromToast(driver, record);
+        await markDone(driver, false); await restoreDoneDuringExit(view, fixtures[0], record); await undoFromToast(driver, record);
         await verifyPause(driver, "hover", record); await verifyPause(driver, "focus", record);
         await verifyLatestPair(driver, orgId, fixtures[1], recorder, record);
         driver = await undoDriver(view, orgId, fixtures[0], recorder);

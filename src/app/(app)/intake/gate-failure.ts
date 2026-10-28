@@ -37,6 +37,9 @@ export function gateFailureNotice(failure: GateFailure): GateNotice {
       return { tone: "warning", title: "You’re offline", body: failure.message, signIn: false };
     case "rate_limited":
       return { tone: "warning", title: "Review limit reached", body: failure.message, signIn: false };
+    case "billing_blocked":
+      // #213: the Free Requests are used; the message says why and that an Admin needs to pay.
+      return { tone: "warning", title: "An Admin needs to pay", body: `${failure.message} ${DRAFT_KEPT}`, signIn: false };
     case "timeout":
     case "network":
     case "provider":

@@ -3,8 +3,10 @@
 import { createContext, useContext, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { requestListContextFromHref, requestListHref, type RequestListContext } from "@/lib/request-workspace"
-import { planListUrlSync, withListContext, type DetailSessionPatch, type ListUrlSyncInput, type ListViewState, type SetListView } from "./list-view-state"
+import { planListUrlSync, withListContext, withSavedView, type DetailSessionPatch, type ListUrlSyncInput, type ListViewState, type SetListView } from "./list-view-state"
 import { settleSequence, type DetailSequence } from "./request-sequence"
+
+type ListSelection = Partial<RequestListContext> & { savedView?: string }
 
 type NavigationState = { getView: () => ListViewState; setView: SetListView; setDetailSession: (patch: DetailSessionPatch) => void }
 type NavigationBrowser = {
@@ -33,10 +35,12 @@ export function createRequestNavigation(state: NavigationState) {
   let arrival: { id: string; sequence: DetailSequence | null; button: "previous" | "next" | null } | null = null
   let cancelFocus: (() => void) | null = null
   let rememberHistoryReturn: (() => void) | null = null
+  let previewId: string | null = null
   function invalidate() {
+    // Presentation changes cancel stale work/focus, not an issued router push.
     generation += 1
     cancelFocus?.(); cancelFocus = null
-    arrival = null; pendingPath = null
+    arrival = null
     state.setDetailSession({ focusTitleOnArrival: false, focusOnArrival: null })
   }
   function prepareDetail(id: string, intent: DetailIntent = {}) {
@@ -47,12 +51,14 @@ export function createRequestNavigation(state: NavigationState) {
     pendingPath = `/requests/${id}`
     state.setDetailSession({ sequence, focusTitleOnArrival: button === null, focusOnArrival: button })
   }
-  function selectList(next: Partial<RequestListContext>, browser: NavigationBrowser) {
+  function selectList(next: ListSelection, browser: NavigationBrowser) {
     const location = browser.location()
     const supersedesRoute = pendingPath !== null && pendingPath !== location.pathname
     invalidate()
+    pendingPath = null
     listSelectionPending = true
-    const selected = withListContext(state.getView(), next)
+    const filtered = withListContext(state.getView(), next)
+    const selected = withSavedView(filtered, next.savedView ? { id: next.savedView, filters: filtered } : null)
     state.setView(next.project !== undefined && selected.pagination.pageIndex !== 0
       ? { ...selected, pagination: { ...selected.pagination, pageIndex: 0 } } : selected)
     if (location.pathname !== "/") {
@@ -66,7 +72,23 @@ export function createRequestNavigation(state: NavigationState) {
   }
   return {
     invalidate, prepareDetail, selectList,
+    /** Editing filters keeps the named view so its changed filters can be saved. Explicit list navigation clears it. */
+    filterList(next: Partial<RequestListContext>, browser: NavigationBrowser) {
+      selectList({ ...next, savedView: state.getView().savedView }, browser)
+    },
+    /** Local preview replacement/close is navigation too; an unchanged render is not. */
+    previewChanged(id: string | null) {
+      if (previewId === id) return
+      previewId = id
+      invalidate()
+    },
     planListUrl(input: Omit<ListUrlSyncInput, "current" | "localSelectionPending">) {
+      // Settling a mutation must not restore the old list over a newer route
+      // whose push has not reached the address bar yet.
+      if (pendingPath !== null && pendingPath !== "/") {
+        if (input.pathname === pendingPath) pendingPath = null
+        return { seen: input.search }
+      }
       const current = state.getView()
       const href = requestListHref(current.status, current.project)
       // Both router state and the address bar must acknowledge the selection:
@@ -82,9 +104,9 @@ export function createRequestNavigation(state: NavigationState) {
     listenForHistory(target: Pick<Window, "addEventListener" | "removeEventListener">) {
       // This workspace listener precedes the router's restore listener. A
       // detail's later listener can be unmounted before dispatch reaches it.
-      const restore = () => { rememberHistoryReturn?.(); listSelectionPending = false; invalidate() }
+      const restore = () => { rememberHistoryReturn?.(); pendingPath = null; listSelectionPending = false; invalidate() }
       target.addEventListener("popstate", restore)
-      return () => { target.removeEventListener("popstate", restore); rememberHistoryReturn = null; listSelectionPending = false; invalidate() }
+      return () => { target.removeEventListener("popstate", restore); rememberHistoryReturn = null; pendingPath = null; listSelectionPending = false; invalidate() }
     },
     continuation() { const started = generation; return () => generation === started },
     deferFocus(focus: () => void) {
@@ -127,9 +149,11 @@ type RequestNavigation = ReturnType<typeof createRequestNavigation>
 export function bindRequestNavigation(controller: RequestNavigation, browser: NavigationBrowser) {
   return {
     invalidate: controller.invalidate, continuation: controller.continuation, deferFocus: controller.deferFocus,
+    previewChanged: controller.previewChanged,
     onHistoryReturn: controller.onHistoryReturn,
     prepareDetail: controller.prepareDetail, arrive: controller.arrive,
-    selectList: (next: Partial<RequestListContext>) => controller.selectList(next, browser),
+    selectList: (next: ListSelection) => controller.selectList(next, browser),
+    filterList: (next: Partial<RequestListContext>) => controller.filterList(next, browser),
     open: (href: string) => controller.open(href, browser),
     replaceDetail: (id: string, intent: DetailIntent) => controller.replaceDetail(id, intent, browser),
     followLink(event: LinkActivation, href: string, listIntent?: Partial<RequestListContext>) {

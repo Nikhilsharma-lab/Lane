@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
+import type { IntakeCloseAttempt, RegisterIntakeCloseAttempt } from "./intake-navigation-guard";
 import { NewRequestContext } from "./new-request-context";
 import { listFiltersOf, revealRequest, useListViewSnapshot, useRequestListContext, useSetRequestListView } from "./list-view-state";
 import { requestCreatedToast } from "./request-created-toast";
@@ -60,12 +61,14 @@ const intakeLauncher = () => document.querySelector<HTMLElement>("[data-intake-l
 const LAUNCHER = "intake-launcher";
 
 /** Lives with the authenticated workspace, so closing a composer does not discard File objects. */
-export function NewRequestProvider({ children, context, draftOwnerId, canAddReviewers = false }: {
+export function NewRequestProvider({ children, context, draftOwnerId, canAddReviewers = false, withoutPrediction = false }: {
   children: ReactNode;
   context: { orgId: string };
   draftOwnerId: string;
   /** #78: guests create Requests but can't ask for reviews. */
   canAddReviewers?: boolean;
+  /** #212: a Guest files without a prediction; the Member who takes it on writes it. */
+  withoutPrediction?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToastStack();
@@ -86,6 +89,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   const [hasOpened, setHasOpened] = useState(false);
   const [generation, setGeneration] = useState(0);
   const [initialProjectId, setInitialProjectId] = useState<string | null>(null);
+  // #217: a composer opened from the first-run guide explains each step, for that draft.
+  const [guided, setGuided] = useState(false);
   const [returnContext, setReturnContext] = useState<RequestListContext>({ status: "all", project: "all" });
   const [formHost, setFormHost] = useState<HTMLDivElement | null>(null);
   const [IntakeForm, setIntakeForm] = useState<IntakeFormComponent | null>(() => loadedForm);
@@ -94,6 +99,11 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     preloadComposer().then((form) => setIntakeForm(() => form), () => undefined);
   }, []);
   const busy = useRef(false);
+  const closeAttempt = useRef<IntakeCloseAttempt | null>(null);
+  const registerCloseAttempt = useCallback<RegisterIntakeCloseAttempt>(attempt => {
+    closeAttempt.current = attempt;
+    return () => { if (closeAttempt.current === attempt) closeAttempt.current = null; };
+  }, []);
   // Decision 2026-10-21 (critique 2.3): while the problem check runs, X and Esc cancel it and keep the draft.
   const cancelCheck = useRef<(() => void) | null>(null);
   const completed = useRef(false);
@@ -103,7 +113,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   const onList = useRef(pathname === "/");
   useEffect(() => { onList.current = pathname === "/"; }, [pathname]);
 
-  const openComposer = useCallback((element?: HTMLElement | typeof LAUNCHER) => {
+  const openComposer = useCallback((element?: HTMLElement | typeof LAUNCHER, options?: { guided?: boolean }) => {
     // C pressed with nothing focused names no trigger, and close falls back below.
     trigger.current = element ?? focusable(document.activeElement);
     createdId.current = null;
@@ -112,7 +122,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     if (!hasOpened || completed.current) {
       setInitialProjectId(projectId);
       setReturnContext({ status: statusFilter, project: projectFilter });
-    }
+      setGuided(Boolean(options?.guided));
+    } else if (options?.guided) setGuided(true);
     if (completed.current) {
       setGeneration((value) => value + 1);
       completed.current = false;
@@ -150,9 +161,19 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
 
   const onBusyChange = useCallback((value: boolean) => { busy.current = value; }, []);
   const onCancelCheckChange = useCallback((cancel: (() => void) | null) => { cancelCheck.current = cancel; }, []);
-  /** X, Esc: the first cancels a running check and stays open; a busy save or upload still holds the dialog. */
+  /** X/Escape cancel a check, confirm leaving saved uploads, or hold other busy work open. */
   const holdOpen = useCallback(() => {
     if (cancelCheck.current) { cancelCheck.current(); return true; }
+    if (closeAttempt.current) {
+      closeAttempt.current(() => {
+        // Leave retires this saved generation without announcing completion.
+        // Its owner keeps the in-flight transfer and recovery lease.
+        completed.current = true;
+        busy.current = false;
+        setOpen(false);
+      });
+      return true;
+    }
     return busy.current;
   }, []);
   // saveRequest revalidates the list and the new detail path, so its response
@@ -230,7 +251,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
       {hasOpened && formHost && <>
         {/* Keep the controller and File objects alive in a detached host when the
             Arc dialog closes. Its overlay and focus scope still unmount normally. */}
-        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
+        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} registerCloseAttempt={registerCloseAttempt} />, formHost)}
         <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
           <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."
             onOpenAutoFocus={event => {

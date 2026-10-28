@@ -10,12 +10,12 @@ import { useEffect, useEffectEvent } from "react";
  *
  * A surface that is not mounted has no opener: `openShellSurface` returns
  * false and `canOpenShellSurface` says so, so the palette leaves the entry
- * out. On Settings that is search, the ? overlay and the bell, because the
- * shell renders only the page there (sidebar-view.tsx). Decision: the palette
- * hides "Notifications" on Settings rather than leaving the page to open it.
- * The composer is mounted in the (app) layout, so it opens everywhere.
+ * out. On Settings that is search and the ? overlay, because the shell
+ * renders only the page there (sidebar-view.tsx). The composer is mounted in
+ * the (app) layout, so it opens everywhere. #204: the bell is a link to the
+ * Inbox page, so it is a place the palette goes to, not a surface.
  */
-export const SHELL_SURFACES = ["search", "shortcuts", "notifications", "composer"] as const;
+export const SHELL_SURFACES = ["search", "shortcuts", "composer"] as const;
 export type ShellSurface = (typeof SHELL_SURFACES)[number];
 
 export interface ShellOpenRequest {

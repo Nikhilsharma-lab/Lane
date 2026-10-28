@@ -7,12 +7,13 @@ import { usePathname } from "next/navigation";
 import { useRequestNavigation } from "@/components/requests/request-navigation";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
 import { createProject } from "@/app/(app)/intake/project-actions";
-import { NotificationBell } from "./notification-bell";
+import { InboxBell } from "./inbox-bell";
 import { SidebarView } from "./sidebar-view";
 import { CommandPaletteHost } from "./command-palette-lazy";
 import type { PaletteRole } from "./command-palette-entries";
 import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
+import type { SavedView } from "@/lib/saved-view-nav";
 
 export function Sidebar({
   children,
@@ -22,7 +23,8 @@ export function Sidebar({
   role,
   orgId,
   userId,
-  unreadCount,
+  needsYouCount,
+  savedViews,
 }: {
   children?: React.ReactNode;
   workspaceName: string;
@@ -33,7 +35,9 @@ export function Sidebar({
   /** The signed-in user: a Pick up from the palette on Request detail names them as Assignee (#106). */
   userId: string;
   /** The (app) layout's unread count, streamed to the bell (plan item 1.8). */
-  unreadCount?: Promise<number>;
+  needsYouCount?: Promise<number>;
+  /** #219: the person's own saved views, for the navigation. */
+  savedViews?: SavedView[];
 }) {
   const pathname = usePathname();
   const navigation = useRequestNavigation();
@@ -63,7 +67,8 @@ export function Sidebar({
       projectsLoading={projectState.loading}
       projectsError={projectState.error}
       onRetryProjects={() => projectState.reload()}
-      onCreateProject={async name => {
+      // #210: a Viewer creates no Projects (the server refuses too), so the sidebar offers no New Project.
+      onCreateProject={role === "viewer" ? undefined : async name => {
         const stillCurrent = navigation.continuation();
         const result = await callAction(() => createProject({ name }, { orgId }));
         if (!result.success) throw new Error(result.error.message);
@@ -71,11 +76,12 @@ export function Sidebar({
         if (stillCurrent()) navigation.selectList({ status: "all", project: result.project.id });
         return result.project;
       }}
-      notifications={<NotificationBell orgId={orgId} unreadCount={unreadCount} />}
+      notifications={<InboxBell orgId={orgId} needsYouCount={needsYouCount} current={pathname === "/inbox"} />}
       palette={<CommandPaletteHost orgId={orgId} role={role} viewer={viewer} projects={projects} pathname={pathname} />}
       onSignOut={() => signOut({ redirectUrl: "/login" })}
       onSearch={search}
       workspaceSwitcher={workspaceSwitcher}
+      savedViews={savedViews}
     >
       {children}
     </SidebarView>

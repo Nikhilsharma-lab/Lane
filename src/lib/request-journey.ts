@@ -5,15 +5,16 @@
  *
  * The journey status is derived, never stored. The saved work status (open / in_progress / done), the
  * release record and the closure records stay as they are; everything else (list, board, peek, Request page,
- * filters, reminders) reads this module and never re-derives status itself. Vocabulary: GLOSSARY.md.
+ * filters, the Inbox) reads this module and never re-derives status itself. Vocabulary: GLOSSARY.md.
  *
  * This file is pure and client-safe. Its database twin, the list filter conditions, lives in
  * `request-journey-sql.ts` and is proven against the same mapping.
  */
+import type { WorkspacePermission } from "./auth-guard"
 import type { RequestStatus } from "./request-lifecycle"
+import { canChangeThings } from "./role-rules"
 import type { ReleaseFact, ReleaseState } from "./request-release"
 import { dueWords, releaseMeasurement, requesterOf } from "./request-release-facts"
-import { dayNumber, dayOf, utcDay } from "./utc-day"
 
 /** The person who closes. Read through the release record, which holds the current Requester and its handovers. */
 export { requesterOf }
@@ -80,7 +81,7 @@ export function journeyOf(status: JourneyStatus, closedWithoutResult: boolean): 
   return { status, label: withoutResult ? "Closed without a result" : JOURNEY_STATUSES.find(step => step.status === status)!.label, withoutResult }
 }
 
-/** How many days before the measurement due date a Request counts as "due soon" (row tag, filter, reminder). */
+/** How many days before the measurement due date a Request counts as "due soon" (row tag and filter). */
 export const DUE_SOON_DAYS = 3
 
 /**
@@ -106,7 +107,7 @@ export function dueSignal(facts: JourneyFacts, now: Date): DueSignal {
 /** Who is looking. Take `role` and `active` from the live workspace roster, never from the client. */
 export type JourneyViewer = {
   id: string
-  role: "admin" | "member" | "guest"
+  role: WorkspacePermission
   /** An active member of the workspace right now. False when access ended (or the roster can't be read). */
   active: boolean
 }
@@ -158,13 +159,19 @@ function releasedOnce(facts: JourneyFacts) {
  * close, close without a result and corrections by the Requester only; handover by an admin from In progress
  * onwards when the Requester has lost access; a follow-up by any active member once the work was released.
  */
-export function journeyActions(facts: JourneyFacts & { createdBy: string }, viewer: JourneyViewer, people: JourneyPeople, now: Date): JourneyActions {
+/** Why a role that can't change things (role-rules.ts) has no journey action. */
+const READ_ONLY_REASONS: Partial<Record<WorkspacePermission, string>> = {
+  guest: "Guests can follow this Request but can’t change it.",
+  viewer: "Viewers can read this Request but can’t change it.",
+}
+
+export function journeyActions(facts: JourneyFacts & { createdBy: string; takenOnBy: string | null }, viewer: JourneyViewer, people: JourneyPeople, now: Date): JourneyActions {
   const everything = (reason: string): JourneyActions => ({
     release: refuse(reason), correctRelease: refuse(reason), voidRelease: refuse(reason),
     close: refuse(reason), closeWithoutResult: refuse(reason), correctClosure: refuse(reason),
     handover: refuse(reason), followUp: refuse(reason),
   })
-  if (viewer.role === "guest") return everything("Guests can follow this Request but can’t change it.")
+  if (!canChangeThings(viewer.role)) return everything(READ_ONLY_REASONS[viewer.role] ?? "You can’t change this Request.")
   if (!viewer.active) return everything("Your workspace membership is no longer active.")
 
   const { status } = journeyStatus(facts)
@@ -217,70 +224,4 @@ export function journeyActions(facts: JourneyFacts & { createdBy: string }, view
     handover: handover(),
     followUp: releasedOnce(facts) ? ALLOWED : refuse("Opens once the work is released."),
   }
-}
-
-/** Bell reminder kinds. Names match the notification types the migration adds. */
-export type ReminderKind = "release_reminder" | "result_due_soon" | "result_due" | "result_overdue"
-
-/** Default timings (spec defaults, open to change at review). */
-export const REMINDER_TIMINGS = {
-  /** First release reminder this many days after Done. */
-  releaseAfterDoneDays: 3,
-  /** Release and overdue reminders repeat this often while still owed. */
-  repeatEveryDays: 7,
-} as const
-
-/**
- * One reminder a Request owes on a date. `day` is the UTC date the reminder was scheduled for. A recurring
- * reminder keeps the same `day` until its next occurrence, so someone who opens Lane later that week still
- * gets it, exactly as a daily job would have sent it.
- *
- * Writer contract: insert only when no notification of this kind for this Request and recipient was created
- * on or after `day` (UTC), with ON CONFLICT DO NOTHING. Migration 0034's unique index (one per Request,
- * recipient, kind and created UTC day) stops same-day races; the "on or after `day`" check stops a weekly
- * reminder being written again on each following day.
- */
-export type DueReminder = { kind: ReminderKind; recipientId: string; day: string }
-
-/** The latest occurrence on or before `today` of a reminder first due on `first`, repeating every `every` days. */
-const occurrence = (first: number, today: number, every: number) => dayOf(first + Math.floor((today - first) / every) * every)
-
-/**
- * Which reminders this Request owes on `now`'s UTC date, and to whom.
- *
- * - release reminder → the assignee (who picked it up; Lane doesn't store who marked Done), while Done
- * - result due soon / due / overdue → the current Requester, while Measuring
- *
- * Nothing after closure. A voided release puts the Request back at Done with no release: the result reminders
- * stop (they follow the current release, so they resume if the work is released again) and the release
- * reminder starts again, 3 days after the latest void, then weekly.
- * Recipients must be in `activeMembers`: pass active non-guest member ids only, so guests and people whose
- * access ended (a former Requester included) never receive one. `doneAt` is when the work was marked Done.
- */
-export function remindersDue(
-  facts: JourneyFacts & { createdBy: string; assignedTo: string | null; doneAt: Date | null },
-  now: Date,
-  activeMembers: ReadonlySet<string>,
-): DueReminder[] {
-  const status = journeyStatus(facts).status
-  const today = dayNumber(utcDay(now))
-  const reminders: DueReminder[] = []
-  const { releaseAfterDoneDays, repeatEveryDays } = REMINDER_TIMINGS
-
-  if (status === "done" && facts.assignedTo && facts.doneAt) {
-    const lastVoid = facts.releaseState?.history.findLast(event => event.input.kind === "void")?.at
-    const since = Math.max(dayNumber(utcDay(facts.doneAt)), lastVoid ? dayNumber(utcDay(new Date(lastVoid))) : -Infinity)
-    const first = since + releaseAfterDoneDays
-    if (today >= first) reminders.push({ kind: "release_reminder", recipientId: facts.assignedTo, day: occurrence(first, today, repeatEveryDays) })
-  }
-
-  if (status === "measuring") {
-    const due = dayNumber(facts.releaseState!.release!.dueDate)
-    const recipientId = requesterOf(facts)
-    if (today > due) reminders.push({ kind: "result_overdue", recipientId, day: occurrence(due + 1, today, repeatEveryDays) })
-    else if (today === due) reminders.push({ kind: "result_due", recipientId, day: dayOf(due) })
-    else if (today >= due - DUE_SOON_DAYS) reminders.push({ kind: "result_due_soon", recipientId, day: dayOf(due - DUE_SOON_DAYS) })
-  }
-
-  return reminders.filter(reminder => activeMembers.has(reminder.recipientId))
 }

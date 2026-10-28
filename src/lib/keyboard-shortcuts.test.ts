@@ -9,14 +9,14 @@ const keysOf = (scope: string) => SHORTCUT_GROUPS.filter(group => group.scope ==
 const EVENT_KEY: Record<string, string> = { "↓": "ArrowDown", "↑": "ArrowUp", "→": "ArrowRight", "←": "ArrowLeft", Home: "Home", End: "End", Enter: "Enter", Space: " " }
 // List keys another handler owns: Esc clears the selection (useRequestSelection), Shift F10 is Arc ContextMenu's.
 const OWNED_ELSEWHERE = new Set(["Esc", "Shift F10"])
-// Notification keys another handler owns: Enter is the row button's own activation, Esc is the Radix popover's (plan item 2.7).
+// Inbox keys another handler owns: Enter is the row button's own activation, Esc is the Request preview's (#204).
 const NOTIFICATIONS_OWNED_ELSEWHERE = new Set(["Enter", "Esc"])
 
 describe("keyboard shortcut map", () => {
   it("never repeats a key within a scope or against Anywhere", () => {
     const anywhere = keysOf("anywhere")
     expect(new Set(anywhere).size).toBe(anywhere.length)
-    for (const scope of ["list", "preview", "detail", "notifications", "forms"]) {
+    for (const scope of ["list", "preview", "detail", "inbox", "forms"]) {
       const keys = keysOf(scope)
       expect(new Set(keys).size, scope).toBe(keys.length)
       for (const key of keys) expect(anywhere, `${scope} ${key}`).not.toContain(key)
@@ -45,15 +45,15 @@ describe("keyboard shortcut map", () => {
   it("keeps the app-wide letters out of detail's commands", () => {
     for (const key of keysOf("anywhere").filter(key => key.length === 1)) expect(detailCommand({ key: key.toLowerCase() }, false, true), key).toBeNull()
   })
-  // Plan item 2.7: the popover's keys, with Enter and Esc owned by the row button and Radix.
-  it("gives every notifications key a command", () => {
-    for (const key of keysOf("notifications")) {
+  // Plan item 2.7 and #204: the Inbox's keys, with Enter and Esc owned by the row button and the preview.
+  it("gives every Inbox key a command", () => {
+    for (const key of keysOf("inbox")) {
       if (NOTIFICATIONS_OWNED_ELSEWHERE.has(key)) continue
       const eventKey = EVENT_KEY[key] ?? key.toLowerCase()
       expect(notificationCommand({ key: eventKey }), key).not.toBeNull()
     }
   })
-  it("keeps the app-wide letters out of the notifications commands", () => {
+  it("keeps the app-wide letters out of the Inbox commands", () => {
     for (const key of keysOf("anywhere").filter(key => key.length === 1)) expect(notificationCommand({ key: key.toLowerCase() }), key).toBeNull()
   })
   // Issue #101: the command palette opens from anywhere, Settings included.

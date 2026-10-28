@@ -16,8 +16,9 @@ They should not need another set of long documents, activity logs, or individual
 
 Lane has two product foundations, confirmed 2026-10-06:
 
-1. **One source of truth for the product and its journeys:** connect Requests, agreed decisions,
-   design/development references, journey changes, releases and results in a shared record.
+1. **One source of truth for the product:** connect Requests, agreed decisions, design/development
+   references, releases and results in a shared record. Journeys are design work and live in design
+   tools; Lane links to them and never maintains them (2026-10-24, `docs/product-vision-spec.md`).
 2. **Expected impact compared with actual results:** record a prediction when a Request is created,
    measure after launch in the agreed timeframe, compare and learn, then show quarterly/yearly product
    results from the same records.
