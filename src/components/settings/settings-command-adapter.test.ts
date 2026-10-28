@@ -107,6 +107,13 @@ describe("Settings → Members loads with Members (#258)", () => {
       expect(html).not.toContain("The member list");
     }
   });
+  it("never mounts the member list for a Viewer or a Guest, even asked for Members", () => {
+    for (const membership of ["viewer", "guest"]) {
+      const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership, workspaceName: "Lane Studio", page: "members", initialSection: "members", members }));
+      expect(html).not.toContain("The member list");
+      expect(html).not.toContain('id="settings-members"');
+    }
+  });
   it("shows the member list when Members is open", () => {
     const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "member", workspaceName: "Lane Studio", page: "members", initialSection: "members", members }));
     expect(html).toMatch(/<section id="settings-members"(?![^>]*hidden)[^>]*>(?:(?!<\/section>)[\s\S])*The member list/);

@@ -7,7 +7,7 @@ import { Bookmark, ChartColumn, Rows3 } from "lucide-react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
 import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
 import { NewRequestLink } from "@/components/requests/new-request-link";
-import { FULL_PREFETCH } from "@/components/requests/use-intent-prefetch";
+import type { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types";
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer";
 import { useLoadedRequests, useRequestListContext, useSetDetailSession, useSetRequestListView, withListContext, withSavedView } from "@/components/requests/list-view-state";
 import { changesListInPlace, requestListContextFromHref, requestListHref } from "@/lib/request-workspace";
@@ -77,11 +77,10 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const setDetailSession = useSetDetailSession();
   const router = useRouter();
   const membersHref = role === "admin" || role === "member" ? "/settings/members" : undefined;
-  // #258: opening the account menu loads Settings (and Members, for people who see it) ahead with the full
-  // prefetch Request rows use, so choosing either answers at once.
+  // #258: opening the account menu fully prefetches Settings (and Members, for people who see it), as Request
+  // rows do (FULL_PREFETCH in use-intent-prefetch.ts), so choosing either answers at once. Spelled here so the shell carries no module for it.
   const loadSettingsAhead = useCallback(() => {
-    router.prefetch("/settings/profile", FULL_PREFETCH);
-    if (membersHref) router.prefetch(membersHref, FULL_PREFETCH);
+    for (const href of ["/settings/profile", membersHref]) if (href) router.prefetch(href, { kind: "full" as PrefetchKind });
   }, [router, membersHref]);
   const listContext = useRequestListContext();
   const { status: filter, project: projectFilter, savedView: openViewId } = listContext;

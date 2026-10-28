@@ -13,7 +13,6 @@ import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants"
 import { requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import { ROW_MENU_HINTS } from "@/lib/keyboard-shortcuts"
 import type { RequestColumn } from "./tasks/columns"
-import { useIntentPrefetch } from "./use-intent-prefetch"
 import { GlyphMenu } from "./glyph-menu"
 import { requestRowLabel } from "./request-row-label"
 import styles from "./request-rows.module.css"
@@ -25,7 +24,7 @@ import { PriorityGlyph, StatusGlyph, useRequestRowPresentation } from "./row-pre
 import { statusOfJourney } from "./tasks/statuses"
 import { DueTag, useDueNow } from "./due-tag"
 import { useListAnnouncer } from "./list-announcer"
-import { usePeekLoadAhead, useRequestPeekOpener } from "./request-peek"
+import { useRequestPeekOpener, useRowLoadAhead } from "./request-peek"
 
 function RequestCodeControl({ code }: { code: string }) {
   const feedbackId = useId()
@@ -120,9 +119,8 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   const code = savedCode ?? identity?.code ?? ""
   const rowRef = useRef<HTMLDivElement>(null)
   // Plan item 2.4: keyboard focus rests on the row, so the row prefetches its detail once the person stops on it.
-  const prefetch = useIntentPrefetch(requestDetailHref(request.id, "all"))
-  // #258: the same rest, by keyboard or pointer, reads the Request into its preview, where the list offers one.
-  const loadAhead = usePeekLoadAhead(request.id)
+  // #258: that rest, by keyboard or pointer, also reads the Request into its preview, where the list offers one.
+  const rest = useRowLoadAhead(requestDetailHref(request.id, "all"), request.id)
   const actionItems = presentation?.menuItems(request) ?? []
   // Plan item 2.12: Preview, where the list offers it (not on phones).
   const peek = useRequestPeekOpener()
@@ -150,10 +148,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
     id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
     className={styles.row} data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-menu-open={menuOpen || undefined}
-    onFocus={event => { if (event.target === event.currentTarget) { prefetch.schedule(); loadAhead.schedule("focus") } }}
-    onBlur={event => { if (event.target === event.currentTarget) { prefetch.cancel(); loadAhead.cancel() } }}
-    onPointerEnter={event => { if (event.pointerType !== "touch") loadAhead.schedule("pointer") }}
-    onPointerLeave={() => loadAhead.cancel()}>
+    {...rest.focus} {...rest.pointer}>
     <div role="gridcell" className={styles.selectCell}>
       <Checkbox tabIndex={-1} checked={checked} disabled={disabled} onCheckedChange={value => onCheckedChange(value === true)} aria-label={`Select ${request.reframedProblem ?? request.title}`} />
     </div>
