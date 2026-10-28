@@ -25,6 +25,29 @@ is +2,193 versus fresh pinned main (145 over) and +2,549 versus committed main
 receipts remain immutable; user main's later DB-URL-only change is root's separate
 final reconciliation, not silently included in this pinned comparison.
 
+## #167 compatibility refresh — reviewed #175 helper and pinned main
+
+The isolated compatibility branch now preserves reviewed #175 `3244d6c1` through
+merge `f5718de9` and main `f638003c` through merge `6cbbe712`, starting at reviewed
+compatibility candidate `a54dbf1f` (Standards 0 / Spec 0). The only conflict was this
+handoff; both sections are retained below. The #175 helper matches its source
+exactly, and all five incoming database URL files match pinned main exactly.
+No schema, UI, provider, database or runtime operation accompanied this refresh.
+
+Fresh Node 24 checks pass: full TypeScript, full ESLint, and design checks (42 tests,
+theme contract, Arc source and brand assets). The new pure database URL tests remain
+pending the required final guarded application suite: existing no-database configs
+do not include them, and no config/global-setup bypass was introduced. Prior app,
+UI and browser results below remain scoped to their recorded sources. Combined
+browser acceptance, final broad checks/reviews and #175 acceptance remain pending;
+integration `355e09e` is untouched. No hidden Undo, reset or Done replay is authorized.
+
+The fresh-main bundle comparison below is against old pinned main `3e6de934`, not
+current `f638003c`. Its immutable receipt and the original baseline are retained;
+fresh `f638003c` comparison is still required before claiming current-main budget
+compliance. The separate proposal is not main-merge approval. Refresh receipt:
+`/private/tmp/lane-spec-167-reconcile-refresh.md`.
+
 ## #167 / main #195 compatibility — isolated review candidate
 
 Prepared on `codex/spec-167-main-reconcile`, from through-#175 `f7ad5a9` and pinned
@@ -52,6 +75,23 @@ correctly fail its old inventory. Detail grows 2,198 bytes versus fresh main
 (150 over) and 2,554 versus main's committed baseline (506 over); other routes fit.
 The proposed baseline passes; main-merge approval remains pending. Immutable
 original and fresh-main receipts are retained for #176 and the full-PR comparison.
+
+## #175 Oct26 browser helper correction — bulk toast title
+
+Run11 saved LAN-19 Pickup/Done and LAN-16/17 bulk Done, then the test's
+whole-toast anchored text selector failed on Arc's hidden `Success: ` prefix.
+The retained screenshot and accessibility tree show both Undo actions visible.
+The helper now matches the exact title descendant. No product source changed.
+Full TypeScript and affected helper lint pass. An external actual Arc/controller
+browser diagnostic proves old selector 0, corrected selector 1, both Undo actions
+visible and the bulk Undo focusable; no database/provider calls or page errors.
+
+All 23 hosted operation receipts are preserved. LAN-16/17/18/19 remain Done;
+no Release or Undo followed this failure. The owned browser/runtime are stopped,
+the pause latch is set, and retained in-memory Undo owners were lost with context
+closure. Acceptance is incomplete; no hidden Undo, reset or Done replay is allowed.
+Evidence: `/private/tmp/lane-spec-175-browser-evidence.md` and
+`/private/tmp/lane-spec-175-bulk-toast-diagnostic/receipt.json`.
 
 
 ## #175 Oct26 browser correction — restore a toast during its exit
