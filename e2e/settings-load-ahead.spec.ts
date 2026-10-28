@@ -49,13 +49,20 @@ test("Settings reads the member list only once Members is shown, keeps it for th
     const people = page.getByRole("list", { name: "People in this workspace" });
     const membersNav = page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Members" });
 
-    await test.step("Profile, Billing and Metrics don't ask Clerk for the member list", async () => {
+    await test.step("Profile, Billing, Metrics and a Metric don't ask Clerk for the member list", async () => {
       for (const path of ["/settings/profile", "/settings/profile?section=billing", "/settings/metrics"]) {
         await page.goto(path);
         await expect(page.getByRole("button", { name: /Search settings/ })).toBeVisible();
         await settled(page);
         expect(memberList, `member-list requests on ${path}`).toEqual([]);
       }
+      // A Metric's own page (/settings/metrics/[id]): a starter metric every workspace has, opened from the list above.
+      const metricPath = await page.getByRole("link", { name: "Conversion rate", exact: true }).getAttribute("href");
+      expect(metricPath).toMatch(/^\/settings\/metrics\/[0-9a-f-]{36}$/);
+      await page.goto(metricPath!);
+      await expect(page.getByRole("heading", { name: "Conversion rate", exact: true })).toBeVisible();
+      await settled(page);
+      expect(memberList, `member-list requests on ${metricPath}`).toEqual([]);
     });
 
     await test.step("switching to Members in place shows the list with its loading lines, and coming back doesn't reload it", async () => {
