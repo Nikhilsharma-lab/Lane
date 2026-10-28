@@ -1,5 +1,40 @@
 # #167 compatibility with main #195
 
+## Oct 28 integrated CI and signed-in navigation
+
+CI on `335305d922205ee855a4ce7f489ae8b79b788818` passed all checks, bundle and test
+jobs: [run 40712705249](https://github.com/Nikhilsharma-lab/Lane/actions/runs/40712705249).
+The application suite reports 2,831 passed and one skipped, across 255 passed and
+two skipped files. Typecheck, lint, design, production build and the proposed
+bundle baseline also pass. This supersedes the older application count below;
+the baseline proposal remains unapproved and browser acceptance remains separate.
+Independent final source-mapping reviews report zero outstanding findings on
+both axes. #175/#176 browser acceptance is still pending.
+
+The next private-file runtime start was rejected by automatic approval review
+before execution because the earlier approval did not cover its one local New,
+additional AI review and exact staging Storage payload. Direct user approval has
+been requested; the runtime remains stopped. The preceding AI gate response was
+lost to the external helper's Flight parser before delivery, with no saved New or
+attachment. Its eight-entry ledger remains unchanged, and the reviewed parser
+correction/pinned historical resolution changes no application code. This is a
+test-runner failure and authorization boundary, not private Storage acceptance.
+
+The corrected c902 signed-in local replay held B's actual Done response, activated
+the saved view then Inbox through normal links, and delivered the response without
+losing Inbox or showing stale prompts/focus. The retained toast's actual Undo
+returned B to In progress; D stayed Done. Trusted click/history chronology and
+saved state are recorded in `held-b-navigation-chronology.json` and
+`held-b-result.json` in the local-browser scratch evidence. This is the fresh
+navigation replay missing from the historical section below.
+
+Settled Requests and Inbox surfaces were checked at 390px in Light and Dark and
+at 768/1024px; Inbox delivery, Slack, Billing and Metrics were opened without
+settings writes. The saved-read FYI was absent as expected, so mobile read-state
+retry remains unverified. Faint status pills overlap the first Request rows at
+390px in both themes. Their source is unchanged from f638, but the baseline was
+not separately browser-reproduced. The visual follow-up is retained in DEFERRED.md.
+
 ## Oct 28 source integration and inherited Inbox failure
 
 Source integration `8371a5fb` preserves reviewed combined candidate `c902f6c8`;

@@ -1,5 +1,36 @@
 # Shared Claude / Codex handoff
 
+## Oct 28 continuation — CI passed, private browser check pending
+
+Integration `335305d9` is pushed to draft PR177. CI40712705249 passed checks,
+bundle and application tests (2,831 passed, one skipped; 255 files passed, two
+skipped). Both final source-mapping review axes report zero findings. The c902
+signed-in held-B Done → saved view → Inbox → real Undo replay passed; B returned
+to In progress and D remained Done. Source is frozen; no main merge/deployment.
+
+Private attempt14 executed one real AI review, but the runner could not parse
+the HTTP200 Flight response and never delivered it to the browser. Its original
+classification/token are unknown and unrecoverable through the supported helper
+interfaces. Read-only reconciliation confirms three Requests, zero attachments,
+Free Requests used three and no saved N. Preserve operation f66fc718 and its
+response hash/failure; do not replay Save or reset fixtures. A synthetic installed
+React encoder reproduces the helper's length-prefixed text parsing gap, without
+proving the lost response's contents. Parser correction and exact historical
+resolution were independently reviewed and applied only to the external runner
+(patch602ee020, manifest5c71a42e). The original eight-entry ledger is unchanged;
+the separate pinned resolution does not invent or deliver the lost result.
+24 parser and17 resolution checks pass, including actual React rendering with
+unrelated RSC imports/binary data. No product source changed.
+
+Automatic approval review rejected the next runtime start before execution:
+the earlier user approval excluded new Requests and did not cover the sole local
+New, additional AI review and private staging Storage payload. Root requested
+direct approval of that exact scope; dependent work must remain stopped until
+the user answers. Attempt15 did not start, port3100 is free, the owned groups
+stopped and the local database is retained. #175/#176 actual acceptance and
+owned-worktree cleanup remain pending; PR177 stays draft. Safe rejection receipt:
+`/private/tmp/lane-spec-167-local-browser-scratch/triage-resume-approval-rejection.json`.
+
 ## Oct 28 final source integration — acceptance still pending
 
 `8371a5fb` merges reviewed combined candidate `c902f6c8`; `7cae8bd1` preserves
