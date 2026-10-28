@@ -37,7 +37,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popove
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { savedFraming, storedShape } from "@/lib/request-framing";
-import { IntakeNavigationGuard } from "@/components/requests/intake-navigation-guard";
+import { IntakeNavigationGuard, type RegisterIntakeCloseAttempt } from "@/components/requests/intake-navigation-guard";
 import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
 import type { TriageResult } from "@/lib/ai/triage";
 import {
@@ -231,6 +231,7 @@ export default function RequestEditor({
   onCreated,
   onBusyChange,
   onCancelCheckChange,
+  registerCloseAttempt,
   initialProjectId = null,
   editing,
   canAddReviewers = false,
@@ -247,6 +248,7 @@ export default function RequestEditor({
   onBusyChange?: (busy: boolean) => void;
   /** Decision 2026-10-21 (critique 2.3): a way to abandon the problem check while it runs, null otherwise. The composer's X and Esc use it. */
   onCancelCheckChange?: (cancel: (() => void) | null) => void;
+  registerCloseAttempt?: RegisterIntakeCloseAttempt;
   initialProjectId?: string | null;
   editing?: { request: RequestDetail; onSaved: () => void };
   /** #78: non-guests can ask people to review while creating. Not offered when editing. */
@@ -879,7 +881,8 @@ export default function RequestEditor({
       onKeyDown={onComposerKeyDown}
     >
       {active && stage !== "complete" && (creating || hasPendingUploads) && (
-        <IntakeNavigationGuard creating={creating} onLeave={() => session.leave()} />
+        <IntakeNavigationGuard creating={creating} onLeave={() => { void session.leave(); }}
+          registerCloseAttempt={stage === "uploading" ? registerCloseAttempt : undefined} />
       )}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {active ? liveStatus : ""}

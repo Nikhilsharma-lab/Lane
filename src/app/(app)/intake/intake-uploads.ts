@@ -255,6 +255,17 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     state.set({ ...state.get(), phase: "complete" });
     if (current()) presentation?.finish(requestId, options);
   }
+  function detach() {
+    const entry = scope();
+    if (entry.presentation === identity) presentation?.cancelCheck?.(null);
+    presentation = null; binding = null;
+    cancelCheck();
+    entry.bindings.delete(identity);
+    if (entry.presentation === identity) entry.presentation = null;
+    const cleanup = !operation && state.get().requestId && state.get().phase !== "complete" ? perform(async () => {}) : undefined;
+    releaseScope(deps.scope, entry);
+    return cleanup;
+  }
   return {
     getSnapshot: state.get, subscribe: state.subscribe,
     guard<T extends unknown[]>(run: (...args: T) => void) {
@@ -263,7 +274,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     },
     syncBusy() { if (binding && scope().presentation === identity) presentation?.busy(state.get().busy); },
     cancelCheck,
-    leave() { left = true; if (!operation) void perform(async () => {}); },
+    leave() { left = true; return detach(); },
     async check<T>(input: { run: () => Promise<T>; receive: (result: T) => void; failed: () => void }) {
       if (state.get().requestId) return;
       await perform(async (current, token) => {
@@ -282,17 +293,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     },
     bind(next: IntakePresentation) { if (binding) presentation = next; },
     attach(next: IntakePresentation) { binding = Symbol(); presentation = next; const entry = scope(); entry.bindings.add(identity); entry.presentation = identity; },
-    detach() {
-      const entry = scope();
-      if (entry.presentation === identity) presentation?.cancelCheck?.(null);
-      presentation = null; binding = null;
-      cancelCheck();
-      entry.bindings.delete(identity);
-      if (entry.presentation === identity) entry.presentation = null;
-      const cleanup = !operation && state.get().requestId && state.get().phase !== "complete" ? perform(async () => {}) : undefined;
-      releaseScope(deps.scope, entry);
-      return cleanup;
-    },
+    detach,
     async save(input: { run: () => Promise<SaveResponse>; title: string; attachments: QueuedAttachment[]; saved: (result: SavedRequest) => void; failed: (failure: SaveFailure | null) => void }) {
       if (state.get().requestId) return;
       const attachments = input.attachments.map(file => ({ ...file }));

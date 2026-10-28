@@ -438,3 +438,41 @@ it("an explicit Open waiting for cleanup does not navigate after its presentatio
   expect(app.finished).toEqual([]);
   expect(app.record()).toBeNull();
 });
+
+it("Leave retires its mounted presentation while retaining failed cleanup for the next owner", async () => {
+  const scope = crypto.randomUUID();
+  let record: UnfinishedUploads | null = null;
+  const records = { read: () => record, write: (value: UnfinishedUploads) => { record = value.files.length ? value : null; return true; }, clear: () => { record = null; return true; } };
+  const pending = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
+  const busy: boolean[] = [];
+  const oldPresentation: string[] = [];
+  const first = owner({ scope, record: records, put: () => { started.resolve(); return pending.promise; }, discard: async () => ({ success: false, error: { code: "storage_unavailable", message: "Retry cleanup." } }) });
+  first.session.bind({ busy: value => { busy.push(value); }, finish: () => { oldPresentation.push("finished"); } });
+  const saving = first.session.save({ run: async () => ({ success: true, requestId: "saved-request" }), title: "Saved problem",
+    attachments: ["first", "second"].map(key => ({ key, file: new File(["bytes"], `${key}.png`, { type: "image/png" }), status: "queued", progress: 0, attachmentId: null, error: null })), saved: () => {}, failed: () => {} });
+  await started.promise;
+  const delayedFocus = first.session.guard(() => { oldPresentation.push("focus"); });
+  first.session.leave();
+  delayedFocus();
+  first.session.syncBusy();
+  expect(oldPresentation).toEqual([]);
+  expect(busy).toEqual([true]);
+  const second = owner({ scope, record: records });
+  second.session.persistDraft(() => true);
+  pending.reject(new Error("Controlled interrupted transfer"));
+  await saving;
+  expect(first.prepared()).toBe(1);
+  expect(busy).toEqual([true]);
+  // The old React form may still be mounted through its exit. It no longer
+  // owns recovery; B can reconcile the exact retained reservation afterward.
+  expect(second.session.recoveryRecord()).toMatchObject({ requestId: "saved-request", files: [
+    { key: "first", name: "first.png", attachmentId: "attachment-first.png" },
+    { key: "second", name: "second.png", attachmentId: null },
+  ] });
+  await second.session.recover();
+  expect(second.session.getSnapshot().phase).toBe("lost");
+  expect(second.session.getSnapshot().lost?.files.every(file => file.attachmentId === null)).toBe(true);
+  first.session.detach();
+  second.session.detach();
+});
