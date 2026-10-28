@@ -15,9 +15,8 @@ import { useDetailRequest } from "./detail-context"
 import type { RequestDetail } from "./detail-view"
 import { usePendingMutations } from "./pending-mutations-provider"
 import { RequestDetailPane } from "./request-detail-pane"
-import { peekEntry, peekKey, readPeek, storePeek, storePeekFailure, subscribePeek } from "./request-peek-memory"
+import { peekEntry, peekKey, readForPreview, subscribePeek } from "./request-peek-memory"
 import type { RequestPeekProps } from "./request-peek"
-import { PREFETCH_INTENT_MS } from "./use-intent-prefetch"
 import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
 
@@ -80,17 +79,16 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
   // A comment addComment confirmed that this copy does not list yet: read once more.
   const unsyncedComment = Boolean(detail && overlay?.commentsFor(requestId, detail.comments).some(comment => "pending" in comment && comment.pending === "sent"))
 
+  // #258: the first read since this Request opened, which waits on a read ahead in flight instead of
+  // reading again. (A new Request remounts this, so any change after opening reads a fresh copy.)
+  const [openedWith] = useState(serverRow)
+  const opening = serverRow === openedWith && !unsyncedComment && retry === 0
+
   useEffect(() => {
     const controller = new AbortController()
-    // A held J passes many rows: only the one the person stops on is read.
-    const timer = window.setTimeout(() => {
-      readPeek(orgId, requestId, controller.signal).then(next => {
-        // An abort while the body was read is not a failure: a newer read is on its way.
-        if (!controller.signal.aborted) storePeek(key, next)
-      }, (error: unknown) => { if (!controller.signal.aborted) storePeekFailure(key, error) })
-    }, peekEntry(key) ? 0 : PREFETCH_INTENT_MS)
-    return () => { window.clearTimeout(timer); controller.abort() }
-  }, [key, orgId, requestId, serverRow, unsyncedComment, retry])
+    readForPreview(orgId, viewer.id, requestId, controller.signal, { opening })
+    return () => controller.abort()
+  }, [opening, orgId, viewer.id, requestId, serverRow, unsyncedComment, retry])
 
   const request = useMemo(() => {
     if (!detail) return null

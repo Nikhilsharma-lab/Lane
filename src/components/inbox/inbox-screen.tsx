@@ -5,7 +5,7 @@ import { AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { useListAnnouncer } from "@/components/requests/list-announcer";
-import { RequestPeek, RequestPeekLoadAhead, loadPeekAhead, preloadRequestPeek, usePeekAvailable, type PeekViewer } from "@/components/requests/request-peek";
+import { RequestPeek, RequestPeekLoadAhead, preloadRequestPeek, useListLoadAhead, usePeekAvailable, type PeekViewer } from "@/components/requests/request-peek";
 import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
 import { inboxNeedsYou } from "@/components/shell/inbox-count";
 import { begin, beginAllRead, confirm, initialReadState, isAllReadPending, isPending, pendingIds, receiveCount, receiveList, rollback, shownItems, shownUnread, type ReadState } from "@/components/shell/notification-read-state";
@@ -215,10 +215,11 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   const selectedRequest = items.find(item => item.id === selectedId)?.requestId ?? needsYou.find(item => item.key === selectedId)?.requestId ?? null;
   const previewId = peekAvailable ? selectedRequest : null;
 
-  // #258: resting on an item reads its Request into the preview's memory before it opens.
-  const loadAhead = useCallback((id: string) => loadPeekAhead(orgId, viewer.id, id), [orgId, viewer.id]);
+  // #258: resting on an item reads its Request into the preview's memory before it opens (not by focus while
+  // the preview is open, as on the Requests list).
+  const loadAhead = useListLoadAhead(orgId, viewer.id, { offered: peekAvailable, previewOpen: previewId !== null });
 
-  return <RequestPeekLoadAhead value={peekAvailable ? loadAhead : null}><InboxView
+  return <RequestPeekLoadAhead value={loadAhead}><InboxView
     needsYou={needsYou}
     showNeedsYou={showNeedsYou}
     items={items}
