@@ -111,6 +111,10 @@ pnpm exec playwright test e2e/<spec>.spec.ts --output=/tmp/lane-<ticket>-scratch
 - Needs `.env.local` in the worktree (§2) and a migrated `lane_test_*` database (§1). `LANE_E2E_LOCAL_DATABASE=1`
   accepts only a `lane_test_*` database on `localhost`/`127.0.0.1` and a local `http://` app; every Clerk check in
   `e2e/helpers/safety.ts` still applies.
+- `LANE_E2E_ALLOW_REMOTE=1` is still needed on a local run, on purpose: only the database is local. The run still
+  creates and deletes users and organizations in the remote Clerk development instance, and specs with
+  attachments write to Lane Staging's file storage. `LANE_E2E_ALLOW_REMOTE=1` is the consent to change those remote
+  services; `LANE_E2E_LOCAL_DATABASE=1` only moves the database and never stands in for that consent.
 - `LANE_E2E_REUSE_USERS=1`: when Clerk is at its user cap, fixtures borrow a free `lane-e2e-*` user (no
   organization, the fixture password), mark it, and give it back with its own name instead of deleting it. It runs
   one worker. A crashed run leaves `laneE2EBorrowedBy` in that user's `privateMetadata`, so it isn't borrowed again
