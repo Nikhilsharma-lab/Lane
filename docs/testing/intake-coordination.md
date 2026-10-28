@@ -33,6 +33,55 @@ impact behavior and existing optimistic queue. The shared action boundary alone
 handles explicit pre-write session expiry; ambiguous transport failures do not
 permit replay.
 
+## Oct28 reachable Leave correction
+
+`a3c37a1f` connects New/Edit's existing X and Escape close attempts during saved
+uploads to the existing Keep working / Leave page confirmation. Saving still
+holds the editor open, AI cancellation is unchanged, and ordinary hidden New
+recovery retains its Files. The existing Arc Dialog, Buttons, focus callbacks and
+motion are reused; no primitive, visual value, route or provider API changed.
+
+Confirmed Leave retires the owner's presentation binding before the host exits.
+The operation/record lease survives while the current file settles, and no next
+file starts. New retires the saved generation without its completion toast or
+navigation; reopening creates a fresh form whose draft and focus cannot be changed
+by the old operation. A failed cleanup remains reachable to the next owner.
+Edit closes without invoking its saved callback. One-shot confirmation protects
+against duplicate activation; Keep working and nested Escape cancel only the
+confirmation. Its focused content handles Escape immediately while the global
+Radix layer registration settles, without changing Arc timing.
+
+Actual React/StrictMode New and Edit hosts first failed all four X/Escape cases
+at824. A separate focused-confirmation one-Escape red was retained, then corrected
+without a frame-delay workaround. Final isolated harness: four host cases pass at
+1440/light and390/dark, including saving guards, Keep working, nested Escape,
+current-file-only settlement, New reopen-before-settlement, shared-lock refusal
+and preservation of B's newer draft/focus. Two existing AI-cancel/hidden-File cases
+and one saved hidden-recovery/Retry case also pass. These use real hooks, Files,
+providers, owner and Arc/CSS, with external actions/router and loopback PUT
+responses controlled. They are not signed-in or private Storage acceptance.
+Receipts: `/private/tmp/lane-spec-176-leave-harness/` final-confirmation-receipt.json,
+controls-receipt.json and recovery-receipt.json; source hashes identify the tested
+product delta over824. The source red and intermediate failures remain there.
+
+Final source checks: UI996/94, full TypeScript/repository lint/design and production
+build pass under Node24.22.0. The owner test covers retired binding, stale busy/focus,
+no next reservation and failed cleanup reachable by B. No application reset was
+needed for this client-only correction. Root separately verified clean824 with
+bootstrap52 and full application2827/one skipped (255 files/two skipped), including
+incoming main DB URL tests. That result remains attributed to824. Its earlier
+Open Request actual-host correction is independently green in the browser-owned
+`lane-spec-176-lifetime-fixed` receipts.
+
+The inherited17-route proposal still passes unchanged. Original existing routes
+fit: Requests+393/detail+493; three incoming-main routes remain absent from the
+original inventory and correctly fail it. Fresh f638 detail+2331 is283 over2048;
+committed f638 detail+2687 is639 over; every other route fits. Proposal growth is
+Requests+53/detail+133. No new rebaseline or waiver approval. Exact receipts are
+`/private/tmp/lane-spec-176-leave-fresh-bundle.json` and
+`/private/tmp/lane-spec-176-leave-bundle-comparison.json`. Private-file browser
+continuation and independent delta reviews remain parent-owned acceptance gates.
+
 ## Oct28 review correction and current source
 
 Review of `a93d724b` found Standards 0 / Spec 1 P2: Open Request after removing the

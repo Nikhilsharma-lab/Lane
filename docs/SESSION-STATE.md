@@ -1,5 +1,27 @@
 # Shared Claude / Codex handoff
 
+## #176 Oct28 reachable Leave source handoff
+
+Product `a3c37a1f` makes existing New/Edit X/Escape reach the existing saved-upload
+Leave confirmation. Confirmed Leave retires presentation, finishes only the current
+file, preserves cleanup metadata, and retires New's saved generation without stale
+completion feedback. Keep working/nested Escape, saving guards, AI cancellation
+and ordinary hidden-File recovery remain intact. Arc primitive/motion unchanged.
+
+Actual isolated New/Edit four-case red→green, plus two AI/hidden-File controls and
+one saved Retry case pass; one focused nested-Escape red was fixed without delays.
+Full UI996/94, TypeScript/repository lint/design/build pass. No DB reset for this
+client change. Root's fresh824 bootstrap52/application2827 (one skipped) remains
+separate and includes incoming main DB URL tests. Signed-in private-file acceptance
+and independent reviews remain pending; no provider/runtime in the live local
+browser checkout was changed by this implementation.
+
+Inherited bundle proposal passes unchanged. Original existing routes +393 Requests,
++493 detail fit; its3 main-added routes fail inventory. Fresh f638 detail+2331
+(283 over2048), committed f638 detail+2687 (639 over), all other routes fit. No
+rebaseline/waiver approval. Evidence: `testing/intake-coordination.md`, external
+`lane-spec-176-evidence.md`, and `lane-spec-176-leave-bundle-comparison.json`.
+
 ## #176 Oct28 review correction and compatibility merge
 
 The P2 review correction is `1f69bdd0`: after the final failed file is removed,
