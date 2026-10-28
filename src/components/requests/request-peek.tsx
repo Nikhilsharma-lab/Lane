@@ -15,11 +15,12 @@ export type PeekViewer = { id: string; name: string; isAdmin: boolean; readOnly?
 /** Plan item 2.12: the content, the Request detail pane and its islands, is its own chunk, fetched
  * once a row takes focus so the first Space rarely waits. The panel itself loads with the list.
  * #259: with it, the code the content loads on first show (the Iterations list), so the first opening fetches none. */
-export const preloadRequestPeek = () => { void import("./request-peek-content").then(module => { loadedContent = module.RequestPeekContent; module.preloadSameProblemView() }, () => undefined) }
+export const preloadRequestPeek = () => { void loadContent().catch(() => undefined) }
 /** #259: the content once its code has arrived. A preview opened after that renders it directly: through lazy() it
  * would wait a turn on the arrived code and show the panel's loading state, and React holds a reveal after a loading
  * state for 300 ms. */
 let loadedContent: ComponentType<RequestPeekProps> | undefined
+const loadContent = () => import("./request-peek-content").then(module => { module.preloadSameProblemView(); return { default: loadedContent = module.RequestPeekContent } })
 
 /** Phones keep full-page navigation; the preview needs a fine pointer and room beside the list. */
 const AVAILABLE = "(min-width: 768px) and (pointer: fine)"
@@ -50,7 +51,7 @@ export type RequestPeekProps = {
 }
 
 // A chunk that fails to load (an old tab after a deploy, or offline) says so in the panel, never in place of the list.
-const LazyContent = lazy(() => import("./request-peek-content").then(module => ({ default: loadedContent = module.RequestPeekContent }), () => ({ default: PreviewFailed })))
+const LazyContent = lazy(() => loadContent().catch(() => ({ default: PreviewFailed })))
 
 /** Until the content's chunk arrives (it is fetched once a row takes focus, so rarely): the panel's
  * place and its way out. The content renders the full skeleton while it reads the Request. */

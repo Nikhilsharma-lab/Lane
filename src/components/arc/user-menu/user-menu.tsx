@@ -89,8 +89,8 @@ type OpenReason = "first" | "last" | "pointer" | null;
 const compactQuery = "(max-width: 639px)";
 const subscribeCompact = (change: () => void) => { const query = window.matchMedia(compactQuery); query.addEventListener("change", change); return () => query.removeEventListener("change", change); };
 const subscribeNothing = () => () => {};
-/** Lane #259: a link to another page of this app (not another site, nor a hash on this page, which the browser handles in place). */
-const inApp = (href: string) => { const url = new URL(href, location.href); return url.origin === location.origin && (!url.hash || url.pathname + url.search !== location.pathname + location.search); };
+/** Lane #259: a path in this app (not another site, nor a hash on this page, which the browser handles in place). */
+const inApp = (href: string) => href[0] === "/" && href[1] !== "/" && !href.startsWith(location.pathname + "#");
 const statusLabel = (status: UserStatus) => userStatuses.find(option => option.value === status)?.label ?? status;
 const enter = [...motionTokens.ease.enter] as [number, number, number, number];
 const standard = [...motionTokens.ease.standard] as [number, number, number, number];
