@@ -37,9 +37,10 @@ export function createRequestNavigation(state: NavigationState) {
   let rememberHistoryReturn: (() => void) | null = null
   let previewId: string | null = null
   function invalidate() {
+    // Presentation changes cancel stale work/focus, not an issued router push.
     generation += 1
     cancelFocus?.(); cancelFocus = null
-    arrival = null; pendingPath = null
+    arrival = null
     state.setDetailSession({ focusTitleOnArrival: false, focusOnArrival: null })
   }
   function prepareDetail(id: string, intent: DetailIntent = {}) {
@@ -54,6 +55,7 @@ export function createRequestNavigation(state: NavigationState) {
     const location = browser.location()
     const supersedesRoute = pendingPath !== null && pendingPath !== location.pathname
     invalidate()
+    pendingPath = null
     listSelectionPending = true
     const filtered = withListContext(state.getView(), next)
     const selected = withSavedView(filtered, next.savedView ? { id: next.savedView, filters: filtered } : null)
@@ -81,6 +83,12 @@ export function createRequestNavigation(state: NavigationState) {
       invalidate()
     },
     planListUrl(input: Omit<ListUrlSyncInput, "current" | "localSelectionPending">) {
+      // Settling a mutation must not restore the old list over a newer route
+      // whose push has not reached the address bar yet.
+      if (pendingPath !== null && pendingPath !== "/") {
+        if (input.pathname === pendingPath) pendingPath = null
+        return { seen: input.search }
+      }
       const current = state.getView()
       const href = requestListHref(current.status, current.project)
       // Both router state and the address bar must acknowledge the selection:
@@ -96,9 +104,9 @@ export function createRequestNavigation(state: NavigationState) {
     listenForHistory(target: Pick<Window, "addEventListener" | "removeEventListener">) {
       // This workspace listener precedes the router's restore listener. A
       // detail's later listener can be unmounted before dispatch reaches it.
-      const restore = () => { rememberHistoryReturn?.(); listSelectionPending = false; invalidate() }
+      const restore = () => { rememberHistoryReturn?.(); pendingPath = null; listSelectionPending = false; invalidate() }
       target.addEventListener("popstate", restore)
-      return () => { target.removeEventListener("popstate", restore); rememberHistoryReturn = null; listSelectionPending = false; invalidate() }
+      return () => { target.removeEventListener("popstate", restore); rememberHistoryReturn = null; pendingPath = null; listSelectionPending = false; invalidate() }
     },
     continuation() { const started = generation; return () => generation === started },
     deferFocus(focus: () => void) {

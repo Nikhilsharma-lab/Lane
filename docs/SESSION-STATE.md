@@ -74,6 +74,24 @@ is +2,193 versus fresh pinned main (145 over) and +2,549 versus committed main
 receipts remain immutable; user main's later DB-URL-only change is root's separate
 final reconciliation, not silently included in this pinned comparison.
 
+## Oct 28 compatibility navigation correction
+
+Isolated product `935d5475` on `codex/spec-167-main-reconcile`, based on `e06982c6`,
+holds the old list URL mirror while a newer off-list route is pending. Late preview
+cleanup cannot erase that route intent; explicit list choices and native history
+still supersede it. Two production navigation reds are retained. Focused78/UI971,
+full TypeScript/lint/design/build pass. The original signed-in held-Done failure
+did not capture click/history order, so the source race is proven but its exact
+historical ordering is inferred. Actual held-action replay and delta reviews are
+pending; no expired Undo, lifecycle replay, DB reset or provider write occurred.
+
+All17 routes and tolerance2048 remain. Inherited proposal passes (+20 bytes),
+original existing Requests+360/detail+380 fit but its3 main-added routes fail;
+fresh f638 detail+2218 (170 over), committedmain+2574 (526 over). No baseline refresh
+or approval. Full evidence: `testing/main-compatibility.md` and external
+`/private/tmp/lane-spec-167-navigation-diagnosis.md`. Integration355 and frozen176
+are untouched; this branch is source preparation, not acceptance.
+
 ## #167 compatibility refresh — reviewed #175 helper and pinned main
 
 The isolated compatibility branch now preserves reviewed #175 `3244d6c1` through

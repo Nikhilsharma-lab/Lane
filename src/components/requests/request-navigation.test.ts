@@ -72,6 +72,46 @@ describe("workspace Requests navigation", () => {
     expect(app.replace).not.toHaveBeenCalled()
   })
 
+  it("does not restore the old list URL when a held mutation settles during Inbox navigation", () => {
+    const app = workspace()
+    app.sidebar.selectList({ status: "open", project: "named", savedView: "saved" })
+    const input = { search: "", seen: "", written: null, pathname: "/", locationSearch: "" }
+    expect(app.controller.planListUrl({ ...input, hold: true })).toEqual({ seen: "" })
+    const event = { defaultPrevented: false, button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, currentTarget: {}, preventDefault: vi.fn() }
+    app.sidebar.followLink(event, "/inbox")
+    expect(app.push).toHaveBeenCalledExactlyOnceWith("/inbox")
+    // The action can settle before the router changes the address bar. A
+    // replaceState here restores the Requests route over the newer Inbox push.
+    expect(app.controller.planListUrl({ ...input, hold: false })).toEqual({ seen: "" })
+    expect(app.view()).toMatchObject({ status: "open", project: "named", savedView: "saved" })
+  })
+
+  it("keeps the pending route through late preview cleanup, but lets a newer list choice supersede it", () => {
+    const app = workspace()
+    app.sidebar.previewChanged("a")
+    app.sidebar.selectList({ project: "named", savedView: "saved" })
+    app.sidebar.open("/inbox")
+    // The old list can commit its filtered-out preview after the route intent.
+    app.sidebar.previewChanged(null)
+    const input = { search: "", seen: "", written: null, pathname: "/", locationSearch: "", hold: false }
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "" })
+    app.palette.selectList({ project: "none" })
+    expect(app.replace).toHaveBeenCalledExactlyOnceWith("/")
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "", write: "/?status=open&project=none" })
+  })
+
+  it("resumes external list restoration after native history supersedes a pending route", () => {
+    const app = workspace(), events = new EventTarget()
+    const cleanup = app.controller.listenForHistory(events)
+    app.sidebar.open("/inbox")
+    app.palette.invalidate() // Presentation/focus cancellation does not cancel the router's push.
+    const input = { search: "project=named", seen: "", written: null, pathname: "/", locationSearch: "?project=named", hold: false }
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named" })
+    events.dispatchEvent(new Event("popstate"))
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named" } })
+    cleanup()
+  })
+
   it("holds a newer choice through loading and delayed router-query updates", () => {
     const app = workspace()
     app.sidebar.selectList({ status: "all", project: "all" })
