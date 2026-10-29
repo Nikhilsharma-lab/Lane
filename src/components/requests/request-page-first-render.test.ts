@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack"
 import { AppProviders } from "@/test/app-providers"
-import { journeyActions } from "@/lib/request-journey"
+import { journeyActions, journeyFactsOf, journeyStatus } from "@/lib/request-journey"
+import { journeyOutline } from "./request-timeline-model"
 import type { RequestDetail } from "./detail-view"
 
 // #295: what the Request page draws before the Journey's, the Reviewers' and the Iterations' reads arrive. Those reads
@@ -20,13 +21,22 @@ const open = {
   createdBy: "user_reader", createdAt: new Date("2026-10-20T10:00:00Z"), creatorName: "Robin", assigneeName: null, assigneeAvatarUrl: null,
   agreementRevision: 1, reviewerOutline: [],
 } as unknown as RequestDetail
-// The reader's actions arrive with the Request, decided on the server from the saved facts.
-const inProgressFacts = { status: "in_progress" as const, releaseState: null, outcomeClosure: null, exceptionClosure: null, createdBy: "user_reader", takenOnBy: null }
-const inProgress = { ...open, status: "in_progress", assignedTo: "user_dev", assigneeName: "Dev",
-  readerActions: journeyActions(inProgressFacts, { id: "user_reader", role: "member", active: true }, { requesterName: "Robin", requesterActive: true }, new Date()) } as RequestDetail
+const inProgress = { ...open, status: "in_progress", assignedTo: "user_dev", assigneeName: "Dev" } as RequestDetail
+
+/** The outline arrives with the Request, drawn on the server for its reader (loadRequestDetail); here, for the reader below. */
+function withOutline(request: RequestDetail, reader: { readOnly?: boolean; isGuest?: boolean }): RequestDetail {
+  const facts = { ...journeyFactsOf(request), createdBy: request.createdBy, takenOnBy: request.takenOnBy ?? null }
+  const role = reader.readOnly ? "viewer" : reader.isGuest ? "guest" : "member"
+  return { ...request, journeyOutline: journeyOutline({
+    journey: journeyStatus(facts), workStatus: request.status, isGuest: !!reader.isGuest, readOnly: !!reader.readOnly,
+    requestedBy: request.creatorName!, requestedAt: request.createdAt.toISOString(), assigneeName: request.assigneeName, audience: "Everyone this Request is for",
+    hasAgreedResult: false, releaseState: null, closure: null,
+    actions: journeyActions(facts, { id: "user_reader", role, active: true }, { requesterName: "Robin", requesterActive: true }, new Date()),
+  }) }
+}
 
 const render = (request: RequestDetail, reader: { readOnly?: boolean; isGuest?: boolean } = {}) => renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(AppProviders, null,
-  createElement(RequestDetailPane, { request, comments: [], attachments: [], returnHref: "/", orgId: "org_test", isGuest: reader.isGuest ?? false, currentUserId: "user_reader", viewerName: "Robin", isAdmin: false, readOnly: reader.readOnly ?? false }))))
+  createElement(RequestDetailPane, { request: withOutline(request, reader), comments: [], attachments: [], returnHref: "/", orgId: "org_test", isGuest: reader.isGuest ?? false, currentUserId: "user_reader", viewerName: "Robin", isAdmin: false, readOnly: reader.readOnly ?? false }))))
 const section = (markup: string, id: string) => markup.match(new RegExp(`<section id="${id}"[\\s\\S]*?</section>`))?.[0] ?? ""
 /** The Journey's section, up to the end of its steps (the reviewers' section nests inside it). */
 const journey = (markup: string) => markup.slice(markup.indexOf('<section id="journey"'), markup.indexOf("</ol>", markup.indexOf('<section id="journey"')))

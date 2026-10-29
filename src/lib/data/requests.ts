@@ -11,6 +11,9 @@ import { reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
 import { currentMetricNames } from "@/lib/metrics-library"
 import { FORMER_MEMBER, journeyActions, journeyStatus } from "@/lib/request-journey"
+import { agreedAudience } from "@/lib/request-release-facts"
+import type { OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
+import { journeyOutline } from "@/components/requests/request-timeline-model"
 import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
 import type { FinishedView } from "@/lib/request-workspace"
 import { guestPickupRefusal, type GuestSubmissionState } from "@/lib/guest-submission"
@@ -71,6 +74,24 @@ function pickupBlockedReason(request: { status: string; expectedImpact: unknown;
 function withoutReviewers<T extends { reviewers: unknown }>({ reviewers, ...rest }: T): Omit<T, "reviewers"> {
   void reviewers
   return rest
+}
+
+/**
+ * #295: the journey as the saved Request and its reader draw it, for the Request page to show until the journey's
+ * reads arrive. The roster isn't read here (it asks Clerk), so the reader counts as active and the Requester's name is
+ * the saved creator's; both only size what is held.
+ */
+function outlineFor(auth: MemberAuth, request: Parameters<typeof journeyActions>[0] & {
+  outcomeClosure: OutcomeClosure | null; exceptionClosure: OutcomeException | null
+  creatorName: string | null; createdAt: Date; assigneeName: string | null; affectedPeople: string | null; expectedImpact: unknown
+}) {
+  const requesterName = request.creatorName || FORMER_MEMBER
+  return journeyOutline({
+    journey: journeyStatus(request), workStatus: request.status, isGuest: auth.role === "guest", readOnly: auth.role === "viewer",
+    requestedBy: requesterName, requestedAt: request.createdAt.toISOString(), assigneeName: request.assigneeName, audience: agreedAudience(request),
+    hasAgreedResult: Boolean(request.expectedImpact), releaseState: request.releaseState, closure: request.outcomeClosure ?? request.exceptionClosure,
+    actions: journeyActions(request, { id: auth.userId, role: auth.role, active: true }, { requesterName, requesterActive: true }, new Date()),
+  })
 }
 
 /** Rows as the list shows them. Review state counts only reviewers still in
@@ -289,9 +310,5 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   const { guestSubmissionState: state, takenOnByName, ...saved } = withoutReviewers(request)
   // #212: who filed it and who took it on, for the Request's Guest submission notice.
   const guestSubmission = state ? { state, submitterName: request.creatorName, takenOnBy: request.takenOnBy, takenOnByName } : null
-  // #295: the reader's journey actions as the saved Request decides them, for the Request page to hold their buttons
-  // until the journey's reads arrive. The roster isn't read here (it asks Clerk), so the reader counts as active and
-  // the Requester's name is the saved creator's.
-  const readerActions = journeyActions(request, { id: auth.userId, role: auth.role, active: true }, { requesterName: request.creatorName || FORMER_MEMBER, requesterActive: true }, new Date())
-  return { request: { ...saved, guestSubmission, reviewState, metricNames, readerActions, pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
+  return { request: { ...saved, guestSubmission, reviewState, metricNames, journeyOutline: outlineFor(auth, request), pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
 }

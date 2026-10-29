@@ -10,8 +10,7 @@ import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { canChange } from "@/lib/request-access-rules"
-import { FORMER_MEMBER, journeyDate, journeyDay as day, journeyFactsOf, journeyStatus, type JourneyAction } from "@/lib/request-journey"
-import { agreedAudience } from "@/lib/request-release-facts"
+import { FORMER_MEMBER, journeyDate, journeyDay as day, type JourneyAction } from "@/lib/request-journey"
 import { DAY_MS, dayNumber } from "@/lib/utc-day"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome"
 import type { ReleaseEvent } from "@/lib/request-release"
@@ -19,13 +18,14 @@ import type { RequestDetail } from "./detail-view"
 import { ReleaseForm } from "./release-form"
 import { RequestReviews } from "./request-reviews"
 import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverForm, MeasuredCloseForm, resultValue, VoidReleaseForm } from "./request-timeline-forms"
-import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, journeyOutline, learnedLine, observedLine, timelineSteps, type OutlineLine, type TimelineStep } from "./request-timeline-model"
+import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, learnedLine, observedLine, timelineSteps, type JourneyOutline, type OutlineLine, type TimelineStep } from "./request-timeline-model"
 import styles from "./request-timeline.module.css"
 
 type ReleaseView = Exclude<Awaited<ReturnType<typeof readRequestRelease>>, { error: string }>
 type OutcomeView = Exclude<Awaited<ReturnType<typeof readRequestOutcome>>, { error: string }>
 type Views = { release: ReleaseView; outcome: OutcomeView }
 
+const NO_OUTLINE: JourneyOutline = { steps: [], history: false }
 const LOAD_FAILED = "Could not load the journey. Try again."
 const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished", current: "current step", upcoming: "not reached yet", skipped: "skipped" }
 
@@ -135,14 +135,9 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, rea
   const reviews = <RequestReviews requestId={requestId} orgId={orgId} isGuest={isGuest} revision={revision} deferred={!views}
     expected={{ reviewers: request.reviewerOutline ?? [], open, canAdd: open && !isGuest && !readOnly, canRemove: open && !!reader && canChange(reader, request) }} />
 
-  // #295: until the reads arrive, the journey as the Request alone draws it, in the same places as below.
+  // #295: until the reads arrive, the journey as the server drew it from the saved Request, in the same places as below.
   if (!views) {
-    const outline = journeyOutline({
-      journey: journeyStatus(journeyFactsOf(request)), workStatus: request.status, isGuest, readOnly, hasAgreedResult: Boolean(request.expectedImpact),
-      actions: request.readerActions ?? null,
-      requestedBy: request.creatorName || FORMER_MEMBER, requestedAt: new Date(request.createdAt).toISOString(), assigneeName: request.assigneeName, audience: agreedAudience(request),
-      releaseState: request.releaseState ?? null, closure: request.outcomeClosure ?? request.exceptionClosure ?? null,
-    })
+    const outline = request.journeyOutline ?? NO_OUTLINE
     return <section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
       <div className={styles.header}>
         <h2 id="journey-heading" tabIndex={-1} ref={heading} className={styles.heading}>Journey</h2>

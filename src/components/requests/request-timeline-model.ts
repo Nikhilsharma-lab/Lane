@@ -216,7 +216,9 @@ export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGue
  * steps and lines in the same places, holding the ones that need a name, a date or the reader's actions, so the
  * Journey keeps its height when the reads fill it in and nothing below it moves.
  */
-export function journeyOutline(input: OutlineInput): { steps: OutlineStep[]; history: boolean } {
+export type JourneyOutline = { steps: OutlineStep[]; history: boolean }
+
+export function journeyOutline(input: OutlineInput): JourneyOutline {
   const states = stepStates(input)
   const release = input.releaseState?.release ?? input.closure?.release ?? null
   return {

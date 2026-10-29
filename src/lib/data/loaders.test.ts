@@ -318,12 +318,16 @@ describe("review state (#77)", () => {
     expect((await loadRequestDetail(member, memberRequest))?.request.reviewerOutline).toEqual([]);
   });
 
-  it("gives Request detail the reader's journey actions from the saved Request, with no roster read (#295)", async () => {
-    // In progress, filed by the Member: they may close it without a result; someone else may not, and is told who can.
-    const own = (await loadRequestDetail(member, memberRequest))?.request.readerActions;
-    expect(own?.closeWithoutResult).toEqual({ allowed: true });
-    const other = (await loadRequestDetail({ ...member, userId: OTHER_ADMIN }, memberRequest))?.request.readerActions;
-    expect(other?.closeWithoutResult).toEqual({ allowed: false, reason: "Only the Requester, Test Member, can close this." });
+  it("gives Request detail the journey's outline from the saved Request and the reader, with no roster read (#295)", async () => {
+    const outline = (await loadRequestDetail(member, memberRequest))?.request.journeyOutline;
+    expect(outline?.steps.map(step => step.state)).toEqual(["finished", "current", "upcoming", "upcoming", "upcoming"]);
+    expect(outline?.steps[0].happened[0]).toMatch(/^Requested by Test Member on /);
+    // In progress, filed by the Member: they may close it without a result; someone else is told who can.
+    expect(outline?.steps[1].actions).toEqual([{ action: "closeWithoutResult", label: "Close without a result…", available: true }]);
+    const other = (await loadRequestDetail({ ...member, userId: OTHER_ADMIN }, memberRequest))?.request.journeyOutline;
+    expect(other?.steps[1].actions[0]).toMatchObject({ available: false, reason: "Only the Requester, Test Member, can close this." });
+    // A Viewer is offered nothing, so nothing is held.
+    expect((await loadRequestDetail({ ...member, role: "viewer" }, memberRequest))?.request.journeyOutline?.steps[1].actions).toEqual([]);
   });
 });
 
