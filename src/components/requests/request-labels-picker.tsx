@@ -1,5 +1,6 @@
 "use client";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useEffect, useId, useRef, useState } from "react";
 import { Building2, Folder, Plus, Tags } from "lucide-react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
@@ -34,7 +35,7 @@ export function RequestLabelsPicker({orgId,value,onChange,disabled,project}:{org
   try {const result=await callAction(() => createLabel({name:normalized,colour,projectId:scopeProjectId},{orgId}));
    if(result.success){catalogue.add(result.label);onChange([...new Set([...value,result.label.id])]);setStep("labels");setQuery("");toast({type:"success",title:"Label added"});}
    else setError(result.error);
-  } catch {setError("The label could not be created. Try again.");}
+  } catch (thrown) {setError(thrownMessage(thrown, "The label could not be created. Try again."));}
   finally {setBusy(false);}
  }
  return <Popover open={open} onOpenChange={next=>{if(!busy){setOpen(next);if(!next){setStep("labels");setQuery("");setError(null);}}}}>

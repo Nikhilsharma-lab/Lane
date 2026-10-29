@@ -2,6 +2,7 @@
 import dynamic from "next/dynamic"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { callAction } from "@/lib/action-call"
+import { thrownMessage } from "@/lib/failure-messages"
 import { linkSameProblem, readSameProblem, removeSameProblemLink } from "@/app/(app)/requests/[id]/same-problem-actions"
 import { formatRequestCode } from "@/lib/request-code"
 import { ITERATIONS_SECTION_ID } from "@/lib/same-problem-rules"
@@ -80,8 +81,8 @@ export function SameProblemSection({ requestId, requestNumber, orgId }: { reques
     try {
       const result = await callAction(() => linkSameProblem({ requestId, otherRequestId: candidate.requestId }, { orgId }))
       if ("error" in result) return result.error
-    } catch {
-      return CHANGE_FAILED
+    } catch (thrown) {
+      return thrownMessage(thrown, CHANGE_FAILED)
     }
     setActionError("")
     setAnnouncement(`${candidate.code} linked as Same problem.`)
@@ -99,8 +100,8 @@ export function SameProblemSection({ requestId, requestNumber, orgId }: { reques
       await load()
       // The removed row is gone, so focus returns to the section's heading.
       heading.current?.focus()
-    } catch {
-      setActionError(CHANGE_FAILED)
+    } catch (thrown) {
+      setActionError(thrownMessage(thrown, CHANGE_FAILED))
     } finally {
       setRemoving(null)
     }

@@ -53,7 +53,7 @@ test("offline, list changes roll back, pages stay put, and Try again works once 
     await expect(offlineLine(page)).toBeVisible();
 
     // A21: Pick up from the row menu says the shared offline answer and changes nothing.
-    await row(page, pickUp.id).locator("button[data-status]").click();
+    await row(page, pickUp.id).click({ button: "right" });
     await page.getByRole("menuitem", { name: "Pick up" }).click();
     await expect(toasts(page)).toContainText(OFFLINE_ANSWER);
     await expect(row(page, pickUp.id).locator("button[data-status]")).toHaveAttribute("data-status", "open");
@@ -71,13 +71,13 @@ test("offline, list changes roll back, pages stay put, and Try again works once 
     await context.setOffline(true);
     await row(page, priority.id).click({ button: "right" });
     await page.getByRole("menuitem", { name: "Priority" }).click();
-    await page.getByRole("menuitemradio", { name: "High" }).or(page.getByRole("menuitem", { name: "High" })).first().click();
+    await page.getByRole("menuitemcheckbox", { name: "High" }).click();
     await expect(toasts(page)).toContainText(OFFLINE_ANSWER);
-    await expect(row(page, priority.id)).not.toContainText("High");
+    await expect(row(page, priority.id).locator("button[data-priority]")).toHaveAttribute("data-priority", "none");
     await expectStillInLane(page, "/");
     await context.setOffline(false);
     await toasts(page).getByRole("button", { name: "Try again" }).first().click();
-    await expect(row(page, priority.id).locator("[data-priority]").first()).toHaveAttribute("data-priority", "high", { timeout: 20_000 });
+    await expect(row(page, priority.id).locator("button[data-priority]")).toHaveAttribute("data-priority", "high", { timeout: 20_000 });
 
     // C6: on the Outcome report, Month / Quarter / Year offline keeps the page.
     await page.getByRole("link", { name: "Impact", exact: true }).click();

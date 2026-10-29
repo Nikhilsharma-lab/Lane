@@ -100,6 +100,7 @@ import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-f
 import { OFFLINE_ANSWER, isOfflineError } from "@/lib/failure-messages";
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { FieldError } from "@/components/forms/field-error";
 
 type Stage =
   | "compose"
@@ -1169,9 +1170,9 @@ export default function RequestEditor({
               <input ref={fileInputRef} type="file" aria-label="Choose Request files" tabIndex={-1} multiple accept={ATTACHMENT_ACCEPT} className="sr-only" disabled={checking}
                 onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
             </div>
-            {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive">{errors.projectId.message}</p>}
-            {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive">{errors.requestType.message}</p>}
-            {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive">{reviewersError}</p>}
+            <FieldError id="intake-project-error">{errors.projectId?.message}</FieldError>
+            <FieldError id="intake-request-type-error">{errors.requestType?.message}</FieldError>
+            <FieldError id="intake-reviewers-error">{offerReviewers && reviewersError}</FieldError>
             {guided && offerReviewers && <FirstRunHint>Reviewers are optional: the teammates you add answer Looks good or Raise a concern before work starts.</FirstRunHint>}
             {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on writes its prediction." : "A Member takes this on and writes its prediction. You’ll get an email when they do."}</p>}
             {!withoutPrediction && currentValues.expectedImpact && <>

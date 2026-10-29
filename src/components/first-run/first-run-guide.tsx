@@ -7,6 +7,7 @@ import { inviteToWorkspace } from "@/app/(app)/settings/members/actions";
 import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import type { WorkspaceFreeRequests } from "@/lib/billing";
 import { FIRST_REQUEST_STEPS, type FirstRequestStep, type FirstRunChange, type FirstRunView } from "@/lib/first-run-rules";
 import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
@@ -57,8 +58,8 @@ export function FirstRunGuide({ orgId, view, workspaceName, free, invite, readsN
     try {
       const answer = await callAction(() => updateFirstRun(change, { orgId }));
       return "error" in answer ? answer.error : null;
-    } catch {
-      return FAILED;
+    } catch (thrown) {
+      return thrownMessage(thrown, FAILED);
     }
   }, [orgId]);
   /** Work saved in the background (a step read) reports a failure as a toast; the guide carries on. */

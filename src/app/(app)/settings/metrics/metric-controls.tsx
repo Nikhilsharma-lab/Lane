@@ -11,6 +11,7 @@ import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { MetricDefinitionForm, type MetricDefinitionValues } from "@/components/metrics/metric-definition-form";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { addMetricDefinition, archiveMetricDefinition, editMetricDefinition, mergeMetricDefinitions, restoreMetricDefinition } from "./actions";
 import styles from "./metrics.module.css";
 
@@ -58,8 +59,8 @@ export function ArchiveMetricControl({ orgId, id, archived }: { orgId: string; i
         ? await callAction(() => restoreMetricDefinition({ id }, { orgId }))
         : await callAction(() => archiveMetricDefinition({ id }, { orgId }));
       if ("error" in result) setError(result.error);
-    } catch {
-      setError(`We couldn't ${archived ? "restore" : "archive"} this metric. Check your connection and try again.`);
+    } catch (thrown) {
+      setError(thrownMessage(thrown, `We couldn't ${archived ? "restore" : "archive"} this metric. Check your connection and try again.`));
     } finally {
       setPending(false);
     }
@@ -102,8 +103,8 @@ export function MergeMetricControl({ orgId, current, candidates }: { orgId: stri
       setOpen(false);
       setOtherId(""); setKeep("this");
       toast({ type: "success", title: `Merged ${merged.name} into ${kept.name}` });
-    } catch {
-      setError("We couldn't merge these metrics. Check your connection and try again.");
+    } catch (thrown) {
+      setError(thrownMessage(thrown, "We couldn't merge these metrics. Check your connection and try again."));
     } finally {
       setPending(false);
     }

@@ -5,6 +5,7 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
 import { SUPPORT_EMAIL } from "@/app/support-contact";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { BILLING_PAGES_UNAVAILABLE, BILLING_PERIODS, FOUNDING_DISCOUNT, NOT_CHARGING, PAYING_UNAVAILABLE, seatPrice, type BillingPeriod, type PortalFlow } from "@/lib/billing-plan-rules";
 import type { PlanState } from "@/lib/free-request-rules";
 import styles from "./settings.module.css";
@@ -87,8 +88,8 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
         return;
       }
       setError(answer.error || FAILED);
-    } catch {
-      setError(FAILED);
+    } catch (thrown) {
+      setError(thrownMessage(thrown, FAILED));
     }
     setStatus("");
     setBusy(null);
