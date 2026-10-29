@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { journeyActions, journeyStatus, type JourneyViewer } from "@/lib/request-journey"
 import type { RequestStatus } from "@/lib/request-lifecycle"
 import type { ReleaseFact, ReleaseState } from "@/lib/request-release"
-import { timelineSteps, type TimelineInput, type TimelineStep } from "./request-timeline-model"
+import { journeyOutline, timelineSteps, type OutlineInput, type TimelineInput, type TimelineStep } from "./request-timeline-model"
 
 // The Request page's timeline: what each step says to whoever is looking (#134).
 const NOW = new Date("2026-10-25T12:00:00Z")
@@ -32,7 +32,7 @@ function input(facts: Facts, viewer: JourneyViewer, more: Partial<TimelineInput>
   }
 }
 const step = (steps: TimelineStep[], status: TimelineStep["status"]) => steps.find(s => s.status === status)!
-const actionsOf = (s: TimelineStep) => s.actions.map(a => a.available ? a.label : `${a.label}: ${a.reason}`)
+const actionsOf = (s: Pick<TimelineStep, "actions">) => s.actions.map(a => a.available ? a.label : `${a.label}: ${a.reason}`)
 
 describe("Request timeline", () => {
   it("lists the five steps in order with the current one marked", () => {
@@ -148,5 +148,108 @@ describe("Request timeline", () => {
     const due = { ...release, dueDate: "2026-10-25" }
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(due) }, ANA, { hasAgreedResult: false }))
     expect(actionsOf(step(steps, "measuring"))[0]).toBe("Close Request: There is no agreed Expected impact to measure against.")
+  })
+})
+
+// #295: what the Journey draws from the Request alone, before its reads (which ask Clerk) arrive. Words the Request
+// already holds are shown; null holds the place of a line the reads fill in, so nothing below moves when they land.
+function outline(facts: Facts, reader: { isGuest?: boolean; readOnly?: boolean; viewer?: JourneyViewer } = {}): OutlineInput {
+  const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana", takenOnBy: null }
+  return {
+    journey: journeyStatus(saved), workStatus: facts.status, isGuest: reader.isGuest ?? false, readOnly: reader.readOnly ?? false,
+    // The reader's actions from the same rules as the read journey; only the Requester's name is a stand-in.
+    actions: journeyActions(saved, reader.viewer ?? ANA, { requesterName: "Ana", requesterActive: true }, NOW), hasAgreedResult: true,
+    requestedBy: "Ana", requestedAt: "2026-10-01T10:00:00Z", assigneeName: facts.status === "open" ? null : "Dev", audience: "All shoppers",
+    releaseState: saved.releaseState, closure: (facts.outcomeClosure ?? facts.exceptionClosure ?? null) as OutlineInput["closure"],
+  }
+}
+const outlineStep = (input: OutlineInput, status: TimelineStep["status"]) => journeyOutline(input).steps.find(s => s.status === status)!
+const heldActions = (input: OutlineInput, status: TimelineStep["status"]) => actionsOf(outlineStep(input, status))
+
+describe("Journey outline", () => {
+  it("draws an Open Request's five steps, who asked and when, its reviewers, and what is next", () => {
+    const { steps } = journeyOutline(outline({ status: "open" }))
+    expect(steps.map(s => [s.label, s.state])).toEqual([
+      ["Open", "current"], ["In progress", "upcoming"], ["Done", "upcoming"], ["Measuring", "upcoming"], ["Closed", "upcoming"],
+    ])
+    expect(steps[0]).toMatchObject({
+      happened: ["Requested by Ana on 1 Oct 2026."], reviews: true,
+      after: ["Waiting for someone to pick this up. Reviews are optional and never block pickup."], actions: [],
+    })
+    expect(steps.slice(1).every(s => !s.happened.length && !s.reviews && !s.after.length && !s.actions.length)).toBe(true)
+  })
+
+  it("holds the pickup line and the step's buttons for work in progress, and says who is working on it", () => {
+    const steps = journeyOutline(outline({ status: "in_progress" })).steps
+    expect(steps[0]).toMatchObject({ state: "finished", happened: ["Requested by Ana on 1 Oct 2026."], reviews: true, after: [], actions: [] })
+    expect(steps[1]).toMatchObject({ state: "current", happened: [null], after: ["Dev is working on this. Mark Done when the work is finished."] })
+    // The reader's buttons, as the read journey will show them; handover shows only when available.
+    expect(actionsOf(steps[1])).toEqual(["Close without a result…"])
+  })
+
+  it("holds a refused button with its reason for a teammate who isn't the Requester", () => {
+    expect(heldActions(outline({ status: "in_progress" }, { viewer: DEV }), "in_progress")).toEqual(["Close without a result…: Only the Requester, Ana, can close this."])
+  })
+
+  it("holds no buttons for a Guest or a Viewer, who are offered none", () => {
+    expect(outlineStep(outline({ status: "in_progress" }, { isGuest: true }), "in_progress").actions).toEqual([])
+    expect(outlineStep(outline({ status: "in_progress" }, { readOnly: true }), "in_progress").actions).toEqual([])
+  })
+
+  it("holds the Done date and the release buttons at Done, and names the audience to release to", () => {
+    expect(heldActions(outline({ status: "done" }), "done")).toEqual(["Record release", "Close without a result…"])
+    expect(outlineStep(outline({ status: "done" }), "done")).toMatchObject({
+      state: "current", happened: [null],
+      after: ["Record the release once All shoppers has the work. Anyone working on this Request can record it."],
+    })
+  })
+
+  it("shows a release's saved evidence and fixed window, and holds who recorded it, the countdown and the Requester", () => {
+    const fixed = { ...release, windowKind: "fixed" as const, startDate: "2026-10-22", dueDate: "2026-11-05" }
+    expect(outlineStep(outline({ status: "done", releaseState: releaseState(fixed) }), "measuring")).toMatchObject({
+      state: "current", happened: [null],
+      after: ["Evidence: Feature flag at 100%", "Agreed fixed window: 22 Oct 2026 to 5 Nov 2026. Release timing does not move these dates.", "The due date does not close this Request automatically.", null, null],
+    })
+    expect(heldActions(outline({ status: "done", releaseState: releaseState(fixed) }), "measuring")).toEqual(["Close Request: Opens on 5 Nov 2026.", "Close without a result…", "Correct release", "Void incorrect release", "Create follow-up Request"])
+    const done = outlineStep(outline({ status: "done", releaseState: releaseState(release) }), "done")
+    expect(done).toMatchObject({ state: "finished", happened: [null], after: [], actions: [] })
+  })
+
+  it("holds the value before release when one was recorded", () => {
+    const state = releaseState(release)
+    const withValue: ReleaseState = { ...state, history: state.history.map(e => ({ ...e, input: { ...e.input, valueBeforeRelease: { value: 40, unit: "%" } } })) as ReleaseState["history"] }
+    expect(outlineStep(outline({ status: "done", releaseState: withValue }), "measuring").after).toEqual(["Evidence: Feature flag at 100%", null, "The due date does not close this Request automatically.", null, null])
+  })
+
+  it("shows why a Request closed without a result and what was learned, and holds who closed it", () => {
+    const closure = { kind: "exception" as const, reasonCode: "rolled_back" as const, reason: "Broke Safari checkout", learned: "Test Safari first", actorId: "ana", closedAt: "2026-10-22T08:00:00Z", release: null }
+    const steps = journeyOutline(outline({ status: "in_progress", exceptionClosure: closure })).steps
+    expect(steps.map(s => [s.label, s.state])).toEqual([
+      ["Open", "finished"], ["In progress", "finished"], ["Done", "skipped"], ["Measuring", "skipped"], ["Closed without a result", "current"],
+    ])
+    expect(steps[1]).toMatchObject({ happened: [null], after: [], actions: [] })
+    expect(steps[2]).toMatchObject({ happened: [], after: [], actions: [] })
+    expect(steps[4]).toMatchObject({
+      happened: ["Closed without a result at In progress: Rolled back.", null],
+      after: ["Broke Safari checkout", "What we learned: Test Safari first", "Closed Requests never reopen."],
+    })
+    expect(actionsOf(steps[4])).toEqual(["Add correction"])
+  })
+
+  it("shows a measured close's evidence and observation dates, and holds who closed it and the results against the prediction", () => {
+    const guardrail = { metric: "Refunds", operator: "lte", limit: 2, unit: "%", actual: 1 }
+    const closure = { kind: "measured" as const, actorId: "ana", closedAt: "2026-10-29T08:00:00Z", release, primary: { kind: "numeric", actual: 46, unit: "%" }, guardrails: [guardrail], evidence: "Dashboard export", observedFrom: "2026-10-21", observedTo: "2026-10-28" }
+    const steps = journeyOutline(outline({ status: "done", releaseState: releaseState(release), outcomeClosure: closure as unknown as TimelineInput["closure"] })).steps
+    expect(steps[3]).toMatchObject({ state: "finished", happened: [null], after: ["Evidence: Feature flag at 100%"], actions: [] })
+    expect(steps[4]).toMatchObject({
+      label: "Closed", state: "current", happened: [null],
+      after: [null, null, null, "Evidence: Dashboard export", "Observed 21 Oct 2026 to 28 Oct 2026 (UTC).", "Closed Requests never reopen."],
+    })
+    expect(actionsOf(steps[4])).toEqual(["Add correction", "Create follow-up Request"])
+  })
+
+  it("holds the release history line once a release was recorded", () => {
+    expect(journeyOutline(outline({ status: "done", releaseState: releaseState(release) })).history).toBe(true)
+    expect(journeyOutline(outline({ status: "done" })).history).toBe(false)
   })
 })

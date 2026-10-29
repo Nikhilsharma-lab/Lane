@@ -183,3 +183,44 @@
 .history[open] summary {
   margin-block-end: var(--space-2);
 }
+
+/* #295: the journey's outline holds the lines, names and buttons its reads fill in, at their height, so nothing below
+   moves when they arrive. Arc's Skeleton draws its own fixed-height lines, so a held line here is a line of text
+   (its line box) carrying a bar in the skeleton's fill, and a held button is Arc's button itself, unseen. */
+.held {
+  display: block;
+}
+.held span,
+.heldName,
+.heldBar {
+  display: inline-block;
+  vertical-align: middle;
+  inline-size: 60%;
+  block-size: var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--skeleton-fill);
+}
+.heldName {
+  inline-size: calc(var(--space-6) * 3);
+}
+.heldButton {
+  display: inline-flex;
+  border-radius: var(--radius-control);
+  background: var(--skeleton-fill);
+}
+.heldButton > * {
+  visibility: hidden;
+}
+/* A refused button's reason, unseen on the fill, line by line, so it wraps as the reason will. */
+.heldReason {
+  border-radius: var(--radius-control);
+  background: var(--skeleton-fill);
+  color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+/* Room for "Add reviewer" while the reviewers load, with the heading where the button's text line will put it. */
+.holdsButton {
+  min-block-size: var(--control-height-md);
+  align-items: center;
+}

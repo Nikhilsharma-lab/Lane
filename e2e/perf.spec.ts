@@ -112,17 +112,6 @@ function reportAgainstBudget(label: string, value: number, limit: number) {
   if (value > limit) noteOverBudget(label, value, limit, "ms", "reported only, #296")
 }
 
-/**
- * The Request page's layout shift: its Journey and Iterations load after the page and push Conversation down (#295).
- * How far depends on how long Clerk takes to list the workspace's members: on Lane Staging main is inside the limit
- * (0.029 at 1440), from a laptop it is not (0.069). Enforced on Lane Staging, reported elsewhere, until #295.
- */
-const ON_STAGING = !!BASE_URL && new URL(BASE_URL).origin === "https://lane-staging.vercel.app"
-function expectRequestPageShiftWithin(label: string, value: number, limit: number) {
-  if (ON_STAGING) expect(value, label).toBeLessThanOrEqual(limit)
-  else if (value > limit) noteOverBudget(label, value, limit, "", "enforced on Lane Staging only, #295")
-}
-
 const report = (label: string, values: number[], unit = "ms", target?: number) => {
   const digits = unit === "ms" ? 0 : 3
   const goal = target === undefined ? "" : `, target ${target} ${unit}`
@@ -510,7 +499,7 @@ test("Request detail cold loads stay within the CLS budget at 1440 and 390", asy
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
     const cls = await coldLoadCls(browser, href!, viewport, "#problem")
     report(`Request detail CLS, cold load at ${viewport.width}`, cls, "", BUDGET.cls)
-    expectRequestPageShiftWithin(`Request detail CLS, cold load at ${viewport.width}`, p75(cls), BUDGET.cls * TOLERANCE)
+    expect(p75(cls), `Request detail CLS, cold load at ${viewport.width}`).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
   }
 })
 
@@ -561,7 +550,7 @@ test("a Request page shows its skeleton within 100 ms, and the swap does not shi
   report("Enter to the Request skeleton on screen", timings, "ms", BUDGET.skeleton)
   report("CLS over the skeleton to Request swap", shifts, "", BUDGET.cls)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.skeleton * TOLERANCE)
-  expectRequestPageShiftWithin("CLS over the skeleton to Request swap", p75(shifts), BUDGET.cls * TOLERANCE)
+  expect(p75(shifts), "CLS over the skeleton to Request swap").toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
 })
 
 // Plan item 2.3: the New Request composer. Each run loads the list afresh, so
