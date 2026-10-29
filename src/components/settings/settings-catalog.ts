@@ -87,15 +87,7 @@ export function settingsHref(id: string): string {
   return settingsCatalog.find(entry => entry.id === id)?.href ?? `/settings/profile?section=${id}`;
 }
 
-/**
- * Whether a section at `href` can show in place on the Settings page at `pathname`. Every Settings page
- * carries the Profile-page sections; a section with its own page shows in place only on that page.
- */
-export function showsSettingsInPlace(href: string, pathname: string): boolean {
-  if (!pathname.startsWith("/settings/")) return false;
-  const path = href.split("?")[0];
-  return path === "/settings/profile" || path === pathname;
-}
+export { showsSettingsInPlace } from "./settings-in-place";
 
 /** The section whose own page (or a page under it, like one Metric definition's) is at `pathname`; null for any other path. */
 export function settingsSectionAt(pathname: string): string | null {

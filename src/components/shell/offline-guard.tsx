@@ -8,7 +8,7 @@ import { AppRouterContext, type AppRouterInstance } from "next/dist/shared/lib/a
 import { isOffline } from "@/lib/connection-status"
 import { plainLinkClick } from "@/lib/plain-link-click"
 import { changesListInPlace } from "@/lib/request-workspace"
-import { showsSettingsInPlace } from "@/components/settings/settings-catalog"
+import { showsSettingsInPlace } from "@/components/settings/settings-in-place"
 
 /** Whether moving to `href` keeps this page: another site, the same address, or a change the page makes
  * itself (a Requests list view on "/", a Settings section on a Settings page, as showsSettingsInPlace says). */
