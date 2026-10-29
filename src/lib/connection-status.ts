@@ -1,27 +1,21 @@
 import { useSyncExternalStore } from "react"
 
 /**
- * #260: whether the browser is offline, from its own `online` and `offline`
- * events. Browser-only: the server and the first render always read "online",
- * so nothing shifts at hydration. It feeds the app frame's "You're offline"
- * line, the shared offline answer every server call checks first
- * (src/lib/action-call.ts) and the signed-in app's navigation guard
- * (src/components/shell/offline-guard.tsx). It only tracks; it never queues.
+ * #260: whether the browser is offline, from its own `online` and `offline` events. Browser-only: the server
+ * and the first render read "online". It feeds the app frame's offline line and navigation guard
+ * (src/components/shell/offline-guard.tsx) and the offline answer every server call checks first
+ * (`callAction`, src/lib/action-call.ts). It only tracks; it never queues. Kept tiny: it is on every page.
  */
-export function isOffline(): boolean {
-  return typeof navigator !== "undefined" && navigator.onLine === false
-}
+export const isOffline = () => typeof navigator != "undefined" && navigator.onLine === false
 
-function subscribe(listener: () => void) {
-  window.addEventListener("online", listener)
-  window.addEventListener("offline", listener)
-  return () => {
-    window.removeEventListener("online", listener)
-    window.removeEventListener("offline", listener)
-  }
+const subscribe = (listener: () => void) => {
+  addEventListener("online", listener)
+  addEventListener("offline", listener)
+  return () => { removeEventListener("online", listener); removeEventListener("offline", listener) }
 }
 
 /** True while the browser is offline; re-renders when the connection comes or goes. */
-export function useOffline(): boolean {
-  return useSyncExternalStore(subscribe, isOffline, () => false)
-}
+export const useOffline = () => useSyncExternalStore(subscribe, isOffline, () => false)
+
+/** Thrown by `callAction` instead of calling the server while offline. Its words are in failure-messages.ts. */
+export class OfflineError extends Error {}

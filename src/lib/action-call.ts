@@ -8,11 +8,10 @@
  * included, or rejects with what the action threw.
  *
  * #260: while the browser is offline it calls nothing and rejects with
- * `OfflineError` (src/lib/failure-messages.ts), the shared "You're offline"
- * answer. Nothing is queued for later.
+ * `OfflineError` (src/lib/connection-status.ts); callers say the shared
+ * "You're offline" answer (src/lib/failure-messages.ts). Nothing is queued for later.
  */
-import { isOffline } from "./connection-status"
-import { OfflineError } from "./failure-messages"
+import { OfflineError, isOffline } from "./connection-status"
 
 
 /** Matches SESSION_ENDED (src/lib/auth-guard.ts), what any guarded action says

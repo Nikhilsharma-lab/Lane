@@ -119,7 +119,7 @@ export async function runOptimistic<R>(deps: OptimisticDeps, options: Optimistic
   finish(false)
   fail(message, { thrown, auth: isSessionFailure(outcome), offline: wentOffline })
   if (options.refreshOnError !== false && !offline()) deps.refresh()
-  return { status: "error", error: message, thrown, ...(wentOffline ? { offline: true } : {}) }
+  return { status: "error", error: message, thrown, offline: wentOffline || undefined }
 }
 
 /** The batch form for bulk pick up and Done (plan item 1.6): every row moves

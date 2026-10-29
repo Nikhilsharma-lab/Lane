@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { callAction, isSessionFailure, type ActionSession } from "./action-call"
-import { OFFLINE_ANSWER } from "./failure-messages"
+import { OfflineError } from "./connection-status"
 
 const session = (): ActionSession & { order: string[] } => {
   const order: string[] = []
@@ -46,7 +46,7 @@ describe("callAction", () => {
     try {
       const s = session()
       const run = vi.fn(async () => ({ success: true }))
-      await expect(callAction(run, s)).rejects.toThrow(OFFLINE_ANSWER)
+      await expect(callAction(run, s)).rejects.toBeInstanceOf(OfflineError)
       expect(run).not.toHaveBeenCalled()
       expect(s.current).not.toHaveBeenCalled()
     } finally {
