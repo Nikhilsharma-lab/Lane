@@ -31,6 +31,22 @@ async function withWorkspace(page: Page, label: string, run: (user: TestUser, re
 /** Popups and in-page forms take on Lane's behaviour once the page is idle (src/components/popup/load-behaviour.ts). */
 const behaviourReady = (page: Page) => expect(page.locator("html[data-popup-behaviour=ready]")).toHaveCount(1, { timeout: 30_000 });
 
+/**
+ * Holds back the popup behaviour's script (the only one that carries its phone breakpoint) until `release`, so a
+ * test can press Escape or open a popup in the moment right after the page loads, before the behaviour is there.
+ */
+async function holdPopupBehaviour(page: Page) {
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route(/\.js(\?.*)?$/, async route => {
+    const response = await route.fetch();
+    const body = await response.text();
+    if (body.includes("639.98px")) await held;
+    await route.fulfill({ response, body });
+  });
+  return release;
+}
+
 async function openRequest(page: Page, id: string) {
   await page.goto(`/requests/${id}`);
   await expect(page.locator("#request-title")).toBeVisible({ timeout: 30_000 });
@@ -194,6 +210,112 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await page.keyboard.press("Escape");
       await expect(shortcuts).toHaveCount(0);
       await expect(saved).toBeFocused();
+    });
+  });
+
+  test("right after the page loads, Escape still asks and popups still open on their first field; Cancel never asks (B2, B4, B31)", async ({ page }) => {
+    test.setTimeout(300_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await withWorkspace(page, "escape-early", async (_user, id) => {
+      const release = await holdPopupBehaviour(page);
+      try {
+        await page.goto(`/requests/${id}`);
+        await expect(page.locator("#request-title")).toBeVisible({ timeout: 30_000 });
+        const reviewers = page.locator("#reviewers");
+        await reviewers.getByRole("button", { name: "Add reviewer", exact: true }).click();
+        const question = reviewers.getByRole("textbox");
+        await question.fill("Asked before the behaviour arrived");
+        await expect(page.locator("html[data-popup-behaviour=ready]")).toHaveCount(0);
+        await blurToPage(page);
+        await page.keyboard.press("Escape");
+        const prompt = discardPrompt(page);
+        await expect(prompt).toBeVisible();
+        await expect(prompt.getByRole("button", { name: "Keep editing", exact: true })).toBeFocused();
+        await page.keyboard.press("Enter");
+        await expect(prompt).toHaveCount(0);
+        await expect(question).toHaveValue("Asked before the behaviour arrived");
+        await expect(page).toHaveURL(new RegExp(`/requests/${id}$`));
+
+        // B31: the permanent-action confirmation opens on Cancel, never on the ×.
+        await page.locator('[data-slot="page-strip"]').getByRole("button", { name: "Delete Request", exact: true }).click();
+        const confirm = page.getByRole("dialog", { name: "Delete this Request?", exact: true });
+        await expect(confirm.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(confirm).toHaveCount(0);
+
+        // A popup with a field opens on it; Escape with typed text asks; Cancel is a deliberate discard and just closes.
+        await page.goto("/");
+        await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
+        await expect(page.locator("html[data-popup-behaviour=ready]")).toHaveCount(0);
+        const save = page.getByRole("button", { name: "Save view", exact: true });
+        await save.click();
+        const saveDialog = page.getByRole("dialog", { name: "Save view", exact: true });
+        const name = saveDialog.getByRole("textbox", { name: "Name" });
+        await expect(name).toBeFocused();
+        await name.fill("Early view");
+        await page.keyboard.press("Escape");
+        await expect(prompt).toBeVisible();
+        await prompt.getByRole("button", { name: "Keep editing", exact: true }).click();
+        await expect(name).toHaveValue("Early view");
+        await saveDialog.getByRole("button", { name: "Cancel", exact: true }).click();
+        await expect(saveDialog).toHaveCount(0);
+        await expect(prompt).toHaveCount(0);
+      } finally {
+        release();
+      }
+
+      // Once the behaviour is there: Cancel still just closes, the × still asks.
+      await page.goto("/");
+      await behaviourReady(page);
+      const save = page.getByRole("button", { name: "Save view", exact: true });
+      const saveDialog = page.getByRole("dialog", { name: "Save view", exact: true });
+      await save.click();
+      await saveDialog.getByRole("textbox", { name: "Name" }).fill("Deliberately dropped");
+      await saveDialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(saveDialog).toHaveCount(0);
+      await expect(discardPrompt(page)).toHaveCount(0);
+      await expect(save).toBeFocused();
+      await save.click();
+      await saveDialog.getByRole("textbox", { name: "Name" }).fill("Asked first");
+      await saveDialog.getByRole("button", { name: "Close dialog", exact: true }).click();
+      await expect(discardPrompt(page)).toBeVisible();
+      await discardPrompt(page).getByRole("button", { name: "Discard", exact: true }).click();
+      await expect(saveDialog).toHaveCount(0);
+    });
+  });
+
+  test("Escape on the Quarter note editor asks before dropping a half-written note", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await withWorkspace(page, "quarter-note", async () => {
+      const now = new Date();
+      await page.goto(`/impact?period=${now.getUTCFullYear()}-q${Math.floor(now.getUTCMonth() / 3) + 1}`);
+      await behaviourReady(page);
+      const write = page.getByRole("button", { name: /^Write the .+ note$/ });
+      await write.click();
+      const note = page.getByRole("textbox", { name: /^Quarter note for / });
+      await expect(note).toBeFocused({ timeout: 20_000 });
+      await note.fill("Checkout errors fell after the redesign.");
+      await page.keyboard.press("Escape");
+      const prompt = discardPrompt(page);
+      await expect(prompt.getByRole("button", { name: "Keep editing", exact: true })).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(prompt).toHaveCount(0);
+      await expect(note).toHaveValue("Checkout errors fell after the redesign.");
+      await expect(note).toBeFocused();
+
+      await page.keyboard.press("Escape");
+      await prompt.getByRole("button", { name: "Discard", exact: true }).click();
+      await expect(note).toHaveCount(0);
+      await expect(write).toBeFocused();
+
+      // With nothing typed, Escape just closes it.
+      await write.click();
+      await expect(note).toBeFocused({ timeout: 20_000 });
+      await page.keyboard.press("Escape");
+      await expect(note).toHaveCount(0);
+      await expect(prompt).toHaveCount(0);
+      await expect(write).toBeFocused();
     });
   });
 

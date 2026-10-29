@@ -32,9 +32,9 @@ const eslintConfig = defineConfig([
     ignores: [
       "src/components/popup/**",
       "src/components/arc/**",
+      // Build 4 owns ⌘K and workspace search, so the command palette and the search results stay on Arc's own dialog until then.
       "src/components/shell/command-palette.tsx",
       "src/components/shell/workspace-search-results.tsx",
-      "src/components/requests/measurement-date-dialog.tsx",
       "src/**/*.test.ts",
     ],
     rules: {

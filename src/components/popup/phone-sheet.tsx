@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, type ComponentProps } from "react"
 import { BottomSheetContent } from "@/components/arc/bottom-sheet/bottom-sheet"
 
-type PhoneSheetProps = ComponentProps<typeof BottomSheetContent>
+export type PhoneSheetProps = ComponentProps<typeof BottomSheetContent>
 
 /**
  * #263: the adaptive popup's phone form (adaptive-dialog.tsx), loaded only on a phone. Arc's bottom sheet resting on

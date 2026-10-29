@@ -3,9 +3,10 @@
 import { useState } from "react"
 import { Button } from "@/components/arc/button/button"
 import { Textarea } from "@/components/arc/textarea/textarea"
+import { InPageForm } from "@/components/popup/in-page-form"
 import { saveQuarterNote } from "@/app/(app)/impact/quarter-note-actions"
 import { callAction } from "@/lib/action-call"
-import { thrownMessage } from "@/lib/failure-messages"
+import { TEXT_KEPT, thrownMessage } from "@/lib/failure-messages"
 import type { QuarterNoteSlot } from "@/lib/impact-read-model"
 import { QUARTER_NOTE_MAX_LENGTH } from "@/lib/quarter-note-rules"
 import styles from "./outcome-report.module.css"
@@ -14,7 +15,7 @@ import styles from "./outcome-report.module.css"
 
 type SavedNote = QuarterNoteSlot["note"]
 
-const FAILED = "Couldn't save the Quarter note. Your text is kept; try again."
+const FAILED = `Couldn't save the Quarter note. ${TEXT_KEPT} Try again.`
 
 export default function QuarterNoteEditor({ orgId, slot, note, onSaved, onCancel }: {
   orgId: string
@@ -42,14 +43,14 @@ export default function QuarterNoteEditor({ orgId, slot, note, onSaved, onCancel
     }
   }
 
-  return <form className={styles.noteForm} aria-busy={busy} onSubmit={event => { event.preventDefault(); void save() }}>
+  // Escape asks before it drops a half-written note (the shared in-page form guard), and does nothing while saving.
+  return <InPageForm onDismiss={() => { if (!busy) onCancel() }}><form className={styles.noteForm} aria-busy={busy} onSubmit={event => { event.preventDefault(); void save() }}>
     <Textarea label={`Quarter note for ${slot.label}`} description="Plain text. Web addresses become links. Save it empty to remove the note." maxLength={QUARTER_NOTE_MAX_LENGTH} rows={5}
-      value={draft} onChange={event => setDraft(event.target.value)} disabled={busy} autoFocus
-      onKeyDown={event => { if (event.key === "Escape" && !busy) { event.preventDefault(); onCancel() } }} />
+      value={draft} onChange={event => setDraft(event.target.value)} disabled={busy} autoFocus />
     {error && <p role="alert" className={styles.note}>{error}</p>}
     <div className={styles.noteControls}>
       <Button type="submit" size="sm" loading={busy}>Save note</Button>
       <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={onCancel}>Cancel</Button>
     </div>
-  </form>
+  </form></InPageForm>
 }
