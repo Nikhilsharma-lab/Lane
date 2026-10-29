@@ -54,5 +54,5 @@
 }
 
 /* #262 (polish bar §5): a row or link that opted in with data-pressable keeps the pressed wash from the
-   click until the next page arrives (src/components/loading/pressed-navigation.tsx). */
+   click until the next page arrives (src/components/loading/loading-feel-listeners.ts). */
 [data-pressable][data-pressed] { background-color: var(--interaction-pressed); }

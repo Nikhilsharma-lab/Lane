@@ -302,7 +302,8 @@
     "id": "skeleton",
     "source": "https://uiarc.dev/r/skeleton.json",
     "file": "src/components/arc/skeleton/skeleton.tsx",
-    "upstreamSha256": "ae0d4d0496b4d768e086ba54a184bf7083228f7c61bce5f177d0047461b72a5d"
+    "upstreamSha256": "ae0d4d0496b4d768e086ba54a184bf7083228f7c61bce5f177d0047461b72a5d",
+    "localSha256": "185159416bd6513ca1da661d711dab33877cfda3cb14bf54c67c7c78583dd2eb"
   },
   {
     "id": "textarea",

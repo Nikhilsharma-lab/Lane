@@ -26,7 +26,8 @@ describe("Pilot entry and transition contract", () => {
     expect(SKELETON).toContain('role="status"')
     expect(SKELETON).toContain('aria-label={label}')
     expect(SKELETON).toContain('aria-busy="true"')
-    expect(SKELETON).toContain("useReducedMotion()")
+    // #262: the Skeleton has no motion code of its own; its pulse stops with motion turned off.
+    expect(SKELETON).not.toContain("motion/react")
     expect(SKELETON_STYLES).toContain("prefers-reduced-motion: reduce")
 
     // The Requests wait is announced and never hidden: its status sits in the
