@@ -12,8 +12,11 @@ import { createTriageToken } from "../src/lib/triage-token";
 const OFFLINE_LINE = /^You.re offline$/;
 const OFFLINE_ANSWER = /You.re offline, this will work when you.re back/;
 
-/** Marks this document, so a later check can tell the tab never loaded another page. */
+/** Marks this document, so a later check can tell the tab never loaded another page. It first lets the
+ * page finish loading what it loads on its own (in development, lazily compiled chunks), so going
+ * offline afterwards tests Lane, not a chunk that was still on its way. */
 async function markDocument(page: Page) {
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
   await page.evaluate(() => { (window as unknown as { __laneStayed?: boolean }).__laneStayed = true; });
 }
 
@@ -32,7 +35,7 @@ const toasts = (page: Page) => page.getByRole("region", { name: /^Messages/ });
 const row = (page: Page, id: string) => page.locator(`[role=row][data-request-id="${id}"]`);
 
 test("offline, list changes roll back, pages stay put, and Try again works once back online", async ({ page, context }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(480_000);
   const user = await createTestUser("offline-lane");
   try {
     await provisionAndSignIn(page, user, { name: "Offline PM", workspaceName: "Lane E2E Offline", role: "pm" });
@@ -127,7 +130,7 @@ async function openReviewedDraft(page: Page, user: TestUser, orgId: string, titl
 }
 
 test("offline, Create Request says so in view and keeps the text; New Project shows Lane's own words", async ({ page, context }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(360_000);
   const user = await createTestUser("offline-create");
   try {
     const orgId = await provisionAndSignIn(page, user, { name: "Offline Filer", workspaceName: "Lane E2E Offline Create", role: "pm" });
