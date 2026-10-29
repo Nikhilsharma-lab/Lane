@@ -202,7 +202,10 @@ export function auditTree(root, policy = themePolicy()) {
       else if (entry.name.endsWith('.tsx') && !/\.(?:test|spec|stories)\./.test(entry.name)) {
         const source = readFileSync(path, 'utf8')
         const file = relative(root, path).replaceAll('\\', '/')
-        errors.push(...auditInlineStyles(source, file), ...auditIcons(source, file), ...auditSharedControls(source, file))
+        errors.push(...auditInlineStyles(source, file), ...auditIcons(source, file), ...auditSharedControls(source, file), ...auditMotionLiterals(source, file))
+      }
+      else if (entry.name.endsWith('.ts') && !/\.(?:test|spec|stories|d)\./.test(entry.name)) {
+        errors.push(...auditMotionLiterals(readFileSync(path, 'utf8'), relative(root, path).replaceAll('\\', '/')))
       }
     }
   }
@@ -215,7 +218,6 @@ export function auditTree(root, policy = themePolicy()) {
 
 // Known places the one-theme-file rule does not reach, recorded so the check is honest.
 export const themeExemptions = [
-  { file: 'src/components/arc/motion-tokens.ts', reason: "Arc's JavaScript motion values (durations, eases, springs) drive Motion and stay pristine Arc; lining them up with the theme's CSS motion is Stage B" },
   { arcSlot: '--icon-size', reason: "Arc's per-slot icon variable: each slot points it at a theme icon size; it has no value of its own" },
 ]
 
@@ -317,6 +319,144 @@ export function auditArcCoverage(foundationCss, themeCss, bridgeCss, file = them
   return errors
 }
 
+// #262: one motion scale. Motion (the JavaScript animation library) cannot read CSS variables, so
+// `motionTokens` restates the theme's motion scale in seconds. This rule keeps the two equal: every
+// duration and ease names a theme.css `--duration-*` / `--ease-*` value and matches it, and every
+// spring has bounce 0 and settles on a theme duration. Stagger steps and blur radii have no CSS
+// counterpart and stay as written.
+export const motionPresetsFile = 'src/components/arc/motion-tokens.ts'
+
+const kebab = name => name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
+const near = (a, b) => Math.abs(a - b) < 1e-9
+
+// The light :root motion values of the theme, with var() references followed.
+function themeMotion(themeCss) {
+  const values = new Map()
+  postcss.parse(themeCss).walkDecls(d => {
+    if (!/^--(?:duration|ease)-/.test(d.prop) || insideTheme(d) || d.parent.type !== 'rule' || darkScope.test(d.parent.selector)) return
+    values.set(d.prop, d.value.trim())
+  })
+  const resolve = (name, seen = new Set()) => {
+    const value = values.get(name)
+    if (value === undefined || seen.has(name)) return undefined
+    seen.add(name)
+    const ref = value.match(/^var\((--[\w-]+)\)$/)
+    return ref ? resolve(ref[1], seen) : value
+  }
+  const seconds = value => {
+    const match = value?.match(/^(-?(?:\d*\.)?\d+)(ms|s)$/)
+    return match ? Number(match[1]) / (match[2] === 'ms' ? 1000 : 1) : undefined
+  }
+  const bezier = value => {
+    const match = value?.match(/^cubic-bezier\(([^)]*)\)$/)
+    return match ? match[1].split(',').map(Number) : undefined
+  }
+  const durations = new Map()
+  const eases = new Map()
+  for (const name of values.keys()) {
+    if (name.startsWith('--duration-')) { const value = seconds(resolve(name)); if (value !== undefined) durations.set(name, value) }
+    else { const value = bezier(resolve(name)); if (value) eases.set(name, value) }
+  }
+  return { durations, eases }
+}
+
+// A literal object expression as a plain value, with the line each key was written on.
+function literalValue(node, tree) {
+  while (ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node)) node = node.expression
+  if (ts.isNumericLiteral(node)) return Number(node.text)
+  if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(node.operand)) return -Number(node.operand.text)
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text
+  if (ts.isArrayLiteralExpression(node)) return node.elements.map(element => literalValue(element, tree))
+  if (ts.isObjectLiteralExpression(node)) {
+    const value = {}
+    const lines = {}
+    for (const property of node.properties) {
+      if (!ts.isPropertyAssignment(property)) continue
+      const key = property.name.getText(tree).replace(/['"]/g, '')
+      value[key] = literalValue(property.initializer, tree)
+      lines[key] = tree.getLineAndCharacterOfPosition(property.getStart(tree)).line + 1
+    }
+    Object.defineProperty(value, '__lines', { value: lines })
+    return value
+  }
+  return undefined
+}
+
+export function auditMotionPresets(source, themeCss, file = motionPresetsFile) {
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  let presets
+  tree.forEachChild(function find(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(tree) === 'motionTokens' && node.initializer) presets = literalValue(node.initializer, tree)
+    else node.forEachChild(find)
+  })
+  if (!presets || typeof presets !== 'object') return [`${file} has no motionTokens object: the JavaScript motion presets live there`]
+  const { durations, eases } = themeMotion(themeCss)
+  const scale = [...durations.values()]
+  const errors = []
+  const at = (group, key) => `${file}:${group.__lines?.[key] ?? 1}`
+  const durationGroup = presets.duration ?? {}
+  for (const [key, value] of Object.entries(durationGroup)) {
+    const name = `--duration-${kebab(key)}`
+    if (!durations.has(name)) errors.push(`${at(durationGroup, key)} duration.${key} has no ${name} in theme.css: use a duration the theme defines`)
+    else if (!near(value, durations.get(name))) errors.push(`${at(durationGroup, key)} duration.${key} is ${value}s, but theme.css ${name} is ${durations.get(name)}s`)
+  }
+  const easeGroup = presets.ease ?? {}
+  for (const [key, value] of Object.entries(easeGroup)) {
+    const name = `--ease-${kebab(key)}`
+    const theme = eases.get(name)
+    if (!theme) errors.push(`${at(easeGroup, key)} ease.${key} has no ${name} in theme.css: use an ease the theme defines`)
+    else if (!Array.isArray(value) || value.length !== 4 || value.some((number, index) => !near(number, theme[index]))) errors.push(`${at(easeGroup, key)} ease.${key} is [${value}], but theme.css ${name} is cubic-bezier(${theme.join(', ')})`)
+  }
+  const springGroup = presets.spring ?? {}
+  for (const [key, spring] of Object.entries(springGroup)) {
+    const where = at(springGroup, key)
+    if (['stiffness', 'damping', 'mass'].some(prop => prop in spring)) errors.push(`${where} spring.${key} sets stiffness/damping: write it as visualDuration with bounce 0`)
+    else if (spring.bounce !== 0) errors.push(`${where} spring.${key} has bounce ${spring.bounce ?? "unset (Motion's default bounces)"}: every spring has bounce 0`)
+    else if (!scale.some(value => near(value, spring.visualDuration))) errors.push(`${where} spring.${key} has visualDuration ${spring.visualDuration}, which is not a theme.css duration`)
+  }
+  return errors
+}
+
+// Motion values written straight into a component bypass the scale above. Seconds-scale numbers on
+// Motion's timing keys, any bounce, and physical springs fail. Lifetimes and interaction delays
+// (a toast that stays 10s, a tooltip that waits 600ms) are 2 or more and are not motion.
+const motionTimingKeys = new Set(['duration', 'delay', 'visualDuration', 'delayChildren', 'staggerChildren', 'repeatDelay'])
+export function auditMotionLiterals(source, file = 'component.tsx') {
+  if (file.endsWith(motionPresetsFile) || file.endsWith('/motion-tokens.ts')) return []
+  if (!/\b(?:duration|delay|visualDuration|delayChildren|staggerChildren|repeatDelay|bounce|stiffness|damping)\s*:/.test(source)) return []
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+  const errors = []
+  const line = node => tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1
+  const numbers = node => {
+    const found = []
+    // A literal factor on a token (motionTokens.duration.fast * .75) is derived, like calc() in CSS.
+    const factor = child => ts.isBinaryExpression(child.parent) && [ts.SyntaxKind.AsteriskToken, ts.SyntaxKind.SlashToken].includes(child.parent.operatorToken.kind)
+      && ![child.parent.left, child.parent.right].every(side => ts.isNumericLiteral(side))
+    const visit = child => {
+      if (ts.isNumericLiteral(child)) { if (!factor(child)) found.push(Number(child.text)) }
+      else if (!ts.isFunctionLike(child)) child.forEachChild(visit)
+    }
+    visit(node)
+    return found
+  }
+  const visit = node => {
+    if (ts.isObjectLiteralExpression(node)) {
+      const names = node.properties.filter(ts.isPropertyAssignment).map(property => property.name.getText(tree).replace(/['"]/g, ''))
+      if (names.some(name => name === 'stiffness' || name === 'damping' || name === 'mass')) errors.push(`${file}:${line(node)} a stiffness/damping spring: use a motionTokens.spring preset (bounce 0)`)
+      for (const property of node.properties) {
+        if (!ts.isPropertyAssignment(property)) continue
+        const name = property.name.getText(tree).replace(/['"]/g, '')
+        const values = numbers(property.initializer)
+        if (name === 'bounce' && values.some(value => value !== 0)) errors.push(`${file}:${line(property)} bounce ${property.initializer.getText(tree)}: every spring has bounce 0`)
+        if (motionTimingKeys.has(name) && values.some(value => value > 0 && value < 2)) errors.push(`${file}:${line(property)} ${name}: ${property.initializer.getText(tree)} is a motion literal: use motionTokens (theme.css's motion scale)`)
+      }
+    }
+    node.forEachChild(visit)
+  }
+  visit(tree)
+  return errors
+}
+
 // Text-on-surface pairs tweakcn exports, plus avatar initials (--foreground) on Lane's avatar
 // tones. Nikhil may keep a pair below AA on purpose, so these are warnings for him, never failures.
 export const contrastPairs = [
@@ -380,6 +520,9 @@ export function auditThemeContract(root, files = themeFiles) {
   const foundation = read(files.foundation)
   if (foundation === null) errors.push(`${files.foundation} is missing: the Arc coverage rule needs Arc's foundation`)
   else if (theme !== null) errors.push(...auditArcCoverage(foundation, theme, bridge, files.foundation))
+  const motionPresets = read(motionPresetsFile)
+  if (motionPresets === null) errors.push(`${motionPresetsFile} is missing: the JavaScript motion presets on the theme's scale live there`)
+  else if (theme !== null) errors.push(...auditMotionPresets(motionPresets, theme, motionPresetsFile))
   for (const exemption of themeExemptions) if (exemption.file && !existsSync(join(root, exemption.file))) {
     errors.push(`${exemption.file} no longer exists: remove its recorded exemption from token-contract.mjs`)
   }

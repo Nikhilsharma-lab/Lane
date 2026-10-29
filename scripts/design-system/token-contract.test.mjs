@@ -165,7 +165,7 @@ function themeFixture(overrides = {}) {
     'src/styles/theme.css': cleanTheme,
     'src/styles/theme-bridge.css': cleanBridge,
     'src/components/arc/foundation.css': cleanFoundation,
-    'src/components/arc/motion-tokens.ts': 'export const motionTokens = { duration: { standard: 0.24 } }\n',
+    'src/components/arc/motion-tokens.ts': 'export const motionTokens = { duration: { standard: 0.2 } }\n',
     'src/components/row.module.css': '.row { color: var(--accent); padding: var(--space-2); border-radius: var(--radius-surface); }\n',
     'src/app/page.tsx': 'export default function Page() { return <div style={{ padding: "var(--space-3)" }} /> }\n',
     ...overrides,
@@ -291,15 +291,90 @@ test('the theme CLI exits cleanly with contrast warnings and fails on rule break
   assert.match(broken.stderr, /gap: 8px/)
 })
 
-test("Arc's JavaScript motion values are a recorded exemption", () => {
-  const motion = 'src/components/arc/motion-tokens.ts'
-  const { errors, exemptions } = auditFixture()
-  assert.deepEqual(errors, [])
-  assert.ok(exemptions.some(exemption => exemption.file === motion && /motion/i.test(exemption.reason)))
-  // An exemption for a file that no longer exists is stale and must be removed.
-  const stale = auditFixture({ [motion]: undefined }).errors
-  assert.equal(stale.length, 1)
-  assert.match(stale[0], /motion-tokens\.ts.*exemption/)
+// #262: the JavaScript motion presets are the theme's motion scale written for Motion, so CSS and
+// JavaScript animations agree. design:check compares them with theme.css and rejects any bounce.
+const motionTheme = cleanTheme.replace('--duration-standard: 200ms;', '--duration-instant: 100ms; --duration-fast: 150ms; --duration-standard: 200ms; --duration-exit: var(--duration-fast); --ease-enter: cubic-bezier(.16, 1, .3, 1);')
+const motionPresets = `export const motionTokens = {
+  duration: { instant: 0.1, fast: 0.15, exit: 0.15, standard: 0.2 },
+  ease: { enter: [0.16, 1, 0.3, 1] },
+  spring: { snappy: { type: "spring", visualDuration: 0.15, bounce: 0 }, smooth: { type: "spring", visualDuration: 0.2, bounce: 0 } },
+  stagger: { item: 0.035 },
+} as const;
+`
+const motionFile = 'src/components/arc/motion-tokens.ts'
+const motionErrors = presets => auditFixture({ 'src/styles/theme.css': motionTheme, [motionFile]: presets }).errors
+
+test('the JavaScript motion presets on the theme scale pass', () => {
+  assert.deepEqual(motionErrors(motionPresets), [])
+})
+
+test('a JavaScript duration or ease that differs from the theme fails', () => {
+  for (const [from, to, name] of [
+    ['fast: 0.15', 'fast: 0.16', 'duration.fast'],
+    ['exit: 0.15', 'exit: 0.18', 'duration.exit'],
+    ['enter: [0.16, 1, 0.3, 1]', 'enter: [0.16, 1, 0.3, 0.9]', 'ease.enter'],
+  ]) {
+    const errors = motionErrors(motionPresets.replace(from, to))
+    assert.equal(errors.length, 1, errors.join('\n'))
+    assert.ok(errors[0].startsWith(motionFile) && errors[0].includes(name), errors[0])
+  }
+})
+
+test('a JavaScript duration the theme has no name for fails, so the long considered step stays out', () => {
+  const errors = motionErrors(motionPresets.replace('standard: 0.2 }', 'standard: 0.2, considered: 0.48 }'))
+  assert.equal(errors.length, 1, errors.join('\n'))
+  assert.match(errors[0], /duration\.considered/)
+})
+
+test('every spring has bounce 0 and settles on a theme duration', () => {
+  for (const [spring, words] of [
+    ['{ type: "spring", visualDuration: 0.15, bounce: 0.12 }', /bounce/],
+    ['{ type: "spring", visualDuration: 0.15 }', /bounce/],
+    ['{ type: "spring", visualDuration: 0.42, bounce: 0 }', /visualDuration/],
+    ['{ type: "spring", stiffness: 520, damping: 38 }', /stiffness/],
+  ]) {
+    const errors = motionErrors(motionPresets.replace('{ type: "spring", visualDuration: 0.15, bounce: 0 }', spring))
+    assert.equal(errors.length, 1, `${spring}\n${errors.join('\n')}`)
+    assert.ok(errors[0].includes('spring.snappy') && words.test(errors[0]), errors[0])
+  }
+})
+
+test('a missing motion presets file is reported', () => {
+  const errors = auditFixture({ [motionFile]: undefined }).errors
+  assert.equal(errors.length, 1)
+  assert.match(errors[0], /motion-tokens\.ts.*missing/)
+})
+
+test('motion timings and springs written outside the presets fail', () => {
+  assert.equal(typeof tokenContract.auditMotionLiterals, 'function')
+  for (const source of [
+    'animate(x, 1, { duration: .14 })',
+    'const t = { duration: reduced ? 0 : .22, ease }',
+    'const t = { opacity: { duration: motionTokens.duration.fast, delay: .04 } }',
+    'const t = { ...motionTokens.spring.smooth, visualDuration: .3 }',
+    'const t = { type: "spring", bounce: 0.1 }',
+    'const t = { type: "spring", stiffness: 300, damping: 30 }',
+    'const v = { open: { transition: { delayChildren: .03 } } }',
+  ]) assert.equal(tokenContract.auditMotionLiterals(source, 'src/components/shell/panel.tsx').length, 1, source)
+  for (const source of [
+    'animate(x, 1, { duration: motionTokens.duration.fast, delay: motionTokens.stagger.item })',
+    'const t = reduced ? { duration: 0 } : motionTokens.spring.smooth',
+    'const t = { type: "spring", visualDuration: motionTokens.duration.standard, bounce: 0 }',
+    'const t = { delay: motionTokens.duration.instant * .75 }',
+    // Lifetimes and interaction delays are not motion: a toast stays 10s, a tooltip waits 600ms.
+    'toast({ title, duration: 10 })',
+    'const tip = { delay: 600 }',
+  ]) assert.deepEqual(tokenContract.auditMotionLiterals(source, 'src/components/shell/panel.tsx'), [], source)
+  assert.deepEqual(tokenContract.auditMotionLiterals('const t = { duration: .14 }', motionFile), [])
+})
+
+test('the repo audit reads motion literals in .ts and .tsx files', () => {
+  const errors = auditFixture({
+    'src/components/shell/sidebar-motion.ts': 'export const fold = { duration: .22 }\n',
+    'src/components/shell/sidebar-motion.test.ts': 'const fixture = { duration: .22 }\n',
+  }).errors
+  assert.equal(errors.length, 1, errors.join('\n'))
+  assert.match(errors[0], /^src\/components\/shell\/sidebar-motion\.ts:1 .*duration/)
 })
 
 test('the repo check no longer exempts the retired Supabase-era token files', () => {

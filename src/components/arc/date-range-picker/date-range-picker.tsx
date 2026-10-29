@@ -97,31 +97,27 @@ function useReducedFlag() {
 const { blur } = motionTokens;
 const enterEase = [...motionTokens.ease.enter] as Bezier;
 const standardEase = [...motionTokens.ease.standard] as Bezier;
-/** Duration springs restated as stiffness and damping, so every retarget keeps the velocity already in flight. */
-const physical = (visualDuration: number, bounce: number): Transition => {
-  const root = 2 * Math.PI / (visualDuration * 1.2);
-  return { type: "spring", stiffness: root * root, damping: 2 * (1 - bounce) * root, mass: 1 };
-};
-const GROW = physical(.48, .12), SHRINK = physical(.38, 0), STRETCH = physical(.3, .04), GLIDE = physical(.3, .1), SLIDE = physical(.4, .06);
+/** Lane adaptation (#262): every move uses the theme's no-bounce spring; Motion keeps the velocity already in flight on a retarget. */
+const GROW: Transition = motionTokens.spring.smooth, SHRINK: Transition = motionTokens.spring.smooth, STRETCH: Transition = motionTokens.spring.smooth, GLIDE: Transition = motionTokens.spring.smooth, SLIDE: Transition = motionTokens.spring.smooth;
 const WIDE_CELL = 36, WIDE_MIN = 712, EDGE = 8;
 
 const roll: Variants = {
   enter: (direction: number) => ({ opacity: 0, y: `${direction * .45}em`, filter: `blur(${blur.subtle}px)` }),
-  center: { opacity: 1, y: "0em", filter: "blur(0px)", transition: { duration: .26, ease: enterEase } },
-  exit: (direction: number) => ({ opacity: 0, y: `${direction * -.45}em`, filter: `blur(${blur.subtle}px)`, transition: { duration: .14, ease: standardEase } }),
+  center: { opacity: 1, y: "0em", filter: "blur(0px)", transition: { duration: motionTokens.duration.standard, ease: enterEase } },
+  exit: (direction: number) => ({ opacity: 0, y: `${direction * -.45}em`, filter: `blur(${blur.subtle}px)`, transition: { duration: motionTokens.duration.fast, ease: standardEase } }),
 };
-const fade: Variants = { enter: { opacity: 0 }, center: { opacity: 1, y: "0em", filter: "blur(0px)", transition: { duration: .12 } }, exit: { opacity: 0, transition: { duration: .08 } } };
+const fade: Variants = { enter: { opacity: 0 }, center: { opacity: 1, y: "0em", filter: "blur(0px)", transition: { duration: motionTokens.duration.instant } }, exit: { opacity: 0, transition: { duration: motionTokens.duration.instant } } };
 /** Panel content arrives just behind the growing surface and leaves ahead of it. */
 const faceIn: Variants = {
   hidden: { opacity: 0, y: -4, filter: `blur(${blur.soft}px)` },
-  shown: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: .26, ease: enterEase, delay: .07 } },
-  gone: { opacity: 0, y: -2, filter: `blur(${blur.soft}px)`, transition: { duration: .12, ease: standardEase } },
+  shown: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: motionTokens.duration.standard, ease: enterEase, delay: motionTokens.stagger.line } },
+  gone: { opacity: 0, y: -2, filter: `blur(${blur.soft}px)`, transition: { duration: motionTokens.duration.instant, ease: standardEase } },
 };
-const faceFade: Variants = { hidden: { opacity: 0 }, shown: { opacity: 1, transition: { duration: .12 } }, gone: { opacity: 0, transition: { duration: .08 } } };
+const faceFade: Variants = { hidden: { opacity: 0 }, shown: { opacity: 1, transition: { duration: motionTokens.duration.instant } }, gone: { opacity: 0, transition: { duration: motionTokens.duration.instant } } };
 const slide: Variants = {
   enter: (direction: number) => ({ opacity: 0, x: direction * 48, filter: `blur(${blur.soft}px)` }),
-  center: { opacity: 1, x: 0, filter: "blur(0px)", transition: { x: SLIDE, opacity: { duration: .22, ease: enterEase }, filter: { duration: .24, ease: enterEase } } },
-  exit: (direction: number) => ({ opacity: 0, x: direction * -36, filter: `blur(${blur.soft}px)`, transition: { x: SLIDE, opacity: { duration: .14, ease: standardEase }, filter: { duration: .14, ease: standardEase } } }),
+  center: { opacity: 1, x: 0, filter: "blur(0px)", transition: { x: SLIDE, opacity: { duration: motionTokens.duration.standard, ease: enterEase }, filter: { duration: motionTokens.duration.standard, ease: enterEase } } },
+  exit: (direction: number) => ({ opacity: 0, x: direction * -36, filter: `blur(${blur.soft}px)`, transition: { x: SLIDE, opacity: { duration: motionTokens.duration.fast, ease: standardEase }, filter: { duration: motionTokens.duration.fast, ease: standardEase } } }),
 };
 
 /** Words roll one by one: a later date rises from below, an earlier one drops from above; words that stay the same hold still. */
@@ -154,11 +150,11 @@ function Bar({ row, segment, reduced }: { row: number; segment: Segment; reduced
   const leftPct = useTransform(left, value => `${value}%`), widthPct = useTransform(width, value => `${value}%`);
   const wasEmpty = useRef(!segment);
   useLayoutEffect(() => {
-    if (!segment) { wasEmpty.current = true; animate(opacity, 0, { duration: reduced ? 0 : .14 }); return; }
+    if (!segment) { wasEmpty.current = true; animate(opacity, 0, { duration: reduced ? 0 : motionTokens.duration.fast }); return; }
     if (wasEmpty.current || reduced) { left.jump(segment.left); width.jump(segment.width); }
     else { animate(left, segment.left, STRETCH); animate(width, segment.width, STRETCH); }
     wasEmpty.current = false;
-    animate(opacity, 1, { duration: reduced ? 0 : .16 });
+    animate(opacity, 1, { duration: reduced ? 0 : motionTokens.duration.fast });
   }, [left, opacity, reduced, segment, width]);
   return <motion.span className={styles.bar} style={{ left: leftPct, width: widthPct, opacity, top: `calc(${row} * var(--cell) + var(--space-1) * .75)` }} />;
 }
@@ -169,11 +165,11 @@ function Thumb({ cell, reduced }: { cell: { row: number; col: number } | null; r
   const transform = useTransform(() => `translate(${x.get() * 100}%, ${y.get() * 100}%) scale(${scale.get()})`);
   const hidden = useRef(!cell);
   useLayoutEffect(() => {
-    if (!cell) { hidden.current = true; animate(opacity, 0, { duration: reduced ? 0 : .12 }); animate(scale, .8, { duration: reduced ? 0 : .12 }); return; }
+    if (!cell) { hidden.current = true; animate(opacity, 0, { duration: reduced ? 0 : motionTokens.duration.instant }); animate(scale, .8, { duration: reduced ? 0 : motionTokens.duration.instant }); return; }
     if (hidden.current || reduced) { x.jump(cell.col); y.jump(cell.row); }
     else { animate(x, cell.col, GLIDE); animate(y, cell.row, GLIDE); }
     hidden.current = false;
-    animate(opacity, 1, { duration: reduced ? 0 : .16 });
+    animate(opacity, 1, { duration: reduced ? 0 : motionTokens.duration.fast });
     animate(scale, 1, reduced ? { duration: 0 } : GLIDE);
   }, [cell, opacity, reduced, scale, x, y]);
   return <motion.span className={styles.thumb} style={{ transform, opacity }} />;
@@ -572,11 +568,11 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
   useLayoutEffect(() => {
     const rail = railRef.current;
     const node = activePreset < 0 ? null : rail?.querySelector<HTMLElement>(`[data-preset="${activePreset}"]`);
-    if (!rail || !node) { animate(go, 0, { duration: reduced ? 0 : .14 }); return; }
+    if (!rail || !node) { animate(go, 0, { duration: reduced ? 0 : motionTokens.duration.fast }); return; }
     const place = [node.offsetLeft, node.offsetTop, node.offsetWidth, node.offsetHeight] as const;
     if (go.get() < .05 || reduced) { gx.jump(place[0]); gy.jump(place[1]); gw.jump(place[2]); gh.jump(place[3]); }
     else { animate(gx, place[0], GLIDE); animate(gy, place[1], GLIDE); animate(gw, place[2], GLIDE); animate(gh, place[3], GLIDE); }
-    animate(go, 1, { duration: reduced ? 0 : .16 });
+    animate(go, 1, { duration: reduced ? 0 : motionTokens.duration.fast });
     if (compact && (node.offsetLeft < rail.scrollLeft || node.offsetLeft + node.offsetWidth > rail.scrollLeft + rail.clientWidth)) {
       rail.scrollTo({ left: node.offsetLeft - 12, behavior: reduced ? "auto" : "smooth" });
     }
@@ -591,10 +587,10 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
 
 
   const quiet = open ? (reduced ? { opacity: 0 } : { opacity: 0, filter: `blur(${blur.subtle}px)` }) : { opacity: 1, filter: "blur(0px)" };
-  const quietTransition = open ? { duration: .12, ease: standardEase } : { duration: .22, ease: enterEase, delay: reduced ? 0 : .1 };
+  const quietTransition = open ? { duration: motionTokens.duration.instant, ease: standardEase } : { duration: motionTokens.duration.standard, ease: enterEase, delay: reduced ? 0 : motionTokens.stagger.line };
 
   const panel = open && today && <motion.div key="panel" ref={panelRef} id={`${uid}-panel`} className={[styles.panel, embedded && styles.embeddedPanel].filter(Boolean).join(" ")} role={embedded ? "group" : "dialog"} aria-label={label} data-compact={compact || undefined}
-          style={{ "--panel-width": panelWidth ? `${panelWidth}px` : undefined, width: compact && panelWidth ? panelWidth : undefined } as CSSProperties} exit={{ opacity: 1, transition: { duration: .14 } }}>
+          style={{ "--panel-width": panelWidth ? `${panelWidth}px` : undefined, width: compact && panelWidth ? panelWidth : undefined } as CSSProperties} exit={{ opacity: 1, transition: { duration: motionTokens.duration.fast } }}>
           <motion.div className={styles.body} variants={reduced ? faceFade : faceIn} initial="hidden" animate="shown" exit="gone">
             {presets.length > 0 && <div ref={railRef} className={styles.rail} role="group" aria-label="Presets" onKeyDown={onRailKey}>
               <motion.span className={styles.railHighlight} style={{ x: gx, y: gy, width: gw, height: gh, opacity: go }} aria-hidden="true" />

@@ -73,8 +73,8 @@ const standard = [...ease.standard] as [number, number, number, number];
 const instant: Transition = { duration: 0 };
 // Licensed Arc Docs sidebar fold. Keep mounted so the existing Project links and menus retain identity.
 const projectFolded: TargetAndTransition = { height: 0, opacity: 0, overflow: "hidden" };
-const projectUnfold: TargetAndTransition = { height: "auto", opacity: 1, transitionEnd: { overflow: "visible" }, transition: { height: spring.smooth, opacity: { duration: .22, delay: .04, ease: standard } } };
-const projectFold: TargetAndTransition = { ...projectFolded, transition: { height: spring.smooth, opacity: { duration: .14, ease: standard } } };
+const projectUnfold: TargetAndTransition = { height: "auto", opacity: 1, transitionEnd: { overflow: "visible" }, transition: { height: spring.smooth, opacity: { duration: duration.standard, delay: motionTokens.stagger.word, ease: standard } } };
+const projectFold: TargetAndTransition = { ...projectFolded, transition: { height: spring.smooth, opacity: { duration: duration.fast, ease: standard } } };
 const projectUnfoldStill: TargetAndTransition = { height: "auto", opacity: 1, transitionEnd: { overflow: "visible" }, transition: instant };
 const projectFoldStill: TargetAndTransition = { ...projectFolded, transition: instant };
 const subscribeNothing = () => () => {};

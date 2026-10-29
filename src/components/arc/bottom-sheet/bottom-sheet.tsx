@@ -51,7 +51,7 @@ const LOW_DIM = .78;
 
 const settle = motionTokens.spring.smooth;
 /** Leaving is shorter than arriving; a flick keeps its velocity through the same spring. */
-const leave = { ...motionTokens.spring.smooth, visualDuration: .3 };
+const leave = { ...motionTokens.spring.smooth, visualDuration: motionTokens.duration.fast };
 const fade = { duration: motionTokens.duration.fast, ease: [...motionTokens.ease.standard] as [number, number, number, number] };
 
 /** iOS-style resistance: follows the finger at first, then approaches STRETCH. */

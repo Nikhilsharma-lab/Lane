@@ -99,16 +99,16 @@ const exitEase = [0.4, 0, 1, 1] as [number, number, number, number];
 /** The panel grows out of the trigger on a critically damped spring; rows follow a beat later. Closing is a short fade. */
 const panelMotion: Variants = {
   closed: { opacity: 0, scale: .94 },
-  open: { opacity: 1, scale: 1, transition: { type: "spring", visualDuration: .3, bounce: 0, opacity: { duration: motionTokens.duration.fast, ease: enter }, delayChildren: .03, staggerChildren: .016 } },
+  open: { opacity: 1, scale: 1, transition: { ...motionTokens.spring.smooth, opacity: { duration: motionTokens.duration.fast, ease: enter }, delayChildren: motionTokens.stagger.item, staggerChildren: motionTokens.stagger.char } },
   exit: { opacity: 0, scale: .97, transition: { duration: motionTokens.duration.instant, ease: exitEase } },
 };
 const sheetMotion: Variants = {
   closed: { y: "100%" },
-  open: { y: 0, transition: { ...motionTokens.spring.smooth, visualDuration: .36, delayChildren: .06, staggerChildren: .02 } },
-  exit: { y: "100%", transition: { duration: .22, ease: exitEase } },
+  open: { y: 0, transition: { ...motionTokens.spring.smooth, delayChildren: motionTokens.stagger.line, staggerChildren: motionTokens.stagger.char } },
+  exit: { y: "100%", transition: { duration: motionTokens.duration.fast, ease: exitEase } },
 };
 const stillMotion: Variants = { closed: { opacity: 0 }, open: { opacity: 1, transition: { duration: motionTokens.duration.instant } }, exit: { opacity: 0, transition: { duration: motionTokens.duration.instant } } };
-const rowMotion: Variants = { closed: { opacity: 0, y: 3 }, open: { opacity: 1, y: 0, transition: { duration: .2, ease: enter } } };
+const rowMotion: Variants = { closed: { opacity: 0, y: 3 }, open: { opacity: 1, y: 0, transition: { duration: motionTokens.duration.standard, ease: enter } } };
 
 /** A presence mark that morphs between statuses: the color crossfades while a hole opens for away and a bar slides in for busy. */
 export function PresenceDot({ status, className }: { status: UserStatus | "offline"; className?: string }) {
@@ -616,7 +616,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
 
   const bottomSheet = <AnimatePresence>
     {open && sheet && <motion.div key="scrim" className={styles.scrim} aria-hidden="true" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      transition={{ duration: reduced ? .1 : .2, ease: standard }} onClick={() => close(true)} />}
+      transition={{ duration: reduced ? motionTokens.duration.instant : motionTokens.duration.standard, ease: standard }} onClick={() => close(true)} />}
     {open && sheet && <motion.div key="sheet" ref={surfaceRef} {...menuProps} aria-label={workspaceOpen ? "Workspaces" : undefined} aria-labelledby={workspaceOpen ? undefined : triggerId} data-ui-surface="floating" className={`${styles.panel} ${styles.sheet}`}
       variants={reduced ? stillMotion : sheetMotion} initial="closed" animate="open" exit="exit"
       onAnimationComplete={definition => { if (definition === "open") setSheetEntered(true); }}
