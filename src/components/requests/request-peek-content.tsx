@@ -21,6 +21,7 @@ import type { RequestPeekProps } from "./request-peek"
 import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 /** The shell's trail and sidebar control belong to the page's strip, not the preview's. */
 const PREVIEW_FRAME = { trail: [], expand: null, link: "a" as const }
@@ -29,7 +30,7 @@ function PreviewFrame({ children }: { children: React.ReactNode }) {
 }
 
 function PreviewClose({ onClose }: { onClose: () => void }) {
-  return <Tooltip morph="plain" side="bottom" content={<>Close preview<kbd className={styles.kbd}>Esc</kbd></>}>
+  return <Tooltip morph="plain" side="bottom" content={<>Close preview<KeyCap className={styles.kbd}>Esc</KeyCap></>}>
     <Button type="button" variant="ghost" size="sm" morph="plain" className={detailStyles.iconButton} aria-label="Close preview" onClick={onClose} data-request-peek-close="">
       <X strokeWidth={1.75} aria-hidden="true" />
     </Button>

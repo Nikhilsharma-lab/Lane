@@ -6,6 +6,7 @@ import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import { useShellOpener } from "./shell-openers"
 import styles from "./keyboard-shortcuts.module.css"
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 /**
  * Plan item 2.4 (decision 8.25): `?` lists every shortcut, from the one map
@@ -65,13 +66,12 @@ export function KeyboardShortcuts() {
 /**
  * The key caps the `?` overlay and the ⌘K palette share (spec #101): every
  * interchangeable alternative, "or" between them, one cap per key of a chord.
- * A recorded deviation (docs/design-system/arc-sources.md): Arc's
- * `ShortcutKbd` replaces these caps once `shortcut-recorder` is installed.
+ * Each cap is Arc's `ShortcutKbd`, through Lane's KeyCap (#262).
  * The caller supplies the wrapper and its accessible text.
  */
 export function ShortcutKeys({ keys }: { keys: readonly string[] }) {
   return keys.map((alternative, index) => <Fragment key={alternative}>
     {index > 0 && <span className={styles.or}>or</span>}
-    {alternative.split(" ").map(part => <kbd key={part} className={styles.key}>{part}</kbd>)}
+    {alternative.split(" ").map(part => <KeyCap key={part}>{part}</KeyCap>)}
   </Fragment>)
 }

@@ -202,7 +202,7 @@ export function auditTree(root, policy = themePolicy()) {
       else if (entry.name.endsWith('.tsx') && !/\.(?:test|spec|stories)\./.test(entry.name)) {
         const source = readFileSync(path, 'utf8')
         const file = relative(root, path).replaceAll('\\', '/')
-        errors.push(...auditInlineStyles(source, file), ...auditIcons(source, file), ...auditSharedControls(source, file), ...auditMotionLiterals(source, file))
+        errors.push(...auditInlineStyles(source, file), ...auditIcons(source, file), ...auditSharedControls(source, file), ...auditMotionLiterals(source, file), ...auditKeyCaps(source, file))
       }
       else if (entry.name.endsWith('.ts') && !/\.(?:test|spec|stories|d)\./.test(entry.name)) {
         errors.push(...auditMotionLiterals(readFileSync(path, 'utf8'), relative(root, path).replaceAll('\\', '/')))
@@ -450,6 +450,23 @@ export function auditMotionLiterals(source, file = 'component.tsx') {
         if (name === 'bounce' && values.some(value => value !== 0)) errors.push(`${file}:${line(property)} bounce ${property.initializer.getText(tree)}: every spring has bounce 0`)
         if (motionTimingKeys.has(name) && values.some(value => value > 0 && value < 2)) errors.push(`${file}:${line(property)} ${name}: ${property.initializer.getText(tree)} is a motion literal: use motionTokens (theme.css's motion scale)`)
       }
+    }
+    node.forEachChild(visit)
+  }
+  visit(tree)
+  return errors
+}
+
+// #262 (polish bar §9): one key cap. Product code draws keys with KeyCap (Arc's ShortcutKbd); a raw
+// <kbd> outside Arc's own source would be a tenth hand-drawn style.
+export const keyCapFile = 'src/components/keyboard/key-caps.tsx'
+export function auditKeyCaps(source, file = 'component.tsx') {
+  if (file.startsWith('src/components/arc/') || file === keyCapFile || !source.includes('<kbd')) return []
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const errors = []
+  const visit = node => {
+    if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.tagName.getText(tree) === 'kbd') {
+      errors.push(`${file}:${tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1} <kbd> drawn by hand: use KeyCap from ${keyCapFile}`)
     }
     node.forEachChild(visit)
   }

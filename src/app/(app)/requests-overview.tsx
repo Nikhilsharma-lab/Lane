@@ -23,6 +23,7 @@ import { RequestsWelcome } from "./requests-welcome"
 import type { PeekViewer } from "@/components/requests/request-peek"
 import { SavedViewMenu } from "@/components/requests/saved-view-menu"
 import { openSavedView, savedViewChanged, type SavedView } from "@/lib/saved-view-rules"
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -153,7 +154,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
         // The one labelled way in; the sidebar glyph and the Open group's plus share its name and the C shortcut.
         // An empty workspace has exactly one Intake link, the welcome's (docs/superpowers/plans/2026-09-29-requests-welcome.md):
         // this one keeps its box, hidden and inert, so the first Request shows it without moving the strip.
-        action={readOnly ? undefined : <Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
+        action={readOnly ? undefined : <Tooltip content={<>New Request<KeyCap className={styles.kbd}>C</KeyCap></>} side="bottom">
           <NewRequestLink inert={workspaceEmpty} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus aria-hidden="true" />New Request</NewRequestLink>
         </Tooltip>} />
       {firstRun && !guideIsWelcome && <div className={firstRunStyles.slot}>{firstRun.node}</div>}

@@ -463,5 +463,19 @@
     "file": "src/components/arc/blocks/settings-command/settings-command.module.css",
     "upstreamSha256": "c6cb16a1fee97ce2a8eb1662d5b100c32ac32fa0f23689dadd74319a56d3adc9",
     "localSha256": "1b287612115e282fd735198a8cfad0effb96f0d4d14c7b54a44b89a1512ee004"
+  },
+  {
+    "id": "shortcut-recorder",
+    "source": "https://uiarc.dev/r/shortcut-recorder.json",
+    "file": "src/components/arc/shortcut-recorder/shortcut-recorder.tsx",
+    "upstreamSha256": "e9941d875579297a4f666aa711e703f282d98759635e9da53090338e416b8f37",
+    "localSha256": "16ca16a1240096adae58a96cd0b6236284d009fb27f3f9d42889b611ee0a1df5"
+  },
+  {
+    "id": "shortcut-recorder",
+    "source": "https://uiarc.dev/r/shortcut-recorder.json",
+    "file": "src/components/arc/shortcut-recorder/shortcut-recorder.module.css",
+    "upstreamSha256": "a658a5ccd0d5c3d372d778f73cfffe7f909350a8ee258c92c9a05c8ab31add2e",
+    "localSha256": "5402d54237da710af17ee4fc956c76ffbeeb0d4bc115f25b205fff43f6da6f54"
   }
 ]

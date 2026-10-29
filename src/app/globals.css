@@ -45,3 +45,10 @@
     transition-duration: 0s !important;
   }
 }
+
+/* #262 (polish bar §9): key caps show only where there is a keyboard to press them. One rule for every
+   <kbd>, Arc's own and Lane's KeyCap (src/components/keyboard/key-caps.tsx); hints written around a key
+   hide their whole sentence on touch screens themselves. */
+@media (pointer: coarse) {
+  kbd { display: none !important; }
+}

@@ -111,7 +111,7 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
       await page.getByRole("button", { name: /Change status$/ }).click();
       await expect(page.getByRole("menu").first()).toBeVisible();
       still(await firstFrame(page));
-      await testInfo.attach("A122-menu-reduced-motion", { body: await page.screenshot(), contentType: "image/png" });
+      await page.screenshot({ path: testInfo.outputPath("A122-menu-reduced-motion.png") });
       await page.keyboard.press("Escape");
       await page.emulateMedia({ reducedMotion: "no-preference" });
     });
@@ -150,7 +150,7 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
         await inboxLink.click();
         await expect(page.locator("#lane-main [data-skeleton]").first()).toBeVisible({ timeout: 10_000 });
         await page.waitForTimeout(400);
-        await testInfo.attach("placeholder-slow-inbox", { body: await page.screenshot(), contentType: "image/png" });
+        await page.screenshot({ path: testInfo.outputPath("placeholder-slow-inbox.png") });
       } finally {
         release();
         await transaction;
@@ -160,6 +160,34 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
       const shownAt = await placeholderShownAt(page);
       expect(shownAt).not.toBeNull();
       expect(shownAt!).toBeGreaterThanOrEqual(150);
+    });
+    await test.step("Key caps show with a mouse and keyboard and never on a phone", async () => {
+      await page.goto("/");
+      await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
+      await page.locator("#lane-main").focus();
+      await page.keyboard.press("?");
+      const shortcuts = page.getByRole("dialog", { name: "Keyboard shortcuts", exact: true });
+      await expect(shortcuts).toBeVisible();
+      await expect(shortcuts.locator("kbd").first()).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath("key-caps-desktop-1440.png") });
+      await page.keyboard.press("Escape");
+
+      // A phone: a coarse, touch-first pointer at 390px.
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.reload();
+      await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
+      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await page.locator("#lane-main").focus();
+      await page.keyboard.press("?");
+      await expect(shortcuts).toBeVisible();
+      await expect(shortcuts.locator("kbd").first()).toBeAttached();
+      await expect(page.locator("kbd:visible")).toHaveCount(0);
+      await page.screenshot({ path: testInfo.outputPath("key-caps-phone-390.png") });
+      await page.keyboard.press("Escape");
+      await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+      await page.setViewportSize({ width: 1440, height: 900 });
     });
   } finally {
     await cleanupTestWorkspace(owner.id);

@@ -100,6 +100,7 @@ import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-f
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Placeholder } from "@/components/loading/placeholder";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 type Stage =
   | "compose"
@@ -976,7 +977,7 @@ export default function RequestEditor({
   const reviewing = stage === "framing" || creating;
   // Compose shows gate failures; review-step failures keep their own alert.
   const gateNotice = composing && failure ? gateFailureNotice(failure) : null;
-  const shortcut = shortcutHint && <kbd className={styles.shortcut} aria-hidden="true">{shortcutHint}</kbd>;
+  const shortcut = shortcutHint && <KeyCap className={styles.shortcut}>{shortcutHint}</KeyCap>;
 
   function onProjectBusyChange(value: boolean) {
     projectInFlight.current = value;

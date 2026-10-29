@@ -4,6 +4,7 @@ import { NewRequestLink } from "@/components/requests/new-request-link"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import styles from "./requests-overview.module.css"
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 /** Plan item 2.1: the body of an empty workspace's records region. The list's
  * strip above it supplies the title, the guest note and the expand control, so
@@ -34,7 +35,7 @@ export function RequestsWelcome({ canInvite, isGuest, readOnly = false }: { canI
             </Link>
           )}
           {/* A span, not a p: EmptyState's `.root p` rule would restyle a paragraph. */}
-          <span className={styles.shortcutHint}>Press <kbd className={styles.key}>C</kbd> to create a Request.</span>
+          <span className={styles.shortcutHint}>Press <KeyCap>C</KeyCap> to create a Request.</span>
         </>}
       />
     </div>

@@ -377,6 +377,17 @@ test('the repo audit reads motion literals in .ts and .tsx files', () => {
   assert.match(errors[0], /^src\/components\/shell\/sidebar-motion\.ts:1 .*duration/)
 })
 
+test('product code draws key caps only through the shared KeyCap', () => {
+  assert.equal(typeof tokenContract.auditKeyCaps, 'function')
+  assert.equal(tokenContract.auditKeyCaps('const hint = <p>Press <kbd className={styles.key}>C</kbd></p>', 'src/components/shell/hint.tsx').length, 1)
+  assert.deepEqual(tokenContract.auditKeyCaps('const hint = <p>Press <KeyCap>C</KeyCap></p>', 'src/components/shell/hint.tsx'), [])
+  assert.deepEqual(tokenContract.auditKeyCaps('const cap = <kbd className={styles.kbd}>C</kbd>', 'src/components/arc/shortcut-recorder/shortcut-recorder.tsx'), [])
+  assert.deepEqual(tokenContract.auditKeyCaps('const cap = <kbd>C</kbd>', 'src/components/keyboard/key-caps.tsx'), [])
+  const errors = auditFixture({ 'src/app/hint.tsx': 'export const Hint = () => <kbd>/</kbd>\n' }).errors
+  assert.equal(errors.length, 1, errors.join('\n'))
+  assert.match(errors[0], /^src\/app\/hint\.tsx:1 .*KeyCap/)
+})
+
 test('the repo check no longer exempts the retired Supabase-era token files', () => {
   assert.ok(auditCss(':root { --sb-foreground: oklch(0.1 0 0); }', 'src/styles/supabase-tokens.css').length)
   assert.ok(auditCss(':root { --overlay: color-mix(in oklab, var(--background) 80%, transparent); }', 'src/styles/lane-arc-theme.css').length)

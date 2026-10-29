@@ -35,6 +35,7 @@ import type { SearchSort, WorkspaceSearchFilters, WorkspaceSearchProject, Worksp
 import { SidebarExpandButton } from "./sidebar-controls";
 import styles from "./workspace-search-pane.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 /** A result's journey status (#133), read through the journey module ("Closed without a result" included). */
 const resultStatus = (item: WorkspaceSearchRequest) => statusOfJourney(journeyOf(item.status, Boolean(item.withoutResult)));
@@ -304,7 +305,7 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
               {matches.map(result => <ResultRow key={`${result.kind}-${result.item.id}`} result={result} optionId={`${uid}-${result.item.id}`} pattern={pattern} selected={selected?.item.id === result.item.id} reduced={Boolean(reduced)} timeZone={timeZone} onPick={openPreview} />)}
             </ul></LayoutGroup>
             <div className={styles.more}>{settled ? (["requests", "projects"] as const).map(kind => category !== (kind === "requests" ? "projects" : "requests") && data?.[kind].hasMore ? <Button key={kind} variant="ghost" size="sm" disabled={loading !== null} loading={loading === kind} data-load-more={kind} onClick={requestMore}>Load more {kind === "requests" ? "Requests" : "Projects"}</Button> : null) : null}</div>
-            <p className={styles.keys} aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> move <kbd>↵</kbd> preview <kbd>{isApple() ? "⌘" : "Ctrl"}</kbd><kbd>↵</kbd> open <kbd>/</kbd> search</p>
+            <p className={styles.keys} aria-hidden="true"><KeyCap>↑</KeyCap><KeyCap>↓</KeyCap> move <KeyCap>↵</KeyCap> preview <KeyCap>{isApple() ? "⌘" : "Ctrl"}</KeyCap><KeyCap>↵</KeyCap> open <KeyCap>/</KeyCap> search</p>
           </motion.div> : !failure ? <div className={styles.empty} aria-busy={data ? busy : undefined}><EmptyState icon={data ? <SearchX data-icon-size="2xl" /> : <Search data-icon-size="2xl" />} title={data ? "No results found" : "Find a Request or Project"} description={data ? "Try another word or check the spelling." : "Search by Request code, title or description."} action={filterCount ? <Button size="sm" variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} /></div> : null}
       </section>
       <aside className={styles.preview} aria-label="Result preview"><AnimatePresence mode="wait" initial={false}>{selected ? <motion.div key={selected.item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}><Preview result={selected} pattern={pattern} timeZone={timeZone} onNavigate={onNavigate} /></motion.div> : <p className={styles.previewEmpty}>{loading ? "Searching" : "Select a result to preview it."}</p>}</AnimatePresence></aside>
