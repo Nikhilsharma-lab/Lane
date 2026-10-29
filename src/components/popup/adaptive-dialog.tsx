@@ -28,8 +28,8 @@ import styles from "./popup.module.css"
  *
  * Focus and the guard load with the page, so they work from the first moment. Only the switch to the phone panel
  * waits (popup-behaviour.tsx, through load-behaviour.ts); until it arrives a popup opens as the centred Arc dialog.
- * Menus and small pickers (Arc popover, dropdown-menu, context-menu, the date range dialogs, the command palette)
- * stay as they are.
+ * Menus and small pickers (Arc popover, dropdown-menu, context-menu, the date range picker's own popover) stay as
+ * they are, and so do the command palette and workspace search, which build 4 owns.
  */
 
 /** The content's guard: asks before `close` drops typed text and returns true, or returns false to close now. */
