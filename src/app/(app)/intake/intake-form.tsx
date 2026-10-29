@@ -97,7 +97,8 @@ import {
 import { composerDraft, restoredComposer, settleLostUploads as settleInterruptedUploads } from "./intake-session";
 import { createUploadSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
-import { OFFLINE_ANSWER, isOfflineError } from "@/lib/failure-messages";
+import { OFFLINE_ANSWER, TEXT_KEPT, isOfflineError } from "@/lib/failure-messages";
+import { isOffline } from "@/lib/connection-status";
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Placeholder } from "@/components/loading/placeholder";
@@ -756,7 +757,7 @@ export default function RequestEditor({
       setStage("framing");
     } catch (thrown) {
       if (abandoned()) return;
-      setFailure(thrownGateFailure(!isOfflineError(thrown) && navigator.onLine !== false));
+      setFailure(thrownGateFailure(!isOfflineError(thrown) && !isOffline()));
       focusAfterCompose.current = "submit";
       setStage("compose");
     } finally {
@@ -932,8 +933,8 @@ export default function RequestEditor({
       setFailure({
         code: "save_failed",
         // #260 (C1): offline says so; nothing was sent and the text stays.
-        message: isOfflineError(thrown) ? `${OFFLINE_ANSWER} Your text is still here.`
-          : editing ? "Your changes couldn't be saved. Your text is still here. Try again." : "Your Request couldn't be created. Your text is still here. Try again.",
+        message: isOfflineError(thrown) ? `${OFFLINE_ANSWER} ${TEXT_KEPT}`
+          : editing ? `Your changes couldn't be saved. ${TEXT_KEPT} Try again.` : `Your Request couldn't be created. ${TEXT_KEPT} Try again.`,
       });
       setStage(unchangedSource ? "compose" : "framing");
     } finally {
@@ -1254,7 +1255,7 @@ export default function RequestEditor({
                   with its text is often not announced, and focus would win. */}
               <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="" aria-describedby="intake-checking-status">Review Request</h2>
               <p id="intake-checking-status" role="status" className="text-sm text-muted-foreground">
-                {creating ? "Saving changes…" : showSlowCue ? "Still checking. Your draft is kept." : "Checking whether this describes a problem…"}
+                {creating ? "Saving changes…" : showSlowCue ? `Still checking. ${TEXT_KEPT}` : "Checking whether this describes a problem…"}
               </p>
             </div>
             <Placeholder><div aria-hidden="true" className="space-y-6">

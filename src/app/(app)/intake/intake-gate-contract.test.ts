@@ -60,9 +60,9 @@ describe("Intake Gate contract", () => {
     expect(FORM).toContain('role="status"');
     expect(FORM).toContain("loading={checking}");
     expect(FORM).toContain("Checking whether this describes a problem…");
-    expect(FORM).toContain("Still checking. Your draft is kept.");
+    expect(FORM).toContain("Still checking. ${TEXT_KEPT}");
     expect(FORM).toContain("hidden={checking}");
-    expect(ACTIONS).toContain("Review unavailable right now. Your draft is kept.");
+    expect(ACTIONS).toContain("Review unavailable right now. ${TEXT_KEPT}");
     expect(FORM).toContain("loading={creating}");
     expect(FORM).not.toContain("Creating Request…");
     expect(ACTIONS).toContain('"timeout"');

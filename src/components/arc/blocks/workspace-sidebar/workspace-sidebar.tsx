@@ -18,6 +18,7 @@ import { ProjectMarker } from "@/components/projects/project-marker";
 import styles from "./workspace-sidebar.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 import { KeyCap } from "@/components/keyboard/key-caps";
+import { failureWords } from "@/lib/failure-messages";
 
 export type WorkspaceNavigationItem = { id: string; name: string; href: string; icon?: ReactNode };
 export type WorkspaceNavigationGroup = { id: string; name: string; items: WorkspaceNavigationItem[] };
@@ -250,6 +251,8 @@ function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink
   const row = (item: WorkspaceNavigationItem, project = false) => {
     const link = LinkElement({
       href: item.href, className: styles.row, title: item.name,
+      // Lane #262: the shared pressed state (globals.css) shows from the click until the next page arrives.
+      ...{ "data-pressable": "" },
       "aria-current": activeId === item.id ? "page" : undefined,
       ...(project && tree ? { "data-project-tree-item": "" } : {}),
       onClick: (event) => { if (isPlainClick(event)) onSelect(item.id, item.name); },
@@ -326,7 +329,7 @@ function Composer({ reduce, rail, onExpand, onCreate }: { reduce: boolean; rail:
       await onCreate(name);
       if (mounted.current) { restoreTrigger.current = true; setState("idle"); setValue(""); }
     } catch (failure) {
-      if (mounted.current) { setState("open"); setError(failure instanceof Error ? failure.message : "Project couldn't be created. Try again."); requestAnimationFrame(() => input.current?.focus()); }
+      if (mounted.current) { setState("open"); setError(failureWords(failure, "Project couldn't be created. Try again.")); requestAnimationFrame(() => input.current?.focus()); }
     } finally { inFlight.current = false; }
   }
   const idle = state === "idle";

@@ -1,4 +1,6 @@
 import { prefersReducedMotion } from "@/components/motion/reduced-motion";
+import { isOffline } from "@/lib/connection-status";
+import { plainLinkClick } from "@/lib/plain-link-click";
 
 /**
  * #262 (polish bar §5): how waiting feels, for the whole app, in one small listener set loaded by the
@@ -22,8 +24,8 @@ if (typeof window !== "undefined" && typeof MutationObserver === "function") {
   };
   // Capture: rows and links may stop the click from bubbling.
   document.addEventListener("click", event => {
-    const link = (event.target as Element).closest?.("a[href]:not([download]):not([target=_blank])");
-    if (!(link instanceof HTMLAnchorElement) || event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !navigator.onLine) return;
+    const link = plainLinkClick(event);
+    if (!link || isOffline()) return;
     if (link.origin !== location.origin || (link.pathname === location.pathname && link.search === location.search)) return;
     clearPressed();
     pressedAt = location.href;

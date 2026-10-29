@@ -2,9 +2,13 @@
 
 import { useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react"
 // The context next/navigation's useRouter reads. The .shared-runtime module is the one instance Next.js itself uses.
+// It is a Next.js internal, imported because Next.js has no public way to wrap useRouter(): after a Next.js upgrade,
+// check that this path still exists and that push/replace offline are still held (e2e/offline-stays-in-lane.spec.ts).
 import { AppRouterContext, type AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
 import { isOffline } from "@/lib/connection-status"
+import { plainLinkClick } from "@/lib/plain-link-click"
 import { changesListInPlace } from "@/lib/request-workspace"
+import { showsSettingsInPlace } from "@/components/settings/settings-catalog"
 
 /** Whether moving to `href` keeps this page: another site, the same address, or a change the page makes
  * itself (a Requests list view on "/", a Settings section on a Settings page, as showsSettingsInPlace says). */
@@ -12,7 +16,7 @@ function staysInPlace(href: string) {
   const here = location, url = new URL(href, here.href)
   return url.origin != here.origin || (url.pathname == here.pathname && url.search == here.search)
     || changesListInPlace(here.pathname, url.pathname + url.search + url.hash)
-    || (here.pathname.startsWith("/settings/") && (url.pathname == "/settings/profile" || url.pathname == here.pathname))
+    || showsSettingsInPlace(url.pathname, here.pathname)
 }
 
 /** Offline, a move to another page would fail and Next.js would fall back to a full page load onto the browser's "No internet" page. */
@@ -43,8 +47,8 @@ export function OfflineGuard({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
-      const link = (event.target as Element).closest?.("a[href]") as HTMLAnchorElement | null
-      if (link && !(event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.defaultPrevented || link.hasAttribute("download") || link.target && link.target != "_self") && holds(link.href)) {
+      const link = plainLinkClick(event)
+      if (link && !event.defaultPrevented && holds(link.href)) {
         event.preventDefault()
         event.stopPropagation()
       }

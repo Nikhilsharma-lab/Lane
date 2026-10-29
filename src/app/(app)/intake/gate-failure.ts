@@ -1,5 +1,5 @@
 import type { IntakeFailure } from "./actions";
-import { OFFLINE_ANSWER } from "@/lib/failure-messages";
+import { OFFLINE_ANSWER, OFFLINE_LINE, TEXT_KEPT } from "@/lib/failure-messages";
 
 /** A failure the composer meets on its own side of the action: the call threw. */
 export type ClientGateFailure = { code: "offline" | "unavailable"; message: string };
@@ -14,13 +14,12 @@ export type GateNotice = {
 };
 
 export const REVIEW_UNAVAILABLE_TITLE = "Review unavailable right now";
-export const DRAFT_KEPT = "Your draft is kept.";
 
 /** Plan item 2.3: the action threw. Offline says so; anything else reads as the review being unavailable. */
 export function thrownGateFailure(online: boolean): ClientGateFailure {
   return online
-    ? { code: "unavailable", message: `${REVIEW_UNAVAILABLE_TITLE}. ${DRAFT_KEPT}` }
-    : { code: "offline", message: `${OFFLINE_ANSWER} ${DRAFT_KEPT}` };
+    ? { code: "unavailable", message: `${REVIEW_UNAVAILABLE_TITLE}. ${TEXT_KEPT}` }
+    : { code: "offline", message: `${OFFLINE_ANSWER} ${TEXT_KEPT}` };
 }
 
 /**
@@ -33,21 +32,21 @@ export function thrownGateFailure(online: boolean): ClientGateFailure {
 export function gateFailureNotice(failure: GateFailure): GateNotice {
   switch (failure.code) {
     case "session_expired":
-      return { tone: "danger", title: "Your session ended", body: `Sign in again to continue. ${DRAFT_KEPT}`, signIn: true };
+      return { tone: "danger", title: "Your session ended", body: `Sign in again to continue. ${TEXT_KEPT}`, signIn: true };
     case "offline":
-      return { tone: "warning", title: "You’re offline", body: failure.message, signIn: false };
+      return { tone: "warning", title: OFFLINE_LINE, body: failure.message, signIn: false };
     case "rate_limited":
       return { tone: "warning", title: "Review limit reached", body: failure.message, signIn: false };
     case "billing_blocked":
       // #213: the Free Requests are used; the message says why and that an Admin needs to pay.
-      return { tone: "warning", title: "An Admin needs to pay", body: `${failure.message} ${DRAFT_KEPT}`, signIn: false };
+      return { tone: "warning", title: "An Admin needs to pay", body: `${failure.message} ${TEXT_KEPT}`, signIn: false };
     case "timeout":
     case "network":
     case "provider":
     case "malformed":
     case "unavailable":
       // A failure tied to a field (the Project check) keeps its own sentence.
-      return { tone: "warning", title: REVIEW_UNAVAILABLE_TITLE, body: "field" in failure && failure.field ? failure.message : DRAFT_KEPT, signIn: false };
+      return { tone: "warning", title: REVIEW_UNAVAILABLE_TITLE, body: "field" in failure && failure.field ? failure.message : TEXT_KEPT, signIn: false };
     default:
       return { tone: "danger", title: "Couldn't prepare the review", body: failure.message, signIn: false };
   }

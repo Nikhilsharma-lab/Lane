@@ -24,6 +24,7 @@ import type { PeekViewer } from "@/components/requests/request-peek"
 import { SavedViewMenu } from "@/components/requests/saved-view-menu"
 import { openSavedView, savedViewChanged, type SavedView } from "@/lib/saved-view-rules"
 import { KeyCap } from "@/components/keyboard/key-caps";
+import { failureWords, ShownFailure } from "@/lib/failure-messages"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -36,7 +37,7 @@ async function fetchOlder(orgId: string, beforeId: string, view: FinishedView): 
   const query = new URLSearchParams({ org: orgId, before: beforeId, ...(view === "all" ? {} : { status: view }) })
   const response = await fetch(`/api/requests/done?${query}`, { headers: { Accept: "application/json" } })
   const body = await response.json().catch(() => null) as { rows?: OverviewRequest[]; hasOlderFinished?: boolean; error?: string } | null
-  if (!response.ok || !body?.rows) throw new Error(body?.error ?? OLDER_ERROR)
+  if (!response.ok || !body?.rows) throw new ShownFailure(body?.error ?? OLDER_ERROR)
   return { rows: body.rows, hasOlderFinished: Boolean(body.hasOlderFinished) }
 }
 
@@ -74,7 +75,7 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
       setOlder(current => ({ pages: { ...current.pages, [item]: [...current.pages[item] ?? [], ...page.rows] }, more: { ...current.more, [item]: page.hasOlderFinished }, pending: null, error: null }))
     } catch (error) {
       // A failed first page counts as fetched; "Show older" retries it.
-      setOlder(current => ({ ...current, pages: { ...current.pages, [item]: current.pages[item] ?? [] }, pending: null, error: error instanceof Error ? error.message : OLDER_ERROR }))
+      setOlder(current => ({ ...current, pages: { ...current.pages, [item]: current.pages[item] ?? [] }, pending: null, error: failureWords(error, OLDER_ERROR) }))
     }
   }
   const loadFirstPage = useEffectEvent((item: FinishedView) => { void load(item) })

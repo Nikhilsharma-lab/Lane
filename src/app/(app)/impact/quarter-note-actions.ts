@@ -8,6 +8,7 @@ import { refusal, requireOwnerOrAdmin } from "@/lib/auth-guard";
 import { quarterStarted } from "@/lib/impact-period";
 import { QUARTER_NOTE_MAX_LENGTH } from "@/lib/quarter-note-rules";
 import { FORMER_MEMBER } from "@/lib/request-journey";
+import { TEXT_KEPT } from "@/lib/failure-messages"
 
 /** One save of a quarter's note. Blank text clears it. `expectedEditedAt` is the edit time the Admin started from (null: no note yet). */
 const quarterNoteInputSchema = z.object({
@@ -57,7 +58,7 @@ export async function saveQuarterNote(data: unknown, context: { orgId: string })
     });
   } catch (error) {
     if (error instanceof Stale) return { error: STALE };
-    return { error: "Couldn't save the Quarter note. Your text is kept; try again." };
+    return { error: `Couldn't save the Quarter note. ${TEXT_KEPT} Try again.` };
   }
 
   revalidatePath("/impact");
