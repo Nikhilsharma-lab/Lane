@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogClose, DialogContent } from "@/components/popup/adaptive-dialog";
 import { PAID_SEAT_CONFIRMATION, PAID_SEAT_DETAIL, paidSeatSummary, type PaidSeatChange } from "@/lib/member-role-rules";
 import styles from "./settings.module.css";
 

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
-import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog"
+import { Dialog, DialogClose, DialogContent } from "@/components/popup/adaptive-dialog"
 import { pickupConfirmation, type PickupConfirmation, type ReviewState } from "@/lib/request-reviewer-rules"
 import detailStyles from "./detail.module.css"
 import styles from "./pickup-confirmation.module.css"

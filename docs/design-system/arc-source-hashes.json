@@ -378,7 +378,7 @@
     "source": "https://uiarc.dev/r/context-menu.json",
     "file": "src/components/arc/context-menu/context-menu.tsx",
     "upstreamSha256": "84301492fadf8cfb3dfa1682381932c4b986404b2adc2ef4e868de1582eb367e",
-    "localSha256": "ed9184f9cc2b07655133d493f808611cee813304c0e805a9f006205ba548ef05"
+    "localSha256": "1d91b725e4331fbea9116962e5ab7436505389ba5f960ba6e2d13c9a8dd6d8ef"
   },
   {
     "id": "context-menu",
@@ -440,14 +440,14 @@
     "source": "https://uiarc.dev/r/bottom-sheet.json",
     "file": "src/components/arc/bottom-sheet/bottom-sheet.tsx",
     "upstreamSha256": "c31e59f706c6da72acf78737c842fc58bf1e42d75002b89103914308d689d3f3",
-    "localSha256": "ab8f732ed634181f3db17b42314586436d55dfd22311fe80db9a124b01d142db"
+    "localSha256": "e01a4639fce904ac68e290be3d3e0a90485634e17536dc008fe43a9466e66422"
   },
   {
     "id": "bottom-sheet",
     "source": "https://uiarc.dev/r/bottom-sheet.json",
     "file": "src/components/arc/bottom-sheet/bottom-sheet.module.css",
     "upstreamSha256": "ddade2e6b872fe05ff64955f85ce4b5023591357dc4578ae0778b583ad949bc8",
-    "localSha256": "13fc21e1ef7c3ad00f7b4a6cf6c42550f7810241643a8bd98eef6782cf4c2b60"
+    "localSha256": "76db2d013db9d27ffe4fc6e0cdb6bbbf2d2e8b657de3fd81d4a21f8e9da07611"
   },
   {
     "id": "settings-command",

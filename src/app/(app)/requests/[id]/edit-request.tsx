@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pencil } from "lucide-react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import type { RequestDetail } from "@/components/requests/detail-view";
 import styles from "@/components/requests/detail.module.css";

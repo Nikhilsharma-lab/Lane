@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react"
 import { Bookmark, ChevronDown } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
-import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dialog"
+import { Dialog, DialogClose, DialogContent } from "@/components/popup/adaptive-dialog"
 import { DropdownMenu, type DropdownItem } from "@/components/arc/dropdown-menu/dropdown-menu"
 import { Input } from "@/components/arc/input/input"
 import { callAction } from "@/lib/action-call"
@@ -104,7 +104,7 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
       : <Button variant="secondary" size="sm" aria-label="Save view" onClick={() => show("save")}><Bookmark data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /><span className={styles.label}>Save view</span></Button>}
     {/* An update's failure has no dialog to speak in; it is read here. */}
     {error && !dialogOpen && <span className={styles.error} role="alert">{error}</span>}
-    <Dialog open={dialogOpen} onOpenChange={next => { if (!pending && !next) setDialogOpen(false) }}>
+    <Dialog guardTypedText open={dialogOpen} onOpenChange={next => { if (!pending && !next) setDialogOpen(false) }}>
       <DialogContent title={kind === "delete" && open ? `Delete “${open.name}”?` : TITLES[kind]}
         description={kind === "delete" ? "The view leaves your navigation. The list keeps its filters, and no Request changes."
           : kind === "rename" ? undefined : "Saves this list’s status and Project filters under a name. Only you see your views."}

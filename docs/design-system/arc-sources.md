@@ -424,3 +424,11 @@ Nothing in Lane imported these installed Arc sources, so they were deleted with 
 ### 2026-10-21 — unavailable menu items say why
 
 `src/components/arc/context-menu/context-menu.tsx` adds an optional item `description`. A disabled item with a description shows it under its label and stays focusable with `aria-disabled` and `aria-describedby`, so arrow keys and screen readers reach the reason; selecting it does nothing. Items without a description keep upstream's native `disabled`. `src/components/arc/context-menu/context-menu.module.css` dims only that item's icon and label, keeps the reason in secondary text, and wraps it at a fixed measure. The Request row menu uses it for a Pick up that isn't ready yet.
+
+### 2026-10-29 Adaptive popup (#263)
+
+Lane's dialogs go through one adaptive popup, `src/components/popup/adaptive-dialog.tsx`: Arc `dialog` at 640px and wider, Arc `bottom-sheet` under 640px (loaded only on a phone). Arc Pro `sheet-stack` is not used: Arc documents it for nested drill-down flows, and its springs bounce. The Arc `bottom-sheet` documentation was read through Arc MCP before this adaptation.
+
+- `src/components/arc/bottom-sheet/bottom-sheet.tsx`: exports `BottomSheetContent`, the sheet's layers under a Radix Dialog root the caller owns, so one root (with its Trigger and Close) shows either a dialog or the sheet; `BottomSheet` renders through it unchanged. Optional `layout` ("fit" sizes the sheet to its content up to the largest detent; "composer" hands the body's height and scrolling to the Request composer), `contentProps` (more Radix Content props; focus and outside-press handlers run before the sheet's own) and `confirmDismiss` (a drag that would dismiss springs back when it returns false, so the popup can ask "Discard what you typed?"). Detents, drag, interruption, keyboard handling, motion presets and the reduced-motion branch are unchanged.
+- `src/components/arc/bottom-sheet/bottom-sheet.module.css`: the "fit" and "composer" layouts, theme values only.
+- `src/components/arc/context-menu/context-menu.tsx`: a menu target that takes focus itself (a Requests grid row) gets focus back when the menu closes, instead of the link pressed inside it (walk A211). Targets that don't take focus keep upstream's behaviour.

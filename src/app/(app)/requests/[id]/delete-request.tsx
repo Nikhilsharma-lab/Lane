@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
 import styles from "@/components/requests/detail.module.css";
 import { deleteRequest } from "./actions";
 

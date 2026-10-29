@@ -65,3 +65,9 @@
 @media (prefers-reduced-motion: reduce) {
   .header::after, .grabberBar, .close { transition: none; }
 }
+
+/* Lane adaptation (#263): Lane's dialogs on phones. "fit" is as tall as its content, up to the largest detent, and rests
+   on its single detent; "composer" keeps the largest detent's height and hands the body's height and scrolling to the
+   Request composer, which owns its gutters and footer. */
+.sheet[data-layout="fit"] { height: auto; max-height: calc(var(--sheet-max) * 100vh + var(--sheet-extension)); max-height: calc(var(--sheet-max) * 100dvh + var(--sheet-extension)); }
+.sheet[data-layout="composer"] .body { display: flex; flex-direction: column; padding: 0; overflow: hidden; }

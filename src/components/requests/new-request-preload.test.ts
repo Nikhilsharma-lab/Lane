@@ -52,14 +52,14 @@ describe("New Request composer host", () => {
     .filter(path => /\.(?:ts|tsx)$/.test(path))
     .map(path => ({ path, source: read(join("src", path)) }))
 
-  it("opens the composer in the centred Arc Dialog", () => {
-    expect(provider).toContain('import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"')
+  it("opens the composer in Lane's adaptive popup (Arc Dialog, or Arc's bottom sheet under 640px, #263)", () => {
+    expect(provider).toContain('import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"')
     expect(provider).toMatch(/<DialogContent layout="composer"/)
   })
 
   it("keeps the composer out of the Arc Drawer and /intake with no form of its own", () => {
-    // Plan item 2.5: Request detail's phone Properties sheet, loaded on first open, is the Drawer's only importer.
-    expect(sources.filter(({ source }) => /["']@\/components\/arc\/drawer\/drawer["']/.test(source)).map(({ path }) => path.replaceAll("\\", "/"))).toEqual([expect.stringMatching(/components\/requests\/detail-properties-drawer\.tsx$/)])
+    // #263: the phone Properties panel moved to the adaptive popup, so nothing imports the Drawer.
+    expect(sources.filter(({ source }) => /["']@\/components\/arc\/drawer\/drawer["']/.test(source)).map(({ path }) => path.replaceAll("\\", "/"))).toEqual([])
     const intakePage = read("src/app/(app)/intake/page.tsx")
     // #217: the launcher may carry the first-run guide beside it, but no form.
     expect(intakePage).toMatch(/<IntakeLauncher( guide=\{[^}]*\})? \/>/)

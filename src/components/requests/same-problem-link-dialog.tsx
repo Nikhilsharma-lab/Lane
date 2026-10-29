@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react"
 import type { WorkspaceSearchRequest } from "@/lib/workspace-search"
 import { Button } from "@/components/arc/button/button"
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
+import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import { SearchField } from "@/components/arc/search-field/search-field"
 import { fetchWorkspaceSearch } from "@/components/shell/workspace-search-fetch"
 import { linkCandidates, type LinkCandidate } from "./same-problem-link-model"

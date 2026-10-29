@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { Select } from "@/components/arc/select/select";
@@ -24,7 +24,7 @@ export function AddMetricDialog({ orgId }: { orgId: string }) {
   const [open, setOpen] = useState(false);
   const [added, setAdded] = useState("");
   return <>
-    <Dialog open={open} onOpenChange={next => { setOpen(next); if (next) setAdded(""); }}>
+    <Dialog guardTypedText open={open} onOpenChange={next => { setOpen(next); if (next) setAdded(""); }}>
       <DialogTrigger asChild><Button><Plus data-icon-size="sm" aria-hidden="true" />Add metric</Button></DialogTrigger>
       <DialogContent title="Add metric" description="Add a metric your workspace measures, so Requests can set goals on it.">
         <MetricDefinitionForm initial={EMPTY} submitLabel="Add metric"
