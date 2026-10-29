@@ -1191,11 +1191,10 @@ sign-off rules recorded here (§4.4 and the 2026-10-21 Locked entry). Kept as hi
   baselines and both measurement modes. Discovery/bug handling beyond creation, period basis, compatible-metric
   aggregation and shared-result deduplication remain focused design/implementation decisions.
 - Define any additional workspace-level process signals beyond the confirmed outcome summaries.
-- **Proposed 2026-10-13 (plan item 2.5; not build authority until Nikhil amends the 2026-10-09 entry):**
-  saved priority may also be set from Request detail, as the signed launch plan's 2.5 panel shows it, by the
-  same members and with the same meaning (a triage signal that assigns no one and starts no work). A priority
-  edit on a Done Request restarts its 15-minute Undo window, which is measured from `updated_at` (launch
-  plan decision 8.19); detail makes that reachable.
+- **Approved 2026-10-26 (Nikhil, #235; amends the 2026-10-09 entry):** saved priority may also be set from
+  Request detail, by the same members and with the same meaning (a triage signal that assigns no one and starts
+  no work), and only while the Request is Open, as on the list. After pickup it shows read-only at every status,
+  Done and Closed included. (The 2026-10-13 proposal's priority edit on a Done Request no longer arises.)
 
 ### Foundation clarification — confirmed 2026-10-06
 
