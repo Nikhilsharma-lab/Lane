@@ -7,7 +7,7 @@ import { Button } from "@/components/arc/button/button";
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
-import { reviewerKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf } from "@/lib/request-reviewer-rules";
+import { reviewerKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf, type ReviewerOutline } from "@/lib/request-reviewer-rules";
 import * as actions from "@/app/(app)/requests/[id]/reviewer-actions";
 import { useReportReviewState } from "./pickup-confirmation";
 import { REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
@@ -25,6 +25,8 @@ const SAVED: Record<Kind, string> = {
   removeReviewer: "Reviewer removed",
   answerReview: "Review saved",
 };
+
+const OPTIONAL_LINE = "Optional. People who should look at this before work starts.";
 
 function reviewStatusLabel(reviewer: View["reviewers"][number], open: boolean) {
   if (reviewer.decision?.kind === "looks_good") return "Looks good";
@@ -44,11 +46,17 @@ export function RequestReviews({
   orgId,
   isGuest,
   revision,
+  expected,
+  deferred = false,
 }: {
   requestId: string;
   orgId: string;
   isGuest: boolean;
   revision?: number;
+  /** What the Request already says about its reviewers and this reader, so the loading state holds their shape (#295). */
+  expected?: { reviewers: ReviewerOutline[]; open: boolean; canAdd: boolean; canRemove: boolean };
+  /** Holds the read back while true. Next sends server reads one at a time, so the journey's own reads go first (#295). */
+  deferred?: boolean;
 }) {
   const runAction = useOptimisticAction();
   const { toast } = useToastStack();
@@ -90,12 +98,13 @@ export function RequestReviews({
     }
   }, [applyView, requestId, orgId]);
   useEffect(() => {
+    if (deferred) return;
     let active = true;
     void callAction(() => actions.readReviews(requestId, { orgId }))
       .then((result) => { if (active) applyView(result); })
       .catch(() => { if (active) setError("Couldn't load reviews. Try again."); });
     return () => { active = false; };
-  }, [applyView, requestId, orgId, revision]);
+  }, [applyView, requestId, orgId, revision, deferred]);
   useEffect(() => {
     if (isGuest || !adding || loaded || loadingPeople || peopleError) return;
     void loadPeople();
@@ -129,11 +138,38 @@ export function RequestReviews({
     }
   }
 
-  if (!view)
+  if (!view && error)
     return (
       <section id="reviewers" aria-label="Reviewers" className={styles.reviews}>
         <h4>Reviewers</h4>
-        {error ? <><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Try again</Button></> : <Placeholder label="Loading reviewers" lines={2} />}
+        <p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Try again</Button>
+      </section>
+    );
+  // #295: laid out as the list will be (Add reviewer's height, the Optional line, a row per saved reviewer), so the
+  // journey keeps its height when the reviewers arrive.
+  if (!view)
+    return (
+      <section id="reviewers" aria-label="Reviewers" className={styles.reviews}>
+        <div className={expected?.canAdd ? `${styles.header} ${styles.holdsButton}` : styles.header} data-holds-button={expected?.canAdd ? "" : undefined}>
+          <h4>Reviewers</h4>
+        </div>
+        {expected?.open && <p className={styles.muted}>{OPTIONAL_LINE}</p>}
+        {expected?.reviewers.length
+          ? <>
+            <p role="status" className="sr-only">Loading reviewers…</p>
+            {/* Build 2 (#262): the held rows fade in through the shared placeholder; its wrapper adds no box. */}
+            <Placeholder><ul className={styles.reviewerList} aria-hidden="true">
+              {expected.reviewers.map((reviewer, index) => <li key={index} className={styles.reviewer} data-pending="">
+                <span className={styles.heldBar} />
+                <span className={styles.heldBar} />
+                <span className={styles.heldBar} />
+                <span className={styles.controls}>{(expected.canRemove || (reviewer.mine && expected.canAdd)) && <span className={styles.heldButton} data-held-button=""><Button variant="ghost" disabled tabIndex={-1}>Remove</Button></span>}</span>
+                {reviewer.note && <p className={`${styles.reason} ${styles.held}`} data-held-line=""><span className={styles.heldBar} /></p>}
+                {reviewer.concern && <p className={`${styles.reason} ${styles.held}`} data-held-line=""><span className={styles.heldBar} /></p>}
+              </li>)}
+            </ul></Placeholder>
+          </>
+          : <p role="status" className={styles.muted}>Loading reviewers…</p>}
       </section>
     );
 
@@ -152,7 +188,7 @@ export function RequestReviews({
           <Button ref={addButton} variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
         )}
       </div>
-      {view.open && <p className={styles.muted}>Optional. People who should look at this before work starts.</p>}
+      {view.open && <p className={styles.muted}>{OPTIONAL_LINE}</p>}
 
       {adding && (
         <InPageForm onDismiss={() => setAdding(false)} returnFocus={() => addButton.current ?? document.getElementById("reviewers-heading")}>

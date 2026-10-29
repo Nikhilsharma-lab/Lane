@@ -307,6 +307,29 @@ describe("review state (#77)", () => {
     expect((await loadRequestDetail(member, reviewedRequest))?.request.reviewState).toEqual(expected);
     expect((await loadRequestDetail(member, memberRequest))?.request.reviewState).toBeNull();
   });
+
+  it("gives Request detail each saved reviewer's shape, answered or not, so the page holds their rows while they load (#295)", async () => {
+    // In saved order: a concern (with its reason line), a Looks good and an unanswered review; none asked with a note.
+    expect((await loadRequestDetail(member, reviewedRequest))?.request.reviewerOutline).toEqual([
+      { note: false, concern: true, mine: false }, { note: false, concern: false, mine: false }, { note: false, concern: false, mine: false },
+    ]);
+    // The reader's own review is marked: they get Looks good and Raise a concern on it.
+    expect((await loadRequestDetail({ ...member, userId: OTHER_ADMIN }, reviewedRequest))?.request.reviewerOutline?.map(r => r.mine)).toEqual([false, false, true]);
+    expect((await loadRequestDetail(member, memberRequest))?.request.reviewerOutline).toEqual([]);
+  });
+
+  it("gives Request detail the journey's outline from the saved Request and the reader, with no roster read (#295)", async () => {
+    const outline = (await loadRequestDetail(member, memberRequest))?.request.journeyOutline;
+    expect(outline?.steps.map(step => step.state)).toEqual(["finished", "current", "upcoming", "upcoming", "upcoming"]);
+    // The moment stays a moment (#261), so the page shows it in the viewer's zone with LocalTime.
+    expect(outline?.steps[0].happened[0]).toEqual(["Requested by Test Member on ", { at: expect.any(String) }, "."]);
+    // In progress, filed by the Member: they may close it without a result; someone else is told who can.
+    expect(outline?.steps[1].actions).toEqual([{ action: "closeWithoutResult", label: "Close without a result…", available: true }]);
+    const other = (await loadRequestDetail({ ...member, userId: OTHER_ADMIN }, memberRequest))?.request.journeyOutline;
+    expect(other?.steps[1].actions[0]).toMatchObject({ available: false, reason: "Only the Requester, Test Member, can close this." });
+    // A Viewer is offered nothing, so nothing is held.
+    expect((await loadRequestDetail({ ...member, role: "viewer" }, memberRequest))?.request.journeyOutline?.steps[1].actions).toEqual([]);
+  });
 });
 
 describe("loadRequestDetail", () => {

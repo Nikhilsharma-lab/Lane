@@ -71,6 +71,25 @@ describe("a moment", () => {
     expect(momentTitle("2026-10-19T19:00:00.000Z", { timeZone: "America/Los_Angeles" })).toBe("Monday 19 October 2026, 12:00")
   })
 
+  // #296 (ported from local-time.test.ts): a list renders these for every row, so the formatters are kept; each call
+  // still matches the platform's own formatting, whatever zone or year rule came before.
+  it("matches the platform's formatting call after call, whatever zone or year rule came before", () => {
+    const nowIn = new Date("2026-10-20T12:00:00.000Z")
+    const dates = ["2026-10-19T19:00:00.000Z", "2025-12-31T17:00:00.000Z", "2025-12-31T19:00:00.000Z", "2026-01-01T03:00:00.000Z"]
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    for (let round = 0; round < 2; round++) for (const iso of dates) for (const timeZone of [undefined, "UTC", "Asia/Kolkata", "America/Los_Angeles"]) {
+      const date = new Date(iso)
+      const part = (at: Date, type: string) => Number(new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(at).find(p => p.type === type)?.value)
+      const otherYear = part(date, "year") !== part(nowIn, "year")
+      const day = `${part(date, "day")} ${MONTHS[part(date, "month") - 1]}`
+      const time = `${String(part(date, "hour") % 24).padStart(2, "0")}:${String(part(date, "minute")).padStart(2, "0")}`
+      expect(momentDay(iso, { now: nowIn, timeZone })).toBe(otherYear ? `${day} ${part(date, "year")}` : day)
+      expect(momentDay(iso, { now: nowIn, timeZone, year: false })).toBe(day)
+      expect(momentDay(iso, { now: nowIn, timeZone, time: true })).toBe(`${otherYear ? `${day} ${part(date, "year")}` : day}, ${time}`)
+      expect(momentTitle(iso, { timeZone })).toMatch(new RegExp(` ${part(date, "year")}, ${time}$`))
+    }
+  })
+
   it("ignores the browser's language", () => {
     const label = momentLabel("2026-09-06T08:00:00.000Z", { now, timeZone: "UTC", time: true })
     expect(label).toBe("6 Sep, 08:00")

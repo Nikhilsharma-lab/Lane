@@ -15,7 +15,8 @@ import { answerIsItLive } from "./helpers/journey"
  *   LANE_PERF_STORAGE_STATE=.auth/perf-member.json \
  *   pnpm exec playwright test --project perf
  *
- * Optional: LANE_PERF_RUNS (default 5), LANE_PERF_TOLERANCE (default 1.5, a
+ * Optional: LANE_PERF_RUNS (default 5; at least 10 for the warm list's 4x checks
+ * and C to the composer's title at 4x, #296), LANE_PERF_TOLERANCE (default 1.5, a
  * multiplier on every time budget so shared CI machines do not flake),
  * LANE_PERF_MUTATE=1.
  */
@@ -23,6 +24,10 @@ import { answerIsItLive } from "./helpers/journey"
 const BASE_URL = process.env.LANE_PERF_BASE_URL
 const STORAGE_STATE = process.env.LANE_PERF_STORAGE_STATE
 const RUNS = Math.max(1, Number(process.env.LANE_PERF_RUNS ?? 5) || 5)
+// #296: the 4x slowdown runs in the measuring browser, so whatever else that machine is doing moves single runs a long
+// way (145 to 664 ms between rounds of 5 on main). The two interaction checks at 4x take at least 10 runs, so a busy
+// moment can't move their p75 alone.
+const THROTTLED_RUNS = Math.max(RUNS, 10)
 const TOLERANCE = Math.max(1, Number(process.env.LANE_PERF_TOLERANCE ?? 1.5) || 1.5)
 const MUTATE = process.env.LANE_PERF_MUTATE === "1"
 
@@ -95,6 +100,7 @@ const p75 = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b)
   return sorted[Math.max(0, Math.ceil(sorted.length * 0.75) - 1)] ?? NaN
 }
+
 const report = (label: string, values: number[], unit = "ms", target?: number) => {
   const digits = unit === "ms" ? 0 : 3
   const goal = target === undefined ? "" : `, target ${target} ${unit}`
@@ -132,6 +138,18 @@ async function openList(page: Page) {
 const statusChip = (page: Page, label: string) =>
   page.getByRole("group", { name: "Status views" }).getByRole("button", { name: label, exact: true })
 
+// Plan item 2.12 (2026-10-21): on desktop a pointer click on a row opens the Request preview beside the list,
+// which renders the same detail view (`[data-detail-peek]`). The Request page itself opens from the list with
+// Enter on the focused row (as the row menu's "Open Request" does), which records the list's order for J and K.
+const PAGE_DETAIL = "[data-detail]:not([data-detail-peek])"
+
+/** Opens the row's Request page with Enter. With `rest`, the row is focused that long first, for its rest prefetch. */
+async function openRequestPage(page: Page, row: ReturnType<Page["locator"]>, rest = 0) {
+  await row.focus()
+  if (rest) await page.waitForTimeout(rest)
+  await page.keyboard.press("Enter")
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(installObservers)
 })
@@ -160,23 +178,21 @@ test("status view switch responds in the next frame with zero network", async ({
 
 test("list to detail, warm and prefetched, shows content within budget", async ({ page }) => {
   await openList(page)
-  const links = page.locator("[role=row][data-request-id] a[href^='/requests/']")
-  const count = Math.min(await links.count(), RUNS)
+  const rows = page.locator("[role=row][data-request-id]")
+  const count = Math.min(await rows.count(), RUNS)
   expect(count, "The workspace needs at least one Request").toBeGreaterThan(0)
 
   const timings: number[] = []
   for (let run = 0; run < RUNS; run++) {
-    const link = links.nth(run % count)
-    await link.hover()
-    await page.waitForTimeout(600) // intent prefetch (plan item 1.11) plus the viewport prefetch
-    const content = page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const content = page.evaluate(selector => new Promise<number>((resolve, reject) => {
       const perf = (window as unknown as PerfWindow).__lanePerf
-      const done = () => { if (document.querySelector("#problem")) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
+      const done = () => { if (document.querySelector(selector)) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
       const observer = new MutationObserver(() => { done() })
       observer.observe(document.body, { childList: true, subtree: true })
       setTimeout(() => { observer.disconnect(); reject(new Error("Detail content did not appear")) }, 10_000)
-    }))
-    await link.click()
+    }), `${PAGE_DETAIL} #problem`)
+    // The row's rest prefetch (plan item 2.4) plus the viewport prefetch.
+    await openRequestPage(page, rows.nth(run % count), 600)
     timings.push(await content)
     await page.goBack()
     await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
@@ -192,7 +208,9 @@ test("list to detail, warm and prefetched, shows content within budget", async (
 test("sidebar Project, No Project, Group by and title typing make zero network requests within the INP budget at 4x CPU", async ({ page }) => {
   await openList(page)
   const rsc: string[] = []
-  page.on("request", request => { if (isRscRequest(request)) rsc.push(request.url()) })
+  // A Project view shows rows that were below the fold, and their links prefetch their Request pages on coming into
+  // view, as on a scroll. Only data the view change itself asks for counts.
+  page.on("request", request => { if (isRscRequest(request) && !request.headers()["next-router-prefetch"]) rsc.push(request.url()) })
   const durations: number[] = []
   const cdp = await throttle(page, 4)
   try {
@@ -204,7 +222,8 @@ test("sidebar Project, No Project, Group by and title typing make zero network r
     }
     for (let run = 0; run < RUNS; run++) {
       if (await sidebar.isVisible()) {
-        const project = sidebar.getByRole("link").filter({ hasNotText: /^(All Requests|My Requests|No Project)$/ }).first()
+        // Only the Projects group: the sidebar's first link is now New Request, which opens the composer.
+        const project = sidebar.getByRole("group", { name: "Projects" }).getByRole("link").filter({ hasNotText: /^No Project$/ }).first()
         if (await project.count()) await measure(() => project.click())
         await measure(() => sidebar.getByRole("link", { name: "No Project" }).click())
         await measure(() => sidebar.getByRole("link", { name: /^(All|My) Requests$/ }).click())
@@ -233,7 +252,7 @@ test("warm page load and interactions at 4x CPU stay within LCP, CLS, INP and lo
   const cdp = await throttle(page, 4)
   const lcp: number[] = [], ttfb: number[] = [], cls: number[] = [], inp: number[] = [], longFrames: number[] = []
   try {
-    for (let run = 0; run < RUNS; run++) {
+    for (let run = 0; run < THROTTLED_RUNS; run++) {
       await page.reload()
       await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
       await page.waitForTimeout(1000) // LCP finalises on the first input; read it before interacting
@@ -269,7 +288,7 @@ test("warm page load and interactions at 4x CPU stay within LCP, CLS, INP and lo
   expect(p75(lcp)).toBeLessThanOrEqual(BUDGET.lcp * TOLERANCE)
   expect(p75(ttfb)).toBeLessThanOrEqual(BUDGET.ttfb * TOLERANCE)
   expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
-  expect(p75(inp)).toBeLessThanOrEqual(BUDGET.viewSwitchInp.limit * TOLERANCE)
+  expect(p75(inp), "INP proxy at 4x CPU").toBeLessThanOrEqual(BUDGET.viewSwitchInp.limit * TOLERANCE)
   expect(p75(longFrames)).toBeLessThanOrEqual(BUDGET.longFramesPerTransition)
 })
 
@@ -345,8 +364,8 @@ async function openDetailFromList(page: Page, index: number) {
   const count = await rows.count()
   const row = rows.nth(index % Math.max(1, count - 1))
   const id = await row.getAttribute("data-request-id")
-  await row.locator("a[data-request-title]").click()
-  await expect(page.locator(`[data-detail][data-request-id="${id}"] #problem`)).toBeVisible({ timeout: 10_000 })
+  await openRequestPage(page, row)
+  await expect(page.locator(`${PAGE_DETAIL}[data-request-id="${id}"] #problem`)).toBeVisible({ timeout: 10_000 })
   return id
 }
 
@@ -359,13 +378,13 @@ test("J on Request detail shows the next Request within budget when prefetched",
     const href = await next.getAttribute("data-href")
     test.skip(!href, "The workspace needs at least two Requests in the list's order.")
     const nextId = href!.split("/").pop()
-    const content = page.evaluate(id => new Promise<number>((resolve, reject) => {
+    const content = page.evaluate(({ id, selector }) => new Promise<number>((resolve, reject) => {
       const perf = (window as unknown as PerfWindow).__lanePerf
-      const done = () => { if (document.querySelector(`[data-detail][data-request-id="${id}"] #problem`)) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
+      const done = () => { if (document.querySelector(`${selector}[data-request-id="${id}"] #problem`)) { observer.disconnect(); resolve(performance.now() - perf.lastInput); return true } return false }
       const observer = new MutationObserver(() => { done() })
       observer.observe(document.body, { childList: true, subtree: true })
       setTimeout(() => { observer.disconnect(); reject(new Error("The next Request did not appear")) }, 10_000)
-    }), nextId)
+    }), { id: nextId, selector: PAGE_DETAIL })
     await page.keyboard.press("j")
     timings.push(await content)
   }
@@ -384,8 +403,8 @@ test("a Request page starts at most two full detail prefetches", async ({ page }
   })
   const row = page.locator("[role=row][data-request-id]").first()
   current = `/requests/${await row.getAttribute("data-request-id")}`
-  await row.locator("a[data-request-title]").click()
-  await expect(page.locator("[data-detail] #problem")).toBeVisible({ timeout: 10_000 })
+  await openRequestPage(page, row)
+  await expect(page.locator(`${PAGE_DETAIL} #problem`)).toBeVisible({ timeout: 10_000 })
   prefetches.clear() // only what the Request page starts itself
   await page.waitForTimeout(1500)
   report("full detail prefetches started by one Request page", [prefetches.size], "requests", BUDGET.detailNeighbourPrefetches)
@@ -400,14 +419,14 @@ test("Mark Done on Request detail shows Done in the next frame with Undo, and ne
     await statusChip(page, "All").click()
     const row = page.locator("[role=row][data-request-id]:has(button[data-status='in_progress'])").first()
     if (!(await row.count())) break
-    await row.locator("a[data-request-title]").click()
-    const status = page.locator("[data-detail-panel] [data-detail-status]")
+    await openRequestPage(page, row)
+    const status = page.locator(`${PAGE_DETAIL} [data-detail-panel] [data-detail-status]`)
     await expect(status).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
-    const watch = page.evaluate(() => new Promise<{ onScreen: number; sequence: string[]; undoWithDone: boolean }>(resolve => {
+    const watch = page.evaluate(selector => new Promise<{ onScreen: number; sequence: string[]; undoWithDone: boolean }>(resolve => {
       const perf = (window as unknown as PerfWindow).__lanePerf
       const sequence: string[] = []
       let onScreen = NaN, scheduled = false, undoWithDone = false
-      const read = () => document.querySelector("[data-detail-panel] [data-detail-status]")?.getAttribute("data-status") ?? "gone"
+      const read = () => document.querySelector(`${selector} [data-detail-panel] [data-detail-status]`)?.getAttribute("data-status") ?? "gone"
       const tick = () => {
         const value = read()
         if (sequence.at(-1) !== value) sequence.push(value)
@@ -423,7 +442,7 @@ test("Mark Done on Request detail shows Done in the next frame with Undo, and ne
       observer.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ["data-status"] })
       tick()
       setTimeout(() => { observer.disconnect(); resolve({ onScreen, sequence, undoWithDone }) }, 3000)
-    }))
+    }), PAGE_DETAIL)
     await page.locator('[data-slot="page-strip"]').getByRole("button", { name: "Mark Done", exact: true }).click()
     const { onScreen, sequence, undoWithDone } = await watch
     timings.push(onScreen)
@@ -469,7 +488,7 @@ test("Request detail cold loads stay within the CLS budget at 1440 and 390", asy
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
     const cls = await coldLoadCls(browser, href!, viewport, "#problem")
     report(`Request detail CLS, cold load at ${viewport.width}`, cls, "", BUDGET.cls)
-    expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+    expect(p75(cls), `Request detail CLS, cold load at ${viewport.width}`).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
   }
 })
 
@@ -481,8 +500,8 @@ test("Requests list cold loads at 390 stay within the CLS budget", async ({ brow
 
 test("a Request page shows its skeleton within 100 ms, and the swap does not shift", async ({ page }) => {
   await openList(page)
-  const links = detailLinks(page)
-  const count = Math.min(await links.count(), RUNS)
+  const rows = page.locator("[role=row][data-request-id]")
+  const count = Math.min(await rows.count(), RUNS)
   expect(count, "The workspace needs at least one Request").toBeGreaterThan(0)
   // Hold every RSC response for a Request page, so the loading frame has to show.
   const hold = "**/requests/**"
@@ -494,21 +513,21 @@ test("a Request page shows its skeleton within 100 ms, and the swap does not shi
   const timings: number[] = [], shifts: number[] = []
   try {
     for (let run = 0; run < RUNS; run++) {
-      const shown = page.evaluate(() => new Promise<{ onScreen: number; clsBefore: number }>((resolve, reject) => {
+      const shown = page.evaluate(detail => new Promise<{ onScreen: number; clsBefore: number }>((resolve, reject) => {
         const perf = (window as unknown as PerfWindow).__lanePerf
         const done = () => {
-          if (!document.querySelector('[data-skeleton] [data-slot="page-strip"], #problem')) return
+          if (!document.querySelector(`[data-skeleton] [data-slot="page-strip"], ${detail} #problem`)) return
           observer.disconnect()
           resolve({ onScreen: performance.now() - perf.lastInput, clsBefore: perf.cls })
         }
         const observer = new MutationObserver(done)
         observer.observe(document.body, { childList: true, subtree: true })
         setTimeout(() => { observer.disconnect(); reject(new Error("Neither the skeleton nor the Request appeared")) }, 10_000)
-      }))
-      await links.nth(run % count).click()
+      }), PAGE_DETAIL)
+      await openRequestPage(page, rows.nth(run % count))
       const { onScreen, clsBefore } = await shown
       timings.push(onScreen)
-      await expect(page.locator("#problem")).toBeVisible({ timeout: 10_000 })
+      await expect(page.locator(`${PAGE_DETAIL} #problem`)).toBeVisible({ timeout: 10_000 })
       await page.waitForTimeout(1000)
       shifts.push(await page.evaluate(before => (window as unknown as PerfWindow).__lanePerf.cls - before, clsBefore))
       await page.goBack()
@@ -517,10 +536,10 @@ test("a Request page shows its skeleton within 100 ms, and the swap does not shi
   } finally {
     await page.unroute(hold)
   }
-  report("click to the Request skeleton on screen", timings, "ms", BUDGET.skeleton)
+  report("Enter to the Request skeleton on screen", timings, "ms", BUDGET.skeleton)
   report("CLS over the skeleton to Request swap", shifts, "", BUDGET.cls)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.skeleton * TOLERANCE)
-  expect(p75(shifts)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
+  expect(p75(shifts), "CLS over the skeleton to Request swap").toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
 })
 
 // Plan item 2.3: the New Request composer. Each run loads the list afresh, so
@@ -537,8 +556,15 @@ async function openListForComposer(page: Page) {
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
 }
 
-/** Resolves with the time from the last input to the title taking focus, and whether a loading status ever mounted. */
-const watchComposerFocus = (page: Page) => page.evaluate(selector => new Promise<{ focus: number; loading: boolean }>((resolve, reject) => {
+type ComposerFocusWindow = Window & { __laneComposerFocus: Promise<{ focus: number; loading: boolean }> }
+
+/**
+ * Starts watching in the page and resolves once the watcher is in place; the function it returns resolves with the
+ * time from the last input to the title taking focus, and whether a loading status ever mounted. Awaited before the
+ * key is pressed: at 4x CPU an unawaited watcher could start after the title had already taken focus.
+ */
+const watchComposerFocus = async (page: Page) => {
+  await page.evaluate(selector => { (window as unknown as ComposerFocusWindow).__laneComposerFocus = new Promise((resolve, reject) => {
   const perf = (window as unknown as PerfWindow).__lanePerf
   let loading = false
   const observer = new MutationObserver(records => {
@@ -555,18 +581,20 @@ const watchComposerFocus = (page: Page) => page.evaluate(selector => new Promise
   }
   document.addEventListener("focusin", onFocus)
   setTimeout(() => { observer.disconnect(); reject(new Error("The composer's title never took focus")) }, 10_000)
-}), LOADING_COMPOSER)
+  }) }, LOADING_COMPOSER)
+  return () => page.evaluate(() => (window as unknown as ComposerFocusWindow).__laneComposerFocus)
+}
 
 test("C opens the composer with its title focused within 100 ms, with no loading status, also at 4x CPU", async ({ page }) => {
   const timings: Record<number, number[]> = { 1: [], 4: [] }
   for (const rate of [1, 4]) {
-    for (let run = 0; run < RUNS; run++) {
+    for (let run = 0; run < (rate === 4 ? THROTTLED_RUNS : RUNS); run++) {
       await openListForComposer(page)
       const cdp = await throttle(page, rate)
       try {
-        const watched = watchComposerFocus(page)
+        const watched = await watchComposerFocus(page)
         await page.keyboard.press("c")
-        const { focus, loading } = await watched
+        const { focus, loading } = await watched()
         expect(loading, "The first open after the preload must not show a loading status").toBe(false)
         timings[rate].push(focus)
       } finally {
@@ -578,7 +606,7 @@ test("C opens the composer with its title focused within 100 ms, with no loading
   report("C to focused title, first open", timings[1], "ms", BUDGET.composerFocus)
   report("C to focused title, first open at 4x CPU", timings[4], "ms", BUDGET.composerFocus)
   expect(p75(timings[1])).toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
-  expect(p75(timings[4])).toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
+  expect(p75(timings[4]), "C to focused title at 4x CPU").toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
 })
 
 test("the composer dialog enters with at most 2 long animation frames at 4x CPU", async ({ page }) => {
@@ -614,7 +642,8 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
   const draft = {
     title: "Perf check: the review answers at once",
     description: "A held review must show its checking status within a frame and keep this text when it fails.",
-    metric: "Perf check metric",
+    metric: "Conversion rate", // one of the starter Metrics every workspace's library begins with
+    current: "62",
   }
   const timings: number[] = []
   for (let run = 0; run < RUNS; run++) {
@@ -626,11 +655,12 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
     await expect(dialog.getByRole("textbox", { name: "Request title" })).toBeFocused()
     await dialog.getByRole("textbox", { name: "Request title" }).fill(draft.title)
     await dialog.getByRole("textbox", { name: "Description" }).fill(draft.description)
-    await dialog.getByRole("button", { name: "Add expected impact" }).click()
-    await dialog.getByRole("textbox", { name: "What should improve?" }).fill(draft.metric)
-    await dialog.getByRole("spinbutton", { name: "Goal" }).fill("80")
-    await dialog.getByRole("textbox", { name: "Measured in" }).fill("%")
-    await dialog.getByRole("spinbutton", { name: "Check in days" }).fill("30")
+    // #195: Expected impact is a Metric from the workspace's library. The library is read by a server action,
+    // so the Metric is picked before server actions are held.
+    await dialog.getByRole("combobox", { name: "Metric", exact: true }).click()
+    await page.getByRole("group", { name: "Metrics library" }).getByRole("option", { name: draft.metric, exact: true }).click()
+    await dialog.getByRole("spinbutton", { name: "Current value" }).fill(draft.current)
+    await dialog.getByRole("spinbutton", { name: /^Target after release/ }).fill("80")
 
     // Hold every server action from here on in the browser, then abort it.
     const held: Route[] = []
@@ -655,7 +685,8 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
       await expect(dialog.getByText("Your text is still here.")).toBeVisible()
       await expect(dialog.getByRole("textbox", { name: "Request title" })).toHaveValue(draft.title)
       await expect(dialog.getByRole("textbox", { name: "Description" })).toHaveValue(draft.description)
-      await expect(dialog.getByRole("textbox", { name: "What should improve?" })).toHaveValue(draft.metric)
+      await expect(dialog.getByRole("combobox", { name: "Metric", exact: true })).toHaveText(draft.metric)
+      await expect(dialog.getByRole("spinbutton", { name: "Current value" })).toHaveValue(draft.current)
     } finally {
       await page.unroute("**/*", hold)
       for (const route of held.splice(0)) await route.abort("failed")
@@ -667,6 +698,8 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
 })
 
 // Plan item 2.4: the keyboard model on the production build.
+type RowFocusWindow = Window & { __laneRowFocus: Promise<number> }
+
 test("J moves focus to the next row and paints it within the visual budget", async ({ page }) => {
   await openList(page)
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
@@ -674,13 +707,15 @@ test("J moves focus to the next row and paints it within the visual budget", asy
   await expect(page.locator('[role=row][tabindex="0"]')).toBeFocused()
   const timings: number[] = []
   for (let run = 0; run < Math.max(RUNS, 5); run++) {
-    const painted = page.evaluate(() => new Promise<number>(resolve => {
+    // In place before J is pressed: focus moves within milliseconds, so an unawaited watcher could miss it (#293).
+    await page.evaluate(() => { (window as unknown as RowFocusWindow).__laneRowFocus = new Promise<number>((resolve, reject) => {
       const perf = (window as unknown as PerfWindow).__lanePerf
       const onFocus = () => { document.removeEventListener("focusin", onFocus); requestAnimationFrame(() => resolve(performance.now() - perf.lastInput)) }
       document.addEventListener("focusin", onFocus)
-    }))
+      setTimeout(() => { document.removeEventListener("focusin", onFocus); reject(new Error("J moved focus nowhere")) }, 10_000)
+    }) })
     await page.keyboard.press("j")
-    timings.push(await painted)
+    timings.push(await page.evaluate(() => (window as unknown as RowFocusWindow).__laneRowFocus))
   }
   report("J to the next row focused and painted", timings, "ms", BUDGET.rowFocus.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.rowFocus.limit * TOLERANCE)
@@ -879,7 +914,8 @@ test("a window focus refreshes the unread count with one GET", async ({ page }) 
 // Plan item 2.8: workspace search. Read only. The member's workspace needs
 // Requests on the list; the query is a word from the first row's title, or
 // LANE_PERF_SEARCH_QUERY.
-const SEARCH_INPUT = 'input[role="combobox"][aria-label="Search workspace"]'
+// The input is named by a visually hidden label; the sidebar's "Search workspace" button that opens it is not a combobox.
+const SEARCH_INPUT = 'section[aria-label="Workspace search"] input[role="combobox"]'
 const isSearchRequest = (request: Request) => new URL(request.url()).pathname === "/api/search"
 
 async function openSearch(page: Page) {

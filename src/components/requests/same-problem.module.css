@@ -32,3 +32,8 @@
 .history[open] > summary { color: var(--foreground); }
 .historyList { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: var(--space-5); color: var(--text-secondary); line-height: var(--leading-body); overflow-wrap: anywhere; }
 @media (hover: hover) and (pointer: fine) { .history > summary:hover { color: var(--foreground); } }
+/* #295: the loading state holds the empty state's height: its words sit unseen under "Loading Iterations…". */
+.holdsButton { min-block-size: var(--control-height-sm); }
+.holding { display: grid; min-width: 0; }
+.holding > * { grid-area: 1 / 1; }
+.unseen { visibility: hidden; }

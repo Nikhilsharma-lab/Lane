@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useStableRouter } from "@/components/shell/stable-router"
 import { useToastStack, type ToastOptions } from "@/components/arc/toast-stack/toast-stack"
 import { callAction, clerkActionSession, isSessionFailure, type ActionSession } from "@/lib/action-call"
 import { isOffline } from "@/lib/connection-status"
@@ -161,11 +161,12 @@ export async function runOptimisticBatch(deps: OptimisticDeps, options: {
 }
 
 /** The router refresh for failure paths and the explicit Refresh control. It
- * lives here so the ESLint ban on router.refresh() has a single exception.
+ * lives here so the ESLint ban on router.refresh() has a single exception
+ * (stable-router.tsx only holds the router it calls, #296).
  * #260: offline it does nothing, because the refresh would fail and Next.js
  * would fall back to a full page load onto the browser's "No internet" page. */
 export function useServerRefresh() {
-  const router = useRouter()
+  const router = useStableRouter()
   return useCallback(() => { if (!isOffline()) router.refresh() }, [router])
 }
 

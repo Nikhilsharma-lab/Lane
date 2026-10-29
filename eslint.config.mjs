@@ -12,13 +12,15 @@ const eslintConfig = defineConfig([
     files: ["src/**/*.{ts,tsx}"],
     ignores: [
       "src/components/requests/use-optimistic-action.ts",
+      // #296: the provider that holds the router for useServerRefresh; nothing else reaches its refresh.
+      "src/components/shell/stable-router.tsx",
     ],
     rules: {
       "no-restricted-syntax": [
         "error",
         {
           selector:
-            "CallExpression[callee.type='MemberExpression'][callee.object.type='Identifier'][callee.object.name='router'][callee.property.name='refresh']",
+            "CallExpression[callee.type='MemberExpression'][callee.property.name='refresh']",
           message:
             "Do not call router.refresh() directly. Run Request mutations through useOptimisticAction, and use useServerRefresh from src/components/requests/use-optimistic-action.ts for an explicit re-sync.",
         },

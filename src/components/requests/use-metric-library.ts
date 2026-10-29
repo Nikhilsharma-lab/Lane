@@ -38,7 +38,8 @@ function withMetric(metrics: MetricChoice[], metric: MetricChoice) {
 
 /**
  * Reads the library once the form opens, and again only when the prediction in the form names something it hasn't
- * been asked about (a recovered draft). The read goes through the guarded action; failures leave a retry.
+ * been asked about (a recovered draft). The read goes through the guarded action; failures leave a retry. With no
+ * `orgId` (a closed composer before its first open) nothing is read, and nothing counts as asked.
  */
 export function useMetricLibrary(orgId: string | undefined, impact: unknown): MetricLibrary {
   const [state, setState] = useState<LibraryState>({ status: "loading", metrics: [], saved: [], canOpenLibrary: false, canAddMetrics: false, error: null })
@@ -70,11 +71,12 @@ export function useMetricLibrary(orgId: string | undefined, impact: unknown): Me
 
   const needs = needsOf(impact, state.metrics)
   useEffect(() => {
+    if (!orgId) return
     const items = (JSON.parse(needs) as unknown[]).map(item => JSON.stringify(item))
     if (asked.current !== null && items.every(item => asked.current!.has(item))) return
     asked.current = new Set([...(asked.current ?? []), ...items])
     load()
-  }, [needs, load])
+  }, [needs, load, orgId])
 
   return { ...state, reload: load, add }
 }

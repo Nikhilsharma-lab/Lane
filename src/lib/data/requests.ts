@@ -6,11 +6,14 @@ import { alias } from "drizzle-orm/pg-core"
 
 import { db, comments, profiles, projects, requestAgreements, requestAttachments, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import type { Reviewer, ReviewState } from "@/lib/request-reviewer-rules"
+import type { Reviewer, ReviewerOutline, ReviewState } from "@/lib/request-reviewer-rules"
 import { reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
 import { currentMetricNames } from "@/lib/metrics-library"
-import { journeyStatus } from "@/lib/request-journey"
+import { FORMER_MEMBER, journeyActions, journeyStatus } from "@/lib/request-journey"
+import { agreedAudience } from "@/lib/request-release-facts"
+import type { OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
+import { journeyOutline } from "@/components/requests/request-timeline-model"
 import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
 import type { FinishedView } from "@/lib/request-workspace"
 import { guestPickupRefusal, type GuestSubmissionState } from "@/lib/guest-submission"
@@ -49,6 +52,13 @@ type ListRowRecord = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>
  * outstanding, never its measurement plan or its reviewers. */
 export type RequestListRow = Omit<ListRowRecord, "expectedImpact" | "reviewers" | "noMeasurableImpactReason"> & { pickupBlockedReason: string | null; reviewState: ReviewState | null }
 
+/** Each saved reviewer's shape, at any status, so the Request page holds their rows while they load (#295): whether
+ * they were asked with a note, raised a concern (each a line under the row) and are the reader (who answers on the row). */
+const reviewerOutline = (userId: string) => sql<ReviewerOutline[]>`coalesce((select jsonb_agg(jsonb_build_object(
+  'note', coalesce(r->>'note', '') <> '', 'concern', coalesce(r->'decision'->>'kind' = 'concern', false), 'mine', r->'nominee'->>'userId' = ${userId}) order by o)
+  from ${requestAgreements}, jsonb_array_elements(${requestAgreements.reviewers}) with ordinality as e(r, o)
+  where ${requestAgreements.requestId} = ${requests.id} and ${requestAgreements.orgId} = ${requests.orgId}), '[]'::jsonb)`
+
 /** An Open Request's saved reviewers; after pickup nothing is outstanding. */
 const openReviewers = sql<Reviewer[] | null>`case when ${requests.status} = 'open' then (select ${requestAgreements.reviewers} from ${requestAgreements} where ${requestAgreements.requestId} = ${requests.id} and ${requestAgreements.orgId} = ${requests.orgId}) end`
 
@@ -64,6 +74,24 @@ function pickupBlockedReason(request: { status: string; expectedImpact: unknown;
 function withoutReviewers<T extends { reviewers: unknown }>({ reviewers, ...rest }: T): Omit<T, "reviewers"> {
   void reviewers
   return rest
+}
+
+/**
+ * #295: the journey as the saved Request and its reader draw it, for the Request page to show until the journey's
+ * reads arrive. The roster isn't read here (it asks Clerk), so the reader counts as active and the Requester's name is
+ * the saved creator's; both only size what is held.
+ */
+function outlineFor(auth: MemberAuth, request: Parameters<typeof journeyActions>[0] & {
+  outcomeClosure: OutcomeClosure | null; exceptionClosure: OutcomeException | null
+  creatorName: string | null; createdAt: Date; assigneeName: string | null; affectedPeople: string | null; expectedImpact: unknown
+}) {
+  const requesterName = request.creatorName || FORMER_MEMBER
+  return journeyOutline({
+    journey: journeyStatus(request), workStatus: request.status, isGuest: auth.role === "guest", readOnly: auth.role === "viewer",
+    requestedBy: requesterName, requestedAt: request.createdAt.toISOString(), assigneeName: request.assigneeName, audience: agreedAudience(request),
+    hasAgreedResult: Boolean(request.expectedImpact), releaseState: request.releaseState, closure: request.outcomeClosure ?? request.exceptionClosure,
+    actions: journeyActions(request, { id: auth.userId, role: auth.role, active: true }, { requesterName, requesterActive: true }, new Date()),
+  })
 }
 
 /** Rows as the list shows them. Review state counts only reviewers still in
@@ -190,6 +218,8 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
         id: requests.id,
       agreementBlocked: sql<boolean>`public.request_agreement_blocked(${requests.id})`,
       reviewers: openReviewers,
+      reviewerOutline: reviewerOutline(auth.userId),
+      followUpOf: requests.followUpOf,
       exceptionClosure: requests.exceptionClosure,
       outcomeClosure: requests.outcomeClosure,
       releaseState: requests.releaseState,
@@ -280,5 +310,5 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   const { guestSubmissionState: state, takenOnByName, ...saved } = withoutReviewers(request)
   // #212: who filed it and who took it on, for the Request's Guest submission notice.
   const guestSubmission = state ? { state, submitterName: request.creatorName, takenOnBy: request.takenOnBy, takenOnByName } : null
-  return { request: { ...saved, guestSubmission, reviewState, metricNames, pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
+  return { request: { ...saved, guestSubmission, reviewState, metricNames, journeyOutline: outlineFor(auth, request), pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
 }

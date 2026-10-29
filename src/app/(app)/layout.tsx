@@ -8,6 +8,7 @@ import { loadSavedViews } from "@/lib/data/saved-views";
 import { countNeedsYou } from "@/lib/data/inbox";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
+import { StableRouterProvider } from "@/components/shell/stable-router";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
 import { PickupConfirmationProvider } from "@/components/requests/pickup-confirmation";
@@ -62,7 +63,9 @@ export default async function AppLayout({
 
   return (
     // #260: offline, the signed-in app stays on screen and says so; nothing moves or is queued.
+    // StableRouterProvider (#296) sits inside it so the router it hands down is the guarded one.
     <OfflineGuard>
+    <StableRouterProvider>
     <RequestListViewProvider key={`${result.orgId}:${result.userId}`}>
       {/* Pending Request changes live here, above every page, so a navigation
           while an action is pending never shows the row revert (plan item 1.5). */}
@@ -85,6 +88,7 @@ export default async function AppLayout({
       </PickupConfirmationProvider>
       </PendingMutationsProvider>
     </RequestListViewProvider>
+    </StableRouterProvider>
     </OfflineGuard>
   );
 }
