@@ -2,7 +2,7 @@ import { useEffect, useRef, type Ref } from "react"
 import Link from "next/link"
 import { Badge } from "@/components/arc/badge/badge"
 import { Button } from "@/components/arc/button/button"
-import { actualText, changeText, predictedText } from "@/lib/impact-presenter"
+import { actualText, changeText, goalText } from "@/lib/impact-presenter"
 import type { IterationEntry, Iterations } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
 import { plannedDay } from "@/lib/dates"
@@ -65,7 +65,7 @@ function Iteration({ entry, canChange, removing, onRemove }: { entry: IterationE
       <Badge size="sm">{entry.journey}</Badge>
     </div>
     <dl className={styles.facts}>
-      {entry.predicted && <div><dt>Predicted</dt><dd>{entry.predicted.metric}{entry.predicted.form === "numeric" && `: ${predictedText(entry.predicted)}`}</dd></div>}
+      {entry.predicted && <div><dt>Goal</dt><dd>{entry.predicted.metric}{entry.predicted.form === "numeric" && `: ${goalText(entry.predicted)}`}</dd></div>}
       <Outcome entry={entry} />
     </dl>
     {canChange && <div className={styles.actions}>

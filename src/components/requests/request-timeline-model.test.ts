@@ -160,6 +160,6 @@ describe("Request timeline", () => {
   it("can't offer a measured close without an agreed result", () => {
     const due = { ...release, dueDate: "2026-10-25" }
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(due) }, ANA, { hasAgreedResult: false }))
-    expect(actionsOf(step(steps, "measuring"))[0]).toBe("Close Request: There is no agreed Expected impact to measure against.")
+    expect(actionsOf(step(steps, "measuring"))[0]).toBe("Close Request: There is no agreed goal to measure against.")
   })
 })

@@ -271,7 +271,7 @@ export function savedMetricNameMatches(workspace: MetricsWorkspace, query: strin
 /** A prediction the library refuses to save, with the sentence to show; or the prediction to save. */
 export type PredictionCheck = { impact: unknown } | MetricsLibraryRefusal;
 
-const NOT_PICKABLE = "A metric on this prediction isn't in this workspace's Metrics library. Pick it again.";
+const NOT_PICKABLE = "A metric on this goal isn't in this workspace's Metrics library. Pick it again.";
 
 /**
  * Checks the metrics of a prediction about to be saved (#198). Every definition it names must be one of the workspace's,
@@ -302,8 +302,8 @@ export async function checkPredictionMetrics(workspace: MetricsWorkspace, impact
     const row = byId.get(ref.id);
     if (!row) return { error: NOT_PICKABLE };
     if (!isActive(row) && !savedNames.has(row.id)) return { error: row.mergedIntoId
-      ? `“${row.name}” was merged into another metric, so it can't be picked for a new prediction. Pick that one instead.`
-      : `“${row.name}” is archived, so it can't be picked for a new prediction. Pick another metric.` };
+      ? `“${row.name}” was merged into another metric, so it can't be picked for a new goal. Pick that one instead.`
+      : `“${row.name}” is archived, so it can't be picked for a new goal. Pick another metric.` };
     if (row.unit !== ref.unit) return { error: `“${row.name}” is counted in ${metricUnitName(row.unit).toLowerCase()} now. Pick it again and enter the numbers in that unit.` };
   }
   const copy = (metric: unknown) => {

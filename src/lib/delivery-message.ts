@@ -83,7 +83,7 @@ export function guestMessage(
   const taker = email.kind === "taken_on" ? email.takerName?.trim() || "A Member" : ""
   const subject = email.kind === "taken_on" ? `${taker} took on your Request: ${requestLine}` : `Your Request is Closed: ${requestLine}`
   const body = email.kind === "taken_on"
-    ? `${taker} took on your Request and is now its Requester. They write what it should change and follow it through. You can still read it and comment.`
+    ? `${taker} took on your Request and is now its Requester. They set its goal and follow it through. You can still read it and comment.`
     : email.closure === "measured"
       ? "Your Request is Closed with its result. See what changed."
       : "Your Request is Closed without a result. See why it closed."

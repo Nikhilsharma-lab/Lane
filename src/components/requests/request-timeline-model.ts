@@ -97,7 +97,7 @@ function stepActions(input: TimelineInput, status: JourneyStatus): TimelineActio
   for (const { action, quiet } of STEP_ACTIONS[status] ?? []) {
     let availability = input.actions[action]
     if (action === "close" && availability.allowed && !input.hasAgreedResult)
-      availability = { allowed: false, reason: "There is no agreed Expected impact to measure against." }
+      availability = { allowed: false, reason: "There is no agreed goal to measure against." }
     const label = ACTION_LABELS[action]
     if (availability.allowed) { shown.push({ action, label, available: true }); continue }
     // One reason is enough: the same refusal twice in a step says nothing new.

@@ -1,12 +1,16 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import type { ImpactPeriod } from "@/lib/impact-period"
 import { buildOutcomeReport, type ImpactRow, type ImpactViewer, type QuarterNote } from "@/lib/impact-read-model"
 import type { ExpectedImpact } from "@/lib/request-impact"
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
 import type { ReleaseFact, ReleaseState } from "@/lib/request-release"
 import { OutcomeReportView } from "./outcome-report"
+
+// Dates read "24 Oct" in the current year and "24 Oct 2025" in others (#261): pin the year these fixtures are in.
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-23T12:00:00.000Z") }) })
+afterAll(() => { vi.useRealTimers() })
 
 // The Outcome report tab (#208), rendered as markup: what a reader and a screen reader receive. Every number comes
 // from the read model; these tests check the words around them.
@@ -133,7 +137,7 @@ describe("Outcome report: Projects and Requests", () => {
     const checkout = section(markup, "Checkout", 3)
     expect(checkout).toContain("LAN-1 Shorter checkout")
     expect(checkout).toContain("Shoppers abandon checkout at the address step")
-    expect(checkout).toContain("Predicted +10 percentage points (planned baseline 40%)")
+    expect(checkout).toContain("Goal 50% (from 40%)")
     expect(checkout).toContain("Actual 46%")
     expect(markup).toContain('href="/requests/a"')
   })

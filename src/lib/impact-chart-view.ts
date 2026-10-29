@@ -11,7 +11,7 @@ export type ChartGroup = { requestNumber: number; title: string; bars: ChartBar[
 /** `baselineLabel` names the baseline series in the legend: before release, the planning baseline, or both when one chart mixes them. */
 export type MetricChart = { metric: string; unit: string; window: string; scaleMax: number; groups: ChartGroup[]; description: string; baselineLabel: string }
 
-const LABEL = { actual: "Actual", predicted: "Predicted" }
+const LABEL = { actual: "Actual", predicted: "Goal" }
 
 function valuesOf(result: ResultView): { series: Series; label: string; value: number }[] {
   const values: { series: Series; label: string; value: number }[] = []
@@ -27,7 +27,7 @@ function describeGroup(result: ResultView, unit: string): string {
   else if (result.baselineState === "new_capability") parts.push("new capability, no baseline")
   else if (result.baselineSource !== null && result.baseline !== null) parts.push(`${baselineLabelOf(result.baselineSource).toLowerCase()} ${result.baseline} ${unit}`)
   if (result.actual !== null) parts.push(`actual ${result.actual} ${unit}`)
-  if (result.predictedTarget !== null) parts.push(`predicted ${result.predictedTarget} ${unit}`)
+  if (result.predictedTarget !== null) parts.push(`goal ${result.predictedTarget} ${unit}`)
   return `Request #${result.requestNumber} ${result.title}: ${parts.join(", ")}.`
 }
 

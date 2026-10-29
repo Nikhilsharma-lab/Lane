@@ -250,7 +250,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               error={error("primary.current", primary.current !== null)} onChange={current => changePrimary({ current })}
               unitOptions={unitOptionsOf(primary)} unitLocked={!legacy}
               onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
-            <NumberField unrestricted={legacy} id={`${prefix}-target`} label="Target after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
+            <NumberField unrestricted={legacy} id={`${prefix}-target`} label="Goal after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
               error={error("primary.target", primary.target !== null)} onChange={target => changePrimary({ target })}
               unitOptions={unitOptionsOf(primary)} unitLocked={!legacy} onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
           </div>

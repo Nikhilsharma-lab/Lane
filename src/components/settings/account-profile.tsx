@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { syncAccountName } from "@/app/(app)/settings/profile/actions";
 import { accountName } from "@/lib/account-name";
+import { callAction } from "@/lib/action-call";
 import { AccountDetails } from "./account-details";
 import { Button } from "@/components/arc/button/button";
 import { clerkAccountAppearance } from "@/components/auth/clerk-appearance";
@@ -19,7 +20,7 @@ export function AccountProfile({ fallbackName, fallbackEmail }: { fallbackName: 
   useEffect(() => {
     if (!name || name === fallbackName || asked.current === name) return;
     asked.current = name;
-    syncAccountName().catch(() => { asked.current = null; });
+    callAction(() => syncAccountName()).catch(() => { asked.current = null; });
   }, [name, fallbackName]);
   return <><AccountDetails name={name || fallbackName} email={user?.primaryEmailAddress?.emailAddress || fallbackEmail} image={user?.imageUrl}
     loading={!isLoaded} onManage={() => clerk.openUserProfile({ appearance: clerkAccountAppearance })} />

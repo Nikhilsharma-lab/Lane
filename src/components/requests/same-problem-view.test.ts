@@ -1,9 +1,13 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import type { Iterations, Prediction, ResultView } from "@/lib/impact-read-model"
 import type { SameProblemHistoryLine } from "@/lib/same-problem-rules"
 import { SameProblemView, type SameProblemViewProps } from "./same-problem-view"
+
+// Dates read "24 Oct" in the current year and "24 Oct 2025" in others (#261): pin the year these fixtures are in.
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-23T12:00:00.000Z") }) })
+afterAll(() => { vi.useRealTimers() })
 
 // "Iterations of this problem" on the Request page (#218), as markup: what a reader and a screen reader receive.
 
@@ -47,7 +51,7 @@ describe("Iterations of this problem", () => {
     const body = text(render())
     expect(body).toContain("Closed without a result")
     expect(body).toContain("Rolled back: Broke Safari checkout")
-    expect(body).toContain("Predicted Checkout conversion: +10 percentage points (planned baseline 40%)")
+    expect(body).toContain("Goal Checkout conversion: 50% (from 40%)")
     expect(body).toMatch(/Result 46%.*\+6 percentage points/)
     expect(body).toContain("Result due 31 Oct (Due in 8 days)")
     expect(body).toContain("Not Released yet")

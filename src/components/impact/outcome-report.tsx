@@ -10,7 +10,7 @@ import { Select } from "@/components/arc/select/select"
 import { guardrailComparisonPhrase, type GuardrailOperator } from "@/lib/guardrail-comparison"
 import { metricChart } from "@/lib/impact-chart-view"
 import { periodLabel, type ImpactPeriod } from "@/lib/impact-period"
-import { actualText, baselineLabelOf, changeText, NOTHING_MEASURED, predictedText, totalText, valueText } from "@/lib/impact-presenter"
+import { actualText, baselineLabelOf, changeText, goalText, NOTHING_MEASURED, totalText, valueText } from "@/lib/impact-presenter"
 import { iterationsHref } from "@/lib/same-problem-rules"
 import type { CorrectedValue, IterationNote, LearnedLine, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
@@ -157,7 +157,7 @@ function ReportRequest({ entry }: { entry: OutcomeReportEntry }) {
       <dl className={styles.facts}>
         <Fact label="Released"><time dateTime={entry.releaseDate}>{plannedDay(entry.releaseDate)}</time></Fact>
         {predicted && <Fact label="Metric">{predicted.metric}{predicted.form === "numeric" ? ` (${predicted.audience}, ${predicted.window})` : ""}</Fact>}
-        {predicted && predicted.form === "numeric" && <Fact label="Predicted">{predictedText(predicted)}</Fact>}
+        {predicted && predicted.form === "numeric" && <Fact label="Goal">{goalText(predicted)}</Fact>}
         {outcome.kind === "measured" && <MeasuredFacts result={outcome.result} />}
         {outcome.kind === "still_due" && <Fact label="Result due"><time dateTime={outcome.dueDate}>{plannedDay(outcome.dueDate)}</time> ({outcome.dueLabel})</Fact>}
         {outcome.kind === "operational" && <Fact label="Not measured">Operational work: {outcome.reason}</Fact>}

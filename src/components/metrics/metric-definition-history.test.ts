@@ -1,7 +1,11 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { MetricDefinitionHistory, type MetricHistoryItem } from "./metric-definition-history";
+
+// Dates read "24 Oct" in the current year and "24 Oct 2025" in others (#261): pin the year these fixtures are in.
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-23T12:00:00.000Z") }); });
+afterAll(() => { vi.useRealTimers(); });
 
 // #197: a Metric definition's history on its page.
 const snapshot = { name: "Trial starts", unit: "count", link: "https://analytics.example.test/trials", howCounted: "Trials started per week.", archivedAt: null, mergedIntoId: null };

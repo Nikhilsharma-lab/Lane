@@ -1,11 +1,15 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildDefinitionUses, type ImpactDefinition, type ImpactRow } from "@/lib/impact-read-model";
 import type { ExpectedImpact } from "@/lib/request-impact";
 import type { OutcomeClosure, OutcomeException } from "@/lib/request-outcome";
 import type { ReleaseFact, ReleaseState } from "@/lib/request-release";
 import { DefinitionUsesList } from "./definition-uses";
+
+// Dates read "24 Oct" in the current year and "24 Oct 2025" in others (#261): pin the year these fixtures are in.
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-23T12:00:00.000Z") }); });
+afterAll(() => { vi.useRealTimers(); });
 
 // #203: a Metric definition's page lists the Requests that used it, from the Impact read model.
 const ORG = "org_uses";
@@ -54,7 +58,7 @@ describe("Requests that used a Metric definition", () => {
     expect(html).toContain('aria-label="Growth, as the main metric"');
     expect(html).toContain('aria-label="No Project, as the main metric"');
     const [measured, waiting] = items(html);
-    expect(measured).toMatch(/^LAN-1 Request 1 Closed Predicted \+50 \(planned baseline 100\) Actual 130 Change \+30$/);
+    expect(measured).toMatch(/^LAN-1 Request 1 Closed Goal 150 \(from 100\) Actual 130 Change \+30$/);
     expect(html).toMatch(/<a[^>]*href="\/requests\/a"/);
     expect(waiting).toContain("Actual Still due (not released yet)");
   });

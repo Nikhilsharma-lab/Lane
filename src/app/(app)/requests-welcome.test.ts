@@ -94,7 +94,7 @@ describe("Requests first-use landing", () => {
     state.rows = []
     const empty = await render()
     expect(empty).toMatch(/<h1[^>]*>Requests<\/h1>/)
-    expect(empty).toContain("Requests your team files appear here, with their predictions and results.")
+    expect(empty).toContain("Requests your team files appear here, with their goals and results.")
     expect(intakeLinksOf(empty)).toEqual([])
     expect(empty).not.toContain("to create a Request.")
     expect(empty).not.toContain('href="/settings/members"')
@@ -160,7 +160,7 @@ describe("Requests first-use landing", () => {
     const html = await render()
     state.firstRun = null
     expect(html).toMatch(/data-requests-welcome[\s\S]*data-first-run="first_request"/)
-    expect(html).toContain('aria-label="Step 2 of 5: Predict the result"')
+    expect(html).toContain('aria-label="Step 2 of 5: Set the goal"')
     expect(html).not.toContain("No Requests yet")
     expect(intakeLinksOf(html).filter(link => !isInert(link))).toHaveLength(1)
     expect(html).toMatch(/data-first-run="first_request"[\s\S]*<a [^>]*href="\/intake"[^>]*>File your first Request/)
