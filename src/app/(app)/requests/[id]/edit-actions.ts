@@ -70,7 +70,7 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             const impactChanged = !isDeepStrictEqual(impactColumnsOf(storedImpact), JSON.parse(JSON.stringify(impactColumnsOf(nextState))));
             // #212: a Guest files without a prediction; the Member who takes it on writes it.
             if (auth.role === "guest" && (impactChanged || impactStorage.measurementDraft !== null))
-                return { error: "A Member writes the prediction once they take this on." };
+                return { error: "A Member sets the goal once they take this on." };
             // Changed wording needs a fresh review of this Request, which sets the
             // classification and the suggested change. Unchanged wording keeps the
             // stored judgement; its framing is the person's to reword, never to drop.

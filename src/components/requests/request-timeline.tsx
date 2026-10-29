@@ -8,7 +8,8 @@ import { readRequestOutcome } from "@/app/(app)/requests/[id]/outcome-actions"
 import { callAction } from "@/lib/action-call"
 import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
-import { FORMER_MEMBER, journeyDate, journeyDay as day, type JourneyAction } from "@/lib/request-journey"
+import { momentDay, plannedDay } from "@/lib/dates"
+import { FORMER_MEMBER, type JourneyAction } from "@/lib/request-journey"
 import { DAY_MS, dayNumber } from "@/lib/utc-day"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome"
 import type { ReleaseEvent } from "@/lib/request-release"
@@ -139,7 +140,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
       return <div className={styles.facts}>
         <p className={styles.muted}>Evidence: {fact.evidence}</p>
         {release.recordedValueBefore && <p className={styles.muted}>Value before release: {resultValue(release.recordedValueBefore.value, release.recordedValueBefore.unit)}.</p>}
-        {fact.windowKind === "fixed" && <p className={styles.muted}>Agreed fixed window: {journeyDate(fact.startDate)} to {journeyDate(fact.dueDate)}. Release timing does not move these dates.</p>}
+        {fact.windowKind === "fixed" && <p className={styles.muted}>Agreed fixed window: {plannedDay(fact.startDate)} to {plannedDay(fact.dueDate)}. Release timing does not move these dates.</p>}
         {step.state === "current" && <p className={styles.muted}>The due date does not close this Request automatically.</p>}
       </div>
     }
@@ -152,14 +153,14 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
       </dl>}
       {closure.kind === "measured" && <>
         <p>Evidence: {closure.evidence}</p>
-        <p className={styles.muted}>Observed {journeyDate(closure.observedFrom)} to {journeyDate(closure.observedTo)} (UTC).</p>
+        <p className={styles.muted}>Observed {plannedDay(closure.observedFrom)} to {plannedDay(closure.observedTo)}.</p>
       </>}
       {closure.kind === "exception" && closure.reason && <p>{closure.reason}</p>}
       {/* #209: the line as given at closing; a Correction below shows any new wording beside it. */}
       {closure.learned && <p>What we learned: {closure.learned}</p>}
       {!!outcome.corrections.length && <div className={styles.facts}><h4>Corrections</h4><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
         <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
-        <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on {day(c.at)}.</p>
+        <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on {momentDay(c.at)}.</p>
       </li>)}</ol></div>}
     </div>
   }
@@ -198,10 +199,10 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
     {!!release.history.length && <details className={styles.history}>
       <summary>Release and handover history ({release.history.length})</summary>
       <ol className={styles.list}>{release.history.map(event => <li key={event.revision}>
-        <p>{historyLine(event)} by {name(event.actorId)} on {day(event.at)}.</p>
+        <p>{historyLine(event)} by {name(event.actorId)} on {momentDay(event.at)}.</p>
         {"reason" in event.input && <p className={styles.muted}>{event.input.reason}</p>}
         {event.input.kind === "transfer" && <p className={styles.muted}>{name(event.previousOwnerId)} → {name(event.ownerId)}</p>}
-        {event.release && <p className={styles.muted}>Exposure: {journeyDate(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {journeyDate(event.release.dueDate)} (UTC). Evidence: {event.release.evidence}</p>}
+        {event.release && <p className={styles.muted}>Exposure: {plannedDay(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {plannedDay(event.release.dueDate)}. Evidence: {event.release.evidence}</p>}
       </li>)}</ol>
     </details>}
     {!!outcome.followUps.length && <div className={styles.facts}>

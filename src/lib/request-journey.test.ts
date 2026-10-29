@@ -107,7 +107,7 @@ describe("journeyActions", () => {
     }
   })
   it("opens measured closure on the due date (UTC) and says when", () => {
-    expect(journeyActions(measuring, requester, people, beforeDue).close).toEqual({ allowed: false, reason: "Opens on 28 Oct 2026.", opensOn: "2026-10-28" })
+    expect(journeyActions(measuring, requester, people, beforeDue).close).toEqual({ allowed: false, reason: "Opens on 28 Oct.", opensOn: "2026-10-28" })
     for (const facts of [open, inProgress, done]) expect(journeyActions(facts, requester, people, dueDay).close).toEqual(no("Opens once the release is recorded and the result is due."))
   })
   it("lets the Requester close without a result at any point after pickup", () => {

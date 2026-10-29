@@ -1,10 +1,11 @@
+import { plannedDay } from "@/lib/dates";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ListChecks } from "lucide-react";
 import { Badge } from "@/components/arc/badge/badge";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison";
-import { actualText, changeText, predictedText, valueText } from "@/lib/impact-presenter";
+import { actualText, changeText, goalText, valueText } from "@/lib/impact-presenter";
 import type { DefinitionGuardrailUse, DefinitionMainUse, DefinitionUseGroup, DefinitionUseOutcome, DefinitionUses } from "@/lib/impact-read-model";
 import { formatRequestCode } from "@/lib/request-code";
 import { requestDetailHref } from "@/lib/request-workspace";
@@ -18,7 +19,7 @@ const requests = (count: number) => `${count} ${count === 1 ? "Request" : "Reque
 /** A result still waiting reads "Still due", with its due date once released: never zero. */
 function waitingText(outcome: Exclude<DefinitionUseOutcome<object>, { kind: "measured" }>): string {
   if (outcome.kind === "closed_without_result") return `Closed without a result: ${outcome.reason}`;
-  return outcome.due ? `Still due (${outcome.due.dueLabel}, ${outcome.due.dueDate})` : "Still due (not released yet)";
+  return outcome.due ? `Still due (${outcome.due.dueLabel}, ${plannedDay(outcome.due.dueDate)})` : "Still due (not released yet)";
 }
 
 function Fact({ label, children }: { label: string; children: string }) {
@@ -40,7 +41,7 @@ function MainUse({ use }: { use: DefinitionMainUse }) {
   return <li className={styles.use}>
     <RequestHead use={use} />
     <dl className={styles.facts}>
-      <Fact label="Predicted">{predictedText(use.predicted)}</Fact>
+      <Fact label="Goal">{goalText(use.predicted)}</Fact>
       <Fact label="Actual">{outcome.kind === "measured" ? actualText(outcome.result) : waitingText(outcome)}</Fact>
       {result && result.change !== null && <Fact label="Change">{changeText(result.change, result.unit, result.changeUnit)}</Fact>}
     </dl>
@@ -80,7 +81,7 @@ function UseSection<Use extends DefinitionMainUse | DefinitionGuardrailUse>({ id
 export function DefinitionUsesList({ uses }: { uses: DefinitionUses }) {
   if (uses.main.length === 0 && uses.guardrails.length === 0) {
     return <EmptyState icon={<ListChecks data-icon-size="2xl" aria-hidden="true" />} title="No Requests have used this metric yet"
-      description="Requests that predict it, as the main metric or a guardrail, appear here with their results." />;
+      description="Requests with a goal on it, as the main metric or a guardrail, appear here with their results." />;
   }
   return <div className={styles.sections}>
     <UseSection id="definition-uses-main" heading="As the main metric" role="as the main metric" empty="Not used as the main metric yet."

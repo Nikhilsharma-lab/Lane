@@ -21,6 +21,7 @@
  *   result before any Release: it is listed (never as shipped or in a total) in the period it was closed (UTC).
  * - Nothing per person: no totals, averages, scores or rankings for anyone.
  */
+import { plannedDay } from "./dates";
 import { agreedResult, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, guardrailHeld, type ClosureCorrection, type ExceptionReason, type OutcomeClosure, type OutcomeException } from "./request-outcome";
 import { measurementAudienceLabel, measurementPlatformLabel, measurementUnitLabel } from "./request-measurement";
 import type { MetricUnit } from "./metric-definition-rules";
@@ -248,7 +249,7 @@ function predictionOf(impact: ExpectedImpact, definitions: ImpactDefinition[]): 
 function windowOf(impact: ExpectedImpact): string {
   if (impact.kind === "measurement") {
     const { measurement } = impact;
-    return measurement.exactDates ? `${measurement.startDate} to ${measurement.endDate}` : `${measurement.windowDays} days after release`;
+    return measurement.exactDates ? `${plannedDay(measurement.startDate)} to ${plannedDay(measurement.endDate)}` : `${measurement.windowDays} days after release`;
   }
   return impact.kind === "verification" || impact.kind === "metric" ? `${impact.reviewAfterDays} days after release` : "";
 }
@@ -261,7 +262,7 @@ function changeUnitOf(form: "numeric" | "pass_fail", unit: string): string | nul
 const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 
 function windowOfRelease(release: ReleaseFact): string {
-  if (release.windowKind === "fixed") return `${release.startDate} to ${release.dueDate}`;
+  if (release.windowKind === "fixed") return `${plannedDay(release.startDate)} to ${plannedDay(release.dueDate)}`;
   return `${daysBetween(release.startDate, release.dueDate)} days after release`;
 }
 

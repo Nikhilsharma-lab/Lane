@@ -14,7 +14,7 @@ import styles from "./first-run.module.css";
 
 export const STEP_TITLES: Record<FirstRequestStep, string> = {
   framing: "Start with the problem",
-  prediction: "Predict the result",
+  prediction: "Set the goal",
   reviewers: "Ask Reviewers",
   free_requests: "Free Requests",
   release: "Release and Result due",
@@ -54,7 +54,7 @@ function StepBody({ step, free, inviteForm }: { step: FirstRequestStep; free: Wo
       <p>When you review the Request, Lane checks the framing. If it reads like a solution, Lane suggests the problem behind it for you to confirm or change.</p>
     </>;
     case "prediction": return <>
-      <p>Pick the metric you expect to move from the Metrics library, with where it is now and where you expect it to go. If it isn’t there yet, add it from the picker. Work with nothing to measure can say why instead.</p>
+      <p>Pick the metric you want to move from the Metrics library, with where it is now and where you want it to go. If it isn’t there yet, add it from the picker. Work with nothing to measure can say why instead.</p>
       <p><Link href="/settings/metrics" className={styles.link}>Open the Metrics library</Link></p>
     </>;
     case "reviewers": return <>

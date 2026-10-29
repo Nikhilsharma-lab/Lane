@@ -69,7 +69,7 @@ export function MetricDefinitionHistory({ entries }: { entries: MetricHistoryIte
     {newestFirst.map(entry => <li key={entry.revision} className={styles.entry}>
       <p className={styles.heading}>
         <span>{headline(entry)} by {entry.authorName ?? "Lane"}</span>
-        <LocalTime iso={entry.createdAt} className={styles.time} />
+        <LocalTime iso={entry.createdAt} className={styles.time} time />
       </p>
       {(entry.kind === "created" || entry.kind === "edited") && <ul className={styles.changes}>
         {changes(entry).map(parts => <li key={parts[0]}>{parts.map((part, index) => index % 2 ? <span key={index} className={styles.value}>{part}</span> : part)}</li>)}

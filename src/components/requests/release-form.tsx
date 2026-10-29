@@ -56,7 +56,7 @@ export function ReleaseForm({ requestId, orgId, revision, audience, earliestExpo
   }}>
     {intro}
     <p>Agreed audience: {audience}</p>
-    <Input label="Actual exposure date (UTC)" type="date" required min={earliestExposure} max={today} value={date} onChange={e => setDate(e.target.value)} disabled={busy} />
+    <Input label="Actual exposure date" type="date" required min={earliestExposure} max={today} value={date} onChange={e => setDate(e.target.value)} disabled={busy} />
     {measured && <Input label={`Value before release (${valueBefore.unit})`} type="number" step="any" required value={value} onChange={e => setValue(e.target.value)} disabled={busy} description="The measured value just before the audience received this work, in the metric's unit. Change is measured from it." />}
     <Textarea label="Release evidence" required maxLength={4000} value={evidence} onChange={e => setEvidence(e.target.value)} disabled={busy} description="Record where the agreed audience exposure can be checked. Deployment alone is not release." />
     <Checkbox label="The agreed audience received this work" checked={confirmed} onCheckedChange={v => setConfirmed(v === true)} disabled={busy} />

@@ -7,7 +7,8 @@
  * Actions come from the journey module with their reasons, so the page never offers what the server refuses
  * and never hides an action without saying why. Guests follow along without actions. Pure and client-safe.
  */
-import { FORMER_MEMBER, JOURNEY_STATUSES, journeyDate, journeyDay as day, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
+import { momentDay, plannedDay } from "@/lib/dates"
+import { FORMER_MEMBER, JOURNEY_STATUSES, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
 import type { RequestStatus } from "@/lib/request-lifecycle"
 import { EXCEPTION_REASON_OPTIONS, type ExceptionReason } from "@/lib/request-outcome"
 import { releaseMeasurement, type ReleaseEvent, type ReleaseFact } from "@/lib/request-release"
@@ -41,6 +42,8 @@ export type TimelineInput = {
   hasAgreedResult: boolean
   actions: JourneyActions
   now: Date
+  /** Moments read in the viewer's zone (B5); a zone here is for fixtures. Planned days are the same for everyone. */
+  timeZone?: string
 }
 
 export type TimelineAction =
@@ -94,7 +97,7 @@ function stepActions(input: TimelineInput, status: JourneyStatus): TimelineActio
   for (const { action, quiet } of STEP_ACTIONS[status] ?? []) {
     let availability = input.actions[action]
     if (action === "close" && availability.allowed && !input.hasAgreedResult)
-      availability = { allowed: false, reason: "There is no agreed Expected impact to measure against." }
+      availability = { allowed: false, reason: "There is no agreed goal to measure against." }
     const label = ACTION_LABELS[action]
     if (availability.allowed) { shown.push({ action, label, available: true }); continue }
     // One reason is enough: the same refusal twice in a step says nothing new.
@@ -109,6 +112,8 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
   const current = ORDER.indexOf(journey.status)
   const stop = journey.withoutResult ? ORDER.indexOf(stoppedAt(input)) : -1
   const release = input.release ?? input.closure?.release ?? null
+  const day = (iso: string) => momentDay(iso, { now: input.now, timeZone: input.timeZone })
+  const planned = (day: string) => plannedDay(day, { now: input.now })
   const recordedBy = [...input.releaseHistory].reverse().find(e => e.input.kind === "release" || e.input.kind === "correct")?.actorId
 
   return JOURNEY_STATUSES.map(({ status, label }, index) => {
@@ -133,10 +138,10 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
       if (isCurrent) next = `Record the release once ${input.audience} has the work. Anyone working on this Request can record it.`
     }
     if (status === "measuring" && reached && release) {
-      happened.push(`Released to ${release.audience} on ${journeyDate(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? FORMER_MEMBER}` : ""}.`)
+      happened.push(`Released to ${release.audience} on ${planned(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? FORMER_MEMBER}` : ""}.`)
       if (isCurrent) {
-        countdown = `Result due ${journeyDate(release.dueDate)} · ${releaseMeasurement(release, input.now)!.label}`
-        next = `On ${journeyDate(release.dueDate)} the Requester, ${input.requesterName}, records the measured result and closes this Request.`
+        countdown = `Result due ${planned(release.dueDate)} · ${releaseMeasurement(release, input.now)!.label}`
+        next = `On ${planned(release.dueDate)} the Requester, ${input.requesterName}, records the measured result and closes this Request.`
       }
     }
     if (status === "closed" && isCurrent && input.closure) {

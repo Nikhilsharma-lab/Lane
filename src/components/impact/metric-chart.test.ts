@@ -37,7 +37,7 @@ describe("metric chart: one chart per metric (#158)", () => {
     const markup = render(line("Conversion rate", [result({ requestNumber: 1 })]))
     expect(markup.match(/<svg/g)).toHaveLength(1)
     expect(markup).toContain('role="img"')
-    expect(markup).toContain("planning baseline 40 %, actual 46 %, predicted 50 %")
+    expect(markup).toContain("planning baseline 40 %, actual 46 %, goal 50 %")
   })
 
   it("gives each chart its own scale: bar heights are shares of that chart's own largest value", () => {

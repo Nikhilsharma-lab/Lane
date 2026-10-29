@@ -7,7 +7,6 @@ import type { BaselineSource, DueItem, Prediction, RequestEntry, ResultView, Ver
 
 /** The one empty-state wording for a period, a Project or a chart with nothing measured (spec US35). */
 export const NOTHING_MEASURED = "Nothing measured this period yet";
-export const NOT_APPLICABLE = "Not applicable";
 export const NOT_RECORDED = "Not recorded";
 export const NO_CHANGE = "No change";
 
@@ -49,18 +48,18 @@ export function baselineLabelOf(source: BaselineSource): string {
   return source === "release" ? "Before release" : "Planning baseline";
 }
 
+export const NO_GOAL = "No goal set";
+
 /**
- * The predicted change, with the planned baseline it was predicted from beside it, or the target when no change can be
- * predicted (a new capability), or "Not predicted".
+ * #261: a Request's goal as its end value, with where it started: "80% (from 62%)", "80%" when the start isn't known
+ * (a new capability), the check itself for a Pass/fail goal, or "No goal set". The one place a goal is phrased: every
+ * view shows it beside the word "Goal", in the Request's summary, Impact, the Metrics library and Iterations.
  */
-export function predictedText(prediction: Pick<Prediction, "form" | "unit" | "changeUnit" | "predictedChange" | "target" | "baseline">): string {
-  if (prediction.form === "pass_fail") return NOT_APPLICABLE;
-  if (prediction.predictedChange !== null) {
-    const change = changeText(prediction.predictedChange, prediction.unit, prediction.changeUnit);
-    return prediction.baseline !== null ? `${change} (planned baseline ${valueText(prediction.baseline, prediction.unit)})` : change;
-  }
-  if (prediction.target !== null) return `Target ${valueText(prediction.target, prediction.unit)}`;
-  return "Not predicted";
+export function goalText(goal: Pick<Prediction, "form" | "metric" | "unit" | "baseline" | "target">): string {
+  if (goal.form === "pass_fail") return goal.metric;
+  if (goal.target === null) return NO_GOAL;
+  const end = valueText(goal.target, goal.unit);
+  return goal.baseline !== null ? `${end} (from ${valueText(goal.baseline, goal.unit)})` : end;
 }
 
 /** What an entry is, once, for every view: a measured result, still due, closed without a result, operational, or predicted only. */

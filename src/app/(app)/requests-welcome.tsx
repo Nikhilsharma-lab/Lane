@@ -14,7 +14,7 @@ export function RequestsWelcome({ canInvite, isGuest, readOnly = false }: { canI
   // A Viewer (#210) files nothing, so the welcome only says where the team's Requests will appear.
   if (readOnly) return (
     <div data-requests-welcome className={styles.welcome}>
-      <EmptyState label="No Requests yet" title="No Requests yet" description="Requests your team files appear here, with their predictions and results." icon={<Inbox data-icon-size="2xl" />} />
+      <EmptyState label="No Requests yet" title="No Requests yet" description="Requests your team files appear here, with their goals and results." icon={<Inbox data-icon-size="2xl" />} />
     </div>
   )
   return (
