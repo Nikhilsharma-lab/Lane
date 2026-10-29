@@ -44,4 +44,22 @@ describe("The account menu's Settings, loaded ahead (#258)", () => {
   it.each(["admin", "member"])("offers an %s Members and loads it ahead with Settings → Profile", (role) => {
     expect(openAccountMenu(role)).toEqual({ members: "/settings/members", loaded: ["/settings/profile", "/settings/members"] });
   });
+
+  // #259: the menu reports heading for it (the pointer reaching its button, focus, opening) several times in one
+  // visit; Settings loads once while what it loaded is still fresh (30 s), then again.
+  it("loads Settings once while it is fresh, and again after 30 s", () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1_000);
+    try {
+      openAccountMenu("member");
+      sidebar!.onAccountMenuOpen?.();
+      clock.mockReturnValue(30_999);
+      sidebar!.onAccountMenuOpen?.();
+      expect(prefetch.mock.calls.map(([href]) => href)).toEqual(["/settings/profile", "/settings/members"]);
+      clock.mockReturnValue(31_000);
+      sidebar!.onAccountMenuOpen?.();
+      expect(prefetch.mock.calls.map(([href]) => href)).toEqual(["/settings/profile", "/settings/members", "/settings/profile", "/settings/members"]);
+    } finally {
+      clock.mockRestore();
+    }
+  });
 });
