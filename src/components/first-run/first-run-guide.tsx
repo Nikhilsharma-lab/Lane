@@ -15,7 +15,8 @@ import type { FirstRunInviteRole } from "./first-run-invite-form";
 import { clearHelpHash, consumeFocusRequest, useFirstRunHelp } from "./first-run-help";
 
 /** Loaded when an Admin reaches the Reviewers step, so the form adds nothing to the page's first load. */
-const FirstRunInviteForm = dynamic(() => import("./first-run-invite-form").then(module => module.FirstRunInviteForm));
+// #263 (A210): its own loading slot keeps the wait inside the form, so the guide (and the focused Next step) never hides while it loads.
+const FirstRunInviteForm = dynamic(() => import("./first-run-invite-form").then(module => module.FirstRunInviteForm), { loading: () => null });
 
 const FAILED = "Couldn’t save your first run. Try again.";
 

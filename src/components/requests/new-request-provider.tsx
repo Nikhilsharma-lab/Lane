@@ -7,7 +7,7 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog";
 import { NewRequestContext } from "./new-request-context";
-import { listFiltersOf, revealRequest, useListViewSnapshot, useRequestListContext, useSetRequestListView } from "./list-view-state";
+import { listFiltersOf, revealRequest, useListViewSnapshot, useRequestListContext, useSetDetailSession, useSetRequestListView } from "./list-view-state";
 import { requestCreatedToast } from "./request-created-toast";
 import { matchesListFilters, type OverviewRequest } from "@/lib/request-overview";
 import { projectIdOrNull } from "@/lib/request-constants";
@@ -84,6 +84,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   const projectId = projectIdOrNull(projectFilter);
   const listSnapshot = useListViewSnapshot();
   const setListView = useSetRequestListView();
+  const setDetailSession = useSetDetailSession();
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const [generation, setGeneration] = useState(0);
@@ -171,6 +172,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     setOpen(false);
     const href = requestDetailHref(requestId, returnContext.status, returnContext.project);
     if (openRequest) {
+      // #263 (C22): the new Request's page puts focus on its title, so it never drops to the page.
+      setDetailSession({ sequence: null, focusTitleOnArrival: true, focusOnArrival: null });
       router.push(href);
       return;
     }
@@ -178,6 +181,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     // /intake page did, creating there opens the Request.
     if (pathname === "/intake") {
       toast(requestCreatedToast({}));
+      setDetailSession({ sequence: null, focusTitleOnArrival: true, focusOnArrival: null });
       router.push(href);
       return;
     }
@@ -197,7 +201,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
         router.push(requestListHref(revealed.status, revealed.project));
       } : undefined,
     }));
-  }, [listSnapshot, pathname, returnContext, router, setListView, toast]);
+  }, [listSnapshot, pathname, returnContext, router, setDetailSession, setListView, toast]);
 
   // After hydration, the composer opens by itself for what this tab kept.
   // Plan item 2.3 (S3): a reload interrupted uploads after a Request was
@@ -248,6 +252,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
             }}
             onCloseAutoFocus={event => {
               event.preventDefault();
+              // #263 (C22): the new Request's page already gave its title focus.
+              if (document.activeElement?.id === "request-title") return;
               // Focus goes back to the trigger. The welcome's New Request
               // unmounts when the first Request lands in its place (plan item
               // 2.1), so the new Request is next: its row, the list's one tab

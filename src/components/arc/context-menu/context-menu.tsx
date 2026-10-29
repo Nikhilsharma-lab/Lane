@@ -289,7 +289,8 @@ export function ContextMenu({ children, items, label = "Context menu", asChild =
   function rememberTarget(container: HTMLElement, target: EventTarget | null) {
     const selector = 'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]';
     const original = target instanceof Element ? target.closest<HTMLElement>(selector) : null;
-    targetRef.current = original && container.contains(original) ? original : container.matches(selector) ? container : container.querySelector<HTMLElement>(selector) ?? container;
+    // Lane adaptation (#263, A211): a target that takes focus itself (a Requests grid row) gets it back, not the link pressed inside it.
+    targetRef.current = container.matches(selector) ? container : original && container.contains(original) ? original : container.querySelector<HTMLElement>(selector) ?? container;
   }
 
   function onTargetKeyDown(event: KeyboardEvent<HTMLElement>) {

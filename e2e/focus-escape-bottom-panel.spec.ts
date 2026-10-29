@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
-import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
+import { cleanupTestWorkspace, provisionTestWorkspace, seedTestRequest } from "./helpers/cleanup";
+import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 
 // #263 (Build 2.4, spec #256 "Focus, Escape and confirmations" and "Phone bottom panel"): focus moves into what
@@ -250,5 +250,56 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await expect(saveDialog.getByRole("textbox", { name: "Name" })).toHaveValue("Phone view");
       await expect(page).toHaveURL(/\/$/);
     });
+  });
+
+  test("the Requests list hands focus back to the row after its menu and after Back (A211, A232)", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await withWorkspace(page, "list-focus", async (_user, id) => {
+      await page.goto("/");
+      await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
+      const row = page.locator(`[role=row][data-request-id="${id}"]`);
+      const title = row.locator("a[data-request-title]");
+      await title.click({ button: "right" });
+      const menu = page.getByRole("menu");
+      await expect(menu).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(menu).toHaveCount(0);
+      await expect(row).toBeFocused();
+
+      // Enter on the row opens the Request's page (a pointer click previews it at this width).
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(new RegExp(`/requests/${id}`));
+      await expect(page.locator("#request-title")).toBeVisible({ timeout: 30_000 });
+      await page.goBack();
+      await expect(page).toHaveURL(/\/$/);
+      await expect(row).toBeFocused({ timeout: 10_000 });
+    });
+  });
+
+  test("the first-run guide keeps focus on Next step from step to step (A210)", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const user = await createTestUser("first-run-focus");
+    try {
+      const orgId = await provisionTestWorkspace({ userId: user.id, email: user.email, name: "Focus Tester", workspaceName: "#263 first-run focus", freshFirstRun: true });
+      await signInTestUser(page, user, orgId);
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
+      const guide = page.locator("[data-first-run='first_request']");
+      const next = guide.getByRole("button", { name: "Next step", exact: true });
+      for (const step of [2, 3, 4, 5]) {
+        if (step === 2) await next.click(); else await page.keyboard.press("Enter");
+        await expect(guide.getByRole("progressbar")).toHaveAccessibleName(new RegExp(`^Step ${step} of 5`));
+        // The last step has no Next step; its heading takes focus instead.
+        if (step < 5) await expect(next).toBeFocused();
+        else await expect(guide.locator("[data-first-run-step] h3")).toBeFocused();
+        await page.waitForTimeout(500);
+        if (step < 5) await expect(next).toBeFocused();
+      }
+    } finally {
+      await cleanupTestWorkspace(user.id);
+      await deleteTestUser(user.id);
+    }
   });
 });
