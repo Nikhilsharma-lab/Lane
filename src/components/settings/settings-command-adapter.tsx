@@ -53,6 +53,10 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
   const resolvedSection = requested?.soon ? "coming-soon" : section;
   const selected = nav.find(e => e.id === resolvedSection) ?? nav[0];
   const current = selected.id;
+  // #258: Members' content (and Clerk's member list) mounts the first time Members is shown, however it is
+  // reached (its own page, an in-place switch or a search result), then stays mounted for the visit.
+  const [membersShown, setMembersShown] = useState(current === "members");
+  if (current === "members" && !membersShown) setMembersShown(true);
   const icons = { profile: UserRound, preferences: Palette, "account-security": ShieldCheck, workspace: Building2, members: Users, metrics: ChartLine, "inbox-delivery": Mail, slack: MessageSquare, billing: CreditCard, "coming-soon": Clock };
   const uid = useId();
   const reduce = !!useReducedMotion();
@@ -118,7 +122,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     preferences: <div id="theme" tabIndex={-1}>{appearance}</div>,
     "account-security": security,
     workspace: <><SettingsCard title="Workspace details" description="Your current workspace and membership." footer="Workspace access is separate from your profile role."><div className={styles.rows}><div className={styles.row}><strong>Workspace name</strong><span className={styles.value}>{workspaceName}</span></div><div className={styles.row}><strong>Your access</strong><Badge>{ROLE_NAMES[membership as WorkspacePermission] ?? "Member"}</Badge></div>{workspaceId && <WorkspaceIdentifier value={workspaceId} />}</div></SettingsCard>{workspaceManagement}</>,
-    members,
+    members: membersShown ? members : null,
     metrics,
     "inbox-delivery": delivery,
     slack,

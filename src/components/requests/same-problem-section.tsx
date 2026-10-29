@@ -18,9 +18,14 @@ function Loading() {
 }
 
 // The list loads after the page and the search dialog only when someone opens it, so the Request page's first load
-// carries just this adapter.
-const SameProblemView = dynamic(() => import("./same-problem-view").then(module => module.SameProblemView), { ssr: false, loading: Loading })
+// carries just this adapter. #259: the list and its load ahead share one import, so they share one chunk (an import
+// written inside dynamic() gets a chunk of its own, which loading ahead would not warm).
+const loadView = () => import("./same-problem-view")
+const SameProblemView = dynamic(() => loadView().then(module => module.SameProblemView), { ssr: false, loading: Loading })
 const SameProblemLinkDialog = dynamic(() => import("./same-problem-link-dialog"), { ssr: false })
+/** #259: the list's code, loaded ahead with the Request preview's (preloadRequestPeek), so a preview opened after a rest
+ * on its row fetches no code. */
+export const preloadSameProblemView = () => { void loadView().catch(() => undefined) }
 
 const LOAD_FAILED = "Could not load the Iterations. Try again."
 const CHANGE_FAILED = "Could not change the link. Try again."

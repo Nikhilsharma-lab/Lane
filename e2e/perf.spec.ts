@@ -701,6 +701,75 @@ test("holding J over 10 rows starts at most one full detail prefetch", async ({ 
   expect(prefetched.length).toBeLessThanOrEqual(BUDGET.heldJPrefetches)
 })
 
+// #258 speed fix 1: opening the account menu fully prefetches Settings → Profile, plus Members for an Admin or a
+// Member (the perf session is a Member), before anything in the menu is chosen. #259: it starts earlier, as the
+// pointer reaches the account button (not touch) or focus lands on it, once for that visit to the button: opening the
+// menu right after does not load it again. `next dev` never prefetches, so this lives here rather than in
+// e2e/settings-load-ahead.spec.ts.
+const SETTINGS_AHEAD = ["/settings/members", "/settings/profile"]
+
+/** Every full prefetch of a Settings page from now on, in order. A full prefetch fetches the page itself, not just the route tree or one segment. */
+function recordSettingsPrefetches(page: Page) {
+  const settings: string[] = []
+  page.on("request", request => {
+    const { pathname } = new URL(request.url())
+    if (isRscRequest(request) && !request.headers()["next-router-segment-prefetch"] && pathname.startsWith("/settings/")) settings.push(pathname)
+  })
+  return settings
+}
+
+async function openRequestsAwayFromTheMenu(page: Page) {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto("/")
+  await page.mouse.move(900, 600)
+  const trigger = page.getByRole("button", { name: /^Account menu/ })
+  await expect(trigger).toBeVisible()
+  await page.waitForLoadState("networkidle")
+  return trigger
+}
+
+test("reaching the account button prefetches Settings once, before the menu opens", async ({ page }) => {
+  const trigger = await openRequestsAwayFromTheMenu(page)
+  const settings = recordSettingsPrefetches(page)
+  await page.waitForTimeout(500)
+  expect(settings, "Settings must not load before the pointer reaches the account button").toEqual([])
+
+  await trigger.hover()
+  await expect.poll(() => [...settings].sort()).toEqual(SETTINGS_AHEAD)
+  await expect(page.getByRole("menuitem", { name: "Settings" }), "Settings loads before the menu opens").toHaveCount(0)
+  // The pointer moving about on the button, then opening the menu, is the same visit: nothing loads again.
+  const box = (await trigger.boundingBox())!
+  for (const dx of [2, 6, 10, 4]) await page.mouse.move(box.x + dx, box.y + box.height / 2)
+  await trigger.click()
+  await expect(page.getByRole("menuitem", { name: "Settings" })).toBeVisible()
+  await page.waitForTimeout(500)
+  expect([...settings].sort(), "one prefetch per page for one visit to the button").toEqual(SETTINGS_AHEAD)
+  expect(new URL(page.url()).pathname).toBe("/")
+
+  // #259: choosing Settings navigates inside the app, so the page loaded ahead shows at once. A full page load
+  // would throw away this document, and the mark with it.
+  await page.evaluate(() => { (window as Window & { __laneSameDocument?: true }).__laneSameDocument = true })
+  const clicked = await now(page)
+  await page.getByRole("menuitem", { name: "Settings" }).click()
+  await expect(page).toHaveURL(/\/settings\/profile$/)
+  await expect(page.getByRole("button", { name: /Search settings/ })).toBeVisible()
+  const shown = await now(page)
+  expect(await page.evaluate(() => (window as Window & { __laneSameDocument?: true }).__laneSameDocument), "choosing Settings reloaded the page").toBe(true)
+  report("account menu Settings click to the Settings page", [shown - clicked], "ms", 500)
+})
+
+test("keyboard focus on the account button prefetches Settings once, before the menu opens", async ({ page }) => {
+  const trigger = await openRequestsAwayFromTheMenu(page)
+  const settings = recordSettingsPrefetches(page)
+  await trigger.focus()
+  await expect.poll(() => [...settings].sort()).toEqual(SETTINGS_AHEAD)
+  await expect(page.getByRole("menuitem", { name: "Settings" })).toHaveCount(0)
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("menuitem", { name: "Settings" })).toBeVisible()
+  await page.waitForTimeout(500)
+  expect([...settings].sort(), "opening from the focused button loads nothing again").toEqual(SETTINGS_AHEAD)
+})
+
 test("a sidebar toggle at 4x CPU changes the content width once with at most 2 long animation frames", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await openList(page)

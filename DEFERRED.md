@@ -335,6 +335,14 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   support show people looking for one place to type what they want on a phone or with a mouse, or the shell
   is redesigned. — spec #101 (Q14), recorded by #107, 2026-10-22.
 
+## CACHE COMPONENTS — when Build 9's re-measure still misses the speed targets
+
+- **Cache Components / Partial Prefetching.** What: turn on Next.js 16's ready-made shell for every route, so
+  each page shows its frame at once and fills in the rest. Why deferred: it is large and risky. It changes how
+  every signed-in page reads the session, and how popups and tests behave. Speed fixes 1–6 are smaller and
+  may be enough on their own. Trigger: Build 9's full re-measure still misses the speed targets after fixes
+  1–6. — speed plan #231, recorded by Build 1 (#256, #259), 2026-10-28.
+
 ## LOW PRIORITY / maybe never
 
 - **Auth form DRY.** login/signup are ~95% duplicated. Only worth extracting *if* a third auth screen

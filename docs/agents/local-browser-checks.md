@@ -78,8 +78,7 @@ await page.evaluate(async id => { await window.Clerk.setActive({ organization: i
 ```
 
 One context per person; log `pageerror` and console errors. Invitations in a walk go to `…+clerk_test@example.com`
-addresses so Clerk sends no email. A whole e2e spec can run this way by hand against the local server
-(`e2e/helpers/test-user.ts`'s `signInTestUser` is the same sequence).
+addresses so Clerk sends no email. To run a whole e2e spec on the local database, use §7 instead.
 
 Cover: light and dark (Settings → Profile theme), 390/768/1024/1440 with no horizontal overflow, keyboard only
 (focus order, focus return after dialogs/menus, Escape), accessible names and live announcements in the DOM,
@@ -97,3 +96,28 @@ that the role was simulated; the action tests are the real coverage.
 Run `teardown`, stop the dev server, `dropdb -h localhost lane_test_dev_<ticket>`, and remove `.env.dev-local` if
 you created it. Done when the temporary organization is gone from Clerk, `git status` shows only your intended
 changes, and the hand-back lists what was walked and what was not (VoiceOver itself, simulated roles, hosted runs).
+
+## 7. Run e2e specs on the local database
+
+`pnpm exec playwright test` normally targets Lane Staging. Two opt-in switches run specs on your local database
+instead, with the app on any local port (Playwright starts it; nothing may already be listening there):
+
+```sh
+LANE_E2E_ALLOW_REMOTE=1 LANE_E2E_LOCAL_DATABASE=1 LANE_E2E_REUSE_USERS=1 \
+DATABASE_URL=postgresql://nikhilsharma@localhost:5432/lane_test_<name> E2E_BASE_URL=http://localhost:<port> \
+pnpm exec playwright test e2e/<spec>.spec.ts --output=/tmp/lane-<ticket>-scratch/pw-out
+```
+
+- Needs `.env.local` in the worktree (§2) and a migrated `lane_test_*` database (§1). `LANE_E2E_LOCAL_DATABASE=1`
+  accepts only a `lane_test_*` database on `localhost`/`127.0.0.1` and a local `http://` app; every Clerk check in
+  `e2e/helpers/safety.ts` still applies.
+- `LANE_E2E_ALLOW_REMOTE=1` is still needed on a local run, on purpose: only the database is local. The run still
+  creates and deletes users and organizations in the remote Clerk development instance, and specs with
+  attachments write to Lane Staging's file storage. `LANE_E2E_ALLOW_REMOTE=1` is the consent to change those remote
+  services; `LANE_E2E_LOCAL_DATABASE=1` only moves the database and never stands in for that consent.
+- `LANE_E2E_REUSE_USERS=1`: when Clerk is at its user cap, fixtures borrow a free `lane-e2e-*` user (no
+  organization, the fixture password), mark it, and give it back with its own name instead of deleting it. It runs
+  one worker. A crashed run leaves `laneE2EBorrowedBy` in that user's `privateMetadata`, so it isn't borrowed again
+  until someone clears it.
+- Only the database moves: Clerk and file storage stay the services `.env.local` names. Fixtures still create (and
+  delete) their own Clerk users while Clerk has room; borrowing starts only at the cap.

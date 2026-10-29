@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { RequestPeek, preloadRequestPeek, usePeekAvailable, type PeekViewer } from "@/components/requests/request-peek";
+import { RequestPeekLoadAhead, useListLoadAhead } from "@/components/requests/request-peek-load-ahead";
 import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
 import { inboxNeedsYou } from "@/components/shell/inbox-count";
 import { begin, beginAllRead, confirm, initialReadState, isAllReadPending, isPending, pendingIds, receiveCount, receiveList, rollback, shownItems, shownUnread, type ReadState } from "@/components/shell/notification-read-state";
@@ -215,7 +216,11 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   const selectedRequest = items.find(item => item.id === selectedId)?.requestId ?? needsYou.find(item => item.key === selectedId)?.requestId ?? null;
   const previewId = peekAvailable ? selectedRequest : null;
 
-  return <InboxView
+  // #258: resting on an item reads its Request into the preview's memory before it opens (not by focus while
+  // the preview is open, as on the Requests list).
+  const loadAhead = useListLoadAhead(orgId, viewer.id, { offered: peekAvailable, previewOpen: previewId !== null });
+
+  return <RequestPeekLoadAhead value={loadAhead}><InboxView
     needsYou={needsYou}
     showNeedsYou={showNeedsYou}
     items={items}
@@ -235,5 +240,5 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
     onToggleRead={handleToggleRead}
     onMarkAllRead={handleMarkAllRead}
     onRetry={() => { setError(null); void refreshList(); }}
-  />;
+  /></RequestPeekLoadAhead>;
 }

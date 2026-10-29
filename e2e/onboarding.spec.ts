@@ -190,6 +190,17 @@ test("workspace membership comes before a Lane role, including after an interrup
       .poll(() => page.evaluate(() => window.Clerk.session?.currentTask?.key))
       .toBe("choose-organization");
 
+    // D1 (#257): a reload of Requests, a bookmark or a teammate's Request link ends on the sign-in
+    // page's workspace step, never "Page not found", and Clerk's return address survives the hop.
+    for (const path of ["/", "/requests/LAN-1?from=link"]) {
+      await page.goto(path);
+      await expect(page).toHaveURL((url) => url.pathname === "/login");
+      const returnTo = new URL(new URL(page.url()).searchParams.get("redirect_url") ?? "", page.url());
+      expect(`${returnTo.pathname}${returnTo.search}`).toBe(path);
+      await expect(page.locator('input[name="name"]')).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Page not found" })).toHaveCount(0);
+    }
+
     // Returning directly to Lane must resume Clerk's pending membership task.
     await page.goto("/onboarding");
     await expect(page.locator('input[name="name"]')).toBeVisible();

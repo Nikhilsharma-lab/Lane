@@ -90,6 +90,8 @@ export const clerkAccountAppearance = {
   },
 };
 
+const fullIdentifier = { whiteSpace: "normal", overflowWrap: "anywhere", textOverflow: "clip" } as const;
+
 const organizationControl = { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", borderRadius: "var(--button-radius-md)" };
 
 /**
@@ -114,12 +116,17 @@ export const clerkOrganizationAppearance = {
   },
   elements: {
     ...clerkAccountAppearance.elements,
+    // #257 D4: Clerk's window is a grid with a column for its navigation. Hiding the navigation alone left that
+    // column in place and squeezed the page into it, so the grid keeps one full-width column.
+    cardBox: { ...clerkAccountAppearance.elements.cardBox, gridTemplateColumns: "minmax(0, 1fr)" },
     navbar: { display: "none" },
     navbarMobileMenuRow: { display: "none" },
     tableHeaderCell: { fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", color: "var(--text-secondary)" },
     tableBodyCell: { fontSize: "var(--text-sm)" },
-    userPreviewMainIdentifierText: { fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)" },
-    userPreviewSecondaryIdentifier: { fontSize: "var(--text-xs)" },
+    // #257 D4: Clerk caps the member preview's width and cuts long emails off; names and emails show in full.
+    userPreview: { maxWidth: "100%" },
+    userPreviewMainIdentifierText: { fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", ...fullIdentifier },
+    userPreviewSecondaryIdentifier: { fontSize: "var(--text-xs)", ...fullIdentifier },
     membersPageInviteButton: organizationControl,
     formButtonPrimary: organizationControl,
     formButtonReset: { ...organizationControl, color: "var(--foreground)", "&:hover": { color: "var(--foreground)" } },

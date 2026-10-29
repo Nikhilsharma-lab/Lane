@@ -10,6 +10,25 @@ const organizations = new Map<string, string>();
 const reservedEmails = new Set<string>();
 export const fixtureMetadata = { laneE2ERunId: runId };
 
+// #257: at Clerk's user cap, LANE_E2E_REUSE_USERS=1 lets a fixture borrow an existing lane-e2e user
+// (e2e/helpers/test-user.ts). This worker marks it with borrowMarker, keeps its own name here, and gives it
+// back instead of deleting it.
+type BorrowedNames = { firstName: string | null; lastName: string | null };
+const borrowedUsers = new Map<string, BorrowedNames>();
+/** The privateMetadata key that marks a borrowed user; its value is the borrowing worker's run. */
+export const BORROW_KEY = "laneE2EBorrowedBy";
+export const borrowMarker = { [BORROW_KEY]: runId };
+export function recordBorrowedUser(id: string, names: BorrowedNames) {
+  borrowedUsers.set(id, names);
+}
+/** A borrowed user's own name, or undefined for a user this worker created. */
+export function borrowedUserNames(id: string) {
+  return borrowedUsers.get(id);
+}
+export function forgetBorrowedUser(id: string) {
+  borrowedUsers.delete(id);
+}
+
 export function testEmail(label: string) {
   const email = `lane-e2e-${label}-${randomUUID().slice(0, 12)}+clerk_test@example.com`;
   reservedEmails.add(email);
@@ -29,10 +48,12 @@ export function forgetUser(id: string) {
 }
 
 export async function assertOwnedUser(id: string) {
-  if (!users.has(id)) throw new Error("[e2e] User has no creation receipt in this worker.");
+  const borrowed = borrowedUsers.has(id);
+  if (!users.has(id) && !borrowed) throw new Error("[e2e] User has no creation or borrowing receipt in this worker.");
   const client = await safeClerkClient();
   const user = await client.users.getUser(id);
-  if (user.privateMetadata.laneE2ERunId !== runId) throw new Error("[e2e] User ownership marker does not match.");
+  const marker = borrowed ? user.privateMetadata[BORROW_KEY] : user.privateMetadata.laneE2ERunId;
+  if (marker !== runId) throw new Error("[e2e] User ownership marker does not match.");
   return client;
 }
 
