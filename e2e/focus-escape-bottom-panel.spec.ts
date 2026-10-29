@@ -380,6 +380,17 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await expect(prompt).toHaveCount(0);
       await expect(saveDialog.getByRole("textbox", { name: "Name" })).toHaveValue("Phone view");
       await expect(page).toHaveURL(/\/$/);
+      await page.keyboard.press("Escape");
+      await discardPrompt(page).getByRole("button", { name: "Discard", exact: true }).click();
+      await expect(saveDialog).toHaveCount(0);
+
+      // A panel whose action moves to another page lands there: deleting the Request opens the list.
+      await openRequest(page, id);
+      await page.locator('[data-slot="page-strip"]').getByRole("button", { name: "Delete Request", exact: true }).click();
+      await page.getByRole("dialog", { name: "Delete this Request?", exact: true }).getByRole("button", { name: "Delete Request", exact: true }).click();
+      await expect(page).toHaveURL(/\/$/, { timeout: 20_000 });
+      await page.waitForTimeout(1000);
+      await expect(page).toHaveURL(/\/$/);
     });
   });
 

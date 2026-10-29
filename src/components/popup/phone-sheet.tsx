@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, type ComponentProps } from "react"
 import { BottomSheetContent } from "@/components/arc/bottom-sheet/bottom-sheet"
+import { navigatedWithin } from "@/lib/navigation-intent"
 
 export type PhoneSheetProps = ComponentProps<typeof BottomSheetContent>
 
@@ -18,6 +19,7 @@ export default function PhoneSheet({ open, onDismiss, ...props }: PhoneSheetProp
   useEffect(() => {
     if (!open) return
     const ours = () => (window.history.state as { lanePopup?: string } | null)?.lanePopup === marker
+    const page = window.history.state
     window.history.pushState({ lanePopup: marker }, "")
     const back = () => {
       if (ours()) return
@@ -28,8 +30,11 @@ export default function PhoneSheet({ open, onDismiss, ...props }: PhoneSheetProp
     window.addEventListener("popstate", back)
     return () => {
       window.removeEventListener("popstate", back)
-      // A close that also navigated has already left this entry behind; only an entry still on top is taken back.
-      window.setTimeout(() => { if (ours()) window.history.back() }, 0)
+      // A close that also moves to another page (Delete Request, a link) must not step back: that would undo the
+      // move before Next.js records it. The entry becomes the page's own again, so Back from the new page returns
+      // here as it would without the panel. Otherwise an entry still on top goes.
+      if (navigatedWithin(1000)) { if (ours()) window.history.replaceState(page, ""); return }
+      window.setTimeout(() => { if (ours() && !navigatedWithin(1000)) window.history.back() }, 0)
     }
   }, [marker, open])
 

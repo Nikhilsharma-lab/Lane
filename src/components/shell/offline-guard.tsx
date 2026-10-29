@@ -6,6 +6,7 @@ import { useContext, useEffect, useMemo, useState, type ComponentType, type Reac
 // check that this path still exists and that push/replace offline are still held (e2e/offline-stays-in-lane.spec.ts).
 import { AppRouterContext, type AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
 import { isOffline } from "@/lib/connection-status"
+import { noteNavigation } from "@/lib/navigation-intent"
 import { plainLinkClick } from "@/lib/plain-link-click"
 import { changesListInPlace } from "@/lib/request-workspace"
 import { showsSettingsInPlace } from "@/components/settings/settings-in-place"
@@ -40,18 +41,19 @@ export function OfflineGuard({ children }: { children: ReactNode }) {
   const router = useContext(AppRouterContext)
   const guarded = useMemo<AppRouterInstance | null>(() => router && {
     ...router,
-    push: (href, options) => { if (!holds(href)) router.push(href, options) },
-    replace: (href, options) => { if (!holds(href)) router.replace(href, options) },
+    push: (href, options) => { if (!holds(href)) { noteNavigation(); router.push(href, options) } },
+    replace: (href, options) => { if (!holds(href)) { noteNavigation(); router.replace(href, options) } },
   }, [router])
   const [Line, setLine] = useState<ComponentType | null>(null)
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
       const link = plainLinkClick(event)
-      if (link && !event.defaultPrevented && holds(link.href)) {
+      if (!link || event.defaultPrevented) return
+      if (holds(link.href)) {
         event.preventDefault()
         event.stopPropagation()
-      }
+      } else noteNavigation()
     }
     const onNavigate = (event: Event) => {
       const move = event as Move
