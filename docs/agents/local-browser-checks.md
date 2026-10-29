@@ -119,5 +119,7 @@ pnpm exec playwright test e2e/<spec>.spec.ts --output=/tmp/lane-<ticket>-scratch
   organization, the fixture password), mark it, and give it back with its own name instead of deleting it. It runs
   one worker. A crashed run leaves `laneE2EBorrowedBy` in that user's `privateMetadata`, so it isn't borrowed again
   until someone clears it.
+- `LANE_E2E_START=1`: serves the production build in `.next` (run `pnpm build` first) with `next start` instead of
+  `next dev`, for a run against what ships.
 - Only the database moves: Clerk and file storage stay the services `.env.local` names. Fixtures still create (and
   delete) their own Clerk users while Clerk has room; borrowing starts only at the cap.
