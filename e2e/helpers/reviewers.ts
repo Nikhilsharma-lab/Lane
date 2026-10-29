@@ -52,8 +52,9 @@ async function giveBackBorrowed(users: TestUser[], orgId?: string) {
         const client = await assertOwnedOrganization(orgId);
         await client.organizations.deleteOrganizationMembership({ organizationId: orgId, userId: user.id });
       }
-      // The workspace's local rows go too, so the next run that borrows this user starts clean.
-      if (ownerBorrowed) await cleanupTestWorkspace(user.id);
+      // The workspace's local rows go too where they can, so the next run that borrows this user starts clean. A
+      // workspace with release history keeps its rows (history is immutable); the user still goes back.
+      if (ownerBorrowed) await cleanupTestWorkspace(user.id).catch((error) => console.warn(`[e2e] kept the local rows of ${user.id}'s workspace:`, error.message));
       await deleteTestUser(user.id);
     } catch (error) {
       console.warn(`[e2e] couldn't give back borrowed user ${user.id}:`, error);

@@ -212,33 +212,41 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
       await expect(page.locator("[data-pressed]")).toHaveCount(0);
     });
     await test.step("The sidebar's and Settings' own links show as pressed too, and nothing is pressed offline", async () => {
-      // Reads a link the pointer is resting on: hover styles must not hide the pressed wash.
-      const pressedOnClick = (link: ReturnType<Page["locator"]>) => link.evaluate(async element => {
-        const probe = document.createElement("div");
+      // The pointer rests on the link it clicked, so hover styles must not hide the pressed wash. The next page is
+      // held back until the wash has been read, and the link's own colour transition has run.
+      const pressedColour = (link: ReturnType<Page["locator"]>) => link.evaluate(element => {
+        const probe = document.createElement("span");
         probe.style.background = "var(--interaction-pressed)";
-        document.body.append(probe);
-        const pressed = getComputedStyle(probe).backgroundColor;
+        element.parentElement!.append(probe);
+        const colour = getComputedStyle(probe).backgroundColor;
         probe.remove();
-        (element as HTMLAnchorElement).click();
-        await new Promise(requestAnimationFrame);
-        return { after: getComputedStyle(element).backgroundColor, pressed };
+        return colour;
       });
+      const pressedOnClick = async (link: ReturnType<Page["locator"]>, path: RegExp) => {
+        let release!: () => void;
+        const held = new Promise<void>(resolve => { release = resolve; });
+        await page.route(path, async route => { await held; await route.continue().catch(() => undefined); });
+        try {
+          await link.hover();
+          const pressed = await pressedColour(link);
+          await link.click({ noWaitAfter: true });
+          await expect.poll(() => link.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(pressed);
+        } finally {
+          release();
+        }
+        await page.unrouteAll({ behavior: "ignoreErrors" });
+      };
       const sidebar = page.locator("#lane-sidebar");
-      for (const [name, url] of [[/^Impact$/, /\/impact$/], [/^Inbox/, /\/inbox$/]] as const) {
+      for (const [name, path, url] of [[/^Impact$/, /\/impact(\?|$)/, /\/impact$/], [/^Inbox/, /\/inbox(\?|$)/, /\/inbox$/]] as const) {
         await page.goto("/");
         await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
-        const link = sidebar.getByRole("link", { name });
-        await link.hover();
-        const looks = await pressedOnClick(link);
-        expect(looks.after).toBe(looks.pressed);
+        await pressedOnClick(sidebar.getByRole("link", { name }), path);
         await expect(page).toHaveURL(url);
         await expect(page.locator("[data-pressed]")).toHaveCount(0);
       }
       await page.goto("/settings/profile");
       const members = page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Members", exact: true });
-      await members.hover();
-      const settingsLooks = await pressedOnClick(members);
-      expect(settingsLooks.after).toBe(settingsLooks.pressed);
+      await pressedOnClick(members, /\/settings\/members(\?|$)/);
       await expect(page).toHaveURL(/\/settings\/members$/);
       await page.screenshot({ path: testInfo.outputPath("pressed-settings-nav.png") });
 
