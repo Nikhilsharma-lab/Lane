@@ -302,4 +302,29 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await deleteTestUser(user.id);
     }
   });
+
+  test("on a phone the New Request composer is the bottom panel and keeps its draft without asking", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ colorScheme: "dark" });
+    await withWorkspace(page, "composer-panel", async () => {
+      await page.goto("/intake");
+      await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
+      const launcher = page.getByRole("link", { name: "Create Request", exact: true });
+      await launcher.click();
+      const composer = page.getByRole("dialog", { name: "New Request", exact: true });
+      const title = composer.getByRole("textbox", { name: "Request title" });
+      await expect(title).toBeFocused({ timeout: 20_000 });
+      await expect.poll(async () => { const box = await dialogBox(composer); return box.left <= 1 && box.right >= box.width - 1 && box.bottom >= box.height - 1; }).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      // The composer keeps its draft, so closing with typed text asks nothing and loses nothing.
+      await title.fill("Phone filing keeps the draft");
+      await page.keyboard.press("Escape");
+      await expect(composer).toHaveCount(0);
+      await expect(discardPrompt(page)).toHaveCount(0);
+      await expect(launcher).toBeFocused();
+      await launcher.click();
+      await expect(title).toHaveValue("Phone filing keeps the draft");
+    });
+  });
 });
