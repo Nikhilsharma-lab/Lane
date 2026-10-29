@@ -82,7 +82,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   return <SettingsCommandAdapter page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
     metrics={panel}
     members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
-    account={<AccountProfile fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
+    account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
     delivery={await inboxDeliveryPanel(workspace)} slack={await slackPanel(workspace)} billing={await billingPanel(workspace)} />;
 }

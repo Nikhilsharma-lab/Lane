@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, profiles } from "@/db";
+import { SESSION_ENDED } from "@/lib/auth-guard";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -43,7 +44,7 @@ describe("syncAccountName", () => {
     mockSession = { userId: MEMBER_ID, orgId: ORG_ID, orgRole: "org:member" };
     mockAccount = { firstName: "Daniel", lastName: "Okafor", username: null, primaryEmailAddress: { emailAddress: "daniel@example.com" } };
 
-    expect(await syncAccountName()).toEqual({ success: true });
+    expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ success: true });
     expect(await nameOf(MEMBER_ID)).toBe("Daniel Okafor");
     expect(await nameOf(OWNER_ID)).toBe(ownerBefore);
   });
@@ -53,7 +54,7 @@ describe("syncAccountName", () => {
     mockSession = { userId: MEMBER_ID, orgId: ORG_ID, orgRole: "org:member" };
     mockAccount = { firstName: null, lastName: null, username: null, primaryEmailAddress: { emailAddress: "daniel@example.com" } };
 
-    expect(await syncAccountName()).toEqual({ success: true });
+    expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ success: true });
     expect(await nameOf(MEMBER_ID)).toBe("daniel@example.com");
   });
 
@@ -63,7 +64,7 @@ describe("syncAccountName", () => {
     mockAccount = { firstName: "Daniel", lastName: "Okafor", username: null, primaryEmailAddress: null };
 
     // A forged argument is ignored: the name only ever comes from Clerk.
-    await (syncAccountName as unknown as (forged: unknown) => Promise<unknown>)({ name: "Someone Else" });
+    await (syncAccountName as unknown as (forged: unknown) => Promise<unknown>)({ orgId: ORG_ID, name: "Someone Else", fullName: "Someone Else", userId: OWNER_ID });
     expect(await nameOf(MEMBER_ID)).toBe("Daniel Okafor");
   });
 
@@ -73,8 +74,20 @@ describe("syncAccountName", () => {
     mockSession = { userId: null, orgId: null, orgRole: null };
     mockAccount = { firstName: "Someone", lastName: "Else", username: null, primaryEmailAddress: null };
 
-    expect(await syncAccountName()).toHaveProperty("error");
+    expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ error: SESSION_ENDED });
     expect(await nameOf(MEMBER_ID)).toBe(before);
+  });
+
+  it("changes nothing for someone signed in to another workspace", async () => {
+    await remember(MEMBER_ID, OWNER_ID);
+    const member = await nameOf(MEMBER_ID);
+    const owner = await nameOf(OWNER_ID);
+    mockSession = { userId: OUTSIDER_ID, orgId: "org_test_b", orgRole: "org:member" };
+    mockAccount = { firstName: "Someone", lastName: "Else", username: null, primaryEmailAddress: null };
+
+    expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ error: "You do not have access to this workspace." });
+    expect(await nameOf(MEMBER_ID)).toBe(member);
+    expect(await nameOf(OWNER_ID)).toBe(owner);
   });
 });
 

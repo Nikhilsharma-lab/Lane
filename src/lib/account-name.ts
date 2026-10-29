@@ -14,3 +14,12 @@ export function accountName(account: AccountNameSource): string {
   const name = [account.firstName, account.lastName].map(part => part?.trim()).filter(Boolean).join(" ")
   return name || account.username?.trim() || account.email?.trim() || "User"
 }
+
+/** The fields Lane reads from a Clerk user: the server's `currentUser()` and the browser's `useUser().user` both have them. */
+export type ClerkAccount = Omit<AccountNameSource, "email"> & { primaryEmailAddress?: { emailAddress: string } | null }
+
+/** `accountName` for a Clerk user, or "User" when there is none. */
+export function accountNameOf(user: ClerkAccount | null | undefined): string {
+  if (!user) return "User"
+  return accountName({ firstName: user.firstName, lastName: user.lastName, username: user.username, email: user.primaryEmailAddress?.emailAddress })
+}
