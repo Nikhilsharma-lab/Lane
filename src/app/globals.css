@@ -32,11 +32,16 @@
   strong { font-weight: var(--weight-medium); }
 }
 
+/* #262: Lane's one reduced-motion rule, CSS half: every animation and transition finishes at once. Zero, not a
+   tiny duration: a CSS transition or animation starts on the next frame, so even 0.01ms held the old look for
+   a frame and, with the default `transition-property: all`, made every inline style change (Motion's) lag too.
+   Zero-length animations still fire animationend, which Radix waits for. Delays are kept, so a placeholder
+   still waits its 0.15s before appearing. The Motion half is src/components/motion/reduced-motion.tsx. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
-    animation-duration: calc(var(--duration-standard) * 0.00005) !important;
+    animation-duration: 0s !important;
     animation-iteration-count: 1 !important;
-    transition-duration: calc(var(--duration-standard) * 0.00005) !important;
+    transition-duration: 0s !important;
   }
 }
