@@ -9,6 +9,7 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, LoaderCircle, Lo
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./user-menu.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 export type UserStatus = "available" | "busy" | "away";
 export type ThemePreference = "light" | "dark" | "system";
@@ -140,7 +141,7 @@ function Rise({ text, reduced }: { text: string; reduced: boolean }) {
 }
 
 function Keys({ keys }: { keys: string[] }) {
-  return <kbd className={styles.keys} aria-hidden="true">{keys.map((key, index) => <kbd key={`${key}-${index}`} className={styles.key}>{key}</kbd>)}</kbd>;
+  return <span className={styles.keys} aria-hidden="true">{keys.map((key, index) => <KeyCap key={`${key}-${index}`}>{key}</KeyCap>)}</span>;
 }
 
 /** A compact inline switch. It is one stop in the menu: up and down pass over it, left and right choose within it. */
@@ -597,7 +598,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
         aria-disabled={!!(workspaces?.pendingId || switchingId) || undefined}
         aria-busy={signingOut || undefined} onPointerMove={onItemPointerMove} onClick={signOut}>
         <span className={styles.icon} aria-hidden="true">{signingOut ? <LoaderCircle className={styles.spinner} strokeWidth={1.75} /> : <LogOut strokeWidth={1.75} />}</span>
-        <span className={styles.itemLabel}><Rise text={signingOut ? "Signing out" : signOutLabel} reduced={reduced} /></span>
+        <span className={styles.itemLabel}><Rise text={signOutLabel} reduced={reduced} /></span>
         {signOutKeys && <Keys keys={signOutKeys} />}
       </motion.button>
       {signOutError && <p className={`${styles.message} ${styles.error}`} role="alert">Couldn’t sign out. Try again.</p>}

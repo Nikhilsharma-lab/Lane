@@ -6,16 +6,12 @@ import { RedirectType, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { db, profiles } from "@/db";
-import { accountName } from "@/lib/account-name";
+import { accountNameOf } from "@/lib/account-name";
 import { clerkWorkspacePermission } from "@/lib/auth-guard";
 
 const onboardingRoleSchema = z.object({
   role: z.enum(["pm", "designer", "developer"]),
 });
-
-function userDisplayName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>) {
-  return accountName({ firstName: user.firstName, lastName: user.lastName, username: user.username, email: user.primaryEmailAddress?.emailAddress });
-}
 
 export async function saveOnboardingRole(data: { role: string }) {
   const parsed = onboardingRoleSchema.safeParse(data);
@@ -34,7 +30,7 @@ export async function saveOnboardingRole(data: { role: string }) {
     .insert(profiles)
     .values({
       id: userId,
-      fullName: userDisplayName(user),
+      fullName: accountNameOf(user),
       email: user.primaryEmailAddress?.emailAddress ?? "",
       role: parsed.data.role,
       avatarUrl: user.imageUrl,
@@ -42,7 +38,7 @@ export async function saveOnboardingRole(data: { role: string }) {
     .onConflictDoUpdate({
       target: profiles.id,
       set: {
-        fullName: userDisplayName(user),
+        fullName: accountNameOf(user),
         email: user.primaryEmailAddress?.emailAddress ?? "",
         role: parsed.data.role,
         avatarUrl: user.imageUrl,

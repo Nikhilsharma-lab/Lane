@@ -77,10 +77,10 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
     ...(paying && open.plan && !endsOn ? ["cancel" as const] : []),
   ];
 
-  async function go(chosen: BillingPeriod | PortalFlow, opening: string, call: () => Promise<Answer>) {
+  async function go(chosen: BillingPeriod | PortalFlow, call: () => Promise<Answer>) {
     setBusy(chosen);
     setError(null);
-    setStatus(opening);
+    setStatus("");
     try {
       const answer = await callAction(call);
       if (answer.url) {
@@ -94,8 +94,8 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
     setStatus("");
     setBusy(null);
   }
-  const pay = (chosen: BillingPeriod) => go(chosen, "Opening the checkout page…", () => onCheckout(chosen));
-  const openPage = (flow: PortalFlow) => onOpenPage && go(flow, "Opening the billing page…", () => onOpenPage(flow));
+  const pay = (chosen: BillingPeriod) => go(chosen, () => onCheckout(chosen));
+  const openPage = (flow: PortalFlow) => onOpenPage && go(flow, () => onOpenPage(flow));
 
   const description = paying
     ? `This workspace pays for Lane, billed ${period ?? "yearly"}.`

@@ -211,6 +211,57 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
       await expect(page.getByRole("button", { name: "Pick up", exact: true })).toBeVisible();
       await expect(page.locator("[data-pressed]")).toHaveCount(0);
     });
+    await test.step("The sidebar's and Settings' own links show as pressed too, and nothing is pressed offline", async () => {
+      // The pointer rests on the link it clicked, so hover styles must not hide the pressed wash. The next page is
+      // held back until the wash has been read, and the link's own colour transition has run.
+      const pressedColour = (link: ReturnType<Page["locator"]>) => link.evaluate(element => {
+        const probe = document.createElement("span");
+        probe.style.background = "var(--interaction-pressed)";
+        element.parentElement!.append(probe);
+        const colour = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return colour;
+      });
+      // Holds every request for the next page from before the page that links to it loads, so neither a prefetch
+      // nor the move itself can bring it in while the link is read.
+      const pressedOnClick = async (from: string, link: ReturnType<Page["locator"]>, path: RegExp, url: RegExp) => {
+        let release!: () => void;
+        const held = new Promise<void>(resolve => { release = resolve; });
+        await page.route(path, async route => { await held; await route.continue().catch(() => undefined); });
+        try {
+          await page.goto(from);
+          await expect(link).toBeVisible({ timeout: 20_000 });
+          await expect(page.locator("html[data-loading-feel=ready]")).toHaveCount(1, { timeout: 20_000 });
+          await link.hover();
+          const pressed = await pressedColour(link);
+          await link.click({ noWaitAfter: true });
+          await expect.poll(() => link.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(pressed);
+        } finally {
+          release();
+        }
+        await expect(page).toHaveURL(url);
+        await page.unrouteAll({ behavior: "ignoreErrors" });
+        await expect(page.locator("[data-pressed]")).toHaveCount(0);
+      };
+      const sidebar = page.locator("#lane-sidebar");
+      await pressedOnClick("/", sidebar.getByRole("link", { name: /^Impact$/ }), /\/impact(\?|$)/, /\/impact$/);
+      await pressedOnClick("/", sidebar.getByRole("link", { name: /^Inbox/ }), /\/inbox(\?|$)/, /\/inbox$/);
+      // Metrics has its own page; the Profile page's own sections show in place, with nothing to wait for.
+      await pressedOnClick("/settings/profile", page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Metrics", exact: true }),
+        /\/settings\/metrics(\?|$)/, /\/settings\/metrics$/);
+      await page.screenshot({ path: testInfo.outputPath("pressed-settings-nav.png") });
+
+      await page.goto("/");
+      await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
+      await page.context().setOffline(true);
+      try {
+        await sidebar.getByRole("link", { name: /^Impact$/ }).click();
+        await expect(page.locator("[data-pressed]")).toHaveCount(0);
+        await expect(page).not.toHaveURL(/\/impact$/);
+      } finally {
+        await page.context().setOffline(false);
+      }
+    });
     await test.step("Check-page samples: light and dark, desktop and phone", async () => {
       // Screenshots for the pull request's check page; the behaviour is asserted in the steps above.
       for (const theme of ["light", "dark"] as const) {

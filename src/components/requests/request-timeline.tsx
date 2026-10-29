@@ -8,7 +8,7 @@ import { readRequestOutcome } from "@/app/(app)/requests/[id]/outcome-actions"
 import { callAction } from "@/lib/action-call"
 import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
-import { momentDay, plannedDay } from "@/lib/dates"
+import { plannedDay } from "@/lib/dates"
 import { FORMER_MEMBER, type JourneyAction } from "@/lib/request-journey"
 import { DAY_MS, dayNumber } from "@/lib/utc-day"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome"
@@ -19,6 +19,8 @@ import { InPageForm } from "@/components/popup/in-page-form"
 import { RequestReviews } from "./request-reviews"
 import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverForm, MeasuredCloseForm, resultValue, VoidReleaseForm } from "./request-timeline-forms"
 import { timelineSteps, type TimelineStep } from "./request-timeline-model"
+import { JourneyLine } from "./journey-line"
+import { LocalTime } from "./local-time"
 import styles from "./request-timeline.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
 
@@ -161,7 +163,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
       {closure.learned && <p>What we learned: {closure.learned}</p>}
       {!!outcome.corrections.length && <div className={styles.facts}><h4>Corrections</h4><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
         <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
-        <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on {momentDay(c.at)}.</p>
+        <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on <LocalTime iso={c.at} day />.</p>
       </li>)}</ol></div>}
     </div>
   }
@@ -181,7 +183,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
           <div className={styles.stepBody}>
             <h3 id={headingId} className={styles.stepHeading}>{step.label}<span className="sr-only"> ({STATE_WORDS[step.state]})</span></h3>
             {step.state === "skipped" && <p className={styles.muted}>Skipped</p>}
-            {step.happened.map(line => <p key={line}>{line}</p>)}
+            {step.happened.map((line, index) => <JourneyLine key={index} line={line} />)}
             {details(step)}
             {step.countdown && <p role="status" className={styles.countdown}>{step.countdown}</p>}
             {step.next && <p className={styles.muted}>{step.next}</p>}
@@ -200,7 +202,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
     {!!release.history.length && <details className={styles.history}>
       <summary>Release and handover history ({release.history.length})</summary>
       <ol className={styles.list}>{release.history.map(event => <li key={event.revision}>
-        <p>{historyLine(event)} by {name(event.actorId)} on {momentDay(event.at)}.</p>
+        <p>{historyLine(event)} by {name(event.actorId)} on <LocalTime iso={event.at} day />.</p>
         {"reason" in event.input && <p className={styles.muted}>{event.input.reason}</p>}
         {event.input.kind === "transfer" && <p className={styles.muted}>{name(event.previousOwnerId)} → {name(event.ownerId)}</p>}
         {event.release && <p className={styles.muted}>Released: {plannedDay(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {plannedDay(event.release.dueDate)}. Evidence: {event.release.evidence}</p>}

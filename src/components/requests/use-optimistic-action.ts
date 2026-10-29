@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useToastStack, type ToastOptions } from "@/components/arc/toast-stack/toast-stack"
 import { callAction, clerkActionSession, isSessionFailure, type ActionSession } from "@/lib/action-call"
 import { isOffline } from "@/lib/connection-status"
-import { CHECK_CONNECTION, OFFLINE_ANSWER, OFFLINE_ANSWER_TITLE, SAVE_FAILED_TITLE, TRY_AGAIN, isOfflineError } from "@/lib/failure-messages"
+import { CHECK_CONNECTION, OFFLINE_ANSWER, OFFLINE_ANSWER_TITLE, SAVE_FAILED_TITLE, TRY_AGAIN, isOfflineError, thrownMessage } from "@/lib/failure-messages"
 import { usePendingMutationWriter, type PendingMutations, type RequestPatch } from "./pending-mutations-provider"
 
 /** What every Request action returns: `{ error }` on a refusal, anything else on success. */
@@ -46,7 +46,7 @@ export type OverlayWriter = Pick<PendingMutations, "begin" | "confirm" | "rollba
 
 export type OptimisticDeps = {
   overlay: OverlayWriter | null
-  /** Re-syncs the page with the server. Only failure paths call it. */
+  /** Re-syncs the page with the server. Only failure paths call it; `useServerRefresh` skips it offline. */
   refresh: () => void
   /** The session token every call refreshes first (`callAction`). */
   session: ActionSession
@@ -56,9 +56,7 @@ export type OptimisticDeps = {
   offline?: () => boolean
 }
 
-export const FAILURE_TITLE = SAVE_FAILED_TITLE
-const CONNECTION_ERROR = CHECK_CONNECTION
-const thrownError = (thrown: unknown) => isOfflineError(thrown) ? OFFLINE_ANSWER : CONNECTION_ERROR
+const thrownError = (thrown: unknown) => thrownMessage(thrown, CHECK_CONNECTION)
 
 const errorOf = (result: unknown) =>
   result && typeof result === "object" && "error" in result && typeof result.error === "string" && result.error ? result.error : null
@@ -75,8 +73,8 @@ async function attempt<R>(run: () => Promise<R>, session: ActionSession): Promis
  * and rolls back with feedback on a refusal or a throw. Success never refreshes
  * the router: every action revalidates, so its response already carries the rows.
  * #260: offline, nothing is shown or sent and the feedback is the shared offline
- * answer; a failure re-syncs only while online, because a refresh offline makes
- * Next.js fall back to a full page load onto the browser's "No internet" page.
+ * answer; a failure re-syncs through `useServerRefresh`, which skips it offline, because a refresh offline
+ * makes Next.js fall back to a full page load onto the browser's "No internet" page.
  * Every failure's feedback carries Try again; nothing is queued.
  */
 export async function runOptimistic<R>(deps: OptimisticDeps, options: OptimisticOptions<R>): Promise<OptimisticOutcome<R>> {
@@ -113,12 +111,12 @@ export async function runOptimistic<R>(deps: OptimisticDeps, options: Optimistic
   }
 
   const thrown = "thrown" in outcome
-  const message = error ?? CONNECTION_ERROR
+  const message = error ?? CHECK_CONNECTION
   const wentOffline = thrown && isOfflineError(outcome.thrown)
   rollback()
   finish(false)
   fail(message, { thrown, auth: isSessionFailure(outcome), offline: wentOffline })
-  if (options.refreshOnError !== false && !offline()) deps.refresh()
+  if (options.refreshOnError !== false) deps.refresh()
   return { status: "error", error: message, thrown, offline: wentOffline || undefined }
 }
 
@@ -143,13 +141,12 @@ export async function runOptimisticBatch(deps: OptimisticDeps, options: {
     finishers.get(id)?.(succeeded)
   }
 
-  const offline = deps.offline ?? isOffline
   const outcome = await attempt(options.run, deps.session)
   const error = "thrown" in outcome ? thrownError(outcome.thrown) : errorOf(outcome.value)
   if (error !== null || !("value" in outcome)) {
     for (const id of options.ids) settle(id, false)
-    if (!offline()) deps.refresh()
-    return { status: "error", error: error ?? CONNECTION_ERROR, thrown: "thrown" in outcome }
+    deps.refresh()
+    return { status: "error", error: error ?? CHECK_CONNECTION, thrown: "thrown" in outcome }
   }
 
   const moved = new Set(outcome.value.moved ?? [])
@@ -159,7 +156,7 @@ export async function runOptimisticBatch(deps: OptimisticDeps, options: {
   for (const id of options.ids) settle(id, moved.has(id))
   // Moved rows arrive in the action's own revalidated response; rows it did
   // not move were never revalidated, so only a partial failure re-syncs.
-  if (failed.length && !offline()) deps.refresh()
+  if (failed.length) deps.refresh()
   return { status: "success", moved: [...moved], failed }
 }
 
@@ -178,7 +175,7 @@ export function failureToast(message: string, { offline, retry }: Pick<FailureDe
   const action = { label: TRY_AGAIN, onClick: () => { void retry() } }
   return offline
     ? { type: "warning", title: OFFLINE_ANSWER_TITLE, action }
-    : { type: "error", title: FAILURE_TITLE, description: message, action }
+    : { type: "error", title: SAVE_FAILED_TITLE, description: message, action }
 }
 
 function useOptimisticDeps(): OptimisticDeps {

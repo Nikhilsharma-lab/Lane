@@ -382,6 +382,9 @@ test('product code draws key caps only through the shared KeyCap', () => {
   assert.equal(tokenContract.auditKeyCaps('const hint = <p>Press <kbd className={styles.key}>C</kbd></p>', 'src/components/shell/hint.tsx').length, 1)
   assert.deepEqual(tokenContract.auditKeyCaps('const hint = <p>Press <KeyCap>C</KeyCap></p>', 'src/components/shell/hint.tsx'), [])
   assert.deepEqual(tokenContract.auditKeyCaps('const cap = <kbd className={styles.kbd}>C</kbd>', 'src/components/arc/shortcut-recorder/shortcut-recorder.tsx'), [])
+  // Arc components installed into Lane draw their keys with KeyCap too; only Arc's own key cap source is exempt.
+  assert.equal(tokenContract.auditKeyCaps('const tip = <span>Search<kbd>/</kbd></span>', 'src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx').length, 1)
+  assert.equal(tokenContract.auditKeyCaps('const row = <kbd className={styles.shortcut}>1</kbd>', 'src/components/arc/radio-group/radio-group.tsx').length, 1)
   assert.deepEqual(tokenContract.auditKeyCaps('const cap = <kbd>C</kbd>', 'src/components/keyboard/key-caps.tsx'), [])
   const errors = auditFixture({ 'src/app/hint.tsx': 'export const Hint = () => <kbd>/</kbd>\n' }).errors
   assert.equal(errors.length, 1, errors.join('\n'))

@@ -148,6 +148,9 @@ test.describe("dates (B5, B7, C15)", () => {
       await expect(journey(india.page).getByText(`Requested by Dana Dates on 21 Oct ${year}.`, { exact: true })).toBeVisible();
       await expect(journey(india.page).getByText(`Picked up by Dana Dates on 22 Oct ${year}.`, { exact: true })).toBeVisible();
       await expect(journey(india.page).getByText(`Marked Done on 23 Oct ${year}.`, { exact: true })).toBeVisible();
+      // Hovering a Journey moment shows its full date and time, in the viewer's zone.
+      await expect(journey(india.page).getByText(`Requested by Dana Dates on 21 Oct ${year}.`, { exact: true }).locator("time"))
+        .toHaveAttribute("title", new RegExp(`^[A-Z][a-z]+day 21 October ${year}, 01:30$`));
       await expect(india.page.getByRole("region", { name: "Goal", exact: true })).toContainText(`1 Nov ${year} to 30 Nov ${year}`);
       await expect(india.page.locator("main")).not.toContainText("UTC");
       await india.page.screenshot({ path: test.info().outputPath("B5-request-india-1440-light.png"), fullPage: true });
@@ -157,6 +160,8 @@ test.describe("dates (B5, B7, C15)", () => {
       await expect(journey(losAngeles.page).getByText(`Requested by Dana Dates on 20 Oct ${year}.`, { exact: true })).toBeVisible();
       await expect(journey(losAngeles.page).getByText(`Picked up by Dana Dates on 21 Oct ${year}.`, { exact: true })).toBeVisible();
       await expect(journey(losAngeles.page).getByText(`Marked Done on 22 Oct ${year}.`, { exact: true })).toBeVisible();
+      await expect(journey(losAngeles.page).getByText(`Picked up by Dana Dates on 21 Oct ${year}.`, { exact: true }).locator("time"))
+        .toHaveAttribute("title", new RegExp(`^[A-Z][a-z]+day 21 October ${year}, 13:30$`));
       // Planned days have no zone: the same calendar days in both.
       await expect(losAngeles.page.getByRole("region", { name: "Goal", exact: true })).toContainText(`1 Nov ${year} to 30 Nov ${year}`);
       await losAngeles.page.screenshot({ path: test.info().outputPath("B5-request-los-angeles-1440-light.png"), fullPage: true });

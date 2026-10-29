@@ -24,7 +24,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       <SettingsCommandAdapter membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section}
         members={membersPanel(workspace)}
         workspaceManagement={workspace.role !== "guest" ? <ClerkWorkspaceProfile /> : undefined}
-        account={<AccountProfile fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
+        account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
         security={<AccountSecurity />}
         role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />}
         appearance={<ThemePreference compact />}

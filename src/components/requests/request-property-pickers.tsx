@@ -201,7 +201,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
         <div className={styles.projectActions}>
           <Button type="button" variant="ghost" size="sm" disabled={creating}
             onClick={() => { setNaming(false); setProjectName(""); setCreateError(null); }}>Cancel</Button>
-          <Button type="button" size="sm" disabled={creating || !normalized}
+          <Button type="button" size="sm" loading={creating} disabled={!normalized}
             onClick={() => void choose({ id: "create", name: normalized, kind: "create" })}>Create Project</Button>
         </div>
       </div> : <>
@@ -236,7 +236,6 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
         </Button>
       </div>
       </>}
-      {creating && <p role="status" className="text-sm text-muted-foreground">Creating Project…</p>}
     </PopoverContent>
   </Popover>;
 }

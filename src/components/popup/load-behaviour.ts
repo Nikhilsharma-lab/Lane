@@ -1,20 +1,24 @@
 import { useSyncExternalStore } from "react"
 
 /**
- * #263: the popup and in-page form behaviour (popup-behaviour.tsx: focus in and back, the typed-text guard, the
- * phone panel) stays out of every page's first load. It loads once the page is idle, long before anyone types into
- * a popup; until then popups behave as Arc's do.
+ * #263: the popup's phone panel switch (popup-behaviour.tsx) stays out of every page's first load. It loads at the
+ * first sign someone is about to use a popup (a press, a key or focus anywhere in the page but on a link, which moves
+ * to another page instead), or once the page is idle, and no later than `DEADLINE_MS` after the page starts. Until then popups open as the centred Arc dialog; focus and
+ * the typed-text guard don't wait for it (adaptive-dialog.tsx, in-page-form.tsx).
  */
 type Behaviour = typeof import("./popup-behaviour")
 let behaviour: Behaviour | null = null
 let loading: Promise<Behaviour> | null = null
 const listeners = new Set<() => void>()
 
+/** The longest the idle wait may take before the behaviour loads anyway. */
+const DEADLINE_MS = 1000
+
 export function loadBehaviour() {
   loading ??= import("./popup-behaviour").then(module => {
     behaviour = module
     listeners.forEach(listener => listener())
-    // For the browser tests: what opens from now on has Lane's focus, Escape and phone behaviour.
+    // For the browser tests: what opens from now on can become the phone panel.
     document.documentElement.dataset.popupBehaviour = "ready"
     return module
   })
@@ -22,8 +26,16 @@ export function loadBehaviour() {
 }
 
 if (typeof window !== "undefined") {
-  const idle = window.requestIdleCallback ?? ((run: () => void) => window.setTimeout(run, 1))
-  idle(() => { void loadBehaviour().catch(() => { loading = null }) })
+  const INTENT = ["pointerdown", "keydown", "focusin"] as const
+  const start = (event?: Event) => {
+    // A link moves to another page: loading now would only compete with that page.
+    if (event && (event.target as Element | null)?.closest?.("a[href]")) return
+    for (const type of INTENT) document.removeEventListener(type, start, true)
+    void loadBehaviour().catch(() => { loading = null })
+  }
+  for (const type of INTENT) document.addEventListener(type, start, true)
+  if (window.requestIdleCallback) window.requestIdleCallback(() => start(), { timeout: DEADLINE_MS })
+  else window.setTimeout(() => start(), 1)
 }
 
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }

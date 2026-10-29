@@ -1,7 +1,7 @@
 "use client";
 
 import { callAction } from "@/lib/action-call";
-import { OFFLINE_ANSWER, isOfflineError } from "@/lib/failure-messages";
+import { CHECK_CONNECTION, OFFLINE_ANSWER, isOfflineError } from "@/lib/failure-messages";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 
@@ -83,7 +83,7 @@ export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
     if (outcome.status === "failed") {
       setError(
         isOfflineError(outcome.error) ? `${OFFLINE_ANSWER} Your role selection is still here.` :
-        "Your role selection is still here. Check your connection and try again."
+        `Your role selection is still here. ${CHECK_CONNECTION}`
       );
       return;
     }

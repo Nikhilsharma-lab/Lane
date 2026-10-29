@@ -11,7 +11,8 @@
  * `OfflineError` (src/lib/connection-status.ts); callers say the shared
  * "You're offline" answer (src/lib/failure-messages.ts). Nothing is queued for later.
  */
-import { OfflineError, isOffline } from "./connection-status"
+import { isOffline } from "./connection-status"
+import { OfflineError } from "./offline-error"
 
 
 /** Matches SESSION_ENDED (src/lib/auth-guard.ts), what any guarded action says

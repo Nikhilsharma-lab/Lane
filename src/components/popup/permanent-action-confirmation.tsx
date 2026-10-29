@@ -3,6 +3,7 @@
 import { useRef, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from "./adaptive-dialog"
+import type { ReturnFocus } from "./focus"
 import styles from "./popup.module.css"
 
 /**
@@ -21,7 +22,7 @@ export function PermanentActionConfirmation({ open, onOpenChange, trigger, title
   confirmLabel: string
   onConfirm: () => void
   busy?: boolean
-  returnFocus?: () => HTMLElement | null | undefined
+  returnFocus?: ReturnFocus
   children?: ReactNode
 }) {
   const cancel = useRef<HTMLButtonElement>(null)

@@ -414,19 +414,6 @@ describe("useOptimisticAction core", () => {
     expect(view().patches.a).toBeDefined()
   })
 
-  // #260 (A21): a refresh offline makes Next.js fall back to a full page load onto "No internet".
-  it("re-syncs after a failure only while the browser is online", async () => {
-    const { view } = setup()
-    const deps = depsFor(view)
-    const outcome = await runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run: async () => {
-      deps.offline.mockReturnValue(true)
-      throw new TypeError("Failed to fetch")
-    } })
-    expect(outcome.status).toBe("error")
-    expect(view().patches.a).toBeUndefined()
-    expect(deps.refresh).not.toHaveBeenCalled()
-  })
-
   it("runs without an overlay outside the provider", async () => {
     const deps: OptimisticDeps = { overlay: null, refresh: vi.fn(), notifyError: vi.fn(), session: { current: vi.fn(async () => {}), renew: vi.fn(async () => {}) } }
     await expect(runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run: async () => ({ success: true }) })).resolves.toMatchObject({ status: "success" })

@@ -8,6 +8,7 @@ import { LayoutGroup, animate, motion, useMotionValue } from "motion/react";
 import { Search, CornerDownLeft } from "lucide-react";
 import { motionTokens } from "../../lib/motion-tokens";
 import styles from "./settings-command.module.css";
+import { KeyCap } from "@/components/keyboard/key-caps";
 export type SettingDefinition = { id: string; section: string; group: string; label: string; description: string; keywords?: string[]; soon?: boolean; target?: string };
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Result = { def: SettingDefinition; score: number; match: [number, number] | null };
@@ -112,7 +113,7 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
         <input ref={input} value={query} onChange={event => { onQuery(event.target.value); onActive(0); }} onKeyDown={onKey}
           aria-label="Search settings" placeholder="Search settings" role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list"
           aria-activedescendant={shown[active] ? `${uid}-option-${shown[active].def.id}` : undefined} spellCheck={false} autoComplete="off" />
-        <kbd className={styles.kbd}>Esc</kbd>
+        <KeyCap>Esc</KeyCap>
       </div>
       <motion.div className={styles.paletteBody} style={{ opacity: body }}>
         {!query.trim() && <p className={styles.paletteHint}>Suggested</p>}
@@ -135,8 +136,8 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
           </ul></LayoutGroup>
           : <p className={styles.empty} role="status">No settings match “{query.trim()}”</p>}
         <div className={styles.paletteFoot} aria-hidden="true">
-          <span><kbd className={styles.kbd}>↑</kbd><kbd className={styles.kbd}>↓</kbd> Move</span>
-          <span><kbd className={styles.kbd}>↵</kbd> Jump to setting</span>
+          <span><KeyCap>↑</KeyCap><KeyCap>↓</KeyCap> Move</span>
+          <span><KeyCap>↵</KeyCap> Jump to setting</span>
         </div>
       </motion.div>
     </div>

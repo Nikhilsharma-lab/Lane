@@ -51,7 +51,6 @@
 .vertical .separator { width: calc(var(--fbg-h) * .5); height: calc(var(--space-1) * 0.25); margin: calc(var(--space-1) * 0.5) 0; }
 
 .tip { display: inline-flex; align-items: baseline; gap: var(--space-3); white-space: nowrap; }
-.kbd { font: inherit; color: var(--tooltip-muted); font-variant-numeric: tabular-nums; }
 
 /* Side tooltips for a column match the library tooltip, rising a few pixels away from the rail instead of up. */
 .sideTip { --tip-x: calc(var(--space-1) * -0.75); z-index: 90; max-width: calc(var(--space-1) * 60); padding: var(--space-3) var(--space-4); border: var(--border-width) solid var(--border); border-radius: var(--radius-control); background: var(--foreground); color: var(--background); box-shadow: var(--shadow-raised); font-family: var(--font-body); font-size: var(--text-sm); font-weight: var(--weight-normal); letter-spacing: var(--tracking-body); line-height: var(--leading-body); transform-origin: var(--radix-tooltip-content-transform-origin); transition: opacity var(--duration-fast) var(--ease-enter), transform var(--duration-fast) var(--ease-enter); }

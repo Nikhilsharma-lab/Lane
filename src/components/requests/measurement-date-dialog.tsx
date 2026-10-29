@@ -2,7 +2,7 @@
 
 import { useRef, useState, type RefObject } from "react"
 import { DateRangePicker } from "@/components/date-range-picker-lazy"
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
+import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import styles from "./measurement-date-dialog.module.css"
 
 /** Parse a date in the viewer's local calendar, without UTC shifting its day. */

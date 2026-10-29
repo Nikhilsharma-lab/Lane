@@ -1,9 +1,15 @@
+import { TEXT_FIELDS } from "./typed-text"
+
 /**
  * #263: where focus goes when a Lane popup or in-page form opens and closes. Lane relies on the Arc overlays'
  * own focus trap; these helpers only choose the element at each end.
  */
 
-const FIELDS = 'input:not([disabled]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea:not([disabled]), select:not([disabled]), [role="combobox"]:not([disabled]):not([aria-disabled="true"])'
+/** Where focus goes when a popup or in-page form closes and the control that opened it is gone. */
+export type ReturnFocus = () => HTMLElement | null | undefined
+
+const enabled = (selectors: string) => selectors.split(", ").map(selector => `${selector}:not([disabled])`).join(", ")
+const FIELDS = `${enabled(TEXT_FIELDS)}, select:not([disabled]), [role="combobox"]:not([disabled]):not([aria-disabled="true"])`
 const TABBABLE = 'button:not([disabled]), a[href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 /** On screen and able to take focus: laid out, not hidden or inert, not the page itself. */

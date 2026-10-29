@@ -16,6 +16,3 @@ const subscribe = (listener: () => void) => {
 
 /** True while the browser is offline; re-renders when the connection comes or goes. */
 export const useOffline = () => useSyncExternalStore(subscribe, isOffline, () => false)
-
-/** Thrown by `callAction` instead of calling the server while offline. Its words are in failure-messages.ts. */
-export class OfflineError extends Error {}

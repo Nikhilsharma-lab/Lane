@@ -241,14 +241,14 @@
     "source": "https://uiarc.dev/r/radio-group.json",
     "file": "src/components/arc/radio-group/radio-group.module.css",
     "upstreamSha256": "b5a7ececee88f400799ee00c1a710a278a776a5930f76388f8f0fe99c7602929",
-    "localSha256": "be82c3e8ed46f112e4cc2e1ec21159e3106d5b3f9cf254fe221a05b1ab6c321e"
+    "localSha256": "41d21de607140311ab840a1822049ca078854409019b1ace2284e573dab9e870"
   },
   {
     "id": "radio-group",
     "source": "https://uiarc.dev/r/radio-group.json",
     "file": "src/components/arc/radio-group/radio-group.tsx",
     "upstreamSha256": "b64932d460b1366d5bd057af9bb372003380da8afb3ec306754fafa025d8a3eb",
-    "localSha256": "2421af26fde08174683d3302c86410bc0a00a37c93e551b372e1ae6b5ba198a3"
+    "localSha256": "12a2b586bf80a7048c7583e5e54942affec4881323374d5116d7585ee3f20399"
   },
   {
     "id": "search-field",
@@ -352,42 +352,42 @@
     "source": "https://uiarc.dev/r/user-menu.json",
     "file": "src/components/arc/user-menu/user-menu.module.css",
     "upstreamSha256": "182f0d9d3083efa61c40594e5227c3364f11445873524c368769eb13772aeac0",
-    "localSha256": "a919ae7ac4d718193429727fc86245192e886cb790cafd9ea3fe3a033b3f7e63"
+    "localSha256": "7ef7a02e8bbae5dcc51f8c2d44fe4b96be9f888dcb062bdb24cd8ce334bb2561"
   },
   {
     "id": "user-menu",
     "source": "https://uiarc.dev/r/user-menu.json",
     "file": "src/components/arc/user-menu/user-menu.tsx",
     "upstreamSha256": "077dd8457c238330e82e494af76623879d3393ef1bc7720b6205bcda06688295",
-    "localSha256": "efdb3265b7ec8c1882bcc1b00bbece81353678fa13c899280fa0e541dd4a8d7d"
+    "localSha256": "98e0549fa0b90e7334d89e2e28a093666bfb46d6c219b71db6d94113e5ca6a86"
   },
   {
     "id": "workspace-sidebar",
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx",
     "upstreamSha256": "ba91e8b75357ada3b74dff408f3519671e6c582d702396bb3f76fdd0e35a5916",
-    "localSha256": "4f8496f67ec1a69ad96c2e88d8f022db36c755b0bedb7a3e121e477fdd923ab4"
+    "localSha256": "db4c9ccf551555fcc4f7103f93a7b7f837ee4a0cb18726af0d51a7a578fef8cc"
   },
   {
     "id": "workspace-sidebar",
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css",
     "upstreamSha256": "0c80f65cc602adf3e78890d1045edd62201e279b78a104d63416a5594a702235",
-    "localSha256": "bee32883066e58396033739b0bb284c092e92e968a84b9b9b60fb3d0f62e3117"
+    "localSha256": "fd5fa2b5331c80255b49afcfe4a321af8a0e4717affc1f37c884347359af769b"
   },
   {
     "id": "context-menu",
     "source": "https://uiarc.dev/r/context-menu.json",
     "file": "src/components/arc/context-menu/context-menu.tsx",
     "upstreamSha256": "84301492fadf8cfb3dfa1682381932c4b986404b2adc2ef4e868de1582eb367e",
-    "localSha256": "1d91b725e4331fbea9116962e5ab7436505389ba5f960ba6e2d13c9a8dd6d8ef"
+    "localSha256": "99a84713bbd04bb6bbb47cbba91a5a0ed5e6ad93126f4dfc7f39b61058513f0c"
   },
   {
     "id": "context-menu",
     "source": "https://uiarc.dev/r/context-menu.json",
     "file": "src/components/arc/context-menu/context-menu.module.css",
     "upstreamSha256": "bde4e0d0430b1f6ae812515d9a2964fcb39944f61fc3c7a9a58852cd38fa4238",
-    "localSha256": "165b15624c1b7f2f40c028ae74e20009f5adf287db973895f9fc66eee29849ed"
+    "localSha256": "27db746fda489698427c5a40289869b3d2d0ec5ded894290fbd33028eef3e7a2"
   },
   {
     "id": "checkbox",
@@ -408,14 +408,14 @@
     "source": "https://uiarc.dev/r/floating-button-group.json",
     "file": "src/components/arc/floating-button-group/floating-button-group.tsx",
     "upstreamSha256": "2de3b52da32ed257e749b07971f7c3888dae127f7c1bafcbfdd7488a7b453d11",
-    "localSha256": "d2f9f7f7554064a5aa5482f16fc30d0e5dab74053a2e5d09442ff367928fb527"
+    "localSha256": "49750dd9f300cb52752c1cc4059d5881e91316fcd7da6ecff4d26a862c0715b8"
   },
   {
     "id": "floating-button-group",
     "source": "https://uiarc.dev/r/floating-button-group.json",
     "file": "src/components/arc/floating-button-group/floating-button-group.module.css",
     "upstreamSha256": "a79a1fa8cb57d963f66d61678c2ba76becd41bb169e7ded0b3054f125a4f9f6e",
-    "localSha256": "dfa3a9c081f66608532776a5ebf53151c8a43c32cabc01db0898d1be65f78e82"
+    "localSha256": "1b215affce94e9189c2e29ed6ed689fb732d6b1f87e6e0078428a165c690c6d8"
   },
   {
     "id": "calendar",
@@ -456,14 +456,14 @@
     "source": "https://uiarc.dev/r/pro/settings-command.json",
     "file": "src/components/arc/blocks/settings-command/settings-command.tsx",
     "upstreamSha256": "93210b45eb4825ff09c0c82b616b2e37d1c900170516a82a5f5bf4b0b1ed7336",
-    "localSha256": "ffd2089d7c1e5e5c2a2c335f614af019e44391c5297d44c1848425b93f6b3fcf"
+    "localSha256": "73d62ef76a25b64a0cc8d5583c9c0376a20f587cbbd6f6185803286d33acdd3d"
   },
   {
     "id": "settings-command",
     "source": "https://uiarc.dev/r/pro/settings-command.json",
     "file": "src/components/arc/blocks/settings-command/settings-command.module.css",
     "upstreamSha256": "c6cb16a1fee97ce2a8eb1662d5b100c32ac32fa0f23689dadd74319a56d3adc9",
-    "localSha256": "1b287612115e282fd735198a8cfad0effb96f0d4d14c7b54a44b89a1512ee004"
+    "localSha256": "c11901ae423233342976c43fc3134f894d055f5b5501a5ce7f9d49f441712fcf"
   },
   {
     "id": "shortcut-recorder",

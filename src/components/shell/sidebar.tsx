@@ -1,7 +1,7 @@
 "use client";
 
 import { callAction } from "@/lib/action-call";
-import { CHECK_CONNECTION, thrownMessage } from "@/lib/failure-messages";
+import { CHECK_CONNECTION, ShownFailure, thrownMessage } from "@/lib/failure-messages";
 import { useClerk, useOrganization } from "@clerk/nextjs";
 import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -73,8 +73,8 @@ export function Sidebar({
       // #210: a Viewer creates no Projects (the server refuses too), so the sidebar offers no New Project.
       onCreateProject={role === "viewer" ? undefined : async name => {
         // #260 (A18): a call that never got an answer shows Lane's words under the field, never "Failed to fetch".
-        const result = await callAction(() => createProject({ name }, { orgId })).catch(thrown => { throw new Error(thrownMessage(thrown, PROJECT_NOT_CREATED)); });
-        if (!result.success) throw new Error(result.error.message);
+        const result = await callAction(() => createProject({ name }, { orgId })).catch(thrown => { throw new ShownFailure(thrownMessage(thrown, PROJECT_NOT_CREATED)); });
+        if (!result.success) throw new ShownFailure(result.error.message);
         projectState.addProject(result.project);
         router.push(requestListHref("all", result.project.id));
         return result.project;

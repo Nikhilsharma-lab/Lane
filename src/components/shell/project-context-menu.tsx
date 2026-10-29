@@ -31,7 +31,7 @@ export function ProjectContextMenu({ children, href, label, onNavigate, onOpenCh
     }
   }
 
-  const copyLabel = copyState === "copying" ? "Copying link…" : copyState === "copied" ? "Link copied" : copyState === "error" ? "Copy failed. Try again" : "Copy link";
+  const copyLabel = copyState === "copied" ? "Link copied" : copyState === "error" ? "Copy failed. Try again" : "Copy link";
   return <>
     <ContextMenu asChild openOnClick={false} label={`${label} actions`} onOpenChange={open => {
       copyVersion.current += 1;
