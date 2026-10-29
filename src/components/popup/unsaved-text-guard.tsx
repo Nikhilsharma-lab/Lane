@@ -1,55 +1,37 @@
 "use client"
 
-import { useCallback, useRef, useState, type ReactNode } from "react"
-import { Button } from "@/components/arc/button/button"
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
-import { focusWithoutScroll } from "./focus"
-import styles from "./popup.module.css"
+import { lazy, Suspense, useCallback, useRef, useState, type ReactNode } from "react"
 
-export const DISCARD_COPY = {
-  title: "Discard what you typed?",
-  description: "What you typed here hasn't been saved.",
-  keep: "Keep editing",
-  discard: "Discard",
-} as const
+const loadPrompt = () => import("./discard-prompt")
+const DiscardPrompt = lazy(loadPrompt)
+
+/** Fetch the guard's dialog ahead of its first use: call when a guarded popup or in-page form opens. */
+export function preloadDiscardPrompt() {
+  void loadPrompt().catch(() => undefined)
+}
 
 /**
  * #263: the one unsaved-text guard. `ask(discard)` shows "Discard what you typed?" with Keep editing (focused) and
  * Discard. Keep editing, Escape, Close or a press outside keep everything and put focus back where it was; Discard
- * runs `discard`. Callers ask only when `hasTypedText` (typed-text.ts) says closing would lose something.
+ * runs `discard`. Callers ask only when `hasTypedText` (typed-text.ts) says closing would lose something. The dialog
+ * itself (discard-prompt.tsx) loads on first use.
  */
 export function useDiscardPrompt(): { ask: (discard: () => void) => void; prompt: ReactNode } {
   const [pending, setPending] = useState<(() => void) | null>(null)
+  const [asked, setAsked] = useState(false)
   const returnTo = useRef<Element | null>(null)
-  const discarded = useRef(false)
-  const keep = useRef<HTMLButtonElement>(null)
 
   const ask = useCallback((discard: () => void) => {
     returnTo.current = document.activeElement
-    discarded.current = false
+    setAsked(true)
     setPending(() => discard)
   }, [])
 
-  const prompt = <Dialog open={pending !== null} onOpenChange={open => { if (!open) setPending(null) }}>
-    <DialogContent title={DISCARD_COPY.title} description={DISCARD_COPY.description} data-discard-prompt=""
-      onOpenAutoFocus={event => { event.preventDefault(); keep.current?.focus({ preventScroll: true }) }}
-      onCloseAutoFocus={event => {
-        event.preventDefault()
-        // After Discard, whatever held the text is closing and hands focus on itself.
-        if (!discarded.current && returnTo.current instanceof HTMLElement) focusWithoutScroll(returnTo.current)
-        returnTo.current = null
-      }}>
-      <div className={styles.actions}>
-        <Button ref={keep} variant="secondary" onClick={() => setPending(null)}>{DISCARD_COPY.keep}</Button>
-        <Button variant="danger" onClick={() => {
-          const discard = pending
-          discarded.current = true
-          setPending(null)
-          discard?.()
-        }}>{DISCARD_COPY.discard}</Button>
-      </div>
-    </DialogContent>
-  </Dialog>
+  // Once asked, it stays mounted, so it can animate out and hand focus back.
+  const prompt = asked && <Suspense fallback={null}>
+    <DiscardPrompt open={pending !== null} returnTo={returnTo} onKeep={() => setPending(null)}
+      onDiscard={() => { const discard = pending; setPending(null); discard?.() }} />
+  </Suspense>
 
   return { ask, prompt }
 }

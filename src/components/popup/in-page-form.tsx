@@ -1,13 +1,9 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react"
-import { firstFocusTarget, focusWithoutScroll, isFocusable, openerOf } from "./focus"
-import { hasTypedText } from "./typed-text"
-import { useDiscardPrompt } from "./unsaved-text-guard"
+import { useRef, type ReactNode } from "react"
+import { DISMISS_FORM } from "./dismiss-form"
+import { useBehaviour } from "./load-behaviour"
 import styles from "./popup.module.css"
-
-/** Dispatched on an open in-page form to ask it to close, as Escape does. */
-const DISMISS = "lane:dismiss-form"
 
 /**
  * #263: a form that opens inside the page (the Request page's Journey and Reviewers forms). Opening moves focus into
@@ -15,7 +11,8 @@ const DISMISS = "lane:dismiss-form"
  * editing keeps everything), with nothing typed it just closes. However it closes (Escape, Cancel, saving), focus goes
  * back to the button that opened it, or `returnFocus` when that button was replaced.
  *
- * Page-level Escape handlers call `dismissOpenForm` first, so Escape with focus outside any field still reaches it.
+ * Page-level Escape handlers call `dismissOpenForm` (dismiss-form.ts) first, so Escape with focus outside any field
+ * still reaches it. The behaviour itself is in popup-behaviour.tsx, loaded once the page is idle.
  */
 export function InPageForm({ onDismiss, returnFocus, children }: {
   /** Closes the form, as its Cancel does. */
@@ -24,57 +21,28 @@ export function InPageForm({ onDismiss, returnFocus, children }: {
   children: ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const opener = useRef<Element | null>(null)
-  const { ask, prompt } = useDiscardPrompt()
-  const dismissRef = useRef(onDismiss)
-  const returnRef = useRef(returnFocus)
-  useEffect(() => { dismissRef.current = onDismiss; returnRef.current = returnFocus })
-
-  const dismiss = useRef(() => {
-    if (hasTypedText(ref.current)) ask(() => dismissRef.current())
-    else dismissRef.current()
-  })
-
-  useLayoutEffect(() => {
-    const form = ref.current
-    opener.current = openerOf(document.activeElement)
-    if (form && !form.contains(document.activeElement)) focusWithoutScroll(firstFocusTarget(form))
-    const listener = () => dismiss.current()
-    form?.addEventListener(DISMISS, listener)
-    return () => {
-      form?.removeEventListener(DISMISS, listener)
-      // Still attached here. Focus inside the closing form (or its Discard), or already dropped to the page, goes back to the opener.
-      const active = document.activeElement
-      if (!form || !(!active || active === document.body || form.contains(active) || active.closest("[data-discard-prompt]"))) return
-      const from = opener.current
-      requestAnimationFrame(() => {
-        if (document.activeElement && document.activeElement !== document.body) return
-        if (!focusWithoutScroll(isFocusable(from) ? from : null)) focusWithoutScroll(returnRef.current?.())
-      })
-    }
-  }, [])
-
+  const behaviour = useBehaviour()
   return <>
     <div ref={ref} className={styles.content} data-detail-form=""
       onKeyDown={event => {
         if (event.key !== "Escape" || event.defaultPrevented || event.nativeEvent.isComposing) return
         event.preventDefault()
-        dismiss.current()
+        event.currentTarget.dispatchEvent(new Event(DISMISS_FORM))
       }}>
       {children}
     </div>
-    {prompt}
+    {behaviour
+      ? <behaviour.InPageFormBehaviour formRef={ref} onDismiss={onDismiss} returnFocus={returnFocus} />
+      : <DismissWithoutGuard formRef={ref} onDismiss={onDismiss} />}
   </>
 }
 
-/**
- * For page-level Escape handlers: asks the open in-page form inside `scope` (the one holding focus, else the last)
- * to close, and returns true, so the page itself does nothing else with this Escape.
- */
-export function dismissOpenForm(scope: ParentNode = document) {
-  const forms = Array.from(scope.querySelectorAll("[data-detail-form]"))
-  const form = forms.find(element => element.contains(document.activeElement)) ?? forms.at(-1)
-  if (!form) return false
-  form.dispatchEvent(new Event(DISMISS))
-  return true
+/** Until the behaviour loads, Escape still closes the form. */
+function DismissWithoutGuard({ formRef, onDismiss }: { formRef: { current: HTMLDivElement | null }; onDismiss: () => void }) {
+  return <span hidden ref={span => {
+    const form = formRef.current
+    if (!span || !form) return
+    form.addEventListener(DISMISS_FORM, onDismiss)
+    return () => form.removeEventListener(DISMISS_FORM, onDismiss)
+  }} />
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { focusRowWhenShown, isShown, restoreRequestFocus } from "@/components/requests/list-focus"
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
-import { dismissOpenForm } from "@/components/popup/in-page-form"
+import { dismissOpenForm } from "@/components/popup/dismiss-form"
 
 const RETURN_FOCUS_KEY = "lane:request-return-focus"
 

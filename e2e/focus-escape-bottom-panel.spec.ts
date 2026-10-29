@@ -28,10 +28,14 @@ async function withWorkspace(page: Page, label: string, run: (user: TestUser, re
   }
 }
 
+/** Popups and in-page forms take on Lane's behaviour once the page is idle (src/components/popup/load-behaviour.ts). */
+const behaviourReady = (page: Page) => expect(page.locator("html[data-popup-behaviour=ready]")).toHaveCount(1, { timeout: 30_000 });
+
 async function openRequest(page: Page, id: string) {
   await page.goto(`/requests/${id}`);
   await expect(page.locator("#request-title")).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-slot="request-workspace-keyboard"][data-ready="true"]')).toHaveCount(1);
+  await behaviourReady(page);
 }
 
 function dialogBox(locator: Locator) {
@@ -167,6 +171,7 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
 
       // A26: saving a view puts focus on the Saved view button that replaces Save view.
       await page.goto("/");
+      await behaviourReady(page);
       const save = page.getByRole("button", { name: "Save view", exact: true });
       await save.click();
       const saveDialog = page.getByRole("dialog", { name: "Save view", exact: true });
@@ -238,6 +243,7 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
 
       // A panel holding typed text asks before Back drops it.
       await page.goto("/");
+      await behaviourReady(page);
       await page.getByRole("button", { name: "Save view", exact: true }).click();
       const saveDialog = page.getByRole("dialog", { name: "Save view", exact: true });
       await saveDialog.getByRole("textbox", { name: "Name" }).fill("Phone view");
@@ -310,6 +316,7 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
     await withWorkspace(page, "composer-panel", async () => {
       await page.goto("/intake");
       await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
+      await behaviourReady(page);
       const launcher = page.getByRole("link", { name: "Create Request", exact: true });
       await launcher.click();
       const composer = page.getByRole("dialog", { name: "New Request", exact: true });

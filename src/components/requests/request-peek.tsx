@@ -5,7 +5,7 @@ import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/
 import { Button } from "@/components/arc/button/button"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
-import { dismissOpenForm } from "@/components/popup/in-page-form"
+import { dismissOpenForm } from "@/components/popup/dismiss-form"
 import type { OverviewRequest } from "@/lib/request-overview"
 import styles from "./request-peek.module.css"
 
