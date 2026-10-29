@@ -30,7 +30,7 @@ function app() {
   const optimistic = async <R,>(options: OptimisticOptions<R>): Promise<OptimisticOutcome<R>> => {
     const value = await options.run()
     if (value && typeof value === "object" && "error" in value) {
-      options.onError?.(String(value.error), { thrown: false, auth: false })
+      options.onError?.(String(value.error), { thrown: false, auth: false, offline: false, retry: async () => {} })
       return { status: "error", error: String(value.error), thrown: false }
     }
     return { status: "success", value }

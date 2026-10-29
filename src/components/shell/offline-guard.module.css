@@ -1,0 +1,3 @@
+/* #260: the quiet offline line floats at the top centre, above the page and its popups, without moving anything. */
+.line { position: fixed; z-index: 60; top: var(--space-2); right: 0; left: 0; display: flex; justify-content: center; pointer-events: none; }
+.alert { padding: var(--space-2) var(--space-3); pointer-events: auto; }

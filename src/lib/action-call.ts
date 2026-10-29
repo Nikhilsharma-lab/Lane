@@ -6,7 +6,14 @@
  * session gets one fresh token and one retry. Otherwise `callAction(run)`
  * behaves exactly like `run()`: it resolves with the action's result, refusal
  * included, or rejects with what the action threw.
+ *
+ * #260: while the browser is offline it calls nothing and rejects with
+ * `OfflineError` (src/lib/failure-messages.ts), the shared "You're offline"
+ * answer. Nothing is queued for later.
  */
+import { isOffline } from "./connection-status"
+import { OfflineError } from "./failure-messages"
+
 
 /** Matches SESSION_ENDED (src/lib/auth-guard.ts), what any guarded action says
  * when nobody is signed in, and CANNOT_CHANGE_REQUESTS (request-transition.ts),
@@ -48,6 +55,7 @@ export function isSessionFailure(outcome: { value: unknown } | { thrown: unknown
 }
 
 export async function callAction<R>(run: () => Promise<R>, session: ActionSession = clerkActionSession): Promise<R> {
+  if (isOffline()) throw new OfflineError()
   await session.current().catch(() => undefined)
   try {
     const value = await run()

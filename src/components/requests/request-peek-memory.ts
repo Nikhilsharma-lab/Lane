@@ -1,5 +1,6 @@
 import type { RequestAttachment, RequestComment, RequestDetail } from "./detail-view"
 import { PREFETCH_INTENT_MS } from "./use-intent-prefetch"
+import { CHECK_CONNECTION, SESSION_CHANGED, SESSION_ENDED } from "@/lib/failure-messages"
 
 type Detail = { request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[] }
 /** `session`: a 401 or 403. The copy shown can no longer be trusted, so it is replaced, not kept. */
@@ -44,7 +45,7 @@ function store(key: string, next: Entry) {
 
 /** A read that never reached the route (offline). Kept only when there is no copy to show instead. */
 function storeFailure(key: string, error: unknown) {
-  if (peekEntry(key)?.status !== "ready") write(key, { status: "error", message: error instanceof Error && error.name === "TypeError" ? "Check your connection and try again." : COULD_NOT_LOAD })
+  if (peekEntry(key)?.status !== "ready") write(key, { status: "error", message: error instanceof Error && error.name === "TypeError" ? CHECK_CONNECTION : COULD_NOT_LOAD })
 }
 
 type Wire = {
@@ -58,7 +59,9 @@ async function fetchDetail(orgId: string, id: string, signal?: AbortSignal): Pro
   const response = await fetch(`/api/requests/${encodeURIComponent(id)}?${new URLSearchParams({ org: orgId })}`, { headers: { Accept: "application/json" }, signal })
   const body = await response.json().catch(() => null) as (Wire & { error?: string }) | null
   if (response.status === 404) return { status: "unavailable" }
-  if (!response.ok || !body?.request) return { status: "error", message: body?.error ?? COULD_NOT_LOAD, session: response.status === 401 || response.status === 403 }
+  // #260 (A18): Lane's own words, never the response's text.
+  const session = response.status === 401 || response.status === 403
+  if (!response.ok || !body?.request) return { status: "error", message: response.status === 401 ? SESSION_ENDED : response.status === 403 ? SESSION_CHANGED : COULD_NOT_LOAD, session }
   return { status: "ready", detail: {
     request: { ...body.request, createdAt: new Date(body.request.createdAt) },
     comments: body.comments.map(comment => ({ ...comment, createdAt: new Date(comment.createdAt) })),
