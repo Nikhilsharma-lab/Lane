@@ -61,7 +61,7 @@ export function createWorkspaceSwitch({ getSnapshot, beforeSwitch, onPendingChan
     } catch (error) {
       pending = false;
       onPendingChange(null);
-      if (activationStarted) throw new Error("Could not switch workspaces. Try again.");
+      if (activationStarted) throw new Error("Couldn't switch workspaces. Try again.");
       throw error;
     }
   };

@@ -98,7 +98,7 @@ export function SameProblemView({ requestNumber, state, onOpenLink, onRemove, on
   if (state.kind === "error") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={HEADING_ID} className={styles.section}>
     <div className={styles.header}>{heading}</div>
     <p role="alert" className={styles.muted}>{state.message}</p>
-    <div><Button variant="secondary" size="sm" onClick={onRetry}>Retry</Button></div>
+    <div><Button variant="secondary" size="sm" onClick={onRetry}>Try again</Button></div>
   </section>
 
   const { iterations, history, canChange } = state

@@ -101,7 +101,7 @@ export function createUploadSession(deps: UploadSessionDeps) {
     } catch {
       // Keep the reservation ID until the server confirms cleanup. Retrying
       // must not reserve another slot or hide a file that still needs attention.
-      updateAttachment(attachment.key, { status: "failed", error: "Lane could not clear this upload. Your Request is saved. Try again." });
+      updateAttachment(attachment.key, { status: "failed", error: "Lane couldn't clear this upload. Your Request is saved. Try again." });
       return "failed";
     }
   }
@@ -140,7 +140,7 @@ export function createUploadSession(deps: UploadSessionDeps) {
       updateAttachment(attachment.key, {
         status: "failed",
         attachmentId: null,
-        error: "The file did not finish uploading. Your Request was created. Retry the upload.",
+        error: "The file did not finish uploading. Your Request was created. Try the upload again.",
       });
       return false;
     }

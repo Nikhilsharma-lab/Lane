@@ -41,7 +41,7 @@ export default function SameProblemLinkDialog({ open, onOpenChange, orgId, reque
       search({ query: text }, controller.signal).then(response => {
         if (controller.signal.aborted) return
         setFound(response.success ? { kind: "found", results: response.requests.items } : { kind: "failed", message: response.error.message })
-      }).catch(() => { if (!controller.signal.aborted) setFound({ kind: "failed", message: "Search could not be completed. Try again." }) })
+      }).catch(() => { if (!controller.signal.aborted) setFound({ kind: "failed", message: "Search couldn't be completed. Try again." }) })
     }, 200)
     return () => { controller.abort(); window.clearTimeout(timer) }
   }, [query, search])

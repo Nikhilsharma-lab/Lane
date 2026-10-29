@@ -26,7 +26,7 @@ type ReleaseView = Exclude<Awaited<ReturnType<typeof readRequestRelease>>, { err
 type OutcomeView = Exclude<Awaited<ReturnType<typeof readRequestOutcome>>, { error: string }>
 type Views = { release: ReleaseView; outcome: OutcomeView }
 
-const LOAD_FAILED = "Could not load the journey. Try again."
+const LOAD_FAILED = "Couldn't load the journey. Try again."
 /** #263: a step's action button, where focus goes back when its form closes. */
 const actionButton = (action: JourneyAction) => document.querySelector<HTMLElement>(`#journey [data-journey-action="${action}"]`)
 const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished", current: "current step", upcoming: "not reached yet", skipped: "skipped" }
@@ -102,7 +102,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
 
   if (!views) return <section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <h2 id="journey-heading" className={styles.heading}>Journey</h2>
-    {error ? <><p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void load() }}>Retry</Button></div></> : <Placeholder label="Loading journey" lines={4} />}
+    {error ? <><p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void load() }}>Try again</Button></div></> : <Placeholder label="Loading journey" lines={4} />}
   </section>
 
   const { release, outcome } = views
@@ -203,7 +203,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
         <p>{historyLine(event)} by {name(event.actorId)} on {momentDay(event.at)}.</p>
         {"reason" in event.input && <p className={styles.muted}>{event.input.reason}</p>}
         {event.input.kind === "transfer" && <p className={styles.muted}>{name(event.previousOwnerId)} → {name(event.ownerId)}</p>}
-        {event.release && <p className={styles.muted}>Exposure: {plannedDay(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {plannedDay(event.release.dueDate)}. Evidence: {event.release.evidence}</p>}
+        {event.release && <p className={styles.muted}>Released: {plannedDay(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {plannedDay(event.release.dueDate)}. Evidence: {event.release.evidence}</p>}
       </li>)}</ol>
     </details>}
     {!!outcome.followUps.length && <div className={styles.facts}>

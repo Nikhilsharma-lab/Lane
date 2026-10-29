@@ -36,7 +36,7 @@ export type ReleaseFormProps = {
  * timeline's Done and Measuring steps and by "Is it live?" after Mark Done.
  */
 export function ReleaseForm({ requestId, orgId, revision, audience, earliestExposure, today, valueBefore, correcting, defaultExposureDate, intro, onSaved, onCancel, cancelLabel }: ReleaseFormProps) {
-  const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: "Could not save release. Your input is preserved; try again." })
+  const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: "Couldn't save release. Your input is preserved; try again." })
   const [date, setDate] = useState(correcting?.exposureDate ?? defaultExposureDate ?? "")
   const [evidence, setEvidence] = useState(correcting?.evidence ?? "")
   const [value, setValue] = useState(correcting?.valueBefore ? String(correcting.valueBefore.value) : "")
@@ -56,9 +56,9 @@ export function ReleaseForm({ requestId, orgId, revision, audience, earliestExpo
   }}>
     {intro}
     <p>Agreed audience: {audience}</p>
-    <Input label="Actual exposure date" type="date" required min={earliestExposure} max={today} value={date} onChange={e => setDate(e.target.value)} disabled={busy} />
+    <Input label="Release date" type="date" required min={earliestExposure} max={today} value={date} onChange={e => setDate(e.target.value)} disabled={busy} />
     {measured && <Input label={`Value before release (${valueBefore.unit})`} type="number" step="any" required value={value} onChange={e => setValue(e.target.value)} disabled={busy} description="The measured value just before the audience received this work, in the metric's unit. Change is measured from it." />}
-    <Textarea label="Release evidence" required maxLength={4000} value={evidence} onChange={e => setEvidence(e.target.value)} disabled={busy} description="Record where the agreed audience exposure can be checked. Deployment alone is not release." />
+    <Textarea label="Release evidence" required maxLength={4000} value={evidence} onChange={e => setEvidence(e.target.value)} disabled={busy} description="Record where anyone can check that the agreed audience has this work. Deployment alone is not release." />
     <Checkbox label="The agreed audience received this work" checked={confirmed} onCheckedChange={v => setConfirmed(v === true)} disabled={busy} />
     {correcting && <Textarea label="Correction reason" required maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy} description="The original stays in history. Relative deadlines are recalculated; fixed dates stay unchanged." />}
     {error && <p role="alert">{error}</p>}

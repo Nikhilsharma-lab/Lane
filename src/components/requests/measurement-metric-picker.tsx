@@ -211,7 +211,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
       } else if (result.existing) setOffer(result.metric)
       else pick(result.metric)
     } catch (thrown) {
-      setAddError(thrownMessage(thrown, "The metric could not be added. Check your connection and try again; your Request is still here."))
+      setAddError(thrownMessage(thrown, "The metric couldn't be added. Check your connection and try again; your Request is still here."))
     } finally {
       setPending(false)
     }

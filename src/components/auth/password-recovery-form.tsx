@@ -18,7 +18,7 @@ function recoveryErrorMessage(error: unknown) {
   ) {
     return error.errors[0].longMessage;
   }
-  return "Could not complete the password reset. Try again.";
+  return "Couldn't complete the password reset. Try again.";
 }
 
 export function PasswordRecoveryForm() {

@@ -119,8 +119,8 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
       <PreviewFrame><PageStrip leading={<PreviewClose onClose={onClose} />} title={unavailable ? "Request unavailable" : "Request preview"} /></PreviewFrame>
       <div className={styles.state}>{unavailable
         // The page's own words: a missing Request and one this person may not see read the same.
-        ? <EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It could not be found or is not available in this workspace." />
-        : <EmptyState icon={<Inbox />} title="This Request could not be loaded" description={entry.status === "error" ? entry.message : "Try again."} action={<Button variant="secondary" size="sm" onClick={() => setRetry(count => count + 1)}>Try again</Button>} />}</div>
+        ? <EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It couldn’t be found or is not available in this workspace." />
+        : <EmptyState icon={<Inbox />} title="This Request couldn't be loaded" description={entry.status === "error" ? entry.message : "Try again."} action={<Button variant="secondary" size="sm" onClick={() => setRetry(count => count + 1)}>Try again</Button>} />}</div>
     </section>
   }
 

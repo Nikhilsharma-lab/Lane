@@ -58,7 +58,7 @@ describe("Is it live? after Mark Done (#135)", () => {
       title: "Is it live?",
       yes: "Yes, record release",
       notYet: "Not yet",
-      endsUndo: "Recording the release ends Undo Done for this Request.",
+      endsUndo: "Once you record the release, you can't undo Done.",
     })
     expect(IS_IT_LIVE_COPY.question("LAN-12")).toBe("LAN-12 is Done. Has the agreed audience received it?")
   })
@@ -80,7 +80,7 @@ describe("Is it live? after Mark Done (#135)", () => {
     expect(undone.view()).toBeNull()
   })
 
-  it("Yes, record release opens the release form for that Request with today's date as the exposure date", async () => {
+  it("Yes, record release opens the release form for that Request with today's date as the release date", async () => {
     const a = app()
     await a.moves.move(request, "done")
     a.prompt.record()

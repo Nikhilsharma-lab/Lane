@@ -93,7 +93,7 @@ const secondaryLink = `${buttonStyles.button} ${buttonStyles.secondary} ${button
  * Plan item 2.5: a missing Request and one this person may not see read the same, with no existence leak.
  * Reached with J or K, its heading takes the focus the title would have had. */
 export function RequestUnavailable({ returnHref }: { returnHref: string }) {
-  return <section className="flex min-w-0 flex-1 flex-col"><DetailArrivalReset /><PageStrip leading={<DetailBackLink href={returnHref} always />} title="Request unavailable" heading /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It could not be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
+  return <section className="flex min-w-0 flex-1 flex-col"><DetailArrivalReset /><PageStrip leading={<DetailBackLink href={returnHref} always />} title="Request unavailable" heading /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It couldn’t be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
 }
 
 /**

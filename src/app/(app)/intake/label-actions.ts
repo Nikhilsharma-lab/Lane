@@ -11,7 +11,7 @@ export async function listLabels(context: {orgId:string}): Promise<{success:true
  if (!auth) return {success:false,error:await refusal("You do not have access to this workspace.")};
  try {
   return {success:true,...await loadLabels(auth)};
- } catch {return {success:false,error:"Labels could not be loaded. Try again."};}
+ } catch {return {success:false,error:"Labels couldn't be loaded. Try again."};}
 }
 export async function createLabel(input:unknown,context:{orgId:string}): Promise<{success:true;label:RequestLabel} | {success:false;error:string}> {
  const auth=await requireCanChange(context.orgId);
@@ -28,5 +28,5 @@ export async function createLabel(input:unknown,context:{orgId:string}): Promise
   const [existing]=await db.select(selection).from(workspaceLabels).where(and(eq(workspaceLabels.orgId,auth.orgId),projectId ? eq(workspaceLabels.projectId,projectId) : isNull(workspaceLabels.projectId),eq(sql`lower(${workspaceLabels.name})`,sql`lower(${parsed.data.name})`))).limit(1);
   if(existing) return {success:true,label:existing};
  } catch { /* Draft stays available for retry. */ }
- return {success:false,error:"The label could not be created. Try again."};
+ return {success:false,error:"The label couldn't be created. Try again."};
 }

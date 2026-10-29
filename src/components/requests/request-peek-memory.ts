@@ -6,7 +6,7 @@ type Detail = { request: RequestDetail; comments: RequestComment[]; attachments:
 /** `session`: a 401 or 403. The copy shown can no longer be trusted, so it is replaced, not kept. */
 type Entry = { status: "ready"; detail: Detail } | { status: "unavailable" } | { status: "error"; message: string; session?: boolean }
 
-const COULD_NOT_LOAD = "This Request could not be loaded. Try again."
+const COULD_NOT_LOAD = "This Request couldn't be loaded. Try again."
 
 // Plan item 2.12: what the preview last read for each Request, for this page's life and this viewer
 // and workspace only, so J back to a Request shows it at once while a fresh copy loads. #258: rows

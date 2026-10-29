@@ -46,7 +46,7 @@ describe("the undoable Mark Done (#103)", () => {
     store.observe(3)
     expect(store.get()?.name).toBe("LAN-12")
     expect(store.observe(2)).toBe(true)
-    store.settle("Error: Could not copy Select the text and copy it instead.")
+    store.settle("Error: Couldn't copy Select the text and copy it instead.")
     expect(store.get()).toBeNull()
   })
 

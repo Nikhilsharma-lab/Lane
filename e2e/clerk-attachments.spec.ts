@@ -150,7 +150,7 @@ test("private attachments survive Clerk upload and download but reject anonymous
     expect(downloadAction).not.toBeNull();
 
     await pageB.goto(requestUrl);
-    await expect(pageB.getByText(/could not be found/i)).toBeVisible();
+    await expect(pageB.getByText(/couldn.t be found/i)).toBeVisible();
     await expect(pageB.getByText(filename, { exact: true })).toHaveCount(0);
     const anonymousPage = await anonymous.newPage();
     await anonymousPage.goto(requestUrl);

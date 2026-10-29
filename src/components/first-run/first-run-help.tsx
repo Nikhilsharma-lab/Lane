@@ -45,7 +45,7 @@ export function FirstRunReopen({ orgId }: { orgId: string }) {
     focusRequested = true;
     void callAction(() => updateFirstRun({ change: "reopen" }, { orgId })).then(
       answer => { if ("error" in answer) { focusRequested = false; toast({ type: "error", title: answer.error }); } },
-      () => { focusRequested = false; toast({ type: "error", title: "Couldn’t open the first-run guide. Try again." }); },
+      () => { focusRequested = false; toast({ type: "error", title: "Couldn’t open the first-run guide", description: "Try again." }); },
     );
   });
   return null;

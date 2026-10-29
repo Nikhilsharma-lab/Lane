@@ -20,6 +20,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return json(detail);
   } catch (error) {
     console.error("[api/requests/id] detail failed", { kind: error instanceof Error ? error.name : "UnknownError" });
-    return json({ error: "This Request could not be loaded. Try again." }, { status: 500 });
+    return json({ error: "This Request couldn't be loaded. Try again." }, { status: 500 });
   }
 }

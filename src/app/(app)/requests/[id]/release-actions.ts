@@ -20,12 +20,12 @@ const agreedAudience = (request: { affectedPeople: string | null }) => request.a
 const JOURNEY_ACTION = { release: 'release', correct: 'correctRelease', void: 'voidRelease', transfer: 'handover' } as const;
 export async function changeRequestRelease(context: RequestChangeContext, input: unknown) {
     const parsed = releaseChangeSchema.safeParse(input);
-    if (!parsed.success) return { error: 'Check the exposure date, evidence, confirmation, value before release and reason.' };
+    if (!parsed.success) return { error: 'Check the release date, evidence, confirmation, value before release and reason.' };
     const change = parsed.data;
     const fingerprint = { requestId: context.requestId, change };
     return changeRequest(context, {
         fingerprint,
-        messages: { invalid: 'Invalid release action.', forbidden: 'You cannot change release in this workspace.', failed: 'Could not save release. Your input is preserved; try again.' },
+        messages: { invalid: 'Invalid release action.', forbidden: 'You cannot change release in this workspace.', failed: "Couldn't save release. Your input is preserved; try again." },
         // Release records each change in its own history, which is also how a retry replays.
         replayOf: (_tx, request) => {
             const previous = request.releaseState?.history.find(e => e.operationId === context.operationId);
@@ -50,9 +50,9 @@ export async function changeRequestRelease(context: RequestChangeContext, input:
                     nextRelease = null;
                 }
                 else {
-                    insist(change.exposureDate <= utcDay(), 'Exposure cannot be in the future.');
+                    insist(change.exposureDate <= utcDay(), 'The release date cannot be in the future.');
                     const earliest = earliestExposure(request);
-                    insist(change.exposureDate >= earliest, `Exposure cannot be before the Request was created on ${plannedDay(earliest)}.`);
+                    insist(change.exposureDate >= earliest, `The release date cannot be before the Request was created on ${plannedDay(earliest)}.`);
                     // A measured plan records the value before release, in its metric's unit, or the release is refused.
                     const impact = expectedImpactSchema.safeParse(request.expectedImpact).data ?? null;
                     const valueBefore = valueBeforeReleaseOf(impact);
@@ -108,6 +108,6 @@ export async function readRequestRelease(requestId: string, context: {
         };
     }
     catch {
-        return { error: 'Could not load release. Try again.' };
+        return { error: "Couldn't load release. Try again." };
     }
 }

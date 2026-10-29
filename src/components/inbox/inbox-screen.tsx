@@ -17,7 +17,7 @@ import type { InboxItem, NeedsYouInboxItem } from "./inbox-item";
 import { refreshedItems } from "./inbox-list";
 import { InboxView, inboxRowButton } from "./inbox-view";
 
-const LOAD_FAILED = "Your Inbox could not be loaded. Try again.";
+const LOAD_FAILED = "Your Inbox couldn't be loaded. Try again.";
 
 function read(path: string, orgId: string, controller: AbortController) {
   return fetch(`${path}?${new URLSearchParams({ org: orgId })}`, { signal: controller.signal, headers: { accept: "application/json" }, credentials: "same-origin" });

@@ -172,7 +172,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
         setCreateError(result.error.message);
         if (result.error.code === "conflict") void state.reload();
       }
-    } catch (thrown) { setCreateError(thrownMessage(thrown, "Project could not be created. Try again; your Request is still here.")); }
+    } catch (thrown) { setCreateError(thrownMessage(thrown, "Project couldn't be created. Try again; your Request is still here.")); }
     finally {
       setCreating(false); onBusyChange(false);
     }

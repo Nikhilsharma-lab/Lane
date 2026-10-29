@@ -160,7 +160,7 @@ export async function prepareAttachmentUpload(
       success: false,
       error: {
         code: "validation",
-        message: "Lane could not read this file safely. Choose it again.",
+        message: "Lane couldn't read this file safely. Choose it again.",
       },
     };
   }
@@ -297,7 +297,7 @@ export async function prepareAttachmentUpload(
       error: {
         code: "storage_unavailable",
         message:
-          "Lane could not start this upload. The Request is safe. Try the file again.",
+          "Lane couldn't start this upload. The Request is safe. Try the file again.",
       },
     };
   }
@@ -316,7 +316,7 @@ export async function finalizeAttachmentUpload(
       success: false,
       error: {
         code: "validation",
-        message: "Lane could not verify this upload.",
+        message: "Lane couldn't verify this upload.",
       },
     };
   }
@@ -328,7 +328,7 @@ export async function finalizeAttachmentUpload(
       success: false,
       error: {
         code: "request_unavailable",
-        message: "Lane could not find this file on the Request.",
+        message: "Lane couldn't find this file on the Request.",
       },
     };
   }
@@ -374,7 +374,7 @@ export async function finalizeAttachmentUpload(
       error: {
         code: "upload_incomplete",
         message:
-          "Lane could not verify the file. The Request is safe. Try the file again.",
+          "Lane couldn't verify the file. The Request is safe. Try the file again.",
       },
     };
   }
@@ -391,7 +391,7 @@ export async function discardAttachmentUpload(
   if (!parsed.success) {
     return {
       success: false,
-      error: { code: "validation", message: "Lane could not identify this upload safely." },
+      error: { code: "validation", message: "Lane couldn't identify this upload safely." },
     };
   }
 
@@ -403,7 +403,7 @@ export async function discardAttachmentUpload(
       success: false,
       error: {
         code: "storage_unavailable",
-        message: "Lane could not clear this upload. Your Request is saved. Try again.",
+        message: "Lane couldn't clear this upload. Your Request is saved. Try again.",
       },
     };
   }

@@ -114,7 +114,7 @@ function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductR
       },
       onError: (message) => {
         revert();
-        say({ type: "error", title: "Could not save your role", description: message });
+        say({ type: "error", title: "Couldn't save your role", description: message });
       },
     }).then((outcome) => {
       if (outcome.status === "success" && sent) { confirmed.current = next; confirmations.current++; }
@@ -161,13 +161,13 @@ function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: Produ
       try {
         const result = await callAction(() => onSave(next));
         if (result.error || !result.success) {
-          setFeedback({ kind: "error", message: result.error || "Your role could not be saved. Try again." });
+          setFeedback({ kind: "error", message: result.error || "Your role couldn't be saved. Try again." });
           return;
         }
         setSavedRole(next);
-        toast({ type: "success", title: "Role updated." });
+        toast({ type: "success", title: "Role updated" });
       } catch (thrown) {
-        setFeedback({ kind: "error", message: thrownMessage(thrown, "Your role could not be saved. Try again.") });
+        setFeedback({ kind: "error", message: thrownMessage(thrown, "Your role couldn't be saved. Try again.") });
       } finally {
         saving.current = false;
       }

@@ -28,7 +28,7 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
     const change = parsed.data;
     const result = await changeRequest(context, {
         fingerprint: { requestId: context.requestId, change },
-        messages: { invalid: "Invalid closure action.", forbidden: "You cannot close Requests in this workspace.", failed: "Could not save the outcome. Your input is preserved; try again." },
+        messages: { invalid: "Invalid closure action.", forbidden: "You cannot close Requests in this workspace.", failed: "Couldn't save the outcome. Your input is preserved; try again." },
         // A closure and each correction record their operation, which is how a retry replays.
         replayOf: (_tx, request) => {
             const previous = [request.outcomeClosure, request.exceptionClosure, ...request.closureCorrections].find(entry => entry?.operationId === context.operationId);
@@ -84,7 +84,7 @@ export async function createFollowUpRequest(context: RequestChangeContext, input
     if (!parsed.success) return { error: "Explain what changed and why this needs a follow-up." };
     const result = await changeRequest<{ followUpId: string }>(context, {
         fingerprint: { requestId: context.requestId, kind: "follow_up_created", input: parsed.data },
-        messages: { invalid: "Invalid follow-up action.", forbidden: "You cannot create Requests in this workspace.", failed: "Could not create the follow-up. Your input is preserved; try again." },
+        messages: { invalid: "Invalid follow-up action.", forbidden: "You cannot create Requests in this workspace.", failed: "Couldn't create the follow-up. Your input is preserved; try again." },
         // The original is locked only to serialise duplicate submissions and is never written.
         revises: false,
         replayOf: async (tx, _original, auth) => {
@@ -161,6 +161,6 @@ export async function readRequestOutcome(requestId: string, context: {
         };
     }
     catch {
-        return { error: "Could not load the outcome. Try again." };
+        return { error: "Couldn't load the outcome. Try again." };
     }
 }

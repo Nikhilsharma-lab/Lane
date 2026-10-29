@@ -79,7 +79,7 @@ describe("Clerk workspace switching boundary", () => {
     const f = fixture();
     const original = f.snapshot().setActive;
     f.update({ setActive: async () => { throw new Error("private provider payload"); } });
-    await expect(f.select("org-b")).rejects.toThrow("Could not switch workspaces. Try again.");
+    await expect(f.select("org-b")).rejects.toThrow("Couldn't switch workspaces. Try again.");
     expect(f.events).toEqual(["pending:org-b", "pending:null"]);
     f.update({ setActive: original });
     await f.select("org-b");

@@ -85,7 +85,7 @@ export function WorkspaceProjectsProvider({ orgId, initialProjects, children }: 
       if (result.success) dispatch({ type: "load-succeeded", requestId, projects: result.projects });
       else dispatch({ type: "load-failed", requestId, error: result.error.message });
     } catch {
-      if (mounted.current) dispatch({ type: "load-failed", requestId, error: "Projects could not be loaded. Try again." });
+      if (mounted.current) dispatch({ type: "load-failed", requestId, error: "Projects couldn't be loaded. Try again." });
     }
   }, [orgId]);
 

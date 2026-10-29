@@ -27,7 +27,7 @@ import { KeyCap } from "@/components/keyboard/key-caps";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-const OLDER_ERROR = "Older Requests could not be loaded. Try again."
+const OLDER_ERROR = "Older Requests couldn't be loaded. Try again."
 
 
 /** Reads older finished Requests through the GET route (plan items 1.7 and 1.16), never a server action.
@@ -174,6 +174,6 @@ export function ProjectUnavailable({ tools }: { tools?: ReactNode }) {
   const setView = useSetRequestListView()
   return <div data-slot="requests-workspace" className={styles.overview}>
     <PageStrip title="Project unavailable" heading tools={tools} />
-    <div className={styles.unavailable}><EmptyState icon={<Folder />} title="This Project can’t be shown" description="It could not be found or is not available in this workspace." action={<Button variant="secondary" size="sm" onClick={() => setView(view => withListContext(view, { project: "all" }))}>View all Requests</Button>} /></div>
+    <div className={styles.unavailable}><EmptyState icon={<Folder />} title="This Project can’t be shown" description="It couldn’t be found or is not available in this workspace." action={<Button variant="secondary" size="sm" onClick={() => setView(view => withListContext(view, { project: "all" }))}>View all Requests</Button>} /></div>
   </div>
 }
