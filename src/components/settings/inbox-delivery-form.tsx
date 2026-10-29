@@ -38,7 +38,7 @@ export function InboxDeliveryForm({ initialChoice, email, onSave, slackOffered =
     const mine = ++turn.current;
     setChoice(value);
     setError(null);
-    setStatus("Saving…");
+    setStatus("");
     let message: string | null = null;
     try {
       const result = await callAction(() => onSave(value));

@@ -598,7 +598,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
         aria-disabled={!!(workspaces?.pendingId || switchingId) || undefined}
         aria-busy={signingOut || undefined} onPointerMove={onItemPointerMove} onClick={signOut}>
         <span className={styles.icon} aria-hidden="true">{signingOut ? <LoaderCircle className={styles.spinner} strokeWidth={1.75} /> : <LogOut strokeWidth={1.75} />}</span>
-        <span className={styles.itemLabel}><Rise text={signingOut ? "Signing out" : signOutLabel} reduced={reduced} /></span>
+        <span className={styles.itemLabel}><Rise text={signOutLabel} reduced={reduced} /></span>
         {signOutKeys && <Keys keys={signOutKeys} />}
       </motion.button>
       {signOutError && <p className={`${styles.message} ${styles.error}`} role="alert">Couldn’t sign out. Try again.</p>}

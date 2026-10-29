@@ -42,12 +42,12 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState(result === "connected" ? "Slack is connected. People here can now choose Slack DM under Inbox delivery." : "");
-  const problem = error ?? (status ? null : RETURN_PROBLEMS[result ?? "connected"] ?? null);
+  const problem = error ?? (status || busy ? null : RETURN_PROBLEMS[result ?? "connected"] ?? null);
 
   async function connect() {
     setBusy(true);
     setError(null);
-    setStatus("Opening Slack…");
+    setStatus("");
     try {
       const answer = await callAction(() => onConnect());
       if (answer.url) {
