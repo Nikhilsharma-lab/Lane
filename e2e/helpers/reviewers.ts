@@ -4,10 +4,10 @@ import {
   type Page,
   type TestInfo,
 } from "@playwright/test";
-import { createTestUser, signInTestUser } from "./test-user";
+import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./test-user";
 import { provisionAndSignIn } from "./auth";
 import { e2eDatabase, finishFirstRuns } from "./cleanup";
-import { assertOwnedOrganization, assertOwnedUser } from "./fixtures";
+import { assertOwnedOrganization, assertOwnedUser, borrowedUserNames } from "./fixtures";
 import {
   intakeDraftScope,
   intakeDraftStorageKey,
@@ -17,12 +17,49 @@ import { createTriageToken } from "../../src/lib/triage-token";
 
 // These fixtures have review history. Retain exact creation receipts
 // for staging inspection; do not disable history triggers for teardown.
+//
+// With LANE_E2E_REUSE_USERS=1 the users may be borrowed (e2e/helpers/test-user.ts). Borrowed users are
+// given back, never retained: when the team can't be completed, and when it closes.
 export async function createReviewTeam(browser: Browser, ownerPage: Page) {
-  const users = await Promise.all(
-    ["PM", "Designer", "Developer"].map((createLabel) =>
-      createTestUser(`review-${createLabel}`),
-    ),
-  );
+  // One at a time, so two borrows never pick the same free user.
+  const users: TestUser[] = [];
+  try {
+    for (const label of ["PM", "Designer", "Developer"]) users.push(await createTestUser(`review-${label}`));
+  } catch (error) {
+    // Nothing to inspect yet: hand back every user already got (a borrowed one keeps its own name).
+    await Promise.allSettled(users.map((user) => deleteTestUser(user.id)));
+    throw error;
+  }
+  try {
+    return await assembleReviewTeam(browser, ownerPage, users);
+  } catch (error) {
+    await giveBackBorrowed(users);
+    throw error;
+  }
+}
+
+/**
+ * Gives back the team's borrowed users; users this run created stay, with their receipts, for inspection. A borrowed
+ * owner (users[0]) goes first, taking the workspace it owns with it; a borrowed teammate of a kept owner leaves the
+ * workspace (`orgId`) before it goes back.
+ */
+async function giveBackBorrowed(users: TestUser[], orgId?: string) {
+  const ownerBorrowed = Boolean(users[0] && borrowedUserNames(users[0].id));
+  for (const user of ownerBorrowed ? users : users.slice(1)) {
+    if (!borrowedUserNames(user.id)) continue;
+    try {
+      if (!ownerBorrowed && orgId) {
+        const client = await assertOwnedOrganization(orgId);
+        await client.organizations.deleteOrganizationMembership({ organizationId: orgId, userId: user.id });
+      }
+      await deleteTestUser(user.id);
+    } catch (error) {
+      console.warn(`[e2e] couldn't give back borrowed user ${user.id}:`, error);
+    }
+  }
+}
+
+async function assembleReviewTeam(browser: Browser, ownerPage: Page, users: TestUser[]) {
   for (const [i, user] of users.entries()) {
     const client = await assertOwnedUser(user.id);
     await client.users.updateUser(user.id, {
@@ -71,6 +108,7 @@ export async function createReviewTeam(browser: Browser, ownerPage: Page) {
         contentType: "application/json",
       });
       await Promise.all(contexts.map((context) => context.close()));
+      await giveBackBorrowed(users, orgId);
     },
   };
 }
