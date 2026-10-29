@@ -7,7 +7,7 @@
  * Actions come from the journey module with their reasons, so the page never offers what the server refuses
  * and never hides an action without saying why. Guests follow along without actions. Pure and client-safe.
  */
-import { momentDay, plannedDay } from "@/lib/dates"
+import { plannedDay } from "@/lib/dates"
 import { FORMER_MEMBER, JOURNEY_STATUSES, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
 import type { RequestStatus } from "@/lib/request-lifecycle"
 import { EXCEPTION_REASON_OPTIONS, type ExceptionReason } from "@/lib/request-outcome"
@@ -42,9 +42,14 @@ export type TimelineInput = {
   hasAgreedResult: boolean
   actions: JourneyActions
   now: Date
-  /** Moments read in the viewer's zone (B5); a zone here is for fixtures. Planned days are the same for everyone. */
-  timeZone?: string
 }
+
+/**
+ * One line of what happened. A moment stays a moment (`{ at }`), so the page shows it as Lane shows every moment
+ * (`LocalTime`): the zone-free day on the server and the first render, then the viewer's zone, with the full date
+ * and time on hover (B5). Planned days are already text: the same day for everyone.
+ */
+export type JourneyLine = (string | { at: string })[]
 
 export type TimelineAction =
   | { action: JourneyAction; label: string; available: true }
@@ -56,7 +61,7 @@ export type TimelineStep = {
   /** Skipped: the Request closed without a result before reaching this step. */
   state: "finished" | "current" | "upcoming" | "skipped"
   /** What happened, when and who. */
-  happened: string[]
+  happened: JourneyLine[]
   /** The current step only: what happens next and who does it. */
   next: string | null
   /** The current Measuring step only. */
@@ -112,7 +117,7 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
   const current = ORDER.indexOf(journey.status)
   const stop = journey.withoutResult ? ORDER.indexOf(stoppedAt(input)) : -1
   const release = input.release ?? input.closure?.release ?? null
-  const day = (iso: string) => momentDay(iso, { now: input.now, timeZone: input.timeZone })
+  const day = (iso: string) => ({ at: iso })
   const planned = (day: string) => plannedDay(day, { now: input.now })
   const recordedBy = [...input.releaseHistory].reverse().find(e => e.input.kind === "release" || e.input.kind === "correct")?.actorId
 
@@ -120,25 +125,25 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
     const state: TimelineStep["state"] = index === current ? "current" : index < current ? (stop >= 0 && index > stop ? "skipped" : "finished") : "upcoming"
     const reached = state === "finished" || state === "current"
     const isCurrent = state === "current"
-    const happened: string[] = []
+    const happened: JourneyLine[] = []
     let next: string | null = null
     let countdown: string | null = null
 
     if (status === "open") {
-      happened.push(`Requested by ${input.requestedBy} on ${day(input.requestedAt)}.`)
+      happened.push([`Requested by ${input.requestedBy} on `, day(input.requestedAt), "."])
       if (isCurrent) next = "Waiting for someone to pick this up. Reviews are optional and never block pickup."
     }
     if (status === "in_progress" && reached) {
-      const on = input.pickedUpAt ? ` on ${day(input.pickedUpAt)}` : ""
-      happened.push(input.assigneeName ? `Picked up by ${input.assigneeName}${on}.` : `Picked up${on}.`)
+      const by = input.assigneeName ? `Picked up by ${input.assigneeName}` : "Picked up"
+      happened.push(input.pickedUpAt ? [`${by} on `, day(input.pickedUpAt), "."] : [`${by}.`])
       if (isCurrent) next = `${input.assigneeName ?? "The assignee"} is working on this. Mark Done when the work is finished.`
     }
     if (status === "done" && reached) {
-      if (input.doneAt) happened.push(`Marked Done on ${day(input.doneAt)}.`)
+      if (input.doneAt) happened.push(["Marked Done on ", day(input.doneAt), "."])
       if (isCurrent) next = `Record the release once ${input.audience} has the work. Anyone working on this Request can record it.`
     }
     if (status === "measuring" && reached && release) {
-      happened.push(`Released to ${release.audience} on ${planned(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? FORMER_MEMBER}` : ""}.`)
+      happened.push([`Released to ${release.audience} on ${planned(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? FORMER_MEMBER}` : ""}.`])
       if (isCurrent) {
         countdown = `Result due ${planned(release.dueDate)} · ${releaseMeasurement(release, input.now)!.label}`
         next = `On ${planned(release.dueDate)} the Requester, ${input.requesterName}, records the measured result and closes this Request.`
@@ -147,10 +152,10 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
     if (status === "closed" && isCurrent && input.closure) {
       const closure = input.closure
       const by = names[closure.actorId] ?? FORMER_MEMBER
-      if (closure.kind === "measured") happened.push(`Closed with a measured result by ${by} on ${day(closure.closedAt)}.`)
+      if (closure.kind === "measured") happened.push([`Closed with a measured result by ${by} on `, day(closure.closedAt), "."])
       else {
         const reason = EXCEPTION_REASON_OPTIONS.find(o => o.value === closure.reasonCode)?.label ?? closure.reasonCode
-        happened.push(`Closed without a result at ${JOURNEY_STATUSES[stop].label}: ${reason}.`, `Closed by ${by} on ${day(closure.closedAt)}.`)
+        happened.push([`Closed without a result at ${JOURNEY_STATUSES[stop].label}: ${reason}.`], [`Closed by ${by} on `, day(closure.closedAt), "."])
       }
       next = "Closed Requests never reopen."
     }
