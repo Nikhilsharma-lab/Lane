@@ -22,8 +22,8 @@ export function SignOutLink({ onSignOut }: { onSignOut: () => Promise<unknown> }
   }
   return <div className={styles.headerLink}>
     <span role="status">{state === "failed" ? "Couldn’t sign out." : "Wrong account?"}</span>
-    <button type="button" className={cn(styles.link, styles.textButton)} aria-disabled={state === "pending" || undefined} onClick={() => void signOut()}>
-      {state === "pending" ? "Signing out…" : state === "failed" ? "Try again" : "Sign out"}
+    <button type="button" className={cn(styles.link, styles.textButton)} aria-disabled={state === "pending" || undefined} aria-busy={state === "pending" || undefined} onClick={() => void signOut()}>
+      {state === "failed" ? "Try again" : "Sign out"}
     </button>
   </div>;
 }

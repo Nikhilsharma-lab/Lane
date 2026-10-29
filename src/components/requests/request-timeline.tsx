@@ -18,6 +18,7 @@ import { RequestReviews } from "./request-reviews"
 import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverForm, MeasuredCloseForm, resultValue, VoidReleaseForm } from "./request-timeline-forms"
 import { timelineSteps, type TimelineStep } from "./request-timeline-model"
 import styles from "./request-timeline.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 type ReleaseView = Exclude<Awaited<ReturnType<typeof readRequestRelease>>, { error: string }>
 type OutcomeView = Exclude<Awaited<ReturnType<typeof readRequestOutcome>>, { error: string }>
@@ -97,7 +98,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
 
   if (!views) return <section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <h2 id="journey-heading" className={styles.heading}>Journey</h2>
-    {error ? <><p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void load() }}>Retry</Button></div></> : <p role="status">Loading journey…</p>}
+    {error ? <><p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void load() }}>Retry</Button></div></> : <Placeholder label="Loading journey" lines={4} />}
   </section>
 
   const { release, outcome } = views

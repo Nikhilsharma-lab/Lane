@@ -94,7 +94,7 @@ export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
         <form ref={formRef} onSubmit={submit} className="grid gap-6" noValidate>
           <RoleSelection value={role} disabled={busy} invalid={Boolean(error)} onValueChange={(value) => { setRole(value); setError(null); }} />
           {error && <Alert tone="danger" title={error} />}
-          <AuthAction type="submit" loading={busy} loadingLabel="Saving role…">Continue</AuthAction>
+          <AuthAction type="submit" loading={busy}>Continue</AuthAction>
           <p className={styles.shortcuts}><kbd>C</kbd> to create, <kbd>/</kbd> to search</p>
         </form>
       </AuthFormCard>

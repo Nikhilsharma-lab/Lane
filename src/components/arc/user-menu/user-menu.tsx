@@ -8,6 +8,7 @@ import type { PanInfo, Transition, Variants } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, LoaderCircle, LogOut, Monitor, Moon, Sun, SunMoon } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./user-menu.module.css";
+import { Placeholder } from "@/components/loading/placeholder";
 
 export type UserStatus = "available" | "busy" | "away";
 export type ThemePreference = "light" | "dark" | "system";
@@ -536,13 +537,13 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
         </button>;
       })}
     </div>
-    {workspaces.loading && <p className={styles.message} role="status">Loading workspaces…</p>}
+    {workspaces.loading && <div className={styles.message}><Placeholder label="Loading workspaces" lines={2} /></div>}
     {!workspaces.loading && !workspaces.error && workspaces.items.length === 0 && <p className={styles.message}>No workspaces available.</p>}
     {(workspaceError || workspaces.error) && <p className={`${styles.message} ${styles.error}`} role="alert">{workspaces.error || workspaceError}</p>}
     {workspaces.error && workspaces.onRetry && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Try again" onPointerMove={onItemPointerMove} onClick={() => void loadWorkspaces(workspaces.onRetry)}>Try again</button>}
     {workspaces.hasMore && workspaces.onLoadMore && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Load more workspaces"
       aria-busy={workspaces.loadingMore || undefined} onPointerMove={onItemPointerMove} onClick={() => { if (!workspaces.loadingMore) void loadWorkspaces(workspaces.onLoadMore); }}>
-      {workspaces.loadingMore ? "Loading workspaces…" : "Load more workspaces"}
+      Load more workspaces
     </button>}
   </>;
 

@@ -16,6 +16,7 @@ import { ProjectContextMenu } from "@/components/shell/project-context-menu";
 import { motionTokens } from "../../lib/motion-tokens";
 import { ProjectMarker } from "@/components/projects/project-marker";
 import styles from "./workspace-sidebar.module.css";
+import { Placeholder } from "@/components/loading/placeholder";
 
 export type WorkspaceNavigationItem = { id: string; name: string; href: string; icon?: ReactNode };
 export type WorkspaceNavigationGroup = { id: string; name: string; items: WorkspaceNavigationItem[] };
@@ -269,7 +270,7 @@ function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink
     </section>;
   }
   const projectContents = <>
-    {loading && <p role="status" className={styles.message} data-rail-hidden="" inert={rail}>Loading Projects…</p>}
+    {loading && <div className={styles.message} data-rail-hidden="" inert={rail}><Placeholder label="Loading Projects" lines={2} /></div>}
     {error && <div className={styles.message} data-rail-hidden="" inert={rail}><p role="alert">{error}</p><Button type="button" size="sm" variant="secondary" onClick={retryProjects}>Retry Projects</Button></div>}
     {!loading && !error && <ul className={styles.list}>{projects.map(project => row(project, true))}</ul>}
     {!loading && !error && projects.every(project => project.id === "none") && <p className={styles.message} data-rail-hidden="" inert={rail}>Create a Project to group your Requests.</p>}

@@ -47,7 +47,7 @@ export default function QuarterNoteEditor({ orgId, slot, note, onSaved, onCancel
       onKeyDown={event => { if (event.key === "Escape" && !busy) { event.preventDefault(); onCancel() } }} />
     {error && <p role="alert" className={styles.note}>{error}</p>}
     <div className={styles.noteControls}>
-      <Button type="submit" size="sm" disabled={busy}>{busy ? "Saving…" : "Save note"}</Button>
+      <Button type="submit" size="sm" loading={busy}>Save note</Button>
       <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={onCancel}>Cancel</Button>
     </div>
   </form>

@@ -1535,11 +1535,9 @@ export default function RequestEditor({
               loading={creating}
               aria-keyshortcuts="Meta+Enter Control+Enter"
             >
-              {creating
-                ? editing ? "Saving changes…" : "Creating Request…"
-                : failure?.code === "review_expired"
-                  ? "Review again"
-                  : editing ? "Save changes" : "Create Request"}
+              {failure?.code === "review_expired" && !creating
+                ? "Review again"
+                : editing ? "Save changes" : "Create Request"}
             </Button>
           </div>
         </footer>

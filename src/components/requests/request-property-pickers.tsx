@@ -12,6 +12,7 @@ import { useSharedWorkspaceProjects } from "@/components/projects/workspace-proj
 import { ProjectMarker } from "@/components/projects/project-marker";
 import styles from "./request-property-pickers.module.css";
 import { rememberRequestPopoverEvent } from "./request-popover-events";
+import { Placeholder } from "@/components/loading/placeholder";
 
 /** The workspace's Projects, from the (app) layout's provider (seeded with the page). */
 export function useWorkspaceProjects() {
@@ -220,7 +221,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
           </span>
         </Button>)}
       </div>}
-      {state.loading && <p role="status" className="text-sm text-muted-foreground">Loading Projects…</p>}
+      {state.loading && <Placeholder label="Loading Projects" lines={2} />}
       {state.error && <><Alert title="Projects unavailable" tone="danger">{state.error}</Alert><Button size="sm" variant="secondary" onClick={() => void state.reload()}>Retry Projects</Button></>}
       {createError && <Alert title="Project not created" tone="danger">{createError}</Alert>}
       <div className={styles.newProject}>

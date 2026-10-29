@@ -44,7 +44,7 @@ export function DeleteRequest({ requestId, title, orgId }: { requestId: string; 
       {error && <p role="alert">{error}</p>}
       <div className={styles.dialogActions}>
         <DialogClose asChild><Button variant="ghost" disabled={busy}>Cancel</Button></DialogClose>
-        <Button variant="danger" disabled={busy} onClick={() => void confirm()}>{busy ? "Deleting…" : "Delete Request"}</Button>
+        <Button variant="danger" loading={busy} onClick={() => void confirm()}>Delete Request</Button>
       </div>
     </DialogContent>
   </Dialog>;

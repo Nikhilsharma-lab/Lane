@@ -135,12 +135,9 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       await clickTwice(pickUp);
       await failedPickup.seen;
 
-      const pickingUp = lifecycle.getByRole("button", {
-        name: "Picking up…",
-        exact: true,
-      });
-      await expect(pickingUp).toBeDisabled();
-      await expect(pickingUp).toHaveAttribute("aria-busy", "true");
+      // #262: the busy button keeps its label.
+      await expect(pickUp).toHaveAttribute("aria-disabled", "true");
+      await expect(pickUp).toHaveAttribute("aria-busy", "true");
       expect(failedPickup.count(), surface.name).toBe(1);
 
       failedPickup.release();
@@ -163,12 +160,8 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       await clickTwice(markDone);
       await failedCompletion.seen;
 
-      const completing = lifecycle.getByRole("button", {
-        name: "Completing…",
-        exact: true,
-      });
-      await expect(completing).toBeDisabled();
-      await expect(completing).toHaveAttribute("aria-busy", "true");
+      await expect(markDone).toHaveAttribute("aria-disabled", "true");
+      await expect(markDone).toHaveAttribute("aria-busy", "true");
       expect(failedCompletion.count(), surface.name).toBe(1);
 
       failedCompletion.release();

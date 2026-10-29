@@ -14,7 +14,7 @@ export type PasswordRecoveryViewProps = {
   performAction: (sendCode?: boolean) => Promise<void>; onChangeEmail: () => void;
 };
 
-export function PasswordRecoveryView({ step, email, code, password, error, notice, sending, pending, isLoaded, resendIn,
+export function PasswordRecoveryView({ step, email, code, password, error, notice, pending, isLoaded, resendIn,
   setEmail, setCode, setPassword, performAction, onChangeEmail }: PasswordRecoveryViewProps) {
   return (
       <AuthFormCard
@@ -103,9 +103,6 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
           type="submit"
           disabled={!isLoaded || (step === "request" && resendIn > 0)}
           loading={pending}
-          loadingLabel={
-            sending ? "Sending code…" : step === "code" ? "Saving password…" : "Continuing…"
-          }
         >
           {step === "request"
             ? resendIn > 0 ? `Send code in ${resendIn}s` : "Send reset code"
