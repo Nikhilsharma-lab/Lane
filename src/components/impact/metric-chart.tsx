@@ -10,7 +10,7 @@ const SERIES_ORDER: Series[] = ["baseline", "actual", "predicted"]
 const LEGEND: { series: Series; label: string }[] = [
   { series: "baseline", label: "Baseline" },
   { series: "actual", label: "Actual" },
-  { series: "predicted", label: "Predicted" },
+  { series: "predicted", label: "Goal" },
 ]
 // The baseline's legend name comes from the chart: "Before release", "Planning baseline", or both when one chart mixes them.
 

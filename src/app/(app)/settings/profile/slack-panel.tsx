@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { SlackConnectionState, SlackConnectResult } from "@/components/settings/slack-connection-card";
 import type { WorkspaceContext } from "@/lib/ensure-workspace";
 import { slackDelivery } from "@/lib/feature-switches";
-import { journeyDay } from "@/lib/request-journey";
+import { zoneFreeDay } from "@/lib/dates";
 import { readSlackConnection } from "@/lib/slack-connection";
 import { SlackForm } from "./slack-form";
 
@@ -17,7 +17,7 @@ export async function slackPanel(workspace: Pick<WorkspaceContext, "orgId" | "ro
   const on = slackDelivery().on;
   const saved = await readSlackConnection(workspace.orgId);
   const connection: SlackConnectionState = saved
-    ? { kind: "connected", teamName: saved.teamName, connectedByName: saved.connectedByName, connectedOn: journeyDay(saved.connectedAt.toISOString()), available: on }
+    ? { kind: "connected", teamName: saved.teamName, connectedByName: saved.connectedByName, connectedOn: zoneFreeDay(saved.connectedAt), available: on }
     : on ? { kind: "disconnected" } : { kind: "unavailable" };
   const shown = RESULTS.find((known) => known === result);
   return <SlackForm connection={connection} result={shown} orgId={workspace.orgId} />;

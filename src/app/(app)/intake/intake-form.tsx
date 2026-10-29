@@ -255,7 +255,8 @@ export default function RequestEditor({
   /** Decision 2026-10-21 (critique 2.3): a way to abandon the problem check while it runs, null otherwise. The composer's X and Esc use it. */
   onCancelCheckChange?: (cancel: (() => void) | null) => void;
   initialProjectId?: string | null;
-  editing?: { request: RequestDetail; onSaved: () => void };
+  /** `saveLabel` names the save button when the edit has one purpose ("Save goal", #261); else "Save changes". */
+  editing?: { request: RequestDetail; onSaved: () => void; saveLabel?: string };
   /** #78: non-guests can ask people to review while creating. Not offered when editing. */
   canAddReviewers?: boolean;
   /** #212: a Guest's Request has no prediction (Expected impact); the Member who takes it on writes it. */
@@ -1167,11 +1168,11 @@ export default function RequestEditor({
             {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive">{errors.requestType.message}</p>}
             {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive">{reviewersError}</p>}
             {guided && offerReviewers && <FirstRunHint>Reviewers are optional: the teammates you add answer Looks good or Raise a concern before work starts.</FirstRunHint>}
-            {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on writes its prediction." : "A Member takes this on and writes its prediction. You’ll get an email when they do."}</p>}
+            {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on sets its goal." : "A Member takes this on and sets its goal. You’ll get an email when they do."}</p>}
             {!withoutPrediction && currentValues.expectedImpact && <>
-              {guided && <FirstRunHint>Predict the result: pick the metric from the Metrics library, where it is now and where you expect it to go.</FirstRunHint>}
+              {guided && <FirstRunHint>Set the goal: pick the metric from the Metrics library, where it is now and where you want it to go.</FirstRunHint>}
               <RadioGroup
-                label="Expected impact"
+                label="Goal"
                 name="expected-impact-choice"
                 value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
                 onValueChange={(next) => chooseImpact(next === "none" ? "none" : "measure")}
@@ -1513,7 +1514,7 @@ export default function RequestEditor({
             {shortcut}
             <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy || guardrailEditing} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter"
               aria-describedby={guardrailEditing && !checking ? "intake-guardrail-pending" : undefined}>
-              {originalTextUnchanged ? "Save changes" : "Review Request"}
+              {originalTextUnchanged ? editing?.saveLabel ?? "Save changes" : "Review Request"}
             </Button>
           </div>
         </footer>
@@ -1538,7 +1539,7 @@ export default function RequestEditor({
             >
               {failure?.code === "review_expired" && !creating
                 ? "Review again"
-                : editing ? "Save changes" : "Create Request"}
+                : editing ? editing.saveLabel ?? "Save changes" : "Create Request"}
             </Button>
           </div>
         </footer>

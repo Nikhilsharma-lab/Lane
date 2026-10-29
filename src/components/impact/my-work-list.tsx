@@ -1,7 +1,8 @@
+import { plannedDay } from "@/lib/dates"
 import Link from "next/link"
 import type { MyWorkEntry } from "@/lib/impact-read-model"
 import type { ResultView } from "@/lib/impact-read-model"
-import { actualText, baselineLabelOf, changeText, entryKindOf, valueText } from "@/lib/impact-presenter"
+import { actualText, baselineLabelOf, changeText, entryKindOf, goalText, valueText } from "@/lib/impact-presenter"
 import { formatRequestCode } from "@/lib/request-code"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { Badge } from "@/components/arc/badge/badge"
@@ -25,18 +26,18 @@ function ResultDetail({ entry }: { entry: MyWorkEntry }) {
     case "still_due": return <div className={styles.result}>
       <p className={styles.metric}>{kind.due.metric}</p>
       <dl className={styles.facts}>
-        <div><dt>Still due</dt><dd>Due {kind.due.dueDate} ({kind.due.dueLabel})</dd></div>
+        <div><dt>Still due</dt><dd>Due {plannedDay(kind.due.dueDate)} ({kind.due.dueLabel})</dd></div>
       </dl>
     </div>
     case "closed_without_result": return <p className={styles.note}>Closed without a result: {kind.reason}</p>
     case "operational": return <p className={styles.note}>Operational work: {kind.reason}</p>
-    case "predicted": return <div className={styles.result}><p className={styles.metric}>{kind.predicted.metric}</p><p className={styles.note}>Predicted, not measured yet</p></div>
+    case "predicted": return <div className={styles.result}><p className={styles.metric}>{kind.predicted.metric}</p><p className={styles.note}>Goal set, not measured yet</p></div>
     default: return null
   }
 }
 
 function MeasuredFacts({ result }: { result: ResultView }) {
-  const { baselineState, baselineSource, baseline, plannedBaseline, actual, change, predictedTarget, predictedChange, unit, changeUnit, window, metric, corrections, evidence } = result
+  const { baselineState, baselineSource, baseline, plannedBaseline, actual, change, predictedTarget, unit, changeUnit, window, metric, corrections, evidence } = result
   // A Correction that stated another value is what counts; the Correction itself is listed below.
   const corrected = result.correctedFrom ? " (corrected)" : ""
   return <div className={styles.result}>
@@ -46,14 +47,12 @@ function MeasuredFacts({ result }: { result: ResultView }) {
       {result.form === "numeric" && baselineSource !== null && baseline !== null ? <div><dt>{baselineLabelOf(baselineSource)}</dt><dd>{valueText(baseline, unit)}</dd></div> : null}
       {result.form === "numeric" && actual !== null ? <div><dt>Actual</dt><dd>{valueText(actual, unit)}{corrected}</dd></div> : null}
       {change !== null && changeUnit !== null ? <div><dt>Change</dt><dd>{changeText(change, unit, changeUnit)}</dd></div> : null}
-      {predictedChange !== null && changeUnit !== null ? <div><dt>Predicted change</dt><dd>{changeText(predictedChange, unit, changeUnit)}</dd></div> : null}
-      {predictedChange !== null && plannedBaseline !== null ? <div><dt>Planned baseline</dt><dd>{valueText(plannedBaseline, unit)}</dd></div> : null}
-      {predictedTarget !== null && result.form === "numeric" ? <div><dt>Predicted</dt><dd>{valueText(predictedTarget, unit)}</dd></div> : null}
+      {predictedTarget !== null && result.form === "numeric" ? <div><dt>Goal</dt><dd>{goalText({ form: result.form, metric, unit, baseline: plannedBaseline, target: predictedTarget })}</dd></div> : null}
       <div><dt>Window</dt><dd>{window}</dd></div>
       {evidence ? <div><dt>Evidence</dt><dd>{evidence}</dd></div> : null}
     </dl>
     {baselineState === "unknown" ? <p className={styles.note}>Baseline unknown</p> : null}
-    {baselineState === "new_capability" ? <p className={styles.note}>New capability. Target only, no change.</p> : null}
+    {baselineState === "new_capability" ? <p className={styles.note}>New capability. Goal only, no change.</p> : null}
     {corrections.map(correction => <p key={`${correction.field}-${correction.at}`} className={styles.note}>Correction to {correction.field}: {correction.correction}. Reason: {correction.reason}</p>)}
   </div>
 }
@@ -78,7 +77,7 @@ export function ImpactEntryList({ entries, subject }: { entries: MyWorkEntry[]; 
 
 /** The My work tab's content: the viewer's own Requests, or an empty state. */
 export function MyWorkTab({ entries }: { entries: MyWorkEntry[] }) {
-  if (entries.length === 0) return <EmptyState title="Nothing requested or picked up yet" description="Requests you request or pick up show here, with their predicted and actual results." />
+  if (entries.length === 0) return <EmptyState title="Nothing requested or picked up yet" description="Requests you request or pick up show here, with their goals and results." />
   return <ImpactEntryList entries={entries} />
 }
 

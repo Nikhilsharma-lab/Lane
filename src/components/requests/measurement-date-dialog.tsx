@@ -52,7 +52,7 @@ export function MeasurementDateDialog({ open, startDate, endDate, onOpenChange, 
       onKeyDown={event => event.stopPropagation()}
       onEscapeKeyDown={event => event.stopPropagation()}>
       <div ref={bodyRef}>
-        <DateRangePicker key={session.version} embedded label="Measurement dates" value={value} presets={[]} boundary={() => bodyRef.current}
+        <DateRangePicker key={session.version} embedded locale="en-GB" label="Measurement dates" value={value} presets={[]} boundary={() => bodyRef.current}
           onCancel={() => onOpenChange(false)}
           onChange={range => {
             onApply(formatDate(range.start), formatDate(range.end))

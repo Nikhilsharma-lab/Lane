@@ -1,4 +1,6 @@
+import { plannedDay } from "@/lib/dates";
 import { GUARDRAIL_COMPARISONS } from "@/lib/guardrail-comparison";
+import { goalText } from "@/lib/impact-presenter";
 import { measurementAudienceLabel, measurementMetricLabel, measurementPlatformLabel, measurementUnitLabel, type MeasurementPlan } from "@/lib/request-measurement";
 import styles from "./measurement-plan-summary.module.css";
 
@@ -10,7 +12,7 @@ const checkCriteria = {
   "": "",
 };
 
-/** `metricNames`: each Metric definition's current name by reference (#198). Without one, the name copied at prediction time shows. */
+/** A Request's Goal section (#261). `metricNames`: each Metric definition's current name by reference (#198). Without one, the name copied when the goal was set shows. */
 export function MeasurementPlanSummary({ plan, id, metricNames }: { plan: MeasurementPlan; id?: string; metricNames?: Record<string, string> }) {
   const { primary, measurement, guardrails } = plan;
   const metricName = (metric: MeasurementPlan["primary"] | MeasurementPlan["guardrails"][number]) =>
@@ -18,12 +20,14 @@ export function MeasurementPlanSummary({ plan, id, metricNames }: { plan: Measur
   const unit = measurementUnitLabel(primary.unit);
   const unitSeparator = primary.unit === "percent" ? "" : " ";
   const currentIsText = primary.noBaseline || primary.current === null;
+  // The goal reads as its end value with where it starts ("80% (from 62%)"); a start not yet known stays its own line.
+  const goal = primary.target === null ? null : goalText({ form: "numeric", metric: metricName(primary), unit, baseline: currentIsText ? null : primary.current, target: primary.target });
 
-  return <section id={id} aria-label={id ? undefined : "Measurement plan"} aria-labelledby={id ? `${id}-heading` : undefined} className={styles.summary}>
-    <h2 id={id ? `${id}-heading` : undefined} className={styles.heading}>Measurement plan</h2>
+  return <section id={id} aria-label={id ? undefined : "Goal"} aria-labelledby={id ? `${id}-heading` : undefined} className={styles.summary}>
+    <h2 id={id ? `${id}-heading` : undefined} className={styles.heading}>Goal</h2>
     {primary.key === "check" ? <dl className={styles.check}>
       <div className={styles.field}>
-        <dt className={styles.label}>Check</dt>
+        <dt className={styles.label}>Goal</dt>
         <dd className={styles.metric}>{checks[primary.check]}</dd>
       </div>
       <div className={styles.field}>
@@ -33,15 +37,15 @@ export function MeasurementPlanSummary({ plan, id, metricNames }: { plan: Measur
     </dl> : <div className={styles.metricGroup}>
       <h3 className={styles.metric}>{metricName(primary)}</h3>
       <dl className={styles.values}>
-        <div className={styles.field}>
+        {(!goal || currentIsText) && <div className={styles.field}>
           <dt className={styles.label}>Current</dt>
           <dd className={currentIsText ? styles.description : styles.value}>
             {primary.noBaseline ? "No existing data for this new feature" : primary.current === null ? "Required before pickup" : `${primary.current}${unitSeparator}${unit}`}
           </dd>
-        </div>
-        {primary.target !== null && <div className={styles.field}>
-          <dt className={styles.label}>Target after release</dt>
-          <dd className={styles.value}>{`${primary.target}${unitSeparator}${unit}`}</dd>
+        </div>}
+        {goal && <div className={styles.field}>
+          <dt className={styles.label}>Goal</dt>
+          <dd className={styles.value}>{goal}</dd>
         </div>}
       </dl>
     </div>}
@@ -49,7 +53,7 @@ export function MeasurementPlanSummary({ plan, id, metricNames }: { plan: Measur
       {[
         { label: "Audience", value: measurementAudienceLabel(measurement) },
         { label: "Platform", value: measurementPlatformLabel(measurement) },
-        { label: "Measurement window", value: measurement.exactDates ? `${measurement.startDate} to ${measurement.endDate}` : `${measurement.windowDays} days after release` },
+        { label: "Measurement window", value: measurement.exactDates ? `${plannedDay(measurement.startDate)} to ${plannedDay(measurement.endDate)}` : `${measurement.windowDays} days after release` },
       ].map(({ label, value }) => <div key={label} className={styles.contextItem}>
         <dt className={styles.label}>{label}</dt>
         <dd className={styles.contextValue}>{value}</dd>

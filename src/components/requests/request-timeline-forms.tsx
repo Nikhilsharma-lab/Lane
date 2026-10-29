@@ -94,8 +94,8 @@ export function MeasuredCloseForm({ requestId, orgId, revision, onSaved, onCance
     {agreed.guardrails.map((g, i) => <Input key={i} label={`Actual ${g.metric} (${g.unit})`} type="number" step="any" required value={guardrails[i] ?? ""} onChange={e => setGuardrails(all => all.map((v, j) => j === i ? e.target.value : v))} disabled={busy} description={`Guardrail: stays ${guardrailComparisonPhrase[g.operator]} ${resultValue(g.limit, g.unit)}`} />)}
     <Textarea label="Evidence and source" required maxLength={4000} value={evidence} onChange={e => setEvidence(e.target.value)} disabled={busy} description="Where the actual result can be checked." />
     <div className={styles.fields}>
-      <Input label="Observed from (UTC)" type="date" required value={from} onChange={e => setFrom(e.target.value)} disabled={busy} />
-      <Input label="Observed to (UTC)" type="date" required max={today} value={to} onChange={e => setTo(e.target.value)} disabled={busy} />
+      <Input label="Observed from" type="date" required value={from} onChange={e => setFrom(e.target.value)} disabled={busy} />
+      <Input label="Observed to" type="date" required max={today} value={to} onChange={e => setTo(e.target.value)} disabled={busy} />
     </div>
     <LearnedField value={learned} onChange={setLearned} disabled={busy} />
     <Controls busy={busy} error={error} submit="Close with measured result" disabled={agreed.form === "pass_fail" && !passed} onCancel={onCancel} />

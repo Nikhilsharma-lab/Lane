@@ -4,6 +4,7 @@ import { cache } from "react";
 import { db, workspaces } from "@/db";
 import { clerkWorkspacePermission, type MemberAuth, type WorkspacePermission } from "@/lib/auth-guard";
 import { loadShell } from "@/lib/data/shell";
+import { accountName } from "@/lib/account-name";
 import { decideFreeRequests } from "@/lib/billing";
 
 export type WorkspaceContext = {
@@ -26,8 +27,7 @@ type OnboardingContext = {
 
 function displayName(user: Awaited<ReturnType<typeof currentUser>>) {
   if (!user) return "User";
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  return name || user.username || user.primaryEmailAddress?.emailAddress || "User";
+  return accountName({ firstName: user.firstName, lastName: user.lastName, username: user.username, email: user.primaryEmailAddress?.emailAddress });
 }
 
 /**

@@ -21,18 +21,18 @@ export function EditRequest({ request, orgId, draftOwnerId, withoutPrediction = 
     const [open, setOpen] = useState(writePrediction?.open ?? false);
     const [busy, setBusy] = useState(false);
     const { toast } = useToastStack();
-    const title = writePrediction ? "Write the prediction" : "Edit Request";
+    const title = writePrediction ? "Set the goal" : "Edit Request";
     return <div>
     <Dialog open={open} onOpenChange={next => { if (!busy) {
         setOpen(next);
     } }}>
       {writePrediction
-        ? <DialogTrigger asChild><Button variant="primary" size="sm">Write the prediction</Button></DialogTrigger>
+        ? <DialogTrigger asChild><Button variant="primary" size="sm">Set the goal</Button></DialogTrigger>
         // At 640px and below the strip has room for an icon only; the name stays "Edit Request".
         : <DialogTrigger asChild><Button variant="secondary" size="sm" morph="plain" className={styles.editTrigger} aria-label="Edit Request"><Pencil className={styles.editIcon} strokeWidth={1.75} aria-hidden="true" /><span className={styles.editLabel}>Edit Request</span></Button></DialogTrigger>}
-      <DialogContent title={title} description={writePrediction ? "You took this on, so its prediction is yours to write: what it should change, and how you’ll know." : "Edit this Request while it is Open."} layout="composer" onEscapeKeyDown={event => { if (busy)
+      <DialogContent title={title} description={writePrediction ? "You took this on, so its goal is yours to set: what it should change, and how you’ll know." : "Edit this Request while it is Open."} layout="composer" onEscapeKeyDown={event => { if (busy)
         event.preventDefault(); }} onInteractOutside={event => event.preventDefault()}>
-        <EditRequestForm request={request} orgId={orgId} draftOwnerId={draftOwnerId} withoutPrediction={withoutPrediction} onBusyChange={setBusy} onSaved={() => { setOpen(false); toast({ type: "success", title: writePrediction ? "Prediction saved" : "Changes saved" }); }}/>
+        <EditRequestForm request={request} orgId={orgId} draftOwnerId={draftOwnerId} withoutPrediction={withoutPrediction} saveLabel={writePrediction ? "Save goal" : undefined} onBusyChange={setBusy} onSaved={() => { setOpen(false); toast({ type: "success", title: writePrediction ? "Goal saved" : "Changes saved" }); }}/>
       </DialogContent>
     </Dialog>
   </div>;
