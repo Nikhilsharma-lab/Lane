@@ -159,7 +159,7 @@ export function RequestReviews({
                 <span className={styles.heldBar} />
                 <span className={styles.heldBar} />
                 <span className={styles.heldBar} />
-                <span className={styles.controls}>{(expected.canRemove || (reviewer.mine && expected.canAdd)) && <span className={styles.heldButton} data-held-button="" />}</span>
+                <span className={styles.controls}>{(expected.canRemove || (reviewer.mine && expected.canAdd)) && <span className={styles.heldButton} data-held-button=""><Button variant="ghost" disabled tabIndex={-1}>Remove</Button></span>}</span>
                 {reviewer.note && <p className={`${styles.reason} ${styles.held}`} data-held-line=""><span className={styles.heldBar} /></p>}
                 {reviewer.concern && <p className={`${styles.reason} ${styles.held}`} data-held-line=""><span className={styles.heldBar} /></p>}
               </li>)}

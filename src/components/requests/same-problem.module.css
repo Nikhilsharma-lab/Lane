@@ -36,4 +36,4 @@
 .holdsButton { min-block-size: var(--control-height-sm); }
 .holding { display: grid; min-width: 0; }
 .holding > * { grid-area: 1 / 1; }
-.held { visibility: hidden; }
+.unseen { visibility: hidden; }

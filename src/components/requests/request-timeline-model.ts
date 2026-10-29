@@ -92,20 +92,14 @@ function stoppedAt(input: Pick<TimelineInput, "workStatus"> & { closure: { relea
 /** The saved release facts under the Measuring step, as the timeline words them; null holds the value before release. */
 function measuringFacts(fact: ReleaseFact, hasValueBefore: boolean, isCurrent: boolean): OutlineLine[] {
   return [
-    `Evidence: ${fact.evidence}`,
+    evidenceLine(fact.evidence),
     ...hasValueBefore ? [null] : [],
     ...fact.windowKind === "fixed" ? [fixedWindowLine(fact)] : [],
     ...isCurrent ? [DUE_DATE_LINE] : [],
   ]
 }
 
-/** The labels of the step's actions shown whether or not they are available (the quiet ones show only when they are). */
-function shownActions(input: Pick<TimelineInput, "isGuest" | "readOnly">, status: JourneyStatus): string[] {
-  if (input.isGuest || input.readOnly) return []
-  return (STEP_ACTIONS[status] ?? []).filter(a => !a.quiet).map(a => ACTION_LABELS[a.action])
-}
-
-function stepActions(input: TimelineInput, status: JourneyStatus): TimelineAction[] {
+function stepActions(input: Pick<TimelineInput, "isGuest" | "readOnly" | "actions" | "hasAgreedResult">, status: JourneyStatus): TimelineAction[] {
   if (input.isGuest || input.readOnly) return []
   const shown: TimelineAction[] = []
   for (const { action, quiet } of STEP_ACTIONS[status] ?? []) {
@@ -122,6 +116,10 @@ function stepActions(input: TimelineInput, status: JourneyStatus): TimelineActio
 }
 
 const inProgressNext = (assigneeName: string | null) => `${assigneeName ?? "The assignee"} is working on this. Mark Done when the work is finished.`
+/** Lines the timeline and its outline word alike. */
+export const evidenceLine = (evidence: string) => `Evidence: ${evidence}`
+export const observedLine = (closure: Pick<OutcomeClosure, "observedFrom" | "observedTo">) => `Observed ${journeyDate(closure.observedFrom)} to ${journeyDate(closure.observedTo)} (UTC).`
+export const learnedLine = (learned: string) => `What we learned: ${learned}`
 export const fixedWindowLine = (fact: ReleaseFact) => `Agreed fixed window: ${journeyDate(fact.startDate)} to ${journeyDate(fact.dueDate)}. Release timing does not move these dates.`
 export const DUE_DATE_LINE = "The due date does not close this Request automatically."
 /** The Closed step reads "Closed without a result" once a Request closed that way. */
@@ -199,13 +197,13 @@ export type OutlineStep = Pick<TimelineStep, "status" | "label" | "state"> & {
   happened: OutlineLine[]
   /** The Open step's reviewers, which read on their own and so can start straight away. */
   reviews: boolean
-  /** Saved facts, the countdown and what is next, in the order the step shows them. */
-  then: OutlineLine[]
-  /** The buttons the step shows once the reads say whether each is available: held by their labels, so they wrap alike. */
-  actions: string[]
+  /** What follows the reviewers: saved facts, the countdown and what is next, in the order the step shows them. */
+  after: OutlineLine[]
+  /** The step's buttons, and each refusal's reason, as the read journey will show them: held at their size. */
+  actions: TimelineAction[]
 }
 
-export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGuest" | "readOnly" | "requestedBy" | "requestedAt" | "assigneeName" | "audience"> & {
+export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGuest" | "readOnly" | "requestedBy" | "requestedAt" | "assigneeName" | "audience" | "actions" | "hasAgreedResult"> & {
   releaseState: ReleaseState | null
   closure: OutcomeClosure | OutcomeException | null
 }
@@ -225,25 +223,25 @@ export function journeyOutline(input: OutlineInput): { steps: OutlineStep[]; his
       const isCurrent = state === "current"
       const reached = isCurrent || state === "finished"
       const happened: OutlineLine[] = []
-      const then: OutlineLine[] = []
+      const after: OutlineLine[] = []
       if (status === "open") {
         happened.push(`Requested by ${input.requestedBy} on ${day(input.requestedAt)}.`)
-        if (isCurrent) then.push(OPEN_NEXT)
+        if (isCurrent) after.push(OPEN_NEXT)
       }
       if (status === "in_progress" && reached) {
         happened.push(null)
-        if (isCurrent) then.push(inProgressNext(input.assigneeName))
+        if (isCurrent) after.push(inProgressNext(input.assigneeName))
       }
       // When it was marked Done arrives with the reads.
       if (status === "done" && reached) {
         happened.push(null)
-        if (isCurrent) then.push(doneNext(input.audience))
+        if (isCurrent) after.push(doneNext(input.audience))
       }
       if (status === "measuring" && reached && release) {
         happened.push(null)
-        then.push(...measuringFacts(release, valueBeforeReleaseFor(input.releaseState, input.releaseState?.release ?? null) !== null, isCurrent))
+        after.push(...measuringFacts(release, valueBeforeReleaseFor(input.releaseState, input.releaseState?.release ?? null) !== null, isCurrent))
         // The countdown follows the reader's clock, and what is next names the Requester.
-        if (isCurrent) then.push(null, null)
+        if (isCurrent) after.push(null, null)
       }
       if (status === "closed" && isCurrent && input.closure) {
         const closure = input.closure
@@ -251,15 +249,15 @@ export function journeyOutline(input: OutlineInput): { steps: OutlineStep[]; his
         if (closure.kind === "measured") {
           happened.push(null)
           // The expected and actual results, and each guardrail, are worded against the agreed prediction the reads bring.
-          then.push(null, null, ...closure.guardrails.map(() => null), `Evidence: ${closure.evidence}`, `Observed ${journeyDate(closure.observedFrom)} to ${journeyDate(closure.observedTo)} (UTC).`)
+          after.push(null, null, ...closure.guardrails.map(() => null), evidenceLine(closure.evidence), observedLine(closure))
         } else {
           happened.push(withoutResultLine(ORDER.indexOf(stoppedAt(input)), closure.reasonCode), null)
-          if (closure.reason) then.push(closure.reason)
+          if (closure.reason) after.push(closure.reason)
         }
-        if (closure.learned) then.push(`What we learned: ${closure.learned}`)
-        then.push(CLOSED_NEXT)
+        if (closure.learned) after.push(learnedLine(closure.learned))
+        after.push(CLOSED_NEXT)
       }
-      return { status, label: stepLabel(input.journey, status, label), state, happened, reviews: status === "open", then, actions: isCurrent ? shownActions(input, status) : [] }
+      return { status, label: stepLabel(input.journey, status, label), state, happened, reviews: status === "open", after, actions: isCurrent ? stepActions(input, status) : [] }
     }),
     history: !!input.releaseState?.history.length,
   }

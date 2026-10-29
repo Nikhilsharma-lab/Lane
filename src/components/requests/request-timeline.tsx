@@ -8,7 +8,9 @@ import { readRequestOutcome } from "@/app/(app)/requests/[id]/outcome-actions"
 import { callAction } from "@/lib/action-call"
 import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
-import { FORMER_MEMBER, journeyDate, journeyDay as day, journeyFactsOf, journeyStatus, type JourneyAction } from "@/lib/request-journey"
+import type { WorkspacePermission } from "@/lib/auth-guard"
+import { canChange } from "@/lib/request-access-rules"
+import { FORMER_MEMBER, journeyActions, journeyDate, journeyDay as day, journeyFactsOf, journeyStatus, type JourneyAction } from "@/lib/request-journey"
 import { agreedAudience } from "@/lib/request-release-facts"
 import { DAY_MS, dayNumber } from "@/lib/utc-day"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome"
@@ -17,7 +19,7 @@ import type { RequestDetail } from "./detail-view"
 import { ReleaseForm } from "./release-form"
 import { RequestReviews } from "./request-reviews"
 import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverForm, MeasuredCloseForm, resultValue, VoidReleaseForm } from "./request-timeline-forms"
-import { DUE_DATE_LINE, fixedWindowLine, journeyOutline, timelineSteps, type OutlineLine, type TimelineStep } from "./request-timeline-model"
+import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, journeyOutline, learnedLine, observedLine, timelineSteps, type OutlineLine, type TimelineStep } from "./request-timeline-model"
 import styles from "./request-timeline.module.css"
 
 type ReleaseView = Exclude<Awaited<ReturnType<typeof readRequestRelease>>, { error: string }>
@@ -51,6 +53,8 @@ function historyLine(event: Pick<ReleaseEvent, "input">) {
 /** A line the journey's reads fill in, held one line high (#295). */
 const Held = () => <p className={styles.held} aria-hidden="true" data-pending=""><span /></p>
 const outlineLine = (line: OutlineLine, index: number) => line === null ? <Held key={index} /> : <p key={index} className={styles.muted}>{line}</p>
+/** A button the journey's reads will show, held at its size: Arc's own button, unseen, on the skeleton's fill. */
+const HeldButton = ({ label }: { label: string }) => <span className={styles.heldButton}><Button variant="secondary" disabled tabIndex={-1}>{label}</Button></span>
 
 /** One step of the journey. The outline and the read journey both draw steps through here, so each part keeps its
  * place in the tree and the reviewers, drawn in the outline, stay mounted when the reads arrive. */
@@ -76,10 +80,10 @@ function stepItem(step: Pick<TimelineStep, "status" | "label" | "state">, parts:
  * when and who; the current step says what's next and who does it, with its actions, or why one isn't
  * available. Reviews sit in Open; the countdown only in Measuring. Guests see it without actions.
  */
-export function RequestTimeline({ request, orgId, isGuest, readOnly = false, canChange = false }: {
+export function RequestTimeline({ request, orgId, isGuest, readOnly = false, reader }: {
   request: RequestDetail; orgId: string; isGuest: boolean; readOnly?: boolean
-  /** The reader may change this Request (its creator, or an Admin): while the reviewers load, room is held for Remove. */
-  canChange?: boolean
+  /** Who is reading, from the page: the outline holds the buttons the journey's reads will offer them (#295). */
+  reader?: { userId: string; role: WorkspacePermission }
 }) {
   const router = useRouter()
   const requestId = request.id
@@ -126,14 +130,20 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, can
     <h2 id="journey-heading" className={styles.heading}>Journey</h2>
     <p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void load() }}>Retry</Button></div>
   </section>
+  const open = request.status === "open"
   // Drawn in the outline, read once the journey's reads are back: the reviewers' read would otherwise go ahead of them.
   const reviews = <RequestReviews requestId={requestId} orgId={orgId} isGuest={isGuest} revision={revision} deferred={!views}
-    expected={{ reviewers: request.reviewerOutline ?? [], open: request.status === "open", canAdd: request.status === "open" && !isGuest && !readOnly, canRemove: request.status === "open" && canChange }} />
+    expected={{ reviewers: request.reviewerOutline ?? [], open, canAdd: open && !isGuest && !readOnly, canRemove: open && !!reader && canChange(reader, request) }} />
 
   // #295: until the reads arrive, the journey as the Request alone draws it, in the same places as below.
   if (!views) {
+    const facts = { ...journeyFactsOf(request), createdBy: request.createdBy, takenOnBy: request.takenOnBy }
+    // The reader's actions by the rules the read journey uses. The roster isn't read yet, so the reader counts as
+    // active and the Requester's name is the creator's: it only sizes a held reason.
+    const viewer = { id: reader?.userId ?? "", role: reader?.role ?? (isGuest ? "guest" : "viewer"), active: true } as const
     const outline = journeyOutline({
-      journey: journeyStatus(journeyFactsOf(request)), workStatus: request.status, isGuest, readOnly,
+      journey: journeyStatus(facts), workStatus: request.status, isGuest, readOnly, hasAgreedResult: Boolean(request.expectedImpact),
+      actions: journeyActions(facts, viewer, { requesterName: request.creatorName || FORMER_MEMBER, requesterActive: true }, new Date()),
       requestedBy: request.creatorName || FORMER_MEMBER, requestedAt: new Date(request.createdAt).toISOString(), assigneeName: request.assigneeName, audience: agreedAudience(request),
       releaseState: request.releaseState ?? null, closure: request.outcomeClosure ?? request.exceptionClosure ?? null,
     })
@@ -142,14 +152,17 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, can
         <h2 id="journey-heading" tabIndex={-1} ref={heading} className={styles.heading}>Journey</h2>
         <p className={`${styles.end} ${styles.muted}`}>Requester: <span className={styles.heldName} data-pending="" /></p>
       </div>
-      {null}
+      {/* The "Follow-up of" line's place; its code and title arrive with the reads. */}
+      {request.followUpOf ? <Held /> : null}
       <p role="status" className="sr-only">Loading journey…</p>
       <ol className={styles.steps}>
         {outline.steps.map(step => stepItem(step, {
-          happened: step.happened.map(outlineLine), details: step.reviews ? reviews : null, countdown: step.then.map(outlineLine), next: null,
-          actions: step.actions.length > 0 && <div className={styles.actions} aria-hidden="true" data-pending="actions">
-            {step.actions.map(label => <span key={label} className={styles.heldButton}>{label}</span>)}
-          </div>, form: null,
+          happened: step.happened.map(outlineLine), details: step.reviews ? reviews : null, countdown: null, next: step.after.map(outlineLine),
+          actions: step.actions.length > 0 && <ul className={styles.actions} aria-hidden="true" data-pending="actions">
+            {step.actions.map(action => <li key={action.action} className={styles.action}>
+              <HeldButton label={action.label} />{!action.available && <span className={styles.heldReason}>{action.reason}</span>}
+            </li>)}
+          </ul>, form: null,
         }))}
       </ol>
       {outline.history && <Held />}
@@ -190,7 +203,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, can
       const fact = release.release ?? closure?.release
       if (!fact) return null
       return <div className={styles.facts}>
-        <p className={styles.muted}>Evidence: {fact.evidence}</p>
+        <p className={styles.muted}>{evidenceLine(fact.evidence)}</p>
         {release.recordedValueBefore && <p className={styles.muted}>Value before release: {resultValue(release.recordedValueBefore.value, release.recordedValueBefore.unit)}.</p>}
         {fact.windowKind === "fixed" && <p className={styles.muted}>{fixedWindowLine(fact)}</p>}
         {step.state === "current" && <p className={styles.muted}>{DUE_DATE_LINE}</p>}
@@ -204,12 +217,12 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, can
         {closure.guardrails.map((g, i) => <div key={i}><dt>Guardrail: {g.metric}</dt><dd>Stays {guardrailComparisonPhrase[g.operator]} {resultValue(g.limit, g.unit)} · Actual {resultValue(g.actual, g.unit)} · {g.held ? "Held" : "Breached"}</dd></div>)}
       </dl>}
       {closure.kind === "measured" && <>
-        <p>Evidence: {closure.evidence}</p>
-        <p className={styles.muted}>Observed {journeyDate(closure.observedFrom)} to {journeyDate(closure.observedTo)} (UTC).</p>
+        <p>{evidenceLine(closure.evidence)}</p>
+        <p className={styles.muted}>{observedLine(closure)}</p>
       </>}
       {closure.kind === "exception" && closure.reason && <p>{closure.reason}</p>}
       {/* #209: the line as given at closing; a Correction below shows any new wording beside it. */}
-      {closure.learned && <p>What we learned: {closure.learned}</p>}
+      {closure.learned && <p>{learnedLine(closure.learned)}</p>}
       {!!outcome.corrections.length && <div className={styles.facts}><h4>Corrections</h4><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
         <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
         <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on {day(c.at)}.</p>

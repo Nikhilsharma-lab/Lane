@@ -21,7 +21,7 @@ export function IterationsPlaceholder({ canLink, headingRef }: { canLink: boolea
     </div>
     <div className={styles.holding}>
       <p role="status" className={styles.muted}>Loading Iterations…</p>
-      <p aria-hidden="true" className={`${styles.muted} ${styles.held}`}>{NO_LINKS_YET}{LINK_HINT}</p>
+      <p aria-hidden="true" className={`${styles.muted} ${styles.unseen}`}>{NO_LINKS_YET}{LINK_HINT}</p>
     </div>
   </section>
 }

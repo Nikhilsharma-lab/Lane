@@ -84,10 +84,10 @@ export const answerReviewSchema = z
     reason: z.string().trim().max(REVIEW_REASON_MAX),
   })
   .strict();
-/** What pickup confirms first, from saved reviews: open concerns (who and why) and the unanswered count. */
 /** What the Request page knows of a saved reviewer before the reviewers load (#295): enough to hold their row's shape. */
 export type ReviewerOutline = { note: boolean; concern: boolean; mine: boolean };
 
+/** What pickup confirms first, from saved reviews: open concerns (who and why) and the unanswered count. */
 export type ReviewState = {
   concerns: { name: string; reason: string }[];
   unanswered: number;

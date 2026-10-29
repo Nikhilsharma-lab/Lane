@@ -6,7 +6,7 @@
 import type { ReleaseChange, ReleaseFact, ReleaseState } from './request-release';
 import { daysUntil } from './utc-day';
 
-/** The audience a release must reach: the Request's own "Users", or everyone it is for. */
+/** The audience a release must reach. The Request is what was agreed, so its "Users" are the agreed audience. */
 export const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
 
 /**

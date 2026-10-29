@@ -40,6 +40,12 @@ describe("the Request page before its reads arrive (#295)", () => {
     expect(shown).toMatch(/Requester: <span[^>]*data-pending/)
   })
 
+  it("holds a follow-up's \"Follow-up of\" line above the steps until its code and title arrive", () => {
+    const above = (markup: string) => markup.slice(markup.indexOf('<section id="journey"'), markup.indexOf("<ol", markup.indexOf('<section id="journey"')))
+    expect(above(render({ ...open, followUpOf: "request-0" } as RequestDetail))).toContain("data-pending")
+    expect(above(render(open))).not.toMatch(/<p[^>]*data-pending/)
+  })
+
   it("starts the Reviewers in the Open step straight away, holding the Optional line and Add reviewer's height", () => {
     const reviewers = section(render(open), "reviewers")
     expect(text(reviewers)).toContain("Optional. People who should look at this before work starts.")

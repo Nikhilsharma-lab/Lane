@@ -13,7 +13,6 @@ import { journeyStatus, requesterOf } from '@/lib/request-journey';
 import { agreedAudience, valueBeforeReleaseFor } from '@/lib/request-release-facts';
 import { allow, journeyActionsFor, peopleNames, personName, rosterMember } from '@/lib/request-journey-access';
 import { utcDay } from '@/lib/utc-day';
-/** The Request is what was agreed, so its "Users" are the agreed audience. */
 /** Each release change and the journey action that allows it. */
 const JOURNEY_ACTION = { release: 'release', correct: 'correctRelease', void: 'voidRelease', transfer: 'handover' } as const;
 export async function changeRequestRelease(context: RequestChangeContext, input: unknown) {

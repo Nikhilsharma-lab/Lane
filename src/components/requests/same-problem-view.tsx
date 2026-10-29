@@ -33,7 +33,6 @@ export type SameProblemViewProps = {
   canLink?: boolean
 }
 
-const HEADING_ID = ITERATIONS_HEADING_ID
 
 function historyText(line: SameProblemHistoryLine): string {
   const when = `by ${line.actorName} on ${journeyDay(line.at)}.`
@@ -91,9 +90,9 @@ export function SameProblemView({ requestNumber, state, canLink = true, onOpenLi
     const frame = window.requestAnimationFrame(() => document.getElementById(ITERATIONS_SECTION_ID)?.scrollIntoView({ block: "start" }))
     return () => window.cancelAnimationFrame(frame)
   }, [state])
-  const heading = <h2 id={HEADING_ID} ref={headingRef} tabIndex={-1} className={styles.heading}>Iterations of this problem</h2>
+  const heading = <h2 id={ITERATIONS_HEADING_ID} ref={headingRef} tabIndex={-1} className={styles.heading}>Iterations of this problem</h2>
   if (state.kind === "loading") return <IterationsPlaceholder canLink={canLink} headingRef={headingRef} />
-  if (state.kind === "error") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={HEADING_ID} className={styles.section}>
+  if (state.kind === "error") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={ITERATIONS_HEADING_ID} className={styles.section}>
     <div className={styles.header}>{heading}</div>
     <p role="alert" className={styles.muted}>{state.message}</p>
     <div><Button variant="secondary" size="sm" onClick={onRetry}>Retry</Button></div>
@@ -102,7 +101,7 @@ export function SameProblemView({ requestNumber, state, canLink = true, onOpenLi
   const { iterations, history, canChange } = state
   if (!iterations && history.length === 0 && !canChange) return null
   const count = iterations?.iterations.length ?? 0
-  return <section id={ITERATIONS_SECTION_ID} aria-labelledby={HEADING_ID} className={styles.section}>
+  return <section id={ITERATIONS_SECTION_ID} aria-labelledby={ITERATIONS_HEADING_ID} className={styles.section}>
     <div className={styles.header}>
       {heading}
       {count > 0 && <span className={styles.count}>{count}</span>}

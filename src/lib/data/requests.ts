@@ -6,9 +6,8 @@ import { alias } from "drizzle-orm/pg-core"
 
 import { db, comments, profiles, projects, requestAgreements, requestAttachments, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
-import type { Reviewer, ReviewState } from "@/lib/request-reviewer-rules"
+import type { Reviewer, ReviewerOutline, ReviewState } from "@/lib/request-reviewer-rules"
 import { reviewStatesOf } from "@/lib/request-reviewers"
-import type { ReviewerOutline } from "@/lib/request-reviewer-rules"
 import { measurementReadiness } from "@/lib/request-measurement"
 import { currentMetricNames } from "@/lib/metrics-library"
 import { journeyStatus } from "@/lib/request-journey"
@@ -50,7 +49,6 @@ type ListRowRecord = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>
  * outstanding, never its measurement plan or its reviewers. */
 export type RequestListRow = Omit<ListRowRecord, "expectedImpact" | "reviewers" | "noMeasurableImpactReason"> & { pickupBlockedReason: string | null; reviewState: ReviewState | null }
 
-/** An Open Request's saved reviewers; after pickup nothing is outstanding. */
 /** Each saved reviewer's shape, at any status, so the Request page holds their rows while they load (#295): whether
  * they were asked with a note, raised a concern (each a line under the row) and are the reader (who answers on the row). */
 const reviewerOutline = (userId: string) => sql<ReviewerOutline[]>`coalesce((select jsonb_agg(jsonb_build_object(
@@ -58,6 +56,7 @@ const reviewerOutline = (userId: string) => sql<ReviewerOutline[]>`coalesce((sel
   from ${requestAgreements}, jsonb_array_elements(${requestAgreements.reviewers}) with ordinality as e(r, o)
   where ${requestAgreements.requestId} = ${requests.id} and ${requestAgreements.orgId} = ${requests.orgId}), '[]'::jsonb)`
 
+/** An Open Request's saved reviewers; after pickup nothing is outstanding. */
 const openReviewers = sql<Reviewer[] | null>`case when ${requests.status} = 'open' then (select ${requestAgreements.reviewers} from ${requestAgreements} where ${requestAgreements.requestId} = ${requests.id} and ${requestAgreements.orgId} = ${requests.orgId}) end`
 
 /** #212: a Guest submission still waiting to be taken on, one a Member took on, or not a Guest submission (null). */
@@ -199,6 +198,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
       agreementBlocked: sql<boolean>`public.request_agreement_blocked(${requests.id})`,
       reviewers: openReviewers,
       reviewerOutline: reviewerOutline(auth.userId),
+      followUpOf: requests.followUpOf,
       exceptionClosure: requests.exceptionClosure,
       outcomeClosure: requests.outcomeClosure,
       releaseState: requests.releaseState,
