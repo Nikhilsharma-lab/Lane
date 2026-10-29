@@ -79,7 +79,12 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const membersHref = role === "admin" || role === "member" ? "/settings/members" : undefined;
   // #258: opening the account menu fully prefetches Settings (and Members, for people who see it), as Request
   // rows do (FULL_PREFETCH in use-intent-prefetch.ts), so choosing either answers at once. Spelled here so the shell carries no module for it.
+  // #259: it starts as the pointer reaches the account button or focus lands on it, and loads once while what it
+  // loaded is fresh (next.config.ts staleTimes, 30 s): moving about on the button, then opening the menu, loads nothing more.
+  const settingsLoadedAt = useRef(-Infinity);
   const loadSettingsAhead = useCallback(() => {
+    if (performance.now() - settingsLoadedAt.current < 30_000) return;
+    settingsLoadedAt.current = performance.now();
     for (const href of ["/settings/profile", membersHref]) if (href) router.prefetch(href, { kind: "full" as PrefetchKind });
   }, [router, membersHref]);
   const listContext = useRequestListContext();

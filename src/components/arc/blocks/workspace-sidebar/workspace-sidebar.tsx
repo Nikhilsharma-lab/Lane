@@ -39,7 +39,9 @@ export interface WorkspaceSidebarProps {
   user: { name: string; email: string };
   settingsHref: string;
   membersHref?: string;
-  /** Lane #258: runs each time the account menu opens (once per open), so the parent can load its destinations ahead. */
+  /** Lane #258: runs each time the account menu opens (once per open), so the parent can load its destinations ahead.
+   * #259: also as soon as someone heads for it: the pointer reaching the account button (not touch), or focus landing on
+   * it or inside the menu. It can run several times for one visit, so the parent loads once per what it keeps fresh. */
   onAccountMenuOpen?: () => void;
   /** Lane #217: a help link in the account menu (the first-run guide). */
   help?: { label: string; href: string };
@@ -528,7 +530,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
   const nav = <motion.nav ref={frame} id={navId} className={[styles.sidebar, className].filter(Boolean).join(" ")} aria-label="Primary navigation" style={phone ? undefined : { width: layoutManaged ? "100%" : width }} data-rail={rail || undefined} data-placement={phone ? "drawer" : "inline"} data-force-desktop={forceDesktopLayout || undefined}>
       <div className={styles.header}>
         <div className={styles.identityRow}>
-        <div className={styles.accountSlot}>
+        <div className={styles.accountSlot} onPointerEnter={event => { if (event.pointerType !== "touch") onAccountMenuOpen?.(); }} onFocus={onAccountMenuOpen}>
           <UserMenu ref={accountTrigger} user={user} showName={!rail} showTheme={false} align="start" onNavigate={push}
             className={styles.accountTrigger} open={accountOpen} onOpenChange={onAccountOpenChange}
             items={[
