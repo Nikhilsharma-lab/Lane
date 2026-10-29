@@ -6,6 +6,7 @@ import { RedirectType, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { db, profiles } from "@/db";
+import { accountName } from "@/lib/account-name";
 import { clerkWorkspacePermission } from "@/lib/auth-guard";
 
 const onboardingRoleSchema = z.object({
@@ -13,8 +14,7 @@ const onboardingRoleSchema = z.object({
 });
 
 function userDisplayName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>) {
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  return name || user.username || user.primaryEmailAddress?.emailAddress || "User";
+  return accountName({ firstName: user.firstName, lastName: user.lastName, username: user.username, email: user.primaryEmailAddress?.emailAddress });
 }
 
 export async function saveOnboardingRole(data: { role: string }) {
