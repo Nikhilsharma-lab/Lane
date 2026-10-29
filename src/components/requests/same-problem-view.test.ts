@@ -96,7 +96,7 @@ describe("Iterations of this problem", () => {
 
   it("says it is loading, and offers Retry when it can't load", () => {
     expect(render({ state: { kind: "loading" } })).toContain('role="status"')
-    const failed = render({ state: { kind: "error", message: "Could not load the Iterations. Try again." } })
+    const failed = render({ state: { kind: "error", message: "Couldn't load the Iterations. Try again." } })
     expect(failed).toContain('role="alert"')
     expect(failed).toContain(">Retry<")
   })

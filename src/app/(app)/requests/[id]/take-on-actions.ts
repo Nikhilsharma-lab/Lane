@@ -17,7 +17,7 @@ export async function takeOnGuestSubmission(context: RequestChangeContext) {
     messages: {
       invalid: "Invalid take-on action.",
       forbidden: "Only Members and Admins can take on a Guest submission.",
-      failed: "Could not take this on. Try again.",
+      failed: "Couldn't take this on. Try again.",
     },
     // Taking on is recorded on the Request itself; the person who holds it replays any retry.
     replayOf: (_tx, request, auth) => request.takenOnBy === auth.userId

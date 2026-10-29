@@ -31,7 +31,7 @@ export async function listPredictionMetrics(input: { impact: unknown }, context:
     };
   } catch (error) {
     console.error("[intake] Metrics library read failed:", error);
-    return { error: "The Metrics library could not be loaded. Try again." };
+    return { error: "The Metrics library couldn't be loaded. Try again." };
   }
 }
 
@@ -59,6 +59,6 @@ export async function addPredictionMetric(data: { name: string; unit: string }, 
     return { ok: true, ...result };
   } catch (error) {
     console.error("[intake] Inline metric add failed:", error);
-    return { error: "The metric could not be added. Try again; your Request is still here." };
+    return { error: "The metric couldn't be added. Try again; your Request is still here." };
   }
 }

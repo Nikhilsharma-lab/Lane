@@ -20,8 +20,8 @@ type AgreedResult = ReturnType<typeof agreedResult>
 
 /** "50%", "12 ms" or "No baseline". */
 export const resultValue = (n: number | null, unit: string) => n === null ? "No baseline" : unit === "%" ? `${n}%` : `${n} ${unit}`.trim()
-const RELEASE_FAILED = "Could not save release. Your input is preserved; try again."
-const OUTCOME_FAILED = "Could not save the outcome. Your input is preserved; try again."
+const RELEASE_FAILED = "Couldn't save release. Your input is preserved; try again."
+const OUTCOME_FAILED = "Couldn't save the outcome. Your input is preserved; try again."
 
 /** What we learned (#209): one optional line, stored with the closure. Afterwards only a Correction changes it. */
 function LearnedField({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled: boolean }) {
@@ -148,7 +148,7 @@ export function ClosureCorrectionForm({ requestId, orgId, revision, onSaved, onC
 }
 
 export function FollowUpForm({ requestId, orgId, revision, onCancel, onCreated }: Omit<FormProps, "onSaved"> & { onCreated: (followUpId: string) => void }) {
-  const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: "Could not create the follow-up. Your input is preserved; try again." })
+  const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: "Couldn't create the follow-up. Your input is preserved; try again." })
   const [reason, setReason] = useState("")
   return <form className={styles.stack} aria-busy={busy} onSubmit={e => {
     e.preventDefault()

@@ -29,8 +29,8 @@ const SameProblemLinkDialog = dynamic(() => import("./same-problem-link-dialog")
  * on its row fetches no code. */
 export const preloadSameProblemView = () => { void loadView().catch(() => undefined) }
 
-const LOAD_FAILED = "Could not load the Iterations. Try again."
-const CHANGE_FAILED = "Could not change the link. Try again."
+const LOAD_FAILED = "Couldn't load the Iterations. Try again."
+const CHANGE_FAILED = "Couldn't change the link. Try again."
 
 /** The section's state from the read, or null when there is nothing to show this reader (a guest). Never throws. */
 async function readView(requestId: string, orgId: string): Promise<SameProblemState | null> {

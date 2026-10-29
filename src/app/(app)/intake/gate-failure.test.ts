@@ -78,6 +78,6 @@ describe("AI gate failures in the composer (plan item 2.3)", () => {
   });
 
   it("keeps a field's own sentence when the unavailable part is the Project check", () => {
-    expect(gateFailureNotice({ code: "network", field: "projectId", message: "Lane could not check this Project. Try again." }).body).toBe("Lane could not check this Project. Try again.");
+    expect(gateFailureNotice({ code: "network", field: "projectId", message: "Lane couldn't check this Project. Try again." }).body).toBe("Lane couldn't check this Project. Try again.");
   });
 });

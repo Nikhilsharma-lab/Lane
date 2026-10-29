@@ -933,7 +933,7 @@ export default function RequestEditor({
         code: "save_failed",
         // #260 (C1): offline says so; nothing was sent and the text stays.
         message: isOfflineError(thrown) ? `${OFFLINE_ANSWER} Your text is still here.`
-          : editing ? "Your changes could not be saved. Your text is still here. Try again." : "Your Request could not be created. Your text is still here. Try again.",
+          : editing ? "Your changes couldn't be saved. Your text is still here. Try again." : "Your Request couldn't be created. Your text is still here. Try again.",
       });
       setStage(unchangedSource ? "compose" : "framing");
     } finally {

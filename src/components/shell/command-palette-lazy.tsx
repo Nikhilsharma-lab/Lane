@@ -42,7 +42,7 @@ export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: 
     setOpen(true)
     if (!Component) load().then(palette => setComponent(() => palette), () => {
       setOpen(false)
-      toast({ type: "error", title: "Could not open the command palette", description: "Check your connection and try again." })
+      toast({ type: "error", title: "Couldn't open the command palette", description: "Check your connection and try again." })
     })
   })
   useEffect(() => {

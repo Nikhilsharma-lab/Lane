@@ -32,6 +32,6 @@ export async function GET(request: Request) {
     return json(await loadWorkspaceSearch(auth, parsed.data));
   } catch {
     // Database errors may include bound search text; do not log them.
-    return json({ success: false, error: { code: "search_failed", message: "Search could not be completed. Try again." } }, { status: 500 });
+    return json({ success: false, error: { code: "search_failed", message: "Search couldn't be completed. Try again." } }, { status: 500 });
   }
 }

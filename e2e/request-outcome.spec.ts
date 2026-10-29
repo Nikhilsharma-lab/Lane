@@ -26,7 +26,7 @@ async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   await expect(done).toContainText('Anyone working on this Request can record it.');
   await expect(journeyStep(page, 'Measuring', 'not reached yet')).toBeVisible();
   await done.getByRole('button', { name: 'Record release', exact: true }).click();
-  await release.getByLabel('Actual exposure date').fill(new Date().toISOString().slice(0, 10));
+  await release.getByLabel('Release date', { exact: true }).fill(new Date().toISOString().slice(0, 10));
   await release.getByLabel('Value before release (%)', { exact: true }).fill('62');
   await release.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: agreed audience exposure log');
   await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();

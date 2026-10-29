@@ -14,7 +14,7 @@ import styles from "./outcome-report.module.css"
 
 type SavedNote = QuarterNoteSlot["note"]
 
-const FAILED = "Could not save the Quarter note. Your text is kept; try again."
+const FAILED = "Couldn't save the Quarter note. Your text is kept; try again."
 
 export default function QuarterNoteEditor({ orgId, slot, note, onSaved, onCancel }: {
   orgId: string

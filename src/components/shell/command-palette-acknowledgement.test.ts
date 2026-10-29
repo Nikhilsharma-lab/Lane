@@ -212,6 +212,6 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     a.run(id)
     await a.flush()
     expect(a.said).toEqual([])
-    expect(a.toasts).toMatchObject([{ type: "error", title: "Could not copy" }])
+    expect(a.toasts).toMatchObject([{ type: "error", title: "Couldn't copy" }])
   })
 })

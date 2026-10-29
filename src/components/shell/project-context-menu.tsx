@@ -42,6 +42,6 @@ export function ProjectContextMenu({ children, href, label, onNavigate, onOpenCh
       { id: "new-tab", label: "Open in new tab", icon: <ExternalLink />, onSelect: () => { window.open(href, "_blank", "noopener,noreferrer"); } },
       { id: "copy", label: copyLabel, icon: copyState === "copied" ? <Check /> : copyState === "error" ? <RotateCcw /> : <Copy />, closeOnSelect: false, onSelect: () => { void copyLink(); } },
     ]}>{children}</ContextMenu>
-    <span className="sr-only" role="status" aria-live="polite">{copyState === "copied" ? `Link to ${label} copied.` : copyState === "error" ? "Could not copy the link. Try again." : ""}</span>
+    <span className="sr-only" role="status" aria-live="polite">{copyState === "copied" ? `Link to ${label} copied.` : copyState === "error" ? "Couldn't copy the link. Try again." : ""}</span>
   </>;
 }

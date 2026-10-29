@@ -160,7 +160,7 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
           : { ...previous, projects: { ...response.projects, items: appendUnique(previous.projects.items, response.projects.items) } };
       });
     } catch {
-      if (id === sequence.current) setFailure({ message: "Search could not be completed. Try again.", input, operation });
+      if (id === sequence.current) setFailure({ message: "Search couldn't be completed. Try again.", input, operation });
     } finally {
       if (id === sequence.current) { setLoading(null); if (inflight.current === controller) inflight.current = null; }
     }

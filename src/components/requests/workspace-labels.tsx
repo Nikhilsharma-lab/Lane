@@ -17,7 +17,7 @@ export function WorkspaceLabelsProvider({orgId,initial,children}:{orgId:string;i
   void callAction(() => listLabels({orgId})).then(result=>{
    if(result.success){setCatalogue({labels:result.labels,canCreate:result.canCreate});setError(null);}
    else setError(result.error);
-  },()=>setError("Labels could not be loaded. Try again.")).finally(()=>setLoading(false));
+  },()=>setError("Labels couldn't be loaded. Try again.")).finally(()=>setLoading(false));
  },[orgId]);
  const add=useCallback((label:RequestLabel)=>setCatalogue(current=>({...current,labels:[...current.labels.filter(item=>item.id!==label.id),label]})),[]);
  const value=useMemo(()=>({...catalogue,loading,error,add,reload}),[catalogue,loading,error,add,reload]);

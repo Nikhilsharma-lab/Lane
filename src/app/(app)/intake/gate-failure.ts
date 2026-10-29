@@ -49,6 +49,6 @@ export function gateFailureNotice(failure: GateFailure): GateNotice {
       // A failure tied to a field (the Project check) keeps its own sentence.
       return { tone: "warning", title: REVIEW_UNAVAILABLE_TITLE, body: "field" in failure && failure.field ? failure.message : DRAFT_KEPT, signIn: false };
     default:
-      return { tone: "danger", title: "Could not prepare the review", body: failure.message, signIn: false };
+      return { tone: "danger", title: "Couldn't prepare the review", body: failure.message, signIn: false };
   }
 }

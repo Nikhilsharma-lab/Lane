@@ -47,13 +47,13 @@ export function useReviewerPeople(orgId: string) {
     try {
       const result = await callAction(() => loadReviewerPeople({ orgId }));
       if (!mounted.current) return;
-      if ("error" in result) setError(result.error ?? "Could not load people. Try again.");
+      if ("error" in result) setError(result.error ?? "Couldn't load people. Try again.");
       else {
         setPeople(result.people);
         setCanInvite(result.canInvite);
       }
     } catch {
-      if (mounted.current) setError("Could not load people. Try again.");
+      if (mounted.current) setError("Couldn't load people. Try again.");
     } finally {
       if (mounted.current) setLoading(false);
     }

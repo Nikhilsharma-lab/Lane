@@ -20,6 +20,6 @@ export async function GET(request: Request) {
     return json(await loadOlderFinishedRequests(access.auth, access.params.get("before") ?? "", view));
   } catch (error) {
     console.error("[api/requests/done] list failed", { kind: error instanceof Error ? error.name : "UnknownError" });
-    return json({ error: "Older Requests could not be loaded. Try again." }, { status: 500 });
+    return json({ error: "Older Requests couldn't be loaded. Try again." }, { status: 500 });
   }
 }
