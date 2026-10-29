@@ -53,7 +53,7 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
                 insist(release, "Record release before closing with a measured result.");
                 // Content cannot change after pickup, so the Request's Expected impact is the agreed one.
                 const expected = expectedImpactSchema.safeParse(request.expectedImpact).data;
-                insist(expected, "The agreed Expected impact is unavailable.");
+                insist(expected, "The agreed goal is unavailable.");
                 const agreed = agreedResult(expected);
                 insist(change.primary.kind === agreed.form, agreed.form === "numeric" ? "Record the actual value." : "Record whether the check passed.");
                 insist(change.guardrails.length === agreed.guardrails.length, "Record an actual value for every agreed guardrail.");

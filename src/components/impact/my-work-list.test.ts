@@ -1,11 +1,15 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import { buildImpactDashboard, buildTeammateWork, type ImpactRow, type MyWorkEntry } from "@/lib/impact-read-model"
 import type { ExpectedImpact } from "@/lib/request-impact"
 import type { ClosureCorrection, OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
 import type { ReleaseFact, ReleaseState } from "@/lib/request-release"
 import { ImpactEntryList, MyWorkTab, MyWorkLoading, TeammateWorkList } from "./my-work-list"
+
+// Dates read "24 Oct" in the current year and "24 Oct 2025" in others (#261): pin the year these fixtures are in.
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-23T12:00:00.000Z") }) })
+afterAll(() => { vi.useRealTimers() })
 
 const ORG = "org_impact"
 const ME = "user_me"
@@ -88,7 +92,8 @@ describe("My work rows (#155)", () => {
     expect(out).toContain("Planning baseline 40%")
     expect(out).toContain("Actual 46%")
     expect(out).toContain("Change +6 percentage points")
-    expect(out).toContain("Predicted change +10 percentage points")
+    expect(out).toContain("Goal 50% (from 40%)")
+    expect(out).not.toMatch(/predict/i)
     expect(out).toContain("Window 30 days after release")
   })
 
@@ -109,7 +114,7 @@ describe("My work rows (#155)", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_OCT) })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
     expect(out).toContain("Still due")
-    expect(out).toContain("Due 2026-10-31")
+    expect(out).toContain("Due 31 Oct")
     expect(out).not.toContain("Actual")
   })
 
@@ -173,13 +178,12 @@ describe("My work states (#155)", () => {
 })
 
 describe("My work: value before release (#151 decision 3)", () => {
-  it("shows the value recorded before release as the baseline, and the planned baseline beside the predicted change", () => {
+  it("shows the value recorded before release as the baseline, and the goal with its planned start", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: recordedState(ME, RELEASE_AUG, 42), outcomeClosure: measured(46) })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
     expect(out).toContain("Before release 42%")
     expect(out).toContain("Change +4 percentage points")
-    expect(out).toContain("Predicted change +10 percentage points")
-    expect(out).toContain("Planned baseline 40%")
+    expect(out).toContain("Goal 50% (from 40%)")
     expect(out).not.toContain("Planning baseline")
   })
 

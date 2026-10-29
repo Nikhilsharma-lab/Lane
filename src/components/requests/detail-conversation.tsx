@@ -2,14 +2,14 @@
 
 import { useMemo, type ReactNode } from "react"
 import { Avatar } from "@/components/arc/avatar/avatar"
-import { relativeTime } from "@/lib/relative-time"
+import { LocalTime } from "./local-time"
 import { useDetailRequest } from "./detail-context"
 import type { RequestComment } from "./detail-view"
 import { usePendingMutations } from "./pending-mutations-provider"
 import styles from "./detail.module.css"
 
-/** A server comment with its time already phrased in the server render, so hydration never disagrees about "3h ago". */
-export type ConversationComment = RequestComment & { timeLabel: string }
+/** A server comment; its time is phrased in the browser by LocalTime, so hydration never disagrees about "3h ago". */
+export type ConversationComment = RequestComment
 
 /**
  * Plan item 2.5: the server's comments, then the viewer's pending ones from
@@ -37,7 +37,7 @@ export function DetailConversation({ comments, children }: { comments: Conversat
           <div className={styles.commentMeta}>
             <span className={styles.commentAuthor}>{author}</span>
             {pending === "sending" ? <span className={styles.commentTime}>Sending…</span>
-              : <time dateTime={comment.createdAt.toISOString()} className={styles.commentTime}>{"timeLabel" in comment ? comment.timeLabel : relativeTime(comment.createdAt)}</time>}
+              : <LocalTime iso={comment.createdAt.toISOString()} className={styles.commentTime} />}
           </div>
           <p className={styles.commentText}>{comment.body}</p>
         </div>

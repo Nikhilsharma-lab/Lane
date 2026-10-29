@@ -16,7 +16,8 @@ import buttonStyles from "@/components/arc/button/button.module.css"
 import { requestListHref, type RequestStatusFilter } from "@/lib/request-workspace"
 import { useSetRequestListView } from "./list-view-state"
 import { useRequestRowPresentation } from "./row-presentation"
-import { LocalTime, localDayLabel, useInBrowser, utcDayLabel } from "./local-time"
+import { momentLabel, zoneFreeDay } from "@/lib/dates"
+import { LocalTime, useInBrowser } from "./local-time"
 
 export type RequestPropertyKey = "status" | "project" | "pickedUpBy" | "createdAt" | "requestType" | "submittedBy"
 
@@ -31,7 +32,7 @@ export function RequestProperty({ request, property, filter = "all", tabIndex }:
   const journey = rowJourney(request)
   const status = statusOfJourney(journey)
   // The viewer's day once in the browser; the server and the hydrating render share the zone-free label (critique 2.4).
-  const submitted = useInBrowser() ? localDayLabel(request.createdAt) : utcDayLabel(request.createdAt)
+  const submitted = useInBrowser() ? momentLabel(request.createdAt) : zoneFreeDay(request.createdAt)
   const pickerName = request.assignedTo ? request.assigneeName?.trim() || "Unknown member" : "Unassigned"
   const properties = {
     status: { label: "Status", value: status.label, icon: <status.icon data-icon-size="xs" />, tone: status.tone },
@@ -44,7 +45,7 @@ export function RequestProperty({ request, property, filter = "all", tabIndex }:
   const item = properties[property]
   return <Popover>
     <PopoverTrigger asChild><button type="button" tabIndex={tabIndex} data-property={property} className={[styles.propertyTrigger, property === "pickedUpBy" && avatarStyles.trigger].filter(Boolean).join(" ")} aria-label={`${item.label}: ${item.value}`}>
-      {property === "requestType" ? <RequestLabels request={request} compact /> : compact && property === "createdAt" ? <LocalTime className={styles.submittedDate} iso={request.createdAt} day year={false} />
+      {property === "requestType" ? <RequestLabels request={request} compact /> : compact && property === "createdAt" ? <LocalTime className={styles.submittedDate} iso={request.createdAt} year={false} />
         : property === "pickedUpBy" ? request.assignedTo
         ? <Avatar name={pickerName} src={request.assigneeAvatarUrl ?? undefined} unoptimized size="sm" className={avatarStyles.avatar} data-avatar-tone={compact ? projectToneForId(request.assignedTo) : undefined} aria-hidden="true" />
         : <span className={avatarStyles.unassigned} aria-hidden="true"><UserRound data-icon-size="xs" /></span>
@@ -53,7 +54,7 @@ export function RequestProperty({ request, property, filter = "all", tabIndex }:
     <PopoverContent aria-label={item.label}>
       <div className={styles.propertyDetail}>
         <p className={styles.propertyLabel}>{item.label}</p>
-        {property === "createdAt" ? <LocalTime iso={request.createdAt} /> : <p>{item.value}</p>}
+        {property === "createdAt" ? <LocalTime iso={request.createdAt} time /> : <p>{item.value}</p>}
         {property === "project" && <Link href={requestListHref(filter, request.projectId ?? "none")} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm}`} onClick={event => {
           if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
           setListView(current => ({ ...current, pagination: { ...current.pagination, pageIndex: 0 } }))

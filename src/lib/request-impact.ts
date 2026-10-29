@@ -61,7 +61,7 @@ const draftExtras = { measurement: savedScopeDraft.optional(), noBaseline: z.boo
 
 export const expectedImpactSchema = z.discriminatedUnion("kind", [
   measurementPlanSchema,
-  z.object({ kind: z.literal("metric"), metric: metricName, baseline: z.number().nullable(), target: z.number("Add a numeric target"), unit, source, reviewAfterDays: reviewDays, guardrail: guardrailSchema.optional(), ...savedExtras }),
+  z.object({ kind: z.literal("metric"), metric: metricName, baseline: z.number().nullable(), target: z.number("Add a numeric goal"), unit, source, reviewAfterDays: reviewDays, guardrail: guardrailSchema.optional(), ...savedExtras }),
   z.object({ kind: z.literal("verification"), result, source, reviewAfterDays: reviewDays, guardrail: guardrailSchema.optional(), ...savedExtras }),
 ]);
 export type ExpectedImpact = z.infer<typeof expectedImpactSchema>;
@@ -125,7 +125,7 @@ export function hasImpactWork(impact: z.input<typeof expectedImpactDraftSchema>)
 /** Same permissive input type as the form; only a complete snapshot may pass. */
 export const requiredExpectedImpactSchema = expectedImpactDraftSchema.transform((draft, context) => {
   if (draft === null) {
-    context.addIssue({ code: "custom", message: "Add the expected impact before reviewing this Request" });
+    context.addIssue({ code: "custom", message: "Set the goal before reviewing this Request" });
     return z.NEVER;
   }
   if (draft.kind === "measurement") {

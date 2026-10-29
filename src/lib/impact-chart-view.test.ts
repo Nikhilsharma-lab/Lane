@@ -29,7 +29,7 @@ describe("metric chart presenter (#158)", () => {
     expect(chart?.groups[0].bars).toEqual([
       { series: "baseline", label: "Planning baseline", value: 40, height: 80 },
       { series: "actual", label: "Actual", value: 46, height: 92 },
-      { series: "predicted", label: "Predicted", value: 50, height: 100 },
+      { series: "predicted", label: "Goal", value: 50, height: 100 },
     ])
   })
 
@@ -57,14 +57,14 @@ describe("metric chart presenter (#158)", () => {
 
   it("draws a new capability's target only, labelled as a new capability, with no baseline bar", () => {
     const chart = metricChart(line({ results: [result({ requestNumber: 1, baselineState: "new_capability", baseline: null, actual: null, change: null })] }))
-    expect(chart?.groups[0].bars).toEqual([{ series: "predicted", label: "Predicted", value: 50, height: 100 }])
+    expect(chart?.groups[0].bars).toEqual([{ series: "predicted", label: "Goal", value: 50, height: 100 }])
     expect(chart?.description).toContain("new capability")
   })
 
   it("describes every value in words for screen readers, one sentence per Request", () => {
     const chart = metricChart(line({ results: [result({ requestNumber: 1 })] }))
     expect(chart?.description).toBe(
-      "Conversion rate, unit %, window 30 days after release. Request #1 Request 1: planning baseline 40 %, actual 46 %, predicted 50 %.",
+      "Conversion rate, unit %, window 30 days after release. Request #1 Request 1: planning baseline 40 %, actual 46 %, goal 50 %.",
     )
   })
 

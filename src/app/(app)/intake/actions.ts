@@ -298,7 +298,7 @@ export async function saveRequest(
   });
   if (!verification.valid) {
     if (verification.reason === "impact_required") {
-      return { success: false, error: { code: "validation", field: "expectedImpact", message: "Add the expected impact, then review this Request again before creating it." } };
+      return { success: false, error: { code: "validation", field: "expectedImpact", message: "Set the goal, then review this Request again before creating it." } };
     }
     return {
       success: false,

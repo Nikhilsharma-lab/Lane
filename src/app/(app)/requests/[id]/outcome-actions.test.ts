@@ -42,8 +42,8 @@ it('closes a measured outcome only from the due date, keeping baseline and targe
     const api = await import('./outcome-actions');
     await at('2026-10-25T12:00:00Z');
     const id = await fixture();
-    expect(await api.changeRequestOutcome(context(id, 1), measured)).toEqual({ error: 'Opens on 28 Oct 2026.' });
-    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ journey: { status: 'measuring' }, actions: { close: { allowed: false, reason: 'Opens on 28 Oct 2026.', opensOn: '2026-10-28' } } });
+    expect(await api.changeRequestOutcome(context(id, 1), measured)).toEqual({ error: 'Opens on 28 Oct.' });
+    expect(await api.readRequestOutcome(id, { orgId })).toMatchObject({ journey: { status: 'measuring' }, actions: { close: { allowed: false, reason: 'Opens on 28 Oct.', opensOn: '2026-10-28' } } });
     await at('2026-10-28T00:00:00Z');
     const ctx = context(id, 1);
     const closed = await api.changeRequestOutcome(ctx, measured);

@@ -114,7 +114,7 @@ describe("A Metric definition's page", () => {
       const html = text(await open(trials));
       expect(html).toContain("Restore metric");
       expect(html).not.toContain("Archive metric");
-      expect(html).toContain("Archived. It isn't offered for new predictions, and stays on the Requests that already use it.");
+      expect(html).toContain("Archived. It isn't offered for new goals, and stays on the Requests that already use it.");
       expect(text(historyOf(await open(trials)))).toMatch(/^Archived by Pat Lee/);
     } finally {
       await restoreMetricDefinition({ orgId: ORG }, PAT, trials);

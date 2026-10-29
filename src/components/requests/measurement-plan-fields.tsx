@@ -1,5 +1,6 @@
 "use client"
 
+import { plannedDay } from "@/lib/dates"
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 import { CalendarDays, Check, ListChecks, Monitor, Plus, Users } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
@@ -37,11 +38,6 @@ const checks = {
   recovery: { label: "Network error recovery", steps: "Disconnect the network before submitting the flow described in this Request, reconnect, then retry.", pass: "Entered details remain available, an error is shown, and retry completes the action once without creating a duplicate." },
 }
 const checkOptions = Object.entries(checks).map(([value, check]) => ({ value, label: check.label }))
-
-function formatDate(value: string) {
-  const date = new Date(`${value}T00:00:00`)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-}
 
 /** Arc owns popup positioning, typeahead, arrow keys, Escape and focus return. */
 function CompactSelect({ id, label, value, options, onChange, disabled, error, icon, placeholder = "Choose an option", selectedLabel, hideLabel = false, indicatorPosition }: {
@@ -218,7 +214,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
   }
   const windowLabel = measurement.exactDates
     ? measurement.startDate && measurement.endDate
-      ? `${formatDate(measurement.startDate)} to ${formatDate(measurement.endDate)}`
+      ? `${plannedDay(measurement.startDate)} to ${plannedDay(measurement.endDate)}`
       : "Custom date range"
     // The default 30-day window names itself like any other (critique 2.3); only a missing window reads as the placeholder.
     : legacy ? measurement.windowDays === null ? "Measurement dates" : `${measurement.windowDays} days after release` : windows.find(option => option.value === String(measurement.windowDays))?.label ?? "Measurement dates"
@@ -254,7 +250,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               error={error("primary.current", primary.current !== null)} onChange={current => changePrimary({ current })}
               unitOptions={unitOptionsOf(primary)} unitLocked={!legacy}
               onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
-            <NumberField unrestricted={legacy} id={`${prefix}-target`} label="Target after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
+            <NumberField unrestricted={legacy} id={`${prefix}-target`} label="Goal after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
               error={error("primary.target", primary.target !== null)} onChange={target => changePrimary({ target })}
               unitOptions={unitOptionsOf(primary)} unitLocked={!legacy} onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
           </div>

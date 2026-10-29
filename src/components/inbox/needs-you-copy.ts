@@ -5,7 +5,7 @@
  * and the tests share it.
  */
 import { notificationRow } from "@/components/shell/notification-copy"
-import { journeyDate } from "@/lib/request-journey"
+import { plannedDay } from "@/lib/dates"
 import type { NeedsYouInboxItem } from "./inbox-item"
 
 export type NeedsYouRowCopy = {
@@ -24,7 +24,7 @@ function event(item: NeedsYouInboxItem): string {
     case "review": return "Waiting for your review"
     case "concern": return `${item.reviewerName?.trim() || "A Reviewer"} raised a concern`
     case "record_release": return "Still Done. Record the release once it is live"
-    case "result_due": return `Result due ${item.dueDate ? journeyDate(item.dueDate) : "now"}. Close it when you have the numbers`
+    case "result_due": return `Result due ${item.dueDate ? plannedDay(item.dueDate) : "now"}. Close it when you have the numbers`
   }
 }
 

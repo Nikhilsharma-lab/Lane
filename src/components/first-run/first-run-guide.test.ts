@@ -40,8 +40,8 @@ describe("the first Request guide (#217)", () => {
 
   it("explains the prediction from the Metrics library, with a way to it", () => {
     const html = render({ step: "prediction" })
-    expect(html).toContain('aria-label="Step 2 of 5: Predict the result"')
-    expect(text(html)).toContain("Pick the metric you expect to move from the Metrics library")
+    expect(html).toContain('aria-label="Step 2 of 5: Set the goal"')
+    expect(text(html)).toContain("Pick the metric you want to move from the Metrics library")
     expect(html).toMatch(/<a [^>]*href="\/settings\/metrics"[^>]*>Open the Metrics library<\/a>/)
     expect(html).toContain(">Back<")
   })
