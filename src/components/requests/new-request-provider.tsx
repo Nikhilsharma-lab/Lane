@@ -18,6 +18,7 @@ import { parseRequestListContext, requestDetailHref, requestListHref, type Reque
 import { requestRowSelector } from "./list-focus";
 import { isRequestPopoverEvent } from "./request-popover-events";
 import { useShellOpener } from "@/components/shell/shell-openers";
+import { Placeholder } from "@/components/loading/placeholder";
 
 export { NewRequestLink } from "./new-request-link";
 
@@ -276,7 +277,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
                 event.preventDefault();
               }
             }}>
-            {!IntakeForm && <div className="p-6"><Skeleton label="Loading New Request" lines={5} /></div>}
+            {!IntakeForm && <Placeholder><div className="p-6"><Skeleton label="Loading New Request" lines={5} /></div></Placeholder>}
             <div style={fill} ref={element => { if (element && formHost.parentElement !== element) element.appendChild(formHost); }} />
           </DialogContent>
         </Dialog>

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
+import { cleanupTestWorkspace, e2eDatabase, seedTestRequest } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 
@@ -41,6 +41,41 @@ const still = (frame: FirstFrame) => {
   expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(frame.transform);
 };
 
+/**
+ * Watches the main pane from the next click: when (ms after the click) a placeholder first became
+ * visible, if ever. A placeholder is any loading shape (a busy status or a page skeleton) with
+ * opacity above zero all the way up its ancestors.
+ */
+async function watchPlaceholders(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __lanePlaceholder?: { clickedAt?: number; shownAt?: number; stop?: boolean } };
+    const state: { clickedAt?: number; shownAt?: number; stop?: boolean } = {};
+    w.__lanePlaceholder = state;
+    document.addEventListener("click", () => { state.clickedAt ??= performance.now(); }, { capture: true, once: true });
+    const visible = (element: HTMLElement) => {
+      const box = element.getBoundingClientRect();
+      if (!box.width || !box.height) return false;
+      let opacity = 1;
+      for (let node: HTMLElement | null = element; node; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity);
+      return opacity > 0.01;
+    };
+    const look = () => {
+      if (state.stop) return;
+      if (state.clickedAt !== undefined && state.shownAt === undefined) {
+        const shapes = document.querySelectorAll<HTMLElement>('#lane-main [data-skeleton], #lane-main [role="status"][aria-busy="true"]');
+        if ([...shapes].some(visible)) state.shownAt = performance.now() - state.clickedAt;
+      }
+      requestAnimationFrame(look);
+    };
+    requestAnimationFrame(look);
+  });
+}
+const placeholderShownAt = (page: Page) => page.evaluate(() => {
+  const state = (window as unknown as { __lanePlaceholder: { shownAt?: number; stop?: boolean } }).__lanePlaceholder;
+  state.stop = true;
+  return state.shownAt ?? null;
+});
+
 test("motion off, placeholders, busy buttons and key caps", async ({ page }, testInfo) => {
   test.setTimeout(600_000);
   const owner = await createTestUser("motion-owner");
@@ -79,6 +114,52 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
       await testInfo.attach("A122-menu-reduced-motion", { body: await page.screenshot(), contentType: "image/png" });
       await page.keyboard.press("Escape");
       await page.emulateMedia({ reducedMotion: "no-preference" });
+    });
+    await test.step("A quick page change shows no placeholder; a slow one shows it after 0.15s", async () => {
+      const inboxLink = page.locator("#lane-sidebar").getByRole("link", { name: /^Inbox/ });
+      // Warm the route so the quick change below measures Lane, not the development server compiling.
+      await page.goto("/inbox");
+      await expect(page.getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
+      await expect(page.locator("[data-skeleton]")).toHaveCount(0);
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await page.goto("/");
+        await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
+        await watchPlaceholders(page);
+        await inboxLink.click();
+        await expect(page).toHaveURL(/\/inbox$/);
+        await expect(page.locator("[data-skeleton]")).toHaveCount(0);
+        if (attempt === 1) expect(await placeholderShownAt(page)).toBeNull();
+      }
+
+      // Slow: the Inbox's unread count waits on a held lock, so the page takes about two seconds.
+      await page.goto("/");
+      await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
+      await watchPlaceholders(page);
+      const sql = e2eDatabase();
+      let release!: () => void;
+      const held = new Promise<void>(resolve => { release = resolve; });
+      let locked!: () => void;
+      const lockTaken = new Promise<void>(resolve => { locked = resolve; });
+      const transaction = sql.begin(async tx => {
+        await tx`lock table notifications in access exclusive mode`;
+        locked();
+        await held;
+      });
+      try {
+        await lockTaken;
+        await inboxLink.click();
+        await expect(page.locator("#lane-main [data-skeleton]").first()).toBeVisible({ timeout: 10_000 });
+        await page.waitForTimeout(400);
+        await testInfo.attach("placeholder-slow-inbox", { body: await page.screenshot(), contentType: "image/png" });
+      } finally {
+        release();
+        await transaction;
+        await sql.end();
+      }
+      await expect(page.locator("[data-skeleton]")).toHaveCount(0);
+      const shownAt = await placeholderShownAt(page);
+      expect(shownAt).not.toBeNull();
+      expect(shownAt!).toBeGreaterThanOrEqual(150);
     });
   } finally {
     await cleanupTestWorkspace(owner.id);

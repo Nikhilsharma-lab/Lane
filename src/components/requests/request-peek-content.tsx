@@ -20,6 +20,7 @@ import { peekEntry, peekKey, readForPreview, subscribePeek } from "./request-pee
 import type { RequestPeekProps } from "./request-peek"
 import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 /** The shell's trail and sidebar control belong to the page's strip, not the preview's. */
 const PREVIEW_FRAME = { trail: [], expand: null, link: "a" as const }
@@ -39,10 +40,10 @@ function PreviewClose({ onClose }: { onClose: () => void }) {
 function PreviewSkeleton({ onClose }: { onClose: () => void }) {
   return <section className={detailStyles.root} aria-busy="true" data-skeleton="request-preview">
     <PreviewFrame><PageStrip leading={<PreviewClose onClose={onClose} />} title={<span aria-hidden="true" className="block w-16"><Skeleton lines={1} /></span>} /></PreviewFrame>
-    <div className={styles.skeleton}>
+    <Placeholder><div className={styles.skeleton}>
       <div className={styles.skeletonTitle}><Skeleton label="Loading Request preview" lines={1} /></div>
       <div aria-hidden="true" className={styles.skeleton}><Skeleton lines={3} /><Skeleton lines={4} /></div>
-    </div>
+    </div></Placeholder>
   </section>
 }
 

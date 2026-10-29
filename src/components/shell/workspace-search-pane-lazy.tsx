@@ -6,6 +6,7 @@ import { Button } from "@/components/arc/button/button"
 import { Skeleton } from "@/components/arc/skeleton/skeleton"
 import type { WorkspaceSearchPaneProps } from "./workspace-search-pane"
 import styles from "./workspace-search-pane.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 type Pane = ComponentType<WorkspaceSearchPaneProps>
 
@@ -40,6 +41,6 @@ export function WorkspaceSearchPane(props: WorkspaceSearchPaneProps) {
     {failed
       ? <div className={styles.loading}><div className={styles.error}><Alert tone="danger" title="Search unavailable">Search could not load. Check your connection and try again.</Alert>
         <Button variant="secondary" size="sm" onClick={() => { setFailed(false); setAttempt(value => value + 1) }}>Try again</Button></div></div>
-      : <div className={styles.loading}><Skeleton label="Loading search" lines={3} /></div>}
+      : <Placeholder><div className={styles.loading}><Skeleton label="Loading search" lines={3} /></div></Placeholder>}
   </div>
 }

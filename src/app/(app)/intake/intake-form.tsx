@@ -99,6 +99,7 @@ import { createUploadSession, uploadToSignedUrl, type QueuedAttachment } from ".
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { Placeholder } from "@/components/loading/placeholder";
 
 type Stage =
   | "compose"
@@ -1245,11 +1246,11 @@ export default function RequestEditor({
                 {creating ? "Saving changes…" : showSlowCue ? "Still checking. Your draft is kept." : "Checking whether this describes a problem…"}
               </p>
             </div>
-            <div aria-hidden="true" className="space-y-6">
+            <Placeholder><div aria-hidden="true" className="space-y-6">
               <Skeleton lines={2} />
               <Skeleton lines={4} />
               <div className="border-t pt-5"><Skeleton lines={3} /></div>
-            </div>
+            </div></Placeholder>
           </div>
         )}
       {reviewing && triage && source && (
@@ -1486,7 +1487,7 @@ export default function RequestEditor({
         {stage === "uploads_checking" && (
           // Plan item 2.3 (S3): which files were lost is known once each
           // reservation is checked, so no list shows before then.
-          <Skeleton label="Checking your files" lines={3} />
+          <Placeholder label="Checking your files" lines={3} />
         )}
         {stage === "uploads_lost" && lostUploads && (
           <div className={cn(reveal, "space-y-6")}>
