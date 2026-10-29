@@ -83,8 +83,9 @@ function section(markup: string, heading: string, level = 2): string {
 describe("Outcome report: period and freshness", () => {
   it("says which period it shows and the date it is up to date as of", () => {
     const body = text(html(Q3))
-    expect(body).toContain("Q3 2026 · Up to date as of 23 Oct 2026")
-    expect(body).toContain("Released (UTC)")
+    expect(body).toContain("Q3 2026 · Up to date as of 23 Oct")
+    expect(body).toContain("Work appears in the period it was Released.")
+    expect(body).not.toContain("UTC")
   })
 
   it("lets the reader pick a month, quarter or year, with the chosen one pressed and named", () => {
@@ -139,7 +140,7 @@ describe("Outcome report: Projects and Requests", () => {
 
   it("shows a still-due Request's due date and its guardrail limit, with no actual", () => {
     const due = section(html(Q3), "No Project", 3)
-    expect(due).toContain("Result due 18 Nov 2026 (Due in 26 days)")
+    expect(due).toContain("Result due 18 Nov (Due in 26 days)")
     expect(due).toContain("Support contact rate at or below 5%: not measured yet")
     expect(due).not.toContain("Actual")
   })
@@ -196,7 +197,7 @@ describe("Outcome report: closed without a result", () => {
   it("lists work closed before any Release by the day it was closed", () => {
     const dropped = row({ id: "g", requestNumber: 7, status: "in_progress", releaseState: null, exceptionClosure: { ...exception("other", "Superseded"), release: null } })
     const closed = section(html(Q3, [...ROWS, dropped]), "Closed without a result")
-    expect(closed).toMatch(/LAN-7 Request 7 .*Closed before any release 10 Sep 2026/)
+    expect(closed).toMatch(/LAN-7 Request 7 .*Closed before any release 10 Sep/)
     expect(section(html(Q3, [...ROWS, dropped]), "At a glance")).toContain("Shipped 5 Measured 2 Still due 1 Closed without a result 3")
   })
 })
@@ -206,7 +207,7 @@ describe("Outcome report: empty and long content", () => {
     const body = text(html({ kind: "quarter", year: 2026, quarter: 1 }))
     expect(body).toContain("Nothing was Released in Q1 2026.")
     expect(body).not.toContain("At a glance")
-    expect(body).toContain("Up to date as of 23 Oct 2026")
+    expect(body).toContain("Up to date as of 23 Oct")
   })
 
   it("keeps a long title and problem as text that wraps, never cut short", () => {
@@ -250,7 +251,7 @@ describe("Outcome report: Quarter notes (#209)", () => {
     const markup = html(Q3, ROWS, { quarterNotes: notes })
     const note = section(markup, "Quarter note, Q3 2026")
     expect(note).toContain("We rebuilt checkout. Notes: https://example.test/q3")
-    expect(note).toContain("Last edited by Ada Admin on 30 Sep 2026")
+    expect(note).toContain("Last edited by Ada Admin on 30 Sep")
     expect(markup).toContain('href="https://example.test/q3"')
     const headings = [...markup.matchAll(/<h2[^>]*>(.*?)<\/h2>/g)].map(match => text(match[1]).trim())
     expect(headings.at(-1)).toBe("Quarter note, Q3 2026")
@@ -295,6 +296,6 @@ describe("Outcome report: printing (#209)", () => {
     expect(markup).toMatch(/<button[^>]*>.*Print or save as PDF.*<\/button>/)
     const printed = text(markup)
     expect(printed).toContain("Outcome report")
-    expect(printed).toContain("Q3 2026 · Up to date as of 23 Oct 2026")
+    expect(printed).toContain("Q3 2026 · Up to date as of 23 Oct")
   })
 })

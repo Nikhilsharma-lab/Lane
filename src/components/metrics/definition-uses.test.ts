@@ -65,7 +65,7 @@ describe("Requests that used a Metric definition", () => {
       row("b", 2, { status: "done", releaseState: released(AUG), exceptionClosure: exception }),
     ]);
     const [due, closed] = items(html);
-    expect(due).toContain("Actual Still due (Due in 8 days, 2026-10-31)");
+    expect(due).toContain("Actual Still due (Due in 8 days, 31 Oct)");
     expect(due).not.toMatch(/Actual 0|Change/);
     expect(closed).toContain("Actual Closed without a result: Rolled back after a day");
   });

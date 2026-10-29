@@ -14,7 +14,7 @@ import { actualText, baselineLabelOf, changeText, NOTHING_MEASURED, predictedTex
 import { iterationsHref } from "@/lib/same-problem-rules"
 import type { CorrectedValue, IterationNote, LearnedLine, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
-import { journeyDate } from "@/lib/request-journey"
+import { plannedDay } from "@/lib/dates"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { parsePeriodKey, periodChoices, periodKey, periodOfKind, type PeriodKind } from "./period-picker"
 import { MetricChart } from "./metric-chart"
@@ -155,11 +155,11 @@ function ReportRequest({ entry }: { entry: OutcomeReportEntry }) {
       <Iteration requestId={entry.requestId} iteration={entry.iteration} />
       <p className={styles.problem}>{entry.problem}</p>
       <dl className={styles.facts}>
-        <Fact label="Released"><time dateTime={entry.releaseDate}>{journeyDate(entry.releaseDate)}</time></Fact>
+        <Fact label="Released"><time dateTime={entry.releaseDate}>{plannedDay(entry.releaseDate)}</time></Fact>
         {predicted && <Fact label="Metric">{predicted.metric}{predicted.form === "numeric" ? ` (${predicted.audience}, ${predicted.window})` : ""}</Fact>}
         {predicted && predicted.form === "numeric" && <Fact label="Predicted">{predictedText(predicted)}</Fact>}
         {outcome.kind === "measured" && <MeasuredFacts result={outcome.result} />}
-        {outcome.kind === "still_due" && <Fact label="Result due"><time dateTime={outcome.dueDate}>{journeyDate(outcome.dueDate)}</time> ({outcome.dueLabel})</Fact>}
+        {outcome.kind === "still_due" && <Fact label="Result due"><time dateTime={outcome.dueDate}>{plannedDay(outcome.dueDate)}</time> ({outcome.dueLabel})</Fact>}
         {outcome.kind === "operational" && <Fact label="Not measured">Operational work: {outcome.reason}</Fact>}
       </dl>
       {entry.corrected.map(value => <Corrected key={value.field} value={value} />)}
@@ -195,8 +195,8 @@ function ClosedWithoutResult({ groups }: { groups: ReportClosedGroup[] }) {
           <dl className={styles.facts}>
             <Fact label="Project">{item.projectName ?? "No Project"}</Fact>
             {item.releaseDate
-              ? <Fact label="Released"><time dateTime={item.releaseDate}>{journeyDate(item.releaseDate)}</time></Fact>
-              : <Fact label="Closed before any release"><time dateTime={item.closedOn}>{journeyDate(item.closedOn)}</time></Fact>}
+              ? <Fact label="Released"><time dateTime={item.releaseDate}>{plannedDay(item.releaseDate)}</time></Fact>
+              : <Fact label="Closed before any release"><time dateTime={item.closedOn}>{plannedDay(item.closedOn)}</time></Fact>}
             {item.reason && <Fact label="Reason">{item.reason}</Fact>}
           </dl>
           {item.corrected.map(value => <Corrected key={value.field} value={value} />)}
@@ -224,7 +224,7 @@ export function OutcomeReportView({ report, onPeriodChange, quarterNoteEditor = 
         <div className={styles.print}><Button variant="secondary" size="sm" onClick={() => window.print()}>Print or save as PDF</Button></div>
       </div>
       <p className={styles.asOf} data-report-as-of>
-        <span className={styles.periodName}>{periodLabel(report.period)}</span> · Up to date as of <time dateTime={report.asOf}>{journeyDate(report.asOf)}</time>. Work appears in the period it was Released (UTC).
+        <span className={styles.periodName}>{periodLabel(report.period)}</span> · Up to date as of <time dateTime={report.asOf}>{plannedDay(report.asOf)}</time>. Work appears in the period it was Released.
       </p>
     </header>
 

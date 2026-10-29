@@ -49,7 +49,7 @@ describe("Iterations of this problem", () => {
     expect(body).toContain("Rolled back: Broke Safari checkout")
     expect(body).toContain("Predicted Checkout conversion: +10 percentage points (planned baseline 40%)")
     expect(body).toMatch(/Result 46%.*\+6 percentage points/)
-    expect(body).toContain("Result due 31 Oct 2026 (Due in 8 days)")
+    expect(body).toContain("Result due 31 Oct (Due in 8 days)")
     expect(body).toContain("Not Released yet")
   })
 
@@ -70,8 +70,8 @@ describe("Iterations of this problem", () => {
   it("keeps who added and removed links in the Request's history", () => {
     const body = text(render())
     expect(body).toContain("Link history (2)")
-    expect(body).toContain("Linked as Same problem with LAN-4 by Mo Member on 20 Oct 2026.")
-    expect(body).toContain("Taken out of its Same problem group by Ada Admin on 21 Oct 2026.")
+    expect(body).toContain("Linked as Same problem with LAN-4 by Mo Member on 20 Oct")
+    expect(body).toContain("Taken out of its Same problem group by Ada Admin on 21 Oct")
   })
 
   it("says what a link is for when the Request is in no group, to someone who can link", () => {

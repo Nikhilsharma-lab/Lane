@@ -26,7 +26,7 @@ function input(facts: Facts, viewer: JourneyViewer, more: Partial<TimelineInput>
     requesterName: "Ana", requestedBy: "Ana", requestedAt: "2026-10-01T10:00:00Z",
     assigneeName: facts.status === "open" ? null : "Dev", pickedUpAt: null, doneAt: facts.status === "done" ? "2026-10-20T15:00:00Z" : null,
     release: facts.releaseState?.release ?? null, releaseHistory: facts.releaseState?.history ?? [], closure, names: NAMES,
-    hasAgreedResult: true, now: NOW,
+    hasAgreedResult: true, now: NOW, timeZone: "UTC",
     actions: journeyActions(saved, viewer, { requesterName: "Ana", requesterActive }, NOW),
     ...more,
   }
@@ -44,15 +44,28 @@ describe("Request timeline", () => {
 
   it("says what happened, when and who on finished steps", () => {
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, ANA))
-    expect(step(steps, "open").happened).toEqual(["Requested by Ana on 1 Oct 2026."])
+    expect(step(steps, "open").happened).toEqual(["Requested by Ana on 1 Oct."])
     expect(step(steps, "in_progress").happened).toEqual(["Picked up by Dev."])
-    expect(step(steps, "done").happened).toEqual(["Marked Done on 20 Oct 2026."])
-    expect(step(steps, "measuring").happened).toEqual(["Released to All shoppers on 21 Oct 2026, recorded by Dev."])
+    expect(step(steps, "done").happened).toEqual(["Marked Done on 20 Oct."])
+    expect(step(steps, "measuring").happened).toEqual(["Released to All shoppers on 21 Oct, recorded by Dev."])
+  })
+
+  // B5: moments read in the viewer's zone, so the Journey agrees with Submitted; planned days stay the same for everyone.
+  it("reads moments in the viewer's zone and planned days the same everywhere", () => {
+    const late = { requestedAt: "2026-10-01T20:00:00Z", pickedUpAt: "2026-10-12T19:00:00Z" }
+    const india = timelineSteps({ ...input({ status: "done", releaseState: releaseState(release) }, ANA, late), timeZone: "Asia/Kolkata" })
+    const losAngeles = timelineSteps({ ...input({ status: "done", releaseState: releaseState(release) }, ANA, late), timeZone: "America/Los_Angeles" })
+    expect(step(india, "open").happened).toEqual(["Requested by Ana on 2 Oct."])
+    expect(step(losAngeles, "open").happened).toEqual(["Requested by Ana on 1 Oct."])
+    expect(step(india, "in_progress").happened).toEqual(["Picked up by Dev on 13 Oct."])
+    expect(step(india, "measuring").countdown).toBe(step(losAngeles, "measuring").countdown)
+    expect(step(india, "measuring").happened).toEqual(["Released to All shoppers on 21 Oct, recorded by Dev."])
+    expect(step(losAngeles, "measuring").happened).toEqual(["Released to All shoppers on 21 Oct, recorded by Dev."])
   })
 
   it("says when the work was picked up once Lane knows, and only who before that", () => {
-    expect(step(timelineSteps(input({ status: "in_progress" }, ANA, { pickedUpAt: "2026-10-12T08:00:00Z" })), "in_progress").happened).toEqual(["Picked up by Dev on 12 Oct 2026."])
-    expect(step(timelineSteps(input({ status: "in_progress" }, ANA, { pickedUpAt: "2026-10-12T08:00:00Z", assigneeName: null })), "in_progress").happened).toEqual(["Picked up on 12 Oct 2026."])
+    expect(step(timelineSteps(input({ status: "in_progress" }, ANA, { pickedUpAt: "2026-10-12T08:00:00Z" })), "in_progress").happened).toEqual(["Picked up by Dev on 12 Oct."])
+    expect(step(timelineSteps(input({ status: "in_progress" }, ANA, { pickedUpAt: "2026-10-12T08:00:00Z", assigneeName: null })), "in_progress").happened).toEqual(["Picked up on 12 Oct."])
     expect(step(timelineSteps(input({ status: "in_progress" }, ANA)), "in_progress").happened).toEqual(["Picked up by Dev."])
   })
 
@@ -66,23 +79,23 @@ describe("Request timeline", () => {
 
   it("shows the countdown only in the current Measuring step", () => {
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, ANA))
-    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · Due in 3 days")
+    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct · Due in 3 days")
     expect(steps.filter(s => s.countdown).map(s => s.status)).toEqual(["measuring"])
-    expect(step(steps, "measuring").next).toBe("On 28 Oct 2026 the Requester, Ana, records the measured result and closes this Request.")
+    expect(step(steps, "measuring").next).toBe("On 28 Oct the Requester, Ana, records the measured result and closes this Request.")
   })
 
   it("words the countdown as the due tag does: Due in N days, Due today, Overdue N days", () => {
     const countdown = (now: string) => step(timelineSteps(input({ status: "done", releaseState: releaseState(release) }, ANA, { now: new Date(now) })), "measuring").countdown
-    expect(countdown("2026-10-27T23:00:00Z")).toBe("Result due 28 Oct 2026 · Due in 1 day")
-    expect(countdown("2026-10-28T08:00:00Z")).toBe("Result due 28 Oct 2026 · Due today")
-    expect(countdown("2026-10-29T08:00:00Z")).toBe("Result due 28 Oct 2026 · Overdue 1 day")
-    expect(countdown("2026-10-31T08:00:00Z")).toBe("Result due 28 Oct 2026 · Overdue 3 days")
+    expect(countdown("2026-10-27T23:00:00Z")).toBe("Result due 28 Oct · Due in 1 day")
+    expect(countdown("2026-10-28T08:00:00Z")).toBe("Result due 28 Oct · Due today")
+    expect(countdown("2026-10-29T08:00:00Z")).toBe("Result due 28 Oct · Overdue 1 day")
+    expect(countdown("2026-10-31T08:00:00Z")).toBe("Result due 28 Oct · Overdue 3 days")
   })
 
   it("offers Close Request to the Requester, unavailable until the due date", () => {
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, ANA))
     expect(actionsOf(step(steps, "measuring"))).toEqual([
-      "Close Request: Opens on 28 Oct 2026.", "Close without a result…", "Correct release", "Void incorrect release", "Create follow-up Request",
+      "Close Request: Opens on 28 Oct.", "Close without a result…", "Correct release", "Void incorrect release", "Create follow-up Request",
     ])
   })
 
@@ -107,7 +120,7 @@ describe("Request timeline", () => {
   it("shows guests the timeline without actions or reasons", () => {
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, GUEST))
     expect(steps.flatMap(s => s.actions)).toEqual([])
-    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · Due in 3 days")
+    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct · Due in 3 days")
   })
 
   // #210: a Viewer reads the whole journey, including on Requests they filed as a Member, with nothing to do.
@@ -115,7 +128,7 @@ describe("Request timeline", () => {
     const viewer: JourneyViewer = { id: "ana", role: "viewer", active: false }
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release) }, viewer, { readOnly: true }))
     expect(steps.flatMap(s => s.actions)).toEqual([])
-    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct 2026 · Due in 3 days")
+    expect(step(steps, "measuring").countdown).toBe("Result due 28 Oct · Due in 3 days")
   })
 
   it("tells a former member once why nothing is available", () => {
@@ -129,7 +142,7 @@ describe("Request timeline", () => {
     expect(steps.map(s => [s.label, s.state])).toEqual([
       ["Open", "finished"], ["In progress", "finished"], ["Done", "skipped"], ["Measuring", "skipped"], ["Closed without a result", "current"],
     ])
-    expect(step(steps, "closed").happened).toEqual(["Closed without a result at In progress: Rolled back.", "Closed by Ana on 22 Oct 2026."])
+    expect(step(steps, "closed").happened).toEqual(["Closed without a result at In progress: Rolled back.", "Closed by Ana on 22 Oct."])
     expect(step(steps, "closed").next).toBe("Closed Requests never reopen.")
     expect(actionsOf(step(steps, "closed"))).toEqual(["Add correction"])
   })
@@ -139,8 +152,8 @@ describe("Request timeline", () => {
     const steps = timelineSteps(input({ status: "done", releaseState: releaseState(release), outcomeClosure: closure }, DEV))
     expect(step(steps, "measuring").state).toBe("finished")
     expect(step(steps, "measuring").countdown).toBeNull()
-    expect(step(steps, "measuring").happened).toEqual(["Released to All shoppers on 21 Oct 2026, recorded by Dev."])
-    expect(step(steps, "closed").happened).toEqual(["Closed with a measured result by Ana on 29 Oct 2026."])
+    expect(step(steps, "measuring").happened).toEqual(["Released to All shoppers on 21 Oct, recorded by Dev."])
+    expect(step(steps, "closed").happened).toEqual(["Closed with a measured result by Ana on 29 Oct."])
     expect(actionsOf(step(steps, "closed"))).toEqual(["Add correction: Only the Requester, Ana, can add a correction.", "Create follow-up Request"])
   })
 

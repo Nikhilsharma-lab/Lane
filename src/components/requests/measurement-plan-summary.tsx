@@ -1,3 +1,4 @@
+import { plannedDay } from "@/lib/dates";
 import { GUARDRAIL_COMPARISONS } from "@/lib/guardrail-comparison";
 import { measurementAudienceLabel, measurementMetricLabel, measurementPlatformLabel, measurementUnitLabel, type MeasurementPlan } from "@/lib/request-measurement";
 import styles from "./measurement-plan-summary.module.css";
@@ -49,7 +50,7 @@ export function MeasurementPlanSummary({ plan, id, metricNames }: { plan: Measur
       {[
         { label: "Audience", value: measurementAudienceLabel(measurement) },
         { label: "Platform", value: measurementPlatformLabel(measurement) },
-        { label: "Measurement window", value: measurement.exactDates ? `${measurement.startDate} to ${measurement.endDate}` : `${measurement.windowDays} days after release` },
+        { label: "Measurement window", value: measurement.exactDates ? `${plannedDay(measurement.startDate)} to ${plannedDay(measurement.endDate)}` : `${measurement.windowDays} days after release` },
       ].map(({ label, value }) => <div key={label} className={styles.contextItem}>
         <dt className={styles.label}>{label}</dt>
         <dd className={styles.contextValue}>{value}</dd>

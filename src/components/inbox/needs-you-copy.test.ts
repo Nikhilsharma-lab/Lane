@@ -38,7 +38,7 @@ describe("what a Needs-you row says", () => {
 
   it("says the result is due, with the due date", () => {
     const row = needsYouRow(item({ kind: "result_due", dueDate: "2026-10-28" }))
-    expect(row.secondary).toBe("Result due 28 Oct 2026. Close it when you have the numbers")
+    expect(row.secondary).toBe("Result due 28 Oct. Close it when you have the numbers")
     expect(row.showsTime).toBe(false)
   })
 })

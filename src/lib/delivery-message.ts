@@ -3,7 +3,7 @@
  * Request. The words match the Inbox row (`src/components/inbox/needs-you-copy.ts`). Pure.
  */
 import type { NeedsYouItem } from "./inbox-read-model"
-import { journeyDate } from "./request-journey"
+import { plannedDay } from "./dates"
 import { requestCodeOrNull } from "./request-code"
 
 export type DeliveryMessageCopy = { subject: string; text: string; link: string }
@@ -13,7 +13,7 @@ function event(item: NeedsYouItem): string {
     case "review": return "Waiting for your review"
     case "concern": return `${item.reviewerName?.trim() || "A Reviewer"} raised a concern`
     case "record_release": return "Record the release"
-    case "result_due": return `Result due ${item.dueDate ? journeyDate(item.dueDate) : "now"}`
+    case "result_due": return `Result due ${item.dueDate ? plannedDay(item.dueDate) : "now"}`
   }
 }
 

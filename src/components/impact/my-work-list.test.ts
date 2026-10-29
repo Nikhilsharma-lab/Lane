@@ -109,7 +109,7 @@ describe("My work rows (#155)", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_OCT) })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
     expect(out).toContain("Still due")
-    expect(out).toContain("Due 2026-10-31")
+    expect(out).toContain("Due 31 Oct")
     expect(out).not.toContain("Actual")
   })
 

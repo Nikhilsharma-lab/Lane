@@ -82,8 +82,8 @@ export function momentTitle(at: Moment, { timeZone }: { timeZone?: string } = {}
 }
 
 /** A moment's day before the viewer's zone is known (the server and the hydrating render): the same text everywhere. */
-export function zoneFreeDay(at: Moment, now = new Date()): string {
-  return momentDay(at, { now, timeZone: "UTC" })
+export function zoneFreeDay(at: Moment, { now = new Date(), year = true }: { now?: Date; year?: boolean } = {}): string {
+  return momentDay(at, { now, timeZone: "UTC", year })
 }
 
 /** A planned day: "24 Oct" this year, "24 Oct 2025" in any other. The same day for everyone, never with a time or a zone. */

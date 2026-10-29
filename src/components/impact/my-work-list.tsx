@@ -1,3 +1,4 @@
+import { plannedDay } from "@/lib/dates"
 import Link from "next/link"
 import type { MyWorkEntry } from "@/lib/impact-read-model"
 import type { ResultView } from "@/lib/impact-read-model"
@@ -25,7 +26,7 @@ function ResultDetail({ entry }: { entry: MyWorkEntry }) {
     case "still_due": return <div className={styles.result}>
       <p className={styles.metric}>{kind.due.metric}</p>
       <dl className={styles.facts}>
-        <div><dt>Still due</dt><dd>Due {kind.due.dueDate} ({kind.due.dueLabel})</dd></div>
+        <div><dt>Still due</dt><dd>Due {plannedDay(kind.due.dueDate)} ({kind.due.dueLabel})</dd></div>
       </dl>
     </div>
     case "closed_without_result": return <p className={styles.note}>Closed without a result: {kind.reason}</p>

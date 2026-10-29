@@ -16,8 +16,8 @@ describe("Metric definition history", () => {
     const html = render([entry(1, "created", null, snapshot), entry(2, "archived", snapshot, { ...snapshot, archivedAt: "2026-10-22T10:00:00.000Z" }, "Sam Ortiz")]);
     expect(html).toContain('aria-label="Changes to this metric"');
     const [newest, oldest] = items(html);
-    expect(text(newest)).toMatch(/^Archived by Sam Ortiz Oct 22$/);
-    expect(text(oldest)).toMatch(/^Added by Pat Lee Oct 21 /);
+    expect(text(newest)).toMatch(/^Archived by Sam Ortiz 22 Oct$/);
+    expect(text(oldest)).toMatch(/^Added by Pat Lee 21 Oct /);
     expect(newest).toContain('dateTime="2026-10-22T10:00:00.000Z"');
   });
 
@@ -31,9 +31,9 @@ describe("Metric definition history", () => {
   it("says which metric a merge kept and which it merged away, on each side (#202)", () => {
     const merge = { keptId: "k", keptName: "Trials started", mergedId: "m", mergedName: "Trial starts" };
     const away = text(render([entry(2, "merged_away", snapshot, { ...snapshot, mergedIntoId: "k", merge })]));
-    expect(away).toMatch(/^Merged into Trials started by Pat Lee Oct 22 Requests that used it count under Trials started\.$/);
+    expect(away).toMatch(/^Merged into Trials started by Pat Lee 22 Oct Requests that used it count under Trials started\.$/);
     const into = text(render([entry(2, "merged_into", { ...snapshot, name: "Trials started" }, { ...snapshot, name: "Trials started", merge })]));
-    expect(into).toMatch(/^Trial starts merged into this one by Pat Lee Oct 22 Requests that used Trial starts count under this one\.$/);
+    expect(into).toMatch(/^Trial starts merged into this one by Pat Lee 22 Oct Requests that used Trial starts count under this one\.$/);
   });
 
   it("credits Lane with a starter metric", () => {

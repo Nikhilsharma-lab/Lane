@@ -1,3 +1,4 @@
+import { plannedDay } from "@/lib/dates"
 import { formatGuardrail, type ExpectedImpact, type IncompleteMeasurement } from "@/lib/request-impact"
 import { MeasurementPlanSummary } from "./measurement-plan-summary"
 import { measurementAudienceLabel, measurementPlatformLabel } from "@/lib/request-measurement"
@@ -22,7 +23,7 @@ export function ExpectedImpactSummary({ impact, id, metricNames }: { impact: Exp
         ]),
         ...(impact.measurement?.audience ? [{ label: "Audience", value: measurementAudienceLabel({ audience: impact.measurement.audience, audienceName: impact.measurement.audienceName }) }] : []),
         ...(impact.measurement?.platform ? [{ label: "Platform", value: measurementPlatformLabel({ platform: impact.measurement.platform, platformName: impact.measurement.platformName }) }] : []),
-        ...(impact.measurement?.exactDates ? [{ label: "Measurement dates", value: `${impact.measurement.startDate} to ${impact.measurement.endDate}` }] : []),
+        ...(impact.measurement?.exactDates ? [{ label: "Measurement dates", value: `${plannedDay(impact.measurement.startDate)} to ${plannedDay(impact.measurement.endDate)}` }] : []),
         ...(impact.source ? [{ label: "Data source", value: impact.source }] : []),
         ...(impact.reviewAfterDays === null ? [] : [{ label: "Check in", value: `${impact.reviewAfterDays} ${impact.reviewAfterDays === 1 ? "day" : "days"}` }]),
       ].filter(({ value }) => value !== "").map(({ label, value }) => <div key={label} className="min-w-0 space-y-1 sm:first:col-span-2">

@@ -62,8 +62,8 @@ describe("a moment", () => {
   })
 
   it("shows the zone-free day before the viewer's zone is known", () => {
-    expect(zoneFreeDay("2026-10-19T23:30:00.000Z", now)).toBe("19 Oct")
-    expect(zoneFreeDay("2025-10-19T00:30:00.000Z", now)).toBe("19 Oct 2025")
+    expect(zoneFreeDay("2026-10-19T23:30:00.000Z", { now })).toBe("19 Oct")
+    expect(zoneFreeDay("2025-10-19T00:30:00.000Z", { now })).toBe("19 Oct 2025")
   })
 
   it("gives the full date and time for hover text", () => {
