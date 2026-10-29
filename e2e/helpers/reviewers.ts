@@ -6,7 +6,7 @@ import {
 } from "@playwright/test";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./test-user";
 import { provisionAndSignIn } from "./auth";
-import { e2eDatabase, finishFirstRuns } from "./cleanup";
+import { cleanupTestWorkspace, e2eDatabase, finishFirstRuns } from "./cleanup";
 import { assertOwnedOrganization, assertOwnedUser, borrowedUserNames } from "./fixtures";
 import {
   intakeDraftScope,
@@ -52,6 +52,8 @@ async function giveBackBorrowed(users: TestUser[], orgId?: string) {
         const client = await assertOwnedOrganization(orgId);
         await client.organizations.deleteOrganizationMembership({ organizationId: orgId, userId: user.id });
       }
+      // The workspace's local rows go too, so the next run that borrows this user starts clean.
+      if (ownerBorrowed) await cleanupTestWorkspace(user.id);
       await deleteTestUser(user.id);
     } catch (error) {
       console.warn(`[e2e] couldn't give back borrowed user ${user.id}:`, error);
@@ -81,7 +83,9 @@ async function assembleReviewTeam(browser: Browser, ownerPage: Page, users: Test
         userId: user.id,
         role: "org:member",
       });
-      await sql`insert into profiles(id,full_name,email,role) values (${user.id},${`Review ${index === 0 ? "Designer" : "Developer"}`},${user.email},${index === 0 ? "designer" : "developer"})`;
+      // A borrowed user (LANE_E2E_REUSE_USERS=1) may already have a profile from an earlier run on this database.
+      await sql`insert into profiles(id,full_name,email,role) values (${user.id},${`Review ${index === 0 ? "Designer" : "Developer"}`},${user.email},${index === 0 ? "designer" : "developer"})
+        on conflict (id) do update set full_name = excluded.full_name, email = excluded.email, role = excluded.role`;
     }
     // #217: these journeys aren't about the first run; the teammates have already seen theirs.
     await finishFirstRuns(sql, orgId, users.slice(1).map((user) => user.id), "joined");

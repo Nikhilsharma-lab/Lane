@@ -38,11 +38,13 @@ const behaviourReady = (page: Page) => expect(page.locator("html[data-popup-beha
 async function holdPopupBehaviour(page: Page) {
   let release!: () => void;
   const held = new Promise<void>(resolve => { release = resolve; });
-  await page.route(/\.js(\?.*)?$/, async route => {
-    const response = await route.fetch();
+  await page.route(/\/_next\/static\/.+\.js(\?.*)?$/, async route => {
+    const response = await route.fetch().catch(() => null);
+    // A fetch the server cut short is simply made again by the page, unheld.
+    if (!response) return route.continue().catch(() => undefined);
     const body = await response.text();
     if (body.includes("639.98px")) await held;
-    await route.fulfill({ response, body });
+    await route.fulfill({ response, body }).catch(() => undefined);
   });
   return release;
 }
@@ -219,7 +221,8 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
     await withWorkspace(page, "escape-early", async (_user, id) => {
       const release = await holdPopupBehaviour(page);
       try {
-        await page.goto(`/requests/${id}`);
+        // The held script may be one the page's load event waits for.
+        await page.goto(`/requests/${id}`, { waitUntil: "domcontentloaded" });
         await expect(page.locator("#request-title")).toBeVisible({ timeout: 30_000 });
         const reviewers = page.locator("#reviewers");
         await reviewers.getByRole("button", { name: "Add reviewer", exact: true }).click();
@@ -244,7 +247,7 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
         await expect(confirm).toHaveCount(0);
 
         // A popup with a field opens on it; Escape with typed text asks; Cancel is a deliberate discard and just closes.
-        await page.goto("/");
+        await page.goto("/", { waitUntil: "domcontentloaded" });
         await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
         await expect(page.locator("html[data-popup-behaviour=ready]")).toHaveCount(0);
         const save = page.getByRole("button", { name: "Save view", exact: true });
