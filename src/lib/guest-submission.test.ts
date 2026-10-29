@@ -15,7 +15,7 @@ describe("a Guest submission's state", () => {
 
   it("can't be picked up while it waits, nor before its prediction is written", () => {
     expect(guestPickupRefusal({ guestSubmission: "waiting", expectedImpact: null, noMeasurableImpactReason: null })).toBe("Take this Guest submission on before picking it up.")
-    expect(guestPickupRefusal({ guestSubmission: "taken_on", expectedImpact: null, noMeasurableImpactReason: null })).toBe("Write the prediction before picking up this Request.")
+    expect(guestPickupRefusal({ guestSubmission: "taken_on", expectedImpact: null, noMeasurableImpactReason: null })).toBe("Set the goal before picking up this Request.")
     expect(guestPickupRefusal({ guestSubmission: "taken_on", expectedImpact: null, noMeasurableImpactReason: "Housekeeping" })).toBeNull()
     expect(guestPickupRefusal({ guestSubmission: null, expectedImpact: null, noMeasurableImpactReason: null })).toBeNull()
   })
@@ -23,14 +23,14 @@ describe("a Guest submission's state", () => {
 
 describe("the notice on Request detail", () => {
   it("offers Members and Admins Take this on while it waits; the Guest and a Viewer are told where it stands", () => {
-    expect(guestSubmissionNotice(waiting, member, false)).toEqual({ action: "take_on", text: "Gita Guest filed this as a Guest, without a prediction. Take it on to become its Requester and write the prediction." })
+    expect(guestSubmissionNotice(waiting, member, false)).toEqual({ action: "take_on", text: "Gita Guest filed this as a Guest, without a goal. Take it on to become its Requester and set the goal." })
     expect(guestSubmissionNotice(waiting, { userId: "user_ad", role: "admin" }, false).action).toBe("take_on")
-    expect(guestSubmissionNotice(waiting, { userId: "user_gita", role: "guest" }, false)).toEqual({ action: null, text: "Waiting for a Member to take this on. They’ll write its prediction, and you’ll get an email when they do." })
+    expect(guestSubmissionNotice(waiting, { userId: "user_gita", role: "guest" }, false)).toEqual({ action: null, text: "Waiting for a Member to take this on. They’ll set its goal, and you’ll get an email when they do." })
     expect(guestSubmissionNotice(waiting, { userId: "user_vi", role: "viewer" }, false)).toEqual({ action: null, text: "Gita Guest filed this as a Guest. It’s waiting for a Member to take it on." })
   })
 
   it("asks whoever took it on for the prediction until it's written, and names them to everyone else", () => {
-    expect(guestSubmissionNotice(takenOn, member, false)).toEqual({ action: "write_prediction", text: "Gita Guest filed this as a Guest. You took it on, so write its prediction before the work is picked up." })
+    expect(guestSubmissionNotice(takenOn, member, false)).toEqual({ action: "write_prediction", text: "Gita Guest filed this as a Guest. You took it on, so set its goal before the work is picked up." })
     expect(guestSubmissionNotice(takenOn, member, true)).toEqual({ action: null, text: "Gita Guest filed this as a Guest. You took it on and are its Requester." })
     expect(guestSubmissionNotice(takenOn, { userId: "user_jo", role: "member" }, false)).toEqual({ action: null, text: "Gita Guest filed this as a Guest. Mo Member took it on and is its Requester." })
     expect(guestSubmissionNotice(takenOn, { userId: "user_gita", role: "guest" }, false)).toEqual({ action: null, text: "Mo Member took this on and is its Requester. You can still follow it and comment." })

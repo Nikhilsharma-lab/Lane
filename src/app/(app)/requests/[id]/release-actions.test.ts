@@ -170,7 +170,7 @@ it('rejects exposure before the Request was created, for releases and correction
     // Created late on 20 October UTC; work cannot reach users before that day. Reviews play no part.
     await connection `update requests set created_at='2026-10-20T23:30:00Z' where id=${id}`;
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ earliestExposure: '2026-10-20' });
-    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-19' })).toEqual({ error: 'Exposure cannot be before the Request was created on 2026-10-20 (UTC).' });
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-19' })).toEqual({ error: 'Exposure cannot be before the Request was created on 20 Oct.' });
     expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-20' })).toHaveProperty('success', true);
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-19', reason: 'Wrong log' })).toHaveProperty('error');
 });

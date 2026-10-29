@@ -6,12 +6,12 @@ import { decideFreeRequests, readFreeRequests, readPlan } from "@/lib/billing";
 import type { WorkspaceContext } from "@/lib/ensure-workspace";
 import { billingEnforced } from "@/lib/feature-switches";
 import { paymentProvider } from "@/lib/payment-provider";
-import { journeyDay } from "@/lib/request-journey";
+import { zoneFreeDay } from "@/lib/dates";
 import { BillingAccount } from "./billing-account";
 import { BillingForm } from "./billing-form";
 
 const RESULTS: readonly CheckoutResult[] = ["done", "cancelled"];
-const day = (at: Date | null) => at && journeyDay(at.toISOString());
+const day = (at: Date | null) => at && zoneFreeDay(at);
 
 /**
  * #213/#214/#216 Settings → Billing, as every Settings page renders it, for Admins only: the Lane plan (pay by card

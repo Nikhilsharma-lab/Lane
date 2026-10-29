@@ -2,6 +2,7 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db, requests } from '@/db';
+import { plannedDay } from '@/lib/dates';
 import { requireActiveMember } from '@/lib/auth-guard';
 import { workspaceRoster } from '@/lib/workspace-roster';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
@@ -51,7 +52,7 @@ export async function changeRequestRelease(context: RequestChangeContext, input:
                 else {
                     insist(change.exposureDate <= utcDay(), 'Exposure cannot be in the future.');
                     const earliest = earliestExposure(request);
-                    insist(change.exposureDate >= earliest, `Exposure cannot be before the Request was created on ${earliest} (UTC).`);
+                    insist(change.exposureDate >= earliest, `Exposure cannot be before the Request was created on ${plannedDay(earliest)}.`);
                     // A measured plan records the value before release, in its metric's unit, or the release is refused.
                     const impact = expectedImpactSchema.safeParse(request.expectedImpact).data ?? null;
                     const valueBefore = valueBeforeReleaseOf(impact);

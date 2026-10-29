@@ -3,7 +3,7 @@ import { readBillingAccount, readSeats } from "@/lib/billing";
 import { money } from "@/lib/billing-plan-rules";
 import type { PlanState } from "@/lib/free-request-rules";
 import { paymentProvider } from "@/lib/payment-provider";
-import { journeyDay } from "@/lib/request-journey";
+import { zoneFreeDay } from "@/lib/dates";
 
 /** Admins and Members on the live Clerk roster (Guests and Viewers are free; #215 counts them), or null when Clerk can't be read. */
 async function seatsOf(orgId: string): Promise<BillingAccountCardProps["seats"]> {
@@ -22,9 +22,9 @@ async function accountOf(orgId: string): Promise<BillingAccountCardProps["accoun
   const account = await readBillingAccount({ orgId }, provider);
   if (!account) return "failed";
   return {
-    nextBill: account.nextBill && { amount: money(account.nextBill.amountCents, account.nextBill.currency), on: journeyDay(account.nextBill.on.toISOString()) },
+    nextBill: account.nextBill && { amount: money(account.nextBill.amountCents, account.nextBill.currency), on: zoneFreeDay(account.nextBill.on) },
     invoices: account.invoices.map((invoice) => ({
-      id: invoice.id, number: invoice.number, issuedOn: journeyDay(invoice.issuedAt.toISOString()), amount: money(invoice.amountCents, invoice.currency), status: invoice.status, url: invoice.url,
+      id: invoice.id, number: invoice.number, issuedOn: zoneFreeDay(invoice.issuedAt), amount: money(invoice.amountCents, invoice.currency), status: invoice.status, url: invoice.url,
     })),
   };
 }

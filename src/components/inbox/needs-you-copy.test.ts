@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import { needsYouRow } from "./needs-you-copy"
 import type { NeedsYouInboxItem } from "./inbox-item"
+
+// Dates read "24 Oct" in the current year and "24 Oct 2025" in others (#261): pin the year these fixtures are in.
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-23T12:00:00.000Z") }) })
+afterAll(() => { vi.useRealTimers() })
 
 const item = (over: Partial<NeedsYouInboxItem> = {}): NeedsYouInboxItem => ({
   key: "review:req-1:rev-1:2026-10-25T09:00:00.000Z", kind: "review", requestId: "req-1", requestNumber: 12, requestTitle: "Checkout copy",
@@ -38,7 +42,7 @@ describe("what a Needs-you row says", () => {
 
   it("says the result is due, with the due date", () => {
     const row = needsYouRow(item({ kind: "result_due", dueDate: "2026-10-28" }))
-    expect(row.secondary).toBe("Result due 28 Oct 2026. Close it when you have the numbers")
+    expect(row.secondary).toBe("Result due 28 Oct. Close it when you have the numbers")
     expect(row.showsTime).toBe(false)
   })
 })

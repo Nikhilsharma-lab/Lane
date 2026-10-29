@@ -22,7 +22,8 @@ import { SearchField } from "@/components/arc/search-field/search-field";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { CopyButton } from "@/components/requests/copy-button";
-import { LocalTime, calendarDayLabel } from "@/components/requests/local-time";
+import { LocalTime } from "@/components/requests/local-time";
+import { plannedDay } from "@/lib/dates";
 import { RequestLabels, LabelDot } from "@/components/requests/request-labels";
 import { useWorkspaceLabels } from "@/components/requests/workspace-labels";
 import { ProjectMarker } from "@/components/projects/project-marker";
@@ -50,7 +51,7 @@ const codeOf = (result: Match) => result.kind === "request" && result.item.reque
 /** Plan item 2.8: one concise name per result, the title and its code (or "Project"). The row's other text stays visible only. */
 const nameOf = (result: Match) => result.kind === "project" ? `${result.item.name}, Project` : [result.item.title, codeOf(result)].filter(Boolean).join(", ");
 const countLabel = (count: number) => `${count} ${count === 1 ? "result" : "results"}`;
-// Filter chips name calendar days (YYYY-MM-DD) through calendarDayLabel, in the viewer's locale (critique 2.8).
+// Filter chips name calendar days (YYYY-MM-DD) as planned days, the same for everyone (#261).
 const dayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const isApple = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
@@ -87,7 +88,7 @@ const Preview = memo(function Preview({ result, pattern, timeZone, onNavigate }:
     <dl className={styles.facts}>
       {status ? <div><dt>Status</dt><dd><Badge tone={status.tone} size="sm">{status.label}</Badge></dd></div> : null}
       {result.kind === "request" ? <><div><dt>Project</dt><dd>{result.item.projectName ?? "No Project"}</dd></div><div><dt>Labels</dt><dd><RequestLabels request={result.item} /></dd></div></> : null}
-      {item.createdAt ? <div><dt>Created</dt><dd><LocalTime iso={item.createdAt} timeZone={timeZone} /></dd></div> : null}
+      {item.createdAt ? <div><dt>Created</dt><dd><LocalTime iso={item.createdAt} timeZone={timeZone} time /></dd></div> : null}
     </dl>
     <div className={styles.previewActions}>
       <Link href={hrefOf(result)} className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.sm}`} onClick={event => { if (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) onNavigate?.(hrefOf(result)); }}>Open {result.kind === "request" ? "Request" : "Project"}</Link>
@@ -117,7 +118,7 @@ const ResultRow = memo(function ResultRow({ result, optionId, pattern, selected,
     <Lead result={result} /><span className={styles.content}><span className={styles.title}><Highlight text={titleOf(result)} pattern={pattern} /></span>
       <span className={styles.metadata}>{result.kind === "request" ? <>{code ? <Highlight text={code} pattern={pattern} /> : "Request"}<span>·</span>{resultStatus(result.item).label}<span>·</span>{result.item.projectName ?? "No Project"}</> : "Project"}</span>
       {snippet ? <span className={styles.snippet}><Highlight text={snippet} pattern={pattern} /></span> : null}
-      {result.item.createdAt ? <LocalTime className={styles.metadata} iso={result.item.createdAt} day timeZone={timeZone} /> : null}</span>
+      {result.item.createdAt ? <LocalTime className={styles.metadata} iso={result.item.createdAt} timeZone={timeZone} /> : null}</span>
   </li>;
 });
 
@@ -136,7 +137,7 @@ const Facets = memo(function Facets({ data, filters, category, onCategory, onCha
     <fieldset className={styles.facetGroup}><legend>Labels</legend>
       {TYPES.map(type => { const on = filters.types?.includes(type.value) ?? false; const count = data?.facets ? data.facets.types[type.value] ?? 0 : undefined; return <div className={styles.option} key={type.value}><LabelDot colour={type.colour}/><Checkbox label={type.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, types: checked ? [...(filters.types ?? []), type.value] : filters.types?.filter(value => value !== type.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
     </fieldset>
-    <div className={styles.facetGroup}><span className={styles.legend}>Created</span><Button variant="secondary" size="sm" onClick={onDates} onPointerEnter={preloadDateRangePicker} onFocus={preloadDateRangePicker}><CalendarDays aria-hidden="true" />{filters.createdFrom ? "Change dates" : "Any time"}</Button>{filters.createdFrom ? <span className={styles.hint}>{calendarDayLabel(filters.createdFrom)} to {calendarDayLabel(filters.createdTo!)}</span> : null}</div>
+    <div className={styles.facetGroup}><span className={styles.legend}>Created</span><Button variant="secondary" size="sm" onClick={onDates} onPointerEnter={preloadDateRangePicker} onFocus={preloadDateRangePicker}><CalendarDays aria-hidden="true" />{filters.createdFrom ? "Change dates" : "Any time"}</Button>{filters.createdFrom ? <span className={styles.hint}>{plannedDay(filters.createdFrom)} to {plannedDay(filters.createdTo!)}</span> : null}</div>
   </div>;
 });
 
@@ -212,7 +213,7 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
     ...(category === "all" ? [] : [{ id: "category", label: "Search in", value: category === "requests" ? "Requests" : "Projects" }]),
     ...(filters.statuses ?? []).map(value => ({ id: `status:${value}`, label: "Status", value: statusOf(value).label })),
     ...(filters.types ?? []).map(value => ({ id: `type:${value}`, label: "Labels", value: TYPES.find(type => type.value === value)?.label ?? "Saved label" })),
-    ...(filters.createdFrom ? [{ id: "dates", label: "Created", value: `${calendarDayLabel(filters.createdFrom)} to ${calendarDayLabel(filters.createdTo!)}` }] : []),
+    ...(filters.createdFrom ? [{ id: "dates", label: "Created", value: `${plannedDay(filters.createdFrom)} to ${plannedDay(filters.createdTo!)}` }] : []),
   ];
   const filterCount = chips.length;
   // Plan item 2.8: the results fade in when filters or sort change, never per keystroke.
@@ -309,6 +310,6 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
       <aside className={styles.preview} aria-label="Result preview"><AnimatePresence mode="wait" initial={false}>{selected ? <motion.div key={selected.item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}><Preview result={selected} pattern={pattern} timeZone={timeZone} onNavigate={onNavigate} /></motion.div> : <p className={styles.previewEmpty}>{loading ? "Searching" : "Select a result to preview it."}</p>}</AnimatePresence></aside>
     </div>
     <BottomSheet title="Result preview" open={previewOpen && active} onOpenChange={setPreviewOpen} onCloseAutoFocus={event => { event.preventDefault(); if (active) listRef.current?.focus(); }} detents={[.9]}>{selected ? <Preview result={selected} pattern={pattern} timeZone={timeZone} onNavigate={onNavigate} /> : null}</BottomSheet>
-    <Dialog open={datesOpen && active} onOpenChange={setDatesOpen}><DialogContent title="Created date" className={styles.dateDialog} overlayClassName={styles.dateOverlay} onCloseAutoFocus={event => { event.preventDefault(); if (active) dateTrigger.current?.focus(); }}><DateRangePicker embedded value={range} label="Created date range" months={1} onCancel={() => setDatesOpen(false)} onChange={value => { applyFilters({ ...filters, createdFrom: dayKey(value.start), createdTo: dayKey(value.end) }); setDatesOpen(false); }} /></DialogContent></Dialog>
+    <Dialog open={datesOpen && active} onOpenChange={setDatesOpen}><DialogContent title="Created date" className={styles.dateDialog} overlayClassName={styles.dateOverlay} onCloseAutoFocus={event => { event.preventDefault(); if (active) dateTrigger.current?.focus(); }}><DateRangePicker embedded locale="en-GB" value={range} label="Created date range" months={1} onCancel={() => setDatesOpen(false)} onChange={value => { applyFilters({ ...filters, createdFrom: dayKey(value.start), createdTo: dayKey(value.end) }); setDatesOpen(false); }} /></DialogContent></Dialog>
   </section>;
 }

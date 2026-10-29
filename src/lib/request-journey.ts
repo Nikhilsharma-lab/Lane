@@ -11,6 +11,7 @@
  * `request-journey-sql.ts` and is proven against the same mapping.
  */
 import type { WorkspacePermission } from "./auth-guard"
+import { plannedDay } from "./dates"
 import type { RequestStatus } from "./request-lifecycle"
 import { canChangeThings } from "./role-rules"
 import type { ReleaseFact, ReleaseState } from "./request-release"
@@ -135,16 +136,6 @@ export type JourneyActions = Record<JourneyAction, ActionAvailability>
 
 const ALLOWED = { allowed: true } as const
 const refuse = (reason: string): ActionAvailability => ({ allowed: false, reason })
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-/** "28 Oct 2026" for a UTC date, the same on server and client. */
-export function journeyDate(day: string): string {
-  const [year, month, date] = day.split("-").map(Number)
-  return `${date} ${MONTHS[month - 1]} ${year}`
-}
-
-/** "28 Oct 2026" for an ISO instant's UTC date. */
-export const journeyDay = (iso: string) => journeyDate(iso.slice(0, 10))
-
 /** The release the work reached at some point: the current one, or the one recorded on its closure. */
 function releasedOnce(facts: JourneyFacts) {
   if (facts.releaseState?.release) return true
@@ -192,7 +183,7 @@ export function journeyActions(facts: JourneyFacts & { createdBy: string; takenO
     if (!isRequester) return notRequester("close this")
     if (status !== "measuring") return refuse("Opens once the release is recorded and the result is due.")
     const dueDate = facts.releaseState!.release!.dueDate
-    if (releaseMeasurement(facts.releaseState!.release, now)!.days > 0) return { allowed: false, reason: `Opens on ${journeyDate(dueDate)}.`, opensOn: dueDate }
+    if (releaseMeasurement(facts.releaseState!.release, now)!.days > 0) return { allowed: false, reason: `Opens on ${plannedDay(dueDate, { now })}.`, opensOn: dueDate }
     return ALLOWED
   }
 
