@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { callAction, isSessionFailure, type ActionSession } from "./action-call"
+import { OfflineError } from "./connection-status"
 
 const session = (): ActionSession & { order: string[] } => {
   const order: string[] = []
@@ -38,6 +39,19 @@ describe("callAction", () => {
     const s = session()
     const run = vi.fn().mockRejectedValueOnce(new Error("401 Unauthorized")).mockResolvedValueOnce({ success: true })
     await expect(callAction(run, s)).resolves.toEqual({ success: true })
+  })
+  // #260: offline, nothing is sent or queued; the caller gets the shared offline answer.
+  it("never calls the action while the browser is offline", async () => {
+    vi.stubGlobal("navigator", { onLine: false })
+    try {
+      const s = session()
+      const run = vi.fn(async () => ({ success: true }))
+      await expect(callAction(run, s)).rejects.toBeInstanceOf(OfflineError)
+      expect(run).not.toHaveBeenCalled()
+      expect(s.current).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
   it("still calls the action when Clerk can't give a token", async () => {
     const run = vi.fn(async () => ({ success: true }))

@@ -7,6 +7,7 @@ import { Dialog, DialogClose, DialogContent } from "@/components/arc/dialog/dial
 import { DropdownMenu, type DropdownItem } from "@/components/arc/dropdown-menu/dropdown-menu"
 import { Input } from "@/components/arc/input/input"
 import { callAction } from "@/lib/action-call"
+import { thrownMessage } from "@/lib/failure-messages"
 import { openSavedView, SAVED_VIEW_NAME_MAX, savedViewChoices, type SavedView, type SavedViewChoice } from "@/lib/saved-view-rules"
 import { deleteSavedView, renameSavedView, saveView, updateSavedView } from "@/app/(app)/saved-view-actions"
 import { useListAnnouncer } from "./list-announcer"
@@ -55,8 +56,8 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
       if ("error" in result) { setError(result.error); return false }
       done(result.view)
       return true
-    } catch {
-      setError(OFFLINE)
+    } catch (thrown) {
+      setError(thrownMessage(thrown, OFFLINE))
       return false
     } finally {
       setPending(false)

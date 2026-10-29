@@ -97,8 +97,10 @@ import {
 import { composerDraft, restoredComposer, settleLostUploads as settleInterruptedUploads } from "./intake-session";
 import { createUploadSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
+import { OFFLINE_ANSWER, isOfflineError } from "@/lib/failure-messages";
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { FieldError } from "@/components/forms/field-error";
 
 type Stage =
   | "compose"
@@ -324,6 +326,8 @@ export default function RequestEditor({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
   const failureRef = useRef<HTMLDivElement>(null);
+  // #260 (C1): the review step's failure is brought into view, so a Create that didn't save never looks like nothing happened.
+  const reviewFailureRef = useRef<HTMLDivElement>(null);
   // Where focus goes when the compose step shows again: the title by default,
   // the primary button after a gate failure, nowhere when a field takes it.
   const focusAfterCompose = useRef<"title" | "submit" | "none">("title");
@@ -551,6 +555,10 @@ export default function RequestEditor({
   }, [active, draftReady, setFocus, stage]);
 
   useEffect(() => {
+    if (failure && stage === "framing") reviewFailureRef.current?.scrollIntoView({ block: "nearest" });
+  }, [failure, stage]);
+
+  useEffect(() => {
     if (!checking) return;
     const timer = window.setTimeout(() => setShowSlowCue(true), 5_000);
     return () => window.clearTimeout(timer);
@@ -744,9 +752,9 @@ export default function RequestEditor({
         setPreviousProblemSource({ title: data.title, description: data.description });
       }
       setStage("framing");
-    } catch {
+    } catch (thrown) {
       if (abandoned()) return;
-      setFailure(thrownGateFailure(navigator.onLine !== false));
+      setFailure(thrownGateFailure(!isOfflineError(thrown) && navigator.onLine !== false));
       focusAfterCompose.current = "submit";
       setStage("compose");
     } finally {
@@ -918,11 +926,12 @@ export default function RequestEditor({
       const uploaded = await uploads().uploadSaved(result.requestId, savingSource.title, attachments);
       if (uploaded === "uploaded") finishCreatedRequest(result.requestId);
       else if (uploaded === "recovery") setStage("attachment_recovery");
-    } catch {
+    } catch (thrown) {
       setFailure({
         code: "save_failed",
-        message:
-          editing ? "Your changes could not be saved. Your text is still here. Try again." : "Your Request could not be created. Your text is still here. Try again.",
+        // #260 (C1): offline says so; nothing was sent and the text stays.
+        message: isOfflineError(thrown) ? `${OFFLINE_ANSWER} Your text is still here.`
+          : editing ? "Your changes could not be saved. Your text is still here. Try again." : "Your Request could not be created. Your text is still here. Try again.",
       });
       setStage(unchangedSource ? "compose" : "framing");
     } finally {
@@ -1162,9 +1171,9 @@ export default function RequestEditor({
               <input ref={fileInputRef} type="file" aria-label="Choose Request files" tabIndex={-1} multiple accept={ATTACHMENT_ACCEPT} className="sr-only" disabled={checking}
                 onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
             </div>
-            {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive">{errors.projectId.message}</p>}
-            {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive">{errors.requestType.message}</p>}
-            {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive">{reviewersError}</p>}
+            <FieldError id="intake-project-error">{errors.projectId?.message}</FieldError>
+            <FieldError id="intake-request-type-error">{errors.requestType?.message}</FieldError>
+            <FieldError id="intake-reviewers-error">{offerReviewers && reviewersError}</FieldError>
             {guided && offerReviewers && <FirstRunHint>Reviewers are optional: the teammates you add answer Looks good or Raise a concern before work starts.</FirstRunHint>}
             {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on sets its goal." : "A Member takes this on and sets its goal. You’ll get an email when they do."}</p>}
             {!withoutPrediction && currentValues.expectedImpact && <>
@@ -1395,7 +1404,7 @@ export default function RequestEditor({
           <RequestReviewSupportingDetails relatedLink={source.usefulLink} files={attachments} />
 
           {failure && (
-            <IntakeNotice error title={editing ? "Changes not saved" : "Request not created"}>
+            <div ref={reviewFailureRef}><IntakeNotice error title={editing ? "Changes not saved" : "Request not created"}>
               <span>{failure.message}</span>
               {failure.code === "session_expired" && (
                 <>
@@ -1409,7 +1418,7 @@ export default function RequestEditor({
                   </Link>
                 </>
               )}
-            </IntakeNotice>
+            </IntakeNotice></div>
           )}
 
         </div>

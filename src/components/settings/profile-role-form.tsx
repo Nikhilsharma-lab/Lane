@@ -1,6 +1,7 @@
 "use client";
 
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/arc/button/button";
 import { Select } from "@/components/arc/select/select";
@@ -165,8 +166,8 @@ function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: Produ
         }
         setSavedRole(next);
         toast({ type: "success", title: "Role updated." });
-      } catch {
-        setFeedback({ kind: "error", message: "Your role could not be saved. Try again." });
+      } catch (thrown) {
+        setFeedback({ kind: "error", message: thrownMessage(thrown, "Your role could not be saved. Try again.") });
       } finally {
         saving.current = false;
       }

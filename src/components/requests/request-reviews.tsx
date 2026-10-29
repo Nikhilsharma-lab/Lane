@@ -110,7 +110,7 @@ export function RequestReviews({
         waitForPending: true,
         refreshOnError: false,
         run: () => actions[kind]({ orgId, requestId, expectedRevision: view.revision, operationId }, input),
-        onError: (message, { thrown }) => setError(thrown ? "Couldn’t confirm the change. Try again." : message),
+        onError: (message, { thrown, offline }) => setError(thrown && !offline ? "Couldn’t confirm the change. Try again." : message),
       });
       if (outcome.status !== "success") return false;
       retry.current = null;

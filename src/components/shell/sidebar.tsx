@@ -1,6 +1,7 @@
 "use client";
 
 import { callAction } from "@/lib/action-call";
+import { CHECK_CONNECTION, thrownMessage } from "@/lib/failure-messages";
 import { useClerk, useOrganization } from "@clerk/nextjs";
 import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -14,6 +15,8 @@ import type { PaletteRole } from "./command-palette-entries";
 import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
 import type { SavedView } from "@/lib/saved-view-nav";
+
+const PROJECT_NOT_CREATED = `Couldn't create the Project. ${CHECK_CONNECTION}`;
 
 export function Sidebar({
   children,
@@ -69,7 +72,8 @@ export function Sidebar({
       onRetryProjects={() => projectState.reload()}
       // #210: a Viewer creates no Projects (the server refuses too), so the sidebar offers no New Project.
       onCreateProject={role === "viewer" ? undefined : async name => {
-        const result = await callAction(() => createProject({ name }, { orgId }));
+        // #260 (A18): a call that never got an answer shows Lane's words under the field, never "Failed to fetch".
+        const result = await callAction(() => createProject({ name }, { orgId })).catch(thrown => { throw new Error(thrownMessage(thrown, PROJECT_NOT_CREATED)); });
         if (!result.success) throw new Error(result.error.message);
         projectState.addProject(result.project);
         router.push(requestListHref("all", result.project.id));

@@ -21,7 +21,8 @@
 .valueControl { position: relative; min-width: 0; }
 .valueControl > * { min-width: 0; }
 .numericInput { min-height: calc(var(--control-height-sm) + var(--space-2)); padding-inline-end: calc(var(--spacing) * 25); font-variant-numeric: tabular-nums; }
-.unitControl { position: absolute; right: var(--space-1); top: 50%; transform: translateY(-50%); }
+/* Centred on the input itself, so the field's error line (#260) opens below without moving the unit. */
+.unitControl { position: absolute; right: var(--space-1); top: 0; display: flex; height: calc(var(--control-height-sm) + var(--space-2)); align-items: center; }
 .error { margin: 0; color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); }
 .checkDefinition { display: grid; gap: var(--space-3); }
 .checkDefinition h3 { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); }
@@ -36,6 +37,7 @@
 @media (pointer: coarse) {
   .compactButton, .addGuardrail { min-height: var(--size-inner-xlarge); }
   .numericInput { min-height: calc(var(--size-inner-xlarge) + var(--space-2)); }
+  .unitControl { height: calc(var(--size-inner-xlarge) + var(--space-2)); }
 }
 
 :global([role="option"]):has(.customMetricIcon) { color: var(--accent); }

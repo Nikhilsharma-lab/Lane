@@ -58,7 +58,7 @@ describe("AI gate failures in the composer (plan item 2.3)", () => {
 
   it("shows a throw while online as unavailable and a throw while offline as offline", () => {
     expect(gateFailureNotice(thrownGateFailure(true))).toEqual(unavailable);
-    expect(gateFailureNotice(thrownGateFailure(false))).toEqual({ tone: "warning", title: "You’re offline", body: "Your draft is kept. Check your connection and try again.", signIn: false });
+    expect(gateFailureNotice(thrownGateFailure(false))).toEqual({ tone: "warning", title: "You’re offline", body: "You're offline, this will work when you're back. Your draft is kept.", signIn: false });
   });
 
   it("names Lane's review limit with its wait", () => {

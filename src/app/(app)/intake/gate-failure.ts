@@ -1,4 +1,5 @@
 import type { IntakeFailure } from "./actions";
+import { OFFLINE_ANSWER } from "@/lib/failure-messages";
 
 /** A failure the composer meets on its own side of the action: the call threw. */
 export type ClientGateFailure = { code: "offline" | "unavailable"; message: string };
@@ -19,7 +20,7 @@ export const DRAFT_KEPT = "Your draft is kept.";
 export function thrownGateFailure(online: boolean): ClientGateFailure {
   return online
     ? { code: "unavailable", message: `${REVIEW_UNAVAILABLE_TITLE}. ${DRAFT_KEPT}` }
-    : { code: "offline", message: `${DRAFT_KEPT} Check your connection and try again.` };
+    : { code: "offline", message: `${OFFLINE_ANSWER} ${DRAFT_KEPT}` };
 }
 
 /**

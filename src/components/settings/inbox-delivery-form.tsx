@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Alert } from "@/components/arc/alert/alert";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { DELIVERY_CHOICES, type DeliveryChoice } from "@/lib/delivery-preference-rules";
 import styles from "./settings.module.css";
 
@@ -42,8 +43,8 @@ export function InboxDeliveryForm({ initialChoice, email, onSave, slackOffered =
     try {
       const result = await callAction(() => onSave(value));
       if (result.error || !result.success) message = result.error || FAILED;
-    } catch {
-      message = FAILED;
+    } catch (thrown) {
+      message = thrownMessage(thrown, FAILED);
     }
     // A later choice owns the screen.
     if (mine !== turn.current) return;
