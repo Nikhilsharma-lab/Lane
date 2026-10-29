@@ -9,8 +9,9 @@
  */
 import { FORMER_MEMBER, JOURNEY_STATUSES, journeyDate, journeyDay as day, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
 import type { RequestStatus } from "@/lib/request-lifecycle"
-import { EXCEPTION_REASON_OPTIONS, type ExceptionReason } from "@/lib/request-outcome"
-import { releaseMeasurement, type ReleaseEvent, type ReleaseFact } from "@/lib/request-release"
+import { EXCEPTION_REASON_OPTIONS, type ExceptionReason, type OutcomeClosure, type OutcomeException } from "@/lib/request-outcome"
+import { valueBeforeReleaseFor } from "@/lib/request-release-facts"
+import { releaseMeasurement, type ReleaseEvent, type ReleaseFact, type ReleaseState } from "@/lib/request-release"
 
 export type TimelineClosure =
   | { kind: "measured"; actorId: string; closedAt: string; release: ReleaseFact }
@@ -83,9 +84,25 @@ const STEP_ACTIONS: Partial<Record<JourneyStatus, { action: JourneyAction; quiet
 const ORDER = JOURNEY_STATUSES.map(s => s.status)
 
 /** Where a Request closed without a result stopped: the last step it reached. */
-function stoppedAt(input: TimelineInput): JourneyStatus {
+function stoppedAt(input: Pick<TimelineInput, "workStatus"> & { closure: { release?: ReleaseFact | null } | null }): JourneyStatus {
   if (input.closure?.release) return "measuring"
   return input.workStatus === "done" ? "done" : "in_progress"
+}
+
+/** The saved release facts under the Measuring step, as the timeline words them; null holds the value before release. */
+function measuringFacts(fact: ReleaseFact, hasValueBefore: boolean, isCurrent: boolean): OutlineLine[] {
+  return [
+    `Evidence: ${fact.evidence}`,
+    ...hasValueBefore ? [null] : [],
+    ...fact.windowKind === "fixed" ? [fixedWindowLine(fact)] : [],
+    ...isCurrent ? [DUE_DATE_LINE] : [],
+  ]
+}
+
+/** The labels of the step's actions shown whether or not they are available (the quiet ones show only when they are). */
+function shownActions(input: Pick<TimelineInput, "isGuest" | "readOnly">, status: JourneyStatus): string[] {
+  if (input.isGuest || input.readOnly) return []
+  return (STEP_ACTIONS[status] ?? []).filter(a => !a.quiet).map(a => ACTION_LABELS[a.action])
 }
 
 function stepActions(input: TimelineInput, status: JourneyStatus): TimelineAction[] {
@@ -104,15 +121,33 @@ function stepActions(input: TimelineInput, status: JourneyStatus): TimelineActio
   return shown
 }
 
+const inProgressNext = (assigneeName: string | null) => `${assigneeName ?? "The assignee"} is working on this. Mark Done when the work is finished.`
+export const fixedWindowLine = (fact: ReleaseFact) => `Agreed fixed window: ${journeyDate(fact.startDate)} to ${journeyDate(fact.dueDate)}. Release timing does not move these dates.`
+export const DUE_DATE_LINE = "The due date does not close this Request automatically."
+/** The Closed step reads "Closed without a result" once a Request closed that way. */
+const stepLabel = (journey: Journey, status: JourneyStatus, label: JourneyLabel) => status === "closed" && journey.status === "closed" ? journey.label : label
+const CLOSED_NEXT = "Closed Requests never reopen."
+const withoutResultLine = (stop: number, reasonCode: ExceptionReason) =>
+  `Closed without a result at ${JOURNEY_STATUSES[stop].label}: ${EXCEPTION_REASON_OPTIONS.find(o => o.value === reasonCode)?.label ?? reasonCode}.`
+const doneNext = (audience: string) => `Record the release once ${audience} has the work. Anyone working on this Request can record it.`
+const OPEN_NEXT = "Waiting for someone to pick this up. Reviews are optional and never block pickup."
+
+/** Each step's place in the journey: finished, current, not reached yet, or skipped by a close without a result. */
+function stepStates(input: Pick<TimelineInput, "journey" | "workStatus"> & { closure: { release?: ReleaseFact | null } | null }): TimelineStep["state"][] {
+  const current = ORDER.indexOf(input.journey.status)
+  const stop = input.journey.withoutResult ? ORDER.indexOf(stoppedAt(input)) : -1
+  return ORDER.map((_, index) => index === current ? "current" : index < current ? (stop >= 0 && index > stop ? "skipped" : "finished") : "upcoming")
+}
+
 export function timelineSteps(input: TimelineInput): TimelineStep[] {
   const { journey, names } = input
-  const current = ORDER.indexOf(journey.status)
   const stop = journey.withoutResult ? ORDER.indexOf(stoppedAt(input)) : -1
+  const states = stepStates(input)
   const release = input.release ?? input.closure?.release ?? null
   const recordedBy = [...input.releaseHistory].reverse().find(e => e.input.kind === "release" || e.input.kind === "correct")?.actorId
 
   return JOURNEY_STATUSES.map(({ status, label }, index) => {
-    const state: TimelineStep["state"] = index === current ? "current" : index < current ? (stop >= 0 && index > stop ? "skipped" : "finished") : "upcoming"
+    const state = states[index]
     const reached = state === "finished" || state === "current"
     const isCurrent = state === "current"
     const happened: string[] = []
@@ -121,16 +156,16 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
 
     if (status === "open") {
       happened.push(`Requested by ${input.requestedBy} on ${day(input.requestedAt)}.`)
-      if (isCurrent) next = "Waiting for someone to pick this up. Reviews are optional and never block pickup."
+      if (isCurrent) next = OPEN_NEXT
     }
     if (status === "in_progress" && reached) {
       const on = input.pickedUpAt ? ` on ${day(input.pickedUpAt)}` : ""
       happened.push(input.assigneeName ? `Picked up by ${input.assigneeName}${on}.` : `Picked up${on}.`)
-      if (isCurrent) next = `${input.assigneeName ?? "The assignee"} is working on this. Mark Done when the work is finished.`
+      if (isCurrent) next = inProgressNext(input.assigneeName)
     }
     if (status === "done" && reached) {
       if (input.doneAt) happened.push(`Marked Done on ${day(input.doneAt)}.`)
-      if (isCurrent) next = `Record the release once ${input.audience} has the work. Anyone working on this Request can record it.`
+      if (isCurrent) next = doneNext(input.audience)
     }
     if (status === "measuring" && reached && release) {
       happened.push(`Released to ${release.audience} on ${journeyDate(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? FORMER_MEMBER}` : ""}.`)
@@ -144,16 +179,88 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
       const by = names[closure.actorId] ?? FORMER_MEMBER
       if (closure.kind === "measured") happened.push(`Closed with a measured result by ${by} on ${day(closure.closedAt)}.`)
       else {
-        const reason = EXCEPTION_REASON_OPTIONS.find(o => o.value === closure.reasonCode)?.label ?? closure.reasonCode
-        happened.push(`Closed without a result at ${JOURNEY_STATUSES[stop].label}: ${reason}.`, `Closed by ${by} on ${day(closure.closedAt)}.`)
+        happened.push(withoutResultLine(stop, closure.reasonCode), `Closed by ${by} on ${day(closure.closedAt)}.`)
       }
-      next = "Closed Requests never reopen."
+      next = CLOSED_NEXT
     }
 
     return {
-      status, label: status === "closed" ? journey.status === "closed" ? journey.label : label : label,
+      status, label: stepLabel(journey, status, label),
       state, happened: reached ? happened : [], next, countdown,
       actions: isCurrent ? stepActions(input, status) : [],
     }
   })
+}
+
+/** A line of the outline: its words when the Request already holds them, or null where the journey's reads fill it in. */
+export type OutlineLine = string | null
+
+export type OutlineStep = Pick<TimelineStep, "status" | "label" | "state"> & {
+  happened: OutlineLine[]
+  /** The Open step's reviewers, which read on their own and so can start straight away. */
+  reviews: boolean
+  /** Saved facts, the countdown and what is next, in the order the step shows them. */
+  then: OutlineLine[]
+  /** The buttons the step shows once the reads say whether each is available: held by their labels, so they wrap alike. */
+  actions: string[]
+}
+
+export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGuest" | "readOnly" | "requestedBy" | "requestedAt" | "assigneeName" | "audience"> & {
+  releaseState: ReleaseState | null
+  closure: OutcomeClosure | OutcomeException | null
+}
+
+/**
+ * The journey as the Request alone draws it (#295), shown until the journey's reads arrive. Those ask Clerk for the
+ * workspace's people, which can take half a second, so the page can't wait for them. The outline has the timeline's
+ * steps and lines in the same places, holding the ones that need a name, a date or the reader's actions, so the
+ * Journey keeps its height when the reads fill it in and nothing below it moves.
+ */
+export function journeyOutline(input: OutlineInput): { steps: OutlineStep[]; history: boolean } {
+  const states = stepStates(input)
+  const release = input.releaseState?.release ?? input.closure?.release ?? null
+  return {
+    steps: JOURNEY_STATUSES.map(({ status, label }, index) => {
+      const state = states[index]
+      const isCurrent = state === "current"
+      const reached = isCurrent || state === "finished"
+      const happened: OutlineLine[] = []
+      const then: OutlineLine[] = []
+      if (status === "open") {
+        happened.push(`Requested by ${input.requestedBy} on ${day(input.requestedAt)}.`)
+        if (isCurrent) then.push(OPEN_NEXT)
+      }
+      if (status === "in_progress" && reached) {
+        happened.push(null)
+        if (isCurrent) then.push(inProgressNext(input.assigneeName))
+      }
+      // When it was marked Done arrives with the reads.
+      if (status === "done" && reached) {
+        happened.push(null)
+        if (isCurrent) then.push(doneNext(input.audience))
+      }
+      if (status === "measuring" && reached && release) {
+        happened.push(null)
+        then.push(...measuringFacts(release, valueBeforeReleaseFor(input.releaseState, input.releaseState?.release ?? null) !== null, isCurrent))
+        // The countdown follows the reader's clock, and what is next names the Requester.
+        if (isCurrent) then.push(null, null)
+      }
+      if (status === "closed" && isCurrent && input.closure) {
+        const closure = input.closure
+        // Who closed it is a name the reads bring.
+        if (closure.kind === "measured") {
+          happened.push(null)
+          // The expected and actual results, and each guardrail, are worded against the agreed prediction the reads bring.
+          then.push(null, null, ...closure.guardrails.map(() => null), `Evidence: ${closure.evidence}`, `Observed ${journeyDate(closure.observedFrom)} to ${journeyDate(closure.observedTo)} (UTC).`)
+        } else {
+          happened.push(withoutResultLine(ORDER.indexOf(stoppedAt(input)), closure.reasonCode), null)
+          if (closure.reason) then.push(closure.reason)
+        }
+        if (closure.learned) then.push(`What we learned: ${closure.learned}`)
+        then.push(CLOSED_NEXT)
+      }
+      return { status, label: stepLabel(input.journey, status, label), state, happened, reviews: status === "open", then, actions: isCurrent ? shownActions(input, status) : [] }
+    }),
+    history: !!input.releaseState?.history.length,
+  }
 }

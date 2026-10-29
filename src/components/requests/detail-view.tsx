@@ -28,6 +28,8 @@ export type RequestDetail = {
   pickupBlockedReason?: string | null
   /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
+  /** Each saved reviewer's shape, so the reviewers' loading state holds their rows (#295). Optional only for older fixtures. */
+  reviewerOutline?: import("@/lib/request-reviewer-rules").ReviewerOutline[]
   exceptionClosure?: import("@/lib/request-outcome").OutcomeException | null
   outcomeClosure?: import("@/lib/request-outcome").OutcomeClosure | null
   /** The release record: with the closures, what the one journey status reads from (#133). */

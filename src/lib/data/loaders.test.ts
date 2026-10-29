@@ -307,6 +307,16 @@ describe("review state (#77)", () => {
     expect((await loadRequestDetail(member, reviewedRequest))?.request.reviewState).toEqual(expected);
     expect((await loadRequestDetail(member, memberRequest))?.request.reviewState).toBeNull();
   });
+
+  it("gives Request detail each saved reviewer's shape, answered or not, so the page holds their rows while they load (#295)", async () => {
+    // In saved order: a concern (with its reason line), a Looks good and an unanswered review; none asked with a note.
+    expect((await loadRequestDetail(member, reviewedRequest))?.request.reviewerOutline).toEqual([
+      { note: false, concern: true, mine: false }, { note: false, concern: false, mine: false }, { note: false, concern: false, mine: false },
+    ]);
+    // The reader's own review is marked: they get Looks good and Raise a concern on it.
+    expect((await loadRequestDetail({ ...member, userId: OTHER_ADMIN }, reviewedRequest))?.request.reviewerOutline?.map(r => r.mine)).toEqual([false, false, true]);
+    expect((await loadRequestDetail(member, memberRequest))?.request.reviewerOutline).toEqual([]);
+  });
 });
 
 describe("loadRequestDetail", () => {

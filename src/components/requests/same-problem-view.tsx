@@ -7,6 +7,7 @@ import type { IterationEntry, Iterations } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
 import { journeyDate, journeyDay } from "@/lib/request-journey"
 import { ITERATIONS_SECTION_ID, type SameProblemHistoryLine } from "@/lib/same-problem-rules"
+import { IterationsPlaceholder, ITERATIONS_HEADING_ID, LINK_HINT, NO_LINKS_YET } from "./same-problem-placeholder"
 import styles from "./same-problem.module.css"
 
 export type SameProblemState =
@@ -28,9 +29,11 @@ export type SameProblemViewProps = {
   announcement?: string
   linkButtonRef?: Ref<HTMLButtonElement>
   headingRef?: Ref<HTMLHeadingElement>
+  /** While loading: whether the reader may link (Admins and Members), so the loading state holds room for it (#295). */
+  canLink?: boolean
 }
 
-const HEADING_ID = "iterations-heading"
+const HEADING_ID = ITERATIONS_HEADING_ID
 
 function historyText(line: SameProblemHistoryLine): string {
   const when = `by ${line.actorName} on ${journeyDay(line.at)}.`
@@ -78,7 +81,7 @@ function Iteration({ entry, canChange, removing, onRemove }: { entry: IterationE
  * prediction and result (or reason), the one being read highlighted with its number, and the link history. Admins
  * and Members link and remove; a Viewer reads; a guest never gets here. Follow-ups are listed in the journey, apart.
  */
-export function SameProblemView({ requestNumber, state, onOpenLink, onRemove, onRetry, removing = null, actionError, announcement, linkButtonRef, headingRef }: SameProblemViewProps) {
+export function SameProblemView({ requestNumber, state, canLink = true, onOpenLink, onRemove, onRetry, removing = null, actionError, announcement, linkButtonRef, headingRef }: SameProblemViewProps) {
   // The Outcome report's iteration note links to #iterations, which renders after the page: bring it into view once read.
   const arrived = useRef(false)
   useEffect(() => {
@@ -89,10 +92,7 @@ export function SameProblemView({ requestNumber, state, onOpenLink, onRemove, on
     return () => window.cancelAnimationFrame(frame)
   }, [state])
   const heading = <h2 id={HEADING_ID} ref={headingRef} tabIndex={-1} className={styles.heading}>Iterations of this problem</h2>
-  if (state.kind === "loading") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={HEADING_ID} className={styles.section}>
-    <div className={styles.header}>{heading}</div>
-    <p role="status" className={styles.muted}>Loading Iterations…</p>
-  </section>
+  if (state.kind === "loading") return <IterationsPlaceholder canLink={canLink} headingRef={headingRef} />
   if (state.kind === "error") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={HEADING_ID} className={styles.section}>
     <div className={styles.header}>{heading}</div>
     <p role="alert" className={styles.muted}>{state.message}</p>
@@ -115,7 +115,7 @@ export function SameProblemView({ requestNumber, state, onOpenLink, onRemove, on
           {iterations.iterations.map(entry => <Iteration key={entry.requestId} entry={entry} canChange={canChange} removing={removing === entry.requestId} onRemove={() => onRemove(entry)} />)}
         </ol>
       </>
-      : <p className={styles.muted}>{history.length > 0 ? "Not linked as Same problem now." : "No other Request is linked as Same problem yet."}{canChange && " Link Requests that tackle the same problem to see each attempt and its result together."}</p>}
+      : <p className={styles.muted}>{history.length > 0 ? "Not linked as Same problem now." : NO_LINKS_YET}{canChange && LINK_HINT}</p>}
     {actionError && <p role="alert" className={styles.error}>{actionError}</p>}
     <p role="status" className="sr-only">{announcement}</p>
     {history.length > 0 && <details className={styles.history}>

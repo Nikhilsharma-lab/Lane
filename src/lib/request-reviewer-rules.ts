@@ -85,6 +85,9 @@ export const answerReviewSchema = z
   })
   .strict();
 /** What pickup confirms first, from saved reviews: open concerns (who and why) and the unanswered count. */
+/** What the Request page knows of a saved reviewer before the reviewers load (#295): enough to hold their row's shape. */
+export type ReviewerOutline = { note: boolean; concern: boolean; mine: boolean };
+
 export type ReviewState = {
   concerns: { name: string; reason: string }[];
   unanswered: number;

@@ -6,6 +6,9 @@
 import type { ReleaseChange, ReleaseFact, ReleaseState } from './request-release';
 import { daysUntil } from './utc-day';
 
+/** The audience a release must reach: the Request's own "Users", or everyone it is for. */
+export const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
+
 /**
  * The current Requester: the release record's, after any handover; else the Member who took a Guest submission on
  * (#212); else whoever created the Request. Authorship never changes.
