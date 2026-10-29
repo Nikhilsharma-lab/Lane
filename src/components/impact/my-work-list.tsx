@@ -62,7 +62,7 @@ function MeasuredFacts({ result }: { result: ResultView }) {
 export function ImpactEntryList({ entries, subject }: { entries: MyWorkEntry[]; subject?: string }) {
   return <ul className={styles.list}>
     {entries.map(entry => <li key={entry.requestId} className={styles.item}>
-      <Link href={requestDetailHref(entry.requestId, "all")} className={styles.row} data-request-id={entry.requestId}>
+      <Link href={requestDetailHref(entry.requestId, "all")} className={styles.row} data-pressable="" data-request-id={entry.requestId}>
         <span className={styles.head}>
           <span className={styles.code}>{formatRequestCode(entry.requestNumber)}</span>
           <span className={styles.title}>{entry.title}</span>
