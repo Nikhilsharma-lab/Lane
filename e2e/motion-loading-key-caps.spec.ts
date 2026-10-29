@@ -211,6 +211,26 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
       await expect(page.getByRole("button", { name: "Pick up", exact: true })).toBeVisible();
       await expect(page.locator("[data-pressed]")).toHaveCount(0);
     });
+    await test.step("Check-page samples: light and dark, desktop and phone", async () => {
+      // Screenshots for the pull request's check page; the behaviour is asserted in the steps above.
+      for (const theme of ["light", "dark"] as const) {
+        await page.evaluate(saved => localStorage.setItem("theme", saved), theme);
+        for (const width of [1440, 390]) {
+          await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+          await page.emulateMedia({ reducedMotion: "reduce" });
+          await page.goto(`/requests/${request.id}`);
+          await expect(page.getByRole("button", { name: "Pick up", exact: true })).toBeVisible();
+          await page.locator("#lane-main").focus();
+          await page.keyboard.press("?");
+          await expect(page.getByRole("dialog", { name: "Keyboard shortcuts", exact: true })).toBeVisible();
+          await page.screenshot({ path: testInfo.outputPath(`A122-key-caps-shortcuts-${width}-${theme}.png`) });
+          await page.keyboard.press("Escape");
+          await page.emulateMedia({ reducedMotion: "no-preference" });
+        }
+      }
+      await page.evaluate(() => localStorage.removeItem("theme"));
+      await page.setViewportSize({ width: 1440, height: 900 });
+    });
   } finally {
     await cleanupTestWorkspace(owner.id);
     await deleteTestUser(owner.id);
