@@ -26,7 +26,7 @@ export function InboxBell({ orgId, needsYouCount, current }: { orgId: string; ne
 
 function InboxBellLink({ unread, current }: { unread: number; current: boolean }) {
   const count = unread > 99 ? "99+" : unread;
-  return <Link href="/inbox" className={`${shellStyles.row} ${styles.trigger}`} aria-label={inboxBellLabel(unread)} aria-current={current ? "page" : undefined} data-inbox-bell="">
+  return <Link href="/inbox" className={`${shellStyles.row} ${styles.trigger}`} aria-label={inboxBellLabel(unread)} aria-current={current ? "page" : undefined} data-inbox-bell="" data-pressable="">
     <span className={shellStyles.lead}><Bell aria-hidden="true" /></span>
     <span className={shellStyles.name}>Inbox</span>
     {unread > 0 && <span className={notificationStyles.count} aria-hidden="true">{count}</span>}

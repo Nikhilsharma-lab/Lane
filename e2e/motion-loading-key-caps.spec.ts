@@ -211,6 +211,48 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
       await expect(page.getByRole("button", { name: "Pick up", exact: true })).toBeVisible();
       await expect(page.locator("[data-pressed]")).toHaveCount(0);
     });
+    await test.step("The sidebar's and Settings' own links show as pressed too, and nothing is pressed offline", async () => {
+      // Reads a link the pointer is resting on: hover styles must not hide the pressed wash.
+      const pressedOnClick = (link: ReturnType<Page["locator"]>) => link.evaluate(async element => {
+        const probe = document.createElement("div");
+        probe.style.background = "var(--interaction-pressed)";
+        document.body.append(probe);
+        const pressed = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        (element as HTMLAnchorElement).click();
+        await new Promise(requestAnimationFrame);
+        return { after: getComputedStyle(element).backgroundColor, pressed };
+      });
+      const sidebar = page.locator("#lane-sidebar");
+      for (const [name, url] of [[/^Impact$/, /\/impact$/], [/^Inbox/, /\/inbox$/]] as const) {
+        await page.goto("/");
+        await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
+        const link = sidebar.getByRole("link", { name });
+        await link.hover();
+        const looks = await pressedOnClick(link);
+        expect(looks.after).toBe(looks.pressed);
+        await expect(page).toHaveURL(url);
+        await expect(page.locator("[data-pressed]")).toHaveCount(0);
+      }
+      await page.goto("/settings/profile");
+      const members = page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Members", exact: true });
+      await members.hover();
+      const settingsLooks = await pressedOnClick(members);
+      expect(settingsLooks.after).toBe(settingsLooks.pressed);
+      await expect(page).toHaveURL(/\/settings\/members$/);
+      await page.screenshot({ path: testInfo.outputPath("pressed-settings-nav.png") });
+
+      await page.goto("/");
+      await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
+      await page.context().setOffline(true);
+      try {
+        await sidebar.getByRole("link", { name: /^Impact$/ }).click();
+        await expect(page.locator("[data-pressed]")).toHaveCount(0);
+        await expect(page).not.toHaveURL(/\/impact$/);
+      } finally {
+        await page.context().setOffline(false);
+      }
+    });
     await test.step("Check-page samples: light and dark, desktop and phone", async () => {
       // Screenshots for the pull request's check page; the behaviour is asserted in the steps above.
       for (const theme of ["light", "dark"] as const) {
