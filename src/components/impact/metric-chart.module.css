@@ -1,7 +1,7 @@
 /* The metric chart (#158). Theme-file tokens only: series colours, sizes and motion are read from the theme, not written here. */
 .chart { display: grid; gap: var(--space-2); margin: 0; min-width: 0; }
 .plot { display: block; width: 100%; aspect-ratio: 3 / 1; overflow: visible; }
-.bar { animation: grow var(--duration-considered) var(--ease-enter) both; transform-box: fill-box; transform-origin: bottom; }
+.bar { animation: grow var(--duration-standard) var(--ease-enter) both; transform-box: fill-box; transform-origin: bottom; }
 .bar[data-series="baseline"] { fill: var(--series-1); }
 .bar[data-series="actual"] { fill: var(--series-2); }
 .bar[data-series="predicted"] { fill: var(--series-3); }

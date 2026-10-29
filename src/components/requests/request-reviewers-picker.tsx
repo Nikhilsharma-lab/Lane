@@ -12,6 +12,7 @@ import { PickerOptions, focusOnOpen, pickerPopoverProps, searchListKeyDown } fro
 import { ReviewerInviteHint } from "./reviewer-invite-hint";
 import labelStyles from "./request-labels.module.css";
 import pickerStyles from "./request-property-pickers.module.css";
+import { Placeholder } from "@/components/loading/placeholder";
 
 export type ReviewerChoice = Extract<Awaited<ReturnType<typeof loadReviewerPeople>>, { people: unknown }>["people"][number];
 
@@ -127,7 +128,7 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
         render={(person) => <span>{person.name}</span>}
         emptyText={needle ? "No Admin or Member matches" : "Nobody else to ask yet"} />}
       {people && <ReviewerInviteHint canInvite={canInvite} linked={false} className={labelStyles.caption} />}
-      {loading && <p role="status" className={labelStyles.caption}>Loading people…</p>}
+      {loading && <Placeholder label="Loading people" lines={2} />}
       {loadError && <><p role="alert" className={labelStyles.error}>{loadError}</p><Button type="button" size="sm" variant="secondary" onClick={() => void load()}>Retry</Button></>}
       {full && <p role="status" className={labelStyles.caption}>A Request can have at most {MAX_REVIEWERS} reviewers.</p>}
       {value.length > 0 && <div className={labelStyles.question}>

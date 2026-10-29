@@ -7,8 +7,8 @@ import { formatRequestCode } from "@/lib/request-code"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { Badge } from "@/components/arc/badge/badge"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
-import { Skeleton } from "@/components/arc/skeleton/skeleton"
 import styles from "./my-work-list.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 // The My work tab's rows (#155), also used for a teammate's list (spec story 12). This file renders what the
 // impact read model returns and computes no totals, averages, scores or rankings of its own.
@@ -61,7 +61,7 @@ function MeasuredFacts({ result }: { result: ResultView }) {
 export function ImpactEntryList({ entries, subject }: { entries: MyWorkEntry[]; subject?: string }) {
   return <ul className={styles.list}>
     {entries.map(entry => <li key={entry.requestId} className={styles.item}>
-      <Link href={requestDetailHref(entry.requestId, "all")} className={styles.row} data-request-id={entry.requestId}>
+      <Link href={requestDetailHref(entry.requestId, "all")} className={styles.row} data-pressable="" data-request-id={entry.requestId}>
         <span className={styles.head}>
           <span className={styles.code}>{formatRequestCode(entry.requestNumber)}</span>
           <span className={styles.title}>{entry.title}</span>
@@ -88,5 +88,5 @@ export function TeammateWorkList({ name, entries }: { name: string; entries: MyW
 }
 
 export function MyWorkLoading() {
-  return <Skeleton label="Loading your Requests" lines={4} />
+  return <Placeholder label="Loading your Requests" lines={4} />
 }

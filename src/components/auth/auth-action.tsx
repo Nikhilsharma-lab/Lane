@@ -20,7 +20,6 @@ type AuthActionProps = Omit<
   icon?: LucideIcon;
   kind?: AuthActionKind;
   loading?: boolean;
-  loadingLabel?: ReactNode;
 };
 
 export function AuthAction({
@@ -29,7 +28,6 @@ export function AuthAction({
   icon: Icon,
   kind = "primary",
   loading = false,
-  loadingLabel,
   ...props
 }: AuthActionProps) {
   const StateIcon = loading ? undefined : Icon;
@@ -57,7 +55,7 @@ export function AuthAction({
           data-icon="inline-start"
         />
       )}
-      {loading ? (loadingLabel ?? children) : children}
+      {children}
     </Button>
   );
 }

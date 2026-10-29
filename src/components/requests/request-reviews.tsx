@@ -14,6 +14,7 @@ import { REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
 import { ReviewerInviteHint } from "./reviewer-invite-hint";
 import { InPageForm } from "@/components/popup/in-page-form";
 import styles from "./request-timeline.module.css";
+import { Placeholder } from "@/components/loading/placeholder";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
   { error: string }
@@ -132,7 +133,7 @@ export function RequestReviews({
     return (
       <section id="reviewers" aria-label="Reviewers" className={styles.reviews}>
         <h4>Reviewers</h4>
-        {error ? <><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Retry</Button></> : <p role="status">Loading reviewers…</p>}
+        {error ? <><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Retry</Button></> : <Placeholder label="Loading reviewers" lines={2} />}
       </section>
     );
 
@@ -167,7 +168,7 @@ export function RequestReviews({
           <div className={styles.fields}>
             <Select
               label="Reviewer"
-              placeholder={loaded ? (options.length ? "Choose a person" : "Nobody else to ask yet") : "Loading people…"}
+              placeholder={loaded && !options.length ? "Nobody else to ask yet" : "Choose a person"}
               value={selected}
               onValueChange={setSelected}
               options={options}
@@ -190,7 +191,7 @@ export function RequestReviews({
             disabled={busy}
           />
           <div className={styles.controls}>
-            <Button type="submit" disabled={busy || !selected}>{busy ? "Adding…" : "Add"}</Button>
+            <Button type="submit" loading={busy} disabled={!busy && !selected}>Add</Button>
             <Button type="button" variant="ghost" onClick={() => setAdding(false)} disabled={busy}>Cancel</Button>
           </div>
         </form>

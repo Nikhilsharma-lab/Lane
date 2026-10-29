@@ -5,10 +5,10 @@ import { Pencil } from "lucide-react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Button } from "@/components/arc/button/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
-import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import type { RequestDetail } from "@/components/requests/detail-view";
 import styles from "@/components/requests/detail.module.css";
-const EditRequestForm = dynamic(() => import("./edit-request-form"), { loading: () => <Skeleton label="Loading Request editor" lines={5}/> });
+import { Placeholder } from "@/components/loading/placeholder";
+const EditRequestForm = dynamic(() => import("./edit-request-form"), { loading: () => <Placeholder label="Loading Request editor" lines={5}/> });
 export function EditRequest({ request, orgId, draftOwnerId, withoutPrediction = false, writePrediction }: {
     request: RequestDetail;
     orgId: string;

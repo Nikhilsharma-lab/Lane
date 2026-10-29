@@ -1,5 +1,4 @@
 import { Suspense, type ReactNode } from "react";
-import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import type { CheckoutResult, PlanCheckout, PlanPages } from "@/components/settings/billing-plan-card";
 import { FreeRequestsCard } from "@/components/settings/free-requests-card";
 import { decideFreeRequests, readFreeRequests, readPlan } from "@/lib/billing";
@@ -9,6 +8,7 @@ import { paymentProvider } from "@/lib/payment-provider";
 import { zoneFreeDay } from "@/lib/dates";
 import { BillingAccount } from "./billing-account";
 import { BillingForm } from "./billing-form";
+import { Placeholder } from "@/components/loading/placeholder";
 
 const RESULTS: readonly CheckoutResult[] = ["done", "cancelled"];
 const day = (at: Date | null) => at && zoneFreeDay(at);
@@ -33,7 +33,7 @@ export async function billingPanel(workspace: Pick<WorkspaceContext, "orgId" | "
   const card = <BillingForm key="plan" orgId={workspace.orgId} planState={plan.planState} period={plan.period} checkout={availability}
     founding={{ offered: plan.founding.offered, endsOn: day(plan.founding.endsAt) }} endsOn={endsOn} pages={pages}
     result={RESULTS.find((known) => known === checkout)} />;
-  const account = <Suspense key="account" fallback={<Skeleton label="Loading seats and invoices…" lines={4} />}>
+  const account = <Suspense key="account" fallback={<Placeholder label="Loading seats and invoices…" lines={4} />}>
     <BillingAccount orgId={workspace.orgId} planState={plan.planState} endsOn={endsOn} />
   </Suspense>;
   const freeRequests = <FreeRequestsCard key="free" planState={planState} free={free} enforced={enforced} />;

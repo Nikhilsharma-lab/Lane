@@ -8,7 +8,6 @@ import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { Select } from "@/components/arc/select/select";
-import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
 import type { WorkspacePermission } from "@/lib/auth-guard";
@@ -17,6 +16,7 @@ import {
 } from "@/lib/member-role-rules";
 import { ROLE_NAMES } from "@/lib/role-rules";
 import styles from "./settings.module.css";
+import { Placeholder } from "@/components/loading/placeholder";
 
 /** #215: loaded the first time a paid seat is confirmed, so the confirmation adds nothing to any first load. */
 const PaidSeatDialog = dynamic(() => import("./paid-seat-dialog").then(module => module.PaidSeatDialog));
@@ -132,7 +132,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
       <div className={styles.cardBody}>
         <h3 id="people-heading">People</h3>
         <p>{canManage ? "Everyone in this workspace. Change someone’s role to change what they can do." : "Everyone in this workspace and their role. Only Admins invite people or change roles."}</p>
-        {state === "loading" && <div className={styles.rows}><Skeleton label="Loading people…" lines={3} /></div>}
+        {state === "loading" && <div className={styles.rows}><Placeholder label="Loading people…" lines={3} /></div>}
         {state === "error" && <div className={styles.rows}><Alert role="alert" tone="danger" title="People couldn’t be loaded." /><Button variant="secondary" size="sm" onClick={onRetry}>Try again</Button></div>}
         {state === "ready" && <ul className={styles.rows} aria-label="People in this workspace">
           {people.map(person => {
@@ -166,7 +166,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
               </li>)}
             </ul>
           : <p className={styles.note}>No invitations are waiting.</p>)}
-        {state === "loading" && <Skeleton label="Loading invitations…" lines={1} />}
+        {state === "loading" && <Placeholder label="Loading invitations…" lines={1} />}
         {feedback("invitations")}
       </div>
     </section>}

@@ -13,6 +13,7 @@ import { RoleSelection, roleForKey, type FunctionalRole } from "@/components/aut
 import styles from "@/components/auth/auth.module.css";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
 import { saveOnboardingRole } from "./actions";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 const TYPING_SELECTOR = 'textarea, select, [role="textbox"], [role="combobox"]';
 const NON_TEXT_INPUTS = new Set(["radio", "checkbox", "button", "submit", "reset"]);
@@ -96,8 +97,8 @@ export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
         <form ref={formRef} onSubmit={submit} className="grid gap-6" noValidate>
           <RoleSelection value={role} disabled={busy} invalid={Boolean(error)} onValueChange={(value) => { setRole(value); setError(null); }} />
           {error && <Alert tone="danger" title={error} />}
-          <AuthAction type="submit" loading={busy} loadingLabel="Saving role…">Continue</AuthAction>
-          <p className={styles.shortcuts}><kbd>C</kbd> to create, <kbd>/</kbd> to search</p>
+          <AuthAction type="submit" loading={busy}>Continue</AuthAction>
+          <p className={styles.shortcuts}><KeyCap>C</KeyCap> to create, <KeyCap>/</KeyCap> to search</p>
         </form>
       </AuthFormCard>
     </OnboardingChrome>

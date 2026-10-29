@@ -13,6 +13,7 @@ import { pickerPopoverProps } from "./request-property-pickers"
 import type { MetricLibrary } from "./use-metric-library"
 import styles from "./measurement-plan-fields.module.css"
 import layout from "./request-picker-layout.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 import { thrownMessage } from "@/lib/failure-messages"
 import { FieldError } from "@/components/forms/field-error"
 
@@ -259,7 +260,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
               addName={addName} onAdd={() => addName && startAdding(addName)} />
           </div>
           <div className={styles.metricStatus}>
-            {library.status === "loading" && <p className={styles.hint} role="status">Loading the Metrics library…</p>}
+            {library.status === "loading" && <Placeholder label="Loading the Metrics library" lines={1} />}
             {library.status === "error" && <div className={styles.metricError}>
               <p className={styles.error} role="alert">{library.error}</p>
               <Button type="button" size="sm" variant="secondary" onClick={library.reload}>Try again</Button>

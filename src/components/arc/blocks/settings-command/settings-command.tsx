@@ -62,7 +62,7 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
   useEffect(() => {
     if (closing) return;
     animate(shell, 1, { duration: reduce ? motionTokens.duration.fast : 0 });
-    animate(body, 1, { duration: reduce ? motionTokens.duration.fast : motionTokens.duration.standard, delay: reduce ? 0 : .06, ease: enterEase });
+    animate(body, 1, { duration: reduce ? motionTokens.duration.fast : motionTokens.duration.standard, delay: reduce ? 0 : motionTokens.stagger.line, ease: enterEase });
   }, [body, closing, reduce, shell]);
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
     const spring = mode === "row" ? calm : motionTokens.spring.smooth;
     animate(x, to.x, spring); animate(y, to.y, spring); animate(w, to.width, spring); animate(h, to.height, spring);
     animate(radius, 10, spring);
-    const fade = animate(shell, 0, mode === "row" ? { duration: .22, delay: .2 } : { duration: .1, delay: .24 });
+    const fade = animate(shell, 0, mode === "row" ? { duration: motionTokens.duration.standard, delay: motionTokens.duration.standard } : { duration: motionTokens.duration.instant, delay: motionTokens.duration.standard });
     fade.then(onClosed);
     return () => fade.stop();
   }, [body, closing, h, onClosed, reduce, shell, w, x, y, radius]);

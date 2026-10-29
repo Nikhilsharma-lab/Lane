@@ -3,7 +3,7 @@
 import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
 import { useEffect, useRef, useState } from "react";
-import { LoaderCircle, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Alert } from "@/components/arc/alert/alert";
 import { Textarea } from "@/components/arc/textarea/textarea";
@@ -197,27 +197,15 @@ export function CommentForm({
           type="submit"
           variant="secondary"
           size="sm"
-          disabled={pending || empty}
-          aria-busy={pending || undefined}
+          disabled={empty && !pending}
+          loading={pending}
           className="ml-auto"
         >
-          {pending ? (
-            <LoaderCircle
-              aria-hidden="true"
-              data-icon="inline-start"
-              className="motion-safe:animate-spin motion-reduce:animate-none"
-            />
-          ) : (
-            <Send
-              aria-hidden="true"
-              data-icon="inline-start"
-            />
-          )}
-          {pending
-            ? "Posting…"
-            : submissionState === "error"
-              ? "Try again"
-              : "Post comment"}
+          <Send
+            aria-hidden="true"
+            data-icon="inline-start"
+          />
+          {submissionState === "error" ? "Try again" : "Post comment"}
         </Button>
       </div>
     </form>

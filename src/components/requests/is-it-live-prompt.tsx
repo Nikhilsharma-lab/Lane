@@ -8,11 +8,12 @@ import { createIsItLive, IS_IT_LIVE_COPY, type AskIsItLive, type IsItLiveView } 
 import { restoreRequestFocus } from "./list-focus"
 import detailStyles from "./detail.module.css"
 import styles from "./is-it-live.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 // The release form loads only once "Yes, record release" is chosen; this provider sits on every page.
 const IsItLiveRelease = dynamic(() => import("./is-it-live-release").then(module => module.IsItLiveRelease), {
   ssr: false,
-  loading: () => <p role="status" className={styles.note}>Loading release…</p>,
+  loading: () => <Placeholder label="Loading release" lines={2} />,
 })
 
 const IsItLiveContext = createContext<AskIsItLive | null>(null)

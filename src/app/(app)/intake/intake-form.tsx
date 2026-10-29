@@ -100,6 +100,8 @@ import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-f
 import { OFFLINE_ANSWER, isOfflineError } from "@/lib/failure-messages";
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { Placeholder } from "@/components/loading/placeholder";
+import { KeyCap } from "@/components/keyboard/key-caps";
 import { FieldError } from "@/components/forms/field-error";
 
 type Stage =
@@ -985,7 +987,7 @@ export default function RequestEditor({
   const reviewing = stage === "framing" || creating;
   // Compose shows gate failures; review-step failures keep their own alert.
   const gateNotice = composing && failure ? gateFailureNotice(failure) : null;
-  const shortcut = shortcutHint && <kbd className={styles.shortcut} aria-hidden="true">{shortcutHint}</kbd>;
+  const shortcut = shortcutHint && <KeyCap className={styles.shortcut}>{shortcutHint}</KeyCap>;
 
   function onProjectBusyChange(value: boolean) {
     projectInFlight.current = value;
@@ -1255,11 +1257,11 @@ export default function RequestEditor({
                 {creating ? "Saving changes…" : showSlowCue ? "Still checking. Your draft is kept." : "Checking whether this describes a problem…"}
               </p>
             </div>
-            <div aria-hidden="true" className="space-y-6">
+            <Placeholder><div aria-hidden="true" className="space-y-6">
               <Skeleton lines={2} />
               <Skeleton lines={4} />
               <div className="border-t pt-5"><Skeleton lines={3} /></div>
-            </div>
+            </div></Placeholder>
           </div>
         )}
       {reviewing && triage && source && (
@@ -1496,7 +1498,7 @@ export default function RequestEditor({
         {stage === "uploads_checking" && (
           // Plan item 2.3 (S3): which files were lost is known once each
           // reservation is checked, so no list shows before then.
-          <Skeleton label="Checking your files" lines={3} />
+          <Placeholder label="Checking your files" lines={3} />
         )}
         {stage === "uploads_lost" && lostUploads && (
           <div className={cn(reveal, "space-y-6")}>
@@ -1544,11 +1546,9 @@ export default function RequestEditor({
               loading={creating}
               aria-keyshortcuts="Meta+Enter Control+Enter"
             >
-              {creating
-                ? editing ? "Saving changes…" : "Creating Request…"
-                : failure?.code === "review_expired"
-                  ? "Review again"
-                  : editing ? editing.saveLabel ?? "Save changes" : "Create Request"}
+              {failure?.code === "review_expired" && !creating
+                ? "Review again"
+                : editing ? editing.saveLabel ?? "Save changes" : "Create Request"}
             </Button>
           </div>
         </footer>

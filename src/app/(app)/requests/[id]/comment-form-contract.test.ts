@@ -14,16 +14,18 @@ describe("Reliable comment posting contract", () => {
     expect(FORM).toContain("onSubmit={handleSubmit}")
     expect(FORM).not.toContain("action={handleSubmit}")
     expect(FORM).toContain('setSubmissionState("posting")')
-    expect(FORM).toContain('aria-busy={pending || undefined}')
-    expect(FORM).toContain("Posting…")
-    expect(FORM).toContain("LoaderCircle")
+    // #262: the busy button keeps its label and shows Arc's busy state.
+    expect(FORM).toContain("loading={pending}")
+    expect(FORM).not.toContain("Posting…")
+    expect(FORM).not.toContain("LoaderCircle")
   })
 
   it("locks duplicate button and keyboard submissions", () => {
     expect(FORM).toContain("submissionLock.current")
     expect(FORM).toContain("if (submissionLock.current || empty) return")
     expect(FORM).toContain("!submissionLock.current")
-    expect(FORM).toContain("disabled={pending || empty}")
+    expect(FORM).toContain("disabled={empty && !pending}")
+    expect(FORM).toContain("loading={pending}")
   })
 
   // Plan item 2.5: the comment shows in the conversation at once, through the

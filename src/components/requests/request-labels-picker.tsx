@@ -15,6 +15,7 @@ import { useWorkspaceLabels } from "./workspace-labels";
 import { LabelDot } from "./request-labels";
 import styles from "./request-labels.module.css";
 import pickerStyles from "./request-property-pickers.module.css";
+import { Placeholder } from "@/components/loading/placeholder";
 
 function LabelSelection({chosen}:{chosen:RequestLabel[]}) {
  const icon = !chosen.length ? <Tags aria-hidden="true"/> : chosen.length > 1 ? <span className={styles.dotStack}>{chosen.slice(0,3).map(label=><LabelDot key={label.id} colour={label.colour}/>)}</span> : <LabelDot colour={chosen[0].colour}/>;
@@ -46,7 +47,7 @@ export function RequestLabelsPicker({orgId,value,onChange,disabled,project}:{org
     <div className={styles.options} role="group" aria-label="Available labels" onKeyDown={event=>{if(!["ArrowDown","ArrowUp","Home","End"].includes(event.key))return;const items=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="checkbox"]'));const index=items.indexOf(event.target as HTMLButtonElement);if(index<0)return;event.preventDefault();items[event.key==="Home" ? 0 : event.key==="End" ? items.length-1 : (index+(event.key==="ArrowDown"?1:-1)+items.length)%items.length]?.focus();}}>
      {shown.map(label=><div key={label.id} className={styles.option}><label htmlFor={`${id}-${label.id}`}><LabelDot colour={label.colour}/><span className={styles.name}>{label.name}</span>{label.projectId && <span className={styles.scopeHint}>{label.projectId === project?.id ? "Project" : "Other Project — remove to save"}</span>}</label><Checkbox className={styles.checkbox} id={`${id}-${label.id}`} aria-label={label.name} checked={value.includes(label.id)} disabled={busy || (!value.includes(label.id)&&value.length>=20)} onCheckedChange={checked=>onChange(checked ? [...value,label.id] : value.filter(key=>key!==label.id))}/></div>)}
     </div>
-    {catalogue.loading && <p role="status">Loading labels…</p>}
+    {catalogue.loading && <Placeholder label="Loading labels" lines={1} />}
     {catalogue.error && <><p role="alert" className={styles.error}>{catalogue.error}</p><Button type="button" size="sm" onClick={catalogue.reload}>Retry</Button></>}
     {!shown.length && !catalogue.loading && !catalogue.canCreate && <p>No matching labels</p>}
     {normalized && !shown.length && !catalogue.loading && catalogue.canCreate && !catalogue.error && <Button type="button" size="sm" variant="ghost" className={styles.create} disabled={value.length>=20} onClick={()=>setStep("scope")}><Plus aria-hidden="true"/>{normalized && !shown.some(label=>label.name.toLowerCase()===normalized.toLowerCase()) ? `Create new label: “${normalized}”` : "Create custom label…"}</Button>}

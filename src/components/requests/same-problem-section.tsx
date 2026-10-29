@@ -9,12 +9,13 @@ import { ITERATIONS_SECTION_ID } from "@/lib/same-problem-rules"
 import type { LinkCandidate } from "./same-problem-link-model"
 import type { SameProblemState } from "./same-problem-view"
 import styles from "./same-problem.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 /** What shows while the list's code or its read is on the way. */
 function Loading() {
   return <section id={ITERATIONS_SECTION_ID} aria-labelledby="iterations-heading" className={styles.section}>
     <div className={styles.header}><h2 id="iterations-heading" className={styles.heading}>Iterations of this problem</h2></div>
-    <p role="status" className={styles.muted}>Loading Iterations…</p>
+    <Placeholder label="Loading Iterations" lines={2} />
   </section>
 }
 

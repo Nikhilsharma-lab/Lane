@@ -9,6 +9,7 @@ import { plannedDay } from "@/lib/dates"
 import { LocalTime } from "./local-time"
 import { ITERATIONS_SECTION_ID, type SameProblemHistoryLine } from "@/lib/same-problem-rules"
 import styles from "./same-problem.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 export type SameProblemState =
   | { kind: "loading" }
@@ -92,7 +93,7 @@ export function SameProblemView({ requestNumber, state, onOpenLink, onRemove, on
   const heading = <h2 id={HEADING_ID} ref={headingRef} tabIndex={-1} className={styles.heading}>Iterations of this problem</h2>
   if (state.kind === "loading") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={HEADING_ID} className={styles.section}>
     <div className={styles.header}>{heading}</div>
-    <p role="status" className={styles.muted}>Loading Iterations…</p>
+    <Placeholder label="Loading Iterations" lines={2} />
   </section>
   if (state.kind === "error") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={HEADING_ID} className={styles.section}>
     <div className={styles.header}>{heading}</div>

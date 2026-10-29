@@ -290,7 +290,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, pla
       animate(y, y.get() + 10, motionTokens.spring.smooth);
       animate(scale, scale.get() * .96, motionTokens.spring.smooth);
     }
-    animate(opacity, 0, { duration: swiped.current ? .22 : motionTokens.duration.exit, ease: standard }).then(done);
+    animate(opacity, 0, { duration: swiped.current ? motionTokens.duration.standard : motionTokens.duration.exit, ease: standard }).then(done);
   }, [isPresent, onHandOff, opacity, reduce, safeToRemove, scale, y]);
 
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
@@ -339,7 +339,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, pla
     const offset = x.get();
     if (!cancelled && offset > 0 && velocity > -200 && offset + project(velocity) > width * .4) {
       swiped.current = true;
-      if (!reduce) animate(x, width + 40, { type: "spring", visualDuration: .32, bounce: 0, velocity: Math.max(velocity, 0) });
+      if (!reduce) animate(x, width + 40, { type: "spring", visualDuration: motionTokens.duration.standard, bounce: 0, velocity: Math.max(velocity, 0) });
       store.dismiss(id);
       return;
     }

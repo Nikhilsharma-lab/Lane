@@ -7,6 +7,7 @@ import tableStyles from "@/components/requests/tasks/data-table-toolbar.module.c
 import { PageStrip } from "@/components/shell/page-strip"
 import overviewStyles from "./requests-overview.module.css"
 import styles from "./app-skeletons.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 const ROWS = Array.from({ length: 12 }, (_, index) => index)
 
@@ -15,7 +16,7 @@ const ROWS = Array.from({ length: 12 }, (_, index) => index)
 // as the loaded list, so the first row lands where the loaded one does. The one
 // live region is the strip's title; every bar below it is decorative.
 export function RequestsWorkspaceLoading() {
-  return <div data-slot="requests-workspace" data-skeleton="list" aria-busy="true" className={overviewStyles.overview}>
+  return <Placeholder><div data-slot="requests-workspace" data-skeleton="list" aria-busy="true" className={overviewStyles.overview}>
     <PageStrip title={<span className={styles.titleSkeleton}><Skeleton label="Loading Requests" lines={1} /></span>}
       action={<NewRequestLink className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${overviewStyles.newRequest}`}><Plus aria-hidden="true" />New Request</NewRequestLink>} />
     <div aria-hidden="true" className={tableStyles.tableLayout} data-preview-table="">
@@ -36,5 +37,5 @@ export function RequestsWorkspaceLoading() {
         </div>
       </div>
     </div>
-  </div>
+  </div></Placeholder>
 }

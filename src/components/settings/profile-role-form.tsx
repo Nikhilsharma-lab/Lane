@@ -196,10 +196,9 @@ function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: Produ
         <Button
           type="submit"
           loading={isPending}
-          disabled={isPending || role === savedRole}
-          aria-label={isPending ? "Saving role…" : undefined}
+          disabled={!isPending && role === savedRole}
         >
-          {isPending ? "Saving role…" : "Save role"}
+          Save role
         </Button>
         {feedback && (
           <Alert

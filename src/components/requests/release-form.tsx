@@ -63,7 +63,7 @@ export function ReleaseForm({ requestId, orgId, revision, audience, earliestExpo
     {correcting && <Textarea label="Correction reason" required maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy} description="The original stays in history. Relative deadlines are recalculated; fixed dates stay unchanged." />}
     {error && <p role="alert">{error}</p>}
     <div className={styles.controls}>
-      <Button type="submit" disabled={busy || !confirmed || valueMissing}>{busy ? "Saving release…" : correcting ? "Save correction" : "Mark as released"}</Button>
+      <Button type="submit" loading={busy} disabled={!busy && (!confirmed || valueMissing)}>{correcting ? "Save correction" : "Mark as released"}</Button>
       {onCancel && <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>{cancelLabel ?? "Cancel"}</Button>}
     </div>
   </form>
