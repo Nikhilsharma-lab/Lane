@@ -49,7 +49,9 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     await client.users.updateUser(teammate.id, { firstName: "Riley", lastName: "Reviewer" });
     const sql = e2eDatabase();
     try {
-      await sql`insert into profiles(id,full_name,email,role) values (${teammate.id},'Riley Reviewer',${teammate.email},'designer')`;
+      // A borrowed user (LANE_E2E_REUSE_USERS) may already have a profile from an earlier run on this database.
+      await sql`insert into profiles(id,full_name,email,role) values (${teammate.id},'Riley Reviewer',${teammate.email},'designer')
+        on conflict (id) do update set full_name = excluded.full_name, email = excluded.email, role = excluded.role`;
     } finally {
       await sql.end();
     }
