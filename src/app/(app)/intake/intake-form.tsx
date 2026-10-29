@@ -5,7 +5,7 @@ import { RequestLabels } from "@/components/requests/request-labels";
 import { RequestLabelsPicker } from "@/components/requests/request-labels-picker";
 import { requestLabelKeys, labelRequestType } from "@/lib/request-labels";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useStableRouter } from "@/components/shell/stable-router";
 import {
   Fragment,
   memo,
@@ -259,7 +259,8 @@ export default function RequestEditor({
   /** #212: a Guest's Request has no prediction (Expected impact); the Member who takes it on writes it. */
   withoutPrediction?: boolean;
 }) {
-  const router = useRouter();
+  // The closed composer stays mounted: a URL change must not re-render it (#296).
+  const router = useStableRouter();
   const optimistic = useOptimisticAction();
   const refresh = useServerRefresh();
   const [original] = useState(() => editing ? requestEditValues(editing.request) : null);
@@ -1195,7 +1196,8 @@ export default function RequestEditor({
                   <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
                 )}
                 <PlanFields
-                  orgId={context.orgId}
+                  // The library is read on the first open, not while the closed composer renders ahead of it (#296).
+                  orgId={active ? context.orgId : undefined}
                   value={currentValues.expectedImpact}
                   onChange={changeExpectedImpact}
                   requestType={currentValues.requestType ?? null}

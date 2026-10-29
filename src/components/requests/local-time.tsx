@@ -14,20 +14,32 @@ import { useSyncExternalStore } from "react"
 
 const subscribe = () => () => {}
 
+/**
+ * #296: every toLocale… call builds a new formatter, and a list formats each row's date on every view change. The
+ * formats are few (a locale, the fields, a zone), so each is built once; `undefined` is the viewer's locale.
+ */
+const formats = new Map<string, Intl.DateTimeFormat>()
+function cachedFormat(date: Date, locale: string | undefined, options: Intl.DateTimeFormatOptions) {
+  const key = `${locale ?? ""} ${JSON.stringify(options)}`
+  let formatter = formats.get(key)
+  if (!formatter) formats.set(key, formatter = new Intl.DateTimeFormat(locale, options))
+  return formatter.format(date)
+}
+
 /** "Oct 9": identical on the server and in every browser, because the zone is pinned. */
 export function utcDayLabel(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+  return cachedFormat(new Date(iso), "en-US", { month: "short", day: "numeric", timeZone: "UTC" })
 }
 
 /** The year in a zone (the viewer's unless one is given), for the year-only-when-different rule. */
 function yearIn(date: Date, timeZone?: string) {
-  return Number(date.toLocaleDateString("en-US", { year: "numeric", timeZone }))
+  return Number(cachedFormat(date, "en-US", { year: "numeric", timeZone }))
 }
 
 /** "Oct 9, 3:30 PM" or "9 Oct, 15:30" in the viewer's locale and zone; the year only outside the current one. */
 export function localLabel(iso: string, now = new Date(), timeZone?: string) {
   const date = new Date(iso)
-  return date.toLocaleString(undefined, {
+  return cachedFormat(date, undefined, {
     month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone,
     ...(yearIn(date, timeZone) !== yearIn(now, timeZone) ? { year: "numeric" } : {}),
   })
@@ -37,7 +49,7 @@ export function localLabel(iso: string, now = new Date(), timeZone?: string) {
  * the current one, or never with `year: false` (a cell too narrow for it). */
 export function localDayLabel(iso: string, now = new Date(), timeZone?: string, { year = true }: { year?: boolean } = {}) {
   const date = new Date(iso)
-  return date.toLocaleDateString(undefined, {
+  return cachedFormat(date, undefined, {
     month: "short", day: "numeric", timeZone,
     ...(year && yearIn(date, timeZone) !== yearIn(now, timeZone) ? { year: "numeric" } : {}),
   })
@@ -49,9 +61,9 @@ export function calendarDayLabel(day: string) {
   return new Date(`${day}T00:00:00.000Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
 }
 
-/** The full local date and time, for the title once the page is in the browser. */
+/** The full local date and time, for the title once the page is in the browser: toLocaleString's own default fields. */
 export function fullLocal(iso: string, timeZone?: string) {
-  return new Date(iso).toLocaleString(undefined, timeZone ? { timeZone } : undefined)
+  return cachedFormat(new Date(iso), undefined, { year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", timeZone })
 }
 
 /** False on the server and in the hydrating render; true once the page is in the browser. */

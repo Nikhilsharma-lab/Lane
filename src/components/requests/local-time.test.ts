@@ -39,6 +39,21 @@ describe("local time labels", () => {
     expect(localDayLabel("2025-12-31T17:00:00.000Z", now, "Asia/Kolkata")).toContain("2025")
   })
 
+  // #296: a list renders these for every row, so their formats are kept; each call still matches the platform's own formatting.
+  it("matches the platform's formatting call after call, whatever zone or year rule came before", () => {
+    const now = new Date("2026-10-20T12:00:00.000Z")
+    const dates = ["2026-10-19T19:00:00.000Z", "2025-12-31T17:00:00.000Z", "2025-12-31T19:00:00.000Z", "2026-01-01T03:00:00.000Z"]
+    for (let round = 0; round < 2; round++) for (const iso of dates) for (const timeZone of [undefined, "UTC", "Asia/Kolkata", "America/Los_Angeles"]) {
+      const date = new Date(iso)
+      const otherYear = date.toLocaleDateString("en-US", { year: "numeric", timeZone }) !== now.toLocaleDateString("en-US", { year: "numeric", timeZone })
+      const year = otherYear ? { year: "numeric" as const } : {}
+      expect(localDayLabel(iso, now, timeZone)).toBe(date.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone, ...year }))
+      expect(localDayLabel(iso, now, timeZone, { year: false })).toBe(date.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone }))
+      expect(localLabel(iso, now, timeZone)).toBe(date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone, ...year }))
+      expect(fullLocal(iso, timeZone)).toBe(date.toLocaleString(undefined, timeZone ? { timeZone } : undefined))
+    }
+  })
+
   // Critique 2.4: the compact row's Submitted cell is too narrow for a year.
   it("drops the year on request", () => {
     const now = new Date("2026-10-20T12:00:00.000Z")

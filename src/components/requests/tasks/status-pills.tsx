@@ -1,6 +1,6 @@
 "use client"
 
-import { useLayoutEffect, useRef, useState } from "react"
+import { memo, useDeferredValue, useLayoutEffect, useRef, useState } from "react"
 import { ChipGroup } from "@/components/arc/chip-group/chip-group"
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
 import { REQUEST_STATUS_FILTERS, REQUEST_STATUS_FILTER_LABELS, isRequestStatusFilter, type RequestStatusFilter } from "@/lib/request-workspace"
@@ -18,6 +18,14 @@ export const statusViewsFor = (filter: RequestStatusFilter): StatusView[] => fil
 const GAP = 8 // the chip group's --space-2 gap
 const noop = () => {}
 
+/** Invisible, inert copy of the full row: the source of natural widths. */
+const MeasureCopy = memo(function MeasureCopy({ views, selected }: { views: StatusView[]; selected: RequestStatusFilter }) {
+  return <>
+    <ChipGroup label="Status views (measurement)" options={views} value={[selected]} multiple={false} onValueChange={noop} />
+    <span data-status-more className={styles.statusMore}><DropdownMenu label="3 more" items={[]} /></span>
+  </>
+})
+
 /** The status views stay on one row. Views that no longer fit fold into a
  * "N more" menu from the right, the current view is never hidden, and at the
  * narrowest widths the current view itself opens the menu. Widths come from an
@@ -28,6 +36,8 @@ export function StatusPills({ filter, onStatusChange }: { filter: RequestStatusF
   const frame = useRef<HTMLDivElement>(null)
   const measure = useRef<HTMLDivElement>(null)
   const views = statusViewsFor(filter)
+  // #296: the copy's check moves a frame after the click, so a click renders and measures one chip row, not two.
+  const measuredSelection = useDeferredValue(filter)
   const [fit, setFit] = useState(views.length)
   const [measured, setMeasured] = useState(false)
 
@@ -76,10 +86,6 @@ export function StatusPills({ filter, onStatusChange }: { filter: RequestStatusF
         <ChipGroup label="Status views" className={styles.statusChips} options={visible} value={[filter]} multiple={false} onValueChange={values => choose(values[0] ?? "all")} />
         {hidden.length > 0 && <span data-status-more className={styles.statusMore}><DropdownMenu label={`${hidden.length} more`} items={menu(hidden)} /></span>}
       </>}
-    {/* Invisible, inert copy of the full row: the source of natural widths. */}
-    <div ref={measure} className={styles.statusMeasure} aria-hidden="true" inert>
-      <ChipGroup label="Status views (measurement)" options={views} value={[filter]} multiple={false} onValueChange={noop} />
-      <span data-status-more className={styles.statusMore}><DropdownMenu label="3 more" items={[]} /></span>
-    </div>
+    <div ref={measure} className={styles.statusMeasure} aria-hidden="true" inert><MeasureCopy views={views} selected={measuredSelection} /></div>
   </div>
 }

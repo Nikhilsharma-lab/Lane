@@ -1,8 +1,8 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState, type MemoExoticComponent, type ReactNode } from "react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
@@ -18,22 +18,26 @@ import { parseRequestListContext, requestDetailHref, requestListHref, type Reque
 import { requestRowSelector } from "./list-focus";
 import { isRequestPopoverEvent } from "./request-popover-events";
 import { useShellOpener } from "@/components/shell/shell-openers";
+import { useStableRouter } from "@/components/shell/stable-router";
 
 export { NewRequestLink } from "./new-request-link";
 
-type IntakeFormComponent = typeof import("@/app/(app)/intake/intake-form").default;
+// Memoised: the closed form renders ahead of the first open, and a list view change re-renders this provider.
+type IntakeFormComponent = MemoExoticComponent<typeof import("@/app/(app)/intake/intake-form").default>;
 
 // Plan item 2.3: C focuses the title within 100 ms on the first open. The form
 // (react-hook-form, zod, the AI review) stays out of every route's first load:
 // it loads once, on idle after the provider mounts or when the pointer or
 // focus reaches New Request, and from then on renders synchronously, with no
-// Suspense boundary. The skeleton shows only if C beats the preload.
+// Suspense boundary. The skeleton shows only if C beats the preload. Once it
+// has loaded, the form renders, closed, into its detached host (#296), so the
+// first C only mounts the dialog around it, as every later C does.
 let loadedForm: IntakeFormComponent | null = null;
 let formPromise: Promise<IntakeFormComponent> | null = null;
 
 export function preloadComposer(): Promise<IntakeFormComponent> {
   formPromise ??= import("@/app/(app)/intake/intake-form").then(
-    (module) => (loadedForm = module.default),
+    (module) => (loadedForm = memo(module.default)),
     (error: unknown) => { formPromise = null; throw error; },
   );
   return formPromise;
@@ -69,7 +73,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   /** #212: a Guest files without a prediction; the Member who takes it on writes it. */
   withoutPrediction?: boolean;
 }) {
-  const router = useRouter();
+  const router = useStableRouter();
   const { toast } = useToastStack();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -90,13 +94,21 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   const [initialProjectId, setInitialProjectId] = useState<string | null>(null);
   // #217: a composer opened from the first-run guide explains each step, for that draft.
   const [guided, setGuided] = useState(false);
-  const [returnContext, setReturnContext] = useState<RequestListContext>({ status: "all", project: "all" });
+  // Read when a Request is created, never rendered: the composer's form keeps its props across an open (#296).
+  const returnContext = useRef<RequestListContext>({ status: "all", project: "all" });
+  // #296: the form wakes up (its Metrics library, its shortcuts) in a transition after the dialog opens, so the
+  // closed form, already rendered, does not render again before the dialog's first frame.
+  const [formActive, setFormActive] = useState(false);
   const [formHost, setFormHost] = useState<HTMLDivElement | null>(null);
   const [IntakeForm, setIntakeForm] = useState<IntakeFormComponent | null>(() => loadedForm);
   const preload = useCallback(() => {
     if (loadedForm) return;
-    preloadComposer().then((form) => setIntakeForm(() => form), () => undefined);
+    // A transition: the closed form's first render yields to any input that arrives meanwhile.
+    preloadComposer().then((form) => startTransition(() => setIntakeForm(() => form)), () => undefined);
   }, []);
+  useEffect(() => {
+    if (IntakeForm && !formHost) startTransition(() => setFormHost(current => current ?? createFormHost()));
+  }, [IntakeForm, formHost]);
   const busy = useRef(false);
   // Decision 2026-10-21 (critique 2.3): while the problem check runs, X and Esc cancel it and keep the draft.
   const cancelCheck = useRef<(() => void) | null>(null);
@@ -115,7 +127,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     // different Project. Only a new generation inherits the current location.
     if (!hasOpened || completed.current) {
       setInitialProjectId(projectId);
-      setReturnContext({ status: statusFilter, project: projectFilter });
+      returnContext.current = { status: statusFilter, project: projectFilter };
       setGuided(Boolean(options?.guided));
     } else if (options?.guided) setGuided(true);
     if (completed.current) {
@@ -126,6 +138,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     if (!IntakeForm) preload();
     setHasOpened(true);
     setOpen(true);
+    setFormActive(false);
+    startTransition(() => setFormActive(true));
   }, [IntakeForm, hasOpened, preload, projectFilter, projectId, statusFilter]);
 
   useEffect(() => {
@@ -169,7 +183,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     completed.current = true;
     busy.current = false;
     setOpen(false);
-    const href = requestDetailHref(requestId, returnContext.status, returnContext.project);
+    const href = requestDetailHref(requestId, returnContext.current.status, returnContext.current.project);
     if (openRequest) {
       router.push(href);
       return;
@@ -197,7 +211,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
         router.push(requestListHref(revealed.status, revealed.project));
       } : undefined,
     }));
-  }, [listSnapshot, pathname, returnContext, router, setListView, toast]);
+  }, [listSnapshot, pathname, router, setListView, toast]);
 
   // After hydration, the composer opens by itself for what this tab kept.
   // Plan item 2.3 (S3): a reload interrupted uploads after a Request was
@@ -230,12 +244,13 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   return (
     <NewRequestContext.Provider value={value}>
       {children}
-      {/* For the perf spec (e2e/perf.spec.ts): C after this has no chunk to wait for. */}
-      <span hidden data-composer-ready={IntakeForm ? "true" : undefined} />
+      {/* For the perf spec (e2e/perf.spec.ts): C after this has no chunk to wait for and no form to build. */}
+      <span hidden data-composer-ready={IntakeForm && formHost ? "true" : undefined} />
+      {/* Keep the controller and File objects alive in a detached host while the
+          Arc dialog is closed, before the first open too. Its overlay and focus
+          scope still unmount normally. */}
+      {IntakeForm && formHost && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
       {hasOpened && formHost && <>
-        {/* Keep the controller and File objects alive in a detached host when the
-            Arc dialog closes. Its overlay and focus scope still unmount normally. */}
-        {IntakeForm && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
         <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
           <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."
             onOpenAutoFocus={event => {

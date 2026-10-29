@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useStableRouter } from "@/components/shell/stable-router"
 import type { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types"
 
 /** How long the pointer must rest on a title before the full detail route is prefetched. */
@@ -18,7 +18,8 @@ export const FULL_PREFETCH = { kind: "full" as PrefetchKind }
  * Plan item 2.5: detail's previous and next buttons use it too.
  */
 export function useIntentPrefetch(href: string) {
-  const router = useRouter()
+  // Every row of the list uses this: a URL change must not re-render them all (#296).
+  const router = useStableRouter()
   const timer = useRef<number | undefined>(undefined)
   const prefetched = useRef<string | null>(null)
   useEffect(() => () => window.clearTimeout(timer.current), [])

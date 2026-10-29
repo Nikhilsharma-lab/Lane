@@ -15,7 +15,8 @@ import { answerIsItLive } from "./helpers/journey"
  *   LANE_PERF_STORAGE_STATE=.auth/perf-member.json \
  *   pnpm exec playwright test --project perf
  *
- * Optional: LANE_PERF_RUNS (default 5), LANE_PERF_TOLERANCE (default 1.5, a
+ * Optional: LANE_PERF_RUNS (default 5; at least 10 for the warm list's 4x checks
+ * and C to the composer's title at 4x, #296), LANE_PERF_TOLERANCE (default 1.5, a
  * multiplier on every time budget so shared CI machines do not flake),
  * LANE_PERF_MUTATE=1.
  */
@@ -23,6 +24,10 @@ import { answerIsItLive } from "./helpers/journey"
 const BASE_URL = process.env.LANE_PERF_BASE_URL
 const STORAGE_STATE = process.env.LANE_PERF_STORAGE_STATE
 const RUNS = Math.max(1, Number(process.env.LANE_PERF_RUNS ?? 5) || 5)
+// #296: the 4x slowdown runs in the measuring browser, so whatever else that machine is doing moves single runs a long
+// way (145 to 664 ms between rounds of 5 on main). The two interaction checks at 4x take at least 10 runs, so a busy
+// moment can't move their p75 alone.
+const THROTTLED_RUNS = Math.max(RUNS, 10)
 const TOLERANCE = Math.max(1, Number(process.env.LANE_PERF_TOLERANCE ?? 1.5) || 1.5)
 const MUTATE = process.env.LANE_PERF_MUTATE === "1"
 
@@ -94,22 +99,6 @@ function installObservers() {
 const p75 = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b)
   return sorted[Math.max(0, Math.ceil(sorted.length * 0.75) - 1)] ?? NaN
-}
-
-// #293: checks whose result depends on more than Lane. A result over its limit is printed and noted on the test.
-function noteOverBudget(label: string, value: number, limit: number, unit: string, why: string) {
-  const shown = (n: number) => unit === "ms" ? `${n.toFixed(0)} ms` : n.toFixed(3)
-  console.log(`[perf] over budget, ${why}: ${label} p75 ${shown(value)}, limit ${shown(limit)}`)
-  test.info().annotations.push({ type: `over budget (${why})`, description: `${label}: p75 ${shown(value)}, limit ${shown(limit)}` })
-}
-
-/**
- * The warm list's INP and C to the composer's title at 4x CPU: main misses both §2.2 targets, on Lane Staging too
- * (#296), and the 4x slowdown runs in the measuring browser, so they swing with that machine's load (laptop p75s of
- * 145 to 664 ms over three rounds). Reported, never failing, until #296.
- */
-function reportAgainstBudget(label: string, value: number, limit: number) {
-  if (value > limit) noteOverBudget(label, value, limit, "ms", "reported only, #296")
 }
 
 const report = (label: string, values: number[], unit = "ms", target?: number) => {
@@ -263,7 +252,7 @@ test("warm page load and interactions at 4x CPU stay within LCP, CLS, INP and lo
   const cdp = await throttle(page, 4)
   const lcp: number[] = [], ttfb: number[] = [], cls: number[] = [], inp: number[] = [], longFrames: number[] = []
   try {
-    for (let run = 0; run < RUNS; run++) {
+    for (let run = 0; run < THROTTLED_RUNS; run++) {
       await page.reload()
       await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
       await page.waitForTimeout(1000) // LCP finalises on the first input; read it before interacting
@@ -299,7 +288,7 @@ test("warm page load and interactions at 4x CPU stay within LCP, CLS, INP and lo
   expect(p75(lcp)).toBeLessThanOrEqual(BUDGET.lcp * TOLERANCE)
   expect(p75(ttfb)).toBeLessThanOrEqual(BUDGET.ttfb * TOLERANCE)
   expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
-  reportAgainstBudget("INP proxy at 4x CPU", p75(inp), BUDGET.viewSwitchInp.limit * TOLERANCE)
+  expect(p75(inp), "INP proxy at 4x CPU").toBeLessThanOrEqual(BUDGET.viewSwitchInp.limit * TOLERANCE)
   expect(p75(longFrames)).toBeLessThanOrEqual(BUDGET.longFramesPerTransition)
 })
 
@@ -599,7 +588,7 @@ const watchComposerFocus = async (page: Page) => {
 test("C opens the composer with its title focused within 100 ms, with no loading status, also at 4x CPU", async ({ page }) => {
   const timings: Record<number, number[]> = { 1: [], 4: [] }
   for (const rate of [1, 4]) {
-    for (let run = 0; run < RUNS; run++) {
+    for (let run = 0; run < (rate === 4 ? THROTTLED_RUNS : RUNS); run++) {
       await openListForComposer(page)
       const cdp = await throttle(page, rate)
       try {
@@ -617,7 +606,7 @@ test("C opens the composer with its title focused within 100 ms, with no loading
   report("C to focused title, first open", timings[1], "ms", BUDGET.composerFocus)
   report("C to focused title, first open at 4x CPU", timings[4], "ms", BUDGET.composerFocus)
   expect(p75(timings[1])).toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
-  reportAgainstBudget("C to focused title at 4x CPU", p75(timings[4]), BUDGET.composerFocus * TOLERANCE)
+  expect(p75(timings[4]), "C to focused title at 4x CPU").toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
 })
 
 test("the composer dialog enters with at most 2 long animation frames at 4x CPU", async ({ page }) => {
