@@ -153,7 +153,8 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     ;(await a.sent(0)).reject(new Error("offline"))
     await vi.waitFor(() => expect(a.shown()).toMatchObject({ status: "in_progress" }))
     expect(a.toasts).toHaveLength(1)
-    expect(a.toasts[0]).toMatchObject({ type: "error", title: "Could not update this Request", action: undefined })
+    // #260: the failure replaces Undo with Try again.
+    expect(a.toasts[0]).toMatchObject({ type: "error", title: "Couldn't save", action: { label: "Try again" } })
     expect(a.undoStore.get()).toBeNull()
   })
 
