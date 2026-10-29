@@ -47,7 +47,7 @@ describe("Reliable comment posting contract", () => {
   it("preserves the draft and exposes an explicit retry after failure", () => {
     expect(FORM).toContain("value={body}")
     expect(FORM).toContain("try {")
-    expect(FORM).toContain("} catch {")
+    expect(FORM).toContain("} catch (thrown) {")
     expect(FORM).toContain("} finally {")
     expect(FORM).toContain("Your draft is still here.")
     expect(FORM).toContain('"Try again"')

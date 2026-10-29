@@ -1,6 +1,7 @@
 "use client"
 
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useState } from "react"
 import { Download } from "lucide-react"
 
@@ -38,8 +39,8 @@ export function AttachmentDownload({
       }
 
       window.location.assign(result.url)
-    } catch {
-      setError("Couldn’t prepare the download. Try again.")
+    } catch (thrown) {
+      setError(thrownMessage(thrown, "Couldn’t prepare the download. Try again."))
     } finally {
       setPending(false)
     }

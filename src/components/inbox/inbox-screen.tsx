@@ -7,7 +7,8 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { RequestPeek, preloadRequestPeek, usePeekAvailable, type PeekViewer } from "@/components/requests/request-peek";
 import { RequestPeekLoadAhead, useListLoadAhead } from "@/components/requests/request-peek-load-ahead";
-import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
+import { failureToast, useOptimisticAction, type FailureDetail } from "@/components/requests/use-optimistic-action";
+import { SESSION_CHANGED, SESSION_ENDED } from "@/lib/failure-messages";
 import { inboxNeedsYou } from "@/components/shell/inbox-count";
 import { begin, beginAllRead, confirm, initialReadState, isAllReadPending, isPending, pendingIds, receiveCount, receiveList, rollback, shownItems, shownUnread, type ReadState } from "@/components/shell/notification-read-state";
 import { requestDetailHref } from "@/lib/request-workspace";
@@ -17,9 +18,6 @@ import { refreshedItems } from "./inbox-list";
 import { InboxView, inboxRowButton } from "./inbox-view";
 
 const LOAD_FAILED = "Your Inbox could not be loaded. Try again.";
-const FAILURE_TITLE = "Could not update your Inbox";
-// The actions answer { error: "Not found" } when the session no longer matches the workspace.
-const SESSION_CHANGED = "Your workspace session changed. Refresh the page to continue.";
 
 function read(path: string, orgId: string, controller: AbortController) {
   return fetch(`${path}?${new URLSearchParams({ org: orgId })}`, { signal: controller.signal, headers: { accept: "application/json" }, credentials: "same-origin" });
@@ -103,7 +101,8 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
       if (controller.signal.aborted) return;
       if (!response.ok || !Array.isArray(body?.forYourInformation) || !Array.isArray(body?.needsYou)) {
         const expired = (response.status === 401 || response.status === 403) && typeof body?.error === "string";
-        setError(expired ? body.error : LOAD_FAILED);
+        // #260: Lane's own words, never the response's text.
+        setError(expired ? (response.status === 401 ? SESSION_ENDED : SESSION_CHANGED) : LOAD_FAILED);
         setSessionExpired(expired);
         return;
       }
@@ -128,8 +127,10 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
     return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisibility); };
   }, []);
 
-  const failed = useCallback((message: string, { auth }: { auth: boolean }) => {
-    toast({ type: "error", title: FAILURE_TITLE, description: auth || message === "Not found" ? SESSION_CHANGED : message });
+  // #260: the shared failure toast with Try again, which runs `retry` (the same change from the start). A
+  // refusal reads as the session changing: the actions answer { error: "Not found" } when it no longer matches.
+  const failed = useCallback((retry: () => void) => (message: string, { thrown, offline }: FailureDetail) => {
+    toast(failureToast(thrown ? message : SESSION_CHANGED, { offline, retry: async () => retry() }));
   }, [toast]);
 
   /** Adds the row's patch, or null while an earlier one on the row is unconfirmed. */
@@ -144,7 +145,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
       id: item.id,
       run: () => (readAt ? markNotificationRead : markNotificationUnread)(item.id, { orgId }),
       refreshOnError: false,
-      onError: failed,
+      onError: failed(() => { const next = beginRead(item, readAt); if (next !== null) runRead(item, readAt, next); }),
     }).then(outcome => {
       if (outcome.status === "success") {
         const at = performance.now();
@@ -201,7 +202,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
       id: "inbox:all",
       run: () => markAllNotificationsRead({ orgId }),
       refreshOnError: false,
-      onError: failed,
+      onError: failed(() => handleMarkAllRead()),
     }).then(outcome => {
       if (outcome.status === "success") {
         const at = performance.now();

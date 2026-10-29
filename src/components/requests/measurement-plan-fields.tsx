@@ -24,6 +24,7 @@ import { measurementEditorValue, measurementEditorChanges, editorMetricLabel, ed
 import { MeasurementMetricPicker, METRICS_PAGE } from "./measurement-metric-picker"
 import { useMetricLibrary, type MetricLibrary } from "./use-metric-library"
 import styles from "./measurement-plan-fields.module.css"
+import { FieldError } from "@/components/forms/field-error"
 
 type Metric = EditorMetric
 type Option = { value: string; label: string; disabled?: boolean; icon?: ReactNode; trailing?: ReactNode }
@@ -57,7 +58,7 @@ function CompactSelect({ id, label, value, options, onChange, disabled, error, i
         aria-invalid={Boolean(error) || undefined} aria-describedby={`${id}-value${error ? ` ${id}-error` : ""}`} title={shown}>
         <span className={styles.triggerContent}>{icon}<span id={`${id}-value`} className={styles.triggerText}>{shown}</span></span>
       </Button>} />
-    {error && <p id={`${id}-error`} className={styles.error} role="alert">{error}</p>}
+    <FieldError id={`${id}-error`}>{error}</FieldError>
   </div>
 }
 
@@ -93,7 +94,7 @@ function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions,
       <Input ref={inputRef} id={id} label={label} hideLabel className={styles.numericInput} type="number" min={unrestricted ? undefined : 0}
         max={!unrestricted && unit === "percent" ? 100 : undefined} step={!unrestricted && unit === "count" ? 1 : "any"}
         disabled={disabled || !unit || noBaseline} placeholder={noBaseline ? "No existing data" : unit ? hideLabel ? "Value" : "Enter value" : "Choose a metric and unit"}
-        defaultValue={initialValue} aria-labelledby={`${id}-label`} aria-invalid={Boolean(message) || undefined} aria-describedby={message ? `${id}-message` : undefined}
+        defaultValue={initialValue} aria-labelledby={`${id}-label`} error={message}
         onInput={event => {
           // Invalid numeric text and a cleared field both expose value="".
           // onInput also catches that validity-only edit; onChange skips it.
@@ -110,7 +111,6 @@ function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions,
           placeholder="Unit" disabled={disabled || unitLocked || !unitOptions?.length} onChange={next => onUnitChange?.(next as Metric["unit"])} />
       </div>
     </div>
-    {message && <p id={`${id}-message`} className={styles.error} role="alert">{message}</p>}
   </div>
 }
 
@@ -257,7 +257,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
           {(requestType === "new_feature" || primary.noBaseline) && primary.key && <Checkbox
             label="No existing data. This is a brand-new feature." checked={primary.noBaseline} disabled={disabled}
             onCheckedChange={checked => changePrimary({ noBaseline: checked === true, current: checked === true ? null : primary.current })} />}
-          {typeIssue && <p className={styles.error} role="alert">{typeIssue}</p>}
+          <FieldError>{typeIssue}</FieldError>
         </>)}
       </section>
 
@@ -300,7 +300,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
           {measurement.platform === "custom" && <Input label="Custom platform" value={measurement.platformName ?? ""} maxLength={MEASUREMENT_SCOPE_NAME_MAX} disabled={disabled}
             error={error("measurement.platformName")} onChange={event => changeMeasurement({ platformName: event.target.value })} />}
         </div>}
-        {(error("measurement.startDate") || error("measurement.endDate")) && <p className={styles.error} role="alert">{error("measurement.startDate") || error("measurement.endDate")}</p>}
+        <FieldError>{error("measurement.startDate") || error("measurement.endDate")}</FieldError>
         <MeasurementDateDialog open={datesOpen} onOpenChange={setDatesOpen} startDate={measurement.startDate} endDate={measurement.endDate} returnFocusRef={windowRef}
           onApply={(startDate, endDate) => { changeMeasurement({ exactDates: true, startDate, endDate }); setDatesOpen(false) }} />
       </section>

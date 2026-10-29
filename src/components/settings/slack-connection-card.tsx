@@ -5,6 +5,7 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import styles from "./settings.module.css";
 
 /** How the round trip through Slack's install page ended (`GET /api/slack/callback` puts it in the URL). */
@@ -54,8 +55,8 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
         return;
       }
       setError(answer.error || FAILED);
-    } catch {
-      setError(FAILED);
+    } catch (thrown) {
+      setError(thrownMessage(thrown, FAILED));
     }
     setStatus("");
     setBusy(false);
@@ -70,8 +71,8 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
         setConfirming(false);
         setStatus("Slack is disconnected. People who chose Slack DM get email instead.");
       } else setError(answer.error || FAILED);
-    } catch {
-      setError(FAILED);
+    } catch (thrown) {
+      setError(thrownMessage(thrown, FAILED));
     }
     setBusy(false);
   }

@@ -5,6 +5,7 @@ import { Button } from "@/components/arc/button/button"
 import { Textarea } from "@/components/arc/textarea/textarea"
 import { saveQuarterNote } from "@/app/(app)/impact/quarter-note-actions"
 import { callAction } from "@/lib/action-call"
+import { thrownMessage } from "@/lib/failure-messages"
 import type { QuarterNoteSlot } from "@/lib/impact-read-model"
 import { QUARTER_NOTE_MAX_LENGTH } from "@/lib/quarter-note-rules"
 import styles from "./outcome-report.module.css"
@@ -34,8 +35,8 @@ export default function QuarterNoteEditor({ orgId, slot, note, onSaved, onCancel
       const result = await callAction(() => saveQuarterNote({ year: slot.year, quarter: slot.quarter, text: draft, expectedEditedAt: note?.editedAt ?? null }, { orgId }))
       if ("error" in result) setError(result.error)
       else onSaved(result.note)
-    } catch {
-      setError(FAILED)
+    } catch (thrown) {
+      setError(thrownMessage(thrown, FAILED))
     } finally {
       setBusy(false)
     }

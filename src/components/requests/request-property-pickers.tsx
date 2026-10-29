@@ -1,6 +1,7 @@
 "use client";
 
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createProject } from "@/app/(app)/intake/project-actions";
 import { Check, Plus } from "lucide-react";
@@ -171,7 +172,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
         setCreateError(result.error.message);
         if (result.error.code === "conflict") void state.reload();
       }
-    } catch { setCreateError("Project could not be created. Try again; your Request is still here."); }
+    } catch (thrown) { setCreateError(thrownMessage(thrown, "Project could not be created. Try again; your Request is still here.")); }
     finally {
       setCreating(false); onBusyChange(false);
     }

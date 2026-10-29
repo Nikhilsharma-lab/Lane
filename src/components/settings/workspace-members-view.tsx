@@ -9,6 +9,7 @@ import { Input } from "@/components/arc/input/input";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { Select } from "@/components/arc/select/select";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 import {
   addsPaidSeat, ROLE_DESCRIPTIONS, type PaidSeatChange, type PendingInvitation, type WorkspaceMember,
@@ -50,8 +51,8 @@ async function attempt(run: () => Promise<Answer>): Promise<Answer> {
   try {
     const answer = await callAction(run);
     return answer.success ? answer : { error: answer.error || FAILED };
-  } catch {
-    return { error: FAILED };
+  } catch (thrown) {
+    return { error: thrownMessage(thrown, FAILED) };
   }
 }
 

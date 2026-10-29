@@ -7,7 +7,7 @@ import type { AskIsItLive } from "./is-it-live"
 import type { Announce } from "./list-announcer"
 import { clearMarkedDone, showMarkedDone, type MarkDoneUndoStore } from "./mark-done-undo"
 import type { ConfirmPickup } from "./pickup-confirmation"
-import { FAILURE_TITLE, type ActionResult, type OptimisticOptions, type OptimisticOutcome } from "./use-optimistic-action"
+import { failureToast, type ActionResult, type OptimisticOptions, type OptimisticOutcome } from "./use-optimistic-action"
 
 /** The Request a move acts on: its id, the name its toasts use (the saved code, else the title)
  * and, for a pick up, its saved reviews (#77). */
@@ -80,7 +80,8 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       patch: { kind: "undo", status: "in_progress" },
       run: () => actions.undoMarkDone(requestId, { orgId }),
       waitForPending: true,
-      onError: description => { toast({ id: toastId, type: "error", title: "Could not undo", description }) },
+      // #260: Try again sends the same Undo again; offline it says so instead.
+      onError: (description, { offline }) => { toast({ id: toastId, ...failureToast(description, { offline, retry: () => undo(toastId, requestId, name) }), ...(offline ? {} : { title: "Couldn't undo" }) }) },
     })
     if (outcome.status !== "success") return
     toast({ id: toastId, type: "success", title: "Back to In progress", description: `${name} is In progress again.` })
@@ -98,6 +99,9 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
     // Done is acknowledged by its toast; a pick up is acknowledged here, in the same frame as the move.
     if (kind === "pick-up") announce("Picked up. The Request is now In progress.", { key: "row-change" })
     const describe = (message: string, thrown: boolean) => thrown && networkError ? networkError : message
+    // #260: every failure carries Try again, which runs the whole move again (its toast, its announcement).
+    const failed = (message: string, { thrown, offline }: { thrown: boolean; offline: boolean }) =>
+      failureToast(offline ? message : describe(message, thrown), { offline, retry: () => start(request, kind, { networkError, assignee }) })
     const outcome = optimistic({
       id: request.id,
       patch: kind === "done" ? { kind: "done", status: "done" }
@@ -105,8 +109,8 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       run: () => (kind === "done" ? actions.markDone : actions.pickUpRequest)(request.id, { orgId }),
       waitForPending: true,
       onError: toastId
-        ? (message, { thrown }) => { clearMarkedDone(toastId, undoStore); toast({ id: toastId, type: "error", title: FAILURE_TITLE, description: describe(message, thrown), action: undefined }) }
-        : networkError ? (message, { thrown }) => { toast({ type: "error", title: FAILURE_TITLE, description: describe(message, thrown) }) } : undefined,
+        ? (message, detail) => { clearMarkedDone(toastId, undoStore); toast({ id: toastId, ...failed(message, detail) }) }
+        : networkError ? (message, detail) => { toast(failed(message, detail)) } : undefined,
     }).then(result => {
       // The failure toast speaks for itself; the region drops the claim it made.
       if (result.status === "error" && kind === "pick-up") announce("", { key: "row-change" })

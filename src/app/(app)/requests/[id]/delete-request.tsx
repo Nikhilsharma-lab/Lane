@@ -1,5 +1,6 @@
 "use client";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
@@ -28,8 +29,8 @@ export function DeleteRequest({ requestId, title, orgId }: { requestId: string; 
       setOpen(false);
       toast({ type: "success", title: "Request deleted" });
       router.push("/");
-    } catch {
-      setError("Couldn’t delete the Request. Try again.");
+    } catch (thrown) {
+      setError(thrownMessage(thrown, "Couldn’t delete the Request. Try again."));
     } finally {
       setBusy(false);
     }

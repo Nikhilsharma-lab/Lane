@@ -1,0 +1,2 @@
+/* The look Lane's field errors already had: Arc input's error colour and size, spaced by the form's own gap. */
+.error { margin: 0; color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); }

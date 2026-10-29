@@ -1,6 +1,7 @@
 "use client";
 
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
@@ -105,8 +106,8 @@ export function CommentForm({
       // The pending row keeps its place under the server id until then.
       if (key && result.comment) overlay?.confirmComment(requestId, key, result.comment);
       setSubmissionState("success");
-    } catch {
-      fail("Couldn’t post your comment. Your draft is still here. Try again.");
+    } catch (thrown) {
+      fail(thrownMessage(thrown, "Couldn’t post your comment. Your draft is still here. Try again."));
     } finally {
       submissionLock.current = false;
     }
