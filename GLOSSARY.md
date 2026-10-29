@@ -63,7 +63,8 @@ Pass/fail check. A Request with nothing to measure says No measurable impact ins
 plainly against its goal ("4 points above the goal"), never as a pass or a miss. For a Guest submission, the Member
 who takes it on sets the goal.
 _Avoid_: Prediction, Expected impact, target, forecast
-_Note (2026-10-26)_: decided in #235; the app still says "prediction" and "Expected impact" until the rename is built.
+_Note_: decided in #235 (2026-10-26) and built in #261. Stored names keep the old words (the `expected_impact`
+column, the first-run `prediction` step key); nothing people see says them.
 
 ## Request status
 

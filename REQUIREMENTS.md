@@ -9,11 +9,11 @@
 > **2026-09-28 authority:** Nikhil confirmed the pipeline and documentation reconciliation. Alignment inside
 > Requests is the first increment to plan. Confirmation does not authorize application code, new schema/routes,
 > integrations, extra AI calls, migrations, deployment, or the whole pipeline in one build.
-> **2026-10-06 foundation clarification:** the shared product/journey record, impact prediction at Request
+> **2026-10-06 foundation clarification:** the shared product/journey record, a goal set at Request
 > creation, requester-owned actual-result closure, quarterly/yearly outcome summaries and three-party
 > alignment are confirmed product requirements. Documented exception outcomes may close but are excluded
 > from measured-impact totals. This strengthens the target; it does not claim those capabilities are live.
-> **2026-10-06 implementation status:** Expected impact creation (Metric or Verified result), signed review
+> **2026-10-06 implementation status:** Goal creation (Metric or Verified result; then called Expected impact), signed review
 > and read-only saved detail are implemented and locally verified. Named trio agreement, launch,
 > actual-result closure remains target only. Quarterly/yearly totals are approved (2026-10-23, #151) and built on the integration branch, not yet shipped.
 > **2026-10-21 #58 approval:** Named agreement and its persistence contract are approved for local
@@ -74,7 +74,7 @@ what happened after release.
 1. **One source of truth for the product.** Requests, agreed decisions, design/development references,
    release history and outcomes must connect in a shared record. A disconnected list of Requests does not
    fulfil this principle. Journeys stay in design tools and are linked, never maintained in Lane (2026-10-24).
-2. **Expected impact compared with actual results.** Capture predicted impact when creating a Request,
+2. **Goal compared with actual results.** Set the goal when creating a Request,
    keep it with the Request as work advances, measure after launch over the decided window, and retain the comparison
    and learning. Show Request-level results and cumulative quarterly/yearly product results (§9).
 
@@ -91,7 +91,7 @@ individual PM, designer, or developer.
 - The problem is the unit of attention; a requested solution is not accepted as the problem by default.
 - The same product view is available to PMs, Designers, and Developers. These are editable functional labels,
   not permissions.
-- Humans own interpretation, ethics, taste, craft, predictions, and final decisions.
+- Humans own interpretation, ethics, taste, craft, goals, and final decisions.
 - AI may clarify, organize, challenge, summarize, and prepare reviewable work. It may not silently decide for
   the team.
 - Truthful uncertainty is valid. Lane must not pressure people to fabricate evidence or impact numbers.
@@ -130,13 +130,13 @@ actions, or collaboration rights.
 - **Admin:** Clerk organization administration and membership control.
 - **Member:** participates in the shared Request workflow.
 - **Guest:** sees and comments on only their own Requests; cannot pick up work or access Members. A Guest
-  files without a prediction (#195 item 4, #212, on the integration branch): the Request waits, Open, as a
+  files without a goal (#195 item 4, #212, on the integration branch): the Request waits, Open, as a
   **Guest submission**, tagged "Waiting to be taken on" on the Requests list for everyone who can see it. An
   Admin or Member takes it on from Request detail and becomes its **Requester** (once; it never moves except by
-  the usual handover after pickup), and the editor opens asking them for the prediction. Nobody can pick it up
-  until it has been taken on and its prediction (a measured result or No measurable impact) is written. The Guest
+  the usual handover after pickup), and the editor opens asking them to set the goal. Nobody can pick it up
+  until it has been taken on and its goal (a measured result or No measurable impact) is set. The Guest
   stays its author, keeps seeing and commenting on it, and can edit their own words only while it waits; they
-  never write the prediction. The Guest gets exactly two emails about it, when it is taken on and when it is
+  never set the goal. The Guest gets exactly two emails about it, when it is taken on and when it is
   Closed, by Email whatever their delivery choice and only while they are still in the workspace and not a
   Viewer. Comments on it reach the Member who took it on.
 - **Viewer** (#195 item 4, #210, on the integration branch): free and read-only. Sees everything a Member
@@ -177,17 +177,17 @@ Clerk cutover record still requires hosted invitation-return and production veri
 
 1. Clerk authentication: sign up, email verification, sign in, password recovery, and invite acceptance.
 2. Onboarding: Clerk organization creation or invited-organization activation → functional label → Requests.
-3. Intake: title, freeform description, Expected impact (Metric or Verified result), optional Project, Request
-   type, related link, private attachments, and the AI problem gate. Expected impact is implemented locally
+3. Intake: title, freeform description, Goal (Metric or Verified result), optional Project, Request
+   type, related link, private attachments, and the AI problem gate. The Goal is implemented locally
    through signed review and save; local checks passed.
 4. Requests board: one shared workspace board grouped Open / In Progress / Done, with an optional status
    filter, saved `LAN-n` codes, saved priority, and the workspace search pane (`/`): Requests and Projects
-   by saved code, title, description and Expected impact text; status, type and created-date filters (the
+   by saved code, title, description and Goal text; status, type and created-date filters (the
    viewer's local days); recent searches; a result preview (a bottom sheet on narrow screens); Enter on an
    exact saved code opens that Request (scope approved 2026-10-20).
-5. Request detail: problem, supporting context, saved Expected impact, assignment, lifecycle actions,
+5. Request detail: problem, supporting context, saved Goal, assignment, lifecycle actions,
    attachments, coordination comments and saved design links. Design review discussion and decisions stay
-   in Figma (2026-10-18); the earlier Ask for review workflow is retired. The Expected impact summary is
+   in Figma (2026-10-18); the earlier Ask for review workflow is retired. The Goal summary is
    implemented and locally verified.
 6. Members and invitations: Clerk Organization Profile owns invitations, delivery, resend, revoke, roles,
    and membership changes. Lane supplies no parallel invite tokens or membership mutations.
@@ -205,7 +205,7 @@ Check release readiness → Release → Measure → Requester closes → Follow-
   work; they never block and need no one else's sign-off.
 - Discovery and delivery are different commitments; exploration is nonlinear and requires no design diary.
 - Picking up assigns the Request to that person and starts work.
-- Expected impact is recorded at creation. One primary success
+- The goal is recorded at creation. One primary success
   criterion, relevant guardrails, complete build/release readiness and evidence support delivery. Numeric
   impact is not compulsory where an observable acceptance criterion is more appropriate.
 - Done and Closed remain separate steps. The Requester closes, including Closed without a result. Closed
@@ -214,19 +214,19 @@ Check release readiness → Release → Measure → Requester closes → Follow-
 - Quarterly/yearly outcome summaries are confirmed target scope, derived from Request records with
   compatible metrics and no duplicate attribution (§9); no separate reporting route is selected yet.
 
-Expected impact creation/review/detail is the current bounded local implementation, with validation in
+Goal creation/review/detail is the current bounded local implementation, with validation in
 progress. Optional reviewers replaced the planned trio alignment on 2026-10-21 (§4.4). Later parts of this target are
 sequenced in `lane-roadmap.md`, not independently authorized by this contract.
 
 2026-10-11 bounded Intake addition, explicitly approved by Nikhil: new primary metric units default
-to `%` and remain editable. Either Expected impact kind may include one optional guardrail with
-an absolute At most / At least numeric limit and an explicitly entered unit. The Expected impact
+to `%` and remain editable. Either Goal kind may include one optional guardrail with
+an absolute At most / At least numeric limit and an explicitly entered unit. The Goal
 options menu opens a separate inset editor after the complete primary fields. Add/Save changes
 collapses it to a sentence with Edit/Remove; Cancel restores the prior guardrail. Pending edits
 survive draft recovery and must be added or cancelled before review. Committed guardrails are
 preserved through signed review and saved Request detail. Count units should state their period;
 percentage definitions should name their population. Relative change limits are deferred. This
-uses the existing Expected impact JSON record and adds no monitoring or outcome closure.
+uses the existing goal JSON record (the `expected_impact` column) and adds no monitoring or outcome closure.
 
 2026-10-20 guardrail simplification, explicitly approved by Nikhil: a guardrail is metric +
 comparison + threshold value/unit. Comparisons are less than, greater than, equal to,
@@ -242,14 +242,14 @@ superseded. Each workspace has a Metrics library of Metric definitions (name, un
 line) with an append-only history, owned by one module (`src/lib/metrics-library.ts`). Built so far (#196): the two tables
 (migration 0037), the seven starter metrics filled on a workspace's first read, and Settings → Metrics (`/settings/metrics`,
 Members and Admins; Guests are refused) listing active definitions, showing "Add where this lives" when there is no link.
-Predictions still save names in the Request JSON until the picker work in #195 lands.
+Goals still save names in the Request JSON until the picker work in #195 lands.
 Inline add (#199) supersedes the 2026-10-20 inline "Create metric" with no name or unit form: when the picker finds no
 metric with the typed name, Members and Admins add one from the picker with a name and a unit only. It is added to the
 library with a history entry and selected on the main metric or guardrail. An active definition with that name is offered
 instead. Guests can't add.
 Each definition's page (#203) lists every Request that used it, from the Impact read model (`buildDefinitionUses`), so
 visibility and result rules match the Impact page: main-metric uses and guardrail uses apart, each grouped by Project, with
-predicted beside actual (a guardrail's limit beside what was measured). A result still waiting shows as still due, with
+the goal beside actual (a guardrail's limit beside what was measured). A result still waiting shows as still due, with
 its due date once released, never as zero; a Request closed without a result shows its reason. A definition merged into
 this one brings its Requests; a merged-away definition's page points to the one they now count under. Nothing is grouped,
 totalled or ranked by person.
@@ -270,7 +270,7 @@ automatically close Requests. The Requester still records results and closes.
 ### Explicitly not authorized yet
 
 - Any readiness, outcome, amendment or follow-up storage/screens, or success-criterion work beyond
-  the approved Expected impact creation/review/detail increment, before the relevant focused plan is approved.
+  the approved Goal creation/review/detail increment, before the relevant focused plan is approved.
 - Handoff briefs, iteration summaries, prediction confidence, or individual calibration.
 - Figma, analytics, GitHub, Linear, or other product integrations.
 - Agent workflows beyond the shipped Intake gate.
@@ -292,7 +292,7 @@ Current Intake supports:
 
 - A short title.
 - A freeform description of the need or observed problem, including any useful context or feedback.
-- Expected impact as Metric or Verified result, preserved through signed review and saved detail; locally
+- The Goal as Metric or Verified result, preserved through signed review and saved detail; locally
   implemented and locally verified. Current value may remain unknown; drafts may remain incomplete.
 - Optional Project and multiple Labels.
 - An optional **Add link** control revealing the **Related link** field.
@@ -373,7 +373,7 @@ reviewers, which an admin could add before, are retired. Migration 0044 removes 
 (test data) and the database accepts member reviewers only.
 - A reviewer answers **Looks good** or **Raise a concern** with a reason. A concern clears only when that
   reviewer changes their answer or the Request is edited.
-- Editing what the Request says (content, Expected impact, type, Project, labels) resets every answer and
+- Editing what the Request says (content, Goal, type, Project, labels) resets every answer and
   tells reviewers who had answered; priority does not.
 - Reviews never block pickup. Picking up with open concerns or unanswered reviews asks for confirmation
   (one combined confirmation for bulk pickup). After pickup the reviewer list is read-only; unanswered
@@ -387,9 +387,9 @@ reviewers, which an admin could add before, are retired. Migration 0044 removes 
 
 ### 4.5 Define success and preserve expectations — Approved target
 
-**2026-10-06 timing clarification:** expected impact belongs in Request creation, including feature and
+**2026-10-06 timing clarification:** the goal belongs in Request creation, including feature and
 improvement submissions; it is not first collected after design or launch. The PM supplies the product
-prediction when involved in submission. The submitter remains accountable for its recording and follow-through;
+goal when involved in submission. The submitter remains accountable for its recording and follow-through;
 being a named PM or having a PM profile label does not transfer closure ownership. Drafts may remain incomplete.
 The compact form implements Metric or Verified result and a “Check in [X] days” interval, with an
 optional unknown numeric baseline. Source/method is no longer requested at creation (2026-10-12);
@@ -409,7 +409,7 @@ the initial expectation and complete the measurement contract before pickup:
 | Review window | When and over what period the outcome is assessed. |
 | Guardrails | Relevant things that must not deteriorate, with acceptable limits. |
 
-A numeric business prediction is not compulsory for every kind of work. A specific, verifiable acceptance
+A numeric business goal is not compulsory for every kind of work. A specific, verifiable acceptance
 criterion with evidence is valid; “improve UX” is not. Use only relevant guardrails, not an arbitrary count.
 During discovery, baseline unknown is valid. Before pickup, the Request needs a defensible measurement
 approach. New capabilities may use an absolute target rather than a before/after baseline.
@@ -494,14 +494,14 @@ details must be resolved in the release increment's plan before implementation.
 
 ### 4.10 Measure and close — Approved target
 
-The Requester returns after delivery, records what happened, compares it with the original prediction, and
+The Requester returns after delivery, records what happened, compares it with the original goal, and
 closes the Request. The comparison belongs to the Request and workspace learning—not to a personal score.
 
 **Confirmed 2026-10-06; wording 2026-10-22 (#127):** the Requester (the person who submitted the Request, or
 whoever an admin handed it to) closes it, including when someone else did the work. Anyone working on the
 Request may record, correct or void the release, so measurement is never held up waiting for the Requester. For ordinary measured closure, actual results, their evidence/source and the agreed
-measurement period must be recorded first. A result below prediction is valid learning and may close;
-exceeding the prediction is not required. An overdue review remains outstanding rather than auto-closing.
+measurement period must be recorded first. A result below the goal is valid learning and may close;
+exceeding the goal is not required. An overdue review remains outstanding rather than auto-closing.
 An explicitly recorded exception under §5 may close without a measured number and stays outside measured
 impact totals. Lane records and compares supplied measurements; automatic analytics collection or causal
 verification is not implied and no integration is authorized here.
@@ -619,7 +619,7 @@ neither Request's record changes. A Request is in one group at most: linking to 
 whole group, and linking two grouped Requests combines the groups. Removing a link takes only that Request out; a
 group left with one Request ends. Each Request's history records who linked it (and with which Request) or took it
 out, and when. Deleting an Open Request removes its membership. The Request page shows "Iterations of this
-problem" after the journey: the group oldest first by filing time, each with its status, prediction and result
+problem" after the journey: the group oldest first by filing time, each with its status, goal and result
 (or its reason when Closed without a result), the Request being read highlighted with its number ("3rd
 iteration"). The number is worked out from creation order when read, never stored. Follow-ups keep their link and
 their own list in the journey, can't be removed, and are not iterations unless also linked as Same problem. The
@@ -656,7 +656,7 @@ concept for Paper exploration, not a route or schema instruction:
 
 ### Outcome
 
-- Original prediction.
+- Original goal.
 - Measurement window and source.
 - Actual result or truthful exception.
 - Comparison and concise Request-level learning.
@@ -718,7 +718,7 @@ Future agents may assist with bounded procedural work such as:
 - Every input used is inspectable.
 - Every output is reviewable, editable, and rejectable.
 - The responsible human remains visible.
-- No agent changes lifecycle, prediction, ownership, or closure without explicit confirmation.
+- No agent changes lifecycle, goal, ownership, or closure without explicit confirmation.
 - No agent invents research findings, metrics, customer evidence, or certainty.
 - No hidden background automation, cron workflow, or external side effect is implied.
 - Agent activity may be audited for safety and reliability but never used to surveil people.
@@ -736,14 +736,14 @@ Future agents may assist with bounded procedural work such as:
 
 ## 9. Learning without surveillance
 
-**Confirmed target — 2026-10-06:** Lane shows predicted versus actual impact for each Request and cumulative
+**Confirmed target — 2026-10-06:** Lane shows the goal versus the actual result for each Request and cumulative
 quarterly/yearly product outcomes. This is a foundation, not an optional generic analytics idea. Learning
 is attached to Requests and shared product results; no person-level effectiveness score is authorized.
 
 Reporting requirements for the bounded design:
 
 - Derive reports from the same Request expectations, releases and outcomes; no second reporting form.
-- Preserve the submitted prediction and each agreed revision. Never rewrite a target after seeing results.
+- Preserve the submitted goal and each agreed revision. Never rewrite a goal after seeing results.
 - Compare the same metric definition, unit, audience and measurement window. Keep absolute change,
   percentage-point change and relative percent change distinguishable.
 - Aggregate only compatible, non-overlapping results. Do not add different metrics, percentages or the
@@ -768,7 +768,7 @@ Reporting requirements for the bounded design:
   current quarter until another is picked), lists only work Released in it by UTC release date, and shows an "up to
   date as of" date, At a glance counts (shipped, measured, still due, closed without a result), totals for quarters
   and years only (never months), a section per current Project then "No Project" with each Request's problem,
-  prediction, result with guardrails or result due date, latest Corrections marked "corrected" and Follow-ups, and
+  goal, result with guardrails or result due date, latest Corrections marked "corrected" and Follow-ups, and
   Closed without a result by reason. Released operational work is listed with its reason. Work never Released is in
   no period, except work closed without a result before release (below). Everyone except Guests sees it; nobody is
   named, grouped or ranked. Integration branch only.
@@ -837,7 +837,7 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   branches.
 - **First run (#195 item 6, #217, 2026-10-25, on the integration branch):** after the onboarding above, the
   workspace's first person (its Clerk creator) gets a first-run guide on the Requests list (the empty workspace's
-  welcome) and on New Request: one step at a time it explains the problem framing, a prediction from the Metrics
+  welcome) and on New Request: one step at a time it explains the problem framing, a goal from the Metrics
   library, Reviewers, the Free Requests left, and Release and Result due (Lane brings them back when the result is
   due), then files a first real Request; a composer opened from the guide explains each part as it goes. An Admin
   can invite teammates from it as Reviewers (Members) or, while `LANE_CUSTOM_ROLES` is on, Viewers, through Lane's
@@ -1090,7 +1090,7 @@ Dates and enthusiasm do not advance gates. Evidence does.
 ## 14. Subsystem planning boundaries
 
 The confirmed pipeline is not one implementation plan. Operational release gates remain prerequisites to
-production. Expected impact creation/review/detail is implemented and locally verified.
+production. Goal creation/review/detail is implemented and locally verified.
 **Optional reviewers** (2026-10-21, migration `0031`) replaced the bounded #58 trio alignment: reviewers,
 Looks good / Raise a concern answers, reset on edit and a pickup confirmation, with no progression guard.
 
@@ -1130,7 +1130,7 @@ increment at a time.
   plan (§4.4). Readiness checklists guide the person doing the work and never block; after pickup a material
   change becomes a linked replacement Request; pickup by any member is the only assignment.
 - **2026-10-20:** Workspace search scope approved as shipped (plan item 2.8): Requests and Projects, matched by
-  saved code, title, description and Expected impact text; status, type and created-date filters; recent
+  saved code, title, description and Goal text; status, type and created-date filters; recent
   searches (in memory only); a result preview, in a bottom sheet on narrow screens. Rich result rows stay
   (title, metadata, snippet, date). Enter on an exact saved code (case-insensitive) opens that Request and
   an exact code ranks first; Enter on other results previews them and Cmd or Ctrl+Enter opens them. Dates
@@ -1187,7 +1187,7 @@ sign-off rules recorded here (§4.4 and the 2026-10-21 Locked entry). Kept as hi
 - Large-journey unit of work and relationships beyond the confirmed follow-up link.
 - Select the first bounded agent task.
 - Journey representation and Request-to-journey relationships that make the shared record useful.
-- Validate the locally implemented Expected impact creation/review/detail controls, including unknown
+- Validate the locally implemented Goal creation/review/detail controls, including unknown
   baselines and both measurement modes. Discovery/bug handling beyond creation, period basis, compatible-metric
   aggregation and shared-result deduplication remain focused design/implementation decisions.
 - Define any additional workspace-level process signals beyond the confirmed outcome summaries.
@@ -1203,7 +1203,7 @@ sign-off rules recorded here (§4.4 and the 2026-10-21 Locked entry). Kept as hi
 
 - Lane's two foundations are a single source of truth for the product/journeys and expected-versus-actual
   impact at Request and quarterly/yearly product levels.
-- Predicted impact is captured during Request creation, before design/delivery, and agreed by the named
+- The goal is set during Request creation, before design/delivery, and agreed by the named
   PM, Designer and Developer before progression. Existing no-bypass and material-realignment rules remain.
 - The person who submitted the Request records actual results at the agreed post-launch window and owns
   closure. A PM label or named PM seat does not replace that ownership.
@@ -1232,7 +1232,7 @@ The older “outcome learning is only an unselected hypothesis until a paying cu
 for the specific Request-level contract above. Requests remains the product surface; this is not permission
 to add a suite, an engineering tracker, integrations, background automation or individual performance metrics.
 
-The 2026-10-06 Expected impact creation/review/detail increment is separately authorized and implemented
+The 2026-10-06 Goal creation/review/detail increment is separately authorized and implemented
 locally and verified. Optional reviewers replaced the planned trio alignment on 2026-10-21. Every further
 implementation, schema, new route, AI capability and release still needs its explicit approval gate. Current
 release evidence and operational gates are unchanged. Historical planning snapshots do not override this dated amendment.
