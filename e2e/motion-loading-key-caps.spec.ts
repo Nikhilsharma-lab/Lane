@@ -222,11 +222,16 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
         probe.remove();
         return colour;
       });
-      const pressedOnClick = async (link: ReturnType<Page["locator"]>, path: RegExp) => {
+      // Holds every request for the next page from before the page that links to it loads, so neither a prefetch
+      // nor the move itself can bring it in while the link is read.
+      const pressedOnClick = async (from: string, link: ReturnType<Page["locator"]>, path: RegExp, url: RegExp) => {
         let release!: () => void;
         const held = new Promise<void>(resolve => { release = resolve; });
         await page.route(path, async route => { await held; await route.continue().catch(() => undefined); });
         try {
+          await page.goto(from);
+          await expect(link).toBeVisible({ timeout: 20_000 });
+          await expect(page.locator("html[data-loading-feel=ready]")).toHaveCount(1, { timeout: 20_000 });
           await link.hover();
           const pressed = await pressedColour(link);
           await link.click({ noWaitAfter: true });
@@ -234,20 +239,16 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
         } finally {
           release();
         }
+        await expect(page).toHaveURL(url);
         await page.unrouteAll({ behavior: "ignoreErrors" });
+        await expect(page.locator("[data-pressed]")).toHaveCount(0);
       };
       const sidebar = page.locator("#lane-sidebar");
-      for (const [name, path, url] of [[/^Impact$/, /\/impact(\?|$)/, /\/impact$/], [/^Inbox/, /\/inbox(\?|$)/, /\/inbox$/]] as const) {
-        await page.goto("/");
-        await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
-        await pressedOnClick(sidebar.getByRole("link", { name }), path);
-        await expect(page).toHaveURL(url);
-        await expect(page.locator("[data-pressed]")).toHaveCount(0);
-      }
-      await page.goto("/settings/profile");
-      const members = page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Members", exact: true });
-      await pressedOnClick(members, /\/settings\/members(\?|$)/);
-      await expect(page).toHaveURL(/\/settings\/members$/);
+      await pressedOnClick("/", sidebar.getByRole("link", { name: /^Impact$/ }), /\/impact(\?|$)/, /\/impact$/);
+      await pressedOnClick("/", sidebar.getByRole("link", { name: /^Inbox/ }), /\/inbox(\?|$)/, /\/inbox$/);
+      // Metrics has its own page; the Profile page's own sections show in place, with nothing to wait for.
+      await pressedOnClick("/settings/profile", page.getByRole("navigation", { name: "Settings" }).getByRole("link", { name: "Metrics", exact: true }),
+        /\/settings\/metrics(\?|$)/, /\/settings\/metrics$/);
       await page.screenshot({ path: testInfo.outputPath("pressed-settings-nav.png") });
 
       await page.goto("/");

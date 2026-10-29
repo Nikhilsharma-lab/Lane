@@ -33,6 +33,8 @@ if (typeof window !== "undefined" && typeof MutationObserver === "function") {
     link.parentElement?.closest("[data-pressable]")?.setAttribute("data-pressed", "");
   }, true);
   addEventListener("popstate", clearPressed);
+  // For the browser tests: clicks from now on show as pressed.
+  document.documentElement.dataset.loadingFeel = "ready";
   document.addEventListener("animationstart", event => {
     const frame = event.target instanceof Element ? event.target.parentElement : null;
     if (frame?.hasAttribute("data-placeholder") && /placeholder-in/.test(event.animationName)) shown.add(frame);

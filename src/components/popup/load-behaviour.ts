@@ -2,8 +2,8 @@ import { useSyncExternalStore } from "react"
 
 /**
  * #263: the popup's phone panel switch (popup-behaviour.tsx) stays out of every page's first load. It loads at the
- * first sign someone is about to use a popup (a press, a key or focus anywhere in the page), or once the page is idle,
- * and no later than `DEADLINE_MS` after the page starts. Until then popups open as the centred Arc dialog; focus and
+ * first sign someone is about to use a popup (a press, a key or focus anywhere in the page but on a link, which moves
+ * to another page instead), or once the page is idle, and no later than `DEADLINE_MS` after the page starts. Until then popups open as the centred Arc dialog; focus and
  * the typed-text guard don't wait for it (adaptive-dialog.tsx, in-page-form.tsx).
  */
 type Behaviour = typeof import("./popup-behaviour")
@@ -27,13 +27,15 @@ export function loadBehaviour() {
 
 if (typeof window !== "undefined") {
   const INTENT = ["pointerdown", "keydown", "focusin"] as const
-  const start = () => {
+  const start = (event?: Event) => {
+    // A link moves to another page: loading now would only compete with that page.
+    if (event && (event.target as Element | null)?.closest?.("a[href]")) return
     for (const type of INTENT) document.removeEventListener(type, start, true)
     void loadBehaviour().catch(() => { loading = null })
   }
   for (const type of INTENT) document.addEventListener(type, start, true)
-  if (window.requestIdleCallback) window.requestIdleCallback(start, { timeout: DEADLINE_MS })
-  else window.setTimeout(start, 1)
+  if (window.requestIdleCallback) window.requestIdleCallback(() => start(), { timeout: DEADLINE_MS })
+  else window.setTimeout(() => start(), 1)
 }
 
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }
