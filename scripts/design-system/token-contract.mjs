@@ -457,11 +457,12 @@ export function auditMotionLiterals(source, file = 'component.tsx') {
   return errors
 }
 
-// #262 (polish bar §9): one key cap. Product code draws keys with KeyCap (Arc's ShortcutKbd); a raw
-// <kbd> outside Arc's own source would be a tenth hand-drawn style.
+// #262 (polish bar §9): one key cap. Product code, and the Arc components installed into Lane, draw keys
+// with KeyCap (Arc's ShortcutKbd); a raw <kbd> anywhere but the key cap's own source is a hand-drawn style.
 export const keyCapFile = 'src/components/keyboard/key-caps.tsx'
+const keyCapSource = 'src/components/arc/shortcut-recorder/'
 export function auditKeyCaps(source, file = 'component.tsx') {
-  if (file.startsWith('src/components/arc/') || file === keyCapFile || !source.includes('<kbd')) return []
+  if (file.startsWith(keyCapSource) || file === keyCapFile || !source.includes('<kbd')) return []
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const errors = []
   const visit = node => {

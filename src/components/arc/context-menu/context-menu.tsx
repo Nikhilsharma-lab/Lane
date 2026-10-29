@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/
 import { Check, ChevronLeft, ChevronRight, Copy, MoreHorizontal, Trash2 } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./context-menu.module.css";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 export interface ContextMenuItem {
   id: string;
@@ -200,7 +201,7 @@ function MenuPanel({ id, treeId, label, items, point, panelRef, reduced, isLive,
           {item.description ? <span className={styles.text}><span className={styles.label}>{item.label}</span><span id={descriptionId} className={styles.description}>{item.description}</span></span>
             : <span className={styles.label}>{item.label}</span>}
           {item.checked && item.icon && <Check className={styles.check} data-icon-size="sm" aria-hidden="true" />}
-          {item.shortcut && <kbd className={styles.shortcut} aria-hidden="true">{item.shortcut}</kbd>}
+          {item.shortcut && <KeyCap className={styles.shortcut}>{item.shortcut}</KeyCap>}
           {!!item.children?.length && <ChevronRight className={styles.chevron} data-icon-size="sm" aria-hidden="true" />}
         </button>
       </Fragment>; })}

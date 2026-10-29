@@ -17,7 +17,7 @@
 .item.destructive { color: var(--danger); }
 .icon { display: inline-flex; flex: none; width: var(--icon-size-md); align-items: center; justify-content: center; color: var(--text-secondary); }
 .label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.shortcut { flex: none; color: var(--text-secondary); font: inherit; font-size: var(--text-xs); }
+.shortcut { flex: none; }
 .chevron, .check { flex: none; color: var(--text-secondary); }
 .separator { height: var(--floating-border-width, calc(var(--space-1) * 0.25)); margin: var(--space-1) calc(-1 * var(--space-1)); background: var(--border); }
 .item[data-submenu-open] { background: var(--interaction-hover, var(--surface-muted)); }
@@ -25,4 +25,4 @@
 @keyframes context-item-in { from { opacity: 0; transform: translateY(calc(var(--space-1) * -0.5)); } }
 @media (prefers-reduced-motion: reduce) { .item, .highlight { animation: none; transition: none; } }
 /* Lane adaptation (plan item 2.4): keyboard hints hide on coarse pointers. */
-@media (pointer: coarse) { .item { min-height: calc(var(--space-1) * 11); } .shortcut { display: none; } }
+@media (pointer: coarse) { .item { min-height: calc(var(--space-1) * 11); } }

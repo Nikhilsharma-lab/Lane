@@ -9,6 +9,7 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, LoaderCircle, Lo
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./user-menu.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 export type UserStatus = "available" | "busy" | "away";
 export type ThemePreference = "light" | "dark" | "system";
@@ -140,7 +141,7 @@ function Rise({ text, reduced }: { text: string; reduced: boolean }) {
 }
 
 function Keys({ keys }: { keys: string[] }) {
-  return <kbd className={styles.keys} aria-hidden="true">{keys.map((key, index) => <kbd key={`${key}-${index}`} className={styles.key}>{key}</kbd>)}</kbd>;
+  return <span className={styles.keys} aria-hidden="true">{keys.map((key, index) => <KeyCap key={`${key}-${index}`}>{key}</KeyCap>)}</span>;
 }
 
 /** A compact inline switch. It is one stop in the menu: up and down pass over it, left and right choose within it. */

@@ -17,6 +17,7 @@ import { motionTokens } from "../../lib/motion-tokens";
 import { ProjectMarker } from "@/components/projects/project-marker";
 import styles from "./workspace-sidebar.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 export type WorkspaceNavigationItem = { id: string; name: string; href: string; icon?: ReactNode };
 export type WorkspaceNavigationGroup = { id: string; name: string; items: WorkspaceNavigationItem[] };
@@ -140,7 +141,7 @@ function RailTip({ enabled = true, label, note, shortcut, side = "right", childr
   return <TooltipPrimitive.Root open={enabled && open} onOpenChange={next => setOpen(next && enabled)}>
     <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
     <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Content className={styles.tip} side={side} sideOffset={side === "right" ? 14 : 8} collisionPadding={8}>{label}{note && <span className={styles.tipNote}>{note}</span>}{shortcut && <kbd>{shortcut}</kbd>}</TooltipPrimitive.Content>
+      <TooltipPrimitive.Content className={styles.tip} side={side} sideOffset={side === "right" ? 14 : 8} collisionPadding={8}>{label}{note && <span className={styles.tipNote}>{note}</span>}{shortcut && <KeyCap>{shortcut}</KeyCap>}</TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   </TooltipPrimitive.Root>;
 }
