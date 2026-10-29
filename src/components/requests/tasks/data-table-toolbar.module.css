@@ -3,6 +3,9 @@
 .toolbar { display: flex; min-width: 0; min-height: var(--request-toolbar-height); align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-6); }
 .status { min-width: 0; flex: 1 1 auto; }
 .statusRow { position: relative; display: flex; min-width: 0; flex-wrap: nowrap; align-items: center; gap: var(--space-2); }
+/* One line before the first measure too: wrapped chips would fold after hydration and move the list (#293). */
+.statusRow .statusChips { flex-wrap: nowrap; }
+.statusRow:not([data-measured]) { overflow: hidden; }
 .statusMeasure { position: absolute; top: 0; inset-inline-start: 0; display: flex; width: max-content; align-items: center; gap: var(--space-2); visibility: hidden; pointer-events: none; }
 /* The "N more" menu trigger reads as one more pill in the row. */
 .statusMore { display: inline-flex; flex: none; --radius-control: var(--radius-pill); }

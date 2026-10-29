@@ -22,12 +22,14 @@ const noop = () => {}
  * "N more" menu from the right, the current view is never hidden, and at the
  * narrowest widths the current view itself opens the menu. Widths come from an
  * inert copy of the full row that is never squeezed, so a folded row can
- * always grow back. */
+ * always grow back. Until the first measure (a server render, before
+ * hydration) the row is one clipped line, so folding never moves the list. */
 export function StatusPills({ filter, onStatusChange }: { filter: RequestStatusFilter; onStatusChange: (value: RequestStatusFilter) => void }) {
   const frame = useRef<HTMLDivElement>(null)
   const measure = useRef<HTMLDivElement>(null)
   const views = statusViewsFor(filter)
   const [fit, setFit] = useState(views.length)
+  const [measured, setMeasured] = useState(false)
 
   const current = views.find(view => view.value === filter) ?? views[0]
   const visible = fit >= views.length ? views : (() => {
@@ -44,6 +46,7 @@ export function StatusPills({ filter, onStatusChange }: { filter: RequestStatusF
       const chips = Array.from(sample.querySelectorAll<HTMLElement>("button[data-chip]"), chip => chip.getBoundingClientRect().width)
       const trigger = sample.querySelector<HTMLElement>("[data-status-more] button")?.getBoundingClientRect().width ?? 0
       if (chips.length !== views.length || !trigger) return
+      setMeasured(true)
       const available = node.clientWidth
       const total = chips.reduce((sum, width, index) => sum + width + (index ? GAP : 0), 0)
       if (total <= available) { setFit(views.length); return }
@@ -66,11 +69,11 @@ export function StatusPills({ filter, onStatusChange }: { filter: RequestStatusF
   const choose = (value: string) => { if (isRequestStatusFilter(value) && value !== filter) onStatusChange(value) }
   const menu = (items: StatusView[]) => items.map(view => ({ label: view.label, onSelect: () => choose(view.value) }))
 
-  return <div ref={frame} className={styles.statusRow} role="group" aria-label="Request status">
+  return <div ref={frame} className={styles.statusRow} data-measured={measured || undefined} role="group" aria-label="Request status">
     {fit === 0
       ? <span data-status-more className={styles.statusMore}><DropdownMenu label={current.label} items={menu(views.filter(view => view !== current))} /></span>
       : <>
-        <ChipGroup label="Status views" options={visible} value={[filter]} multiple={false} onValueChange={values => choose(values[0] ?? "all")} />
+        <ChipGroup label="Status views" className={styles.statusChips} options={visible} value={[filter]} multiple={false} onValueChange={values => choose(values[0] ?? "all")} />
         {hidden.length > 0 && <span data-status-more className={styles.statusMore}><DropdownMenu label={`${hidden.length} more`} items={menu(hidden)} /></span>}
       </>}
     {/* Invisible, inert copy of the full row: the source of natural widths. */}
