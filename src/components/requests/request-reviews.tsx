@@ -12,6 +12,7 @@ import * as actions from "@/app/(app)/requests/[id]/reviewer-actions";
 import { useReportReviewState } from "./pickup-confirmation";
 import { REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
 import { ReviewerInviteHint } from "./reviewer-invite-hint";
+import { InPageForm } from "@/components/popup/in-page-form";
 import styles from "./request-timeline.module.css";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
@@ -62,6 +63,7 @@ export function RequestReviews({
   const [reason, setReason] = useState("");
   const retry = useRef<ChangeAttempt | null>(null);
   const running = useRef(false);
+  const addButton = useRef<HTMLButtonElement>(null);
   const reportReviewState = useReportReviewState();
   // #77: pickup confirms from what this panel last read, which is newer than the
   // page's or the preview's loaded copy once a reviewer is added, removed or answers.
@@ -146,12 +148,13 @@ export function RequestReviews({
       <div className={styles.header}>
         <h4 id="reviewers-heading">Reviewers</h4>
         {view.canAdd && !adding && (
-          <Button variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
+          <Button ref={addButton} variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
         )}
       </div>
       {view.open && <p className={styles.muted}>Optional. People who should look at this before work starts.</p>}
 
       {adding && (
+        <InPageForm onDismiss={() => setAdding(false)} returnFocus={() => addButton.current ?? document.getElementById("reviewers-heading")}>
         <form
           className={styles.stack}
           onSubmit={(e) => {
@@ -191,6 +194,7 @@ export function RequestReviews({
             <Button type="button" variant="ghost" onClick={() => setAdding(false)} disabled={busy}>Cancel</Button>
           </div>
         </form>
+        </InPageForm>
       )}
 
       {view.reviewers.length ? (
@@ -198,7 +202,7 @@ export function RequestReviews({
           {view.reviewers.map((reviewer) => {
             const decision = reviewer.decision;
             return (
-              <li key={reviewer.id} className={reviewer.active ? styles.reviewer : `${styles.reviewer} ${styles.inactive}`}>
+              <li key={reviewer.id} data-reviewer-id={reviewer.id} className={reviewer.active ? styles.reviewer : `${styles.reviewer} ${styles.inactive}`}>
                 <span>{reviewer.name}</span>
                 <span className={styles.role}>{reviewer.active ? reviewer.role : "No longer in the workspace"}</span>
                 <span className={decision?.kind === "concern" ? styles.warning : styles.muted}>{reviewStatusLabel(reviewer, view.open)}</span>
@@ -216,6 +220,7 @@ export function RequestReviews({
                 {reviewer.note && <p className={`${styles.reason} ${styles.muted}`}>Asked: {reviewer.note}</p>}
                 {decision?.kind === "concern" && <p className={styles.reason}>{decision.reason}</p>}
                 {concernFor === reviewer.id && (
+                  <InPageForm onDismiss={() => setConcernFor(null)} returnFocus={() => document.querySelector<HTMLElement>(`#reviewers [data-reviewer-id="${reviewer.id}"] button:not(:disabled)`)}>
                   <form
                     className={styles.reason}
                     onSubmit={(e) => {
@@ -229,6 +234,7 @@ export function RequestReviews({
                       <Button type="button" variant="ghost" onClick={() => setConcernFor(null)} disabled={busy}>Cancel</Button>
                     </div>
                   </form>
+                  </InPageForm>
                 )}
               </li>
             );

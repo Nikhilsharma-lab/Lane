@@ -5,6 +5,7 @@ import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/
 import { Button } from "@/components/arc/button/button"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
+import { dismissOpenForm } from "@/components/popup/in-page-form"
 import type { OverviewRequest } from "@/lib/request-overview"
 import styles from "./request-peek.module.css"
 
@@ -94,6 +95,8 @@ export function RequestPeek(props: RequestPeekProps) {
     // Workspace search hides the page; Esc then belongs to the search pane.
     if (!isShown(panel.current)) return
     event.preventDefault()
+    // #263: an open form in the preview closes first (asking if it holds typed text); the preview stays.
+    if (panel.current && dismissOpenForm(panel.current)) return
     onClose()
   })
   useEffect(() => {

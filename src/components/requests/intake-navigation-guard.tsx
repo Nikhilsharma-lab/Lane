@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog";
 import { Button } from "@/components/arc/button/button";
 
 /** Mounted only while creation is unresolved or a saved Request has unfinished files. */

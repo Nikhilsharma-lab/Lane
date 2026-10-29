@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useEffect, useEffectEvent, useRef, useState } from "react"
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
+import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { SHORTCUT_GROUPS } from "@/lib/keyboard-shortcuts"
 import { useShellOpener } from "./shell-openers"

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic"
 import { createContext, useContext, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
+import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import { createIsItLive, IS_IT_LIVE_COPY, type AskIsItLive, type IsItLiveView } from "./is-it-live"
 import { restoreRequestFocus } from "./list-focus"
 import detailStyles from "./detail.module.css"
@@ -56,7 +56,7 @@ export function IsItLiveProvider({ orgId, children }: { orgId: string; children:
 
   return <IsItLiveContext.Provider value={ask}>
     {children}
-    <Dialog open={view !== null} onOpenChange={open => { if (!open) prompt.notYet() }}>
+    <Dialog guardTypedText open={view !== null} onOpenChange={open => { if (!open) prompt.notYet() }}>
       {view && <DialogContent data-is-it-live="" onCloseAutoFocus={returnFocus}
         title={view.step === "ask" ? IS_IT_LIVE_COPY.title : IS_IT_LIVE_COPY.releaseTitle}
         description={view.step === "ask" ? IS_IT_LIVE_COPY.question(view.request.name) : view.request.name}>

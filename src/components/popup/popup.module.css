@@ -1,0 +1,11 @@
+/* #263: Lane's shared popup pieces. Values come from the theme file. */
+.actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-block-start: var(--space-4); }
+
+/* Marks a popup's own content (for its first focus and the typed-text check) without adding a box to the layout. */
+.content { display: contents; }
+
+/* In the phone bottom panel every tap is at least 44px. Checkboxes and radios keep their size; their labels take the tap. */
+.sheet :is(button:not([data-grabber]):not([role="checkbox"]):not([role="radio"]):not([role="switch"]), [role="combobox"], a[href][class], input:not([type="checkbox"]):not([type="radio"])) {
+  min-height: var(--size-inner-xlarge);
+}
+.sheet :is(button[aria-label="Close"]) { min-width: var(--size-inner-xlarge); }

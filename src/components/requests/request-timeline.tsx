@@ -14,6 +14,7 @@ import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome"
 import type { ReleaseEvent } from "@/lib/request-release"
 import type { RequestDetail } from "./detail-view"
 import { ReleaseForm } from "./release-form"
+import { InPageForm } from "@/components/popup/in-page-form"
 import { RequestReviews } from "./request-reviews"
 import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverForm, MeasuredCloseForm, resultValue, VoidReleaseForm } from "./request-timeline-forms"
 import { timelineSteps, type TimelineStep } from "./request-timeline-model"
@@ -24,6 +25,8 @@ type OutcomeView = Exclude<Awaited<ReturnType<typeof readRequestOutcome>>, { err
 type Views = { release: ReleaseView; outcome: OutcomeView }
 
 const LOAD_FAILED = "Could not load the journey. Try again."
+/** #263: a step's action button, where focus goes back when its form closes. */
+const actionButton = (action: JourneyAction) => document.querySelector<HTMLElement>(`#journey [data-journey-action="${action}"]`)
 const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished", current: "current step", upcoming: "not reached yet", skipped: "skipped" }
 
 /** Both journey reads, or the error to show; never throws. */
@@ -183,11 +186,11 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
             {!!step.actions.length && mode === null && <ul className={styles.actions} aria-label={`${step.label} actions`}>
               {step.actions.map((action, index) => <li key={action.action} className={styles.action}>
                 {action.available
-                  ? <Button variant={index === 0 ? "primary" : "secondary"} onClick={() => setMode(action.action)}>{action.label}</Button>
+                  ? <Button variant={index === 0 ? "primary" : "secondary"} data-journey-action={action.action} onClick={() => setMode(action.action)}>{action.label}</Button>
                   : <><Button variant="secondary" disabled aria-describedby={`${headingId}-${action.action}`}>{action.label}</Button><span id={`${headingId}-${action.action}`} className={styles.muted}>{action.reason}</span></>}
               </li>)}
             </ul>}
-            {mode && step.actions.some(a => a.action === mode && a.available) && stepForm(mode)}
+            {mode && step.actions.some(a => a.action === mode && a.available) && <InPageForm onDismiss={() => setMode(null)} returnFocus={() => actionButton(mode)}>{stepForm(mode)}</InPageForm>}
           </div>
         </li>
       })}
