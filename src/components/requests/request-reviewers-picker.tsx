@@ -129,7 +129,7 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
         emptyText={needle ? "No Admin or Member matches" : "Nobody else to ask yet"} />}
       {people && <ReviewerInviteHint canInvite={canInvite} linked={false} className={labelStyles.caption} />}
       {loading && <Placeholder label="Loading people" lines={2} />}
-      {loadError && <><p role="alert" className={labelStyles.error}>{loadError}</p><Button type="button" size="sm" variant="secondary" onClick={() => void load()}>Retry</Button></>}
+      {loadError && <><p role="alert" className={labelStyles.error}>{loadError}</p><Button type="button" size="sm" variant="secondary" onClick={() => void load()}>Try again</Button></>}
       {full && <p role="status" className={labelStyles.caption}>A Request can have at most {MAX_REVIEWERS} reviewers.</p>}
       {value.length > 0 && <div className={labelStyles.question}>
         <Textarea label={REVIEW_QUESTION.label} description={REVIEW_QUESTION.description} placeholder={REVIEW_QUESTION.placeholder}

@@ -64,7 +64,7 @@ function PreviewLoading({ onClose }: { onClose: () => void }) {
 
 function PreviewFailed({ onClose }: { onClose: () => void }) {
   return <div className={styles.state} role="alert">
-    <p>The preview couldn't load. Reload the page to try again.</p>
+    <p>The preview couldn’t load. Reload the page to try again.</p>
     <Button type="button" variant="ghost" size="sm" onClick={onClose}>Close preview</Button>
   </div>
 }

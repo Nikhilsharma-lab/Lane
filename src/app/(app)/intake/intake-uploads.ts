@@ -140,7 +140,7 @@ export function createUploadSession(deps: UploadSessionDeps) {
       updateAttachment(attachment.key, {
         status: "failed",
         attachmentId: null,
-        error: "The file did not finish uploading. Your Request was created. Retry the upload.",
+        error: "The file did not finish uploading. Your Request was created. Try the upload again.",
       });
       return false;
     }

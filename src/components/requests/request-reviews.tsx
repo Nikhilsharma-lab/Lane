@@ -133,7 +133,7 @@ export function RequestReviews({
     return (
       <section id="reviewers" aria-label="Reviewers" className={styles.reviews}>
         <h4>Reviewers</h4>
-        {error ? <><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Retry</Button></> : <Placeholder label="Loading reviewers" lines={2} />}
+        {error ? <><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Try again</Button></> : <Placeholder label="Loading reviewers" lines={2} />}
       </section>
     );
 
@@ -178,7 +178,7 @@ export function RequestReviews({
           </div>
           {peopleError && <div className={styles.controls}>
             <p role="alert">{peopleError}</p>
-            <Button type="button" variant="secondary" onClick={() => { void loadPeople(); }}>Retry</Button>
+            <Button type="button" variant="secondary" onClick={() => { void loadPeople(); }}>Try again</Button>
           </div>}
           <Textarea
             label={REVIEW_QUESTION.label}
@@ -191,7 +191,7 @@ export function RequestReviews({
             disabled={busy}
           />
           <div className={styles.controls}>
-            <Button type="submit" loading={busy} disabled={!busy && !selected}>Add</Button>
+            <Button type="submit" loading={busy} disabled={!busy && !selected}>Add reviewer</Button>
             <Button type="button" variant="ghost" onClick={() => setAdding(false)} disabled={busy}>Cancel</Button>
           </div>
         </form>

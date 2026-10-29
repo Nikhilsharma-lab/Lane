@@ -16,9 +16,10 @@ export type CopyProblem = { file: string; line: number; text: string; rule: stri
 
 const RULES: { pattern: RegExp; rule: string }[] = [
   { pattern: /could not/i, rule: "Write \"Couldn't\", not \"Could not\"" },
-  { pattern: /—/, rule: "No em dashes" },
+  { pattern: /\u2014/, rule: "No em dashes" },
   { pattern: /\(UTC\)/, rule: "No \"(UTC)\"" },
   { pattern: /\bexposure\b/i, rule: "No \"exposure\"" },
+  { pattern: /\bUndo Done\b/, rule: "No \"Undo Done\"" },
 ]
 
 const ROOT = path.resolve(__dirname, "../..")

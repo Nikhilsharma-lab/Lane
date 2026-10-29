@@ -133,7 +133,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
         <h3 id="people-heading">People</h3>
         <p>{canManage ? "Everyone in this workspace. Change someone’s role to change what they can do." : "Everyone in this workspace and their role. Only Admins invite people or change roles."}</p>
         {state === "loading" && <div className={styles.rows}><Placeholder label="Loading people…" lines={3} /></div>}
-        {state === "error" && <div className={styles.rows}><Alert role="alert" tone="danger" title="People couldn’t be loaded." /><Button variant="secondary" size="sm" onClick={onRetry}>Try again</Button></div>}
+        {state === "error" && <div className={styles.rows}><Alert role="alert" tone="danger" title="People couldn’t be loaded" /><Button variant="secondary" size="sm" onClick={onRetry}>Try again</Button></div>}
         {state === "ready" && <ul className={styles.rows} aria-label="People in this workspace">
           {people.map(person => {
             const self = person.userId === selfId;

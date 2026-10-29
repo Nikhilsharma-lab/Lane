@@ -94,11 +94,11 @@ describe("Iterations of this problem", () => {
     expect(body).toContain("Link history (2)")
   })
 
-  it("says it is loading, and offers Retry when it can't load", () => {
+  it("says it is loading, and offers Try again when it can't load", () => {
     expect(render({ state: { kind: "loading" } })).toContain('role="status"')
     const failed = render({ state: { kind: "error", message: "Couldn't load the Iterations. Try again." } })
     expect(failed).toContain('role="alert"')
-    expect(failed).toContain(">Retry<")
+    expect(failed).toContain(">Try again<")
   })
 
   it("keeps a long title as text that wraps, never cut short", () => {

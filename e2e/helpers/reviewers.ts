@@ -174,7 +174,7 @@ export async function addReviewerThroughUI(team: ReviewTeam, name: string) {
   await panel.getByRole("button", { name: "Add reviewer", exact: true }).click();
   await panel.getByRole("combobox", { name: "Reviewer", exact: true }).click();
   await team.pages[0].getByRole("option", { name, exact: true }).click();
-  const submit = panel.getByRole("button", { name: "Add", exact: true });
+  const submit = panel.getByRole("button", { name: "Add reviewer", exact: true });
   await submit.focus();
   await expect(submit).toBeFocused();
   await submit.press("Enter");

@@ -1163,7 +1163,7 @@ export default function RequestEditor({
                       setValue("usefulLink", "", { shouldDirty: true, shouldValidate: true });
                       setLinkOpen(false);
                     }}>Remove link</Button>}
-                    <Button type="button" variant="secondary" size="sm" onClick={() => void finishLink()}>Done</Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => void finishLink()}>Save link</Button>
                   </div>
                 </PopoverContent>
               </Popover>

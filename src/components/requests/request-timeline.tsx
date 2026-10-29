@@ -102,7 +102,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false }: {
 
   if (!views) return <section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <h2 id="journey-heading" className={styles.heading}>Journey</h2>
-    {error ? <><p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void load() }}>Retry</Button></div></> : <Placeholder label="Loading journey" lines={4} />}
+    {error ? <><p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void load() }}>Try again</Button></div></> : <Placeholder label="Loading journey" lines={4} />}
   </section>
 
   const { release, outcome } = views

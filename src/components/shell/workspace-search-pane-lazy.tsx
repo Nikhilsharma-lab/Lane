@@ -39,7 +39,7 @@ export function WorkspaceSearchPane(props: WorkspaceSearchPaneProps) {
   // The fallback follows the pane's own visibility: closing search hides it, as it hides the pane.
   return <div className={styles.root} hidden={!props.active}>
     {failed
-      ? <div className={styles.loading}><div className={styles.error}><Alert tone="danger" title="Search unavailable">Search couldn't load. Check your connection and try again.</Alert>
+      ? <div className={styles.loading}><div className={styles.error}><Alert tone="danger" title="Search unavailable">Search couldn’t load. Check your connection and try again.</Alert>
         <Button variant="secondary" size="sm" onClick={() => { setFailed(false); setAttempt(value => value + 1) }}>Try again</Button></div></div>
       : <Placeholder><div className={styles.loading}><Skeleton label="Loading search" lines={3} /></div></Placeholder>}
   </div>

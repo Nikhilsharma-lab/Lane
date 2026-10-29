@@ -64,7 +64,7 @@ describe("Settings → Members (#210)", () => {
   it("says so while loading, and offers a retry when Clerk can't be reached", () => {
     expect(render({ state: "loading", people: [], invitations: [] })).toContain("Loading people…")
     const failed = render({ state: "error", people: [], invitations: [] })
-    expect(failed).toContain("People couldn’t be loaded.")
+    expect(failed).toContain("People couldn’t be loaded")
     expect(failed).toContain(">Try again<")
   })
 

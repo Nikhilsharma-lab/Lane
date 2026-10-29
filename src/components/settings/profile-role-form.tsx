@@ -165,7 +165,7 @@ function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: Produ
           return;
         }
         setSavedRole(next);
-        toast({ type: "success", title: "Role updated." });
+        toast({ type: "success", title: "Role updated" });
       } catch (thrown) {
         setFeedback({ kind: "error", message: thrownMessage(thrown, "Your role couldn't be saved. Try again.") });
       } finally {

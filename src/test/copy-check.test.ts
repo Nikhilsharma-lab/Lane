@@ -21,11 +21,12 @@ describe("the copy check", () => {
   })
 
   it("fails the other words the polish bar rules out", () => {
-    const source = `export const a = "Released on 3 Mar (UTC)"\nexport const b = \`Actual exposure date\`\nexport const c = "we could not load it"\n`
+    const source = `export const a = "Released on 3 Mar (UTC)"\nexport const b = \`Actual exposure date\`\nexport const c = "we could not load it"\nexport const d = "Recording ends Undo Done"\n`
     expect(copyProblems("words.ts", source).map(problem => [problem.line, problem.rule])).toEqual([
       [1, "No \"(UTC)\""],
       [2, "No \"exposure\""],
       [3, "Write \"Couldn't\", not \"Could not\""],
+      [4, "No \"Undo Done\""],
     ])
   })
 
