@@ -203,7 +203,9 @@ export type OutlineStep = Pick<TimelineStep, "status" | "label" | "state"> & {
   actions: TimelineAction[]
 }
 
-export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGuest" | "readOnly" | "requestedBy" | "requestedAt" | "assigneeName" | "audience" | "actions" | "hasAgreedResult"> & {
+export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGuest" | "readOnly" | "requestedBy" | "requestedAt" | "assigneeName" | "audience" | "hasAgreedResult"> & {
+  /** The reader's actions, decided on the server from the saved Request; none are held without them. */
+  actions: JourneyActions | null
   releaseState: ReleaseState | null
   closure: OutcomeClosure | OutcomeException | null
 }
@@ -257,7 +259,7 @@ export function journeyOutline(input: OutlineInput): { steps: OutlineStep[]; his
         if (closure.learned) after.push(learnedLine(closure.learned))
         after.push(CLOSED_NEXT)
       }
-      return { status, label: stepLabel(input.journey, status, label), state, happened, reviews: status === "open", after, actions: isCurrent ? stepActions(input, status) : [] }
+      return { status, label: stepLabel(input.journey, status, label), state, happened, reviews: status === "open", after, actions: isCurrent && input.actions ? stepActions({ ...input, actions: input.actions }, status) : [] }
     }),
     history: !!input.releaseState?.history.length,
   }

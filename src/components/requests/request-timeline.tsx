@@ -10,7 +10,7 @@ import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { canChange } from "@/lib/request-access-rules"
-import { FORMER_MEMBER, journeyActions, journeyDate, journeyDay as day, journeyFactsOf, journeyStatus, type JourneyAction } from "@/lib/request-journey"
+import { FORMER_MEMBER, journeyDate, journeyDay as day, journeyFactsOf, journeyStatus, type JourneyAction } from "@/lib/request-journey"
 import { agreedAudience } from "@/lib/request-release-facts"
 import { DAY_MS, dayNumber } from "@/lib/utc-day"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome"
@@ -137,13 +137,9 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, rea
 
   // #295: until the reads arrive, the journey as the Request alone draws it, in the same places as below.
   if (!views) {
-    const facts = { ...journeyFactsOf(request), createdBy: request.createdBy, takenOnBy: request.takenOnBy }
-    // The reader's actions by the rules the read journey uses. The roster isn't read yet, so the reader counts as
-    // active and the Requester's name is the creator's: it only sizes a held reason.
-    const viewer = { id: reader?.userId ?? "", role: reader?.role ?? (isGuest ? "guest" : "viewer"), active: true } as const
     const outline = journeyOutline({
-      journey: journeyStatus(facts), workStatus: request.status, isGuest, readOnly, hasAgreedResult: Boolean(request.expectedImpact),
-      actions: journeyActions(facts, viewer, { requesterName: request.creatorName || FORMER_MEMBER, requesterActive: true }, new Date()),
+      journey: journeyStatus(journeyFactsOf(request)), workStatus: request.status, isGuest, readOnly, hasAgreedResult: Boolean(request.expectedImpact),
+      actions: request.readerActions ?? null,
       requestedBy: request.creatorName || FORMER_MEMBER, requestedAt: new Date(request.createdAt).toISOString(), assigneeName: request.assigneeName, audience: agreedAudience(request),
       releaseState: request.releaseState ?? null, closure: request.outcomeClosure ?? request.exceptionClosure ?? null,
     })

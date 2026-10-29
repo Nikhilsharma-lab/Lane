@@ -317,6 +317,14 @@ describe("review state (#77)", () => {
     expect((await loadRequestDetail({ ...member, userId: OTHER_ADMIN }, reviewedRequest))?.request.reviewerOutline?.map(r => r.mine)).toEqual([false, false, true]);
     expect((await loadRequestDetail(member, memberRequest))?.request.reviewerOutline).toEqual([]);
   });
+
+  it("gives Request detail the reader's journey actions from the saved Request, with no roster read (#295)", async () => {
+    // In progress, filed by the Member: they may close it without a result; someone else may not, and is told who can.
+    const own = (await loadRequestDetail(member, memberRequest))?.request.readerActions;
+    expect(own?.closeWithoutResult).toEqual({ allowed: true });
+    const other = (await loadRequestDetail({ ...member, userId: OTHER_ADMIN }, memberRequest))?.request.readerActions;
+    expect(other?.closeWithoutResult).toEqual({ allowed: false, reason: "Only the Requester, Test Member, can close this." });
+  });
 });
 
 describe("loadRequestDetail", () => {

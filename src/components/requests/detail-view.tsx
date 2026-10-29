@@ -30,6 +30,8 @@ export type RequestDetail = {
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
   /** Each saved reviewer's shape, so the reviewers' loading state holds their rows (#295). Optional only for older fixtures. */
   reviewerOutline?: import("@/lib/request-reviewer-rules").ReviewerOutline[]
+  /** The reader's journey actions, decided on the server from the saved Request: the journey holds their buttons while it loads (#295). */
+  readerActions?: import("@/lib/request-journey").JourneyActions
   /** The Request this one follows up, if any: the journey holds its "Follow-up of" line while it loads (#295). */
   followUpOf?: string | null
   exceptionClosure?: import("@/lib/request-outcome").OutcomeException | null

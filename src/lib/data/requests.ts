@@ -10,7 +10,7 @@ import type { Reviewer, ReviewerOutline, ReviewState } from "@/lib/request-revie
 import { reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
 import { currentMetricNames } from "@/lib/metrics-library"
-import { journeyStatus } from "@/lib/request-journey"
+import { FORMER_MEMBER, journeyActions, journeyStatus } from "@/lib/request-journey"
 import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
 import type { FinishedView } from "@/lib/request-workspace"
 import { guestPickupRefusal, type GuestSubmissionState } from "@/lib/guest-submission"
@@ -289,5 +289,9 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   const { guestSubmissionState: state, takenOnByName, ...saved } = withoutReviewers(request)
   // #212: who filed it and who took it on, for the Request's Guest submission notice.
   const guestSubmission = state ? { state, submitterName: request.creatorName, takenOnBy: request.takenOnBy, takenOnByName } : null
-  return { request: { ...saved, guestSubmission, reviewState, metricNames, pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
+  // #295: the reader's journey actions as the saved Request decides them, for the Request page to hold their buttons
+  // until the journey's reads arrive. The roster isn't read here (it asks Clerk), so the reader counts as active and
+  // the Requester's name is the saved creator's.
+  const readerActions = journeyActions(request, { id: auth.userId, role: auth.role, active: true }, { requesterName: request.creatorName || FORMER_MEMBER, requesterActive: true }, new Date())
+  return { request: { ...saved, guestSubmission, reviewState, metricNames, readerActions, pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
 }
