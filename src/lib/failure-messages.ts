@@ -1,4 +1,4 @@
-import { OfflineError } from "./connection-status"
+import { OfflineError } from "./offline-error"
 
 /**
  * #260 (polish bar §4): the one set of words Lane uses when a change or a read

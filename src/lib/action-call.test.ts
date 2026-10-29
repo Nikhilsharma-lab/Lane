@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { callAction, isSessionFailure, type ActionSession } from "./action-call"
-import { OfflineError } from "./connection-status"
+import { OfflineError } from "./offline-error"
 
 const session = (): ActionSession & { order: string[] } => {
   const order: string[] = []
