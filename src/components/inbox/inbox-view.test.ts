@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest"
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }) }))
 
 import { InboxView, type InboxViewProps } from "./inbox-view"
+import { StableRouterProvider } from "@/components/shell/stable-router"
 import type { InboxItem, NeedsYouInboxItem } from "./inbox-item"
 
 const item = (over: Partial<InboxItem> = {}): InboxItem => ({
@@ -12,10 +13,10 @@ const item = (over: Partial<InboxItem> = {}): InboxItem => ({
   requestTitle: "Checkout copy", requestNumber: 12, reframedProblem: "Customers cannot find the delivery date", detail: null, ...over,
 })
 const noop = () => {}
-const render = (over: Partial<InboxViewProps> = {}) => renderToStaticMarkup(createElement(InboxView, {
+const render = (over: Partial<InboxViewProps> = {}) => renderToStaticMarkup(createElement(StableRouterProvider, null, createElement(InboxView, {
   items: [item()], unread: 1, selectedId: null, preview: null,
   onSelect: noop, onToggleRead: noop, onMarkAllRead: noop, onRetry: noop, ...over,
-}))
+})))
 
 describe("Inbox page", () => {
   it("names the page Inbox and lists For-your-information items under their own heading", () => {

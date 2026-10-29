@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useStableRouter } from "@/components/shell/stable-router"
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { callAction, clerkActionSession, isSessionFailure, type ActionSession } from "@/lib/action-call"
 import { usePendingMutationWriter, type PendingMutations, type RequestPatch } from "./pending-mutations-provider"
@@ -139,9 +139,10 @@ export async function runOptimisticBatch(deps: OptimisticDeps, options: {
 }
 
 /** The router refresh for failure paths and the explicit Refresh control. It
- * lives here so the ESLint ban on router.refresh() has a single exception. */
+ * lives here so the ESLint ban on router.refresh() has a single exception
+ * (stable-router.tsx only holds the router it calls, #296). */
 export function useServerRefresh() {
-  const router = useRouter()
+  const router = useStableRouter()
   return useCallback(() => router.refresh(), [router])
 }
 
