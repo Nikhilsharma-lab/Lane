@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Bookmark, ChartColumn, Rows3 } from "lucide-react";
 import type { UserMenuWorkspaces } from "@/components/arc/user-menu/user-menu";
 import { WorkspaceSidebar, type WorkspaceLinkProps } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
 import { isSameTabRequestLink, useRequestNavigation } from "@/components/requests/request-navigation";
 import { NewRequestLink } from "@/components/requests/new-request-link";
+import type { PrefetchKind } from "next/dist/client/components/router-reducer/router-reducer-types";
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer";
 import { useLoadedRequests, useRequestListContext } from "@/components/requests/list-view-state";
 import { requestListHref } from "@/lib/request-workspace";
@@ -72,6 +74,18 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // that context and the setter only, so typing in the list filter does not
   // re-render it. Fixtures without the provider fall back to the props.
   const navigation = useRequestNavigation();
+  const router = useRouter();
+  const membersHref = role === "admin" || role === "member" ? "/settings/members" : undefined;
+  // #258: opening the account menu fully prefetches Settings (and Members, for people who see it), as Request
+  // rows do (FULL_PREFETCH in use-intent-prefetch.ts), so choosing either answers at once. Spelled here so the shell carries no module for it.
+  // #259: it starts as the pointer reaches the account button or focus lands on it, and loads once while what it
+  // loaded is fresh (next.config.ts staleTimes, 30 s): moving about on the button, then opening the menu, loads nothing more.
+  const settingsLoadedAt = useRef(-Infinity);
+  const loadSettingsAhead = useCallback(() => {
+    if (performance.now() - settingsLoadedAt.current < 30_000) return;
+    settingsLoadedAt.current = performance.now();
+    for (const href of ["/settings/profile", membersHref]) if (href) router.prefetch(href, { kind: "full" as PrefetchKind });
+  }, [router, membersHref]);
   const listContext = useRequestListContext();
   const { status: filter, project: projectFilter, savedView: openViewId } = listContext;
   // Already on "/", a plain click on a Requests list link (All Requests, a
@@ -183,7 +197,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>
       <div className={styles.sidebarPanel} data-sidebar-panel="">
       <WorkspaceSidebar className={styles.sidebar} layoutManaged forceDesktopLayout projectTree workspace={{ id: "current", name: workspaceName, initial: workspaceName.trim().slice(0, 1).toUpperCase() || "L" }}
-        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={role === "admin" || role === "member" ? "/settings/members" : undefined} canCompose={role !== "viewer"} help={FIRST_RUN_HELP} onSignOut={onSignOut}
+        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={membersHref} onAccountMenuOpen={loadSettingsAhead} canCompose={role !== "viewer"} help={FIRST_RUN_HELP} onSignOut={onSignOut}
         groups={groups} projects={[...projects.map(item => ({ ...item, href: requestListHref(filter, item.id) })), { id: "none", name: "No Project", href: requestListHref(filter, "none") }]}
         activeId={searchOpen ? "search" : active} currentPage={searchOpen ? "Search" : page ?? section} loading={projectsLoading} error={projectsError} onRetry={onRetryProjects}
         onSearch={openSearch} searchActive={searchOpen}

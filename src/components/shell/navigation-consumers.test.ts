@@ -11,6 +11,7 @@ import { useRequestNavigation } from "../requests/request-navigation"
 import { PickupConfirmationProvider } from "../requests/pickup-confirmation"
 import { ToastStackProvider } from "../arc/toast-stack/toast-stack"
 import { openSavedView, savedViewChoices } from "@/lib/saved-view-rules"
+import { StableRouterProvider } from "./stable-router"
 
 const captured = vi.hoisted(() => ({ options: new Map<string, ComponentProps<typeof PaletteOption>>(), inbox: null as InboxViewProps | null, push: vi.fn() }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: captured.push, replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
@@ -27,8 +28,8 @@ function renderConsumer(children: ReactNode) {
   let read: (() => ReturnType<typeof useListViewSnapshot>) | undefined
   let navigation: ReturnType<typeof useRequestNavigation> | undefined
   function Probe() { const snapshot = useListViewSnapshot(); read = () => snapshot; navigation = useRequestNavigation(); return null }
-  renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(RequestListViewProvider, null,
-    createElement(Probe), createElement(PickupConfirmationProvider, null, children))))
+  renderToStaticMarkup(createElement(StableRouterProvider, null, createElement(ToastStackProvider, null, createElement(RequestListViewProvider, null,
+    createElement(Probe), createElement(PickupConfirmationProvider, null, children)))))
   if (!read || !navigation) throw new Error("Workspace consumer did not mount")
   vi.stubGlobal("HTMLElement", class HTMLElement {})
   vi.stubGlobal("window", { location: { pathname: "/", search: "" } })

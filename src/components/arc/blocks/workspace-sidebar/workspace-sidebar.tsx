@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 // Licensed Arc Pro workspace-sidebar. Lane data/route adapters are documented in arc-sources.md.
 // Arc Pro source (https://uiarc.dev), used under the Arc Pro license as part of the Lane app.
 // It is not covered by any license of this repository and may not be reused outside Lane.
@@ -38,6 +39,10 @@ export interface WorkspaceSidebarProps {
   user: { name: string; email: string };
   settingsHref: string;
   membersHref?: string;
+  /** Lane #258: runs each time the account menu opens (once per open), so the parent can load its destinations ahead.
+   * #259: also as soon as someone heads for it: the pointer reaching the account button (not touch), or focus landing on
+   * it or inside the menu. It can run several times for one visit, so the parent loads once per what it keeps fresh. */
+  onAccountMenuOpen?: () => void;
   /** Lane #217: a help link in the account menu (the first-run guide). */
   help?: { label: string; href: string };
   /** Lane #210: false hides the New Request control for someone who can't file (a Viewer). */
@@ -371,8 +376,10 @@ function usePageLock(locked: boolean) {
   }, [locked]);
 }
 
-export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, help, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onAccountMenuOpen, help, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
   const reduce = useReducedMotionSafe();
+  // Lane #259: the account menu's Lane destinations open inside the app, so Settings loaded ahead shows at once.
+  const { push } = useRouter();
   const phone = usePhone() && !forceDesktopLayout;
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [drawer, setDrawer] = useState(false);
@@ -477,6 +484,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
   useRailShortcut(frame, () => { if (workspaces?.pendingId) return; if (phone) { if (drawer) closeDrawer(); else openDrawer(); } else if (!layoutManaged) setRail(!collapsed); }, layoutManaged && !phone);
 
   function onAccountOpenChange(open: boolean) {
+    if (open && !menuOpen.current) onAccountMenuOpen?.();
     menuOpen.current = open;
     setAccountOpen(open);
     if (!open && phone) requestAnimationFrame(() => {
@@ -541,8 +549,8 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
   const nav = <motion.nav ref={frame} id={navId} className={[styles.sidebar, className].filter(Boolean).join(" ")} aria-label="Primary navigation" style={phone ? undefined : { width: layoutManaged ? "100%" : width }} data-rail={rail || undefined} data-placement={phone ? "drawer" : "inline"} data-force-desktop={forceDesktopLayout || undefined}>
       <div className={styles.header}>
         <div className={styles.identityRow}>
-        <div className={styles.accountSlot}>
-          <UserMenu ref={accountTrigger} user={user} showName={!rail} showTheme={false} align="start"
+        <div className={styles.accountSlot} onPointerEnter={event => { if (event.pointerType !== "touch") onAccountMenuOpen?.(); }} onFocus={onAccountMenuOpen}>
+          <UserMenu ref={accountTrigger} user={user} showName={!rail} showTheme={false} align="start" onNavigate={push}
             className={styles.accountTrigger} open={accountOpen} onOpenChange={onAccountOpenChange}
             items={[
               { label: "Settings", icon: <Settings />, href: settingsHref, current: activeId === settingsHref, onSelect: () => select(settingsHref, "Settings") },

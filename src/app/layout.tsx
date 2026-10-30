@@ -7,6 +7,7 @@ import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toa
 import { SpeedInsights } from "@/components/speed-insights";
 import { WebVitals } from "@/components/web-vitals";
 import { reportsSpeedInsights } from "@/lib/speed-insights";
+import { SESSION_TASK_URLS, SIGN_IN_URL, SIGN_UP_URL } from "@/lib/session-task-urls";
 // The one theme file, Arc's foundation (in a lower cascade layer) and the bridge all load through
 // globals.css; src/styles/theme.css explains its two halves.
 import "./globals.css";
@@ -79,19 +80,19 @@ export default function RootLayout({
         {/* `ui` pins Clerk's components to the installed @clerk/ui version instead of the CDN build,
             so the members table's .cl-* layout rules (clerk-profile.module.css) cannot break silently
             and Clerk stops logging its structural_css_pin_clerk_ui warning on every page.
-            `prefetchUI={false}` drops the CDN preload of ui.browser.js, which the bundled UI never uses. */}
+            `prefetchUI={false}` drops the CDN preload of ui.browser.js, which the bundled UI never uses.
+            Keep `ui={ui}`: with it, Clerk's windows and Lane's own Members list share Clerk's in-memory
+            cache, so a person removed in Manage members drops from Lane's list when the window closes
+            (#257; e2e/clerk-member-windows.spec.ts is the guard). */}
         <ClerkProvider
           ui={ui}
           prefetchUI={false}
-          signInUrl="/login"
-          signUpUrl="/signup"
+          signInUrl={SIGN_IN_URL}
+          signUpUrl={SIGN_UP_URL}
           signInFallbackRedirectUrl="/"
           signUpFallbackRedirectUrl="/onboarding"
           allowedRedirectOrigins={allowedRedirectOrigins}
-          taskUrls={{
-            "choose-organization": "/login",
-            "reset-password": "/reset-password",
-          }}
+          taskUrls={SESSION_TASK_URLS}
         >
           <ThemeProvider>
             <ToastStackProvider>

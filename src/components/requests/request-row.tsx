@@ -10,10 +10,9 @@ import { WAITING_TO_BE_TAKEN_ON } from "@/lib/guest-submission"
 import { Badge } from "@/components/arc/badge/badge"
 import { rowDue, rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { REQUEST_PRIORITY_LABELS } from "@/lib/request-constants"
-import { requestDetailHref, type RequestProjectFilter, type RequestStatusFilter } from "@/lib/request-workspace"
+import { requestDetailHref } from "@/lib/request-workspace"
 import { ROW_MENU_HINTS } from "@/lib/keyboard-shortcuts"
 import type { RequestColumn } from "./tasks/columns"
-import { useIntentPrefetch } from "./use-intent-prefetch"
 import { GlyphMenu } from "./glyph-menu"
 import { requestRowLabel } from "./request-row-label"
 import styles from "./request-rows.module.css"
@@ -26,6 +25,7 @@ import { statusOfJourney } from "./tasks/statuses"
 import { DueTag, useDueNow } from "./due-tag"
 import { useListAnnouncer } from "./list-announcer"
 import { useRequestPeekOpener } from "./request-peek"
+import { useRowLoadAhead } from "./request-peek-load-ahead"
 
 function RequestCodeControl({ code }: { code: string }) {
   const feedbackId = useId()
@@ -76,8 +76,6 @@ type RequestRowProps = {
   request: OverviewRequest
   columns: RequestColumn[]
   visibility: Record<string, boolean>
-  filter: RequestStatusFilter
-  projectFilter: RequestProjectFilter
   checked: boolean
   disabled: boolean
   /** Plan item 2.4: this row holds the grid's one tab stop. */
@@ -98,21 +96,20 @@ const shallowEqual = (a: object, b: object) => {
 /** Each RSC response and each overlay patch hands rows new objects. A row
  * re-renders only when what it shows changed: its id, status, priority,
  * request number or another saved field (compared field by field), its
- * selection, or the view's columns and filters (plan item 1.14). The row
- * presentation context still re-renders rows when codes or priorities change. */
+ * selection, or the view's columns (plan item 1.14). A status view or Project
+ * change re-renders only the rows it brings in (#296). The row presentation
+ * context still re-renders rows when codes or priorities change. */
 function sameRow(previous: RequestRowProps, next: RequestRowProps) {
   return previous.checked === next.checked
     && previous.disabled === next.disabled
     && previous.tabbable === next.tabbable
     && previous.level === next.level
-    && previous.filter === next.filter
-    && previous.projectFilter === next.projectFilter
     && previous.columns === next.columns
     && shallowEqual(previous.visibility, next.visibility)
     && (previous.request === next.request || shallowEqual(previous.request, next.request))
 }
 
-export const RequestRow = memo(function RequestRow({ request, columns, visibility, filter, projectFilter, checked, disabled, tabbable = false, level, onCheckedChange }: RequestRowProps) {
+export const RequestRow = memo(function RequestRow({ request, columns, visibility, checked, disabled, tabbable = false, level, onCheckedChange }: RequestRowProps) {
   const labels = useRequestLabels(request)
   const presentation = useRequestRowPresentation()
   const identity = presentation?.identities[request.id]
@@ -120,7 +117,8 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   const code = savedCode ?? identity?.code ?? ""
   const rowRef = useRef<HTMLDivElement>(null)
   // Plan item 2.4: keyboard focus rests on the row, so the row prefetches its detail once the person stops on it.
-  const prefetch = useIntentPrefetch(requestDetailHref(request.id, "all"))
+  // #258: that rest, by keyboard or pointer, also reads the Request into its preview, where the list offers one.
+  const rest = useRowLoadAhead(requestDetailHref(request.id, "all"), request.id)
   const actionItems = presentation?.menuItems(request) ?? []
   // Plan item 2.12: Preview, where the list offers it (not on phones).
   const peek = useRequestPeekOpener()
@@ -148,8 +146,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
     id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
     className={styles.row} data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-menu-open={menuOpen || undefined}
-    onFocus={event => { if (event.target === event.currentTarget) prefetch.schedule() }}
-    onBlur={event => { if (event.target === event.currentTarget) prefetch.cancel() }}>
+    {...rest.focus} {...rest.pointer}>
     <div role="gridcell" className={styles.selectCell}>
       <Checkbox tabIndex={-1} checked={checked} disabled={disabled} onCheckedChange={value => onCheckedChange(value === true)} aria-label={`Select ${request.reframedProblem ?? request.title}`} />
     </div>
@@ -165,13 +162,13 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
     {identity && visibility.status !== false && <GlyphMenu label="Request status" items={actionItems.find(item => item.id === "status")?.children ?? []} tip={`Status: ${status.label}`}>
         <button type="button" tabIndex={-1} className={styles.identityControl} data-status={journey.status} aria-haspopup="menu" aria-label={`Status: ${status.label}`}><StatusGlyph status={journey.status} /></button>
       </GlyphMenu>}
-    {columns[0].render(request, filter, projectFilter)}
+    {columns[0].render(request)}
     {/* The sketch's reserved "waiting" token (2026-10-11): a Guest submission waiting to be taken on (#212); see request-rows.module.css. */}
     <div className={styles.properties}>
       {request.guestSubmission === "waiting" && <span data-row-property="waiting" aria-hidden="true"><Badge size="sm" tone="warning">{WAITING_TO_BE_TAKEN_ON}</Badge></span>}
       {concerns && <span data-row-property="concerns" aria-hidden="true"><Badge size="sm" tone="warning">{concerns}</Badge></span>}
       {due.kind !== "none" && <span data-row-property="due" aria-hidden="true"><DueTag signal={due} /></span>}
-      {columns.filter(column => column.key !== "title" && (!presentation || (column.key !== "status" && !unset(column.key))) && visibility[column.key] !== false).map(column => <span key={column.key} data-row-property={column.key}>{column.render(request, filter, projectFilter)}</span>)}
+      {columns.filter(column => column.key !== "title" && (!presentation || (column.key !== "status" && !unset(column.key))) && visibility[column.key] !== false).map(column => <span key={column.key} data-row-property={column.key}>{column.render(request)}</span>)}
     </div>
 
     </div>

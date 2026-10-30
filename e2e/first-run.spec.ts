@@ -1,10 +1,23 @@
 import { expect, test } from "@playwright/test";
-import postgres from "postgres";
 
-import { cleanupTestWorkspace } from "./helpers/cleanup";
+import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
 import { assertOwnedOrganization, registerBrowserTestOrganization } from "./helpers/fixtures";
-import { assertE2ETarget } from "./helpers/safety";
 import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
+
+// The guide's Free Requests line before the first Request: all 4 left on a clean database; some left and shared
+// with another example.com workspace, which used the rest (3fad2ccf); or none left, used by that workspace.
+const FREE_LINE = /^(?:([1-4]) of 4 Free Requests left\.(?: They are shared with another workspace from example\.com, which used ([1-3])\.)?|The Free Requests for example\.com were already used by another workspace\.)$/;
+const ALL_USED_WITH_ANOTHER = "This workspace and another from example.com have used the 4 Free Requests for example.com.";
+
+/** The line once this workspace has filed one Request (billing isn't enforced, so the 5th is still filed). */
+function freeLineAfterFiling(before: string) {
+  const [, left, usedElsewhere] = before.match(FREE_LINE)!;
+  if (!left) return ALL_USED_WITH_ANOTHER;
+  const leftAfter = Number(left) - 1;
+  if (!usedElsewhere) return `${leftAfter} of 4 Free Requests left.`;
+  if (leftAfter === 0) return ALL_USED_WITH_ANOTHER;
+  return `${leftAfter} of 4 Free Requests left. They are shared with another workspace from example.com, which used ${usedElsewhere}.`;
+}
 
 // #217 (spec #195, item 6): one browser walkthrough of a new team's first run. Prior art: onboarding.spec.ts
 // (creating the workspace through Clerk's task) and request-outcome.spec.ts (a Request through the real app).
@@ -34,9 +47,11 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     const client = await assertOwnedOrganization(orgId);
     await client.organizations.createOrganizationMembership({ organizationId: orgId, userId: teammate.id, role: "org:member" });
     await client.users.updateUser(teammate.id, { firstName: "Riley", lastName: "Reviewer" });
-    const sql = postgres(assertE2ETarget().databaseUrl, { ssl: "require", max: 1 });
+    const sql = e2eDatabase();
     try {
-      await sql`insert into profiles(id,full_name,email,role) values (${teammate.id},'Riley Reviewer',${teammate.email},'designer')`;
+      // A borrowed user (LANE_E2E_REUSE_USERS) may already have a profile from an earlier run on this database.
+      await sql`insert into profiles(id,full_name,email,role) values (${teammate.id},'Riley Reviewer',${teammate.email},'designer')
+        on conflict (id) do update set full_name = excluded.full_name, email = excluded.email, role = excluded.role`;
     } finally {
       await sql.end();
     }
@@ -69,11 +84,11 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     await expect(invite.getByRole("status")).toContainText("as a Reviewer.");
 
     // Free Requests belong to the creator's company domain (#213). Every e2e user is at example.com, so on a
-    // shared staging database another fixture workspace may already hold them; the guide says which.
+    // shared database another fixture workspace may already have used some or all of them; the guide says so.
     await guide.getByRole("button", { name: "Next step" }).click();
     const freeLine = guide.getByText(/Free Requests (left|for example\.com were already used)/);
-    await expect(freeLine).toHaveText(/^(4 of 4 Free Requests left\.|The Free Requests for example\.com were already used by another workspace\.)$/);
-    const heldHere = (await freeLine.textContent())?.startsWith("4 of 4");
+    await expect(freeLine).toHaveText(FREE_LINE);
+    const freeAfterFiling = freeLineAfterFiling((await freeLine.textContent())!);
     await guide.getByRole("button", { name: "Next step" }).click();
     await expect(guide.getByRole("heading", { name: "Release and Result due" })).toBeVisible();
     await expect(guide).toContainText("Lane brings you back");
@@ -99,7 +114,7 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     // The guide says what happens next, with the Free Requests left.
     const filed = page.locator("[data-first-run-filed]");
     await expect(filed.getByRole("heading", { name: "Your first Request is filed" })).toBeVisible({ timeout: 30_000 });
-    await expect(filed).toContainText(heldHere ? "3 of 4 Free Requests left." : "The Free Requests for example.com were already used by another workspace.");
+    await expect(filed).toContainText(freeAfterFiling);
     await expect(page.getByRole("link", { name: /Returning customers lose their card details/ })).toBeVisible();
     await filed.getByRole("button", { name: "Finish the guide" }).click();
     await expect(filed).toHaveCount(0);

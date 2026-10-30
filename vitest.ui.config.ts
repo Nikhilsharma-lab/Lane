@@ -74,6 +74,7 @@ export default defineConfig({
       "src/components/requests/journey-refresh.test.ts",
       "src/components/requests/request-moves-controller.test.ts",
       "src/components/requests/viewer-request-detail.test.ts",
+      "src/components/requests/request-page-first-render.test.ts",
       "src/components/requests/same-problem-view.test.ts",
       "src/components/requests/same-problem-link-model.test.ts",
       "src/components/requests/is-it-live.test.ts",

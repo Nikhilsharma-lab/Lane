@@ -42,7 +42,7 @@ export function createJourneyRefresh<T>({ read, show }: { read: () => Promise<T>
     },
     dispose() { active = false; generation++; pending = false; afterSave = undefined },
     saved(onCurrent?: () => void) { formOpen = false; deferred = false; afterSave = onCurrent; return refresh() },
-    refresh,
+    reload: refresh,
   }
 }
 

@@ -1,26 +1,29 @@
 "use client"
 import dynamic from "next/dynamic"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 import { callAction } from "@/lib/action-call"
 import { linkSameProblem, readSameProblem, removeSameProblemLink } from "@/app/(app)/requests/[id]/same-problem-actions"
 import { formatRequestCode } from "@/lib/request-code"
-import { ITERATIONS_SECTION_ID } from "@/lib/same-problem-rules"
+import { IterationsPlaceholder } from "./same-problem-placeholder"
 import type { LinkCandidate } from "./same-problem-link-model"
 import type { SameProblemState } from "./same-problem-view"
-import styles from "./same-problem.module.css"
 
-/** What shows while the list's code or its read is on the way. */
+/** Whether this reader may link Requests (Admins and Members), known before the read: the loading state holds room for it. */
+const CanLink = createContext(true)
+/** What shows while the list's code is on the way. */
 function Loading() {
-  return <section id={ITERATIONS_SECTION_ID} aria-labelledby="iterations-heading" className={styles.section}>
-    <div className={styles.header}><h2 id="iterations-heading" className={styles.heading}>Iterations of this problem</h2></div>
-    <p role="status" className={styles.muted}>Loading Iterations…</p>
-  </section>
+  return <IterationsPlaceholder canLink={useContext(CanLink)} />
 }
 
 // The list loads after the page and the search dialog only when someone opens it, so the Request page's first load
-// carries just this adapter.
-const SameProblemView = dynamic(() => import("./same-problem-view").then(module => module.SameProblemView), { ssr: false, loading: Loading })
+// carries just this adapter. #259: the list and its load ahead share one import, so they share one chunk (an import
+// written inside dynamic() gets a chunk of its own, which loading ahead would not warm).
+const loadView = () => import("./same-problem-view")
+const SameProblemView = dynamic(() => loadView().then(module => module.SameProblemView), { ssr: false, loading: Loading })
 const SameProblemLinkDialog = dynamic(() => import("./same-problem-link-dialog"), { ssr: false })
+/** #259: the list's code, loaded ahead with the Request preview's (preloadRequestPeek), so a preview opened after a rest
+ * on its row fetches no code. */
+export const preloadSameProblemView = () => { void loadView().catch(() => undefined) }
 
 const LOAD_FAILED = "Could not load the Iterations. Try again."
 const CHANGE_FAILED = "Could not change the link. Try again."
@@ -40,7 +43,7 @@ async function readView(requestId: string, orgId: string): Promise<SameProblemSt
  * "Iterations of this problem" on Request detail (#218): reads the group and its history, and lets Admins and Members
  * link and remove. Not rendered for a guest, who sees no links (the server refuses them too).
  */
-export function SameProblemSection({ requestId, requestNumber, orgId }: { requestId: string; requestNumber: number; orgId: string }) {
+export function SameProblemSection({ requestId, requestNumber, orgId, canLink }: { requestId: string; requestNumber: number; orgId: string; canLink: boolean }) {
   const [state, setState] = useState<SameProblemState>({ kind: "loading" })
   const [hidden, setHidden] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
@@ -103,9 +106,9 @@ export function SameProblemSection({ requestId, requestNumber, orgId }: { reques
 
   if (hidden) return null
   const linkedIds = state.kind === "ready" ? state.iterations?.iterations.map(entry => entry.requestId) ?? [] : []
-  return <>
-    <SameProblemView requestNumber={requestNumber} state={state} onOpenLink={() => { setLinkMounted(true); setLinkOpen(true) }} onRemove={entry => { void remove(entry) }}
+  return <CanLink value={canLink}>
+    <SameProblemView requestNumber={requestNumber} canLink={canLink} state={state} onOpenLink={() => { setLinkMounted(true); setLinkOpen(true) }} onRemove={entry => { void remove(entry) }}
       onRetry={() => { setState({ kind: "loading" }); void load() }} removing={removing} actionError={actionError} announcement={announcement} headingRef={heading} linkButtonRef={linkButton} />
     {linkMounted && <SameProblemLinkDialog open={linkOpen} onOpenChange={setLinkOpen} orgId={orgId} requestId={requestId} linkedIds={linkedIds} onLink={link} returnFocus={() => linkButton.current?.focus()} />}
-  </>
+  </CanLink>
 }

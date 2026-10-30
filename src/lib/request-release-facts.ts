@@ -6,6 +6,9 @@
 import type { ReleaseChange, ReleaseFact, ReleaseState } from './request-release';
 import { daysUntil } from './utc-day';
 
+/** The audience a release must reach. The Request is what was agreed, so its "Users" are the agreed audience. */
+export const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';
+
 /**
  * The current Requester: the release record's, after any handover; else the Member who took a Guest submission on
  * (#212); else whoever created the Request. Authorship never changes.
@@ -48,6 +51,3 @@ export function releaseMeasurement(release: ReleaseFact | null, now: Date) {
     const days = daysUntil(release.dueDate, now);
     return { due: days <= 0, days, label: dueWords(days) };
 }
-
-/** The saved Request's audience is the audience agreed before release. */
-export const agreedAudience = (request: { affectedPeople: string | null }) => request.affectedPeople?.trim() || 'Everyone this Request is for';

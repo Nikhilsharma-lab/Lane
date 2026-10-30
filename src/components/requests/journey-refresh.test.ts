@@ -13,8 +13,8 @@ it("a newer refresh wins over an older initial response", async () => {
   const shown: string[] = []
   const refresh = createJourneyRefresh({ read: () => reads.shift()!.promise, show: value => shown.push(value) })
   refresh.activate()
-  const first = refresh.refresh()
-  const second = refresh.refresh()
+  const first = refresh.reload()
+  const second = refresh.reload()
   retry.resolve("current revision")
   expect(await second).toBe(true)
   initial.resolve("old revision")
@@ -28,11 +28,11 @@ it("opening a form discards an in-flight background answer and refreshes once af
   let reads = 0
   const refresh = createJourneyRefresh({ read: () => ++reads === 1 ? background.promise : Promise.resolve("after cancel"), show: value => shown.push(value) })
   refresh.activate()
-  const old = refresh.refresh()
+  const old = refresh.reload()
   refresh.openForm()
   background.resolve("would remove the form")
   expect(await old).toBe(false)
-  await refresh.refresh() // focus/midnight/revision while editing
+  await refresh.reload() // focus/midnight/revision while editing
   expect(reads).toBe(1)
   expect(shown).toEqual([])
   await refresh.closeForm()
@@ -54,7 +54,7 @@ it("leaving a Request invalidates success and failure, including the post-save f
     expect(await saved).toBe(false)
     expect(shown).toEqual([])
     expect(focused).toBe(0)
-    expect(await refresh.refresh()).toBe(false)
+    expect(await refresh.reload()).toBe(false)
   }
 })
 
@@ -64,7 +64,7 @@ it("saving closes the form and consumes deferred work in one current read", asyn
   const refresh = createJourneyRefresh({ read: async () => `saved ${++reads}`, show: value => shown.push(value) })
   refresh.activate()
   refresh.openForm()
-  await refresh.refresh()
+  await refresh.reload()
   expect(await refresh.saved()).toBe(true)
   await refresh.closeForm()
   expect(shown).toEqual(["saved 1"])
@@ -79,7 +79,7 @@ it("a midnight refresh deferred by a form runs on cancel, with no polling", asyn
   const shown: string[] = []
   const refresh = createJourneyRefresh({ read: async () => "fresh server day", show: value => shown.push(value) })
   refresh.activate()
-  const stop = watchJourneyDate("2026-10-24", () => { void refresh.refresh() }, browser)
+  const stop = watchJourneyDate("2026-10-24", () => { void refresh.reload() }, browser)
   refresh.openForm()
   await vi.advanceTimersByTimeAsync(1000)
   expect(shown).toEqual([])
@@ -105,7 +105,7 @@ it("a revision refresh superseding the post-save read still returns focus in the
   refresh.activate()
   refresh.openForm()
   const saved = refresh.saved(() => { focused++ })
-  const newer = refresh.refresh()
+  const newer = refresh.reload()
   save.resolve("superseded save response")
   await saved
   expect(focused).toBe(0)
@@ -122,10 +122,10 @@ it("an obsolete error cannot replace a newer view, including after Strict Mode e
   let reads = 0
   const refresh = createJourneyRefresh<{ error: string } | { revision: number }>({ read: () => ++reads === 1 ? old.promise : Promise.resolve({ revision: 42 }), show: value => shown.push(value) })
   refresh.activate()
-  const initial = refresh.refresh()
+  const initial = refresh.reload()
   refresh.dispose()
   refresh.activate()
-  await refresh.refresh()
+  await refresh.reload()
   old.resolve({ error: "stale failure" })
   expect(await initial).toBe(false)
   expect(shown).toEqual([{ revision: 42 }])

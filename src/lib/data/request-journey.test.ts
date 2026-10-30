@@ -182,9 +182,9 @@ it("the production refresh mechanism discards an older actual combined read", as
   const shown: number[] = [];
   const refresh = createJourneyRefresh({ read: () => readRequestJourney(id, context), show: result => { if (!("error" in result)) shown.push(result.release.revision); } });
   refresh.activate();
-  const initial = refresh.refresh();
+  const initial = refresh.reload();
   await vi.waitFor(() => expect(boundary.primaryReads).toBe(1));
-  await refresh.refresh();
+  await refresh.reload();
   releaseOld();
   expect(await initial).toBe(false);
   expect(shown).toEqual([42]);

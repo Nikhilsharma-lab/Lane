@@ -1,5 +1,36 @@
 # Shared Claude / Codex handoff
 
+## Oct 30 — current main integration, draft retained by request
+
+Nikhil chose **“Keep PR draft without new test resources.”** No isolated recovery
+workspace, accounts, database, Storage reservation or browser harness is released.
+#175/#176 acceptance remains incomplete; the original test resources and evidence
+are preserved. PR177 stays draft and unmerged.
+
+Current main `3c276998` is merged into the #167 integration source. Its server-drawn
+Journey outline and deferred reviewer rows retain the shared Journey read owner,
+form deferral, saved focus and date watcher. Its preview/Settings load-ahead and
+stable router retain the navigation owner. Its pre-rendered New host keeps one
+portal with #176's close/Leave registration. Release reads still use the shared
+loader; the duplicate audience helper introduced by automatic merging is removed.
+The Journey coordinator's method is named `reload` to retain main's broad lint ban
+on direct router `.refresh()` calls without exempting its consumers.
+
+DB-free checks: 1,039 UI/pure tests across 98 files, then 23 Journey integration/
+first-render tests across three files after the method rename; TypeScript, full
+ESLint, design checks and the masked production build pass. The unchanged proposed
+bundle baseline passes at its existing 2,048-byte tolerance; this is not waiver
+approval or a fresh-current-main comparison. The three initial navigation-consumer failures
+were standalone fixtures missing main's real StableRouterProvider; adding that
+provider preserves the behavioral assertions. Source delta review and current
+build/bundle results belong to the merger report, not older c902 evidence.
+
+The older private-service receipts remain scoped to c902. Main changes New's
+pre-render/activation and the Intake Metrics activation boundary, so its actual
+New/Leave host behavior on the merged source remains unverified. No new browser
+acceptance, application database suite, current CI or bundle waiver is claimed.
+Report: `/private/tmp/lane-spec-167-oct30-main-merge.md`.
+
 ## Oct 30 continuation — approval received; test workspace unavailable
 
 The user approved the bounded local/staging tests on Oct 29. That approval
