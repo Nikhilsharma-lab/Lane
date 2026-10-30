@@ -18,23 +18,7 @@ function rememberReturnFocus(id: string) {
 }
 
 function clearReturnFocus() {
-  try { window.sessionStorage.removeItem(RETURN_FOCUS_KEY); window.sessionStorage.removeItem(LEFT_KEY) } catch { /* Storage may be disabled. */ }
-}
-
-// #263 (A232): the router can unmount a Request page before the browser's popstate arrives, so a page notes
-// the Request it showed as it leaves. The list arriving straight after (browser Back) focuses that row.
-const LEFT_KEY = "lane:request-left"
-const LEFT_FRESH_MS = 3000
-
-function rememberLeft(id: string) {
-  try { window.sessionStorage.setItem(LEFT_KEY, JSON.stringify({ id, at: Date.now() })) } catch { /* Navigation works when storage is disabled. */ }
-}
-
-function readJustLeft() {
-  try {
-    const left = JSON.parse(window.sessionStorage.getItem(LEFT_KEY) ?? "null") as { id?: unknown; at?: unknown } | null
-    return left && typeof left.id === "string" && typeof left.at === "number" && Date.now() - left.at < LEFT_FRESH_MS ? left.id : null
-  } catch { return null }
+  try { window.sessionStorage.removeItem(RETURN_FOCUS_KEY) } catch { /* Storage may be disabled. */ }
 }
 
 export function RequestWorkspaceKeyboard({
@@ -57,7 +41,7 @@ export function RequestWorkspaceKeyboard({
   useEffect(() => {
     if (selectedRequestId) return
 
-    const requestId = readReturnFocus() ?? readJustLeft()
+    const requestId = readReturnFocus()
     if (!requestId) return
 
     onRestoreRequest?.(requestId)
@@ -131,7 +115,6 @@ export function RequestWorkspaceKeyboard({
       window.removeEventListener("keydown", handleKeyDown)
       document.removeEventListener("click", handleReturnClick, true)
       stopRemembering()
-      rememberLeft(requestId)
     }
   }, [returnHref, router, selectedRequestId, navigation])
 
