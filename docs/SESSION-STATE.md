@@ -1,5 +1,37 @@
 # Shared Claude / Codex handoff
 
+## Oct 30 continuation — approval received; test workspace unavailable
+
+The user approved the bounded local/staging tests on Oct 29. That approval
+supersedes the pending-approval note below. Attempt 15 then saved the sole local
+N normally, completed three private uploads (116 bytes total), retained/retried
+the failed File without repeating Save, verified owner/Member downloads and
+access refusals, and exercised mobile Edit Leave/current-file-only settlement.
+Exactly five reservations were used. Actual reload reached names-only recovery;
+final Retry cleanup/Dismiss and the remaining #175 move sequence are incomplete.
+See `testing/intake-coordination.md` for the precise acceptance boundary.
+
+On Oct 30 the exact original Clerk development organization returned 404 twice.
+The same instance and all three original users still exist, but their memberships
+now point to unrelated newer test organizations; one changed during inspection.
+The reviewed cleanup relay stopped at identity preflight before any UI action.
+Operations, objects and fixtures match their pre-attempt hashes byte-for-byte.
+The owned supervisor, keeper, browser and relay were stopped; their groups are
+absent, port 3100 is free, and canonical lock/guard files are absent. No manual
+unlock, reset, provider mutation or production change occurred.
+
+The original same-tab continuation is no longer executable after safe shutdown.
+Preserve its failure and incomplete recovery; do not recreate browser state or
+silently adopt another workspace. A separately approved isolated test environment
+is needed for the remaining acceptance. Existing local fixtures and staging files
+remain. PR #177 stays draft; all task worktrees are retained pending acceptance.
+
+Integration source remains `07801ba8`; its CI 40726807580 was freshly confirmed green.
+Recovered 27 missing tracked tmp files from that exact HEAD with exclusive writes;
+all 1,302 surviving tracked files and the index were unchanged. Safe receipts and
+selected screenshots: the durable `spec-167-evidence/oct30-identity-block/` folder
+under `/Users/nikhilsharma/.codex/visualizations/2026/10/23/01a169ec-0c9f-7c53-b22d-b14541ab4859/`.
+
 ## Oct 28 continuation — CI passed, private browser check pending
 
 Integration `335305d9` is pushed to draft PR177. CI40712705249 passed checks,

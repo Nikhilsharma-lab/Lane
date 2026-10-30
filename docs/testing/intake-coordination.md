@@ -1,5 +1,44 @@
 # Intake operation ownership (#176)
 
+## Oct 29–30 signed-in private-file checkpoint
+
+The explicitly approved attempt 15 ran c902f6c8 against the existing local test
+database, real Clerk development identities and Lane Staging private Storage.
+One additional AI review and the sole normal New save completed. Saved local N
+is `2ad73ee1-45a9-43ee-af9a-49a67791ec27` (LAN-4); its status remains Open.
+
+- Three files uploaded/finalized: 36, 36 and 44 bytes. Exactly five reservations and
+  five PUT intents were used; two PUTs were deliberately refused before dispatch.
+- Hidden New retained the actual failed File. Retry uploaded only that file;
+  there was one New save and two unchanged attachment-only Edits.
+- Owner and same-workspace Member downloads matched the actual 36-byte payload
+  and hash. Member prepare/finalize probes were refused, anonymous download was
+  refused, and the unsigned Storage path returned400 without fixture bytes.
+- At 390/light, Edit Escape → Keep working → nested Escape → Leave completed the
+  current file, reserved no next file, and retained focus on Edit Request without
+  stale navigation. Retained-file recovery was observed at 1440/390/light.
+- Native reload interrupted the final PUT. Actual names-only recovery retained
+  its reservation after two deliberately refused cleanup actions. Final real
+  Retry cleanup and Dismiss remain **unverified**.
+
+The original post-reload helper failed to open Edit; its cause is unproven, and
+its compose-field assertion was unsuitable for names-only recovery. A later
+trusted public-CDP Enter opened the real recovery screen. The prepared exact
+cleanup relay stopped at identity preflight on Oct 30: the original Clerk test
+organization returned 404, while its users now belong to unrelated test orgs.
+No UI/action was dispatched and all three saved ledger/fixture hashes are unchanged.
+The owned runtime was safely stopped, so that retained browser session is gone.
+
+This is partial actual-service evidence, not complete #176 acceptance. The old
+lost AI response remains unknown and is not attributed to the successful later
+review. No dark-theme private-service, Guest/Viewer, foreign-workspace or production
+coverage is claimed. Five local attachment rows and the staging residuals remain;
+no database reset or object deletion was performed during the Oct 30 diagnosis.
+Safe receipts/screenshots and hashes are archived in `spec-167-evidence/oct30-identity-block/`
+under `/Users/nikhilsharma/.codex/visualizations/2026/10/23/01a169ec-0c9f-7c53-b22d-b14541ab4859/`.
+
+## Shared owner contract
+
 The actual New and Edit form creates one `createIntakeSession` owner for its keyed
 lifetime. That owner coordinates AI checking, saving, sequential file transfer,
 retry, removal, Skip and interrupted-upload reconciliation. React retains field
