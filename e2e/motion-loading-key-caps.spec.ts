@@ -117,18 +117,23 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
     });
     await test.step("A quick page change shows no placeholder; a slow one shows it after 0.15s", async () => {
       const inboxLink = page.locator("#lane-sidebar").getByRole("link", { name: /^Inbox/ });
-      // Warm the route so the quick change below measures Lane, not the development server compiling.
+      const inboxHeading = page.getByRole("heading", { level: 1, name: "Inbox" });
+      // Quick: moving back to the Inbox seen moments ago, within the same visit. Its code is loaded and Lane
+      // keeps the page for 30s (next.config.ts staleTimes), so it is there at once, on any machine. The first
+      // move after a full page load is a race instead: when the Inbox's code files land after the page, React
+      // shows loading.tsx and holds the content back to 0.3s, so the placeholder rightly shows at 0.15s.
       await page.goto("/inbox");
-      await expect(page.getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
+      await expect(inboxHeading).toBeVisible();
       await expect(page.locator("[data-skeleton]")).toHaveCount(0);
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        await page.goto("/");
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        await page.locator("#lane-sidebar").getByRole("link", { name: "All Requests", exact: true }).click();
         await expect(page.getByText("Motion acceptance request").first()).toBeVisible();
         await watchPlaceholders(page);
         await inboxLink.click();
         await expect(page).toHaveURL(/\/inbox$/);
+        await expect(inboxHeading).toBeVisible();
         await expect(page.locator("[data-skeleton]")).toHaveCount(0);
-        if (attempt === 1) expect(await placeholderShownAt(page)).toBeNull();
+        expect(await placeholderShownAt(page)).toBeNull();
       }
 
       // Slow: the Inbox's unread count waits on a held lock, so the page takes about two seconds.
