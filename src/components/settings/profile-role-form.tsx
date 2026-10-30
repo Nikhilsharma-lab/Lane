@@ -1,6 +1,7 @@
 "use client";
 
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/arc/button/button";
 import { Select } from "@/components/arc/select/select";
@@ -113,7 +114,7 @@ function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductR
       },
       onError: (message) => {
         revert();
-        say({ type: "error", title: "Could not save your role", description: message });
+        say({ type: "error", title: "Couldn't save your role", description: message });
       },
     }).then((outcome) => {
       if (outcome.status === "success" && sent) { confirmed.current = next; confirmations.current++; }
@@ -160,13 +161,13 @@ function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: Produ
       try {
         const result = await callAction(() => onSave(next));
         if (result.error || !result.success) {
-          setFeedback({ kind: "error", message: result.error || "Your role could not be saved. Try again." });
+          setFeedback({ kind: "error", message: result.error || "Your role couldn't be saved. Try again." });
           return;
         }
         setSavedRole(next);
-        toast({ type: "success", title: "Role updated." });
-      } catch {
-        setFeedback({ kind: "error", message: "Your role could not be saved. Try again." });
+        toast({ type: "success", title: "Role updated" });
+      } catch (thrown) {
+        setFeedback({ kind: "error", message: thrownMessage(thrown, "Your role couldn't be saved. Try again.") });
       } finally {
         saving.current = false;
       }
@@ -195,10 +196,9 @@ function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: Produ
         <Button
           type="submit"
           loading={isPending}
-          disabled={isPending || role === savedRole}
-          aria-label={isPending ? "Saving role…" : undefined}
+          disabled={!isPending && role === savedRole}
         >
-          {isPending ? "Saving role…" : "Save role"}
+          Save role
         </Button>
         {feedback && (
           <Alert

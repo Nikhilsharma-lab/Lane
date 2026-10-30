@@ -7,23 +7,30 @@ import { Button } from "@/components/arc/button/button"
 import { readRequestJourney } from "@/app/(app)/requests/[id]/journey-actions"
 import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
+import { plannedDay } from "@/lib/dates"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { canChange } from "@/lib/request-access-rules"
-import { FORMER_MEMBER, journeyDate, journeyDay as day, type JourneyAction } from "@/lib/request-journey"
+import { FORMER_MEMBER, type JourneyAction } from "@/lib/request-journey"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome"
 import type { ReleaseEvent } from "@/lib/request-release"
 import type { RequestDetail } from "./detail-view"
 import { ReleaseForm } from "./release-form"
+import { InPageForm } from "@/components/popup/in-page-form"
 import { RequestReviews } from "./request-reviews"
 import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverForm, MeasuredCloseForm, resultValue, VoidReleaseForm } from "./request-timeline-forms"
 import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, learnedLine, observedLine, timelineSteps, type JourneyOutline, type OutlineLine, type TimelineStep } from "./request-timeline-model"
+import { JourneyLine } from "./journey-line"
+import { LocalTime } from "./local-time"
 import { createJourneyRefresh, watchJourneyDate } from "./journey-refresh"
 import styles from "./request-timeline.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 type Views = Exclude<Awaited<ReturnType<typeof readRequestJourney>>, { error: string }>
 
 const NO_OUTLINE: JourneyOutline = { steps: [], history: false }
-const LOAD_FAILED = "Could not load the journey. Try again."
+const LOAD_FAILED = "Couldn't load the journey. Try again."
+/** #263: a step's action button, where focus goes back when its form closes. */
+const actionButton = (action: JourneyAction) => document.querySelector<HTMLElement>(`#journey [data-journey-action="${action}"]`)
 const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished", current: "current step", upcoming: "not reached yet", skipped: "skipped" }
 
 /** One shared projection through the explicit session-recovery path. */
@@ -41,9 +48,11 @@ function historyLine(event: Pick<ReleaseEvent, "input">) {
   }
 }
 
-/** A line the journey's reads fill in, held one line high (#295). */
-const Held = () => <p className={styles.held} aria-hidden="true" data-pending=""><span /></p>
-const outlineLine = (line: OutlineLine, index: number) => line === null ? <Held key={index} /> : <p key={index} className={styles.muted}>{line}</p>
+/** A line the journey's reads fill in, held one line high (#295), through Lane's one placeholder (#262), whose
+ * wrapper adds no box. */
+const Held = () => <Placeholder><p className={styles.held} aria-hidden="true" data-pending=""><span /></p></Placeholder>
+const outlineLine = (line: OutlineLine, index: number) => line === null ? <Held key={index} />
+  : typeof line === "string" ? <p key={index} className={styles.muted}>{line}</p> : <JourneyLine key={index} line={line} />
 /** A button the journey's reads will show, held at its size: Arc's own button, unseen, on the skeleton's fill. */
 const HeldButton = ({ label }: { label: string }) => <span className={styles.heldButton}><Button variant="secondary" disabled tabIndex={-1}>{label}</Button></span>
 
@@ -114,7 +123,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
 
   if (!views && error) return <section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <h2 id="journey-heading" className={styles.heading}>Journey</h2>
-    <p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void refresh.reload() }}>Retry</Button></div>
+    <p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></div>
   </section>
   const open = request.status === "open"
   // Drawn in the outline, read once the journey's reads are back: the reviewers' read would otherwise go ahead of them.
@@ -135,11 +144,11 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
       <ol className={styles.steps}>
         {outline.steps.map(step => stepItem(step, {
           happened: step.happened.map(outlineLine), details: step.reviews ? reviews : null, countdown: null, next: step.after.map(outlineLine),
-          actions: step.actions.length > 0 && <ul className={styles.actions} aria-hidden="true" data-pending="actions">
+          actions: step.actions.length > 0 && <Placeholder><ul className={styles.actions} aria-hidden="true" data-pending="actions">
             {step.actions.map(action => <li key={action.action} className={styles.action}>
               <HeldButton label={action.label} />{!action.available && <span className={styles.heldReason}>{action.reason}</span>}
             </li>)}
-          </ul>, form: null,
+          </ul></Placeholder>, form: null,
         }))}
       </ol>
       {outline.history && <Held />}
@@ -202,7 +211,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
       {closure.learned && <p>{learnedLine(closure.learned)}</p>}
       {!!outcome.corrections.length && <div className={styles.facts}><h4>Corrections</h4><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
         <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
-        <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on {day(c.at)}.</p>
+        <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on <LocalTime iso={c.at} day />.</p>
       </li>)}</ol></div>}
     </div>
   }
@@ -214,33 +223,33 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
     </div>
     {outcome.followUpOf && <p>Follow-up of <Link href={`/requests/${outcome.followUpOf.id}`}>{formatRequestCode(outcome.followUpOf.requestNumber)} {outcome.followUpOf.title}</Link></p>}
     {error && <p role="alert">{error}</p>}
-    {(error || views.rosterUnavailable) && <div className={styles.controls}><Button variant="secondary" onClick={() => { void refresh.reload() }}>Retry</Button></div>}
+    {(error || views.rosterUnavailable) && <div className={styles.controls}><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></div>}
     <ol className={styles.steps}>
       {steps.map(step => {
         const headingId = `journey-${step.status}`
         return stepItem(step, {
-          happened: step.happened.map(line => <p key={line}>{line}</p>),
+          happened: step.happened.map((line, index) => <JourneyLine key={index} line={line} />),
           details: details(step),
           countdown: step.countdown && <p role="status" className={styles.countdown}>{step.countdown}</p>,
           next: step.next && <p className={styles.muted}>{step.next}</p>,
           actions: !!step.actions.length && mode === null && <ul className={styles.actions} aria-label={`${step.label} actions`}>
             {step.actions.map((action, index) => <li key={action.action} className={styles.action}>
               {action.available
-                ? <Button variant={index === 0 ? "primary" : "secondary"} onClick={() => { refresh.openForm(); setMode(action.action) }}>{action.label}</Button>
+                ? <Button variant={index === 0 ? "primary" : "secondary"} data-journey-action={action.action} onClick={() => { refresh.openForm(); setMode(action.action) }}>{action.label}</Button>
                 : <><Button variant="secondary" disabled aria-describedby={`${headingId}-${action.action}`}>{action.label}</Button><span id={`${headingId}-${action.action}`} className={styles.muted}>{action.reason}</span></>}
             </li>)}
           </ul>,
-          form: mode && step.actions.some(a => a.action === mode && a.available) && stepForm(mode),
+          form: mode && step.actions.some(a => a.action === mode && a.available) && <InPageForm onDismiss={cancel} returnFocus={() => actionButton(mode)}>{stepForm(mode)}</InPageForm>,
         })
       })}
     </ol>
     {!!release.history.length && <details className={styles.history}>
       <summary>Release and handover history ({release.history.length})</summary>
       <ol className={styles.list}>{release.history.map(event => <li key={event.revision}>
-        <p>{historyLine(event)} by {name(event.actorId)} on {day(event.at)}.</p>
+        <p>{historyLine(event)} by {name(event.actorId)} on <LocalTime iso={event.at} day />.</p>
         {"reason" in event.input && <p className={styles.muted}>{event.input.reason}</p>}
         {event.input.kind === "transfer" && <p className={styles.muted}>{name(event.previousOwnerId)} → {name(event.ownerId)}</p>}
-        {event.release && <p className={styles.muted}>Exposure: {journeyDate(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {journeyDate(event.release.dueDate)} (UTC). Evidence: {event.release.evidence}</p>}
+        {event.release && <p className={styles.muted}>Released: {plannedDay(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {plannedDay(event.release.dueDate)}. Evidence: {event.release.evidence}</p>}
       </li>)}</ol>
     </details>}
     {!!outcome.followUps.length && <div className={styles.facts}>

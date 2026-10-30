@@ -5,12 +5,14 @@ import type { RequestDetail } from "@/components/requests/detail-view";
 
 /** New and Edit share all controls, review presentation and upload recovery.
  * The editor selects the existing guarded save action for an existing Request. */
-export default function EditRequestForm({ request, orgId, draftOwnerId, onSaved, onBusyChange, registerCloseAttempt, withoutPrediction = false }: {
+export default function EditRequestForm({ request, orgId, draftOwnerId, onSaved, onBusyChange, registerCloseAttempt, withoutPrediction = false, saveLabel }: {
   request: RequestDetail; orgId: string; draftOwnerId: string; onSaved: () => void; onBusyChange: (busy: boolean) => void;
   /** #212: a Guest edits their waiting submission without a prediction. */
   withoutPrediction?: boolean;
   registerCloseAttempt?: RegisterIntakeCloseAttempt;
+  /** The save button's name when the edit has one purpose, e.g. "Save goal" (#261). */
+  saveLabel?: string;
 }) {
   return <RequestEditor context={{ orgId }} draftOwnerId={draftOwnerId}
-    editing={{ request, onSaved }} onBusyChange={onBusyChange} registerCloseAttempt={registerCloseAttempt} withoutPrediction={withoutPrediction} />;
+    editing={{ request, onSaved, saveLabel }} onBusyChange={onBusyChange} registerCloseAttempt={registerCloseAttempt} withoutPrediction={withoutPrediction} />;
 }

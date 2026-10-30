@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { MetricDefinitionForm, type MetricDefinitionValues } from "@/components/metrics/metric-definition-form";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { addMetricDefinition, archiveMetricDefinition, editMetricDefinition, mergeMetricDefinitions, restoreMetricDefinition } from "./actions";
 import styles from "./metrics.module.css";
 
@@ -23,9 +24,9 @@ export function AddMetricDialog({ orgId }: { orgId: string }) {
   const [open, setOpen] = useState(false);
   const [added, setAdded] = useState("");
   return <>
-    <Dialog open={open} onOpenChange={next => { setOpen(next); if (next) setAdded(""); }}>
+    <Dialog guardTypedText open={open} onOpenChange={next => { setOpen(next); if (next) setAdded(""); }}>
       <DialogTrigger asChild><Button><Plus data-icon-size="sm" aria-hidden="true" />Add metric</Button></DialogTrigger>
-      <DialogContent title="Add metric" description="Add a metric your workspace measures, so Requests can predict it.">
+      <DialogContent title="Add metric" description="Add a metric your workspace measures, so Requests can set goals on it.">
         <MetricDefinitionForm initial={EMPTY} submitLabel="Add metric"
           onSubmit={async values => {
             const result = await callAction(() => addMetricDefinition(values, { orgId }));
@@ -58,8 +59,8 @@ export function ArchiveMetricControl({ orgId, id, archived }: { orgId: string; i
         ? await callAction(() => restoreMetricDefinition({ id }, { orgId }))
         : await callAction(() => archiveMetricDefinition({ id }, { orgId }));
       if ("error" in result) setError(result.error);
-    } catch {
-      setError(`We couldn't ${archived ? "restore" : "archive"} this metric. Check your connection and try again.`);
+    } catch (thrown) {
+      setError(thrownMessage(thrown, `We couldn't ${archived ? "restore" : "archive"} this metric. Check your connection and try again.`));
     } finally {
       setPending(false);
     }
@@ -102,8 +103,8 @@ export function MergeMetricControl({ orgId, current, candidates }: { orgId: stri
       setOpen(false);
       setOtherId(""); setKeep("this");
       toast({ type: "success", title: `Merged ${merged.name} into ${kept.name}` });
-    } catch {
-      setError("We couldn't merge these metrics. Check your connection and try again.");
+    } catch (thrown) {
+      setError(thrownMessage(thrown, "We couldn't merge these metrics. Check your connection and try again."));
     } finally {
       setPending(false);
     }

@@ -37,7 +37,7 @@ export async function answerIsItLive(page: Page, answer: "not yet" | "yes") {
 export async function recordReleaseInPrompt(page: Page, evidence: string) {
   const form = isItLiveRelease(page);
   const today = new Date().toISOString().slice(0, 10);
-  await expect(form.getByLabel("Actual exposure date (UTC)")).toHaveValue(today);
+  await expect(form.getByLabel("Release date", { exact: true })).toHaveValue(today);
   await expect(form.getByText(IS_IT_LIVE_COPY.endsUndo, { exact: true })).toBeVisible();
   // The helper's measured plan (current 62%) requires the value before release, in its unit.
   await form.getByLabel("Value before release (%)", { exact: true }).fill("62");

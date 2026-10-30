@@ -8,6 +8,7 @@ import { IS_IT_LIVE_COPY, type IsItLiveRequest } from "./is-it-live"
 import { ReleaseForm } from "./release-form"
 import detailStyles from "./detail.module.css"
 import styles from "./is-it-live.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 type ReleaseRead = Awaited<ReturnType<typeof readRequestRelease>>
 
@@ -22,12 +23,12 @@ export function IsItLiveRelease({ request, orgId, onSaved, onNotYet }: { request
     let active = true
     callAction(() => readRequestRelease(request.id, { orgId }))
       .then(next => { if (active) setRead(next) })
-      .catch(() => { if (active) setRead({ error: "Could not load release. Try again." }) })
+      .catch(() => { if (active) setRead({ error: "Couldn't load release. Try again." }) })
     return () => { active = false }
   }, [request.id, orgId])
 
   const notYet = <div className={detailStyles.dialogActions}><Button variant="ghost" onClick={onNotYet}>{IS_IT_LIVE_COPY.notYet}</Button></div>
-  if (!read) return <p role="status" className={styles.note}>Loading release…</p>
+  if (!read) return <Placeholder label="Loading release" lines={2} />
   if ("error" in read) return <><p role="alert">{read.error}</p>{notYet}</>
   if (!read.actions.release.allowed) return <><p className={styles.note}>{read.actions.release.reason}</p>{notYet}</>
   return <ReleaseForm requestId={request.id} orgId={orgId} revision={read.revision} audience={read.audience}

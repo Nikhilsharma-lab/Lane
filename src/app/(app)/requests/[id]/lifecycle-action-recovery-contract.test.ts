@@ -34,12 +34,11 @@ describe("Reliable Request lifecycle action contract", () => {
   });
 
   it("keeps loading visible, labelled, and keyboard-safe", () => {
-    expect(LIFECYCLE).toContain("LoaderCircleIcon");
-    expect(LIFECYCLE).toContain('data-icon="inline-start"');
-    expect(LIFECYCLE).toContain('aria-busy={pending || undefined}');
-    expect(LIFECYCLE).toContain('disabled={pending}');
-    expect(LIFECYCLE).toContain("Picking up…");
-    expect(LIFECYCLE).toContain("Completing…");
+    // #262: Arc Button's loading state keeps the label and focus, and swallows presses.
+    expect(LIFECYCLE).toContain("loading={pending}");
+    expect(LIFECYCLE).not.toContain("LoaderCircleIcon");
+    expect(LIFECYCLE).not.toContain("Picking up…");
+    expect(LIFECYCLE).not.toContain("Completing…");
   });
 
   it("explains uncertain network outcomes without inventing state", () => {

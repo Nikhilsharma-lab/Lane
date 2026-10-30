@@ -66,7 +66,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     return entry.recordOwner !== null && entry.recordOwner !== identity && entry.bindings.has(entry.recordOwner) && record.read() !== null;
   };
   const retainedOwnerError = "Another open form still has this Request’s unfinished files. Return to that form to retry or skip them.";
-  const storageError = "Your Request is saved, but this browser could not keep upload recovery information. Keep this tab open and try again.";
+  const storageError = "Your Request is saved, but this browser couldn't keep upload recovery information. Keep this tab open and try again.";
   const record = {
     read() {
       if (scope().unpersisted) return scope().unpersisted;
@@ -130,7 +130,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     } catch {
       // Keep the reservation ID until the server confirms cleanup. Retrying
       // must not reserve another slot or hide a file that still needs attention.
-      updateAttachment(attachment.key, { status: "failed", error: "Lane could not clear this upload. Your Request is saved. Try again." });
+      updateAttachment(attachment.key, { status: "failed", error: "Lane couldn't clear this upload. Your Request is saved. Try again." });
       return "failed";
     }
   }
@@ -150,7 +150,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
       if (!updateAttachment(attachment.key, { attachmentId: reserved })) {
         const cleanup = await discardFailed({ ...attachment, attachmentId: reserved }, requestId);
         if (cleanup === "uploaded") return true;
-        if (cleanup !== "failed") updateAttachment(attachment.key, { status: "failed", error: "This browser could not keep upload recovery information. Keep this tab open and try again." });
+        if (cleanup !== "failed") updateAttachment(attachment.key, { status: "failed", error: "This browser couldn't keep upload recovery information. Keep this tab open and try again." });
         return false;
       }
       const file = attachment.file.type === prepared.mimeType
@@ -177,7 +177,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
       updateAttachment(attachment.key, {
         status: "failed",
         attachmentId: null,
-        error: "The file did not finish uploading. Your Request was created. Retry the upload.",
+        error: "The file did not finish uploading. Your Request was created. Try the upload again.",
       });
       return false;
     }
@@ -275,14 +275,14 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     syncBusy() { if (binding && scope().presentation === identity) presentation?.busy(state.get().busy); },
     cancelCheck,
     leave() { left = true; return detach(); },
-    async check<T>(input: { run: () => Promise<T>; receive: (result: T) => void; failed: () => void }) {
+    async check<T>(input: { run: () => Promise<T>; receive: (result: T) => void; failed: (thrown: unknown) => void }) {
       if (state.get().requestId) return;
       await perform(async (current, token) => {
         checkingToken = token;
         state.set({ ...state.get(), phase: "checking" });
         if (current()) presentation?.cancelCheck?.(() => cancelCheck(token));
         try { const result = await input.run(); if (current()) input.receive(result); }
-        catch { if (current()) input.failed(); }
+        catch (thrown) { if (current()) input.failed(thrown); }
       });
     },
     persistDraft(write: () => boolean) {
@@ -294,7 +294,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     bind(next: IntakePresentation) { if (binding) presentation = next; },
     attach(next: IntakePresentation) { binding = Symbol(); presentation = next; const entry = scope(); entry.bindings.add(identity); entry.presentation = identity; },
     detach,
-    async save(input: { run: () => Promise<SaveResponse>; title: string; attachments: QueuedAttachment[]; saved: (result: SavedRequest) => void; failed: (failure: SaveFailure | null) => void }) {
+    async save(input: { run: () => Promise<SaveResponse>; title: string; attachments: QueuedAttachment[]; saved: (result: SavedRequest) => void; failed: (failure: SaveFailure | null, thrown?: unknown) => void }) {
       if (state.get().requestId) return;
       const attachments = input.attachments.map(file => ({ ...file }));
       await perform(async current => {
@@ -330,10 +330,11 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
           }
           if (state.get().files.every(file => file.status === "uploaded")) finish(current);
           else state.set({ ...state.get(), phase: "recovery" });
-        } catch {
+        } catch (thrown) {
           if (state.get().requestId) state.set({ ...state.get(), phase: "recovery", error: "Your Request is saved. Its files still need attention." });
           else {
-            if (current()) input.failed(null);
+            // #260: what was thrown says whether the browser was offline; its text is never shown.
+            if (current()) input.failed(null, thrown);
             state.set({ ...state.get(), phase: "idle" });
           }
         }
@@ -355,7 +356,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
           return;
         }
         state.set({ ...state.get(), phase: files.length ? "lost" : "complete", lost: files.length ? retained : null,
-          error: files.some(file => file.attachmentId) ? "Some files could not be checked. Retry cleanup before dismissing this notice." : null });
+          error: files.some(file => file.attachmentId) ? "Some files couldn't be checked. Retry cleanup before dismissing this notice." : null });
         if (!files.length && current()) presentation?.finish(lost.requestId);
       });
     },
@@ -370,7 +371,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
       const lost = state.get().lost;
       if (operation || scope().operation || !lost) return;
       if (lost.files.some(file => file.attachmentId)) {
-        state.set({ ...state.get(), error: "Some files could not be checked. Retry cleanup before dismissing this notice." });
+        state.set({ ...state.get(), error: "Some files couldn't be checked. Retry cleanup before dismissing this notice." });
         return;
       }
       if (record.clear()) state.set({ ...state.get(), phase: "idle", lost: null, error: null });

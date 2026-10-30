@@ -15,7 +15,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * workspace get this instead of "Not found", which is kept for a Request that
  * is missing or belongs to another workspace. */
 export const CANNOT_CHANGE_REQUESTS = "You can't change Requests in this workspace.";
-const MEMBERSHIP_UNVERIFIED = "Could not verify active workspace membership. Try again.";
+const MEMBERSHIP_UNVERIFIED = "Couldn't verify active workspace membership. Try again.";
 
 /** The most rows one move accepts: a page of the list at its largest. */
 const BULK_LIMIT = 50;

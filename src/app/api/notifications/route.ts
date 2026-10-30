@@ -11,6 +11,6 @@ export async function GET(request: Request) {
     return json(await loadInbox(access.auth));
   } catch (error) {
     console.error("[api/notifications] list failed", { kind: error instanceof Error ? error.name : "UnknownError" });
-    return json({ error: "Your Inbox could not be loaded. Try again." }, { status: 500 });
+    return json({ error: "Your Inbox couldn't be loaded. Try again." }, { status: 500 });
   }
 }

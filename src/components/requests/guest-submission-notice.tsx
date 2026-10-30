@@ -17,7 +17,7 @@ export function GuestSubmissionNotice({ requestId, orgId, revision, view, reader
   requestId: string; orgId: string; revision: number; view: GuestSubmissionView; reader: GuestNoticeReader; hasPrediction: boolean
   writePrediction: { offered: ReactNode; asked: ReactNode } | null
 }) {
-  const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: "Could not take this on. Try again." })
+  const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: "Couldn't take this on. Try again." })
   const [tookOn, setTookOn] = useState(false)
   const notice = guestSubmissionNotice(view, reader, hasPrediction)
   return <section id="guest-submission" aria-labelledby="guest-submission-heading" className={detailStyles.section} data-guest-submission={view.state}>

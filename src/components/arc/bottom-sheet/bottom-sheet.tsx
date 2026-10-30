@@ -2,7 +2,7 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, FocusEvent, KeyboardEvent, PointerEvent as ReactPointerEvent, ReactNode, WheelEvent } from "react";
+import type { ComponentPropsWithoutRef, CSSProperties, FocusEvent, KeyboardEvent, PointerEvent as ReactPointerEvent, ReactNode, WheelEvent } from "react";
 import { AnimatePresence, animate, motion, useMotionValue, usePresence, useReducedMotion, useTransform } from "motion/react";
 import { X } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
@@ -31,6 +31,12 @@ export interface BottomSheetProps {
   closeLabel?: string;
   className?: string;
   children: ReactNode;
+  /** Lane adaptation (#263): "fit" sizes the sheet to its content up to the largest detent; "composer" hands the body's height and scrolling to its content. */
+  layout?: "default" | "fit" | "composer";
+  /** Lane adaptation (#263): more Radix Content props (focus, Escape, outside presses, data attributes). Focus and outside-press handlers run before the sheet's own. */
+  contentProps?: Omit<ComponentPropsWithoutRef<typeof DialogPrimitive.Content>, "asChild" | "forceMount" | "children" | "title">;
+  /** Lane adaptation (#263): asked before a drag dismisses the sheet. False springs it back to where it was; the dismissal still reaches onOpenChange, which can ask first. */
+  confirmDismiss?: () => boolean;
 }
 
 type Stop = number | "closed";
@@ -51,7 +57,7 @@ const LOW_DIM = .78;
 
 const settle = motionTokens.spring.smooth;
 /** Leaving is shorter than arriving; a flick keeps its velocity through the same spring. */
-const leave = { ...motionTokens.spring.smooth, visualDuration: .3 };
+const leave = { ...motionTokens.spring.smooth, visualDuration: motionTokens.duration.fast };
 const fade = { duration: motionTokens.duration.fast, ease: [...motionTokens.ease.standard] as [number, number, number, number] };
 
 /** iOS-style resistance: follows the finger at first, then approaches STRETCH. */
@@ -78,11 +84,18 @@ export function BottomSheet({ trigger, open: openProp, defaultOpen = false, onOp
   return <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
     {trigger ? <DialogPrimitive.Trigger asChild>{trigger}</DialogPrimitive.Trigger> : null}
     {/* The sheet stays mounted while it leaves, so a close can be caught and reversed mid-flight. */}
-    <AnimatePresence>{open && <DialogPrimitive.Portal key="sheet" forceMount><Sheet {...props} onDismiss={dismiss} /></DialogPrimitive.Portal>}</AnimatePresence>
+    <BottomSheetContent {...props} open={open} onDismiss={dismiss} />
   </DialogPrimitive.Root>;
 }
 
-function Sheet({ title, description, detents = [.45, .92], initialDetent = 0, onDetentChange, closeLabel = "Close", className, children, onDismiss, onCloseAutoFocus }: Omit<BottomSheetProps, "trigger" | "open" | "defaultOpen" | "onOpenChange"> & { onDismiss: () => void }) {
+type SheetProps = Omit<BottomSheetProps, "trigger" | "open" | "defaultOpen" | "onOpenChange">;
+
+/** Lane adaptation (#263): the sheet's layers under a Radix Dialog root the caller owns, so one root (with its Trigger and Close) can show either a dialog or this sheet. `onDismiss` closes that root. */
+export function BottomSheetContent({ open, onDismiss, ...props }: SheetProps & { open: boolean; onDismiss: () => void }) {
+  return <AnimatePresence>{open && <DialogPrimitive.Portal key="sheet" forceMount><Sheet {...props} onDismiss={onDismiss} /></DialogPrimitive.Portal>}</AnimatePresence>;
+}
+
+function Sheet({ title, description, detents = [.45, .92], initialDetent = 0, onDetentChange, closeLabel = "Close", className, children, onDismiss, onCloseAutoFocus, layout = "default", contentProps, confirmDismiss }: SheetProps & { onDismiss: () => void }) {
   const [isPresent, safeToRemove] = usePresence();
   const reduced = useReducedMotion() ?? false;
   const detentKey = detents.join(",");
@@ -219,9 +232,10 @@ function Sheet({ title, description, detents = [.45, .92], initialDetent = 0, on
     // A quick flick always travels at least one detent, and a flick down from the smallest one closes the sheet.
     if (Math.abs(velocity) > FLICK && target === state.from) target = velocity < 0 ? Math.min(state.from + 1, top) : state.from === 0 ? "closed" : state.from - 1;
     // The exit starts in this frame with the finger's velocity; closing the dialog only waits for it to land.
+    if (target === "closed" && confirmDismiss && !confirmDismiss()) { go(state.from); onDismiss(); return; }
     if (target === "closed") { if (!reduced) go("closed", velocity); onDismiss(); return; }
     rest(target, velocity);
-  }, [go, offset, onDismiss, reduced, rest, stops, top, y]);
+  }, [confirmDismiss, go, offset, onDismiss, reduced, rest, stops, top, y]);
 
   // Touch drags on the content move the sheet until it is fully open; once open, the content scrolls and a pull down from its top moves the sheet again.
   useEffect(() => {
@@ -358,12 +372,13 @@ function Sheet({ title, description, detents = [.45, .92], initialDetent = 0, on
       asChild
       forceMount
       {...(description ? {} : { "aria-describedby": undefined })}
-      onCloseAutoFocus={onCloseAutoFocus}
-      onOpenAutoFocus={event => { event.preventDefault(); sheetRef.current?.focus({ preventScroll: true }); }}
+      {...contentProps}
+      onCloseAutoFocus={onCloseAutoFocus ?? contentProps?.onCloseAutoFocus}
+      onOpenAutoFocus={event => { contentProps?.onOpenAutoFocus?.(event); if (event.defaultPrevented) return; event.preventDefault(); sheetRef.current?.focus({ preventScroll: true }); }}
       // Radix waits for the click before treating a press as outside. A press on the trigger while the sheet leaves reopens it first, so that press must not close it again.
-      onPointerDownOutside={event => { const { present, at } = presenceChange.current; if (!present || event.detail.originalEvent.timeStamp < at) event.preventDefault(); }}
+      onPointerDownOutside={event => { contentProps?.onPointerDownOutside?.(event); const { present, at } = presenceChange.current; if (!present || event.detail.originalEvent.timeStamp < at) event.preventDefault(); }}
     >
-      <motion.div ref={sheetRef} className={[styles.sheet, className].filter(Boolean).join(" ")} style={style} data-expanded={expanded ? "" : undefined} onKeyDown={sheetKey}>
+      <motion.div ref={sheetRef} className={[styles.sheet, className].filter(Boolean).join(" ")} style={style} data-layout={layout} data-expanded={expanded ? "" : undefined} onKeyDown={sheetKey}>
         <div className={styles.header} onPointerDown={headerDown} onPointerMove={headerMove} onPointerUp={headerUp} onPointerCancel={headerUp}>
           <button type="button" className={styles.grabber} data-grabber="" aria-label={expanded ? "Collapse sheet" : "Expand sheet"} aria-expanded={expanded} onClick={grabberClick} onKeyDown={grabberKey}>
             <span className={styles.grabberBar} aria-hidden="true" />

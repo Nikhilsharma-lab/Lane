@@ -7,7 +7,8 @@
  * Actions come from the journey module with their reasons, so the page never offers what the server refuses
  * and never hides an action without saying why. Guests follow along without actions. Pure and client-safe.
  */
-import { FORMER_MEMBER, JOURNEY_STATUSES, journeyDate, journeyDay as day, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
+import { plannedDay } from "@/lib/dates"
+import { FORMER_MEMBER, JOURNEY_STATUSES, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
 import type { RequestStatus } from "@/lib/request-lifecycle"
 import { EXCEPTION_REASON_OPTIONS, type ExceptionReason, type OutcomeClosure, type OutcomeException } from "@/lib/request-outcome"
 import { valueBeforeReleaseFor } from "@/lib/request-release-facts"
@@ -44,6 +45,13 @@ export type TimelineInput = {
   now: Date
 }
 
+/**
+ * One line of what happened. A moment stays a moment (`{ at }`), so the page shows it as Lane shows every moment
+ * (`LocalTime`): the zone-free day on the server and the first render, then the viewer's zone, with the full date
+ * and time on hover (B5). Planned days are already text: the same day for everyone.
+ */
+export type JourneyLine = (string | { at: string })[]
+
 export type TimelineAction =
   | { action: JourneyAction; label: string; available: true }
   | { action: JourneyAction; label: string; available: false; reason: string; opensOn?: string }
@@ -54,7 +62,7 @@ export type TimelineStep = {
   /** Skipped: the Request closed without a result before reaching this step. */
   state: "finished" | "current" | "upcoming" | "skipped"
   /** What happened, when and who. */
-  happened: string[]
+  happened: JourneyLine[]
   /** The current step only: what happens next and who does it. */
   next: string | null
   /** The current Measuring step only. */
@@ -90,11 +98,11 @@ function stoppedAt(input: Pick<TimelineInput, "workStatus"> & { closure: { relea
 }
 
 /** The saved release facts under the Measuring step, as the timeline words them; null holds the value before release. */
-function measuringFacts(fact: ReleaseFact, hasValueBefore: boolean, isCurrent: boolean): OutlineLine[] {
+function measuringFacts(fact: ReleaseFact, hasValueBefore: boolean, isCurrent: boolean, now: Date): OutlineLine[] {
   return [
     evidenceLine(fact.evidence),
     ...hasValueBefore ? [null] : [],
-    ...fact.windowKind === "fixed" ? [fixedWindowLine(fact)] : [],
+    ...fact.windowKind === "fixed" ? [fixedWindowLine(fact, now)] : [],
     ...isCurrent ? [DUE_DATE_LINE] : [],
   ]
 }
@@ -105,7 +113,7 @@ function stepActions(input: Pick<TimelineInput, "isGuest" | "readOnly" | "action
   for (const { action, quiet } of STEP_ACTIONS[status] ?? []) {
     let availability = input.actions[action]
     if (action === "close" && availability.allowed && !input.hasAgreedResult)
-      availability = { allowed: false, reason: "There is no agreed Expected impact to measure against." }
+      availability = { allowed: false, reason: "There is no agreed goal to measure against." }
     const label = ACTION_LABELS[action]
     if (availability.allowed) { shown.push({ action, label, available: true }); continue }
     // One reason is enough: the same refusal twice in a step says nothing new.
@@ -118,9 +126,10 @@ function stepActions(input: Pick<TimelineInput, "isGuest" | "readOnly" | "action
 const inProgressNext = (assigneeName: string | null) => `${assigneeName ?? "The assignee"} is working on this. Mark Done when the work is finished.`
 /** Lines the timeline and its outline word alike. */
 export const evidenceLine = (evidence: string) => `Evidence: ${evidence}`
-export const observedLine = (closure: Pick<OutcomeClosure, "observedFrom" | "observedTo">) => `Observed ${journeyDate(closure.observedFrom)} to ${journeyDate(closure.observedTo)} (UTC).`
+// Planned days (#261): the same day for everyone, so no zone to name.
+export const observedLine = (closure: Pick<OutcomeClosure, "observedFrom" | "observedTo">, now = new Date()) => `Observed ${plannedDay(closure.observedFrom, { now })} to ${plannedDay(closure.observedTo, { now })}.`
 export const learnedLine = (learned: string) => `What we learned: ${learned}`
-export const fixedWindowLine = (fact: ReleaseFact) => `Agreed fixed window: ${journeyDate(fact.startDate)} to ${journeyDate(fact.dueDate)}. Release timing does not move these dates.`
+export const fixedWindowLine = (fact: ReleaseFact, now = new Date()) => `Agreed fixed window: ${plannedDay(fact.startDate, { now })} to ${plannedDay(fact.dueDate, { now })}. Release timing does not move these dates.`
 export const DUE_DATE_LINE = "The due date does not close this Request automatically."
 /** The Closed step reads "Closed without a result" once a Request closed that way. */
 const stepLabel = (journey: Journey, status: JourneyStatus, label: JourneyLabel) => status === "closed" && journey.status === "closed" ? journey.label : label
@@ -142,42 +151,44 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
   const stop = journey.withoutResult ? ORDER.indexOf(stoppedAt(input)) : -1
   const states = stepStates(input)
   const release = input.release ?? input.closure?.release ?? null
+  const day = (iso: string) => ({ at: iso })
+  const planned = (day: string) => plannedDay(day, { now: input.now })
   const recordedBy = [...input.releaseHistory].reverse().find(e => e.input.kind === "release" || e.input.kind === "correct")?.actorId
 
   return JOURNEY_STATUSES.map(({ status, label }, index) => {
     const state = states[index]
     const reached = state === "finished" || state === "current"
     const isCurrent = state === "current"
-    const happened: string[] = []
+    const happened: JourneyLine[] = []
     let next: string | null = null
     let countdown: string | null = null
 
     if (status === "open") {
-      happened.push(`Requested by ${input.requestedBy} on ${day(input.requestedAt)}.`)
+      happened.push([`Requested by ${input.requestedBy} on `, day(input.requestedAt), "."])
       if (isCurrent) next = OPEN_NEXT
     }
     if (status === "in_progress" && reached) {
-      const on = input.pickedUpAt ? ` on ${day(input.pickedUpAt)}` : ""
-      happened.push(input.assigneeName ? `Picked up by ${input.assigneeName}${on}.` : `Picked up${on}.`)
+      const by = input.assigneeName ? `Picked up by ${input.assigneeName}` : "Picked up"
+      happened.push(input.pickedUpAt ? [`${by} on `, day(input.pickedUpAt), "."] : [`${by}.`])
       if (isCurrent) next = inProgressNext(input.assigneeName)
     }
     if (status === "done" && reached) {
-      if (input.doneAt) happened.push(`Marked Done on ${day(input.doneAt)}.`)
+      if (input.doneAt) happened.push(["Marked Done on ", day(input.doneAt), "."])
       if (isCurrent) next = doneNext(input.audience)
     }
     if (status === "measuring" && reached && release) {
-      happened.push(`Released to ${release.audience} on ${journeyDate(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? FORMER_MEMBER}` : ""}.`)
+      happened.push([`Released to ${release.audience} on ${planned(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? FORMER_MEMBER}` : ""}.`])
       if (isCurrent) {
-        countdown = `Result due ${journeyDate(release.dueDate)} · ${releaseMeasurement(release, input.now)!.label}`
-        next = `On ${journeyDate(release.dueDate)} the Requester, ${input.requesterName}, records the measured result and closes this Request.`
+        countdown = `Result due ${planned(release.dueDate)} · ${releaseMeasurement(release, input.now)!.label}`
+        next = `On ${planned(release.dueDate)} the Requester, ${input.requesterName}, records the measured result and closes this Request.`
       }
     }
     if (status === "closed" && isCurrent && input.closure) {
       const closure = input.closure
       const by = names[closure.actorId] ?? FORMER_MEMBER
-      if (closure.kind === "measured") happened.push(`Closed with a measured result by ${by} on ${day(closure.closedAt)}.`)
+      if (closure.kind === "measured") happened.push([`Closed with a measured result by ${by} on `, day(closure.closedAt), "."])
       else {
-        happened.push(withoutResultLine(stop, closure.reasonCode), `Closed by ${by} on ${day(closure.closedAt)}.`)
+        happened.push([withoutResultLine(stop, closure.reasonCode)], [`Closed by ${by} on `, day(closure.closedAt), "."])
       }
       next = CLOSED_NEXT
     }
@@ -190,8 +201,9 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
   })
 }
 
-/** A line of the outline: its words when the Request already holds them, or null where the journey's reads fill it in. */
-export type OutlineLine = string | null
+/** A line of the outline: its words when the Request already holds them (a Journey line when it names a moment, so it
+ * reads as the read journey will), or null where the journey's reads fill it in. */
+export type OutlineLine = string | JourneyLine | null
 
 export type OutlineStep = Pick<TimelineStep, "status" | "label" | "state"> & {
   happened: OutlineLine[]
@@ -208,6 +220,8 @@ export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGue
   actions: JourneyActions | null
   releaseState: ReleaseState | null
   closure: OutcomeClosure | OutcomeException | null
+  /** The clock planned days are read against (this year's days without the year); now unless a fixture sets it. */
+  now?: Date
 }
 
 /**
@@ -221,6 +235,7 @@ export type JourneyOutline = { steps: OutlineStep[]; history: boolean }
 export function journeyOutline(input: OutlineInput): JourneyOutline {
   const states = stepStates(input)
   const release = input.releaseState?.release ?? input.closure?.release ?? null
+  const now = input.now ?? new Date()
   return {
     steps: JOURNEY_STATUSES.map(({ status, label }, index) => {
       const state = states[index]
@@ -229,7 +244,7 @@ export function journeyOutline(input: OutlineInput): JourneyOutline {
       const happened: OutlineLine[] = []
       const after: OutlineLine[] = []
       if (status === "open") {
-        happened.push(`Requested by ${input.requestedBy} on ${day(input.requestedAt)}.`)
+        happened.push([`Requested by ${input.requestedBy} on `, { at: input.requestedAt }, "."])
         if (isCurrent) after.push(OPEN_NEXT)
       }
       if (status === "in_progress" && reached) {
@@ -243,7 +258,7 @@ export function journeyOutline(input: OutlineInput): JourneyOutline {
       }
       if (status === "measuring" && reached && release) {
         happened.push(null)
-        after.push(...measuringFacts(release, valueBeforeReleaseFor(input.releaseState, input.releaseState?.release ?? null) !== null, isCurrent))
+        after.push(...measuringFacts(release, valueBeforeReleaseFor(input.releaseState, input.releaseState?.release ?? null) !== null, isCurrent, now))
         // The countdown follows the reader's clock, and what is next names the Requester.
         if (isCurrent) after.push(null, null)
       }
@@ -253,7 +268,7 @@ export function journeyOutline(input: OutlineInput): JourneyOutline {
         if (closure.kind === "measured") {
           happened.push(null)
           // The expected and actual results, and each guardrail, are worded against the agreed prediction the reads bring.
-          after.push(null, null, ...closure.guardrails.map(() => null), evidenceLine(closure.evidence), observedLine(closure))
+          after.push(null, null, ...closure.guardrails.map(() => null), evidenceLine(closure.evidence), observedLine(closure, now))
         } else {
           happened.push(withoutResultLine(ORDER.indexOf(stoppedAt(input)), closure.reasonCode), null)
           if (closure.reason) after.push(closure.reason)

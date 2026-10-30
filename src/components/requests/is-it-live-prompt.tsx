@@ -3,16 +3,17 @@
 import dynamic from "next/dynamic"
 import { createContext, useContext, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
+import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import { createIsItLive, IS_IT_LIVE_COPY, type AskIsItLive, type IsItLiveView } from "./is-it-live"
 import { restoreRequestFocus } from "./list-focus"
 import detailStyles from "./detail.module.css"
 import styles from "./is-it-live.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
 // The release form loads only once "Yes, record release" is chosen; this provider sits on every page.
 const IsItLiveRelease = dynamic(() => import("./is-it-live-release").then(module => module.IsItLiveRelease), {
   ssr: false,
-  loading: () => <p role="status" className={styles.note}>Loading release…</p>,
+  loading: () => <Placeholder label="Loading release" lines={2} />,
 })
 
 const IsItLiveContext = createContext<AskIsItLive | null>(null)
@@ -56,7 +57,7 @@ export function IsItLiveProvider({ orgId, children }: { orgId: string; children:
 
   return <IsItLiveContext.Provider value={ask}>
     {children}
-    <Dialog open={view !== null} onOpenChange={open => { if (!open) prompt.notYet() }}>
+    <Dialog guardTypedText open={view !== null} onOpenChange={open => { if (!open) prompt.notYet() }}>
       {view && <DialogContent data-is-it-live="" onCloseAutoFocus={returnFocus}
         title={view.step === "ask" ? IS_IT_LIVE_COPY.title : IS_IT_LIVE_COPY.releaseTitle}
         description={view.step === "ask" ? IS_IT_LIVE_COPY.question(view.request.name) : view.request.name}>

@@ -14,6 +14,7 @@ import { useRequestNavigation } from "./request-navigation"
 import { advanceSequence, sequencePosition, type SequencePosition } from "./request-sequence"
 import { FULL_PREFETCH, useIntentPrefetch } from "./use-intent-prefetch"
 import styles from "./detail.module.css"
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 export type SequenceDirection = "previous" | "next"
 
@@ -87,7 +88,7 @@ function SequenceButton({ direction, targetId, onGo }: { direction: SequenceDire
   const prefetch = useIntentPrefetch(href)
   const label = direction === "next" ? "Next Request" : "Previous Request"
   const Icon = direction === "next" ? ChevronDown : ChevronUp
-  return <Tooltip morph="plain" side="bottom" content={<>{label}<kbd className={styles.kbd}>{direction === "next" ? "J" : "K"}</kbd></>}>
+  return <Tooltip morph="plain" side="bottom" content={<>{label}<KeyCap className={styles.kbd}>{direction === "next" ? "J" : "K"}</KeyCap></>}>
     <Button type="button" variant="ghost" size="sm" morph="plain" className={styles.iconButton} aria-label={label} disabled={!targetId}
       data-detail-sequence={direction} data-href={href || undefined}
       onPointerEnter={event => { if (targetId && event.pointerType !== "touch") prefetch.schedule() }}

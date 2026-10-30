@@ -23,8 +23,8 @@
 /* Says why Review Request waits; it takes the row's free space and wraps above the actions when narrow. */
 .footerNote { flex: 1 1 calc(var(--spacing) * 64); margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 /* The key hint is decoration for pointer users; the button carries aria-keyshortcuts. */
-.shortcut { display: none; color: var(--text-muted); font: inherit; font-size: var(--text-xs); white-space: nowrap; }
-@media (hover: hover) and (pointer: fine) { .shortcut { display: inline; } }
+.shortcut { display: none; }
+@media (hover: hover) and (pointer: fine) { .shortcut { display: inline-grid; } }
 
 .propertyContent { display: inline-flex; align-items: center; gap: var(--space-2); }
 .propertyContent > svg { width: var(--icon-size, var(--icon-size-md)); height: var(--icon-size, var(--icon-size-md)); flex: none; color: var(--accent); }

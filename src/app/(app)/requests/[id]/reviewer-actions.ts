@@ -241,7 +241,7 @@ export async function readReviews(
       error:
         e instanceof RequestChangeError
           ? e.message
-          : "Could not load reviews. Try again.",
+          : "Couldn't load reviews. Try again.",
     };
   }
 }
@@ -257,6 +257,6 @@ export async function loadReviewerPeople(context: { orgId: string }) {
   try {
     return { people: await workspaceRoster(auth.orgId), canInvite: auth.role === "admin" };
   } catch {
-    return { error: "Could not load people. Try again." };
+    return { error: "Couldn't load people. Try again." };
   }
 }

@@ -1,7 +1,7 @@
 import type { WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 
 const sessionExpired: WorkspaceSearchResponse = { success: false, error: { code: "session_expired", message: "Your workspace session changed. Refresh the page to search again." } };
-const searchFailed: WorkspaceSearchResponse = { success: false, error: { code: "search_failed", message: "Search could not be completed. Try again." } };
+const searchFailed: WorkspaceSearchResponse = { success: false, error: { code: "search_failed", message: "Search couldn't be completed. Try again." } };
 
 /**
  * Plan item 1.16 (decision 8.15): search reads GET /api/search instead of a

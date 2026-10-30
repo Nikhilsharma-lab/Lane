@@ -58,7 +58,7 @@ export function useMetricLibrary(orgId: string | undefined, impact: unknown): Me
       if ("error" in result) setState(previous => ({ ...previous, status: "error", error: result.error }))
       else setState({ status: "ready", metrics: result.metrics, saved: result.saved, canOpenLibrary: result.canOpenLibrary, canAddMetrics: result.canAddMetrics, error: null })
     }, () => {
-      if (attempt === run.current) setState(previous => ({ ...previous, status: "error", error: "The Metrics library could not be loaded. Check your connection and try again." }))
+      if (attempt === run.current) setState(previous => ({ ...previous, status: "error", error: "The Metrics library couldn't be loaded. Check your connection and try again." }))
     })
   }, [orgId])
 

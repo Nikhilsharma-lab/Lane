@@ -13,6 +13,9 @@ import { pickerPopoverProps } from "./request-property-pickers"
 import type { MetricLibrary } from "./use-metric-library"
 import styles from "./measurement-plan-fields.module.css"
 import layout from "./request-picker-layout.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
+import { thrownMessage } from "@/lib/failure-messages"
+import { FieldError } from "@/components/forms/field-error"
 
 /** The Metrics page, which the prediction form links to (#198). */
 export const METRICS_PAGE = "/settings/metrics"
@@ -127,7 +130,7 @@ export function InlineMetricForm({ id, values, fields, error, offer, pending, on
     </div> : <>
       <div className={styles.inlineUnit} data-field="unit">
         <RadioGroup label="Unit" options={UNIT_OPTIONS} value={values.unit} onValueChange={unit => onChange({ ...values, unit })}/>
-        {fields.unit && <p className={styles.error} role="alert">{fields.unit}</p>}
+        <FieldError>{fields.unit}</FieldError>
       </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.inlineActions}>
@@ -207,8 +210,8 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
         else if (!result.fields) setAddError(result.error)
       } else if (result.existing) setOffer(result.metric)
       else pick(result.metric)
-    } catch {
-      setAddError("The metric could not be added. Check your connection and try again; your Request is still here.")
+    } catch (thrown) {
+      setAddError(thrownMessage(thrown, "The metric couldn't be added. Check your connection and try again; your Request is still here."))
     } finally {
       setPending(false)
     }
@@ -257,7 +260,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
               addName={addName} onAdd={() => addName && startAdding(addName)} />
           </div>
           <div className={styles.metricStatus}>
-            {library.status === "loading" && <p className={styles.hint} role="status">Loading the Metrics library…</p>}
+            {library.status === "loading" && <Placeholder label="Loading the Metrics library" lines={1} />}
             {library.status === "error" && <div className={styles.metricError}>
               <p className={styles.error} role="alert">{library.error}</p>
               <Button type="button" size="sm" variant="secondary" onClick={library.reload}>Try again</Button>
@@ -273,6 +276,6 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
         </>}
       </PopoverContent>
     </Popover>
-    {error && <p id={`${id}-error`} className={styles.error} role="alert">{error}</p>}
+    <FieldError id={`${id}-error`}>{error}</FieldError>
   </div>
 }

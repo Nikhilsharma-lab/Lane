@@ -16,6 +16,7 @@ import { FutureSettings } from "./coming-soon-panel";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 import { ROLE_NAMES } from "@/lib/role-rules";
 import styles from "./settings.module.css";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 function subscribe(listener: () => void) {
   window.addEventListener("popstate", listener);
@@ -140,12 +141,12 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
   }}>
     <header className={styles.header} inert={!!palette}>
       <div className={styles.heading}><Link href="/" className={styles.back} aria-label="Back to Requests"><ArrowLeft aria-hidden="true" /></Link><h1>Settings</h1></div>
-      <button ref={trigger} className={styles.searchTrigger} type="button" onClick={openPalette} aria-haspopup="dialog" aria-keyshortcuts="/"><Search aria-hidden="true" /><span>Search settings</span><kbd>/</kbd></button>
+      <button ref={trigger} className={styles.searchTrigger} type="button" onClick={openPalette} aria-haspopup="dialog" aria-keyshortcuts="/"><Search aria-hidden="true" /><span>Search settings</span><KeyCap className={styles.searchKey}>/</KeyCap></button>
     </header>
     <aside className={styles.sidebar} inert={!!palette}>
       <nav aria-label="Settings" className={styles.navigation}><LayoutGroup id={`${uid}-nav`}>{[...new Set(nav.map(entry => entry.group))].map(group => <div key={group} className={styles.navGroup}><h2 className={styles.navGroupTitle}>{group}</h2><ul>
         {nav.filter(entry => entry.group === group).map(entry => { const Icon = icons[entry.id as keyof typeof icons]; return <li key={entry.id}>
-          <Link className={styles.navItem} href={settingsHref(entry.id)} aria-current={current === entry.id ? "page" : undefined}
+          <Link className={styles.navItem} data-pressable="" href={settingsHref(entry.id)} aria-current={current === entry.id ? "page" : undefined}
             onClick={event => {
               if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               // A section with its own page is a real navigation from anywhere else.

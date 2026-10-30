@@ -10,6 +10,7 @@ import {
   metricUnitName, type MetricDefinitionField,
 } from "@/lib/metric-definition-rules";
 import styles from "./metric-definition-form.module.css";
+import { FieldError } from "@/components/forms/field-error";
 
 export type MetricDefinitionValues = { name: string; unit: string; link: string; howCounted: string };
 export type MetricFormResult = { ok: true } | { error: string; fields?: Partial<Record<MetricDefinitionField, string>> };
@@ -90,7 +91,7 @@ export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onS
           <p className={styles.note}>{UNIT_LOCKED_NOTE}</p>
         </div>
         : <RadioGroup label="Unit" options={UNIT_OPTIONS} value={values.unit} onValueChange={set("unit")} />}
-      {fields.unit && <p className={styles.error} role="alert">{fields.unit}</p>}
+      <FieldError>{fields.unit}</FieldError>
     </div>
     <div data-field="link"><Input label="Where it lives" description="A link to the dashboard or report that shows it. Optional." type="url" inputMode="url" placeholder="https://" value={values.link} onChange={event => set("link")(event.target.value)} maxLength={METRIC_LINK_MAX} error={fields.link} autoComplete="off" /></div>
     <div data-field="howCounted"><Textarea label="How it's counted" description="One line on what is counted, and over what. Optional." value={values.howCounted} onChange={event => set("howCounted")(event.target.value)} maxLength={METRIC_HOW_COUNTED_MAX} error={fields.howCounted} rows={3} /></div>

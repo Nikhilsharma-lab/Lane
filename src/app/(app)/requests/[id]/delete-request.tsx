@@ -1,11 +1,12 @@
 "use client";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
 import styles from "@/components/requests/detail.module.css";
 import { deleteRequest } from "./actions";
 
@@ -28,8 +29,8 @@ export function DeleteRequest({ requestId, title, orgId }: { requestId: string; 
       setOpen(false);
       toast({ type: "success", title: "Request deleted" });
       router.push("/");
-    } catch {
-      setError("Couldn’t delete the Request. Try again.");
+    } catch (thrown) {
+      setError(thrownMessage(thrown, "Couldn’t delete the Request. Try again."));
     } finally {
       setBusy(false);
     }
@@ -44,7 +45,7 @@ export function DeleteRequest({ requestId, title, orgId }: { requestId: string; 
       {error && <p role="alert">{error}</p>}
       <div className={styles.dialogActions}>
         <DialogClose asChild><Button variant="ghost" disabled={busy}>Cancel</Button></DialogClose>
-        <Button variant="danger" disabled={busy} onClick={() => void confirm()}>{busy ? "Deleting…" : "Delete Request"}</Button>
+        <Button variant="danger" loading={busy} onClick={() => void confirm()}>Delete Request</Button>
       </div>
     </DialogContent>
   </Dialog>;

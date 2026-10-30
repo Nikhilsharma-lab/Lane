@@ -1,15 +1,28 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
+import { syncAccountName } from "@/app/(app)/settings/profile/actions";
+import { accountNameOf } from "@/lib/account-name";
+import { callAction } from "@/lib/action-call";
 import { AccountDetails } from "./account-details";
 import { Button } from "@/components/arc/button/button";
 import { clerkAccountAppearance } from "@/components/auth/clerk-appearance";
 import { SettingsCard } from "./settings-card";
 
-export function AccountProfile({ fallbackName, fallbackEmail }: { fallbackName: string; fallbackEmail: string }) {
+/** #261: the sign-in account's name, which Lane shows everywhere. `fallbackName` is Lane's saved copy of it. */
+export function AccountProfile({ orgId, fallbackName, fallbackEmail }: { orgId: string; fallbackName: string; fallbackEmail: string }) {
   const { user, isLoaded } = useUser();
   const clerk = useClerk();
-  return <><AccountDetails name={user?.fullName || fallbackName} email={user?.primaryEmailAddress?.emailAddress || fallbackEmail} image={user?.imageUrl}
+  const name = user ? accountNameOf(user) : null;
+  // A rename under "Manage account", or one made before Lane kept names in step: Lane's copy catches up once per new name.
+  const asked = useRef<string | null>(null);
+  useEffect(() => {
+    if (!name || name === fallbackName || asked.current === name) return;
+    asked.current = name;
+    callAction(() => syncAccountName({ orgId })).catch(() => { asked.current = null; });
+  }, [name, fallbackName, orgId]);
+  return <><AccountDetails name={name || fallbackName} email={user?.primaryEmailAddress?.emailAddress || fallbackEmail} image={user?.imageUrl}
     loading={!isLoaded} onManage={() => clerk.openUserProfile({ appearance: clerkAccountAppearance })} />
     <div id="connected-accounts" tabIndex={-1}><SettingsCard title="Connected accounts" description="Accounts used to sign in to Lane." footer="Clerk manages your sign-in connections. External work-tool integrations are listed separately in Coming soon." action={<Button variant="secondary" size="sm" disabled={!isLoaded} onClick={() => clerk.openUserProfile({ appearance: clerkAccountAppearance })}>Manage connected accounts</Button>} /></div></>;
 }

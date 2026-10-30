@@ -7,6 +7,7 @@ import { Avatar } from "@/components/arc/avatar/avatar"
 import { Button } from "@/components/arc/button/button"
 import { RequestStatusControl } from "./request-status-control"
 import { StatusGlyph } from "./status-glyph"
+import { LocalTime } from "./local-time"
 import { RequestPriorityPicker } from "./request-priority-picker"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { RequestLabels } from "./request-labels"
@@ -71,13 +72,6 @@ function Value({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return <span className={styles.propertyValue}><span className={styles.propertyIcon}>{icon}</span><span className={styles.propertyText}>{children}</span></span>
 }
 
-/** Submitted's local date and time, as a title once the page is in the browser (never in the first render). */
-function SubmittedTime({ iso, label }: { iso: string; label: string }) {
-  const ref = useRef<HTMLTimeElement>(null)
-  useEffect(() => { ref.current?.setAttribute("title", new Date(iso).toLocaleString()) }, [iso])
-  return <time ref={ref} dateTime={iso}>{label}</time>
-}
-
 /**
  * Plan item 2.5: the property panel. Status (its one allowed move, members
  * only) is the first group, where alignment and outcome rows will later
@@ -127,7 +121,7 @@ function usePropertyControls(inSheet = false) {
 }
 
 export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
-  const { request, submittedAgo } = useDetailRequest()
+  const { request } = useDetailRequest()
   const { statusControl, priorityControl } = usePropertyControls(inSheet)
   const { journey } = useDetailJourney()
   const status = request.status
@@ -145,7 +139,7 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
         : <span className={styles.propertyMuted}>No one yet</span>}</Row>
       <Row label="Project"><Value icon={<ProjectMarker projectId={request.projectId} />}>{request.projectId ? request.projectName ?? "Unavailable Project" : "No Project"}</Value></Row>
       <Row label="Labels"><RequestLabels request={request} /></Row>
-      <Row label="Submitted"><span className={styles.propertyText}>{request.creatorName ?? "Unknown member"}, <SubmittedTime iso={new Date(request.createdAt).toISOString()} label={submittedAgo} /></span></Row>
+      <Row label="Submitted"><span className={styles.propertyText}>{request.creatorName ?? "Unknown member"}, <LocalTime iso={new Date(request.createdAt).toISOString()} /></span></Row>
     </dl>
   </div>
 }

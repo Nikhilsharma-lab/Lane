@@ -321,7 +321,8 @@ describe("review state (#77)", () => {
   it("gives Request detail the journey's outline from the saved Request and the reader, with no roster read (#295)", async () => {
     const outline = (await loadRequestDetail(member, memberRequest))?.request.journeyOutline;
     expect(outline?.steps.map(step => step.state)).toEqual(["finished", "current", "upcoming", "upcoming", "upcoming"]);
-    expect(outline?.steps[0].happened[0]).toMatch(/^Requested by Test Member on /);
+    // The moment stays a moment (#261), so the page shows it in the viewer's zone with LocalTime.
+    expect(outline?.steps[0].happened[0]).toEqual(["Requested by Test Member on ", { at: expect.any(String) }, "."]);
     // In progress, filed by the Member: they may close it without a result; someone else is told who can.
     expect(outline?.steps[1].actions).toEqual([{ action: "closeWithoutResult", label: "Close without a result…", available: true }]);
     const other = (await loadRequestDetail({ ...member, userId: OTHER_ADMIN }, memberRequest))?.request.journeyOutline;

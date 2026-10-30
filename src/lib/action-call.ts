@@ -1,4 +1,11 @@
+/**
+ * #260: while the browser is offline it calls nothing and rejects with
+ * `OfflineError` (src/lib/connection-status.ts); callers say the shared
+ * "You're offline" answer (src/lib/failure-messages.ts). Nothing is queued for later.
+ */
 import { isExpiredActionResult } from "./action-session-failure"
+import { isOffline } from "./connection-status"
+import { OfflineError } from "./offline-error"
 
 /** Clerk's session token, as the browser holds it. */
 export type ActionSession = {
@@ -28,6 +35,7 @@ export function isSessionFailure(outcome: { value: unknown } | { thrown: unknown
  * Calling the same closure retains the original workspace and operation ID;
  * the server guard derives identity afresh on each attempt. */
 export async function callAction<R>(run: () => Promise<R>, session: ActionSession = clerkActionSession): Promise<R> {
+  if (isOffline()) throw new OfflineError()
   await session.current().catch(() => undefined)
   const value = await run()
   if (!isExpiredActionResult(value)) return value

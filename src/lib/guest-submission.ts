@@ -21,7 +21,7 @@ export function guestSubmissionOf(request: GuestSubmissionFacts): GuestSubmissio
 export const WAITING_TO_BE_TAKEN_ON = "Waiting to be taken on"
 
 export const TAKE_ON_FIRST = "Take this Guest submission on before picking it up."
-export const WRITE_THE_PREDICTION = "Write the prediction before picking up this Request."
+export const WRITE_THE_PREDICTION = "Set the goal before picking up this Request."
 
 /**
  * Why a Guest submission can't be picked up yet, or null: nobody picks it up while it waits, and the Member who took
@@ -48,15 +48,15 @@ export function guestSubmissionNotice(view: GuestSubmissionView, reader: GuestNo
   // A Guest reads only their own Requests, so a Guest reading this filed it.
   const ownSubmission = !readsWholeWorkspace(reader.role)
   if (view.state === "waiting") {
-    if (ownSubmission) return { text: "Waiting for a Member to take this on. They’ll write its prediction, and you’ll get an email when they do.", action: null }
+    if (ownSubmission) return { text: "Waiting for a Member to take this on. They’ll set its goal, and you’ll get an email when they do.", action: null }
     if (!canChangeThings(reader.role)) return { text: `${submitter} filed this as a Guest. It’s waiting for a Member to take it on.`, action: null }
-    return { text: `${submitter} filed this as a Guest, without a prediction. Take it on to become its Requester and write the prediction.`, action: "take_on" }
+    return { text: `${submitter} filed this as a Guest, without a goal. Take it on to become its Requester and set the goal.`, action: "take_on" }
   }
   if (ownSubmission) return { text: `${taker} took this on and is its Requester. You can still follow it and comment.`, action: null }
   if (view.takenOnBy === reader.userId && canChangeThings(reader.role)) {
     return hasPrediction
       ? { text: `${submitter} filed this as a Guest. You took it on and are its Requester.`, action: null }
-      : { text: `${submitter} filed this as a Guest. You took it on, so write its prediction before the work is picked up.`, action: "write_prediction" }
+      : { text: `${submitter} filed this as a Guest. You took it on, so set its goal before the work is picked up.`, action: "write_prediction" }
   }
   return { text: `${submitter} filed this as a Guest. ${taker} took it on and is its Requester.`, action: null }
 }

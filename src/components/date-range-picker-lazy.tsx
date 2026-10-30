@@ -2,8 +2,8 @@
 
 import dynamic from "next/dynamic"
 import { useState, type ComponentType } from "react"
-import { Skeleton } from "@/components/arc/skeleton/skeleton"
 import type { DateRangePickerProps } from "@/components/arc/date-range-picker/date-range-picker"
+import { Placeholder } from "@/components/loading/placeholder";
 
 export type { DateRange, DateRangePickerProps } from "@/components/arc/date-range-picker/date-range-picker"
 
@@ -20,7 +20,7 @@ export function preloadDateRangePicker() {
   void load().catch(() => undefined)
 }
 
-const LoadingDateRangePicker = dynamic(load, { loading: () => <Skeleton label="Loading calendar" lines={5} /> })
+const LoadingDateRangePicker = dynamic(load, { loading: () => <Placeholder label="Loading calendar" lines={5} /> })
 
 /** Arc's DateRangePicker, loaded on demand. Props are the Arc component's. */
 export function DateRangePicker(props: DateRangePickerProps) {

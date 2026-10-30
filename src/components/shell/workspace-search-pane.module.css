@@ -43,7 +43,6 @@
 .mark { padding: 0 calc(var(--spacing) * .5); margin: 0 calc(var(--spacing) * -.25); border-radius: var(--radius-sm); background: var(--accent-subtle); color: var(--search-highlight-foreground); box-decoration-break: clone; }
 .more { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
 .keys { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-3); color: var(--text-muted); font-size: var(--text-xs); }
-.keys kbd { font: inherit; }
 /* Key hints are for keyboards: hidden where the primary pointer is touch. */
 @media (hover: none), (pointer: coarse) { .keys { display: none; } }
 .empty { display: grid; place-items: center; min-height: calc(var(--space-1) * 90); }

@@ -24,8 +24,6 @@ export type DetailRequestValue = {
   code: string | null
   /** What toasts and the polite region call this Request: its code, else its title. */
   name: string
-  /** The server's "3d ago" for Submitted, computed in the server render so the client's first render matches it. */
-  submittedAgo: string
   /** Section forms the viewer opened (Ask for review, Withdraw, Respond). While any is open the strip hides its action. */
   formsOpen: number
   reportForm: (open: boolean) => void
@@ -71,12 +69,11 @@ export function DetailArrivalReset({ requestId }: { requestId?: string }) {
  * 2.12) passes `arrival={false}`: focus stays on the list's row, and the
  * page's J and K sequence is left as it was.
  */
-export function DetailRequestProvider({ request: serverRequest, viewer, orgId, isGuest, submittedAgo, arrival = true, children }: {
+export function DetailRequestProvider({ request: serverRequest, viewer, orgId, isGuest, arrival = true, children }: {
   request: RequestDetail
   viewer: DetailViewer
   orgId: string
   isGuest: boolean
-  submittedAgo: string
   arrival?: boolean
   children: ReactNode
 }) {
@@ -105,8 +102,8 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
   usePublishOpenRequest(current)
 
   const peek = !arrival
-  const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, peek, code, name, submittedAgo, formsOpen, reportForm }),
-    [request, viewer, orgId, isGuest, peek, code, name, submittedAgo, formsOpen, reportForm])
+  const value = useMemo<DetailRequestValue>(() => ({ request, viewer, orgId, isGuest, peek, code, name, formsOpen, reportForm }),
+    [request, viewer, orgId, isGuest, peek, code, name, formsOpen, reportForm])
   return <DetailRequestContext.Provider value={value}>{children}</DetailRequestContext.Provider>
 }
 

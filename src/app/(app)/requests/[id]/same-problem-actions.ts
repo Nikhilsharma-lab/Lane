@@ -58,6 +58,6 @@ export async function readSameProblem(requestId: string, context: { orgId: strin
     const [iterations, history] = await Promise.all([loadIterations(auth, requestId, group, { now: new Date() }), readSameProblemHistory(auth, requestId)]);
     return { shown: true, iterations, history, canChange: canChangeThings(auth.role) };
   } catch {
-    return { error: "Could not load the Iterations. Try again." };
+    return { error: "Couldn't load the Iterations. Try again." };
   }
 }

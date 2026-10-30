@@ -46,7 +46,9 @@ describe("the Request page before its reads arrive (#295)", () => {
   it("draws the Journey's five steps from the Request, who asked and when, and what is next", () => {
     const shown = journey(render(open))
     expect(text(shown)).toMatch(/Open .*In progress .*Done .*Measuring .*Closed/)
-    expect(text(shown)).toContain("Requested by Robin on 20 Oct 2026.")
+    // The day is a moment (#261): the zone-free day on the server, swapped for the viewer's once in the browser.
+    expect(text(shown)).toMatch(/Requested by Robin on 20 Oct( 2026)? \./)
+    expect(shown).toMatch(/<time dateTime="2026-10-20T10:00:00.000Z"[^>]*>20 Oct( 2026)?<\/time>/)
     expect(text(shown)).toContain("Waiting for someone to pick this up. Reviews are optional and never block pickup.")
     expect(shown).toMatch(/<li[^>]*data-state="current"[^>]*aria-current="step"[^>]*>[\s\S]*?Open/)
     // Screen readers still hear that it is loading; the Requester's name is held until it arrives.

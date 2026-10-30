@@ -124,9 +124,10 @@ test("comments show immediate progress, block duplicates, and preserve failed dr
       const conversation = page.locator("#conversation")
       const pendingRow = conversation.locator("li").filter({ hasText: slowComment })
       await expect(pendingRow).toContainText("Sending…")
+      // #262: the busy button keeps its label.
       await expect(
-        page.getByRole("button", { name: "Posting…", exact: true })
-      ).toBeDisabled()
+        page.getByRole("button", { name: "Post comment", exact: true })
+      ).toHaveAttribute("aria-busy", "true")
       await expect(textarea).not.toHaveAttribute("readonly", "")
       await expect(textarea).toHaveValue("")
       await expect(form).toHaveAttribute("aria-busy", "true")

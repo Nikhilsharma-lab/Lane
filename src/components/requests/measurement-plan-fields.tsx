@@ -1,5 +1,6 @@
 "use client"
 
+import { plannedDay } from "@/lib/dates"
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
 import { CalendarDays, Check, ListChecks, Monitor, Plus, Users } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
@@ -23,6 +24,7 @@ import { measurementEditorValue, measurementEditorChanges, editorMetricLabel, ed
 import { MeasurementMetricPicker, METRICS_PAGE } from "./measurement-metric-picker"
 import { useMetricLibrary, type MetricLibrary } from "./use-metric-library"
 import styles from "./measurement-plan-fields.module.css"
+import { FieldError } from "@/components/forms/field-error"
 
 type Metric = EditorMetric
 type Option = { value: string; label: string; disabled?: boolean; icon?: ReactNode; trailing?: ReactNode }
@@ -36,11 +38,6 @@ const checks = {
   recovery: { label: "Network error recovery", steps: "Disconnect the network before submitting the flow described in this Request, reconnect, then retry.", pass: "Entered details remain available, an error is shown, and retry completes the action once without creating a duplicate." },
 }
 const checkOptions = Object.entries(checks).map(([value, check]) => ({ value, label: check.label }))
-
-function formatDate(value: string) {
-  const date = new Date(`${value}T00:00:00`)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-}
 
 /** Arc owns popup positioning, typeahead, arrow keys, Escape and focus return. */
 function CompactSelect({ id, label, value, options, onChange, disabled, error, icon, placeholder = "Choose an option", selectedLabel, hideLabel = false, indicatorPosition }: {
@@ -61,7 +58,7 @@ function CompactSelect({ id, label, value, options, onChange, disabled, error, i
         aria-invalid={Boolean(error) || undefined} aria-describedby={`${id}-value${error ? ` ${id}-error` : ""}`} title={shown}>
         <span className={styles.triggerContent}>{icon}<span id={`${id}-value`} className={styles.triggerText}>{shown}</span></span>
       </Button>} />
-    {error && <p id={`${id}-error`} className={styles.error} role="alert">{error}</p>}
+    <FieldError id={`${id}-error`}>{error}</FieldError>
   </div>
 }
 
@@ -97,7 +94,7 @@ function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions,
       <Input ref={inputRef} id={id} label={label} hideLabel className={styles.numericInput} type="number" min={unrestricted ? undefined : 0}
         max={!unrestricted && unit === "percent" ? 100 : undefined} step={!unrestricted && unit === "count" ? 1 : "any"}
         disabled={disabled || !unit || noBaseline} placeholder={noBaseline ? "No existing data" : unit ? hideLabel ? "Value" : "Enter value" : "Choose a metric and unit"}
-        defaultValue={initialValue} aria-labelledby={`${id}-label`} aria-invalid={Boolean(message) || undefined} aria-describedby={message ? `${id}-message` : undefined}
+        defaultValue={initialValue} aria-labelledby={`${id}-label`} error={message}
         onInput={event => {
           // Invalid numeric text and a cleared field both expose value="".
           // onInput also catches that validity-only edit; onChange skips it.
@@ -114,7 +111,6 @@ function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions,
           placeholder="Unit" disabled={disabled || unitLocked || !unitOptions?.length} onChange={next => onUnitChange?.(next as Metric["unit"])} />
       </div>
     </div>
-    {message && <p id={`${id}-message`} className={styles.error} role="alert">{message}</p>}
   </div>
 }
 
@@ -218,7 +214,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
   }
   const windowLabel = measurement.exactDates
     ? measurement.startDate && measurement.endDate
-      ? `${formatDate(measurement.startDate)} to ${formatDate(measurement.endDate)}`
+      ? `${plannedDay(measurement.startDate)} to ${plannedDay(measurement.endDate)}`
       : "Custom date range"
     // The default 30-day window names itself like any other (critique 2.3); only a missing window reads as the placeholder.
     : legacy ? measurement.windowDays === null ? "Measurement dates" : `${measurement.windowDays} days after release` : windows.find(option => option.value === String(measurement.windowDays))?.label ?? "Measurement dates"
@@ -254,14 +250,14 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               error={error("primary.current", primary.current !== null)} onChange={current => changePrimary({ current })}
               unitOptions={unitOptionsOf(primary)} unitLocked={!legacy}
               onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
-            <NumberField unrestricted={legacy} id={`${prefix}-target`} label="Target after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
+            <NumberField unrestricted={legacy} id={`${prefix}-target`} label="Goal after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
               error={error("primary.target", primary.target !== null)} onChange={target => changePrimary({ target })}
               unitOptions={unitOptionsOf(primary)} unitLocked={!legacy} onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
           </div>
           {(requestType === "new_feature" || primary.noBaseline) && primary.key && <Checkbox
             label="No existing data. This is a brand-new feature." checked={primary.noBaseline} disabled={disabled}
             onCheckedChange={checked => changePrimary({ noBaseline: checked === true, current: checked === true ? null : primary.current })} />}
-          {typeIssue && <p className={styles.error} role="alert">{typeIssue}</p>}
+          <FieldError>{typeIssue}</FieldError>
         </>)}
       </section>
 
@@ -304,7 +300,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
           {measurement.platform === "custom" && <Input label="Custom platform" value={measurement.platformName ?? ""} maxLength={MEASUREMENT_SCOPE_NAME_MAX} disabled={disabled}
             error={error("measurement.platformName")} onChange={event => changeMeasurement({ platformName: event.target.value })} />}
         </div>}
-        {(error("measurement.startDate") || error("measurement.endDate")) && <p className={styles.error} role="alert">{error("measurement.startDate") || error("measurement.endDate")}</p>}
+        <FieldError>{error("measurement.startDate") || error("measurement.endDate")}</FieldError>
         <MeasurementDateDialog open={datesOpen} onOpenChange={setDatesOpen} startDate={measurement.startDate} endDate={measurement.endDate} returnFocusRef={windowRef}
           onApply={(startDate, endDate) => { changeMeasurement({ exactDates: true, startDate, endDate }); setDatesOpen(false) }} />
       </section>

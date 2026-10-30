@@ -8,6 +8,7 @@ import type { TargetAndTransition } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import { Tooltip } from "../tooltip/tooltip";
 import styles from "./floating-button-group.module.css";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 export type FloatingButtonGroupVariant = "muted" | "floating";
 export type FloatingButtonGroupSize = "sm" | "md";
@@ -95,7 +96,7 @@ function ItemBody({ label, icon, iconOnly, reserve, reduced }: { label: string; 
 }
 
 function TipContent({ label, shortcut }: { label: string; shortcut?: string }) {
-  return <span className={styles.tip}>{label}{shortcut ? <kbd className={styles.kbd}>{shortcut}</kbd> : null}</span>;
+  return <span className={styles.tip}>{label}{shortcut ? <KeyCap>{shortcut}</KeyCap> : null}</span>;
 }
 
 /** Side tooltips for a column. The library Tooltip opens above or below, which would cover the neighbouring button. */

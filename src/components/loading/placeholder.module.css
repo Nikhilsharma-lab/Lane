@@ -1,0 +1,6 @@
+/* #262 (polish bar §5): the shared placeholder. The wrapper adds no box, so the loading shape keeps the
+   layout it was drawn for; each shape inside stays invisible for --duration-fast, then fades in. With
+   motion turned off the fade is cut to nothing by globals.css, and the wait stays. */
+.placeholder { display: contents; }
+.placeholder > * { animation: placeholder-in var(--duration-standard) var(--ease-standard) var(--duration-fast) both; }
+@keyframes placeholder-in { from { opacity: 0; } }

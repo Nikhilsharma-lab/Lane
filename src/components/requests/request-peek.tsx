@@ -5,6 +5,7 @@ import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/
 import { Button } from "@/components/arc/button/button"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
+import { dismissOpenForm } from "@/components/popup/dismiss-form"
 import type { OverviewRequest } from "@/lib/request-overview"
 import styles from "./request-peek.module.css"
 
@@ -63,7 +64,7 @@ function PreviewLoading({ onClose }: { onClose: () => void }) {
 
 function PreviewFailed({ onClose }: { onClose: () => void }) {
   return <div className={styles.state} role="alert">
-    <p>The preview could not load. Reload the page to try again.</p>
+    <p>The preview couldn’t load. Reload the page to try again.</p>
     <Button type="button" variant="ghost" size="sm" onClick={onClose}>Close preview</Button>
   </div>
 }
@@ -94,6 +95,8 @@ export function RequestPeek(props: RequestPeekProps) {
     // Workspace search hides the page; Esc then belongs to the search pane.
     if (!isShown(panel.current)) return
     event.preventDefault()
+    // #263: an open form in the preview closes first (asking if it holds typed text); the preview stays.
+    if (panel.current && dismissOpenForm(panel.current)) return
     onClose()
   })
   useEffect(() => {

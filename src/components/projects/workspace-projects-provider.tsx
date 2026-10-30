@@ -16,7 +16,7 @@ const WorkspaceProjectsContext = createContext<SharedWorkspaceProjects | null>(n
 export function createWorkspaceProjects(orgId: string, initialProjects: ProjectOption[]) {
   return createWorkspaceCatalogue({
     initial: { entries: initialProjects, metadata: null },
-    loadError: "Projects could not be loaded. Try again.",
+    loadError: "Projects couldn't be loaded. Try again.",
     clearErrorOnChange: true,
     arrange: entries => entries.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
     read: async () => {

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { assertE2ETarget } from "./safety";
-import { assertOwnedOrganization, assertOwnedUser, forgetOrganization, ownedUserScope } from "./fixtures";
+import { assertOwnedOrganization, assertOwnedUser, borrowedUserNames, forgetOrganization, ownedUserScope } from "./fixtures";
 import { createClerkTestOrganization } from "./test-user";
 
 type FunctionalRole = "pm" | "designer" | "developer";
@@ -97,7 +97,13 @@ export async function cleanupTestWorkspace(userId: string): Promise<void> {
     for (const orgId of orgIds) {
       await sql`DELETE FROM organizations WHERE id = ${orgId} AND owner_id = ${userId}`;
     }
-    await sql`DELETE FROM profiles WHERE id = ${userId}`;
+    try {
+      await sql`DELETE FROM profiles WHERE id = ${userId}`;
+    } catch (error) {
+      // A borrowed user (LANE_E2E_REUSE_USERS=1) may still be named on a workspace an earlier run had to keep (release
+      // history is immutable); its profile stays for those rows, and the next borrower's profile upsert reuses it.
+      if (!(borrowedUserNames(userId) && (error as { code?: string }).code === "23503")) throw error;
+    }
   } finally {
     await sql.end();
   }

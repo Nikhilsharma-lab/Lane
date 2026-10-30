@@ -11,7 +11,7 @@ export function WorkspaceIdentifier({ value }: { value: string }) {
       await navigator.clipboard.writeText(value);
       setStatus("Workspace ID copied.");
     } catch {
-      setStatus("Could not copy. Select the ID and copy it manually.");
+      setStatus("Couldn't copy. Select the ID and copy it manually.");
     }
   }
   return <div className={styles.row}>

@@ -132,7 +132,7 @@ test('Journey rejects a read begun before editing and refreshes at its scheduled
     await page.clock.setFixedTime(fixedTime);
     reads = await observeJourneyReads(page, request.id, team.orgId);
     await panel.getByRole('button', { name: 'Correct release', exact: true }).click();
-    const serverDay = await panel.getByLabel('Actual exposure date (UTC)').getAttribute('max');
+    const serverDay = await panel.getByLabel('Release date', { exact: true }).getAttribute('max');
     expect(serverDay).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
     const untilMidnight = Date.parse(`${serverDay}T00:00:00Z`) + 86_400_000 - fixedTime;
@@ -160,7 +160,7 @@ test('Journey rejects a read begun before editing and refreshes at its scheduled
     await page.clock.setFixedTime(editingTime);
     reads = await observeJourneyReads(page, request.id, team.orgId);
     await panel.getByRole('button', { name: 'Correct release', exact: true }).click();
-    const editingDay = await panel.getByLabel('Actual exposure date (UTC)').getAttribute('max');
+    const editingDay = await panel.getByLabel('Release date', { exact: true }).getAttribute('max');
     expect(editingDay).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     await evidence.fill('Acceptance: preserve this draft across the date timer');
     await evidence.focus();

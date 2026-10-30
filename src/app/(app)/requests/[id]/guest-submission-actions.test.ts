@@ -172,9 +172,9 @@ describe("taking on a Guest submission", () => {
     expect(await detailAs(MEMBER, id)).toMatchObject({ request: { guestSubmission: { state: "waiting" }, pickupBlockedReason: "Take this Guest submission on before picking it up." } });
     expect(await pickUpRequest(id, { orgId: ORG })).toEqual({ error: "Take this Guest submission on before picking it up." });
     await takeOn(id, MEMBER);
-    expect(await detailAs(MEMBER, id)).toMatchObject({ request: { pickupBlockedReason: "Write the prediction before picking up this Request." } });
+    expect(await detailAs(MEMBER, id)).toMatchObject({ request: { pickupBlockedReason: "Set the goal before picking up this Request." } });
     as(OTHER);
-    expect(await pickUpRequest(id, { orgId: ORG })).toEqual({ error: "Write the prediction before picking up this Request." });
+    expect(await pickUpRequest(id, { orgId: ORG })).toEqual({ error: "Set the goal before picking up this Request." });
     // The Requester writes it; then the work can start.
     expect(await edit(id, MEMBER, { expectedImpact: prediction })).toEqual({ success: true });
     expect(await detailAs(MEMBER, id)).toMatchObject({ request: { noMeasurableImpactReason: prediction.reason, pickupBlockedReason: null } });
@@ -185,7 +185,7 @@ describe("taking on a Guest submission", () => {
   it("leaves the Guest seeing and commenting, but no longer editing", async () => {
     const id = await submission();
     // Before it's taken on, the Guest can still change their own words, but never write the prediction.
-    expect(await edit(id, GUEST, { expectedImpact: prediction })).toEqual({ error: "A Member writes the prediction once they take this on." });
+    expect(await edit(id, GUEST, { expectedImpact: prediction })).toEqual({ error: "A Member sets the goal once they take this on." });
     expect(await edit(id, GUEST, { desiredChange: "A dark theme" })).toEqual({ success: true });
     await takeOn(id, MEMBER);
     expect(await edit(id, GUEST, { title: "Something else" })).toEqual({ error: "Request unavailable." });

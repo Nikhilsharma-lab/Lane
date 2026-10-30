@@ -2,8 +2,9 @@
 import { useEffect, useMemo, useState } from "react"
 import type { WorkspaceSearchRequest } from "@/lib/workspace-search"
 import { Button } from "@/components/arc/button/button"
-import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
+import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import { SearchField } from "@/components/arc/search-field/search-field"
+import { Placeholder } from "@/components/loading/placeholder"
 import { fetchWorkspaceSearch } from "@/components/shell/workspace-search-fetch"
 import { linkCandidates, type LinkCandidate } from "./same-problem-link-model"
 import styles from "./same-problem-link-dialog.module.css"
@@ -41,7 +42,7 @@ export default function SameProblemLinkDialog({ open, onOpenChange, orgId, reque
       search({ query: text }, controller.signal).then(response => {
         if (controller.signal.aborted) return
         setFound(response.success ? { kind: "found", results: response.requests.items } : { kind: "failed", message: response.error.message })
-      }).catch(() => { if (!controller.signal.aborted) setFound({ kind: "failed", message: "Search could not be completed. Try again." }) })
+      }).catch(() => { if (!controller.signal.aborted) setFound({ kind: "failed", message: "Search couldn't be completed. Try again." }) })
     }, 200)
     return () => { controller.abort(); window.clearTimeout(timer) }
   }, [query, search])
@@ -67,7 +68,7 @@ export default function SameProblemLinkDialog({ open, onOpenChange, orgId, reque
       <div className={styles.body}>
         <SearchField label="Find a Request" value={query} onValueChange={setQuery} placeholder="LAN-12 or a title" autoFocus />
         {shown.kind === "idle" && <p className={styles.muted}>Type a code or part of a title.</p>}
-        {shown.kind === "searching" && <p role="status" className={styles.muted}>Searching…</p>}
+        {shown.kind === "searching" && <Placeholder label="Searching" lines={2} />}
         {shown.kind === "failed" && <p role="alert" className={styles.error}>{shown.message}</p>}
         {shown.kind === "found" && (candidates.length === 0
           ? <p role="status" className={styles.muted}>No other Request matches.</p>

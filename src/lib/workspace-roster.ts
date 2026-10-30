@@ -37,7 +37,7 @@ export async function workspaceRoster(
     }
     if (offset + page.data.length >= page.totalCount) break;
     if (!page.data.length)
-      throw new Error("Could not verify workspace members. Try again.");
+      throw new Error("Couldn't verify workspace members. Try again.");
   }
   return people;
 }

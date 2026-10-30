@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { LoaderCircleIcon } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
@@ -108,17 +107,9 @@ export function LifecycleButtons({
         key={move.move}
         size="sm"
         onClick={() => { void runMove(move.move); }}
-        disabled={pending}
-        aria-busy={pending || undefined}
+        loading={pending}
       >
-        {pending && (
-          <LoaderCircleIcon
-            aria-hidden="true"
-            data-icon="inline-start"
-            className="animate-spin motion-reduce:animate-none"
-          />
-        )}
-        {pending ? (move.move === "pick-up" ? "Picking up…" : "Completing…") : move.label}
+        {move.label}
       </Button>}
     </div>
   );

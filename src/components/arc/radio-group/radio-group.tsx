@@ -3,6 +3,7 @@ import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { animate, motion, useReducedMotion } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./radio-group.module.css";
+import { KeyCap } from "@/components/keyboard/key-caps";
 /** Lane adaptation (plan item 2.2): an optional `shortcut` names a key the page binds; the input exposes it as aria-keyshortcuts and fine pointers see it at the row's end. */
 export interface RadioGroupProps { label: string; options: { value: string; label: string; description?: string; shortcut?: string }[]; value: string; onValueChange: (value: string) => void; name?: string }
 
@@ -48,7 +49,7 @@ export function RadioGroup({ label, options, value, onValueChange, name }: Radio
       <input type="radio" name={name ?? id} value={option.value} checked={checked} aria-keyshortcuts={option.shortcut} onChange={() => onValueChange(option.value)}/>
       <span className={styles.mark} aria-hidden="true"><motion.span className={styles.dot} initial={false} animate={checked ? { scale: 1, opacity: 1 } : { scale: .4, opacity: 0 }} transition={reduced ? { duration: 0 } : { ...motionTokens.spring.snappy, opacity: { duration: checked ? motionTokens.duration.fast : motionTokens.duration.instant } }}/></span>
       <span><strong>{option.label}</strong>{option.description && <small>{option.description}</small>}</span>
-      {option.shortcut && <kbd className={styles.shortcut} aria-hidden="true">{option.shortcut}</kbd>}
+      {option.shortcut && <KeyCap className={styles.shortcut}>{option.shortcut}</KeyCap>}
     </label>; })}
   </div></fieldset>;
 }

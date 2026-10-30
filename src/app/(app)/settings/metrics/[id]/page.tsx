@@ -54,7 +54,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   const panel = <>
     <Link href="/settings/metrics" className={styles.backLink}><ArrowLeft data-icon-size="sm" aria-hidden="true" />All metrics</Link>
     <SettingsCard title={definition.name}
-      description={merged ? undefined : archived ? "Archived. It isn't offered for new predictions, and stays on the Requests that already use it." : undefined}>
+      description={merged ? undefined : archived ? "Archived. It isn't offered for new goals, and stays on the Requests that already use it." : undefined}>
       {merged && <p className={styles.note}>
         Merged into {keptDefinition ? <Link href={`/settings/metrics/${keptDefinition.id}`} className={styles.keptLink}>{keptDefinition.name}</Link> : "another metric"}. Requests that used it now count under that one.
       </p>}
@@ -62,7 +62,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
       {!merged && canEdit && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
     </SettingsCard>
     {isAdmin && !merged && <SettingsCard title={archived ? "Restore" : "Archive"}
-      description={archived ? "Restoring offers it for new predictions again." : "Archiving stops it being offered for new predictions. Requests that already use it keep it, and their results still add up."}
+      description={archived ? "Restoring offers it for new goals again." : "Archiving stops it being offered for new goals. Requests that already use it keep it, and their results still add up."}
       action={<ArchiveMetricControl orgId={workspace.orgId} id={definition.id} archived={archived} />} />}
     {isAdmin && !merged && <SettingsCard title="Merge"
       description="If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can't be undone.">
@@ -71,7 +71,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
         : <p className={styles.note}>No other metric is counted in {metricUnitName(definition.unit).toLowerCase()}, so there&apos;s nothing to merge it with.</p>}
     </SettingsCard>}
     {uses && <SettingsCard title="Requests that used it"
-      description="Grouped by Project, with what each predicted beside what happened. Uses as the main metric and as a guardrail are listed apart.">
+      description="Grouped by Project, with each goal beside what happened. Uses as the main metric and as a guardrail are listed apart.">
       <DefinitionUsesList uses={uses} />
     </SettingsCard>}
     <SettingsCard title="History">
@@ -82,7 +82,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   return <SettingsCommandAdapter page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
     metrics={panel}
     members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
-    account={<AccountProfile fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
+    account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
     delivery={await inboxDeliveryPanel(workspace)} slack={await slackPanel(workspace)} billing={await billingPanel(workspace)} />;
 }

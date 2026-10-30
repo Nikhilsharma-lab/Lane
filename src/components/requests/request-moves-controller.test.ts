@@ -140,7 +140,7 @@ it.each([false, true])("a late Done failure ends Undo and settles only its exist
   expect(a.undoStore.get()).toBeNull()
   expect(a.shown("r1", "in_progress").status).toBe("in_progress")
   if (dismissed) expect(a.stack.toasts).toEqual([])
-  else expect(a.stack.toasts[0]).toMatchObject({ title: "Could not update this Request", action: undefined })
+  else expect(a.stack.toasts[0]).toMatchObject({ title: "Couldn't save", action: expect.objectContaining({ label: "Try again" }) })
 })
 
 it("a retained explicit Undo still works after navigation but never restores the old row's focus", async () => {
@@ -222,7 +222,7 @@ it("bulk Done owns one independent Undo for moved IDs and preserves partial reve
   expect(a.stack.toasts.find(item => item.id === toast.id)?.title).toBe("Undoing")
   ;(await a.sent(2)).response.resolve({ success: true })
   ;(await a.sent(3)).response.resolve({ error: "A Release has already been recorded." })
-  await vi.waitFor(() => expect(a.stack.toasts.find(item => item.id === toast.id)?.title).toBe("1 of 2 could not be undone"))
+  await vi.waitFor(() => expect(a.stack.toasts.find(item => item.id === toast.id)?.title).toBe("1 of 2 couldn't be undone"))
   expect(a.stack.toasts.find(item => item.id === toast.id)?.description).toContain("LAN-2: A Release has already been recorded.")
   expect(a.shown("r1", "done").status).toBe("in_progress")
   expect(a.shown("r2", "done").status).toBe("done")
@@ -337,7 +337,7 @@ it("bulk Undo skipped behind a failed Release ends once and refreshes without se
   undo(toast.id)
   release.resolve({ error: "Release failed." })
   await saving
-  await vi.waitFor(() => expect(a.stack.toasts[0].title).toBe("1 of 1 could not be undone"))
+  await vi.waitFor(() => expect(a.stack.toasts[0].title).toBe("1 of 1 couldn't be undone"))
   expect(a.stack.toasts[0].description).toContain("An earlier change failed.")
   expect(a.stack.toasts[0].action).toBeUndefined()
   expect(a.refresh).toHaveBeenCalledTimes(1)

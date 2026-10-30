@@ -66,13 +66,13 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     await expect(guide).toContainText("Lane checks the framing");
     await expect(page.getByRole("heading", { name: "No Requests yet" })).toHaveCount(0);
     await guide.getByRole("button", { name: "Next step" }).click();
-    await expect(guide.getByRole("progressbar")).toHaveAccessibleName("Step 2 of 5: Predict the result");
+    await expect(guide.getByRole("progressbar")).toHaveAccessibleName("Step 2 of 5: Set the goal");
     await expect(guide.getByRole("link", { name: "Open the Metrics library" })).toHaveAttribute("href", "/settings/metrics");
 
     // Progress is saved for this person: a reload resumes at the step they reached.
     await page.waitForTimeout(1_000);
     await page.reload();
-    await expect(guide.getByRole("progressbar")).toHaveAccessibleName("Step 2 of 5: Predict the result");
+    await expect(guide.getByRole("progressbar")).toHaveAccessibleName("Step 2 of 5: Set the goal");
     await hydrated();
     await guide.getByRole("button", { name: "Next step" }).click();
     await expect(guide.getByRole("heading", { name: "Ask Reviewers" })).toBeVisible();
@@ -102,7 +102,7 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     await composer.getByRole("combobox", { name: "Metric", exact: true }).click();
     await page.getByRole("group", { name: "Metrics library" }).getByRole("option", { name: "Conversion rate", exact: true }).click();
     await composer.getByRole("spinbutton", { name: "Current value" }).fill("62");
-    await composer.getByRole("spinbutton", { name: /^Target after release/ }).fill("80");
+    await composer.getByRole("spinbutton", { name: /^Goal after release/ }).fill("80");
     await composer.getByRole("button", { name: "Reviewers", exact: true }).click();
     await page.getByRole("dialog", { name: "Reviewers", exact: true }).getByRole("option", { name: "Riley Reviewer" }).click();
     await page.keyboard.press("Escape");

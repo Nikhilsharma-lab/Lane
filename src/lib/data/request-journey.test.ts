@@ -113,7 +113,7 @@ it("loads the union of historical people once and prefers live names", async () 
 
 it("does not turn a failed profile query into Former member facts", async () => {
   boundary.namesFailed = true;
-  expect(await readRequestJourney(id, context)).toEqual({ error: "Could not load the journey. Try again." });
+  expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn't load the journey. Try again." });
 });
 
 it("keeps a guest's Request and follow-up queries scoped to their own workspace and creator", async () => {
@@ -133,12 +133,12 @@ it("keeps a guest's Request and follow-up queries scoped to their own workspace 
   }
   expect(boundary.queries.find(q => q.sql.includes('from "request_agreement_events"'))!.params).toEqual(["org_journey", "follow_up_created", "child"]);
   boundary.visible = false;
-  expect(await readRequestJourney(id, context)).toEqual({ error: "Could not load the journey. Try again." });
+  expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn't load the journey. Try again." });
 });
 
 it("refuses foreign workspaces before loading facts and uses explicit expiry recovery", async () => {
   boundary.session.orgId = "foreign";
-  expect(await readRequestJourney(id, context)).toEqual({ error: "Could not load the journey. Try again." });
+  expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn't load the journey. Try again." });
   expect(boundary.queries).toHaveLength(0);
   boundary.session.userId = null;
   const result = await callAction(() => readRequestJourney(id, context), {
@@ -168,7 +168,7 @@ it("captures one server day even when the follow-up query crosses midnight", asy
   const before = await journey();
   expect(before.release.today).toBe("2026-10-24");
   expect(before.release.measurement?.label).toBe("Due in 1 day");
-  expect(before.outcome.actions.close).toEqual({ allowed: false, reason: "Opens on 25 Oct 2026.", opensOn: "2026-10-25" });
+  expect(before.outcome.actions.close).toEqual({ allowed: false, reason: "Opens on 25 Oct.", opensOn: "2026-10-25" });
   const after = await journey();
   expect(after.release.today).toBe("2026-10-25");
   expect(after.outcome.measurement?.label).toBe("Due today");

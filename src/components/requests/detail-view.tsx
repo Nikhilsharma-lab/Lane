@@ -9,9 +9,9 @@ import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact
 import type { SavedDesignReview } from "@/lib/request-design-link"
 import { RequestDesignLink, isFigmaLink } from "./request-design-link"
 import { ExpectedImpactSummary } from "./expected-impact-summary"
-import { relativeTime } from "@/lib/relative-time"
 import { formatAttachmentSize } from "@/lib/request-attachments"
-import { DetailConversation, type ConversationComment } from "./detail-conversation"
+import { DetailConversation } from "./detail-conversation"
+import { LocalTime } from "./local-time"
 import { DetailArrivalReset, DetailRequestProvider, type DetailViewer } from "./detail-context"
 import { DetailProperties, DetailStateLine } from "./detail-properties"
 import { DetailBackLink } from "./detail-back-link"
@@ -99,7 +99,7 @@ const secondaryLink = `${buttonStyles.button} ${buttonStyles.secondary} ${button
  * Plan item 2.5: a missing Request and one this person may not see read the same, with no existence leak.
  * Reached with J or K, its heading takes the focus the title would have had. */
 export function RequestUnavailable({ returnHref, requestId }: { returnHref: string; requestId?: string }) {
-  return <section className="flex min-w-0 flex-1 flex-col"><DetailArrivalReset requestId={requestId} /><PageStrip leading={<DetailBackLink href={returnHref} always />} title="Request unavailable" heading /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It could not be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
+  return <section className="flex min-w-0 flex-1 flex-col"><DetailArrivalReset requestId={requestId} /><PageStrip leading={<DetailBackLink href={returnHref} always />} title="Request unavailable" heading /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It couldn’t be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
 }
 
 /**
@@ -125,10 +125,9 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
   const problem = request.reframedProblem ?? request.description
   const context = [{ label: "Users", value: request.affectedPeople }, { label: "Desired change", value: request.desiredChange }, { label: "Supporting information", value: request.observedEvidence }, { label: "Open questions", value: request.uncertainty }].filter(item => item.value)
   const supportingLink = isFigmaLink(request.usefulLink) ? null : request.usefulLink
-  const timed: ConversationComment[] = comments.map(comment => ({ ...comment, timeLabel: relativeTime(comment.createdAt) }))
   const Title = peekStrip ? "h2" : "h1"
   const action = isGuest || viewer.readOnly ? undefined : lifecycleActions
-  return <DetailRequestProvider request={request} viewer={viewer} orgId={orgId} isGuest={isGuest} submittedAgo={relativeTime(request.createdAt)} arrival={!peekStrip}>
+  return <DetailRequestProvider request={request} viewer={viewer} orgId={orgId} isGuest={isGuest} arrival={!peekStrip}>
     <section aria-label={`Request detail: ${request.title}`} className={detailStyles.root} data-detail="" data-detail-peek={peekStrip ? "" : undefined} data-request-id={request.id}>
       {peekStrip ? peekStrip({ action, editAction: editRequest }) : <DetailStrip returnHref={returnHref} editAction={editRequest} action={action} />}
       <div className={`${detailStyles.body} px-5 py-6 md:px-8`}>
@@ -163,10 +162,10 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
             {requestPanels}
             {attachments.length > 0 && <section id="files" aria-labelledby="files-heading" className={detailStyles.section}>
               <div className={detailStyles.sectionHeader}><h2 id="files-heading" className={detailStyles.sectionHeading}>Files</h2><span className={detailStyles.sectionCount}>{attachments.length}</span></div>
-              <ul aria-label="Request files" className={detailStyles.files}>{attachments.map(attachment => <li key={attachment.id} className={styles.fileRow}>{attachment.mimeType.startsWith("image/") ? <ImageIcon aria-hidden="true" /> : <FileText aria-hidden="true" />}<div className="min-w-0 flex-1"><p className={detailStyles.fileName}>{attachment.fileName}</p><p className={detailStyles.fileMeta}>{formatAttachmentSize(attachment.sizeBytes)} · Added {attachment.uploadedAt ? relativeTime(attachment.uploadedAt) : "just now"}</p></div>{attachmentAction(attachment)}</li>)}</ul>
+              <ul aria-label="Request files" className={detailStyles.files}>{attachments.map(attachment => <li key={attachment.id} className={styles.fileRow}>{attachment.mimeType.startsWith("image/") ? <ImageIcon aria-hidden="true" /> : <FileText aria-hidden="true" />}<div className="min-w-0 flex-1"><p className={detailStyles.fileName}>{attachment.fileName}</p><p className={detailStyles.fileMeta}>{formatAttachmentSize(attachment.sizeBytes)} · Added {attachment.uploadedAt ? <LocalTime iso={new Date(attachment.uploadedAt).toISOString()} /> : "just now"}</p></div>{attachmentAction(attachment)}</li>)}</ul>
             </section>}
             <RequestDesignLink relatedLink={request.usefulLink} reviews={request.designReviews} />
-            <DetailConversation comments={timed}>{commentForm}</DetailConversation>
+            <DetailConversation comments={comments}>{commentForm}</DetailConversation>
           </div>
           <aside id="properties" aria-label="Properties" className={detailStyles.panel} data-detail-panel="">
             <DetailProperties />

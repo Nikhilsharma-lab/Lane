@@ -5,7 +5,8 @@ import { Button } from "@/components/arc/button/button"
 import { quarterStarted } from "@/lib/impact-period"
 import type { QuarterNoteSlot } from "@/lib/impact-read-model"
 import { noteSegments } from "@/lib/quarter-note-rules"
-import { journeyDay } from "@/lib/request-journey"
+import { LocalTime } from "@/components/requests/local-time"
+import { Placeholder } from "@/components/loading/placeholder"
 import styles from "./outcome-report.module.css"
 
 // The Quarter notes at the end of the Outcome report (#209): the team's own words, one per quarter, with who last edited
@@ -43,13 +44,13 @@ function QuarterNote({ slot, editor, asOf, heading }: { slot: QuarterNoteSlot; e
     {note
       ? <>
         <NoteText text={note.text} />
-        <p className={styles.note}>Last edited by {note.editorName} on <time dateTime={note.editedAt}>{journeyDay(note.editedAt)}</time>.</p>
+        <p className={styles.note}>Last edited by {note.editorName} on <LocalTime iso={note.editedAt} day />.</p>
       </>
       : !editing && <p className={styles.note}>No Quarter note for {slot.label}.</p>}
     {writable && !editing && <div className={styles.noteControls}>
       <Button ref={opener} variant="secondary" size="sm" onClick={() => setEditing(true)}>{note ? `Edit the ${slot.label} note` : `Write the ${slot.label} note`}</Button>
     </div>}
-    {writable && editing && <Suspense fallback={<p role="status" className={styles.note}>Opening the editor…</p>}>
+    {writable && editing && <Suspense fallback={<Placeholder label="Opening the editor" lines={3} />}>
       <QuarterNoteEditor orgId={editor.orgId} slot={slot} note={note} onCancel={close} onSaved={saved => { setNote(saved); close() }} />
     </Suspense>}
   </section>

@@ -46,7 +46,7 @@ test("fresh users cannot read requests across workspaces", async ({ browser }) =
     await expect(pageB.getByText("Workspace A private request")).toHaveCount(0);
 
     await pageB.goto(`/requests/${request.id}`);
-    await expect(pageB.getByText(/could not be found/i)).toBeVisible();
+    await expect(pageB.getByText(/couldn.t be found/i)).toBeVisible();
     await expect(pageB.getByText("Workspace A private request")).toHaveCount(0);
   } finally {
     await contextA.close();

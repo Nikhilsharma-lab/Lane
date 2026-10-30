@@ -5,6 +5,7 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
 import { SUPPORT_EMAIL } from "@/app/support-contact";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { BILLING_PAGES_UNAVAILABLE, BILLING_PERIODS, FOUNDING_DISCOUNT, NOT_CHARGING, PAYING_UNAVAILABLE, seatPrice, type BillingPeriod, type PortalFlow } from "@/lib/billing-plan-rules";
 import type { PlanState } from "@/lib/free-request-rules";
 import styles from "./settings.module.css";
@@ -76,10 +77,10 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
     ...(paying && open.plan && !endsOn ? ["cancel" as const] : []),
   ];
 
-  async function go(chosen: BillingPeriod | PortalFlow, opening: string, call: () => Promise<Answer>) {
+  async function go(chosen: BillingPeriod | PortalFlow, call: () => Promise<Answer>) {
     setBusy(chosen);
     setError(null);
-    setStatus(opening);
+    setStatus("");
     try {
       const answer = await callAction(call);
       if (answer.url) {
@@ -87,14 +88,14 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
         return;
       }
       setError(answer.error || FAILED);
-    } catch {
-      setError(FAILED);
+    } catch (thrown) {
+      setError(thrownMessage(thrown, FAILED));
     }
     setStatus("");
     setBusy(null);
   }
-  const pay = (chosen: BillingPeriod) => go(chosen, "Opening the checkout page…", () => onCheckout(chosen));
-  const openPage = (flow: PortalFlow) => onOpenPage && go(flow, "Opening the billing page…", () => onOpenPage(flow));
+  const pay = (chosen: BillingPeriod) => go(chosen, () => onCheckout(chosen));
+  const openPage = (flow: PortalFlow) => onOpenPage && go(flow, () => onOpenPage(flow));
 
   const description = paying
     ? `This workspace pays for Lane, billed ${period ?? "yearly"}.`

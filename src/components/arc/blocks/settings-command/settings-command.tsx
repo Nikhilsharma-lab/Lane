@@ -8,6 +8,7 @@ import { LayoutGroup, animate, motion, useMotionValue } from "motion/react";
 import { Search, CornerDownLeft } from "lucide-react";
 import { motionTokens } from "../../lib/motion-tokens";
 import styles from "./settings-command.module.css";
+import { KeyCap } from "@/components/keyboard/key-caps";
 export type SettingDefinition = { id: string; section: string; group: string; label: string; description: string; keywords?: string[]; soon?: boolean; target?: string };
 export type Rect = { x: number; y: number; width: number; height: number };
 export type Result = { def: SettingDefinition; score: number; match: [number, number] | null };
@@ -62,7 +63,7 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
   useEffect(() => {
     if (closing) return;
     animate(shell, 1, { duration: reduce ? motionTokens.duration.fast : 0 });
-    animate(body, 1, { duration: reduce ? motionTokens.duration.fast : motionTokens.duration.standard, delay: reduce ? 0 : .06, ease: enterEase });
+    animate(body, 1, { duration: reduce ? motionTokens.duration.fast : motionTokens.duration.standard, delay: reduce ? 0 : motionTokens.stagger.line, ease: enterEase });
   }, [body, closing, reduce, shell]);
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
     const spring = mode === "row" ? calm : motionTokens.spring.smooth;
     animate(x, to.x, spring); animate(y, to.y, spring); animate(w, to.width, spring); animate(h, to.height, spring);
     animate(radius, 10, spring);
-    const fade = animate(shell, 0, mode === "row" ? { duration: .22, delay: .2 } : { duration: .1, delay: .24 });
+    const fade = animate(shell, 0, mode === "row" ? { duration: motionTokens.duration.standard, delay: motionTokens.duration.standard } : { duration: motionTokens.duration.instant, delay: motionTokens.duration.standard });
     fade.then(onClosed);
     return () => fade.stop();
   }, [body, closing, h, onClosed, reduce, shell, w, x, y, radius]);
@@ -112,7 +113,7 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
         <input ref={input} value={query} onChange={event => { onQuery(event.target.value); onActive(0); }} onKeyDown={onKey}
           aria-label="Search settings" placeholder="Search settings" role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list"
           aria-activedescendant={shown[active] ? `${uid}-option-${shown[active].def.id}` : undefined} spellCheck={false} autoComplete="off" />
-        <kbd className={styles.kbd}>Esc</kbd>
+        <KeyCap>Esc</KeyCap>
       </div>
       <motion.div className={styles.paletteBody} style={{ opacity: body }}>
         {!query.trim() && <p className={styles.paletteHint}>Suggested</p>}
@@ -135,8 +136,8 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
           </ul></LayoutGroup>
           : <p className={styles.empty} role="status">No settings match “{query.trim()}”</p>}
         <div className={styles.paletteFoot} aria-hidden="true">
-          <span><kbd className={styles.kbd}>↑</kbd><kbd className={styles.kbd}>↓</kbd> Move</span>
-          <span><kbd className={styles.kbd}>↵</kbd> Jump to setting</span>
+          <span><KeyCap>↑</KeyCap><KeyCap>↓</KeyCap> Move</span>
+          <span><KeyCap>↵</KeyCap> Jump to setting</span>
         </div>
       </motion.div>
     </div>

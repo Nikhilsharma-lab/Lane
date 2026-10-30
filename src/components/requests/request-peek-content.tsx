@@ -20,6 +20,8 @@ import { peekEntry, peekKey, readForPreview, subscribePeek } from "./request-pee
 import type { RequestPeekProps } from "./request-peek"
 import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
+import { KeyCap } from "@/components/keyboard/key-caps";
 
 /** The shell's trail and sidebar control belong to the page's strip, not the preview's. */
 const PREVIEW_FRAME = { trail: [], expand: null, link: "a" as const }
@@ -28,7 +30,7 @@ function PreviewFrame({ children }: { children: React.ReactNode }) {
 }
 
 function PreviewClose({ onClose }: { onClose: () => void }) {
-  return <Tooltip morph="plain" side="bottom" content={<>Close preview<kbd className={styles.kbd}>Esc</kbd></>}>
+  return <Tooltip morph="plain" side="bottom" content={<>Close preview<KeyCap className={styles.kbd}>Esc</KeyCap></>}>
     <Button type="button" variant="ghost" size="sm" morph="plain" className={detailStyles.iconButton} aria-label="Close preview" onClick={onClose} data-request-peek-close="">
       <X strokeWidth={1.75} aria-hidden="true" />
     </Button>
@@ -39,10 +41,10 @@ function PreviewClose({ onClose }: { onClose: () => void }) {
 function PreviewSkeleton({ onClose }: { onClose: () => void }) {
   return <section className={detailStyles.root} aria-busy="true" data-skeleton="request-preview">
     <PreviewFrame><PageStrip leading={<PreviewClose onClose={onClose} />} title={<span aria-hidden="true" className="block w-16"><Skeleton lines={1} /></span>} /></PreviewFrame>
-    <div className={styles.skeleton}>
+    <Placeholder><div className={styles.skeleton}>
       <div className={styles.skeletonTitle}><Skeleton label="Loading Request preview" lines={1} /></div>
       <div aria-hidden="true" className={styles.skeleton}><Skeleton lines={3} /><Skeleton lines={4} /></div>
-    </div>
+    </div></Placeholder>
   </section>
 }
 
@@ -117,8 +119,8 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
       <PreviewFrame><PageStrip leading={<PreviewClose onClose={onClose} />} title={unavailable ? "Request unavailable" : "Request preview"} /></PreviewFrame>
       <div className={styles.state}>{unavailable
         // The page's own words: a missing Request and one this person may not see read the same.
-        ? <EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It could not be found or is not available in this workspace." />
-        : <EmptyState icon={<Inbox />} title="This Request could not be loaded" description={entry.status === "error" ? entry.message : "Try again."} action={<Button variant="secondary" size="sm" onClick={() => setRetry(count => count + 1)}>Try again</Button>} />}</div>
+        ? <EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It couldn’t be found or is not available in this workspace." />
+        : <EmptyState icon={<Inbox />} title="This Request couldn't be loaded" description={entry.status === "error" ? entry.message : "Try again."} action={<Button variant="secondary" size="sm" onClick={() => setRetry(count => count + 1)}>Try again</Button>} />}</div>
     </section>
   }
 

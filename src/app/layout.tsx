@@ -6,6 +6,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import { SpeedInsights } from "@/components/speed-insights";
 import { WebVitals } from "@/components/web-vitals";
+import { ReducedMotion } from "@/components/motion/reduced-motion";
+import { LoadingFeel } from "@/components/loading/loading-feel";
 import { reportsSpeedInsights } from "@/lib/speed-insights";
 import { SESSION_TASK_URLS, SIGN_IN_URL, SIGN_UP_URL } from "@/lib/session-task-urls";
 // The one theme file, Arc's foundation (in a lower cascade layer) and the bridge all load through
@@ -72,6 +74,10 @@ export default function RootLayout({
       className={`${fontVariables} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* #262: with motion turned off on the device, every Motion animation is instant (A122). */}
+        <ReducedMotion />
+        {/* #262: what was clicked shows as pressed, and content that replaces a seen placeholder fades in. */}
+        <LoadingFeel />
         {/* Plan item 1.15b: logs Web Vitals in development; posts nothing in production. */}
         <WebVitals />
         {/* Decision 8.13 (leftover plan L3): Speed Insights field metrics from app.uselane.app only, so

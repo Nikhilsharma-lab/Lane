@@ -25,7 +25,7 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
     const change = parsed.data;
     const result = await changeRequest(context, {
         fingerprint: { requestId: context.requestId, change },
-        messages: { invalid: "Invalid closure action.", forbidden: "You cannot close Requests in this workspace.", failed: "Could not save the outcome. Your input is preserved; try again." },
+        messages: { invalid: "Invalid closure action.", forbidden: "You cannot close Requests in this workspace.", failed: "Couldn't save the outcome. Your input is preserved; try again." },
         // A closure and each correction record their operation, which is how a retry replays.
         replayOf: (_tx, request) => {
             const previous = [request.outcomeClosure, request.exceptionClosure, ...request.closureCorrections].find(entry => entry?.operationId === context.operationId);
@@ -50,7 +50,7 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
                 insist(release, "Record release before closing with a measured result.");
                 // Content cannot change after pickup, so the Request's Expected impact is the agreed one.
                 const expected = expectedImpactSchema.safeParse(request.expectedImpact).data;
-                insist(expected, "The agreed Expected impact is unavailable.");
+                insist(expected, "The agreed goal is unavailable.");
                 const agreed = agreedResult(expected);
                 insist(change.primary.kind === agreed.form, agreed.form === "numeric" ? "Record the actual value." : "Record whether the check passed.");
                 insist(change.guardrails.length === agreed.guardrails.length, "Record an actual value for every agreed guardrail.");
@@ -81,7 +81,7 @@ export async function createFollowUpRequest(context: RequestChangeContext, input
     if (!parsed.success) return { error: "Explain what changed and why this needs a follow-up." };
     const result = await changeRequest<{ followUpId: string }>(context, {
         fingerprint: { requestId: context.requestId, kind: "follow_up_created", input: parsed.data },
-        messages: { invalid: "Invalid follow-up action.", forbidden: "You cannot create Requests in this workspace.", failed: "Could not create the follow-up. Your input is preserved; try again." },
+        messages: { invalid: "Invalid follow-up action.", forbidden: "You cannot create Requests in this workspace.", failed: "Couldn't create the follow-up. Your input is preserved; try again." },
         // The original is locked only to serialise duplicate submissions and is never written.
         revises: false,
         replayOf: async (tx, _original, auth) => {

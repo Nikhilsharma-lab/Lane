@@ -58,7 +58,7 @@ describe("Inbox page", () => {
   })
 
   it("says when a refresh failed, with a retry, and asks for a reload when the session changed", () => {
-    const failed = render({ error: "Your Inbox could not be loaded. Try again." })
+    const failed = render({ error: "Your Inbox couldn't be loaded. Try again." })
     expect(failed).toContain('role="alert"')
     expect(failed).toContain(">Try again<")
     const expired = render({ error: "Your workspace session changed.", sessionExpired: true })

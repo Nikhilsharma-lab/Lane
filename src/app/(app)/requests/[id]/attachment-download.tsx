@@ -1,8 +1,9 @@
 "use client"
 
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useState } from "react"
-import { Download, LoaderCircle } from "lucide-react"
+import { Download } from "lucide-react"
 
 import { Button } from "@/components/arc/button/button"
 import { Alert } from "@/components/arc/alert/alert"
@@ -38,8 +39,8 @@ export function AttachmentDownload({
       }
 
       window.location.assign(result.url)
-    } catch {
-      setError("Couldn’t prepare the download. Try again.")
+    } catch (thrown) {
+      setError(thrownMessage(thrown, "Couldn’t prepare the download. Try again."))
     } finally {
       setPending(false)
     }
@@ -51,19 +52,11 @@ export function AttachmentDownload({
         type="button"
         size="sm"
         variant="ghost"
-        aria-label={pending ? `Preparing ${fileName}` : `Download ${fileName}`}
-        aria-busy={pending || undefined}
-        disabled={pending}
+        aria-label={`Download ${fileName}`}
+        loading={pending}
         onClick={() => void download()}
       >
-        {pending ? (
-          <LoaderCircle
-            aria-hidden="true"
-            className="animate-spin motion-reduce:animate-none"
-          />
-        ) : (
-          <Download aria-hidden="true" />
-        )}
+        <Download aria-hidden="true" />
       </Button>
       {error && (
         <Alert tone="danger" title="Action failed">

@@ -4,6 +4,7 @@ import { cache } from "react";
 import { db, workspaces } from "@/db";
 import { clerkWorkspacePermission, type MemberAuth, type WorkspacePermission } from "@/lib/auth-guard";
 import { loadShell } from "@/lib/data/shell";
+import { accountNameOf } from "@/lib/account-name";
 import { decideFreeRequests } from "@/lib/billing";
 
 export type WorkspaceContext = {
@@ -24,11 +25,6 @@ type OnboardingContext = {
   email: string;
 };
 
-function displayName(user: Awaited<ReturnType<typeof currentUser>>) {
-  if (!user) return "User";
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  return name || user.username || user.primaryEmailAddress?.emailAddress || "User";
-}
 
 /**
  * Identity and workspace permission from Clerk claims alone: no database
@@ -60,7 +56,7 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
     return {
       needsOnboarding: true,
       userId,
-      fullName: displayName(user),
+      fullName: accountNameOf(user),
       email: user?.primaryEmailAddress?.emailAddress ?? "",
     };
   }

@@ -164,14 +164,14 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
         announce("Links copied.", { key: "selection" })
       }
     } catch {
-      if (activeScope.current === scope && running.current === operation) setState(previous => ({ ...previous, pending: null, error: "Links could not be copied. Try again." }))
+      if (activeScope.current === scope && running.current === operation) setState(previous => ({ ...previous, pending: null, error: "Links couldn't be copied. Try again." }))
     } finally { if (running.current === operation) running.current = null }
   }
 
   const failure = current.failedCount
   const error = failure && current.notReadyOnly
     ? `${current.message ? `${current.message} ` : ""}${failure} ${failure === 1 ? "Request wasn’t picked up." : "Requests weren’t picked up."} ${current.error}`
-    : failure ? `${failure} ${failure === 1 ? "Request could not be updated." : "Requests could not be updated."} ${selected.length === failure ? `${failure === 1 ? "It is" : "They are"} still selected. Try again.` : "Some Requests have left this view. Refresh to see their current state."}${current.error ? ` ${current.error}` : ""}` : current.error
+    : failure ? `${failure} ${failure === 1 ? "Request couldn't be updated." : "Requests couldn't be updated."} ${selected.length === failure ? `${failure === 1 ? "It is" : "They are"} still selected. Try again.` : "Some Requests have left this view. Refresh to see their current state."}${current.error ? ` ${current.error}` : ""}` : current.error
   // The bulk bar is memoised, so a J or a pointer focus on a row does not re-render it (plan item 2.4).
   // It calls these stable wrappers, which run the latest commit's actions.
   const run = useRef({ selectPage, clear, update, copyLinks })

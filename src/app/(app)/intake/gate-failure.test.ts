@@ -28,7 +28,7 @@ describe("AI gate failures on the server (plan item 2.3)", () => {
     boundary.kind = kind;
     const { runTriage } = await import("./actions");
     const result = await runTriage(input, { orgId: "org_a" });
-    expect(result).toEqual({ success: false, error: { code: kind, message: "Review unavailable right now. Your draft is kept." } });
+    expect(result).toEqual({ success: false, error: { code: kind, message: "Review unavailable right now. Your text is still here." } });
   });
 
   it("answers a provider 429 as the provider, so rate_limited only ever means Lane's limiter", async () => {
@@ -36,7 +36,7 @@ describe("AI gate failures on the server (plan item 2.3)", () => {
     boundary.status = 429;
     const { runTriage } = await import("./actions");
     const result = await runTriage(input, { orgId: "org_a" });
-    expect(result).toEqual({ success: false, error: { code: "provider", message: "Review unavailable right now. Your draft is kept." } });
+    expect(result).toEqual({ success: false, error: { code: "provider", message: "Review unavailable right now. Your text is still here." } });
     expect(console.error).toHaveBeenCalledWith("[intake] triage failed:", expect.objectContaining({ kind: "rate_limited", statusCode: 429 }));
   });
 
@@ -50,15 +50,15 @@ describe("AI gate failures on the server (plan item 2.3)", () => {
 });
 
 describe("AI gate failures in the composer (plan item 2.3)", () => {
-  const unavailable = { tone: "warning", title: "Review unavailable right now", body: "Your draft is kept.", signIn: false };
+  const unavailable = { tone: "warning", title: "Review unavailable right now", body: "Your text is still here.", signIn: false };
 
   it.each(["timeout", "network", "provider", "malformed"] as const)("shows a %s failure as the review being unavailable", (code) => {
-    expect(gateFailureNotice({ code, message: "Review unavailable right now. Your draft is kept." })).toEqual(unavailable);
+    expect(gateFailureNotice({ code, message: "Review unavailable right now. Your text is still here." })).toEqual(unavailable);
   });
 
   it("shows a throw while online as unavailable and a throw while offline as offline", () => {
     expect(gateFailureNotice(thrownGateFailure(true))).toEqual(unavailable);
-    expect(gateFailureNotice(thrownGateFailure(false))).toEqual({ tone: "warning", title: "You’re offline", body: "Your draft is kept. Check your connection and try again.", signIn: false });
+    expect(gateFailureNotice(thrownGateFailure(false))).toEqual({ tone: "warning", title: "You're offline", body: "You're offline, this will work when you're back. Your text is still here.", signIn: false });
   });
 
   it("names Lane's review limit with its wait", () => {
@@ -68,16 +68,16 @@ describe("AI gate failures in the composer (plan item 2.3)", () => {
 
   it("asks for sign-in when the session ended, and keeps the draft", () => {
     expect(gateFailureNotice({ code: "session_expired", message: "Your session ended. Sign in again to continue this Request." }))
-      .toEqual({ tone: "danger", title: "Your session ended", body: "Sign in again to continue. Your draft is kept.", signIn: true });
+      .toEqual({ tone: "danger", title: "Your session ended", body: "Sign in again to continue. Your text is still here.", signIn: true });
   });
 
   it("says an Admin needs to pay once the Free Requests are used (#213), and keeps the draft", () => {
     const message = "This workspace has used its 4 Free Requests. An Admin needs to pay for Lane before anyone here can create a new Request or take on a Guest submission. Everything already filed keeps working.";
     expect(gateFailureNotice({ code: "billing_blocked", message }))
-      .toEqual({ tone: "warning", title: "An Admin needs to pay", body: `${message} Your draft is kept.`, signIn: false });
+      .toEqual({ tone: "warning", title: "An Admin needs to pay", body: `${message} Your text is still here.`, signIn: false });
   });
 
   it("keeps a field's own sentence when the unavailable part is the Project check", () => {
-    expect(gateFailureNotice({ code: "network", field: "projectId", message: "Lane could not check this Project. Try again." }).body).toBe("Lane could not check this Project. Try again.");
+    expect(gateFailureNotice({ code: "network", field: "projectId", message: "Lane couldn't check this Project. Try again." }).body).toBe("Lane couldn't check this Project. Try again.");
   });
 });

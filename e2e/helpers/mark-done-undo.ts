@@ -113,10 +113,10 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
     try {
       await trigger(); await expect(toastRegion(page)).toContainText("Undoing");
       await settleEarlier();
-      await expect(toastRegion(page)).toContainText("Could not undo");
+      await expect(toastRegion(page)).toContainText("Couldn't undo");
       await expect(toastRegion(page)).toContainText("An earlier change failed. Check this Request and try again.");
       expect(outgoingUndo).toBe(0);
-      await recorder.result(operation, { outcome: "skipped-before-dispatch", response: { publicFeedback: "Could not undo", detail: "An earlier change failed. Check this Request and try again.", observedUndoRequests: outgoingUndo } });
+      await recorder.result(operation, { outcome: "skipped-before-dispatch", response: { publicFeedback: "Couldn't undo", detail: "An earlier change failed. Check this Request and try again.", observedUndoRequests: outgoingUndo } });
     } finally { page.off("request", observe); }
   }
   return { page, request, begin, move, pickUp, skippedUndo };
@@ -267,7 +267,7 @@ export async function verifyEnding(driver: UndoDriver, ending: (typeof undoSurfa
 
 export async function verifyDoneFailure(driver: UndoDriver, capture: Capture) {
   await driver.move("done", () => driver.page.getByRole("button", { name: "Mark Done", exact: true }).press("Enter"), true);
-  await expect(toastRegion(driver.page)).toContainText("Could not update this Request");
+  await expect(toastRegion(driver.page)).toContainText("Couldn't save");
   await expect(driver.page.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible();
   await expect(isItLivePrompt(driver.page)).toHaveCount(0); await expectPaletteUndo(driver.page, false);
   await capture("done-transport-failure-no-undo");
@@ -276,7 +276,7 @@ export async function verifyUndoFailure(driver: UndoDriver, capture: Capture) {
   await markDone(driver);
   const item = await doneToast(driver.page, driver.request).elementHandle(); expect(item).not.toBeNull();
   await driver.move("undo", () => doneToast(driver.page, driver.request).getByRole("button", { name: "Undo", exact: true }).press("Enter"), true);
-  await expect.poll(() => item!.evaluate(node => node.isConnected && node.textContent?.includes("Could not undo"))).toBe(true);
+  await expect.poll(() => item!.evaluate(node => node.isConnected && node.textContent?.includes("Couldn't undo"))).toBe(true);
   await expect(toastRegion(driver.page).getByRole("button", { name: "Undo", exact: true })).toHaveCount(0);
   await expectPaletteUndo(driver.page, false); await expect(isItLivePrompt(driver.page)).toHaveCount(0);
   await capture("same-toast-undo-failure-no-reoffer");

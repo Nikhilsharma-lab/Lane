@@ -13,7 +13,7 @@ export type AskIsItLive = (request: IsItLiveRequest, undo: IsItLiveUndo) => void
 export const IS_IT_LIVE_COPY = {
   title: "Is it live?",
   question: (name: string) => `${name} is Done. Has the agreed audience received it?`,
-  endsUndo: "Recording the release ends Undo Done for this Request.",
+  endsUndo: "Once you record the release, you can't undo Done.",
   yes: "Yes, record release",
   notYet: "Not yet",
   releaseTitle: "Record release",

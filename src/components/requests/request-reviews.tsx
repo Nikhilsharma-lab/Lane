@@ -12,7 +12,9 @@ import * as actions from "@/app/(app)/requests/[id]/reviewer-actions";
 import { useReportReviewState } from "./pickup-confirmation";
 import { REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
 import { ReviewerInviteHint } from "./reviewer-invite-hint";
+import { InPageForm } from "@/components/popup/in-page-form";
 import styles from "./request-timeline.module.css";
+import { Placeholder } from "@/components/loading/placeholder";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
   { error: string }
@@ -70,6 +72,7 @@ export function RequestReviews({
   const [reason, setReason] = useState("");
   const retry = useRef<ChangeAttempt | null>(null);
   const running = useRef(false);
+  const addButton = useRef<HTMLButtonElement>(null);
   const reportReviewState = useReportReviewState();
   // #77: pickup confirms from what this panel last read, which is newer than the
   // page's or the preview's loaded copy once a reviewer is added, removed or answers.
@@ -81,7 +84,7 @@ export function RequestReviews({
 
   const applyView = useCallback((result: Awaited<ReturnType<typeof actions.readReviews>>) => {
     if ("error" in result) {
-      setError(result.error || "Could not load reviews.");
+      setError(result.error || "Couldn't load reviews.");
       return;
     }
     setError("");
@@ -91,7 +94,7 @@ export function RequestReviews({
     try {
       applyView(await callAction(() => actions.readReviews(requestId, { orgId })));
     } catch {
-      setError("Could not load reviews. Try again.");
+      setError("Couldn't load reviews. Try again.");
     }
   }, [applyView, requestId, orgId]);
   useEffect(() => {
@@ -99,7 +102,7 @@ export function RequestReviews({
     let active = true;
     void callAction(() => actions.readReviews(requestId, { orgId }))
       .then((result) => { if (active) applyView(result); })
-      .catch(() => { if (active) setError("Could not load reviews. Try again."); });
+      .catch(() => { if (active) setError("Couldn't load reviews. Try again."); });
     return () => { active = false; };
   }, [applyView, requestId, orgId, revision, deferred]);
   useEffect(() => {
@@ -119,7 +122,7 @@ export function RequestReviews({
         waitForPending: true,
         refreshOnError: false,
         run: () => actions[kind]({ orgId, requestId, expectedRevision: view.revision, operationId }, input),
-        onError: (message, { thrown }) => setError(thrown ? "Couldn’t confirm the change. Try again." : message),
+        onError: (message, { thrown, offline }) => setError(thrown && !offline ? "Couldn’t confirm the change. Try again." : message),
       });
       if (outcome.status !== "success") return false;
       retry.current = null;
@@ -139,7 +142,7 @@ export function RequestReviews({
     return (
       <section id="reviewers" aria-label="Reviewers" className={styles.reviews}>
         <h4>Reviewers</h4>
-        <p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Retry</Button>
+        <p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Try again</Button>
       </section>
     );
   // #295: laid out as the list will be (Add reviewer's height, the Optional line, a row per saved reviewer), so the
@@ -154,7 +157,8 @@ export function RequestReviews({
         {expected?.reviewers.length
           ? <>
             <p role="status" className="sr-only">Loading reviewers…</p>
-            <ul className={styles.reviewerList} aria-hidden="true">
+            {/* Build 2 (#262): the held rows fade in through the shared placeholder; its wrapper adds no box. */}
+            <Placeholder><ul className={styles.reviewerList} aria-hidden="true">
               {expected.reviewers.map((reviewer, index) => <li key={index} className={styles.reviewer} data-pending="">
                 <span className={styles.heldBar} />
                 <span className={styles.heldBar} />
@@ -163,7 +167,7 @@ export function RequestReviews({
                 {reviewer.note && <p className={`${styles.reason} ${styles.held}`} data-held-line=""><span className={styles.heldBar} /></p>}
                 {reviewer.concern && <p className={`${styles.reason} ${styles.held}`} data-held-line=""><span className={styles.heldBar} /></p>}
               </li>)}
-            </ul>
+            </ul></Placeholder>
           </>
           : <p role="status" className={styles.muted}>Loading reviewers…</p>}
       </section>
@@ -181,12 +185,13 @@ export function RequestReviews({
       <div className={styles.header}>
         <h4 id="reviewers-heading">Reviewers</h4>
         {view.canAdd && !adding && (
-          <Button variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
+          <Button ref={addButton} variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
         )}
       </div>
       {view.open && <p className={styles.muted}>{OPTIONAL_LINE}</p>}
 
       {adding && (
+        <InPageForm onDismiss={() => setAdding(false)} returnFocus={() => addButton.current ?? document.getElementById("reviewers-heading")}>
         <form
           className={styles.stack}
           onSubmit={(e) => {
@@ -199,7 +204,7 @@ export function RequestReviews({
           <div className={styles.fields}>
             <Select
               label="Reviewer"
-              placeholder={loaded ? (options.length ? "Choose a person" : "Nobody else to ask yet") : "Loading people…"}
+              placeholder={loaded && !options.length ? "Nobody else to ask yet" : "Choose a person"}
               value={selected}
               onValueChange={setSelected}
               options={options}
@@ -209,7 +214,7 @@ export function RequestReviews({
           </div>
           {peopleError && <div className={styles.controls}>
             <p role="alert">{peopleError}</p>
-            <Button type="button" variant="secondary" onClick={() => { void loadPeople(); }}>Retry</Button>
+            <Button type="button" variant="secondary" onClick={() => { void loadPeople(); }}>Try again</Button>
           </div>}
           <Textarea
             label={REVIEW_QUESTION.label}
@@ -222,10 +227,11 @@ export function RequestReviews({
             disabled={busy}
           />
           <div className={styles.controls}>
-            <Button type="submit" disabled={busy || !selected}>{busy ? "Adding…" : "Add"}</Button>
+            <Button type="submit" loading={busy} disabled={!busy && !selected}>Add reviewer</Button>
             <Button type="button" variant="ghost" onClick={() => setAdding(false)} disabled={busy}>Cancel</Button>
           </div>
         </form>
+        </InPageForm>
       )}
 
       {view.reviewers.length ? (
@@ -233,7 +239,7 @@ export function RequestReviews({
           {view.reviewers.map((reviewer) => {
             const decision = reviewer.decision;
             return (
-              <li key={reviewer.id} className={reviewer.active ? styles.reviewer : `${styles.reviewer} ${styles.inactive}`}>
+              <li key={reviewer.id} data-reviewer-id={reviewer.id} className={reviewer.active ? styles.reviewer : `${styles.reviewer} ${styles.inactive}`}>
                 <span>{reviewer.name}</span>
                 <span className={styles.role}>{reviewer.active ? reviewer.role : "No longer in the workspace"}</span>
                 <span className={decision?.kind === "concern" ? styles.warning : styles.muted}>{reviewStatusLabel(reviewer, view.open)}</span>
@@ -251,6 +257,7 @@ export function RequestReviews({
                 {reviewer.note && <p className={`${styles.reason} ${styles.muted}`}>Asked: {reviewer.note}</p>}
                 {decision?.kind === "concern" && <p className={styles.reason}>{decision.reason}</p>}
                 {concernFor === reviewer.id && (
+                  <InPageForm onDismiss={() => setConcernFor(null)} returnFocus={() => document.querySelector<HTMLElement>(`#reviewers [data-reviewer-id="${reviewer.id}"] button:not(:disabled)`)}>
                   <form
                     className={styles.reason}
                     onSubmit={(e) => {
@@ -264,6 +271,7 @@ export function RequestReviews({
                       <Button type="button" variant="ghost" onClick={() => setConcernFor(null)} disabled={busy}>Cancel</Button>
                     </div>
                   </form>
+                  </InPageForm>
                 )}
               </li>
             );

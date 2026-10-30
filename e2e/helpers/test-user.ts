@@ -52,7 +52,9 @@ const atUserCap = (error: unknown) =>
  */
 export async function createTestUser(
   label: string,
-  password = "LaneE2ETest1234!"
+  password = "LaneE2ETest1234!",
+  /** "last": borrow from the end of the list, where other runs (which borrow from the start) rarely reach. */
+  { borrowFrom = "first" }: { borrowFrom?: "first" | "last" } = {}
 ): Promise<TestUser> {
   const client = await safeClerkClient();
   const email = testEmail(label);
@@ -68,7 +70,7 @@ export async function createTestUser(
     return { id: user.id, email, password };
   } catch (error) {
     if (process.env.LANE_E2E_REUSE_USERS !== "1" || !atUserCap(error)) throw error;
-    return borrowTestUser(client, password);
+    return borrowTestUser(client, password, borrowFrom);
   }
 }
 
@@ -77,9 +79,9 @@ export async function createTestUser(
  * marks it, and names it as a new fixture. deleteTestUser gives it back; a crashed run leaves the mark for
  * inspection, so that user isn't borrowed again until someone clears it.
  */
-async function borrowTestUser(client: ClerkClient, password: string): Promise<TestUser> {
+async function borrowTestUser(client: ClerkClient, password: string, borrowFrom: "first" | "last" = "first"): Promise<TestUser> {
   const { data } = await client.users.getUserList({ query: "lane-e2e-", limit: 100 });
-  for (const candidate of data) {
+  for (const candidate of borrowFrom === "last" ? [...data].reverse() : data) {
     const email = candidate.emailAddresses.map((e) => e.emailAddress).find((address) => BORROWABLE_EMAIL.test(address));
     if (!email || borrowedUserNames(candidate.id) || BORROW_KEY in candidate.privateMetadata) continue;
     const memberships = await client.users.getOrganizationMembershipList({ userId: candidate.id, limit: 1 });

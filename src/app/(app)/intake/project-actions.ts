@@ -26,7 +26,7 @@ export async function listProjects(context: { orgId: string }): Promise<ListProj
     return { success: true, projects: rows };
   } catch (error) {
     console.error("[projects] list failed:", error);
-    return { success: false, error: { code: "load_failed", message: "Projects could not be loaded. Try again." } };
+    return { success: false, error: { code: "load_failed", message: "Projects couldn't be loaded. Try again." } };
   }
 }
 
@@ -60,6 +60,6 @@ export async function createProject(
     return { success: false, error: { code: "conflict", message: "This Project name is unavailable. Choose another name.", field: "name" } };
   } catch (error) {
     console.error("[projects] create failed:", error);
-    return { success: false, error: { code: "save_failed", message: "The Project could not be created. Try again." } };
+    return { success: false, error: { code: "save_failed", message: "The Project couldn't be created. Try again." } };
   }
 }

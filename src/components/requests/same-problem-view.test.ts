@@ -1,9 +1,13 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 import type { Iterations, Prediction, ResultView } from "@/lib/impact-read-model"
 import type { SameProblemHistoryLine } from "@/lib/same-problem-rules"
 import { SameProblemView, type SameProblemViewProps } from "./same-problem-view"
+
+// Dates read "24 Oct" in the current year and "24 Oct 2025" in others (#261): pin the year these fixtures are in.
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-23T12:00:00.000Z") }) })
+afterAll(() => { vi.useRealTimers() })
 
 // "Iterations of this problem" on the Request page (#218), as markup: what a reader and a screen reader receive.
 
@@ -47,9 +51,9 @@ describe("Iterations of this problem", () => {
     const body = text(render())
     expect(body).toContain("Closed without a result")
     expect(body).toContain("Rolled back: Broke Safari checkout")
-    expect(body).toContain("Predicted Checkout conversion: +10 percentage points (planned baseline 40%)")
+    expect(body).toContain("Goal Checkout conversion: 50% (from 40%)")
     expect(body).toMatch(/Result 46%.*\+6 percentage points/)
-    expect(body).toContain("Result due 31 Oct 2026 (Due in 8 days)")
+    expect(body).toContain("Result due 31 Oct (Due in 8 days)")
     expect(body).toContain("Not Released yet")
   })
 
@@ -70,8 +74,8 @@ describe("Iterations of this problem", () => {
   it("keeps who added and removed links in the Request's history", () => {
     const body = text(render())
     expect(body).toContain("Link history (2)")
-    expect(body).toContain("Linked as Same problem with LAN-4 by Mo Member on 20 Oct 2026.")
-    expect(body).toContain("Taken out of its Same problem group by Ada Admin on 21 Oct 2026.")
+    expect(body).toContain("Linked as Same problem with LAN-4 by Mo Member on 20 Oct")
+    expect(body).toContain("Taken out of its Same problem group by Ada Admin on 21 Oct")
   })
 
   it("says what a link is for when the Request is in no group, to someone who can link", () => {
@@ -90,11 +94,11 @@ describe("Iterations of this problem", () => {
     expect(body).toContain("Link history (2)")
   })
 
-  it("says it is loading, and offers Retry when it can't load", () => {
+  it("says it is loading, and offers Try again when it can't load", () => {
     expect(render({ state: { kind: "loading" } })).toContain('role="status"')
-    const failed = render({ state: { kind: "error", message: "Could not load the Iterations. Try again." } })
+    const failed = render({ state: { kind: "error", message: "Couldn't load the Iterations. Try again." } })
     expect(failed).toContain('role="alert"')
-    expect(failed).toContain(">Retry<")
+    expect(failed).toContain(">Try again<")
   })
 
   it("keeps a long title as text that wraps, never cut short", () => {

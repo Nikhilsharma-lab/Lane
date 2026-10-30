@@ -13,9 +13,9 @@ import { agreedAudience, valueBeforeReleaseFor } from "@/lib/request-release-fac
 import { agreedResult, guardrailHeld } from "@/lib/request-outcome";
 import { utcDay } from "@/lib/utc-day";
 
-const RELEASE_FAILED = "Could not load release. Try again.";
-const OUTCOME_FAILED = "Could not load the outcome. Try again.";
-const JOURNEY_FAILED = "Could not load the journey. Try again.";
+const RELEASE_FAILED = "Couldn't load release. Try again.";
+const OUTCOME_FAILED = "Couldn't load the outcome. Try again.";
+const JOURNEY_FAILED = "Couldn't load the journey. Try again.";
 
 /** One visible Request and viewer snapshot. Follow-up queries belong only to
  * Outcome. A missing roster keeps saved facts readable and permissions closed. */

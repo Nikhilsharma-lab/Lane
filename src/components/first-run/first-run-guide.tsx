@@ -7,6 +7,7 @@ import { inviteToWorkspace } from "@/app/(app)/settings/members/actions";
 import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import type { WorkspaceFreeRequests } from "@/lib/billing";
 import { FIRST_REQUEST_STEPS, type FirstRequestStep, type FirstRunChange, type FirstRunView } from "@/lib/first-run-rules";
 import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
@@ -15,7 +16,8 @@ import type { FirstRunInviteRole } from "./first-run-invite-form";
 import { clearHelpHash, consumeFocusRequest, useFirstRunHelp } from "./first-run-help";
 
 /** Loaded when an Admin reaches the Reviewers step, so the form adds nothing to the page's first load. */
-const FirstRunInviteForm = dynamic(() => import("./first-run-invite-form").then(module => module.FirstRunInviteForm));
+// #263 (A210): its own loading slot keeps the wait inside the form, so the guide (and the focused Next step) never hides while it loads.
+const FirstRunInviteForm = dynamic(() => import("./first-run-invite-form").then(module => module.FirstRunInviteForm), { loading: () => null });
 
 const FAILED = "Couldn’t save your first run. Try again.";
 
@@ -57,8 +59,8 @@ export function FirstRunGuide({ orgId, view, workspaceName, free, invite, readsN
     try {
       const answer = await callAction(() => updateFirstRun(change, { orgId }));
       return "error" in answer ? answer.error : null;
-    } catch {
-      return FAILED;
+    } catch (thrown) {
+      return thrownMessage(thrown, FAILED);
     }
   }, [orgId]);
   /** Work saved in the background (a step read) reports a failure as a toast; the guide carries on. */

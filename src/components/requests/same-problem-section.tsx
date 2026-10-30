@@ -2,6 +2,7 @@
 import dynamic from "next/dynamic"
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 import { callAction } from "@/lib/action-call"
+import { thrownMessage } from "@/lib/failure-messages"
 import { linkSameProblem, readSameProblem, removeSameProblemLink } from "@/app/(app)/requests/[id]/same-problem-actions"
 import { formatRequestCode } from "@/lib/request-code"
 import { IterationsPlaceholder } from "./same-problem-placeholder"
@@ -25,8 +26,8 @@ const SameProblemLinkDialog = dynamic(() => import("./same-problem-link-dialog")
  * on its row fetches no code. */
 export const preloadSameProblemView = () => { void loadView().catch(() => undefined) }
 
-const LOAD_FAILED = "Could not load the Iterations. Try again."
-const CHANGE_FAILED = "Could not change the link. Try again."
+const LOAD_FAILED = "Couldn't load the Iterations. Try again."
+const CHANGE_FAILED = "Couldn't change the link. Try again."
 
 /** The section's state from the read, or null when there is nothing to show this reader (a guest). Never throws. */
 async function readView(requestId: string, orgId: string): Promise<SameProblemState | null> {
@@ -78,8 +79,8 @@ export function SameProblemSection({ requestId, requestNumber, orgId, canLink }:
     try {
       const result = await callAction(() => linkSameProblem({ requestId, otherRequestId: candidate.requestId }, { orgId }))
       if ("error" in result) return result.error
-    } catch {
-      return CHANGE_FAILED
+    } catch (thrown) {
+      return thrownMessage(thrown, CHANGE_FAILED)
     }
     setActionError("")
     setAnnouncement(`${candidate.code} linked as Same problem.`)
@@ -97,8 +98,8 @@ export function SameProblemSection({ requestId, requestNumber, orgId, canLink }:
       await load()
       // The removed row is gone, so focus returns to the section's heading.
       heading.current?.focus()
-    } catch {
-      setActionError(CHANGE_FAILED)
+    } catch (thrown) {
+      setActionError(thrownMessage(thrown, CHANGE_FAILED))
     } finally {
       setRemoving(null)
     }

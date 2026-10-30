@@ -6,16 +6,12 @@ import { RedirectType, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { db, profiles } from "@/db";
+import { accountNameOf } from "@/lib/account-name";
 import { clerkWorkspacePermission } from "@/lib/auth-guard";
 
 const onboardingRoleSchema = z.object({
   role: z.enum(["pm", "designer", "developer"]),
 });
-
-function userDisplayName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>) {
-  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-  return name || user.username || user.primaryEmailAddress?.emailAddress || "User";
-}
 
 export async function saveOnboardingRole(data: { role: string }) {
   const parsed = onboardingRoleSchema.safeParse(data);
@@ -28,13 +24,13 @@ export async function saveOnboardingRole(data: { role: string }) {
   }
 
   const user = await currentUser();
-  if (!user) return { error: "Could not load your profile. Refresh the page and try again." };
+  if (!user) return { error: "Couldn't load your profile. Refresh the page and try again." };
 
   await db
     .insert(profiles)
     .values({
       id: userId,
-      fullName: userDisplayName(user),
+      fullName: accountNameOf(user),
       email: user.primaryEmailAddress?.emailAddress ?? "",
       role: parsed.data.role,
       avatarUrl: user.imageUrl,
@@ -42,7 +38,7 @@ export async function saveOnboardingRole(data: { role: string }) {
     .onConflictDoUpdate({
       target: profiles.id,
       set: {
-        fullName: userDisplayName(user),
+        fullName: accountNameOf(user),
         email: user.primaryEmailAddress?.emailAddress ?? "",
         role: parsed.data.role,
         avatarUrl: user.imageUrl,

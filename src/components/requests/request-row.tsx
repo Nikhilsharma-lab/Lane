@@ -145,7 +145,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   // tabIndex -1 and stays reachable through the row menu or a key.
   const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
     id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
-    className={styles.row} data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-menu-open={menuOpen || undefined}
+    className={styles.row} data-pressable="" data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-menu-open={menuOpen || undefined}
     {...rest.focus} {...rest.pointer}>
     <div role="gridcell" className={styles.selectCell}>
       <Checkbox tabIndex={-1} checked={checked} disabled={disabled} onCheckedChange={value => onCheckedChange(value === true)} aria-label={`Select ${request.reframedProblem ?? request.title}`} />

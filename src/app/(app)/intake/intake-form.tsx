@@ -96,8 +96,13 @@ import {
 import { composerDraft, restoredComposer } from "./intake-session";
 import { createIntakeSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
+import { OFFLINE_ANSWER, TEXT_KEPT, isOfflineError } from "@/lib/failure-messages";
+import { isOffline } from "@/lib/connection-status";
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { Placeholder } from "@/components/loading/placeholder";
+import { KeyCap } from "@/components/keyboard/key-caps";
+import { FieldError } from "@/components/forms/field-error";
 
 type Stage =
   | "compose"
@@ -250,7 +255,8 @@ export default function RequestEditor({
   onCancelCheckChange?: (cancel: (() => void) | null) => void;
   registerCloseAttempt?: RegisterIntakeCloseAttempt;
   initialProjectId?: string | null;
-  editing?: { request: RequestDetail; onSaved: () => void };
+  /** `saveLabel` names the save button when the edit has one purpose ("Save goal", #261); else "Save changes". */
+  editing?: { request: RequestDetail; onSaved: () => void; saveLabel?: string };
   /** #78: non-guests can ask people to review while creating. Not offered when editing. */
   canAddReviewers?: boolean;
   /** #212: a Guest's Request has no prediction (Expected impact); the Member who takes it on writes it. */
@@ -300,6 +306,8 @@ export default function RequestEditor({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
   const failureRef = useRef<HTMLDivElement>(null);
+  // #260 (C1): the review step's failure is brought into view, so a Create that didn't save never looks like nothing happened.
+  const reviewFailureRef = useRef<HTMLDivElement>(null);
   // Where focus goes when the compose step shows again: the title by default,
   // the primary button after a gate failure, nowhere when a field takes it.
   const focusAfterCompose = useRef<"title" | "submit" | "none">("title");
@@ -529,6 +537,10 @@ export default function RequestEditor({
   }, [active, draftReady, setFocus, stage]);
 
   useEffect(() => {
+    if (failure && stage === "framing") reviewFailureRef.current?.scrollIntoView({ block: "nearest" });
+  }, [failure, stage]);
+
+  useEffect(() => {
     if (!checking) return;
     const timer = window.setTimeout(() => setShowSlowCue(true), 5_000);
     return () => window.clearTimeout(timer);
@@ -686,8 +698,8 @@ export default function RequestEditor({
         }
         setStage("framing");
       },
-      failed: () => {
-        setFailure(thrownGateFailure(navigator.onLine !== false));
+      failed: thrown => {
+        setFailure(thrownGateFailure(!isOfflineError(thrown) && !isOffline()));
         focusAfterCompose.current = "submit";
         setStage("compose");
       },
@@ -751,8 +763,11 @@ export default function RequestEditor({
           token, triage, editedProblem }, context, optimistic)
         : saveNewIntake({ token, triage, editedProblem, offerReviewers, reviewers, reviewQuestion }, context),
       saved: result => showCreatedInList(result.created),
-      failed: failure => {
-        const result = { error: failure ?? { code: "save_failed" as const, message: editing ? "Your changes could not be saved. Your text is still here. Try again." : "Your Request could not be created. Your text is still here. Try again.", field: undefined } };
+      failed: (failure, thrown) => {
+        // #260 (C1): offline says so; nothing was sent and the text stays.
+        const message = isOfflineError(thrown) ? `${OFFLINE_ANSWER} ${TEXT_KEPT}`
+          : editing ? `Your changes couldn't be saved. ${TEXT_KEPT} Try again.` : `Your Request couldn't be created. ${TEXT_KEPT} Try again.`;
+        const result = { error: failure ?? { code: "save_failed" as const, message, field: undefined } };
         if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
           const field = result.error.field;
           setError(field, { type: "server", message: result.error.message });
@@ -815,7 +830,7 @@ export default function RequestEditor({
   const reviewing = stage === "framing" || creating;
   // Compose shows gate failures; review-step failures keep their own alert.
   const gateNotice = composing && failure ? gateFailureNotice(failure) : null;
-  const shortcut = shortcutHint && <kbd className={styles.shortcut} aria-hidden="true">{shortcutHint}</kbd>;
+  const shortcut = shortcutHint && <KeyCap className={styles.shortcut}>{shortcutHint}</KeyCap>;
 
   function onProjectBusyChange(value: boolean) {
     projectInFlight.current = value;
@@ -993,7 +1008,7 @@ export default function RequestEditor({
                       setValue("usefulLink", "", { shouldDirty: true, shouldValidate: true });
                       setLinkOpen(false);
                     }}>Remove link</Button>}
-                    <Button type="button" variant="secondary" size="sm" onClick={() => void finishLink()}>Done</Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => void finishLink()}>Save link</Button>
                   </div>
                 </PopoverContent>
               </Popover>
@@ -1003,15 +1018,15 @@ export default function RequestEditor({
               <input ref={fileInputRef} type="file" aria-label="Choose Request files" tabIndex={-1} multiple accept={ATTACHMENT_ACCEPT} className="sr-only" disabled={checking}
                 onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
             </div>
-            {errors.projectId && <p id="intake-project-error" role="alert" className="text-destructive">{errors.projectId.message}</p>}
-            {errors.requestType && <p id="intake-request-type-error" role="alert" className="text-destructive">{errors.requestType.message}</p>}
-            {offerReviewers && reviewersError && <p id="intake-reviewers-error" role="alert" className="text-destructive">{reviewersError}</p>}
+            <FieldError id="intake-project-error">{errors.projectId?.message}</FieldError>
+            <FieldError id="intake-request-type-error">{errors.requestType?.message}</FieldError>
+            <FieldError id="intake-reviewers-error">{offerReviewers && reviewersError}</FieldError>
             {guided && offerReviewers && <FirstRunHint>Reviewers are optional: the teammates you add answer Looks good or Raise a concern before work starts.</FirstRunHint>}
-            {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on writes its prediction." : "A Member takes this on and writes its prediction. You’ll get an email when they do."}</p>}
+            {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on sets its goal." : "A Member takes this on and sets its goal. You’ll get an email when they do."}</p>}
             {!withoutPrediction && currentValues.expectedImpact && <>
-              {guided && <FirstRunHint>Predict the result: pick the metric from the Metrics library, where it is now and where you expect it to go.</FirstRunHint>}
+              {guided && <FirstRunHint>Set the goal: pick the metric from the Metrics library, where it is now and where you want it to go.</FirstRunHint>}
               <RadioGroup
-                label="Expected impact"
+                label="Goal"
                 name="expected-impact-choice"
                 value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
                 onValueChange={(next) => chooseImpact(next === "none" ? "none" : "measure")}
@@ -1085,14 +1100,14 @@ export default function RequestEditor({
                   with its text is often not announced, and focus would win. */}
               <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="" aria-describedby="intake-checking-status">Review Request</h2>
               <p id="intake-checking-status" role="status" className="text-sm text-muted-foreground">
-                {creating ? "Saving changes…" : showSlowCue ? "Still checking. Your draft is kept." : "Checking whether this describes a problem…"}
+                {creating ? "Saving changes…" : showSlowCue ? `Still checking. ${TEXT_KEPT}` : "Checking whether this describes a problem…"}
               </p>
             </div>
-            <div aria-hidden="true" className="space-y-6">
+            <Placeholder><div aria-hidden="true" className="space-y-6">
               <Skeleton lines={2} />
               <Skeleton lines={4} />
               <div className="border-t pt-5"><Skeleton lines={3} /></div>
-            </div>
+            </div></Placeholder>
           </div>
         )}
       {reviewing && triage && source && (
@@ -1237,7 +1252,7 @@ export default function RequestEditor({
           <RequestReviewSupportingDetails relatedLink={source.usefulLink} files={attachments} />
 
           {failure && (
-            <IntakeNotice error title={editing ? "Changes not saved" : "Request not created"}>
+            <div ref={reviewFailureRef}><IntakeNotice error title={editing ? "Changes not saved" : "Request not created"}>
               <span>{failure.message}</span>
               {failure.code === "session_expired" && (
                 <>
@@ -1251,7 +1266,7 @@ export default function RequestEditor({
                   </Link>
                 </>
               )}
-            </IntakeNotice>
+            </IntakeNotice></div>
           )}
 
         </div>
@@ -1329,7 +1344,7 @@ export default function RequestEditor({
         {stage === "uploads_checking" && (
           // Plan item 2.3 (S3): which files were lost is known once each
           // reservation is checked, so no list shows before then.
-          <Skeleton label="Checking your files" lines={3} />
+          <Placeholder label="Checking your files" lines={3} />
         )}
         {stage === "uploads_lost" && lostUploads && (
           <div className={cn(reveal, "space-y-6")}>
@@ -1355,7 +1370,7 @@ export default function RequestEditor({
             {shortcut}
             <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy || guardrailEditing} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter"
               aria-describedby={guardrailEditing && !checking ? "intake-guardrail-pending" : undefined}>
-              {originalTextUnchanged ? "Save changes" : "Review Request"}
+              {originalTextUnchanged ? editing?.saveLabel ?? "Save changes" : "Review Request"}
             </Button>
           </div>
         </footer>
@@ -1378,11 +1393,9 @@ export default function RequestEditor({
               loading={creating}
               aria-keyshortcuts="Meta+Enter Control+Enter"
             >
-              {creating
-                ? editing ? "Saving changes…" : "Creating Request…"
-                : failure?.code === "review_expired"
-                  ? "Review again"
-                  : editing ? "Save changes" : "Create Request"}
+              {failure?.code === "review_expired" && !creating
+                ? "Review again"
+                : editing ? editing.saveLabel ?? "Save changes" : "Create Request"}
             </Button>
           </div>
         </footer>

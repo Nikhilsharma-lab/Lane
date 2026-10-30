@@ -1,6 +1,7 @@
 "use client";
 
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createProject } from "@/app/(app)/intake/project-actions";
 import { Check, Plus } from "lucide-react";
@@ -12,6 +13,7 @@ import { useSharedWorkspaceProjects } from "@/components/projects/workspace-proj
 import { ProjectMarker } from "@/components/projects/project-marker";
 import styles from "./request-property-pickers.module.css";
 import { rememberRequestPopoverEvent } from "./request-popover-events";
+import { Placeholder } from "@/components/loading/placeholder";
 
 /** The workspace's Projects, from the (app) layout's provider (seeded with the page). */
 export function useWorkspaceProjects() {
@@ -170,7 +172,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
         setCreateError(result.error.message);
         if (result.error.code === "conflict") void state.reload();
       }
-    } catch { setCreateError("Project could not be created. Try again; your Request is still here."); }
+    } catch (thrown) { setCreateError(thrownMessage(thrown, "Project couldn't be created. Try again; your Request is still here.")); }
     finally {
       setCreating(false); onBusyChange(false);
     }
@@ -199,7 +201,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
         <div className={styles.projectActions}>
           <Button type="button" variant="ghost" size="sm" disabled={creating}
             onClick={() => { setNaming(false); setProjectName(""); setCreateError(null); }}>Cancel</Button>
-          <Button type="button" size="sm" disabled={creating || !normalized}
+          <Button type="button" size="sm" loading={creating} disabled={!normalized}
             onClick={() => void choose({ id: "create", name: normalized, kind: "create" })}>Create Project</Button>
         </div>
       </div> : <>
@@ -220,7 +222,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
           </span>
         </Button>)}
       </div>}
-      {state.loading && <p role="status" className="text-sm text-muted-foreground">Loading Projects…</p>}
+      {state.loading && <Placeholder label="Loading Projects" lines={2} />}
       {state.error && <><Alert title="Projects unavailable" tone="danger">{state.error}</Alert><Button size="sm" variant="secondary" onClick={() => void state.reload()}>Retry Projects</Button></>}
       {createError && <Alert title="Project not created" tone="danger">{createError}</Alert>}
       <div className={styles.newProject}>
@@ -234,7 +236,6 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
         </Button>
       </div>
       </>}
-      {creating && <p role="status" className="text-sm text-muted-foreground">Creating Project…</p>}
     </PopoverContent>
   </Popover>;
 }

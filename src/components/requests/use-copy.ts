@@ -14,7 +14,7 @@ export async function copyAndSay({ writeText, announce, toast }: CopyDeps, value
     announce(copied, { key: "copy" })
     return true
   } catch {
-    toast({ type: "error", title: "Could not copy", description: "Select the text and copy it instead." })
+    toast({ type: "error", title: "Couldn't copy", description: "Select the text and copy it instead." })
     return false
   }
 }

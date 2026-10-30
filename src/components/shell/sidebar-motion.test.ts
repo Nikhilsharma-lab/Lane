@@ -31,13 +31,13 @@ describe("sidebar motion", () => {
   it("keeps an automatic collapse at zero", () => {
     expect(layoutWidthFor({ width: 254, autoCollapsed: true, motion: null })).toBe(0)
   })
-  it("slides on transform only, 180 ms out and 240 ms in", () => {
+  it("slides on transform only, 150 ms out and 200 ms in (#262: the theme's motion scale)", () => {
     const out = slideFor("collapsing", 272)
     expect(out.keyframes).toEqual([{ transform: "translateX(0)" }, { transform: "translateX(-280px)" }])
-    expect(out.options.duration).toBe(180)
+    expect(out.options.duration).toBe(150)
     const back = slideFor("expanding", 272)
     expect(back.keyframes).toEqual([{ transform: "translateX(-280px)" }, { transform: "translateX(0)" }])
-    expect(back.options.duration).toBe(240)
+    expect(back.options.duration).toBe(200)
     expect(back.options.easing).toBe("cubic-bezier(0.16, 1, 0.3, 1)")
   })
 })

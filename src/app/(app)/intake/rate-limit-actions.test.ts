@@ -39,7 +39,7 @@ describe("AI provider admission", () => {
     const result = await runTriage(input, { orgId: "org-test" });
     expect(result).toMatchObject({ success: false, error: { code: "network" } });
     if (!result.success) {
-      expect(result.error.message).toContain("Your draft is kept.");
+      expect(result.error.message).toContain("Your text is still here.");
       expect(result.error.retryAfterSeconds).toBeUndefined();
     }
     expect(boundary.triage).not.toHaveBeenCalled();

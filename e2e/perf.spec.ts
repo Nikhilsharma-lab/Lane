@@ -682,7 +682,7 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
       await expect.poll(() => held.length, { message: "Review Request should call its server action" }).toBeGreaterThan(0)
       for (const route of held.splice(0)) await route.abort("failed")
       await expect(dialog.getByText("Review unavailable right now")).toBeVisible()
-      await expect(dialog.getByText("Your draft is kept.")).toBeVisible()
+      await expect(dialog.getByText("Your text is still here.")).toBeVisible()
       await expect(dialog.getByRole("textbox", { name: "Request title" })).toHaveValue(draft.title)
       await expect(dialog.getByRole("textbox", { name: "Description" })).toHaveValue(draft.description)
       await expect(dialog.getByRole("combobox", { name: "Metric", exact: true })).toHaveText(draft.metric)

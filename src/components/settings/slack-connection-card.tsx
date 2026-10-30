@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/arc/dialog/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
 import { callAction } from "@/lib/action-call";
+import { thrownMessage } from "@/lib/failure-messages";
 import styles from "./settings.module.css";
 
 /** How the round trip through Slack's install page ended (`GET /api/slack/callback` puts it in the URL). */
@@ -41,12 +42,12 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState(result === "connected" ? "Slack is connected. People here can now choose Slack DM under Inbox delivery." : "");
-  const problem = error ?? (status ? null : RETURN_PROBLEMS[result ?? "connected"] ?? null);
+  const problem = error ?? (status || busy ? null : RETURN_PROBLEMS[result ?? "connected"] ?? null);
 
   async function connect() {
     setBusy(true);
     setError(null);
-    setStatus("Opening Slack…");
+    setStatus("");
     try {
       const answer = await callAction(() => onConnect());
       if (answer.url) {
@@ -54,8 +55,8 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
         return;
       }
       setError(answer.error || FAILED);
-    } catch {
-      setError(FAILED);
+    } catch (thrown) {
+      setError(thrownMessage(thrown, FAILED));
     }
     setStatus("");
     setBusy(false);
@@ -70,8 +71,8 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
         setConfirming(false);
         setStatus("Slack is disconnected. People who chose Slack DM get email instead.");
       } else setError(answer.error || FAILED);
-    } catch {
-      setError(FAILED);
+    } catch (thrown) {
+      setError(thrownMessage(thrown, FAILED));
     }
     setBusy(false);
   }

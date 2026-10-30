@@ -2,10 +2,11 @@ import { useEffect, useRef, type Ref } from "react"
 import Link from "next/link"
 import { Badge } from "@/components/arc/badge/badge"
 import { Button } from "@/components/arc/button/button"
-import { actualText, changeText, predictedText } from "@/lib/impact-presenter"
+import { actualText, changeText, goalText } from "@/lib/impact-presenter"
 import type { IterationEntry, Iterations } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
-import { journeyDate, journeyDay } from "@/lib/request-journey"
+import { plannedDay } from "@/lib/dates"
+import { LocalTime } from "./local-time"
 import { ITERATIONS_SECTION_ID, type SameProblemHistoryLine } from "@/lib/same-problem-rules"
 import { IterationsPlaceholder, ITERATIONS_HEADING_ID, LINK_HINT, NO_LINKS_YET } from "./same-problem-placeholder"
 import styles from "./same-problem.module.css"
@@ -34,11 +35,11 @@ export type SameProblemViewProps = {
 }
 
 
-function historyText(line: SameProblemHistoryLine): string {
-  const when = `by ${line.actorName} on ${journeyDay(line.at)}.`
-  if (line.kind === "linked") return `Linked as Same problem with ${formatRequestCode(line.other!.requestNumber)} ${when}`
-  if (line.other) return `Its Same problem group ended when ${formatRequestCode(line.other.requestNumber)} was taken out, ${when}`
-  return `Taken out of its Same problem group ${when}`
+function historyText(line: SameProblemHistoryLine) {
+  const when = <>by {line.actorName} on <LocalTime iso={line.at} day />.</>
+  if (line.kind === "linked") return <>Linked as Same problem with {formatRequestCode(line.other!.requestNumber)} {when}</>
+  if (line.other) return <>Its Same problem group ended when {formatRequestCode(line.other.requestNumber)} was taken out, {when}</>
+  return <>Taken out of its Same problem group {when}</>
 }
 
 function Outcome({ entry }: { entry: IterationEntry }) {
@@ -51,7 +52,7 @@ function Outcome({ entry }: { entry: IterationEntry }) {
     case "closed_without_result": return <div><dt>Reason</dt><dd>{outcome.label}{outcome.reason && `: ${outcome.reason}`}</dd></div>
     case "operational": return <div><dt>Not measured</dt><dd>Operational work: {outcome.reason}</dd></div>
     case "still_due": return outcome.due
-      ? <div><dt>Result due</dt><dd><time dateTime={outcome.due.dueDate}>{journeyDate(outcome.due.dueDate)}</time> ({outcome.due.dueLabel})</dd></div>
+      ? <div><dt>Result due</dt><dd><time dateTime={outcome.due.dueDate}>{plannedDay(outcome.due.dueDate)}</time> ({outcome.due.dueLabel})</dd></div>
       : <div><dt>Result</dt><dd>Not Released yet</dd></div>
   }
 }
@@ -66,7 +67,7 @@ function Iteration({ entry, canChange, removing, onRemove }: { entry: IterationE
       <Badge size="sm">{entry.journey}</Badge>
     </div>
     <dl className={styles.facts}>
-      {entry.predicted && <div><dt>Predicted</dt><dd>{entry.predicted.metric}{entry.predicted.form === "numeric" && `: ${predictedText(entry.predicted)}`}</dd></div>}
+      {entry.predicted && <div><dt>Goal</dt><dd>{entry.predicted.metric}{entry.predicted.form === "numeric" && `: ${goalText(entry.predicted)}`}</dd></div>}
       <Outcome entry={entry} />
     </dl>
     {canChange && <div className={styles.actions}>
@@ -95,7 +96,7 @@ export function SameProblemView({ requestNumber, state, canLink = true, onOpenLi
   if (state.kind === "error") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={ITERATIONS_HEADING_ID} className={styles.section}>
     <div className={styles.header}>{heading}</div>
     <p role="alert" className={styles.muted}>{state.message}</p>
-    <div><Button variant="secondary" size="sm" onClick={onRetry}>Retry</Button></div>
+    <div><Button variant="secondary" size="sm" onClick={onRetry}>Try again</Button></div>
   </section>
 
   const { iterations, history, canChange } = state

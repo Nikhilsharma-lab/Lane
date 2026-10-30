@@ -25,5 +25,4 @@
 .paletteFoot > span { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 1); }
 
 
-.kbd { display: inline-flex; align-items: center; padding: 0 var(--space-1); border: var(--border-width) solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-xs); }
 

@@ -24,7 +24,8 @@ describe("Settings search shortcut", () => {
     const button = /<button[^>]*aria-haspopup="dialog"[^>]*>[\s\S]*?<\/button>/.exec(html)?.[0] ?? "";
     expect(button).toContain("Search settings");
     expect(button).toContain('aria-keyshortcuts="/"');
-    expect(button).toContain("<kbd>/</kbd>");
+    // #262: drawn as Arc's key cap, decorative beside the button's name.
+    expect(button).toMatch(/<kbd aria-hidden="true"[^>]*>\/<\/kbd>/);
   });
 });
 

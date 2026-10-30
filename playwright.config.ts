@@ -13,6 +13,10 @@ import { assertE2ETarget } from "./e2e/helpers/safety";
 // development instance is at its user cap (e2e/helpers/test-user.ts), on one worker
 // so two workers never borrow the same user. docs/agents/local-browser-checks.md §7.
 const localDatabase = process.env.LANE_E2E_LOCAL_DATABASE === "1";
+// LANE_E2E_START=1 serves the production build already in .next (`pnpm build`) with `next start` instead of
+// starting `next dev`, so a local run checks what ships. docs/agents/local-browser-checks.md §7.
+const serveBuild = process.env.LANE_E2E_START === "1";
+const distDir = serveBuild ? ".next" : ".next-e2e";
 const borrowUsers = process.env.LANE_E2E_REUSE_USERS === "1";
 dotenv.config({ path: ".env.local" });
 if (!localDatabase) {
@@ -86,11 +90,11 @@ function e2eConfig() {
       ? undefined
       : {
           command:
-            `LANE_ENV_FILE=/dev/null NEXT_DIST_DIR=.next-e2e PORT=${port} node node_modules/next/dist/bin/next dev`,
+            `LANE_ENV_FILE=/dev/null NEXT_DIST_DIR=${distDir} PORT=${port} node node_modules/next/dist/bin/next ${serveBuild ? `start -p ${port}` : "dev"}`,
           env: {
             ...process.env,
             LANE_ENV_FILE: "/dev/null",
-            NEXT_DIST_DIR: ".next-e2e",
+            NEXT_DIST_DIR: distDir,
             DATABASE_URL: runtimeDatabaseUrl.toString(),
             PORT: port,
           },

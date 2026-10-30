@@ -27,6 +27,28 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // #263: Lane's dialogs go through the adaptive popup (a bottom panel on phones, focus return, the typed-text
+  // guard). Only the popup itself and the pickers and menus that stay centred import Arc's dialog directly.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/components/popup/**",
+      "src/components/arc/**",
+      // Build 4 owns ⌘K and workspace search, so the command palette and the search results stay on Arc's own dialog until then.
+      "src/components/shell/command-palette.tsx",
+      "src/components/shell/workspace-search-results.tsx",
+      "src/**/*.test.ts",
+    ],
+    rules: {
+      "no-restricted-imports": ["error", {
+        paths: [
+          { name: "@/components/arc/dialog/dialog", message: "Use Dialog from @/components/popup/adaptive-dialog (#263)." },
+          { name: "@/components/arc/drawer/drawer", message: "Use Dialog from @/components/popup/adaptive-dialog (#263)." },
+          { name: "@/components/arc/bottom-sheet/bottom-sheet", message: "Use Dialog from @/components/popup/adaptive-dialog (#263)." },
+        ],
+      }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

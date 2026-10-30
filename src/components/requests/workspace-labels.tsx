@@ -14,7 +14,7 @@ export const useWorkspaceLabels=()=>useContext(Context);
 export function createWorkspaceLabels(orgId: string, initial: LabelCatalogue) {
   return createWorkspaceCatalogue({
     initial: { entries: initial.labels, metadata: initial.canCreate },
-    loadError: "Labels could not be loaded. Try again.",
+    loadError: "Labels couldn't be loaded. Try again.",
     read: async () => {
       const result = await callAction(() => listLabels({ orgId }));
       return result.success ? { success: true, entries: result.labels, metadata: result.canCreate } : result;

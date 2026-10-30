@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { focusRowWhenShown, isShown, restoreRequestFocus } from "@/components/requests/list-focus"
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
+import { dismissOpenForm } from "@/components/popup/dismiss-form"
 import { useRequestNavigation } from "./request-navigation"
 
 const RETURN_FOCUS_KEY = "lane:request-return-focus"
@@ -79,10 +80,10 @@ export function RequestWorkspaceKeyboard({
       // Search hides the page; Esc then belongs to the search pane.
       if (!isShown(document.querySelector('[data-slot="requests-workspace"]'))) return
 
-      const form = document.querySelector("[data-detail] [data-detail-form]")
-      if (form) {
+      // #263: an open Journey or Reviewers form is the top layer. It closes (asking first if it holds typed text); the page stays.
+      const detail = document.querySelector("[data-detail]")
+      if (detail && dismissOpenForm(detail)) {
         event.preventDefault()
-        form.querySelector<HTMLButtonElement>("[data-detail-form-cancel]:not(:disabled)")?.click()
         return
       }
 

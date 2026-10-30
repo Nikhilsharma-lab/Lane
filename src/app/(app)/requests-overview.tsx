@@ -23,10 +23,12 @@ import { RequestsWelcome } from "./requests-welcome"
 import type { PeekViewer } from "@/components/requests/request-peek"
 import { SavedViewMenu } from "@/components/requests/saved-view-menu"
 import { openSavedView, savedViewChanged, type SavedView } from "@/lib/saved-view-rules"
+import { KeyCap } from "@/components/keyboard/key-caps";
+import { failureWords, ShownFailure } from "@/lib/failure-messages"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-const OLDER_ERROR = "Older Requests could not be loaded. Try again."
+const OLDER_ERROR = "Older Requests couldn't be loaded. Try again."
 
 
 /** Reads older finished Requests through the GET route (plan items 1.7 and 1.16), never a server action.
@@ -35,7 +37,7 @@ async function fetchOlder(orgId: string, beforeId: string, view: FinishedView): 
   const query = new URLSearchParams({ org: orgId, before: beforeId, ...(view === "all" ? {} : { status: view }) })
   const response = await fetch(`/api/requests/done?${query}`, { headers: { Accept: "application/json" } })
   const body = await response.json().catch(() => null) as { rows?: OverviewRequest[]; hasOlderFinished?: boolean; error?: string } | null
-  if (!response.ok || !body?.rows) throw new Error(body?.error ?? OLDER_ERROR)
+  if (!response.ok || !body?.rows) throw new ShownFailure(body?.error ?? OLDER_ERROR)
   return { rows: body.rows, hasOlderFinished: Boolean(body.hasOlderFinished) }
 }
 
@@ -73,7 +75,7 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
       setOlder(current => ({ pages: { ...current.pages, [item]: [...current.pages[item] ?? [], ...page.rows] }, more: { ...current.more, [item]: page.hasOlderFinished }, pending: null, error: null }))
     } catch (error) {
       // A failed first page counts as fetched; "Show older" retries it.
-      setOlder(current => ({ ...current, pages: { ...current.pages, [item]: current.pages[item] ?? [] }, pending: null, error: error instanceof Error ? error.message : OLDER_ERROR }))
+      setOlder(current => ({ ...current, pages: { ...current.pages, [item]: current.pages[item] ?? [] }, pending: null, error: failureWords(error, OLDER_ERROR) }))
     }
   }
   const loadFirstPage = useEffectEvent((item: FinishedView) => { void load(item) })
@@ -153,7 +155,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
         // The one labelled way in; the sidebar glyph and the Open group's plus share its name and the C shortcut.
         // An empty workspace has exactly one Intake link, the welcome's (docs/superpowers/plans/2026-09-29-requests-welcome.md):
         // this one keeps its box, hidden and inert, so the first Request shows it without moving the strip.
-        action={readOnly ? undefined : <Tooltip content={<>New Request<kbd className={styles.kbd}>C</kbd></>} side="bottom">
+        action={readOnly ? undefined : <Tooltip content={<>New Request<KeyCap className={styles.kbd}>C</KeyCap></>} side="bottom">
           <NewRequestLink inert={workspaceEmpty} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus aria-hidden="true" />New Request</NewRequestLink>
         </Tooltip>} />
       {firstRun && !guideIsWelcome && <div className={firstRunStyles.slot}>{firstRun.node}</div>}
@@ -173,6 +175,6 @@ export function ProjectUnavailable({ tools }: { tools?: ReactNode }) {
   const setView = useSetRequestListView()
   return <div data-slot="requests-workspace" className={styles.overview}>
     <PageStrip title="Project unavailable" heading tools={tools} />
-    <div className={styles.unavailable}><EmptyState icon={<Folder />} title="This Project can’t be shown" description="It could not be found or is not available in this workspace." action={<Button variant="secondary" size="sm" onClick={() => setView(view => withListContext(view, { project: "all" }))}>View all Requests</Button>} /></div>
+    <div className={styles.unavailable}><EmptyState icon={<Folder />} title="This Project can’t be shown" description="It couldn’t be found or is not available in this workspace." action={<Button variant="secondary" size="sm" onClick={() => setView(view => withListContext(view, { project: "all" }))}>View all Requests</Button>} /></div>
   </div>
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { createPendingMutationsStore } from "./pending-mutations-provider"
 import { runOptimistic, runOptimisticBatch, type OptimisticDeps } from "./use-optimistic-action"
 import type { OverviewRequest } from "@/lib/request-overview"
+import { OFFLINE_ANSWER } from "@/lib/failure-messages"
 
 // Plan item 1.5: one overlay keyed by Request id. These tests drive the store
 // and the mutation runner without a DOM: the provider and hooks only wire them
@@ -30,8 +31,9 @@ function depsFor(view: () => ReturnType<ReturnType<typeof setup>["view"]>) {
   return {
     overlay: view(),
     refresh: vi.fn<() => void>(),
-    notifyError: vi.fn<(message: string) => void>(),
+    notifyError: vi.fn<OptimisticDeps["notifyError"]>(),
     session: { current: vi.fn(async () => "current"), renew: vi.fn(async () => "renewed") },
+    offline: vi.fn(() => false),
   } satisfies OptimisticDeps
 }
 
@@ -314,7 +316,7 @@ describe("useOptimisticAction core", () => {
     expect(outcome).toEqual({ status: "error", error: "This Request is no longer In progress. Refresh to see its current state.", thrown: false })
     expect(view().patches.a).toBeUndefined()
     expect(view().apply([row("a")])[0].status).toBe("in_progress")
-    expect(deps.notifyError).toHaveBeenCalledWith("This Request is no longer In progress. Refresh to see its current state.")
+    expect(deps.notifyError).toHaveBeenCalledWith("This Request is no longer In progress. Refresh to see its current state.", expect.objectContaining({ offline: false }))
     expect(deps.refresh).toHaveBeenCalledTimes(1)
   })
 
@@ -325,7 +327,7 @@ describe("useOptimisticAction core", () => {
     const outcome = await runOptimistic(deps, { id: "a", patch: { kind: "pick-up", status: "in_progress" }, run: async () => { throw new TypeError("Failed to fetch") }, onError })
     expect(outcome).toMatchObject({ status: "error", thrown: true })
     expect(view().patches.a).toBeUndefined()
-    expect(onError).toHaveBeenCalledWith("Check your connection and try again.", { thrown: true, auth: false })
+    expect(onError).toHaveBeenCalledWith("Check your connection and try again.", expect.objectContaining({ thrown: true, auth: false, offline: false }))
     expect(deps.notifyError).not.toHaveBeenCalled()
     expect(deps.session.renew).not.toHaveBeenCalled()
   })
@@ -337,7 +339,7 @@ describe("useOptimisticAction core", () => {
     const onError = vi.fn()
     await runOptimistic(deps, { id: "a", run: async () => { throw new Error("401 Unauthorized") }, onError })
     expect(deps.session.renew).not.toHaveBeenCalled()
-    expect(onError).toHaveBeenCalledWith("Check your connection and try again.", { thrown: true, auth: false })
+    expect(onError).toHaveBeenCalledWith("Check your connection and try again.", expect.objectContaining({ thrown: true, auth: false }))
   })
 
   it("refreshes the Clerk token and retries once on an explicit expiry", async () => {
@@ -390,6 +392,26 @@ describe("useOptimisticAction core", () => {
     expect(undoRun).not.toHaveBeenCalled()
     expect(view().patches.a).toBeUndefined()
     expect(deps.notifyError).toHaveBeenCalledTimes(1)
+  })
+
+  // #260: offline, the change is never shown or sent, and the answer offers Try again for later.
+  it("changes nothing and sends nothing while offline, then Try again sends it", async () => {
+    const { view } = setup()
+    const deps = depsFor(view)
+    deps.offline.mockReturnValue(true)
+    const run = vi.fn(async () => ({ success: true }))
+    const outcome = await runOptimistic(deps, { id: "a", patch: { kind: "pick-up", status: "in_progress" }, run })
+    expect(outcome).toMatchObject({ status: "error", error: OFFLINE_ANSWER, offline: true })
+    expect(run).not.toHaveBeenCalled()
+    expect(view().patches.a).toBeUndefined()
+    expect(deps.refresh).not.toHaveBeenCalled()
+    expect(deps.notifyError).toHaveBeenCalledWith(OFFLINE_ANSWER, expect.objectContaining({ offline: true }))
+
+    deps.offline.mockReturnValue(false)
+    const [, failure] = deps.notifyError.mock.calls[0]
+    await expect(failure!.retry()).resolves.toMatchObject({ status: "success" })
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(view().patches.a).toBeDefined()
   })
 
   it("runs without an overlay outside the provider", async () => {

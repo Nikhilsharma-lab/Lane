@@ -1,4 +1,5 @@
 import { useState, useSyncExternalStore } from "react";
+import { thrownMessage } from "./failure-messages";
 
 type ReadResult<Entry, Metadata> = { success: true; entries: Entry[]; metadata: Metadata } | { success: false; error: string };
 export type CatalogueSnapshot<Entry, Metadata> = {
@@ -32,7 +33,8 @@ export function createWorkspaceCatalogue<Entry extends { id: string }, Metadata>
     publish({ loading: true });
     let result: ReadResult<Entry, Metadata>;
     try { result = await options.read(); }
-    catch { result = { success: false, error: options.loadError }; }
+    // #260: offline says the shared offline answer; any other throw says loadError, never the raw text.
+    catch (thrown) { result = { success: false, error: thrownMessage(thrown, options.loadError) }; }
     if (!active || lifetime !== generation || request !== sequence) return;
     if (result.success) for (const entry of result.entries) additions.delete(entry.id);
     publish({ loading: false, ...(result.success

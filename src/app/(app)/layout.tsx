@@ -15,6 +15,7 @@ import { PickupConfirmationProvider } from "@/components/requests/pickup-confirm
 import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
 import { IsItLiveProvider } from "@/components/requests/is-it-live-prompt";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
+import { OfflineGuard } from "@/components/shell/offline-guard";
 import { canChangeThings, canContribute } from "@/lib/role-rules";
 import { followSeatChangesAfterResponse } from "@/lib/billing";
 
@@ -61,6 +62,9 @@ export default async function AppLayout({
   );
 
   return (
+    // #260: offline, the signed-in app stays on screen and says so; nothing moves or is queued.
+    // StableRouterProvider (#296) sits inside it so the router it hands down is the guarded one.
+    <OfflineGuard>
     <StableRouterProvider>
     <RequestListViewProvider key={`${result.orgId}:${result.userId}`}>
       {/* Pending Request changes live here, above every page, so a navigation
@@ -85,5 +89,6 @@ export default async function AppLayout({
       </PendingMutationsProvider>
     </RequestListViewProvider>
     </StableRouterProvider>
+    </OfflineGuard>
   );
 }
