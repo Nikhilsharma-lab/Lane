@@ -1,15 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { execFileSync, execSync } from "node:child_process";
+import { resolveTestDatabase } from "./test-database";
 import { setup } from "./global-setup";
 
-vi.mock("node:child_process", () => ({ execSync: vi.fn(), execFileSync: vi.fn() }));
-vi.mock("child_process", () => ({ execSync: vi.fn(), execFileSync: vi.fn() }));
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  vi.stubEnv("DATABASE_URL", "postgresql://tester:secret@127.0.0.1:5437/lane_test");
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return { ...actual, execSync: vi.fn(), execFileSync: vi.fn(actual.execFileSync) };
 });
-afterEach(() => vi.unstubAllEnvs());
+
+const target = resolveTestDatabase("postgresql://tester:secret@127.0.0.1:65431/lane_test");
+const releases: (() => void)[] = [];
+beforeEach(async () => {
+  vi.clearAllMocks();
+  const actual = await vi.importActual<typeof import("node:child_process")>("node:child_process");
+  vi.mocked(execFileSync).mockImplementation((binary, args, options) => {
+    if (binary === "git" || binary === "/bin/ps" || String(binary).endsWith("sysctl")) return actual.execFileSync(binary, args, options);
+    return Buffer.from("");
+  });
+  vi.stubEnv("DATABASE_URL", target.url);
+});
+afterEach(() => {
+  for (const release of releases.splice(0)) release();
+  vi.unstubAllEnvs();
+});
+function pgCalls() {
+  return vi.mocked(execFileSync).mock.calls.filter(([binary]) => /\/(psql|dropdb|createdb)$/.test(String(binary)));
+}
 
 describe("disposable database reset boundary", () => {
   it.each([
@@ -26,7 +42,7 @@ describe("disposable database reset boundary", () => {
   ])("rejects %s before invoking subprocesses", async (url) => {
     vi.stubEnv("DATABASE_URL", url);
     await expect(setup()).rejects.toThrow();
-    expect(execFileSync).not.toHaveBeenCalled();
+    expect(pgCalls()).toHaveLength(0);
     expect(execSync).not.toHaveBeenCalled();
   });
 
@@ -35,11 +51,12 @@ describe("disposable database reset boundary", () => {
     vi.stubEnv("PGHOSTADDR", "203.0.113.1");
     vi.stubEnv("PGSERVICE", "production");
     vi.stubEnv("PGOPTIONS", "-c search_path=private");
-    await setup();
-    const calls = vi.mocked(execFileSync).mock.calls;
+    const release = await setup();
+    if (release) releases.push(release);
+    const calls = pgCalls();
     expect(calls.length).toBeGreaterThan(7);
     for (const [, args, options] of calls.filter(([, args]) => !args?.includes("--version"))) {
-      expect(args).toEqual(expect.arrayContaining(["--host", "127.0.0.1", "--port", "5437", "--username", "tester"]));
+      expect(args).toEqual(expect.arrayContaining(["--host", "127.0.0.1", "--port", "65431", "--username", "tester"]));
       expect(options).toMatchObject({ env: { PGPASSWORD: "secret" } });
       for (const name of ["PGHOST", "PGHOSTADDR", "PGSERVICE", "PGOPTIONS", "PGDATABASE"]) {
         expect(options && typeof options !== "string" && options.env?.[name]).toBeUndefined();
@@ -47,25 +64,34 @@ describe("disposable database reset boundary", () => {
     }
     for (const [binary, args] of calls.filter(([binary, args]) => String(binary).endsWith("/psql") && !args?.includes("--version"))) {
       expect(binary).toBeTruthy();
-      expect(args).toEqual(expect.arrayContaining(["-X", "-v", "ON_ERROR_STOP=1", "--dbname", "lane_test"]));
+      expect(args).toEqual(expect.arrayContaining(["-X", "-v", "ON_ERROR_STOP=1", "--dbname", target.database]));
     }
     expect(execSync).not.toHaveBeenCalled();
   });
 
   it("stops at the first SQL failure", async () => {
-    vi.mocked(execFileSync).mockImplementation((binary, args) => {
+    const previous = vi.mocked(execFileSync).getMockImplementation()!;
+    vi.mocked(execFileSync).mockImplementation((binary, args, options) => {
       if (String(binary).endsWith("/psql") && !args?.includes("--version")) throw new Error("invalid SQL");
-      return Buffer.from("");
+      return previous(binary, args, options);
     });
     await expect(setup()).rejects.toThrow("invalid SQL");
     expect(vi.mocked(execFileSync).mock.calls.filter(([binary, args]) => String(binary).endsWith("/psql") && !args?.includes("--version"))).toHaveLength(1);
+    vi.mocked(execFileSync).mockImplementation(previous);
+    const recovered = await setup();
+    releases.push(recovered);
   });
 
-  it("resets a worktree's own lane_test_<copy>", async () => {
-    vi.mocked(execFileSync).mockReset();
-    vi.stubEnv("DATABASE_URL", "postgresql://tester:secret@127.0.0.1:5437/lane_test_some_copy");
-    await setup();
-    const reset = vi.mocked(execFileSync).mock.calls.filter(([binary]) => /\/(dropdb|createdb)$/.test(String(binary)));
-    expect(reset.map(([, args]) => args?.at(-1))).toEqual(["lane_test_some_copy", "lane_test_some_copy"]);
+  it("holds ownership after setup until runner teardown, refusing a second reset", async () => {
+    const release = await setup();
+    if (release) releases.push(release);
+    vi.mocked(execFileSync).mockClear();
+    await expect(setup()).rejects.toThrow(/already running/);
+    expect(pgCalls()).toHaveLength(0);
+    release?.();
+    const next = await setup();
+    if (next) releases.push(next);
+    expect(pgCalls().filter(([binary]) => /\/(dropdb|createdb)$/.test(String(binary))).map(([, args]) => args?.at(-1)))
+      .toEqual([target.database, target.database]);
   });
 });

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, profiles } from "@/db";
-import { requireActiveMember, refusal } from "@/lib/auth-guard";
+import { guardActiveMember } from "@/lib/auth-guard";
 
 const profileSchema = z.object({
   role: z.enum(["pm", "designer", "developer"]),
@@ -17,8 +17,8 @@ export async function updateProfileRole(
   const parsed = profileSchema.safeParse(data);
   if (!parsed.success) return { error: "Choose a valid role." };
 
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("You do not have access to this workspace.") };
+  const auth = await guardActiveMember(context.orgId, "You do not have access to this workspace.");
+  if ("error" in auth) return auth;
 
   await db
     .update(profiles)

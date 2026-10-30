@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { refusal, requireActiveMember, requireCanChange } from "@/lib/auth-guard";
+import { requireActiveMember, guardCanChange } from "@/lib/auth-guard";
 import { loadIterations } from "@/lib/data/impact";
 import type { Iterations } from "@/lib/impact-read-model";
 import { canChangeThings } from "@/lib/role-rules";
@@ -25,29 +25,29 @@ export type SameProblemView =
   | { shown: true; iterations: Iterations | null; history: SameProblemHistoryLine[]; canChange: boolean };
 
 /** Links two Requests as Same problem: their groups join, and two groups combine. */
-export async function linkSameProblem(data: { requestId: string; otherRequestId: string }, context: { orgId: string }): Promise<{ success: true } | { error: string }> {
+export async function linkSameProblem(data: { requestId: string; otherRequestId: string }, context: { orgId: string }): Promise<{ success: true } | { error: string; sessionExpired?: true }> {
   const parsed = linkSchema.safeParse(data);
   if (!parsed.success) return { error: "Choose a Request to link." };
-  const auth = await requireCanChange(context.orgId);
-  if (!auth) return { error: await refusal(GUEST_REFUSAL) };
+  const auth = await guardCanChange(context.orgId, GUEST_REFUSAL);
+  if ("error" in auth) return auth;
   const result = await linkRequests(auth, parsed.data.requestId, parsed.data.otherRequestId);
   if ("success" in result) revalidatePath("/impact");
   return result;
 }
 
 /** Takes one Request out of its Same problem group; the rest stay linked. */
-export async function removeSameProblemLink(data: { requestId: string }, context: { orgId: string }): Promise<{ success: true } | { error: string }> {
+export async function removeSameProblemLink(data: { requestId: string }, context: { orgId: string }): Promise<{ success: true } | { error: string; sessionExpired?: true }> {
   const parsed = unlinkSchema.safeParse(data);
   if (!parsed.success) return { error: UNAVAILABLE };
-  const auth = await requireCanChange(context.orgId);
-  if (!auth) return { error: await refusal(GUEST_REFUSAL) };
+  const auth = await guardCanChange(context.orgId, GUEST_REFUSAL);
+  if ("error" in auth) return auth;
   const result = await unlinkRequest(auth, parsed.data.requestId);
   if ("success" in result) revalidatePath("/impact");
   return result;
 }
 
 /** "Iterations of this problem" and the Request's link history, for its page. Nothing for a guest. */
-export async function readSameProblem(requestId: string, context: { orgId: string }): Promise<SameProblemView | { error: string }> {
+export async function readSameProblem(requestId: string, context: { orgId: string }): Promise<SameProblemView | { error: string; sessionExpired?: true }> {
   try {
     if (!z.uuid().safeParse(requestId).success) return { error: UNAVAILABLE };
     const auth = await requireActiveMember(context.orgId);

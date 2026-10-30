@@ -311,4 +311,3 @@ describe("E2E borrowed users at Clerk's user cap", () => {
     expect(config.workers).toBe(1);
   });
 });
-

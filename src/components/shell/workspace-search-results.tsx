@@ -4,6 +4,7 @@
 
 import { Fragment, memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
 import Link from "next/link";
+import { isSameTabRequestLink } from "@/components/requests/request-navigation";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { CalendarDays, Clock, Link2, Search, SearchX, SlidersHorizontal, X } from "lucide-react";
 import { Alert } from "@/components/arc/alert/alert";
@@ -90,7 +91,7 @@ const Preview = memo(function Preview({ result, pattern, timeZone, onNavigate }:
       {item.createdAt ? <div><dt>Created</dt><dd><LocalTime iso={item.createdAt} timeZone={timeZone} /></dd></div> : null}
     </dl>
     <div className={styles.previewActions}>
-      <Link href={hrefOf(result)} className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.sm}`} onClick={event => { if (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) onNavigate?.(hrefOf(result)); }}>Open {result.kind === "request" ? "Request" : "Project"}</Link>
+      <Link href={hrefOf(result)} className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.sm}`} onClick={event => { if (onNavigate && isSameTabRequestLink(event)) { event.preventDefault(); onNavigate(hrefOf(result)); } }}>Open {result.kind === "request" ? "Request" : "Project"}</Link>
       <CopyButton label="Copy link" copied="Link copied." value={() => new URL(hrefOf(result), window.location.origin).href} icon={<Link2 aria-hidden="true" />} />
     </div>
   </article>;

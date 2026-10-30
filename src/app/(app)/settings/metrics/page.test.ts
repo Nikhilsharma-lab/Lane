@@ -5,7 +5,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import type { WorkspaceContext } from "@/lib/ensure-workspace";
 
 const ORG = "org_metrics_page";
@@ -38,7 +38,7 @@ const visibleSections = (html: string) => [...html.matchAll(/<section id="settin
 let connection: ReturnType<typeof postgres>;
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Metrics page tests require disposable local PostgreSQL");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Metrics page','metrics-page')`;
 });

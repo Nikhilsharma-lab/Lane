@@ -1,0 +1,21 @@
+# Requests navigation boundary
+
+`RequestListViewProvider` owns one `createRequestNavigation` instance for the signed-in workspace. Sidebar, palette, Project context-menu Open, search preview links and keyboard search bind that instance to Next's router. The controller decides whether to select the list in place or navigate. Surface closure stays with the caller. The existing split view, setter, snapshot and list-context subscriptions remain separate.
+
+Explicit Project selection resets the page index even when the Project is already selected. Page size, local filters, ordering, grouping, column visibility and collapsed groups survive. Generic `withListContext` retains its same-context no-op. Sidebar All Requests retains its real `/` href and its ordinary-click intent to keep the current status. Search Project destinations retain their explicit `all` status.
+
+Ordinary in-place selection makes no router/history call. `useRequestListUrlSync` remains the URL writer and waits for pending mutations. Off-list selection pushes once; J/K replaces with `scroll:false`. If a previously dispatched detail route has not committed and the location still shows the list, a newer selection replaces the current URL to cancel that transition without adding history or writing the selected context ahead of the mirror. Back/Forward still use the existing URL adoption and return-focus behavior.
+
+An explicit list selection stays authoritative while an earlier route is still loading. The shared boundary lets the URL mirror adopt external context only after both the router query and address bar acknowledge the current selection, or browser history cancels it. Opening Search cancels delayed focus without discarding the chosen Project. The mirror still alone writes in-place URLs and still waits for pending mutations.
+
+The current detail registers its return-marker callback with the workspace's existing history listener. That listener records the row before Next restores the route and removes the detail. The list then consumes the existing marker and focuses the row; no new storage is added. Cleanup can remove only its own registration, and workspace cleanup clears it.
+
+Real links keep their native modifier, middle-click, non-self-target, download and prevented-event behavior. These gestures make no original-tab state or surface changes. Cmd/Ctrl+Enter inside search remains an explicit same-tab command. Project context-menu Open uses the shared command once; Open in new tab stays native.
+
+A shared monotonic generation invalidates delayed search auto-open and search-close focus on newer navigation, browser history, workspace cleanup and remount. Project creation always publishes its committed catalogue item, but a superseded completion does not navigate. Request arrival intent names its Request, including unavailable detail: an older page cannot consume a newer destination's title/button focus. Search clears the old J/K sequence; row entry and J/K retain their captured sequence. The existing Arc Project Composer separately tracks focus leaving its form: async success/error restoration and open-frame focus cannot take it back from a newer control or history navigation. Disabling Submit may temporarily leave body focused and retains ordinary completion ownership. Cleanup cancels queued frames. No durable list state or new cache is introduced.
+
+## Verification
+
+`request-navigation.test.ts` exercises the production controller with two caller bindings, two actual provider consumers, URL-mirror hold/release, native-link guards, history, targeted arrival and a controlled animation scheduler. It uses no copied routing harness or source-string assertions. `list-view-state.test.ts` retains the generic context and URL-adoption contracts. The first regression failed with page index 3 where explicit current-Project selection required 0 after extracting the previous palette command unchanged into the seam.
+
+`e2e/request-navigation.spec.ts` and shared helpers cover actual current-Project reselection, local controls, search, native link gestures, history and held responses. Browser verification uses the guarded staging fixture path; unit/SSR checks alone do not prove browser focus or native history. See the session handoff for current receipts. This work adds no route, schema, dependency, persistence or visual design.

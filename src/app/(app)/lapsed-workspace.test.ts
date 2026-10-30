@@ -8,7 +8,7 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_lapsed_plan";
 const [MEMBER, OTHER, GUEST, ADMIN] = ["lapsed_member", "lapsed_other", "lapsed_guest", "lapsed_admin"];
@@ -32,7 +32,7 @@ vi.mock("@clerk/nextjs/server", () => ({
 }));
 
 const url = new URL(process.env.DATABASE_URL!);
-if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 2, prepare: false, onnotice: () => {} });
 
 const conversion = { kind: "measurement", version: 2, primary: { key: "conversion", name: "", unit: "percent", current: 50, target: 80, noBaseline: false, check: "" }, measurement: { audience: "all", platform: "all", windowDays: 7, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };

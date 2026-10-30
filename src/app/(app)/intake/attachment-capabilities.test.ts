@@ -15,10 +15,8 @@ const state = vi.hoisted(() => ({
   user: "user_attachment_capabilities",
 }));
 vi.mock("@/lib/auth-guard", () => ({
-  signedInAsViewer: async () => false,
-  VIEWER_REFUSAL: "viewer",
-  requireCanContribute: async (orgId: string) => orgId === "org_attachment_capabilities"
-    ? { userId: state.user, orgId, role: "member" } : null,
+  guardCanContribute: async (orgId: string) => orgId === "org_attachment_capabilities"
+    ? { userId: state.user, orgId, role: "member" } : { error: "Request unavailable." },
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createServiceClient: () => ({ storage: { from: () => ({

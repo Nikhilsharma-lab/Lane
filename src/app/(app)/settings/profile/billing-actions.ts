@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, profiles } from "@/db";
-import { refusal, requireOwnerOrAdmin } from "@/lib/auth-guard";
+import { guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { openBillingPage as openProviderPage, startCheckout } from "@/lib/billing";
 import { BILLING_PAGES_UNAVAILABLE, NOT_CHARGING, PAYING_UNAVAILABLE, paidSeats } from "@/lib/billing-plan-rules";
 import { appOrigin, billingEnforced } from "@/lib/feature-switches";
@@ -22,8 +22,8 @@ const checkoutSchema = z.object({ period: z.enum(["yearly", "monthly"]) });
 export async function startPlanCheckout(data: { period: "yearly" | "monthly" }, context: { orgId: string }) {
   const parsed = checkoutSchema.safeParse(data);
   if (!parsed.success) return { error: "Choose yearly or monthly billing." };
-  const auth = await requireOwnerOrAdmin(context.orgId);
-  if (!auth) return { error: await refusal("Only Admins can pay for Lane in this workspace.") };
+  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can pay for Lane in this workspace.");
+  if ("error" in auth) return auth;
   if (!billingEnforced()) return { error: NOT_CHARGING };
   const provider = paymentProvider();
   if (!provider) return { error: PAYING_UNAVAILABLE };
@@ -49,8 +49,8 @@ const pageSchema = z.object({ flow: z.enum(PORTAL_FLOWS) });
 export async function openBillingPage(data: { flow: PortalFlow }, context: { orgId: string }) {
   const parsed = pageSchema.safeParse(data);
   if (!parsed.success) return { error: "Choose what to change." };
-  const auth = await requireOwnerOrAdmin(context.orgId);
-  if (!auth) return { error: await refusal("Only Admins can change billing in this workspace.") };
+  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can change billing in this workspace.");
+  if ("error" in auth) return auth;
   const provider = paymentProvider();
   if (!provider) return { error: BILLING_PAGES_UNAVAILABLE };
   const opened = await openProviderPage(auth, { flow: parsed.data.flow, origin: appOrigin() }, provider);

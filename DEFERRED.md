@@ -47,6 +47,17 @@ not authorize implementing these unrelated deferrals.
 
 ## PRE-LAUNCH — hard gate (built or deleted before first paying customer)
 
+- **Faint status pills overlap Request rows at 390px.** Settled local c902 screenshots in Light and Dark show an apparent measurement copy beneath the visible All/More controls, overlapping the first rows. StatusPills, its toolbar CSS and Arc ChipGroup are unchanged from f638, and #167 has no CSS delta; this is source-equality evidence, not a separately reproduced baseline browser result. Reproduce and resolve in the pre-launch visual pass, retaining keyboard and overflow behavior. Evidence: `390-light-requests-settled.png` and `390-dark-requests-settled.png` in the safe #167 evidence archive referenced by `docs/testing/main-compatibility.md`. Design-contract checks do not establish visual approval.
+- **A failed second read-state toggle can expose a stale Inbox row.** On the same mounted visit, mark an unread FYI read successfully, then fail mark unread before dispatch: saved state stays read but the row shows unread with the error toast. `notification-read-state.begin` replaces the confirmed patch, and `rollback` removes its replacement; count-only reconciliation cannot repair the stale row. These read-state/list modules and the relevant adapter sequence are unchanged from main f638; #167 changes navigation/session guards, not this overlay owner. Repair as a focused Inbox-state increment before first paying customer, with production regressions covering prior confirmed state and separate list/count refresh ordering; do not restore a whole stale snapshot or add automatic replay. Source: #167 compatibility check, c902f6c8, October28, actual1440/light local app; no production observation. Evidence: docs/testing/main-compatibility.md and external lane-spec-167-inbox-rollback-diagnosis.md / inbox-scope-assessment.md. The original red remains. After the diagnostic context closed, the saved-read FYI was correctly absent from a fresh Inbox, so planned ordinary unread retry/mobile-read checks remain unverified; no hidden state restoration/direct setup write was used.
+- **Mobile Label picker overflow and checked-mark contrast.** Before launch, repair keyboard-focus
+  horizontal scrolling that clips label names at 390px (Available labels inner width 198px,
+  content 274px, `scrollLeft` 76px), and white/near-white checked strokes in light mode.
+  Reproduced on #173 `fb9b554` and accepted baseline `9bb6171`; the picker/CSS/Arc checkbox
+  are unchanged by catalogue reconciliation. Deferred from #173 to keep that increment scoped;
+  verify keyboard, full names and checked-state contrast in both themes after repair.
+  Source: `/private/tmp/lane-spec-173-browser-evidence.md`, settled runs5–7 and
+  `/private/tmp/lane-spec-173-acceptance/run7-baseline/` (2026-10-25). Functional #173 checks
+  pass; this is not visual approval.
 - ~~**Rate limiter is in-memory** (`Map`, leaks, resets on deploy). Swap to Upstash.~~ RESOLVED: swapped to
   Upstash Redis sliding window — 10 req/60s per user, fail-open on Redis error or missing KV env
   (`Ratelimit.slidingWindow(10, "60 s")` + prefix `lane:ratelimit:ai`, `src/lib/rate-limit.ts:22-23`;

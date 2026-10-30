@@ -9,6 +9,7 @@ function source(path: string) {
 const PAGE = source("src/app/(app)/intake/page.tsx");
 const LAYOUT = source("src/app/(app)/layout.tsx");
 const FORM = source("src/app/(app)/intake/intake-form.tsx");
+const SAVE = source("src/app/(app)/intake/intake-save.ts");
 const ACTIONS = source("src/app/(app)/intake/actions.ts");
 const TRIAGE = source("src/lib/ai/triage.ts");
 const TOKEN = source("src/lib/triage-token.ts");
@@ -38,7 +39,7 @@ describe("Intake Gate contract", () => {
   it("derives identity from the session and binds review state to context", () => {
     expect(LAYOUT).toContain('context={{ orgId: result.orgId }}');
     expect(PAGE).not.toContain("userId:");
-    expect(ACTIONS).toContain("requireCanContribute(context.orgId)");
+    expect(ACTIONS).toContain("guardCanContribute(context.orgId,");
     expect(ACTIONS).toContain("userId: auth.userId");
     expect(TOKEN).toContain("requestId: existingRequestId ?? randomUUID()");
     expect(TOKEN).toContain('purpose: existingRequestId ? "edit" : "create"');
@@ -72,9 +73,9 @@ describe("Intake Gate contract", () => {
     expect(ACTIONS).toContain('"session_expired"');
   });
 
-  it("retries an ended session once with a fresh token before asking for sign-in", () => {
-    expect(FORM).toContain("await callAction(() => editing ? runTriage(");
-    expect(FORM).toContain("return callAction(() => saveRequest(");
+  it("routes the AI check and save through the shared action boundary", () => {
+    expect(FORM).toContain("run: () => callAction(() => editing ? runTriage(");
+    expect(SAVE).toContain("return callAction(() => saveRequest(");
   });
 
   it("restores session-scoped drafts without trusting them as identity", () => {

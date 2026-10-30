@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactElement } from "react";
-import { useRouter } from "next/navigation";
+import { useRequestNavigation } from "@/components/requests/request-navigation";
 import { ArrowUpRight, Check, Copy, ExternalLink, RotateCcw } from "lucide-react";
 import { ContextMenu } from "@/components/arc/context-menu/context-menu";
 
@@ -15,7 +15,7 @@ export interface ProjectContextMenuProps {
 
 /** Arc's context menu keeps the existing Project link as its navigation target. */
 export function ProjectContextMenu({ children, href, label, onNavigate, onOpenChange }: ProjectContextMenuProps) {
-  const router = useRouter();
+  const navigation = useRequestNavigation();
   const [copyState, setCopyState] = useState<"idle" | "copying" | "copied" | "error">("idle");
   const copyVersion = useRef(0);
 
@@ -38,7 +38,7 @@ export function ProjectContextMenu({ children, href, label, onNavigate, onOpenCh
       setCopyState("idle");
       onOpenChange?.(open);
     }} items={[
-      { id: "open", label: "Open", icon: <ArrowUpRight />, onSelect: () => { onNavigate?.(); router.push(href); } },
+      { id: "open", label: "Open", icon: <ArrowUpRight />, onSelect: () => { navigation.open(href); onNavigate?.(); } },
       { id: "new-tab", label: "Open in new tab", icon: <ExternalLink />, onSelect: () => { window.open(href, "_blank", "noopener,noreferrer"); } },
       { id: "copy", label: copyLabel, icon: copyState === "copied" ? <Check /> : copyState === "error" ? <RotateCcw /> : <Copy />, closeOnSelect: false, onSelect: () => { void copyLink(); } },
     ]}>{children}</ContextMenu>

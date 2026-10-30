@@ -1,3 +1,4 @@
+import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -9,7 +10,7 @@ let connection: ReturnType<typeof postgres>;
 
 beforeAll(async () => {
   const url = process.env.DATABASE_URL!;
-  if (!["localhost", "127.0.0.1"].includes(new URL(url).hostname)) throw new Error("Impact schema tests require disposable local PostgreSQL");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url, { max: 1, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Impact schema','expected-impact-schema')`;
   await connection`insert into profiles (id,full_name,email) values (${USER},'Impact schema','expected-impact@example.test')`;

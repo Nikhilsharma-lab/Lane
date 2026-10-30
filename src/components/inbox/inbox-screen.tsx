@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useRequestNavigation } from "@/components/requests/request-navigation";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { RequestPeek, preloadRequestPeek, usePeekAvailable, type PeekViewer } from "@/components/requests/request-peek";
@@ -54,7 +54,7 @@ export type InboxScreenProps = {
  * on this visit stay in place until the next one (inbox-list.ts).
  */
 export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems, initialUnread, isGuest, viewer }: InboxScreenProps) {
-  const router = useRouter();
+  const navigation = useRequestNavigation();
   const [state, setState] = useState<ReadState<InboxItem>>(() => receiveList(initialReadState<InboxItem>(initialUnread), initialItems, 0));
   const [needsYou, setNeedsYou] = useState(initialNeedsYou);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -168,28 +168,31 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
     // Opening an item reads it. The patch and the opening happen now; the action follows.
     const readAt = new Date().toISOString();
     const token = item.readAt === null ? beginRead(item, readAt) : null;
-    if (item.type === "invite_accepted") router.push("/settings/members");
+    if (item.type === "invite_accepted") navigation.open("/settings/members");
     else if (item.requestId && peekAvailable) {
+      navigation.previewChanged(item.requestId);
       if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });
       setSelectedId(item.id);
-    } else if (item.requestId) router.push(requestDetailHref(item.requestId, "all"));
+    } else if (item.requestId) navigation.open(requestDetailHref(item.requestId, "all"));
     if (token !== null) runRead(item, readAt, token);
   };
 
   // A Needs-you item clears itself once the thing is done, so opening it changes nothing but the preview.
   const handleSelectNeedsYou = (item: NeedsYouInboxItem) => {
     if (peekAvailable) {
+      navigation.previewChanged(item.requestId);
       if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });
       setSelectedId(item.key);
-    } else router.push(requestDetailHref(item.requestId, "all"));
+    } else navigation.open(requestDetailHref(item.requestId, "all"));
   };
 
   const closePreview = () => {
     const id = selectedId;
+    navigation.previewChanged(null);
     setSelectedId(null);
     if (!id) return;
     announce("Preview closed.", { key: "preview" });
-    requestAnimationFrame(() => document.querySelector<HTMLElement>(inboxRowButton(id))?.focus({ preventScroll: true }));
+    navigation.deferFocus(() => document.querySelector<HTMLElement>(inboxRowButton(id))?.focus({ preventScroll: true }));
   };
 
   const handleMarkAllRead = () => {
@@ -215,6 +218,8 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
 
   const selectedRequest = items.find(item => item.id === selectedId)?.requestId ?? needsYou.find(item => item.key === selectedId)?.requestId ?? null;
   const previewId = peekAvailable ? selectedRequest : null;
+  // Also cover a disappearing item or viewport change; an unchanged preview does not cancel work.
+  useLayoutEffect(() => { navigation.previewChanged(previewId); }, [navigation, previewId]);
 
   // #258: resting on an item reads its Request into the preview's memory before it opens (not by focus while
   // the preview is open, as on the Requests list).
@@ -227,7 +232,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
     unread={unread}
     selectedId={previewId ? selectedId : null}
     preview={<AnimatePresence initial={false}>
-      {previewId && <RequestPeek key="request-peek" requestId={previewId} serverRow={null} orgId={orgId} isGuest={isGuest} viewer={viewer} onClose={closePreview} onOpenFullPage={() => {}} />}
+      {previewId && <RequestPeek key="request-peek" requestId={previewId} serverRow={null} orgId={orgId} isGuest={isGuest} viewer={viewer} onClose={closePreview} onOpenFullPage={event => { navigation.followLink(event, requestDetailHref(previewId, "all")); }} />}
     </AnimatePresence>}
     previewOpen={previewId !== null}
     reading={reading}

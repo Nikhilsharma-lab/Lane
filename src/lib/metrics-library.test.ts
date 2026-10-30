@@ -4,7 +4,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { listMetricDefinitions, readMetricDefinitionHistory, resolveSavedMetrics } from "./metrics-library";
 
 const PREFIX = "org_metrics_library_";
@@ -14,7 +14,7 @@ let workspaces = 0;
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Metrics library tests require disposable local PostgreSQL");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
   await connection`insert into profiles (id,full_name,email) values (${MAKER},'Maker','metrics-library@example.test')`;
 });

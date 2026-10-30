@@ -29,7 +29,7 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
     const reviewState = { concerns: [{ name: "Ana", reason: "Copy is unclear" }], unanswered: 1 }
     const d = deps({ request: current({ reviewState }) })
     runPaletteAction({ kind: "move", move: "pick-up", requestId: "r1" }, d)
-    // No `confirmed`: the hook's confirmPickup runs first, as from the row menu.
+    // The move owns pickup confirmation, as from the row menu.
     expect(d.moves.move).toHaveBeenCalledExactlyOnceWith({ id: "r1", name: "LAN-12", reviewState }, "pick-up", { assignee: undefined })
   })
 

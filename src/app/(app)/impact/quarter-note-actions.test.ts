@@ -5,7 +5,7 @@
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { SESSION_ENDED, VIEWER_REFUSAL } from "@/lib/auth-guard";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_quarter_note_actions";
 const OTHER = "org_quarter_note_actions_other";
@@ -17,7 +17,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ ...session }) }));
 
 const url = new URL(process.env.DATABASE_URL!);
-if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
 
 beforeAll(async () => {
@@ -107,7 +107,7 @@ describe("Quarter note", () => {
     as(ADMIN, "org:admin");
     expect(await saveQuarterNote(note, { orgId: OTHER })).toEqual(refused);
     as(null, "org:admin");
-    expect(await saveQuarterNote(note, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
+    expect(await saveQuarterNote(note, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
     expect(await connection`select 1 from quarter_notes where org_id in (${ORG}, ${OTHER})`).toHaveLength(0);
   });
 });

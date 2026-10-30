@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { refusal, requireActiveMember, requireCanChange } from "@/lib/auth-guard";
+import { guardActiveMember, guardCanChange } from "@/lib/auth-guard";
 import { inlineMetricInputSchema, metricDefinitionFieldErrors, type MetricChoice } from "@/lib/metric-definition-rules";
 import { addOrOfferMetricDefinition, predictionMetricChoices } from "@/lib/metrics-library";
 import { canChangeThings, readsWholeWorkspace } from "@/lib/role-rules";
@@ -12,7 +12,7 @@ export type PredictionMetricsResult =
     /** Whether the Metrics page is open to this person (not to Guests). */ canOpenLibrary: boolean
     /** Whether this person can add a metric from the prediction form (#199; not Guests). */ canAddMetrics: boolean
   }
-  | { error: string };
+  | { error: string; sessionExpired?: true };
 
 /**
  * The Metrics library as the prediction picker offers it (#198), for anyone who can write a prediction in the
@@ -21,8 +21,8 @@ export type PredictionMetricsResult =
  * starter metrics a library is filled with the first time it is read.
  */
 export async function listPredictionMetrics(input: { impact: unknown }, context: { orgId: string }): Promise<PredictionMetricsResult> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("You can't use the Metrics library in this workspace.") };
+  const auth = await guardActiveMember(context.orgId, "You can't use the Metrics library in this workspace.");
+  if ("error" in auth) return auth;
   try {
     return {
       ...await predictionMetricChoices(auth, input?.impact ?? null),
@@ -37,7 +37,7 @@ export async function listPredictionMetrics(input: { impact: unknown }, context:
 
 export type InlineMetricResult =
   | { ok: true; /** The definition to select: the one just added, or the active one that already had the name. */ metric: MetricChoice; existing: boolean }
-  | { error: string; fields?: Partial<Record<"name" | "unit", string>> };
+  | { error: string; sessionExpired?: true; fields?: Partial<Record<"name" | "unit", string>> };
 
 /**
  * Adding a metric that isn't in the library from the prediction form (#199): a name and a unit only. The
@@ -48,8 +48,8 @@ export type InlineMetricResult =
 export async function addPredictionMetric(data: { name: string; unit: string }, context: { orgId: string }): Promise<InlineMetricResult> {
   const parsed = inlineMetricInputSchema.safeParse(data);
   if (!parsed.success) return { error: "Check the highlighted fields.", fields: metricDefinitionFieldErrors(parsed.error) };
-  const auth = await requireCanChange(context.orgId);
-  if (!auth) return { error: await refusal("Guests can't add metrics to the Metrics library. Pick one that's there, or ask a Member to add it.") };
+  const auth = await guardCanChange(context.orgId, "Guests can't add metrics to the Metrics library. Pick one that's there, or ask a Member to add it.");
+  if ("error" in auth) return auth;
   try {
     const result = await addOrOfferMetricDefinition(auth, auth.userId, parsed.data);
     if (!result.existing) {

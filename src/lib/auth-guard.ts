@@ -1,95 +1,65 @@
 import { auth } from "@clerk/nextjs/server";
+import type { ActionFailure } from "./action-session-failure";
 import { canChangeThings, clerkWorkspacePermission } from "./role-rules";
 
 export { clerkWorkspacePermission };
 
-/**
- * The four Clerk roles (#210). Admin and Member are paid seats and can change things; Guest is free and
- * changes only their own Requests; Viewer is free and read-only: they read what a Member reads and change
- * nothing. Clerk owns who has which role; Lane only reads it from the session.
- */
+/** Clerk owns workspace membership. Profile labels never grant these capabilities. */
 export type WorkspacePermission = "admin" | "member" | "guest" | "viewer";
-export type MemberAuth = {
-  userId: string;
-  orgId: string;
-  role: WorkspacePermission;
-};
+export type MemberAuth = { userId: string; orgId: string; role: WorkspacePermission };
 export type AdminAuth = MemberAuth & { role: "admin" };
-/**
- * The one shape modules that act within a workspace take: the workspace, or the workspace and the person. A guard's
- * `MemberAuth` (or a page's workspace context) passes as it is, so callers never rebuild `{ orgId, userId }`.
- */
 export type WorkspaceScope = Pick<MemberAuth, "orgId">;
 export type WorkspacePerson = Pick<MemberAuth, "orgId" | "userId">;
 
-async function activeClerkMembership(
-  expectedOrgId: string
-): Promise<MemberAuth | null> {
-  const { userId, orgId, orgRole } = await auth();
-  const role = clerkWorkspacePermission(orgRole);
-
-  if (!userId || !orgId || orgId !== expectedOrgId || !role) return null;
-
-  return { userId, orgId, role };
-}
-
-export async function requireActiveMember(
-  orgId: string
-): Promise<MemberAuth | null> {
-  return activeClerkMembership(orgId);
-}
-
-/** Admin or Member: "can change things" (#210). Every workspace change a Guest may not make uses this. */
-export async function requireCanChange(
-  orgId: string
-): Promise<MemberAuth | null> {
-  const membership = await activeClerkMembership(orgId);
-  if (!membership || !canChangeThings(membership.role)) return null;
-  return membership;
-}
-
-/**
- * Anyone but a Viewer: the changes a Guest may make too (filing, commenting, their own attachments). Which
- * Requests a Guest may touch stays request-access.ts's rule.
- */
-export async function requireCanContribute(
-  orgId: string
-): Promise<MemberAuth | null> {
-  const membership = await activeClerkMembership(orgId);
-  if (!membership || membership.role === "viewer") return null;
-  return membership;
-}
-
-export async function requireOwnerOrAdmin(
-  orgId: string
-): Promise<AdminAuth | null> {
-  const membership = await activeClerkMembership(orgId);
-  if (!membership || membership.role !== "admin") return null;
-  return { ...membership, role: "admin" };
-}
-
-/** What a refused action says when the caller is signed out, whatever the
- * action's own refusal. The browser's callAction recognises it, renews the
- * session once and retries (src/lib/action-call.ts). */
 export const SESSION_ENDED = "Your session ended. Sign in again to continue.";
-
-/** What every change says to a Viewer (#210). A Viewer already reads everything, so it reveals nothing. */
 export const VIEWER_REFUSAL = "You're a Viewer in this workspace, so you can read everything but can't change anything. Ask an Admin if you need to.";
 
-/** Whether the signed-in session is a Viewer's: the reason a change guard said no. */
-export async function signedInAsViewer(): Promise<boolean> {
-  const { userId, orgRole } = await auth();
-  return Boolean(userId) && clerkWorkspacePermission(orgRole) === "viewer";
+/** One session snapshot decides identity, workspace and expiry before any change.
+ * Wrong-workspace, role and validation refusals never permit a session replay. */
+export async function guardActiveMember(orgId: string, copy: string): Promise<MemberAuth | ActionFailure> {
+  const session = await auth();
+  if (!session.userId) return { error: SESSION_ENDED, sessionExpired: true };
+  const role = clerkWorkspacePermission(session.orgRole);
+  if (!session.orgId || session.orgId !== orgId || !role) return { error: copy };
+  return { userId: session.userId, orgId: session.orgId, role };
 }
 
-/**
- * The message for a guard that returned null: SESSION_ENDED when there is no
- * signed-in user at all, VIEWER_REFUSAL for a Viewer, otherwise the action's own
- * `copy` (which may hide whether a Request exists). Signed out reveals nothing
- * about the workspace.
- */
-export async function refusal(copy: string): Promise<string> {
-  const { userId, orgRole } = await auth();
-  if (!userId) return SESSION_ENDED;
-  return clerkWorkspacePermission(orgRole) === "viewer" ? VIEWER_REFUSAL : copy;
+/** Admin or Member may change shared workspace data. */
+export async function guardCanChange(orgId: string, copy: string): Promise<MemberAuth | ActionFailure> {
+  const membership = await guardActiveMember(orgId, copy);
+  if ("error" in membership) return membership;
+  if (membership.role === "viewer") return { error: VIEWER_REFUSAL };
+  return canChangeThings(membership.role) ? membership : { error: copy };
+}
+
+/** Guests may contribute to their own Requests; request-access enforces ownership. */
+export async function guardCanContribute(orgId: string, copy: string): Promise<MemberAuth | ActionFailure> {
+  const membership = await guardActiveMember(orgId, copy);
+  if ("error" in membership) return membership;
+  return membership.role === "viewer" ? { error: VIEWER_REFUSAL } : membership;
+}
+
+export async function guardOwnerOrAdmin(orgId: string, copy: string): Promise<AdminAuth | ActionFailure> {
+  const membership = await guardActiveMember(orgId, copy);
+  if ("error" in membership) return membership;
+  if (membership.role === "viewer") return { error: VIEWER_REFUSAL };
+  return membership.role === "admin" ? { ...membership, role: "admin" } : { error: copy };
+}
+
+// Read-route compatibility: a denial remains null, never a truthy failure object.
+export async function requireActiveMember(orgId: string): Promise<MemberAuth | null> {
+  const membership = await guardActiveMember(orgId, "");
+  return "error" in membership ? null : membership;
+}
+export async function requireCanChange(orgId: string): Promise<MemberAuth | null> {
+  const membership = await guardCanChange(orgId, "");
+  return "error" in membership ? null : membership;
+}
+export async function requireCanContribute(orgId: string): Promise<MemberAuth | null> {
+  const membership = await guardCanContribute(orgId, "");
+  return "error" in membership ? null : membership;
+}
+export async function requireOwnerOrAdmin(orgId: string): Promise<AdminAuth | null> {
+  const membership = await guardOwnerOrAdmin(orgId, "");
+  return "error" in membership ? null : membership;
 }

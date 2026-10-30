@@ -27,9 +27,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth-guard", () => ({
-  signedInAsViewer: async () => false,
-  VIEWER_REFUSAL: "viewer",
-  requireCanContribute: async () => ({ userId: "user-test", orgId: "org-test", role: "member" }),
+  guardCanContribute: async () => ({ userId: "user-test", orgId: "org-test", role: "member" }),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createServiceClient: () => {

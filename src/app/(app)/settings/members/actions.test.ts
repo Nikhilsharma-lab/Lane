@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { recordingPaymentProvider, type PaymentProvider, type SeatChange } from "@/lib/payment-provider";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 /**
  * #210 Settings → Members: Admins invite people as, and change people to, Admin, Member, Guest or Viewer. Clerk
@@ -149,7 +149,7 @@ describe("revoking an invitation", () => {
  */
 describe("paid seats", () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+  requireTestDatabase(process.env.DATABASE_URL);
   const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
   const paying = { orgId: PAYING };
   const enforce = () => vi.stubEnv("LANE_BILLING_ENFORCED", "1");

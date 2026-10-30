@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { isLocalTestDatabase, testDatabaseFor } from "./test-database";
+import { testDatabaseFor } from "./test-database";
 
 describe("the test database each copy resets", () => {
-  it("is lane_test in the main checkout and lane_test_<copy> in a worktree", () => {
-    expect(testDatabaseFor("/Users/me/Lane")).toBe("lane_test");
-    expect(testDatabaseFor("/Users/me/Lane/.claude/worktrees/i1-intake-uploads")).toBe("lane_test_i1_intake_uploads");
-    expect(testDatabaseFor("/Users/me/Lane/.claude/worktrees/Fix.Some--Thing/src")).toBe("lane_test_fix_some_thing");
+  it("does not collapse distinct Codex checkout identities", () => {
+    const first = testDatabaseFor("/Users/me/.codex/worktrees/alpha/Lane");
+    const second = testDatabaseFor("/Users/me/.codex/worktrees/beta/Lane");
+    expect(first).not.toBe(second);
+    expect(first).not.toBe("lane_test");
   });
-  it("is only ever a loopback lane_test database", () => {
-    expect(isLocalTestDatabase("postgresql://me@localhost/lane_test")).toBe(true);
-    expect(isLocalTestDatabase("postgresql://me@127.0.0.1:5432/lane_test_w3_list_view_model")).toBe(true);
-    for (const url of ["postgresql://me@db.example.com/lane_test_copy", "postgresql://me@localhost/lane_testing", "postgresql://me@localhost/lane_test-copy", "postgresql://me@localhost/production", undefined])
-      expect(isLocalTestDatabase(url)).toBe(false);
+  it("bounds readable names and distinguishes normalized or truncated names", () => {
+    const roots = ["/copies/Fix.Thing", "/copies/Fix-Thing", `/copies/${"x".repeat(100)}a`, `/copies/${"x".repeat(100)}b`];
+    const names = roots.map(testDatabaseFor);
+    expect(new Set(names).size).toBe(4);
+    for (const name of names) expect(name).toMatch(/^lane_test_[a-z0-9_]{1,32}_[a-f0-9]{20}$/);
+    expect(names.every(name => name.length <= 63)).toBe(true);
+    expect(testDatabaseFor(roots[0])).toBe(names[0]);
   });
 });

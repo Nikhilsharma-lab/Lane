@@ -9,19 +9,27 @@ Hard limits for every walk:
   migrations; hosted migrations are Nikhil-run.
 - Reuse an existing `lane-e2e-*` Clerk user. Never create or delete Clerk users: the development instance has a
   100-user limit. If no `lane-e2e-*` user exists, stop and ask Nikhil.
+- Existing task authorization takes precedence over this recipe. Reuse an already owned team when instructed; do not create organizations, change memberships, enable providers, or simulate roles merely because an example below does so.
 - Any Clerk organization you create is temporary, marked in `privateMetadata`, and deleted before you hand back.
 - Walk scripts, logs and screenshots live in a scratch folder outside the repo (`/tmp/lane-<ticket>-scratch/`).
 
 ## 1. Local database with the full schema
 
-Any vitest run creates and migrates the database named by `DATABASE_URL` (`src/test/global-setup.ts`). Pick a
-name no test run uses, because every vitest run against a name wipes it:
+The main Vitest configuration resets only the database assigned to the real Git checkout by
+`src/test/test-database.ts`. It resolves the loopback `/lane_test` placeholder in `.env.test` to a
+checkout-specific name. Arbitrary names such as `lane_test_dev_<ticket>` are refused; never weaken that guard.
+Run the non-resetting safety suite first, then the bounded application suite that prepares the database:
 
 ```sh
-DATABASE_URL=postgresql://nikhilsharma@localhost:5432/lane_test_dev_<ticket> pnpm exec vitest run src/lib/env.test.ts
+pnpm exec vitest run --config vitest.architecture.config.ts
+pnpm exec vitest run src/lib/env.test.ts
 ```
 
-Done when the output shows `[test-setup] lane_test_dev_<ticket> reset from … migrations 0013–<latest>`.
+Use the exact name printed by `[test-setup]` for this checkout's browser environment. The canonical reset applies
+migrations 0013 through the latest migration, including their pre-migration fixtures. It is not a hosted restore.
+The test-run lease prevents concurrent resets, but does not protect a running browser server: once browser work
+starts, do not run reset-capable tests in that checkout until its runtime owner hands it back. Use another
+isolated checkout for independent tests. The UI configuration has no database setup.
 
 ## 2. Dev server env
 
@@ -29,7 +37,7 @@ Copy `.env.local` from the main checkout (read-only source) and swap only the da
 
 ```sh
 cp /Users/nikhilsharma/Documents/Work/Lane/.env.local . && chmod 600 .env.local
-sed -E 's#^DATABASE_URL=.*#DATABASE_URL=postgresql://nikhilsharma@localhost:5432/lane_test_dev_<ticket>#' .env.local > .env.dev-local
+sed -E 's#^DATABASE_URL=.*#DATABASE_URL=postgresql://nikhilsharma@localhost:5432/<exact-checkout-test-database>#' .env.local > .env.dev-local
 chmod 600 .env.dev-local
 LANE_ENV_FILE=.env.dev-local pnpm dev            # add -p 3200 if :3000 is busy
 ```
@@ -93,7 +101,7 @@ that the role was simulated; the action tests are the real coverage.
 
 ## 6. Clean up and record
 
-Run `teardown`, stop the dev server, `dropdb -h localhost lane_test_dev_<ticket>`, and remove `.env.dev-local` if
+Run only the teardown authorized for this walk (do not delete reused organizations), stop the dev server, `dropdb -h localhost <exact-checkout-test-database>`, and remove `.env.dev-local` if
 you created it. Done when the temporary organization is gone from Clerk, `git status` shows only your intended
 changes, and the hand-back lists what was walked and what was not (VoiceOver itself, simulated roles, hosted runs).
 

@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { mergeMetricDefinitions } from "@/lib/metrics-library";
 import { loadDefinitionUses } from "./impact";
@@ -42,7 +42,7 @@ const definition = async (name: string, org = ORG) =>
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Definition use tests require loopback lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
   for (const org of [ORG, OTHER]) await connection`insert into organizations (id,name,slug) values (${org},'Definition uses',${org.replaceAll("_", "-")})`;
   await connection`insert into profiles (id,full_name,email) values (${USER},'Uses','definition-uses@example.test')`;

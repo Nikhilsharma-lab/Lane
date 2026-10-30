@@ -31,16 +31,30 @@ export function createIsItLive(show: (view: IsItLiveView | null) => void) {
   const set = (next: typeof current) => { current = next; show(next && next.view) }
 
   const ask: AskIsItLive = (request, undo) => set({ view: { step: "ask", request }, undo })
-  const record = () => { if (current) set({ ...current, view: { step: "release", request: current.view.request } }) }
-  const notYet = () => {
-    const answered = current
-    set(null)
-    answered?.undo.reshow()
+  return {
+    ask,
+    get record() {
+      const asked = current
+      return () => {
+        if (!asked || current !== asked) return
+        asked.view = { step: "release", request: asked.view.request }
+        show(asked.view)
+      }
+    },
+    get notYet() {
+      const answered = current
+      return () => {
+        if (current === answered) set(null)
+        answered?.undo.reshow()
+      }
+    },
+    // The rendered Release form retains its operation even after Escape or a newer prompt.
+    get saved() {
+      const answered = current
+      return () => {
+        if (current === answered) set(null)
+        answered?.undo.end()
+      }
+    },
   }
-  const saved = () => {
-    const answered = current
-    set(null)
-    answered?.undo.end()
-  }
-  return { ask, record, notYet, saved }
 }

@@ -4,7 +4,7 @@
  */
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 const session = vi.hoisted(() => ({ userId: "" as string | null, orgId: "", orgRole: "org:member" }));
 vi.mock("server-only", () => ({}));
@@ -36,7 +36,7 @@ async function add(input: Record<string, unknown> = trialStarts) {
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Metrics actions tests require disposable local PostgreSQL");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
   for (const id of [ADMIN, MEMBER, GUEST]) await connection`insert into profiles (id,full_name,email) values (${id},${id},${id + "@example.test"})`;
 });
@@ -74,7 +74,7 @@ describe("Adding a Metric definition", () => {
     session.orgId = `${PREFIX}elsewhere`;
     expect(await addMetricDefinition(trialStarts, context())).toEqual({ error: "You can't change the Metrics library in this workspace." });
     session.userId = null;
-    expect(await addMetricDefinition(trialStarts, context())).toEqual({ error: "Your session ended. Sign in again to continue." });
+    expect(await addMetricDefinition(trialStarts, context())).toEqual({ error: "Your session ended. Sign in again to continue.", sessionExpired: true });
     expect((await all()).map(definition => definition.name)).not.toContain("Trial starts");
   });
 

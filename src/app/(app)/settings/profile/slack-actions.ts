@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireOwnerOrAdmin, refusal } from "@/lib/auth-guard";
+import { guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { appOrigin, slackDelivery } from "@/lib/feature-switches";
 import { removeSlackConnection } from "@/lib/slack-connection";
 import { revokeSlackToken, signInstallState, slackAuthorizeUrl } from "@/lib/slack-install";
@@ -14,8 +14,8 @@ import { revokeSlackToken, signInstallState, slackAuthorizeUrl } from "@/lib/sla
  */
 
 export async function startSlackConnect(_data: Record<string, never>, context: { orgId: string }) {
-  const auth = await requireOwnerOrAdmin(context.orgId);
-  if (!auth) return { error: await refusal("Only Admins can connect Slack to this workspace.") };
+  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can connect Slack to this workspace.");
+  if ("error" in auth) return auth;
   const slack = slackDelivery();
   if (!slack.on) return { error: "Slack isn't available in Lane yet." };
 
@@ -24,8 +24,8 @@ export async function startSlackConnect(_data: Record<string, never>, context: {
 }
 
 export async function disconnectSlack(_data: Record<string, never>, context: { orgId: string }) {
-  const auth = await requireOwnerOrAdmin(context.orgId);
-  if (!auth) return { error: await refusal("Only Admins can disconnect Slack from this workspace.") };
+  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can disconnect Slack from this workspace.");
+  if ("error" in auth) return auth;
 
   const token = await removeSlackConnection(auth.orgId);
   // Best effort: the connection is gone from Lane either way, and the sealed copy with it.

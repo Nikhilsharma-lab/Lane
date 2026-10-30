@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**
@@ -15,7 +15,7 @@ let otherRequestId: string;
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+  requireTestDatabase(process.env.DATABASE_URL);
   sql = postgres(url.toString(), { max: 1, onnotice: () => {} });
   await sql`insert into organizations(id,name,slug) values (${ORG},'Delivery','inbox-delivery-schema'), (${OTHER},'Other','inbox-delivery-schema-other')`;
   await sql`insert into profiles(id,full_name,email) values (${PERSON},'Person','person@inbox-delivery.test')`;

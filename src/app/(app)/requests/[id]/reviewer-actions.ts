@@ -1,10 +1,10 @@
 "use server";
 import { canChange, seeable } from "@/lib/request-access";
+import { canChangeThings } from "@/lib/role-rules";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
-import { requireActiveMember, requireCanChange, type MemberAuth, refusal } from "@/lib/auth-guard";
-import { canChangeThings } from "@/lib/role-rules";
+import { guardActiveMember, guardCanChange, type MemberAuth } from "@/lib/auth-guard";
 import {
   addReviewersSchema,
   removeReviewerSchema,
@@ -201,8 +201,8 @@ export async function readReviews(
   try {
     if (!z.uuid().safeParse(requestId).success)
       return { error: "Request unavailable." };
-    const auth = await requireActiveMember(context.orgId);
-    insist(auth, await refusal("Request unavailable."));
+    const auth = await guardActiveMember(context.orgId, "Request unavailable.");
+    if ("error" in auth) return auth;
     const [request] = await db
       .select()
       .from(requests)
@@ -252,8 +252,8 @@ export async function readReviews(
  * to Members settings or tell anyone else to ask an Admin.
  */
 export async function loadReviewerPeople(context: { orgId: string }) {
-  const auth = await requireCanChange(context.orgId);
-  if (!auth) return { error: await refusal("Workspace unavailable.") };
+  const auth = await guardCanChange(context.orgId, "Workspace unavailable.");
+  if ("error" in auth) return auth;
   try {
     return { people: await workspaceRoster(auth.orgId), canInvite: auth.role === "admin" };
   } catch {

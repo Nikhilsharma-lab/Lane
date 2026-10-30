@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { listMetricDefinitions, resolveSavedMetrics } from "@/lib/metrics-library";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 // #200: migration 0038 moves the metrics saved on existing Requests into each workspace's Metrics library.
 // Its input is src/test/metrics-migration-fixtures.sql, applied just before it.
@@ -11,7 +11,7 @@ let connection: ReturnType<typeof postgres>;
 
 beforeAll(() => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Metrics migration tests require disposable local PostgreSQL");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
 });
 afterAll(async () => { await connection?.end(); });

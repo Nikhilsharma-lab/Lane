@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import type { WorkspaceContext } from "@/lib/ensure-workspace";
 
 const ORG = "org_metric_definition_uses_page";
@@ -46,7 +46,7 @@ let connection: ReturnType<typeof postgres>;
 let kept: string, merged: string, unused: string;
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Metric definition page tests require disposable local PostgreSQL");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Metric page','metric-definition-uses-page')`;
   await connection`insert into profiles (id,full_name,email) values (${USER},'Pat','metric-definition-uses-page@example.test')`;

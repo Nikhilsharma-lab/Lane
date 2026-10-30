@@ -105,7 +105,7 @@ describe("(app) loading frames", () => {
 
 describe("error frames", () => {
   it("keeps the shell's trail above the (app) error and alerts only the message", () => {
-    const html = inShell("/requests/x", createElement(AppError, { error: new Error("Illustrative"), reset: () => {} }))
+    const html = inShell("/requests/x", createElement(AppError, { error: new Error("Illustrative"), retry: () => {} }))
     expect(strips(html)).toBe(1)
     expect(html).toMatch(/<li aria-current="page"><h1\b[^>]*>Page unavailable<\/h1><\/li>/)
     expect(/role="alert"[\s\S]*$/.exec(html)?.[0]).not.toContain('aria-label="Breadcrumb"')

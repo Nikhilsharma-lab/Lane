@@ -3,17 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db, savedViews } from "@/db";
-import { refusal, requireActiveMember, type MemberAuth } from "@/lib/auth-guard";
+import { guardActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { canUseProject } from "@/lib/project-access";
 import { parseSavedViewName, readSavedViewFilters, savedViewFilters, type SavedView, type SavedViewFilters } from "@/lib/saved-view-rules";
 
 /**
  * #219: a person's own saved views of the Requests list. Saving one is personal state, like the profile label and
- * the first run, so every role may keep their own, Viewers and Guests included (requireActiveMember). The workspace
+ * the first run, so every role may keep their own, Viewers and Guests included (guardActiveMember). The workspace
  * comes from the page; the owner only from the session. A view is found by id, workspace and owner together, so
  * nobody reaches anyone else's.
  */
-export type SavedViewResult = { ok: true; view: SavedView } | { error: string };
+export type SavedViewResult = { ok: true; view: SavedView } | { error: string; sessionExpired?: true };
 
 const GONE = "That view isn't saved any more.";
 const BAD_FILTERS = "Those filters can't be saved. Reload the page and try again.";
@@ -26,7 +26,7 @@ const owned = (auth: MemberAuth, id: string) => and(eq(savedViews.id, id), eq(sa
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Filters the list has, naming only a Project this person may see. */
-async function allowedFilters(auth: MemberAuth, input: unknown): Promise<SavedViewFilters | { error: string }> {
+async function allowedFilters(auth: MemberAuth, input: unknown): Promise<SavedViewFilters | { error: string; sessionExpired?: true }> {
   const filters = savedViewFilters((input ?? {}) as { status?: unknown; project?: unknown });
   if (!filters) return { error: BAD_FILTERS };
   if (filters.project !== "all" && filters.project !== "none" && !(await canUseProject(filters.project, auth))) return { error: PROJECT_UNAVAILABLE };
@@ -41,8 +41,8 @@ function changed() {
 export async function saveView(data: { name: string; filters: { status: string; project: string } }, context: { orgId: string }): Promise<SavedViewResult> {
   const name = parseSavedViewName(data?.name);
   if ("error" in name) return name;
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("You can't save views in this workspace.") };
+  const auth = await guardActiveMember(context.orgId, "You can't save views in this workspace.");
+  if ("error" in auth) return auth;
   const filters = await allowedFilters(auth, data?.filters);
   if ("error" in filters) return filters;
   try {
@@ -58,8 +58,8 @@ export async function saveView(data: { name: string; filters: { status: string; 
 export async function renameSavedView(data: { id: string; name: string }, context: { orgId: string }): Promise<SavedViewResult> {
   const name = parseSavedViewName(data?.name);
   if ("error" in name) return name;
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("You can't change views in this workspace.") };
+  const auth = await guardActiveMember(context.orgId, "You can't change views in this workspace.");
+  if ("error" in auth) return auth;
   if (typeof data.id !== "string" || !UUID.test(data.id)) return { error: GONE };
   try {
     const [row] = await db.update(savedViews).set({ name: name.name }).where(owned(auth, data.id)).returning(selection);
@@ -74,8 +74,8 @@ export async function renameSavedView(data: { id: string; name: string }, contex
 
 /** Saves the list's current filters into a view the person already has. */
 export async function updateSavedView(data: { id: string; filters: { status: string; project: string } }, context: { orgId: string }): Promise<SavedViewResult> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("You can't change views in this workspace.") };
+  const auth = await guardActiveMember(context.orgId, "You can't change views in this workspace.");
+  if ("error" in auth) return auth;
   if (typeof data?.id !== "string" || !UUID.test(data.id)) return { error: GONE };
   const filters = await allowedFilters(auth, data.filters);
   if ("error" in filters) return filters;
@@ -85,9 +85,9 @@ export async function updateSavedView(data: { id: string; filters: { status: str
   return { ok: true, view: shaped(row) };
 }
 
-export async function deleteSavedView(data: { id: string }, context: { orgId: string }): Promise<{ ok: true } | { error: string }> {
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("You can't change views in this workspace.") };
+export async function deleteSavedView(data: { id: string }, context: { orgId: string }): Promise<{ ok: true } | { error: string; sessionExpired?: true }> {
+  const auth = await guardActiveMember(context.orgId, "You can't change views in this workspace.");
+  if ("error" in auth) return auth;
   if (typeof data?.id !== "string" || !UUID.test(data.id)) return { error: GONE };
   const [row] = await db.delete(savedViews).where(owned(auth, data.id)).returning({ id: savedViews.id });
   if (!row) return { error: GONE };

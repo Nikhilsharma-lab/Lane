@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // #198: saved predictions v5 name a Metric definition (with a copy of its name and unit) for the main
@@ -29,7 +29,7 @@ const valid = async (snapshot: unknown) => (await connection`select public.reque
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Prediction schema tests require loopback lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Prediction','prediction-v5'), (${OTHER},'Other','prediction-v5-other')`;
   await connection`insert into profiles (id,full_name,email) values (${USER},'Prediction','prediction-v5@example.test')`;

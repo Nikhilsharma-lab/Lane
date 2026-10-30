@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { refusal, requireActiveMember } from "@/lib/auth-guard";
+import { guardActiveMember } from "@/lib/auth-guard";
 import { changeFirstRun } from "@/lib/first-run";
 import { parseFirstRunChange } from "@/lib/first-run-rules";
 
@@ -10,11 +10,11 @@ import { parseFirstRunChange } from "@/lib/first-run-rules";
  * It is personal state, like the profile label, so every role may change their own, Viewers included. The
  * workspace comes from the page; the person only from the session.
  */
-export async function updateFirstRun(data: { change: string; step?: string }, context: { orgId: string }): Promise<{ success: true } | { error: string }> {
+export async function updateFirstRun(data: { change: string; step?: string }, context: { orgId: string }): Promise<{ success: true } | { error: string; sessionExpired?: true }> {
   const change = parseFirstRunChange(data);
   if (!change) return { error: "That step isn't part of your first run." };
-  const auth = await requireActiveMember(context.orgId);
-  if (!auth) return { error: await refusal("You can't change the first run in this workspace.") };
+  const auth = await guardActiveMember(context.orgId, "You can't change the first run in this workspace.");
+  if ("error" in auth) return auth;
 
   const result = await changeFirstRun(auth, change);
   if ("refused" in result)

@@ -5,9 +5,9 @@ import { requestCodeOrNull } from "@/lib/request-code"
 import { canEditRequest } from "@/lib/request-lifecycle"
 import type { CurrentRequest } from "./current-request"
 import type { RequestDetail } from "./detail-view"
-import { useDetailSession, usePublishOpenRequest, useSetDetailSession } from "./list-view-state"
+import { usePublishOpenRequest } from "./list-view-state"
 import { usePendingMutations } from "./pending-mutations-provider"
-import { settleSequence } from "./request-sequence"
+import { useRequestNavigation } from "./request-navigation"
 
 /** Who is reading. `readOnly` is a Viewer (#210): they read everything and are offered nothing that changes it. */
 export type DetailViewer = { id: string; name: string; isAdmin?: boolean; readOnly?: boolean }
@@ -40,23 +40,18 @@ DetailRequestContext.displayName = "DetailRequest"
  * clear the arrival flags. Either way the page J or K left gives up its place
  * in the sequence. A deep link or a reload moves nothing.
  */
-function useArrival(focus: (button: "previous" | "next" | null) => void, enabled = true) {
-  const { sequence, focusTitleOnArrival, focusOnArrival } = useDetailSession()
-  const setSession = useSetDetailSession()
+function useArrival(id: string, focus: (button: "previous" | "next" | null) => void, enabled = true) {
+  const navigation = useRequestNavigation()
   useLayoutEffect(() => {
-    if (!enabled) return
-    const settled = settleSequence(sequence)
-    if (!focusTitleOnArrival && !focusOnArrival && settled === sequence) return
-    if (focusTitleOnArrival || focusOnArrival) focus(focusOnArrival)
-    setSession({ focusTitleOnArrival: false, focusOnArrival: null, sequence: settled })
-    // Only on arrival.
+    if (enabled) navigation.arrive(id, focus)
+    // Only on arrival; a stale page cannot consume another Request's intent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }
 
 /** Request unavailable reached with J or K, or from the list: its heading takes focus, as a title would, and the flags clear. */
-export function DetailArrivalReset() {
-  useArrival(() => {
+export function DetailArrivalReset({ requestId }: { requestId?: string }) {
+  useArrival(requestId ?? "", () => {
     const heading = document.querySelector<HTMLElement>('[data-slot="page-strip"] h1')
     if (!heading) return
     // Not in the tab order; focusable only so the arrival can be read out.
@@ -92,7 +87,7 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
   const code = requestCodeOrNull(serverRequest.requestNumber)
   const name = code ?? (serverRequest.reframedProblem ?? serverRequest.title)
 
-  useArrival(button => {
+  useArrival(request.id, button => {
     // J or K from the previous or next button keeps focus on that button; every other arrival reads the new title.
     const target = button ? document.querySelector<HTMLElement>(`[data-detail-sequence="${button}"]:not(:disabled)`) : null
     ;(target ?? document.getElementById("request-title"))?.focus({ preventScroll: true })

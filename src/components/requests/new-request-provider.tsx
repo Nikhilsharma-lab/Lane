@@ -6,6 +6,7 @@ import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useStat
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog";
+import type { IntakeCloseAttempt, RegisterIntakeCloseAttempt } from "./intake-navigation-guard";
 import { NewRequestContext } from "./new-request-context";
 import { listFiltersOf, revealRequest, useListViewSnapshot, useRequestListContext, useSetRequestListView } from "./list-view-state";
 import { requestCreatedToast } from "./request-created-toast";
@@ -110,6 +111,11 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     if (IntakeForm && !formHost) startTransition(() => setFormHost(current => current ?? createFormHost()));
   }, [IntakeForm, formHost]);
   const busy = useRef(false);
+  const closeAttempt = useRef<IntakeCloseAttempt | null>(null);
+  const registerCloseAttempt = useCallback<RegisterIntakeCloseAttempt>(attempt => {
+    closeAttempt.current = attempt;
+    return () => { if (closeAttempt.current === attempt) closeAttempt.current = null; };
+  }, []);
   // Decision 2026-10-21 (critique 2.3): while the problem check runs, X and Esc cancel it and keep the draft.
   const cancelCheck = useRef<(() => void) | null>(null);
   const completed = useRef(false);
@@ -169,9 +175,19 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
 
   const onBusyChange = useCallback((value: boolean) => { busy.current = value; }, []);
   const onCancelCheckChange = useCallback((cancel: (() => void) | null) => { cancelCheck.current = cancel; }, []);
-  /** X, Esc: the first cancels a running check and stays open; a busy save or upload still holds the dialog. */
+  /** X/Escape cancel a check, confirm leaving saved uploads, or hold other busy work open. */
   const holdOpen = useCallback(() => {
     if (cancelCheck.current) { cancelCheck.current(); return true; }
+    if (closeAttempt.current) {
+      closeAttempt.current(() => {
+        // Leave retires this saved generation without announcing completion.
+        // Its owner keeps the in-flight transfer and recovery lease.
+        completed.current = true;
+        busy.current = false;
+        setOpen(false);
+      });
+      return true;
+    }
     return busy.current;
   }, []);
   // saveRequest revalidates the list and the new detail path, so its response
@@ -249,7 +265,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
       {/* Keep the controller and File objects alive in a detached host while the
           Arc dialog is closed, before the first open too. Its overlay and focus
           scope still unmount normally. */}
-      {IntakeForm && formHost && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} />, formHost)}
+      {IntakeForm && formHost && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} registerCloseAttempt={registerCloseAttempt} />, formHost)}
       {hasOpened && formHost && <>
         <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
           <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."

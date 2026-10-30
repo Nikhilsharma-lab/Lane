@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 /**
  * #210: a Viewer reads everything a Member reads and changes nothing. Every server action that changes the
@@ -69,8 +69,7 @@ function refusalOf(result: unknown): string | undefined {
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
-  const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Viewer tests require local lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Viewer read-only','viewer-read-only')`;
   for (const id of [VIEWER, MEMBER, ADMIN]) await connection`insert into profiles (id,full_name,email,role) values (${id},${id},${id + "@example.test"},'pm')`;

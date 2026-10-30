@@ -3,7 +3,7 @@
 // Arc Pro license as part of the Lane app. Not covered by any license of this repository; not for reuse outside Lane.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRequestNavigation } from "@/components/requests/request-navigation";
 import { parseRequestCode } from "@/lib/request-code";
 import { requestDetailHref } from "@/lib/request-workspace";
 import {
@@ -58,7 +58,7 @@ const firstPage = <T,>(items: T[]) => ({ items, total: items.length, page: 0, ha
  * skeleton between keystrokes. The list is aria-busy only while a request is in flight.
  */
 export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNavigate, onOpen, getLoaded, timeZone }: WorkspaceSearchPaneProps) {
-  const router = useRouter();
+  const navigation = useRequestNavigation();
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLElement>(null);
   const sequence = useRef(0);
@@ -123,13 +123,14 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
   function open(href: string) {
     cancel(); setLoading(null);
     if (onOpen) onOpen(href);
-    else { onNavigate?.(href); router.push(href); }
+    else { navigation.open(href); onNavigate?.(href); }
   }
 
   async function run(input: WorkspaceSearchInput, operation: Operation = "search", openCode = false) {
     if (!input.query.trim()) { edit(""); inputRef.current?.focus(); return; }
     cancel();
     const id = sequence.current;
+    const navigationStillCurrent = navigation.continuation();
     const controller = new AbortController();
     inflight.current = controller;
     const trigger = document.activeElement;
@@ -150,7 +151,7 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
         } : response;
         setServer(next); setKept(next);
         const target = openCode ? requestWithCode(response.query, response.requests.items) : null;
-        if (target) open(requestDetailHref(target.id, "all"));
+        if (target && navigationStillCurrent()) open(requestDetailHref(target.id, "all"));
         return;
       }
       setServer(previous => {
@@ -198,5 +199,5 @@ export function WorkspaceSearchPane({ active = true, onSearch, onClose, onNaviga
     filters={filters} sort={sort} maxLength={WORKSPACE_SEARCH_QUERY_MAX} timeZone={timeZone}
     onEdit={edit} onSubmit={submit} onClose={close} onLoadMore={loadMore} onOpen={open}
     onRetry={() => currentFailure && run(currentFailure.input, currentFailure.operation)}
-    onFiltersChange={changeFilters} onSortChange={changeSort} onNavigate={onNavigate} />;
+    onFiltersChange={changeFilters} onSortChange={changeSort} onNavigate={open} />;
 }

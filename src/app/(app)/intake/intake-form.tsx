@@ -13,6 +13,7 @@ import {
   useEffect,
   useEffectEvent,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -36,7 +37,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popove
 import { Textarea } from "@/components/arc/textarea/textarea";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { savedFraming, storedShape } from "@/lib/request-framing";
-import { IntakeNavigationGuard } from "@/components/requests/intake-navigation-guard";
+import { IntakeNavigationGuard, type RegisterIntakeCloseAttempt } from "@/components/requests/intake-navigation-guard";
 import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
 import type { TriageResult } from "@/lib/ai/triage";
 import {
@@ -63,7 +64,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { OverviewRequest } from "@/lib/request-overview";
 import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
-import { clearUnfinishedUploads, readLostUploads, readUnfinishedUploads, writeUnfinishedUploads, type UnfinishedUploads } from "@/lib/unfinished-uploads";
+import { clearUnfinishedUploads, readUnfinishedUploads, writeUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
@@ -76,9 +77,9 @@ import { ExpectedImpactSummary } from "@/components/requests/expected-impact-sum
 import { RequestReviewSupportingDetails } from "@/components/requests/request-review-supporting-details";
 
 import type { RequestDetail } from "@/components/requests/detail-view";
-import { requestEditValues, requestEditSnapshot, requestEditSchema, requestEditSourceSchema } from "@/lib/request-edit";
+import { requestEditValues, requestEditSnapshot, requestEditSourceSchema } from "@/lib/request-edit";
 import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
-import { saveRequestEdits } from "../requests/[id]/edit-actions";
+import { saveNewIntake, saveEditedIntake } from "./intake-save";
 import { useOptimisticAction, useServerRefresh } from "@/components/requests/use-optimistic-action";
 
 import styles from "./intake-form.module.css";
@@ -90,12 +91,10 @@ import {
 } from "./attachment-actions";
 import {
   runTriage,
-  saveRequest,
-  type SaveResponse,
   type TriageResponse,
 } from "./actions";
-import { composerDraft, restoredComposer, settleLostUploads as settleInterruptedUploads } from "./intake-session";
-import { createUploadSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
+import { composerDraft, restoredComposer } from "./intake-session";
+import { createIntakeSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
@@ -110,10 +109,6 @@ type Stage =
   | "uploads_checking"
   | "uploads_lost"
   | "complete";
-
-/** Files a reload interrupted after the Request was created (plan item 2.3, S3). */
-type LostUploads = { requestId: string; files: { key: string; name: string }[] };
-
 
 const reveal =
   "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 motion-safe:ease-out";
@@ -236,6 +231,7 @@ export default function RequestEditor({
   onCreated,
   onBusyChange,
   onCancelCheckChange,
+  registerCloseAttempt,
   initialProjectId = null,
   editing,
   canAddReviewers = false,
@@ -252,6 +248,7 @@ export default function RequestEditor({
   onBusyChange?: (busy: boolean) => void;
   /** Decision 2026-10-21 (critique 2.3): a way to abandon the problem check while it runs, null otherwise. The composer's X and Esc use it. */
   onCancelCheckChange?: (cancel: (() => void) | null) => void;
+  registerCloseAttempt?: RegisterIntakeCloseAttempt;
   initialProjectId?: string | null;
   editing?: { request: RequestDetail; onSaved: () => void };
   /** #78: non-guests can ask people to review while creating. Not offered when editing. */
@@ -274,7 +271,7 @@ export default function RequestEditor({
   const problemFieldRef = useRef<HTMLTextAreaElement>(null);
   const solutionFieldRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToastStack();
-  const [stage, setStage] = useState<Stage>("compose");
+  const [formStage, setStage] = useState<Stage>("compose");
   const [linkOpen, setLinkOpen] = useState(false);
   const projects = useWorkspaceProjects();
   const [triage, setTriage] = useState<TriageResult | null>(null);
@@ -287,40 +284,19 @@ export default function RequestEditor({
   const [showSlowCue, setShowSlowCue] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const [restoredDraft, setRestoredDraft] = useState(false);
-  const [attachments, setAttachments] = useState<QueuedAttachment[]>([]);
+  const [queuedAttachments, setAttachments] = useState<QueuedAttachment[]>([]);
   const [reviewers, setReviewers] = useState<ReviewerChoice[]>([]);
   const [reviewQuestion, setReviewQuestion] = useState("");
   const [reviewersError, setReviewersError] = useState<string | null>(null);
   const offerReviewers = canAddReviewers && !editing;
-  const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   // The saved row, handed to the composer so the list shows it at once.
   const createdRow = useRef<OverviewRequest | null>(null);
   const pendingWriter = usePendingMutationWriter();
-  const [lostUploads, setLostUploads] = useState<LostUploads | null>(null);
   const [projectBusy, setProjectBusy] = useState(false);
   const projectInFlight = useRef(false);
   const projectDefaultApplied = useRef(false);
   const draftEdited = useRef(false);
-  const [mutationBusy, setMutationBusy] = useState(false);
-
-  const operationInFlight = useRef(false);
-  // Each problem check's number; a cancelled check's late answer no longer matches and is ignored.
-  const checkRun = useRef(0);
-  // Plan item 2.3 (S3): the person chose Leave page in the navigation guard,
-  // which stops the uploads; or this composer unmounted (its host left: the
-  // layout leaves, or a workspace switch re-keys it), which lets them finish
-  // without it.
-  const leftUploadScreen = useRef(false);
-  const unmounted = useRef(false);
-  // Plan item 2.3 (S3): the created Request whose files this composer still
-  // owes, from the first upload until they finish or are left; and the upload
-  // reservations not yet finalized or discarded, by file key.
-  const uploadsRequest = useRef<string | null>(null);
-  const reservations = useRef(new Map<string, string>());
-  // Each lost-uploads check takes a number; resolving the step or unmounting
-  // takes the next, so an older check never writes the record again.
-  const lostCheck = useRef(0);
-  const draftCleared = useRef(false);
+  const validationInFlight = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
   const failureRef = useRef<HTMLDivElement>(null);
@@ -335,24 +311,44 @@ export default function RequestEditor({
   const [previousProblem, setPreviousProblem] = useState("");
   const [previousProblemSource, setPreviousProblemSource] = useState<Pick<RequestInput, "title" | "description"> | null>(null);
   const draftScope = intakeDraftScope(draftOwnerId, context.orgId) + (editing ? `:edit:${editing.request.id}` : "");
-  // The created Request's files: reserve, store, finalise, recover (intake-uploads.ts).
-  // All of its state lives in the refs above, so each handler builds it afresh
-  // with the current render's values, as the handlers themselves did before.
-  const uploads = () => createUploadSession({
-    refs: { operationInFlight, leftUploadScreen, unmounted, uploadsRequest, reservations },
-    prepare: (input) => callAction(() => prepareAttachmentUpload(input, context)),
-    finalize: (input) => callAction(() => finalizeAttachmentUpload(input, context)),
-    discard: (input) => callAction(() => discardAttachmentUpload(input, context)),
+  // One owner for this keyed form. Hiding the retained portal does not detach it.
+  const [session] = useState(() => createIntakeSession({
+    scope: draftScope,
+    prepare: input => callAction(() => prepareAttachmentUpload(input, context)),
+    finalize: input => callAction(() => finalizeAttachmentUpload(input, context)),
+    discard: input => callAction(() => discardAttachmentUpload(input, context)),
     put: uploadToSignedUrl,
     record: {
       read: () => readUnfinishedUploads(window.sessionStorage, draftScope),
-      write: (record) => { writeUnfinishedUploads(window.sessionStorage, draftScope, record); },
+      write: record => writeUnfinishedUploads(window.sessionStorage, draftScope, record),
       clear: () => clearUnfinishedUploads(window.sessionStorage, draftScope),
     },
-    setAttachments,
-    setBusy: (busy) => { setMutationBusy(busy); onBusyChange?.(busy); },
-    finish: (requestId) => finishCreatedRequest(requestId),
-  });
+    clearDraft: () => clearIntakeDraft(window.sessionStorage, draftScope),
+  }));
+  const uploadState = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
+  const createdRequestId = uploadState.requestId;
+  const attachments = createdRequestId ? uploadState.files : queuedAttachments;
+  const lostUploads = uploadState.lost;
+  const mutationBusy = uploadState.busy;
+  const stage: Stage = uploadState.phase === "idle" ? formStage
+    : uploadState.phase === "saving" ? "creating"
+    : uploadState.phase === "recovery" ? "attachment_recovery"
+    : uploadState.phase === "reconciling" ? "uploads_checking"
+    : uploadState.phase === "lost" ? "uploads_lost" : uploadState.phase;
+  const presentation = useEffectEvent(() => ({
+    busy: (value: boolean) => onBusyChange?.(value || projectInFlight.current || validationInFlight.current),
+    finish: (id: string, options?: { open?: boolean }) => finishCreatedRequest(id, options),
+    cancelCheck: (cancel: (() => boolean) | null) => onCancelCheckChange?.(cancel ? () => {
+      if (!cancel()) return;
+      focusAfterCompose.current = "submit";
+      setStage("compose");
+    } : null),
+  }));
+  useLayoutEffect(() => {
+    session.attach(presentation());
+    return () => { void session.detach(); };
+  }, [session]);
+  useLayoutEffect(() => { session.bind(presentation()); session.syncBusy(); });
 
   const {
     control,
@@ -426,23 +422,6 @@ export default function RequestEditor({
     () => null,
   );
 
-  // Plan item 2.3 (S3): after a reload, each recorded reservation is cleared;
-  // a file that did finish drops off the list, and the rest are named honestly.
-  // The list waits for the answer. When every file had finished, nothing was
-  // lost and the flow ends as a creation does.
-  const settleLostUploads = useEffectEvent(async (lost: UnfinishedUploads) => {
-    const check = ++lostCheck.current;
-    const kept = await settleInterruptedUploads(lost, (input) => callAction(() => discardAttachmentUpload(input, context)));
-    if (check !== lostCheck.current) return;
-    if (!kept.length) {
-      finishCreatedRequest(lost.requestId);
-      return;
-    }
-    writeUnfinishedUploads(window.sessionStorage, draftScope, { ...lost, files: kept });
-    setLostUploads({ requestId: lost.requestId, files: kept.map(({ key, name }) => ({ key, name })) });
-    setStage("uploads_lost");
-  });
-
   useEffect(() => {
     // A record of interrupted uploads comes before any draft: its Request
     // exists. Only a record an earlier document left means a reload.
@@ -457,12 +436,11 @@ export default function RequestEditor({
         clearIntakeDraft(window.sessionStorage, draftScope);
       }
     }
-    const lost = readLostUploads(window.sessionStorage, draftScope);
+    const lost = session.recoveryRecord();
     const draft = lost ? null : readIntakeDraft(window.sessionStorage, draftScope);
     const restoreTimer = window.setTimeout(() => {
       if (lost) {
-        setStage("uploads_checking");
-        void settleLostUploads(lost);
+        void session.recover();
       } else if (draft) {
         // intake-session.ts decides what a draft restores.
         const restored = restoredComposer(draft);
@@ -491,7 +469,7 @@ export default function RequestEditor({
     return () => {
       window.clearTimeout(restoreTimer);
     };
-  }, [draftScope, reset, snapshot]);
+  }, [draftScope, reset, session, snapshot]);
 
   useEffect(() => {
     if (!draftReady || !active || !initialProjectId || projectDefaultApplied.current) return;
@@ -511,9 +489,9 @@ export default function RequestEditor({
   /** The draft for the composer as it stands (intake-session.ts). */
   const currentDraft = () => composerDraft({ stage, triage, token, editedProblem, source, values: getValues(), previousProblem, previousProblemSource, reviewers: reviewersDraft });
   const persistDraft = useEffectEvent(() => {
-    if (!draftReady || draftCleared.current || stage === "uploads_checking" || stage === "uploads_lost") return true;
+    if (!draftReady || session.getSnapshot().requestId || stage === "uploads_checking" || stage === "uploads_lost") return true;
     try {
-      return writeIntakeDraft(window.sessionStorage, draftScope, currentDraft());
+      return session.persistDraft(() => writeIntakeDraft(window.sessionStorage, draftScope, currentDraft()));
     } catch { return false; }
   });
 
@@ -563,11 +541,6 @@ export default function RequestEditor({
   const busy =
     stage !== "complete" &&
     (checking || creating || stage === "uploading" || mutationBusy || projectBusy);
-  useEffect(() => {
-    onBusyChange?.(busy);
-  }, [busy, onBusyChange]);
-  // An unmounted form leaves no stale cancel behind in the composer.
-  useEffect(() => () => onCancelCheckChange?.(null), [onCancelCheckChange]);
 
   const blocksWorkspaceSwitch = stage !== "complete" &&
     (busy || attachments.some((attachment) => attachment.status !== "uploaded"));
@@ -593,20 +566,6 @@ export default function RequestEditor({
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [active, hasPendingUploads, stage]);
-
-  // The checking step announces itself through its own visible status.
-  // Plan item 2.3 (S3): while files upload after creation, this tab remembers
-  // which have not finished, so a reload can say so instead of losing them silently.
-  useEffect(() => {
-    if (!createdRequestId || leftUploadScreen.current || (stage !== "uploading" && stage !== "attachment_recovery")) return;
-    writeUnfinishedUploads(window.sessionStorage, draftScope, {
-      requestId: createdRequestId,
-      title: source?.title ?? "",
-      files: attachments
-        .filter((attachment) => attachment.status !== "uploaded")
-        .map((attachment) => ({ key: attachment.key, name: attachment.file.name, attachmentId: attachment.attachmentId })),
-    });
-  }, [attachments, createdRequestId, draftScope, source, stage]);
 
   // A restored draft is announced here, once: this region is always mounted,
   // so its new text is read, and the visible notice is not a live region.
@@ -672,93 +631,68 @@ export default function RequestEditor({
     setFileFailure(null);
   }
 
-  function cancelCheck() {
-    checkRun.current += 1;
-    operationInFlight.current = false;
-    onCancelCheckChange?.(null);
-    // The draft was never left: the form comes back as it was, with Review Request ready to try again.
-    focusAfterCompose.current = "submit";
-    setStage("compose");
-  }
-
   async function checkFraming(data: RequestInput) {
-    if (operationInFlight.current) return;
-    operationInFlight.current = true;
-    const run = ++checkRun.current;
-    const abandoned = () => checkRun.current !== run;
+    if (session.getSnapshot().busy) return;
     setLinkOpen(false);
-    onBusyChange?.(true);
     setRestoredDraft(false);
     setFailure(null);
     setProblemError(null);
     const keepEarlierProblem = previousProblemSource?.title === data.title && previousProblemSource?.description === data.description;
     setSource(data);
     setShowSlowCue(false);
-    setStage("checking");
-    onCancelCheckChange?.(cancelCheck);
-
-    try {
-      // callAction refreshes a lapsed session first and retries an ended one
-      // once, so "session_expired" here means the person must sign in again.
-      const result: TriageResponse = await callAction(() => editing ? runTriage(data, context, editing.request.id) : runTriage(data, context));
-      if (abandoned()) return;
-      if (!result.success) {
-        if (result.error.code === "validation" && result.error.field) {
-          if (result.error.field === "editedProblemText" || result.error.field === "reviewers") {
-            setFailure(result.error);
+    await session.check({
+      run: () => callAction(() => editing ? runTriage(data, context, editing.request.id) : runTriage(data, context)),
+      receive: (result: TriageResponse) => {
+        if (!result.success) {
+          if (result.error.code === "validation" && result.error.field) {
+            if (result.error.field === "editedProblemText" || result.error.field === "reviewers") {
+              setFailure(result.error);
+            } else {
+              setError(result.error.field, {
+                type: "server",
+                message: result.error.message,
+              });
+              if (result.error.field === "usefulLink") setLinkOpen(true);
+              focusAfterCompose.current = "none";
+              setStage("compose");
+              const field = result.error.field;
+              // Optional controls may have just expanded. Wait for their render
+              // before moving focus to the rejected field.
+              const focusTimeout = window.setTimeout(session.guard(() => focusRequestField(field)), 0);
+              return () => window.clearTimeout(focusTimeout);
+            }
           } else {
-            setError(result.error.field, {
-              type: "server",
-              message: result.error.message,
-            });
-            if (result.error.field === "usefulLink") setLinkOpen(true);
-            focusAfterCompose.current = "none";
-            setStage("compose");
-            const field = result.error.field;
-            // Optional controls may have just expanded. Wait for their render
-            // before moving focus to the rejected field.
-            const focusTimeout = window.setTimeout(() => focusRequestField(field), 0);
-            return () => window.clearTimeout(focusTimeout);
+            setFailure(result.error);
           }
-        } else {
-          setFailure(result.error);
+          focusAfterCompose.current = "submit";
+          setStage("compose");
+          return;
         }
+
+        setTriage(result.triage);
+        setToken(result.token);
+        if (result.triage.classification === "problem") {
+          // A fresh classification can change. Keep earlier user wording
+          // recoverable, without submitting it as the new Request's framing.
+          if (editedProblem) setPreviousProblem(editedProblem);
+          setEditedProblem("");
+        } else {
+          const nextProblem = keepEarlierProblem && (editedProblem || previousProblem)
+            ? editedProblem || previousProblem
+            : result.triage.reframedProblem ?? "";
+          setEditedProblem(nextProblem);
+          setPreviousProblem(nextProblem);
+          setPreviousProblemSource({ title: data.title, description: data.description });
+        }
+        setStage("framing");
+      },
+      failed: () => {
+        setFailure(thrownGateFailure(navigator.onLine !== false));
         focusAfterCompose.current = "submit";
         setStage("compose");
-        return;
-      }
-
-      setTriage(result.triage);
-      setToken(result.token);
-      if (result.triage.classification === "problem") {
-        // A fresh classification can change. Keep earlier user wording
-        // recoverable, without submitting it as the new Request's framing.
-        if (editedProblem) setPreviousProblem(editedProblem);
-        setEditedProblem("");
-      } else {
-        const nextProblem = keepEarlierProblem && (editedProblem || previousProblem)
-          ? editedProblem || previousProblem
-          : result.triage.reframedProblem ?? "";
-        setEditedProblem(nextProblem);
-        setPreviousProblem(nextProblem);
-        setPreviousProblemSource({ title: data.title, description: data.description });
-      }
-      setStage("framing");
-    } catch {
-      if (abandoned()) return;
-      setFailure(thrownGateFailure(navigator.onLine !== false));
-      focusAfterCompose.current = "submit";
-      setStage("compose");
-    } finally {
-      // A cancelled check has already handed the form back; a newer check may own these now.
-      if (!abandoned()) {
-        operationInFlight.current = false;
-        onBusyChange?.(false);
-        onCancelCheckChange?.(null);
-      }
-    }
+      },
+    });
   }
-
 
 
   /** The saved row joins the list's Open group through the overlay at once,
@@ -772,18 +706,13 @@ export default function RequestEditor({
   }
 
   function finishCreatedRequest(requestId: string, { open = false }: { open?: boolean } = {}) {
-    if (leftUploadScreen.current) return;
-    uploadsRequest.current = null;
-    clearUnfinishedUploads(window.sessionStorage, draftScope);
     setStage("complete");
     if (editing) {
-      onBusyChange?.(false);
       editing.onSaved();
       refresh();
       return;
     }
     if (onCreated) {
-      onBusyChange?.(false);
       onCreated(requestId, { open, created: createdRow.current?.id === requestId ? createdRow.current : undefined });
       return;
     }
@@ -791,34 +720,12 @@ export default function RequestEditor({
     router.push(`/requests/${requestId}`);
   }
 
-  const onUnmount = useEffectEvent(() => {
-    lostCheck.current += 1;
-    uploads().unmount();
-  });
-  useEffect(() => {
-    unmounted.current = false;
-    return () => onUnmount();
-  }, []);
-
-  function openLostRequest() {
-    if (!lostUploads) return;
-    lostCheck.current += 1;
-    clearUnfinishedUploads(window.sessionStorage, draftScope);
-    setStage("complete");
-    if (onCreated) onCreated(lostUploads.requestId, { open: true });
-    else router.push(`/requests/${lostUploads.requestId}`);
-  }
-
-  function dismissLostUploads() {
-    lostCheck.current += 1;
-    clearUnfinishedUploads(window.sessionStorage, draftScope);
-    setLostUploads(null);
-    setStage("compose");
-  }
+  function openLostRequest() { session.openLost(); }
+  function dismissLostUploads() { session.dismissLost(); }
 
   async function onConfirm(unchangedSource?: RequestInput) {
     const savingSource = unchangedSource ?? source;
-    if (operationInFlight.current || !savingSource || (!unchangedSource && (!triage || !token))) return;
+    if (session.getSnapshot().busy || !savingSource || (!unchangedSource && (!triage || !token))) return;
     if (unchangedSource) setSource(unchangedSource);
 
     if (!unchangedSource && triage?.classification !== "problem") {
@@ -831,50 +738,27 @@ export default function RequestEditor({
       setEditedProblem(parsed.data);
     }
 
-    operationInFlight.current = true;
-    onBusyChange?.(true);
     setRestoredDraft(false);
     setFailure(null);
     setProblemError(null);
-    setStage("creating");
 
-    try {
-      const payload = {
-        token: token!,
-        editedProblemText:
-          triage?.classification === "problem" ? null : editedProblem,
-      };
-      // Saving is idempotent by the review's requestId, so callAction's one
-      // retry after an ended session can never create the Request twice.
-      const result: SaveResponse = editing && original
-        ? await (async (): Promise<SaveResponse> => {
-          const changes = { ...savingSource,
-            expectedImpact: original.expectedImpact === null && !editing.request.noMeasurableImpactReason && JSON.stringify(savingSource.expectedImpact) === JSON.stringify(initialValues.expectedImpact) ? null : savingSource.expectedImpact,
-            reframedProblem: unchangedSource ? savedProblem : triage?.classification === "problem" ? null : editedProblem,
-            extractedSolution: unchangedSource ? savedSolution : triage?.extractedSolution ?? null,
-          };
-          const parsed = requestEditSchema.safeParse(changes);
-          if (!parsed.success) return { success: false, error: { code: "save_failed", message: parsed.error.issues[0].message } };
-          const outcome = await optimistic({ id: editing.request.id, waitForPending: true, refreshOnError: false,
-            run: () => saveRequestEdits(editing.request.id, { snapshot, changes: parsed.data, token: unchangedSource ? undefined : token ?? undefined }, context),
-            onError: () => {},
-          });
-          return outcome.status === "success" ? { success: true, requestId: editing.request.id }
-            : { success: false, error: { code: "save_failed", message: outcome.status === "error" ? outcome.error : "This Request has a pending change. Try again." } };
-        })()
-        : await (async () => {
-          // #78: the picks travel beside the signed review and are checked on their own.
-          const picks = offerReviewers && reviewers.length ? { nominees: reviewers.map((person) => person.nominee), note: reviewQuestion } : undefined;
-          return callAction(() => saveRequest(payload, context, picks));
-        })();
-
-      if (!result.success) {
+    await session.save({
+      title: savingSource.title, attachments,
+      run: () => editing && original && snapshot
+        ? saveEditedIntake({ requestId: editing.request.id, source: savingSource, original,
+          initialImpact: initialValues.expectedImpact, noMeasurableImpactReason: editing.request.noMeasurableImpactReason ?? null,
+          unchanged: Boolean(unchangedSource), savedProblem, savedSolution, snapshot,
+          token, triage, editedProblem }, context, optimistic)
+        : saveNewIntake({ token, triage, editedProblem, offerReviewers, reviewers, reviewQuestion }, context),
+      saved: result => showCreatedInList(result.created),
+      failed: failure => {
+        const result = { error: failure ?? { code: "save_failed" as const, message: editing ? "Your changes could not be saved. Your text is still here. Try again." : "Your Request could not be created. Your text is still here. Try again.", field: undefined } };
         if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
           const field = result.error.field;
           setError(field, { type: "server", message: result.error.message });
           focusAfterCompose.current = "none";
           setStage("compose");
-          const focusTimeout = window.setTimeout(() => focusRequestField(field), 0);
+          const focusTimeout = window.setTimeout(session.guard(() => focusRequestField(field)), 0);
           return () => window.clearTimeout(focusTimeout);
         }
         if (result.error.field === "reviewers") {
@@ -882,7 +766,7 @@ export default function RequestEditor({
           setReviewersError(result.error.message);
           focusAfterCompose.current = "none";
           setStage("compose");
-          const focusTimeout = window.setTimeout(() => document.getElementById("intake-reviewers")?.focus(), 0);
+          const focusTimeout = window.setTimeout(session.guard(() => document.getElementById("intake-reviewers")?.focus()), 0);
           return () => window.clearTimeout(focusTimeout);
         }
         if (
@@ -890,70 +774,25 @@ export default function RequestEditor({
           result.error.field === "editedProblemText"
         ) {
           setProblemError(result.error.message);
-          const focusTimeout = window.setTimeout(() => problemRef.current?.focus(), 0);
+          const focusTimeout = window.setTimeout(session.guard(() => problemRef.current?.focus()), 0);
           return () => window.clearTimeout(focusTimeout);
         } else {
           setFailure(result.error);
         }
         setStage(unchangedSource ? "compose" : "framing");
         return;
-      }
-
-      setCreatedRequestId(result.requestId);
-      showCreatedInList(result.created);
-      draftCleared.current = true;
-      clearIntakeDraft(window.sessionStorage, draftScope);
-
-      // A composer whose host unmounted while the save was pending renders
-      // nothing. The row is in the list; no toast or navigation pulls the
-      // person from where they went.
-      if (attachments.length === 0) {
-        if (!uploads().unattended()) finishCreatedRequest(result.requestId);
-        return;
-      }
-
-      setStage("uploading");
-      // The upload screen's effect keeps the record too, but a composer
-      // unmounted during the save never renders it, so uploadSaved starts it.
-      const uploaded = await uploads().uploadSaved(result.requestId, savingSource.title, attachments);
-      if (uploaded === "uploaded") finishCreatedRequest(result.requestId);
-      else if (uploaded === "recovery") setStage("attachment_recovery");
-    } catch {
-      setFailure({
-        code: "save_failed",
-        message:
-          editing ? "Your changes could not be saved. Your text is still here. Try again." : "Your Request could not be created. Your text is still here. Try again.",
-      });
-      setStage(unchangedSource ? "compose" : "framing");
-    } finally {
-      operationInFlight.current = false;
-      // A composer mounted since then owns the busy flag.
-      if (!unmounted.current) onBusyChange?.(false);
-      uploads().settleLeft();
-    }
+      },
+    });
   }
 
-
-  async function retryAttachments(failed: QueuedAttachment[]) {
-    if (createdRequestId) await uploads().retry(failed, attachments, createdRequestId);
-  }
-
-  async function retryFailedFiles() {
-    await retryAttachments(attachments.filter((attachment) => attachment.status === "failed"));
-  }
-
-  async function removeFailedFile(attachment: QueuedAttachment) {
-    if (createdRequestId) await uploads().remove(attachment, createdRequestId);
-  }
-
-  async function continueWithoutFailedFiles() {
-    if (createdRequestId) await uploads().continueWithout(attachments, createdRequestId);
-  }
-
+  async function retryAttachments(failed: QueuedAttachment[]) { await session.retry(failed.map(file => file.key)); }
+  async function retryFailedFiles() { await session.retry(); }
+  async function removeFailedFile(attachment: QueuedAttachment) { await session.remove(attachment.key); }
+  async function continueWithoutFailedFiles() { await session.continueWithout(); }
 
 
   function preserveDraftForSignIn() {
-    writeIntakeDraft(window.sessionStorage, draftScope, currentDraft());
+    session.persistDraft(() => writeIntakeDraft(window.sessionStorage, draftScope, currentDraft()));
   }
 
   // One handler for both steps: Cmd/Ctrl+Enter is the primary action wherever
@@ -981,7 +820,7 @@ export default function RequestEditor({
   function onProjectBusyChange(value: boolean) {
     projectInFlight.current = value;
     setProjectBusy(value);
-    onBusyChange?.(value);
+    session.syncBusy();
   }
 
   async function finishLink() {
@@ -1013,28 +852,28 @@ export default function RequestEditor({
       invalidNumber.reportValidity();
       return;
     }
-    onBusyChange?.(true);
-    void handleSubmit(data => {
+    if (validationInFlight.current || session.getSnapshot().busy) return;
+    validationInFlight.current = true;
+    session.syncBusy();
+    void handleSubmit(session.guard(data => {
       if (original && editing && data.title.trim() === original.title && data.description.trim() === original.description) {
         // Unchanged wording keeps its judgement, so its framing can be reworded but not emptied.
         const framing = savedFraming(storedShape({ classification: editing.request.classification, reframedProblem: original.reframedProblem, extractedSolution: original.extractedSolution }), { reframedProblem: savedProblem, extractedSolution: savedSolution });
         if (!framing.ok) {
-          onBusyChange?.(false);
           setFramingError(framing);
           (framing.field === "reframedProblem" ? problemFieldRef : solutionFieldRef).current?.focus();
           return;
         }
         void onConfirm(data);
       } else void checkFraming(data);
-    }, (fieldErrors) => {
-      onBusyChange?.(false);
+    }), session.guard((fieldErrors) => {
       const firstField = Object.keys(fieldErrors)[0] as keyof RequestInput | undefined;
       if (!firstField) return;
       if (firstField !== "title" && firstField !== "description") {
         if (firstField === "usefulLink") setLinkOpen(true);
         focusRequestField(firstField);
       }
-    })();
+    }))().finally(() => { validationInFlight.current = false; session.syncBusy(); });
   }
 
   return (
@@ -1043,12 +882,14 @@ export default function RequestEditor({
       onKeyDown={onComposerKeyDown}
     >
       {active && stage !== "complete" && (creating || hasPendingUploads) && (
-        <IntakeNavigationGuard creating={creating} onLeave={() => uploads().leave()} />
+        <IntakeNavigationGuard creating={creating} onLeave={() => { void session.leave(); }}
+          registerCloseAttempt={stage === "uploading" ? registerCloseAttempt : undefined} />
       )}
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {active ? liveStatus : ""}
       </p>
       <div className={styles.scroll}>
+        {uploadState.error && <Alert tone="danger" title={uploadState.error} />}
         {composing && (
           <form
             id={formId}
@@ -1478,7 +1319,7 @@ export default function RequestEditor({
             {stage === "attachment_recovery" && !hasPendingUploads && (
               <Button
                 type="button"
-                onClick={() => finishCreatedRequest(createdRequestId, { open: true })}
+                onClick={() => void session.continueWithout({ open: true })}
               >
                 Open Request
               </Button>
@@ -1495,12 +1336,13 @@ export default function RequestEditor({
             <header className="space-y-2">
               <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Some files weren’t added</h2>
               <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground">
-                Your Request was created, but the page reloaded before these files finished uploading, so they weren’t added. Mention them in a comment if your team needs them.
+                Your Request is saved. These files did not finish uploading, and their contents are no longer available here. Check the Request before adding them again.
               </p>
             </header>
             <IntakeAttachmentList items={lostUploads.files} mode="lost" />
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={openLostRequest}>Open Request</Button>
+              <Button type="button" variant="secondary" onClick={() => void session.recover()} disabled={mutationBusy}>Retry cleanup</Button>
               <Button type="button" variant="ghost" onClick={dismissLostUploads}>Dismiss</Button>
             </div>
           </div>
