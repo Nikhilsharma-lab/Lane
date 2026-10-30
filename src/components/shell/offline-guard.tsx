@@ -5,6 +5,7 @@ import { useContext, useEffect, useMemo, useState, type ComponentType, type Reac
 // It is a Next.js internal, imported because Next.js has no public way to wrap useRouter(): after a Next.js upgrade,
 // check that this path still exists and that push/replace offline are still held (e2e/offline-stays-in-lane.spec.ts).
 import { AppRouterContext, type AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
+import { afterPageLoad } from "@/lib/after-page-load"
 import { isOffline } from "@/lib/connection-status"
 import { noteNavigation } from "@/lib/navigation-intent"
 import { plainLinkClick } from "@/lib/plain-link-click"
@@ -35,7 +36,7 @@ type Move = Event & { navigationType: string; destination: { url: string; sameDo
  * - Anything else that would load another Lane page in this tab offline is cancelled through the browser's
  *   Navigation API where it has one. Reloading stays the person's own choice.
  * It is on every page, so it stays small: the line (Arc alert and its words) is its own chunk, fetched once the
- * page is idle while the connection is still there, and shown only when the browser goes offline.
+ * page has loaded and is idle (after-page-load.ts) while the connection is still there, and shown only when the browser goes offline.
  */
 export function OfflineGuard({ children }: { children: ReactNode }) {
   const router = useContext(AppRouterContext)
@@ -62,12 +63,12 @@ export function OfflineGuard({ children }: { children: ReactNode }) {
     const navigation = (window as { navigation?: EventTarget }).navigation
     // A line that couldn't load (offline from the start) loads once the connection is back.
     const load = () => { import("./offline-line").then(line => setLine(() => line.default), () => {}) }
-    const idle = setTimeout(load, 1000)
+    const cancelLoad = afterPageLoad(load)
     addEventListener("online", load)
     addEventListener("click", onClick, true)
     navigation?.addEventListener("navigate", onNavigate)
     return () => {
-      clearTimeout(idle)
+      cancelLoad()
       removeEventListener("online", load)
       removeEventListener("click", onClick, true)
       navigation?.removeEventListener("navigate", onNavigate)
