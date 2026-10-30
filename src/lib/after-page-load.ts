@@ -7,21 +7,9 @@
  * Returns a cancel function, for effects that unmount before it runs.
  */
 export function afterPageLoad(run: () => void): () => void {
-  let cancelled = false
-  let idleHandle: number | null = null
-  let timeoutHandle: ReturnType<typeof setTimeout> | null = null
-  const fire = () => { if (!cancelled) run() }
-  const whenIdle = () => {
-    if (cancelled) return
-    if (typeof window.requestIdleCallback === "function") idleHandle = window.requestIdleCallback(fire)
-    else timeoutHandle = setTimeout(fire, 1)
-  }
-  if (document.readyState === "complete") whenIdle()
-  else window.addEventListener("load", whenIdle, { once: true })
-  return () => {
-    cancelled = true
-    window.removeEventListener("load", whenIdle)
-    if (idleHandle !== null) window.cancelIdleCallback?.(idleHandle)
-    if (timeoutHandle !== null) clearTimeout(timeoutHandle)
-  }
+  let live = true
+  const wait = () => { (window.requestIdleCallback ?? setTimeout)(() => { if (live) run() }) }
+  if (document.readyState === "complete") wait()
+  else addEventListener("load", wait, { once: true })
+  return () => { live = false; removeEventListener("load", wait) }
 }
