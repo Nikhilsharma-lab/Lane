@@ -2,13 +2,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { WorkspaceSidebar } from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar";
+import { RequestListViewProvider } from "@/components/requests/list-view-state";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 
 const arcTones = ["blue", "green", "violet", "amber", "coral", "slate"];
 
 function renderedTone(id: string, name = "Project") {
-  const html = renderToStaticMarkup(createElement(WorkspaceSidebar, {
+  const html = renderToStaticMarkup(createElement(RequestListViewProvider, null, createElement(WorkspaceSidebar, {
     workspace: { id: "workspace", name: "Lane", initial: "L" },
     user: { name: "Test Member", email: "member@example.test" },
     settingsHref: "/settings/profile",
@@ -16,7 +17,7 @@ function renderedTone(id: string, name = "Project") {
     groups: [],
     activeId: id,
     currentPage: "Requests",
-  }));
+  })));
   return html.match(/data-tone="([^"]+)"/)?.[1];
 }
 

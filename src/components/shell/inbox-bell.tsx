@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, use, useCallback, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
 import { Bell } from "lucide-react";
+import { useRequestNavigation } from "@/components/requests/request-navigation";
 import notificationStyles from "@/components/arc/notification-center/notification-center.module.css";
 import shellStyles from "@/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css";
 import { inboxNeedsYou } from "./inbox-count";
@@ -25,8 +26,9 @@ export function InboxBell({ orgId, needsYouCount, current }: { orgId: string; ne
 }
 
 function InboxBellLink({ unread, current }: { unread: number; current: boolean }) {
+  const navigation = useRequestNavigation();
   const count = unread > 99 ? "99+" : unread;
-  return <Link href="/inbox" className={`${shellStyles.row} ${styles.trigger}`} aria-label={inboxBellLabel(unread)} aria-current={current ? "page" : undefined} data-inbox-bell="" data-pressable="">
+  return <Link href="/inbox" onClick={event => { navigation.followLink(event, "/inbox"); }} className={`${shellStyles.row} ${styles.trigger}`} aria-label={inboxBellLabel(unread)} aria-current={current ? "page" : undefined} data-inbox-bell="" data-pressable="">
     <span className={shellStyles.lead}><Bell aria-hidden="true" /></span>
     <span className={shellStyles.name}>Inbox</span>
     {unread > 0 && <span className={notificationStyles.count} aria-hidden="true">{count}</span>}

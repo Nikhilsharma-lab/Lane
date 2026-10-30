@@ -1,18 +1,16 @@
 "use client"
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import { callAction } from "@/lib/action-call"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/arc/button/button"
-import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
-import { readRequestOutcome } from "@/app/(app)/requests/[id]/outcome-actions"
-import { callAction } from "@/lib/action-call"
+import { readRequestJourney } from "@/app/(app)/requests/[id]/journey-actions"
 import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import { plannedDay } from "@/lib/dates"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { canChange } from "@/lib/request-access-rules"
 import { FORMER_MEMBER, type JourneyAction } from "@/lib/request-journey"
-import { DAY_MS, dayNumber } from "@/lib/utc-day"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome"
 import type { ReleaseEvent } from "@/lib/request-release"
 import type { RequestDetail } from "./detail-view"
@@ -23,12 +21,11 @@ import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverFo
 import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, learnedLine, observedLine, timelineSteps, type JourneyOutline, type OutlineLine, type TimelineStep } from "./request-timeline-model"
 import { JourneyLine } from "./journey-line"
 import { LocalTime } from "./local-time"
+import { createJourneyRefresh, watchJourneyDate } from "./journey-refresh"
 import styles from "./request-timeline.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
 
-type ReleaseView = Exclude<Awaited<ReturnType<typeof readRequestRelease>>, { error: string }>
-type OutcomeView = Exclude<Awaited<ReturnType<typeof readRequestOutcome>>, { error: string }>
-type Views = { release: ReleaseView; outcome: OutcomeView }
+type Views = Exclude<Awaited<ReturnType<typeof readRequestJourney>>, { error: string }>
 
 const NO_OUTLINE: JourneyOutline = { steps: [], history: false }
 const LOAD_FAILED = "Couldn't load the journey. Try again."
@@ -36,16 +33,10 @@ const LOAD_FAILED = "Couldn't load the journey. Try again."
 const actionButton = (action: JourneyAction) => document.querySelector<HTMLElement>(`#journey [data-journey-action="${action}"]`)
 const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished", current: "current step", upcoming: "not reached yet", skipped: "skipped" }
 
-/** Both journey reads, or the error to show; never throws. */
+/** One shared projection through the explicit session-recovery path. */
 async function readViews(requestId: string, orgId: string): Promise<Views | { error: string }> {
-  try {
-    const [release, outcome] = await Promise.all([callAction(() => readRequestRelease(requestId, { orgId })), callAction(() => readRequestOutcome(requestId, { orgId }))])
-    if ("error" in release) return { error: release.error || LOAD_FAILED }
-    if ("error" in outcome) return { error: outcome.error || LOAD_FAILED }
-    return { release, outcome }
-  } catch {
-    return { error: LOAD_FAILED }
-  }
+  try { return await callAction(() => readRequestJourney(requestId, { orgId })) }
+  catch { return { error: LOAD_FAILED } }
 }
 
 function historyLine(event: Pick<ReleaseEvent, "input">) {
@@ -89,11 +80,12 @@ function stepItem(step: Pick<TimelineStep, "status" | "label" | "state">, parts:
  * when and who; the current step says what's next and who does it, with its actions, or why one isn't
  * available. Reviews sit in Open; the countdown only in Measuring. Guests see it without actions.
  */
-export function RequestTimeline({ request, orgId, isGuest, readOnly = false, reader }: {
-  request: RequestDetail; orgId: string; isGuest: boolean; readOnly?: boolean
-  /** Who is reading, from the page: the outline holds the buttons the journey's reads will offer them (#295). */
-  reader?: { userId: string; role: WorkspacePermission }
-}) {
+type Props = { request: RequestDetail; orgId: string; isAdmin?: boolean; isGuest: boolean; readOnly?: boolean; reader?: { userId: string; role: WorkspacePermission } }
+export function RequestTimeline(props: Props) {
+  return <JourneyTimeline key={`${props.orgId}:${props.request.id}`} {...props} />
+}
+
+function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: Props) {
   const router = useRouter()
   const requestId = request.id
   const revision = request.agreementRevision ?? 0
@@ -101,43 +93,37 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, rea
   const [error, setError] = useState("")
   const [mode, setMode] = useState<JourneyAction | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
-  const generation = useRef(0)
-
-  const show = useCallback((next: Views | { error: string }) => {
-    if ("error" in next) setError(next.error)
-    else { setViews(next); setError("") }
-  }, [])
-  // Only the latest read counts: a later load (or leaving the page) makes an earlier answer stale.
-  const load = useCallback(async () => {
-    const current = ++generation.current
-    const next = await readViews(requestId, orgId)
-    if (current === generation.current) show(next)
-  }, [requestId, orgId, show])
-  // Reload when the Request's revision moves (a lifecycle move, or a change saved elsewhere).
+  const [refresh] = useState(() => createJourneyRefresh({
+    read: () => readViews(requestId, orgId),
+    show: (next) => {
+      if ("error" in next) setError(next.error)
+      else { setViews(next); setError("") }
+    },
+  }))
   useEffect(() => {
-    let active = true
-    readViews(requestId, orgId).then(next => { if (active) show(next) })
-    return () => { active = false }
-  }, [requestId, orgId, revision, show])
-  // The countdown and Close Request follow the UTC date: refresh on return and at the next UTC midnight, without polling.
+    refresh.activate()
+    return () => refresh.dispose()
+  }, [refresh])
+  // Saved pickup/Done/Undo changes status without changing the journey revision.
+  // Keep those reads in the same lifetime, including deferral while a form is open.
+  useEffect(() => { void refresh.reload() }, [refresh, revision, request.status])
+  const today = views?.release.today
   useEffect(() => {
-    if (!views) return
-    const refresh = () => { if (!mode) void load() }
-    const midnight = (dayNumber(views.release.today) + 1) * DAY_MS
-    const timer = window.setTimeout(refresh, Math.max(1000, midnight - Date.now()))
-    window.addEventListener("focus", refresh)
-    return () => { clearTimeout(timer); window.removeEventListener("focus", refresh) }
-  }, [views, mode, load])
+    if (today) return watchJourneyDate(today, () => { void refresh.reload() })
+  }, [today, refresh])
 
-  async function saved() {
+  function saved() {
     setMode(null)
-    await load()
-    heading.current?.focus()
+    void refresh.saved(() => heading.current?.focus())
+  }
+  function cancel() {
+    setMode(null)
+    void refresh.closeForm()
   }
 
   if (!views && error) return <section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <h2 id="journey-heading" className={styles.heading}>Journey</h2>
-    <p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void load() }}>Try again</Button></div>
+    <p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></div>
   </section>
   const open = request.status === "open"
   // Drawn in the outline, read once the journey's reads are back: the reviewers' read would otherwise go ahead of them.
@@ -177,9 +163,9 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, rea
     requesterName: release.requesterName, requestedBy: request.creatorName || FORMER_MEMBER, requestedAt: new Date(request.createdAt).toISOString(),
     assigneeName: request.assigneeName, pickedUpAt: release.pickedUpAt, doneAt: release.doneAt, release: release.release, releaseHistory: release.history,
     closure: outcome.closure, names, hasAgreedResult: Boolean(outcome.agreed),
-    actions: release.actions, now: new Date(),
+    actions: release.actions, now: new Date(`${release.today}T00:00:00Z`),
   })
-  const form = { requestId, orgId, revision: release.revision, onSaved: () => { void saved() }, onCancel: () => setMode(null) }
+  const form = { requestId, orgId, revision: release.revision, onSaved: () => { void saved() }, onCancel: cancel }
   const closure = outcome.closure
   const agreed = outcome.agreed
 
@@ -237,6 +223,7 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, rea
     </div>
     {outcome.followUpOf && <p>Follow-up of <Link href={`/requests/${outcome.followUpOf.id}`}>{formatRequestCode(outcome.followUpOf.requestNumber)} {outcome.followUpOf.title}</Link></p>}
     {error && <p role="alert">{error}</p>}
+    {(error || views.rosterUnavailable) && <div className={styles.controls}><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></div>}
     <ol className={styles.steps}>
       {steps.map(step => {
         const headingId = `journey-${step.status}`
@@ -248,11 +235,11 @@ export function RequestTimeline({ request, orgId, isGuest, readOnly = false, rea
           actions: !!step.actions.length && mode === null && <ul className={styles.actions} aria-label={`${step.label} actions`}>
             {step.actions.map((action, index) => <li key={action.action} className={styles.action}>
               {action.available
-                ? <Button variant={index === 0 ? "primary" : "secondary"} data-journey-action={action.action} onClick={() => setMode(action.action)}>{action.label}</Button>
+                ? <Button variant={index === 0 ? "primary" : "secondary"} data-journey-action={action.action} onClick={() => { refresh.openForm(); setMode(action.action) }}>{action.label}</Button>
                 : <><Button variant="secondary" disabled aria-describedby={`${headingId}-${action.action}`}>{action.label}</Button><span id={`${headingId}-${action.action}`} className={styles.muted}>{action.reason}</span></>}
             </li>)}
           </ul>,
-          form: mode && step.actions.some(a => a.action === mode && a.available) && <InPageForm onDismiss={() => setMode(null)} returnFocus={() => actionButton(mode)}>{stepForm(mode)}</InPageForm>,
+          form: mode && step.actions.some(a => a.action === mode && a.available) && <InPageForm onDismiss={cancel} returnFocus={() => actionButton(mode)}>{stepForm(mode)}</InPageForm>,
         })
       })}
     </ol>

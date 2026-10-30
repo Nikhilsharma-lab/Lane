@@ -53,3 +53,8 @@ describe("viewResets", () => {
     expect(same({ ...view, status: "open" })).toEqual([false, false, false])
   })
 })
+
+it("changing to Viewer drops a retained selection even when its rows and filters stay the same", () => {
+  expect(viewResets.selection(view, { isGuest: false, readOnly: true }))
+    .not.toBe(viewResets.selection(view, { isGuest: false, readOnly: false }))
+})

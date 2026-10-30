@@ -425,6 +425,29 @@ Nothing in Lane imported these installed Arc sources, so they were deleted with 
 
 `src/components/arc/context-menu/context-menu.tsx` adds an optional item `description`. A disabled item with a description shows it under its label and stays focusable with `aria-disabled` and `aria-describedby`, so arrow keys and screen readers reach the reason; selecting it does nothing. Items without a description keep upstream's native `disabled`. `src/components/arc/context-menu/context-menu.module.css` dims only that item's icon and label, keeps the reason in secondary text, and wraps it at a fixed measure. The Request row menu uses it for a Pick up that isn't ready yet.
 
+
+### 2026-10-24 Project composer completion focus (#172)
+
+Re-read the licensed official `workspace-sidebar` source and its keyboard/API guidance through authenticated Arc MCP. The existing Lane asynchronous composer in `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` now keeps focus ownership across submission, success restoration and delayed error/open focus. Focus moving to another control or browser history invalidates the old work; disabling submit and temporarily leaving body active does not. Cleanup cancels its animation frame, so a remount cannot revive it. Ordinary successful completion and Escape cancellation still restore New Project; a failed create still retains its draft and inline error. No public props, copy, visual values, layout or motion changed. The adaptation follows the actual local-app held-response regression where a saved Project moved focus away from a newer Search field; the upstream source hash is retained and only the local hash is updated.
+
+
+### 2026-10-25 Mark Done Undo observation (#174)
+
+Official Arc toast-stack docs/MCP and registry were re-read before adapting `src/components/arc/toast-stack/toast-stack.tsx`. Upstream exposes toast/update/dismiss/count, but no per-toast identity/action observation. Lane adds the readonly `useToastStackState` hook over the existing provider store's subscription and stable snapshot. It exposes public toast options, IDs and action callbacks; it adds no queue mutation, timer, action runner or render behavior. `useToastStack` retains its existing API and count-only subscription. The Undo owner observes every actual store commit, including equal-count action removal/replacement, and checks matching ID/callback again at invocation. Existing expiry pauses, dismissal/swipe, action-update version handling, motion and plain morph remain unchanged. Only the local source hash changes; the installed upstream hash is retained.
+
+
+### 2026-10-26 main #195 compatibility
+
+The workspace-sidebar local hash now records the combined file: main's Viewer compose
+restriction and first-run help alongside #172's asynchronous Project focus ownership.
+Both adaptations and the original upstream hash remain. The compatibility edit adds
+no component API, visual value, timer or motion behavior.
+### 2026-10-26 Same-ID toast restoration during exit (#175)
+
+Official Arc toast-stack docs/MCP and current registry source were re-read before this correction (registry TSX SHA-256 `ba422f5d6e330c49b9f2a110af7cf91e46e20697490ef7f103909e982adde49a`; installed upstream provenance is retained). An actual-component browser reproduction showed that Not yet restoring a Done toast during its exit reused the exhausted remaining timer because the new queue entry restarted its version at zero. Its retained element also kept the exit's imperative inert attribute. The timer reset/restart now observes the existing queue sequence, and a present item reapplies its current hidden/inert state. Toast ID/action ownership, version updates, lifetimes, hover/focus/visibility pauses, exit animations, reduced motion and the public API are unchanged. No speculative animation-completion rewrite is included: a controlled timer-only probe kept the toast visible but inert, isolating the two required changes.
+
+The existing Mark Done browser suite now exercises Not yet during the actual observed inert exit, then checks a unique visible/focusable Undo and executes the existing one-shot Undo case. The quota-bound actual-component diagnostic uses real timers and actual Arc/theme source: before expiry, during exit, fully expired and reduced-motion phone restoration passed. This is renderer evidence, separate from the remaining retained-workspace #175 lifecycle acceptance.
+
 ### 2026-10-29 Adaptive popup (#263)
 
 Lane's dialogs go through one adaptive popup, `src/components/popup/adaptive-dialog.tsx`: Arc `dialog` at 640px and wider, Arc `bottom-sheet` under 640px (loaded only on a phone). Arc Pro `sheet-stack` is not used: Arc documents it for nested drill-down flows, and its springs bounce. The Arc `bottom-sheet` documentation was read through Arc MCP before this adaptation.
@@ -455,3 +478,7 @@ Lane's nine hand-drawn key cap styles (the New Request tooltip, the empty-list "
 - Key caps: the Arc components installed into Lane draw their keys with `KeyCap` too, so their own hand-drawn caps and the CSS behind them are removed: the rail tips in `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` (and `.tip kbd` in its stylesheet), Settings search's Esc and footer keys in `src/components/arc/blocks/settings-command/settings-command.tsx`, the tip shortcut in `src/components/arc/floating-button-group/floating-button-group.tsx`, the option shortcut in `src/components/arc/radio-group/radio-group.tsx`, the shortcut keys in `src/components/arc/user-menu/user-menu.tsx` and the item shortcut in `src/components/arc/context-menu/context-menu.tsx`. Each keeps only its spacing; the one coarse-pointer rule in `src/app/globals.css` hides them on touch screens. `pnpm design:check` now exempts only Arc's own key cap source (`shortcut-recorder`).
 - `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx`: each navigation row opts into Lane's shared pressed state (`data-pressable`), and the Project creation error shows Lane's failure words (`failureWords`, `src/lib/failure-messages.ts`) instead of a thrown error's own text.
 - `src/components/arc/user-menu/user-menu.tsx`: Sign out keeps its label while it is busy; Arc's own busy spinner beside it, and on a workspace being switched to, is unchanged (Arc documents it as the menu's busy state, inside the row's button).
+
+### 2026-10-30 main #177 merged into Build 2 (#256)
+
+The local hashes for `src/components/arc/toast-stack/toast-stack.tsx` and `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` now record the combined files. The toast stack keeps #175's same-ID restoration during exit (the `hidden` dependency) with Build 2's swipe exit on the theme's standard duration. The Project composer keeps #172's focus ownership (`focusInput(version)`) with Build 2's failure words (`failureWords`). No component API, visual value or motion behaviour is added.

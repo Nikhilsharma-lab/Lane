@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, profiles, quarterNotes } from "@/db";
-import { refusal, requireOwnerOrAdmin } from "@/lib/auth-guard";
+import { guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { quarterStarted } from "@/lib/impact-period";
 import { QUARTER_NOTE_MAX_LENGTH } from "@/lib/quarter-note-rules";
 import { FORMER_MEMBER } from "@/lib/request-journey";
@@ -19,7 +19,7 @@ const quarterNoteInputSchema = z.object({
 }).strict();
 
 type SavedNote = { text: string; editorName: string; editedAt: string };
-type Result = { success: true; note: SavedNote | null } | { error: string };
+type Result = { success: true; note: SavedNote | null } | { error: string; sessionExpired?: true };
 
 const STALE = "Someone else changed this Quarter note. Reload to see it before editing.";
 
@@ -33,8 +33,8 @@ class Stale extends Error {}
 export async function saveQuarterNote(data: unknown, context: { orgId: string }): Promise<Result> {
   const parsed = quarterNoteInputSchema.safeParse(data);
   if (!parsed.success) return { error: "Check the Quarter note. It can be up to 4,000 characters." };
-  const auth = await requireOwnerOrAdmin(context.orgId);
-  if (!auth) return { error: await refusal("Only Admins can write the Quarter note.") };
+  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can write the Quarter note.");
+  if ("error" in auth) return auth;
   const { year, quarter, text, expectedEditedAt } = parsed.data;
   const now = new Date();
   if (!quarterStarted(year, quarter, now)) return { error: "A Quarter note can be written once its quarter begins." };

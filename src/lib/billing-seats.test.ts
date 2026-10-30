@@ -6,7 +6,7 @@
  */
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { recordingPaymentProvider } from "./payment-provider";
 
 const clerk = vi.hoisted(() => ({ roles: {} as Record<string, string[]>, reads: 0, down: false }));
@@ -28,7 +28,7 @@ vi.mock("@clerk/nextjs/server", () => ({
 const PREFIX = "org_billing_seats_";
 const [COUNTED, FREE, PAYING, SMALL, OFF, FAILS, DUE] = ["counted", "free", "paying", "small", "off", "fails", "due"].map((name) => PREFIX + name);
 const url = new URL(process.env.DATABASE_URL!);
-if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
 
 beforeAll(async () => {

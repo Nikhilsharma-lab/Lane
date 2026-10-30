@@ -1,5 +1,5 @@
 import { fixtureClerkClient } from "@/test/member-fixtures";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,7 +33,7 @@ const ids = (rows: { id: string }[]) => rows.map((row) => row.id).sort();
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+  requireTestDatabase(process.env.DATABASE_URL);
   sql = postgres(url.toString(), { max: 2 });
   await sql`insert into organizations(id,name,slug) values (${ORG},'Access','request-access'),(${OTHER},'Other access','request-access-other')`;
   for (const id of Object.keys(ROLES)) await sql`insert into profiles(id,full_name,email) values (${id},${id},${id + "@access.test"})`;
@@ -97,15 +97,19 @@ describe("seeing a Request", () => {
     as(OUTSIDER);
     expect(await api.getAttachmentDownloadUrl(memberFile, { orgId: OTHER })).toEqual({ error: "File not found" });
   });
-  it("reads reviews, release and outcome only where the Request is visible", async () => {
+  it("reads reviews, release, outcome and the combined journey only where the Request is visible", async () => {
     const { readReviews } = await import("@/app/(app)/requests/[id]/reviewer-actions");
     const { readRequestRelease } = await import("@/app/(app)/requests/[id]/release-actions");
     const { readRequestOutcome } = await import("@/app/(app)/requests/[id]/outcome-actions");
+    const { readRequestJourney } = await import("@/app/(app)/requests/[id]/journey-actions");
     as(GUEST);
-    for (const read of [readReviews, readRequestRelease, readRequestOutcome]) {
+    for (const read of [readReviews, readRequestRelease, readRequestOutcome, readRequestJourney]) {
       expect(await read(memberRequest, { orgId: ORG })).toHaveProperty("error");
       expect(await read(guestRequest, { orgId: ORG })).not.toHaveProperty("error");
     }
+    as(OUTSIDER);
+    expect(await readRequestJourney(memberRequest, { orgId: OTHER })).toHaveProperty("error");
+    expect(await readRequestJourney(memberRequest, { orgId: ORG })).toHaveProperty("error");
   });
 });
 
@@ -154,9 +158,9 @@ describe("a signed-out caller", () => {
     const { SESSION_ENDED } = await import("./auth-guard");
     Object.assign(session, { userId: "", orgId: "", orgRole: "" });
     const form = new FormData(); form.set("body", "A comment");
-    expect(await api.addComment(guestRequest, form, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
-    expect(await api.pickUpRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
-    expect(await api.deleteRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED });
+    expect(await api.addComment(guestRequest, form, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
+    expect(await api.pickUpRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
+    expect(await api.deleteRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
   });
 });
 

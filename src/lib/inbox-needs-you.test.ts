@@ -8,7 +8,7 @@ import postgres from "postgres"
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 import { GET as inboxList } from "@/app/api/notifications/route"
 import { GET as inboxCount } from "@/app/api/notifications/unread/route"
-import { TEST_DATABASE_PATH } from "@/test/test-database"
+import { requireTestDatabase } from "@/test/test-database"
 import type { ReleaseFact } from "./request-release"
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
@@ -16,7 +16,7 @@ const session = vi.hoisted(() => ({ current: { userId: "", orgId: "", orgRole: "
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn(async () => session.current) }))
 
 const url = new URL(process.env.DATABASE_URL!)
-if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only")
+requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} })
 const orgId = "org_inbox_needs_you"
 const otherOrg = "org_inbox_needs_you_other"

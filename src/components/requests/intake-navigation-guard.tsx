@@ -5,18 +5,30 @@ import { useRouter } from "next/navigation";
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog";
 import { Button } from "@/components/arc/button/button";
 
+export type IntakeCloseAttempt = (exit: () => void) => void;
+export type RegisterIntakeCloseAttempt = (attempt: IntakeCloseAttempt) => () => void;
+
 /** Mounted only while creation is unresolved or a saved Request has unfinished files. */
 export function IntakeNavigationGuard({
   creating,
   onLeave,
+  registerCloseAttempt,
 }: {
   creating: boolean;
   onLeave: () => void;
+  registerCloseAttempt?: RegisterIntakeCloseAttempt;
 }) {
   const router = useRouter();
-  const [destination, setDestination] = useState<string | null>(null);
-  const navigationLink = useRef<HTMLAnchorElement | null>(null);
+  const [destination, setDestination] = useState<{ href: string } | { exit: () => void } | null>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const leaving = useRef(false);
   const keepWorkingButton = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => registerCloseAttempt?.(exit => {
+    returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    leaving.current = false;
+    setDestination({ exit });
+  }), [registerCloseAttempt]);
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -52,8 +64,9 @@ export function IntakeNavigationGuard({
         return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      navigationLink.current = target;
-      setDestination(`${next.pathname}${next.search}${next.hash}`);
+      returnFocus.current = target;
+      leaving.current = false;
+      setDestination({ href: `${next.pathname}${next.search}${next.hash}` });
     };
     window.addEventListener("beforeunload", beforeUnload);
     document.addEventListener("click", beforeNavigate, true);
@@ -68,14 +81,24 @@ export function IntakeNavigationGuard({
       <DialogContent
         title={creating ? "Creating your Request" : "Leave unfinished uploads?"}
         description={creating ? "Lane is still confirming that your Request was saved. Keep this page open until creation finishes." : "Your Request is saved. Files not yet uploaded won’t be added if you leave this page."}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            // The focused nested content can cancel immediately, including
+            // while Radix is updating the highest dismissable layer.
+            event.preventDefault(); event.stopPropagation(); setDestination(null);
+          }
+        }}
         onOpenAutoFocus={(event) => { event.preventDefault(); keepWorkingButton.current?.focus(); }}
-        onCloseAutoFocus={(event) => { event.preventDefault(); navigationLink.current?.focus(); }}
+        onCloseAutoFocus={(event) => { event.preventDefault(); if (!leaving.current) returnFocus.current?.focus(); }}
       >
         <div className="flex justify-end gap-2">
           <Button ref={keepWorkingButton} type="button" variant="secondary" onClick={() => setDestination(null)}>Keep working</Button>
           {!creating && <Button type="button" variant="danger" onClick={() => {
-            if (!destination) return;
-            onLeave(); setDestination(null); router.push(destination);
+            if (!destination || leaving.current) return;
+            leaving.current = true;
+            onLeave(); setDestination(null);
+            if ("exit" in destination) destination.exit();
+            else router.push(destination.href);
           }}>Leave page</Button>}
         </div>
       </DialogContent>

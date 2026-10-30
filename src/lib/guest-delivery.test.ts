@@ -6,7 +6,7 @@
 import { randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
-import { TEST_DATABASE_PATH } from "@/test/test-database"
+import { requireTestDatabase } from "@/test/test-database"
 import { recordingMessenger } from "./messenger"
 
 const ORG = "org_guest_delivery"
@@ -42,7 +42,7 @@ vi.mock("@clerk/nextjs/server", () => ({
 }))
 
 const url = new URL(process.env.DATABASE_URL!)
-if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only")
+requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 2, prepare: false, onnotice: () => {} })
 
 beforeAll(async () => {

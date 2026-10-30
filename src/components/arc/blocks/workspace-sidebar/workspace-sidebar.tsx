@@ -304,37 +304,56 @@ function Composer({ reduce, rail, onExpand, onCreate }: { reduce: boolean; rail:
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const form = useRef<HTMLFormElement>(null);
   const inFlight = useRef(false);
   const mounted = useRef(true);
-  const restoreTrigger = useRef(false);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const focusVersion = useRef(0);
+  const focusFrame = useRef(0);
+  const restoreTrigger = useRef<number | null>(null);
   useEffect(() => {
-    if (state !== "idle" || !restoreTrigger.current) return;
-    restoreTrigger.current = false;
-    trigger.current?.focus({ preventScroll: true });
+    mounted.current = true;
+    const invalidate = () => { focusVersion.current += 1; cancelAnimationFrame(focusFrame.current); restoreTrigger.current = null; };
+    const moved = (event: FocusEvent) => {
+      // Disabling submit can leave body active. Only a newer explicit focus target gives up ownership.
+      if (event.target instanceof Node && event.target !== document.body && !form.current?.contains(event.target)) invalidate();
+    };
+    document.addEventListener("focusin", moved);
+    window.addEventListener("popstate", invalidate);
+    return () => { mounted.current = false; invalidate(); document.removeEventListener("focusin", moved); window.removeEventListener("popstate", invalidate); };
+  }, []);
+  useEffect(() => {
+    if (state !== "idle" || restoreTrigger.current === null) return;
+    const version = restoreTrigger.current;
+    restoreTrigger.current = null;
+    if (version === focusVersion.current) trigger.current?.focus({ preventScroll: true });
   }, [state]);
 
-  function open() { setState("open"); requestAnimationFrame(() => input.current?.focus()); }
+  function focusInput(version = focusVersion.current) {
+    cancelAnimationFrame(focusFrame.current);
+    focusFrame.current = requestAnimationFrame(() => { if (mounted.current && version === focusVersion.current) input.current?.focus(); });
+  }
+  function open() { setState("open"); focusInput(); }
   function close() {
     if (inFlight.current) return;
-    restoreTrigger.current = true; setState("idle"); setValue(""); setError("");
+    restoreTrigger.current = focusVersion.current; setState("idle"); setValue(""); setError("");
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (inFlight.current) return;
     const name = value.trim().replace(/\s+/g, " ");
     if (!name) { setError("Enter a Project name."); input.current?.focus(); return; }
+    const version = focusVersion.current;
     inFlight.current = true; setValue(name); setState("commit"); setError("");
     try {
       await onCreate(name);
-      if (mounted.current) { restoreTrigger.current = true; setState("idle"); setValue(""); }
+      if (mounted.current) { restoreTrigger.current = version; setState("idle"); setValue(""); }
     } catch (failure) {
-      if (mounted.current) { setState("open"); setError(failureWords(failure, "Project couldn't be created. Try again.")); requestAnimationFrame(() => input.current?.focus()); }
+      if (mounted.current) { setState("open"); setError(failureWords(failure, "Project couldn't be created. Try again.")); focusInput(version); }
     } finally { inFlight.current = false; }
   }
   const idle = state === "idle";
   return <motion.div className={styles.composerWrap} initial={false} animate={{ opacity: 1 }} transition={reduce ? instant : { duration: duration.standard }}>
-    <form className={styles.composer} data-state={state} data-invalid={error ? "" : undefined} onSubmit={submit} aria-busy={state === "commit"}>
+    <form ref={form} className={styles.composer} data-state={state} data-invalid={error ? "" : undefined} onSubmit={submit} aria-busy={state === "commit"}>
       <span className={styles.lead} aria-hidden="true">{state === "commit" ? <LoaderCircle /> : <Plus strokeWidth={1.75} />}</span>
       <span className={styles.composerField}>
         {idle ? <span className={styles.composerLabel} aria-hidden="true">New Project</span> :

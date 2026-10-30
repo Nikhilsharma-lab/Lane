@@ -566,4 +566,3 @@ export async function restoreMetricDefinition(workspace: MetricsWorkspace, autho
     return { changed: true };
   });
 }
-

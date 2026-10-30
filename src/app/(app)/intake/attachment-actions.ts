@@ -6,7 +6,7 @@ import { and, count, eq, gt, isNull, or, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, requestAttachments, requests } from "@/db";
-import { requireCanContribute, signedInAsViewer, VIEWER_REFUSAL, type MemberAuth } from "@/lib/auth-guard";
+import { guardCanContribute, type MemberAuth } from "@/lib/auth-guard";
 import {
   MAX_ATTACHMENT_FILES,
   MAX_ATTACHMENTS_TOTAL_BYTES,
@@ -54,13 +54,9 @@ export type DiscardAttachmentResponse =
   | { success: true; alreadyUploaded?: boolean }
   | { success: false; error: AttachmentActionFailure };
 
-/** Why the guard said no: a Viewer adds no files (#210); anyone else's session has ended. */
-async function sessionFailure(): Promise<AttachmentActionFailure> {
-  if (await signedInAsViewer()) return { code: "request_unavailable", message: VIEWER_REFUSAL };
-  return {
-    code: "session_expired",
-    message: "Your session ended. Sign in again to finish adding this file.",
-  };
+/** Only the initial guard's explicit expiry marker permits session replay. */
+function sessionFailure(): AttachmentActionFailure {
+  return { code: "session_expired", message: "Your session ended. Sign in again to finish adding this file." };
 }
 
 // The provider returned this URL to our server. Decode only its expiry for
@@ -151,8 +147,8 @@ export async function prepareAttachmentUpload(
   },
   context: { orgId: string }
 ): Promise<PrepareAttachmentResponse> {
-  const auth = await requireCanContribute(context.orgId);
-  if (!auth) return { success: false, error: await sessionFailure() };
+  const auth = await guardCanContribute(context.orgId, "Request unavailable.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "request_unavailable", message: auth.error } };
 
   const parsed = prepareUploadSchema.safeParse(input);
   if (!parsed.success) {
@@ -307,8 +303,8 @@ export async function finalizeAttachmentUpload(
   input: { requestId: string; attachmentId: string },
   context: { orgId: string }
 ): Promise<FinalizeAttachmentResponse> {
-  const auth = await requireCanContribute(context.orgId);
-  if (!auth) return { success: false, error: await sessionFailure() };
+  const auth = await guardCanContribute(context.orgId, "Request unavailable.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "request_unavailable", message: auth.error } };
 
   const parsed = attachmentActionSchema.safeParse(input);
   if (!parsed.success) {
@@ -384,8 +380,8 @@ export async function discardAttachmentUpload(
   input: { requestId: string; attachmentId: string },
   context: { orgId: string }
 ): Promise<DiscardAttachmentResponse> {
-  const auth = await requireCanContribute(context.orgId);
-  if (!auth) return { success: false, error: await sessionFailure() };
+  const auth = await guardCanContribute(context.orgId, "Request unavailable.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "request_unavailable", message: auth.error } };
 
   const parsed = attachmentActionSchema.safeParse(input);
   if (!parsed.success) {

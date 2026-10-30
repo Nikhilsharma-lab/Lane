@@ -4,8 +4,8 @@ import { callAction } from "@/lib/action-call";
 import { CHECK_CONNECTION, ShownFailure, thrownMessage } from "@/lib/failure-messages";
 import { useClerk, useOrganization } from "@clerk/nextjs";
 import { useMemo } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { requestListHref } from "@/lib/request-workspace";
+import { usePathname } from "next/navigation";
+import { useRequestNavigation } from "@/components/requests/request-navigation";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
 import { createProject } from "@/app/(app)/intake/project-actions";
 import { InboxBell } from "./inbox-bell";
@@ -43,7 +43,7 @@ export function Sidebar({
   savedViews?: SavedView[];
 }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const navigation = useRequestNavigation();
   const projectState = useSharedWorkspaceProjects();
   const { isLoaded, organization } = useOrganization();
   const { signOut } = useClerk();
@@ -72,11 +72,12 @@ export function Sidebar({
       onRetryProjects={() => projectState.reload()}
       // #210: a Viewer creates no Projects (the server refuses too), so the sidebar offers no New Project.
       onCreateProject={role === "viewer" ? undefined : async name => {
+        const stillCurrent = navigation.continuation();
         // #260 (A18): a call that never got an answer shows Lane's words under the field, never "Failed to fetch".
         const result = await callAction(() => createProject({ name }, { orgId })).catch(thrown => { throw new ShownFailure(thrownMessage(thrown, PROJECT_NOT_CREATED)); });
         if (!result.success) throw new ShownFailure(result.error.message);
         projectState.addProject(result.project);
-        router.push(requestListHref("all", result.project.id));
+        if (stillCurrent()) navigation.selectList({ status: "all", project: result.project.id });
         return result.project;
       }}
       notifications={<InboxBell orgId={orgId} needsYouCount={needsYouCount} current={pathname === "/inbox"} />}

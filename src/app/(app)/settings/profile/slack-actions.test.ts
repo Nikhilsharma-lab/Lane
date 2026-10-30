@@ -8,7 +8,7 @@ import { randomBytes } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SESSION_ENDED } from "@/lib/auth-guard";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_slack_connect";
 const OTHER = "org_slack_connect_other";
@@ -21,7 +21,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ ...session }) }));
 
 const url = new URL(process.env.DATABASE_URL!);
-if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
 
 /** What the stubbed Slack has been asked, and what it answers to the code exchange. */
@@ -124,7 +124,7 @@ describe("connecting Slack", () => {
     session.orgRole = "org:admin";
     expect(await start(OTHER)).toEqual({ error: "Only Admins can connect Slack to this workspace." });
     session.userId = null;
-    expect(await start()).toEqual({ error: SESSION_ENDED });
+    expect(await start()).toEqual({ error: SESSION_ENDED, sessionExpired: true });
   });
 
   it("refuses the return trip for anyone but the Admin who started it, and keeps nothing", async () => {

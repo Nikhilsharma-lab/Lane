@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { createTriageToken } from "@/lib/triage-token";
 
 // #199: adding a metric inline from the prediction form. Seam: the prediction form's add action, called directly
@@ -21,7 +21,7 @@ const definitionsNamed = async (name: string) => sql`select id from metric_defin
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Inline metric tests require loopback lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   sql = postgres(url.toString(), { max: 2, prepare: false });
   await sql`insert into organizations (id,name,slug) values (${ORG},'Inline metric','inline-metric'), (${OTHER},'Other','inline-metric-other')`;
   await sql`insert into profiles (id,full_name,email) values (${MEMBER},'Mira Member','inline-member@example.test')`;

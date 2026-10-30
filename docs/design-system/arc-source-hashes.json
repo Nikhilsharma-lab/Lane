@@ -331,7 +331,7 @@
     "source": "https://uiarc.dev/r/toast-stack.json",
     "file": "src/components/arc/toast-stack/toast-stack.tsx",
     "upstreamSha256": "8dd2b0aa283f62b952deb6fd909e8c227251b6f04cb92b8aa0e37243672d6313",
-    "localSha256": "0c9f23758c65d881d8a3656fd073f14fd7481519c9c268b9015fb77699fb7adf"
+    "localSha256": "d4d3b5df90a50c0a16fd67c3cbf0d5c263b882161cf30e38f62d03dc3935c25b"
   },
   {
     "id": "tooltip",
@@ -366,7 +366,7 @@
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx",
     "upstreamSha256": "ba91e8b75357ada3b74dff408f3519671e6c582d702396bb3f76fdd0e35a5916",
-    "localSha256": "db4c9ccf551555fcc4f7103f93a7b7f837ee4a0cb18726af0d51a7a578fef8cc"
+    "localSha256": "6c169657eb59c284d9205547f40b9078ec6ead05219303abe9e9ca44bb91cf86"
   },
   {
     "id": "workspace-sidebar",

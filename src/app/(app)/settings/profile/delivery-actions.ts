@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireCanContribute, refusal } from "@/lib/auth-guard";
+import { guardCanContribute } from "@/lib/auth-guard";
 import { deliveryPreferenceSchema } from "@/lib/delivery-preference-rules";
 import { saveDeliveryChoice } from "@/lib/delivery-preferences";
 import { slackConnected } from "@/lib/slack-connection";
@@ -14,8 +14,8 @@ export async function updateDeliveryPreference(data: { channel: string }, contex
   const parsed = deliveryPreferenceSchema.safeParse(data);
   if (!parsed.success) return { error: "Choose Email, Slack DM or Off." };
 
-  const auth = await requireCanContribute(context.orgId);
-  if (!auth) return { error: await refusal("You do not have access to this workspace.") };
+  const auth = await guardCanContribute(context.orgId, "You do not have access to this workspace.");
+  if ("error" in auth) return auth;
   if (auth.role === "guest") return { error: "Guests get Lane email only about their own submissions, so there is nothing to choose here." };
   if (parsed.data.channel === "slack" && !(await slackConnected(auth.orgId)))
     return { error: "Slack isn't connected to this workspace. Choose Email or Off, or ask an Admin to connect Slack." };

@@ -9,7 +9,8 @@ import { isShown, overlayOpen } from "@/lib/keyboard-guards"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { useListAnnouncer } from "./list-announcer"
 import { detailCommand, isTypingTarget } from "./request-detail-keys"
-import { useDetailSession, useSetDetailSession } from "./list-view-state"
+import { useDetailSession } from "./list-view-state"
+import { useRequestNavigation } from "./request-navigation"
 import { advanceSequence, sequencePosition, type SequencePosition } from "./request-sequence"
 import { FULL_PREFETCH, useIntentPrefetch } from "./use-intent-prefetch"
 import styles from "./detail.module.css"
@@ -27,17 +28,15 @@ export type SequenceDirection = "previous" | "next"
  * or next button do not disappear while the navigation is pending.
  */
 export function useDetailSequence(requestId: string) {
-  const router = useRouter()
+  const navigation = useRequestNavigation()
   const { sequence } = useDetailSession()
-  const setSession = useSetDetailSession()
   const position = sequencePosition(sequence, requestId)
   const go = useCallback((direction: SequenceDirection, { keepFocusOnButton = false }: { keepFocusOnButton?: boolean } = {}) => {
     const target = direction === "next" ? position?.nextId : position?.previousId
     if (!sequence || !target) return false
-    setSession({ sequence: advanceSequence(sequence, target, requestId), focusTitleOnArrival: !keepFocusOnButton, focusOnArrival: keepFocusOnButton ? direction : null })
-    router.replace(requestDetailHref(target, "all"), { scroll: false })
+    navigation.replaceDetail(target, { sequence: advanceSequence(sequence, target, requestId), button: keepFocusOnButton ? direction : null })
     return true
-  }, [position?.nextId, position?.previousId, requestId, router, sequence, setSession])
+  }, [position?.nextId, position?.previousId, requestId, navigation, sequence])
   return { position, go }
 }
 

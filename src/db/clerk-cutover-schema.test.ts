@@ -1,3 +1,4 @@
+import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -18,9 +19,7 @@ let connection: ReturnType<typeof postgres>;
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
-  if (!["localhost", "127.0.0.1"].includes(new URL(databaseUrl).hostname)) {
-    throw new Error("Schema regression tests require local PostgreSQL");
-  }
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(databaseUrl, { max: 1, prepare: false });
 
   await connection`

@@ -32,7 +32,7 @@ function depsFor(view: () => ReturnType<ReturnType<typeof setup>["view"]>) {
     overlay: view(),
     refresh: vi.fn<() => void>(),
     notifyError: vi.fn<OptimisticDeps["notifyError"]>(),
-    session: { current: vi.fn(async () => {}), renew: vi.fn(async () => {}) },
+    session: { current: vi.fn(async () => "current"), renew: vi.fn(async () => "renewed") },
     offline: vi.fn(() => false),
   } satisfies OptimisticDeps
 }
@@ -333,20 +333,20 @@ describe("useOptimisticAction core", () => {
   })
 
   // Critique 2.7: a session that is still expired after the one token refresh is not a connection problem.
-  it("tells onError when the failure is still auth-shaped after the retry", async () => {
+  it("tells onError about an ambiguous throw without replay", async () => {
     const { view } = setup()
     const deps = depsFor(view)
     const onError = vi.fn()
     await runOptimistic(deps, { id: "a", run: async () => { throw new Error("401 Unauthorized") }, onError })
-    expect(deps.session.renew).toHaveBeenCalledTimes(1)
-    expect(onError).toHaveBeenCalledWith("Check your connection and try again.", expect.objectContaining({ thrown: true, auth: true }))
+    expect(deps.session.renew).not.toHaveBeenCalled()
+    expect(onError).toHaveBeenCalledWith("Check your connection and try again.", expect.objectContaining({ thrown: true, auth: false }))
   })
 
-  it("refreshes the Clerk token and retries once on an auth-shaped refusal", async () => {
+  it("refreshes the Clerk token and retries once on an explicit expiry", async () => {
     const { view } = setup()
     const deps = depsFor(view)
     const run = vi.fn()
-      .mockResolvedValueOnce({ error: "You can't change Requests in this workspace." })
+      .mockResolvedValueOnce({ error: "Please sign in again", sessionExpired: true })
       .mockResolvedValueOnce({ success: true })
     const outcome = await runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run })
     expect(outcome.status).toBe("success")
@@ -358,7 +358,7 @@ describe("useOptimisticAction core", () => {
   it("rolls back after the one retry also fails", async () => {
     const { view } = setup()
     const deps = depsFor(view)
-    const run = vi.fn().mockResolvedValue({ error: "You can't change Requests in this workspace." })
+    const run = vi.fn().mockResolvedValue({ error: "Please sign in again", sessionExpired: true })
     const outcome = await runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run })
     expect(outcome.status).toBe("error")
     expect(run).toHaveBeenCalledTimes(2)
@@ -415,7 +415,7 @@ describe("useOptimisticAction core", () => {
   })
 
   it("runs without an overlay outside the provider", async () => {
-    const deps: OptimisticDeps = { overlay: null, refresh: vi.fn(), notifyError: vi.fn(), session: { current: vi.fn(async () => {}), renew: vi.fn(async () => {}) } }
+    const deps: OptimisticDeps = { overlay: null, refresh: vi.fn(), notifyError: vi.fn(), session: { current: vi.fn(async () => "current"), renew: vi.fn(async () => "renewed") } }
     await expect(runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run: async () => ({ success: true }) })).resolves.toMatchObject({ status: "success" })
   })
 })

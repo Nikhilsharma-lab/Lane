@@ -1,100 +1,132 @@
 import { describe, expect, it, vi } from "vitest"
-import type { ToastOptions, ToastStackApi } from "@/components/arc/toast-stack/toast-stack"
-import { clearMarkedDone, createMarkDoneUndoStore, showMarkedDone } from "./mark-done-undo"
+import { toastStack } from "@/test/toast-stack"
+import { createMarkDoneUndoStore, showMarkedDone } from "./mark-done-undo"
 
-function markDone(store = createMarkDoneUndoStore(), request = { id: "r1", name: "LAN-12" }, toastId = "toast-7") {
-  const shown: ToastOptions[] = []
-  const toast = vi.fn<ToastStackApi["toast"]>(options => { shown.push(options); return toastId })
-  const undo = vi.fn(async () => {})
-  showMarkedDone(toast, request, undo, store)
-  return { store, undo, toast: shown[0] }
+function app(limit?: number) {
+  const stack = toastStack(limit)
+  const store = createMarkDoneUndoStore()
+  const disconnect = store.bind(stack.state)
+  const undo = vi.fn()
+  const mark = (id = "r1", name = "LAN-12") => showMarkedDone(stack.toast, { id, name }, undo, store)
+  return { stack, store, undo, mark, disconnect }
 }
 
-describe("the undoable Mark Done (#103)", () => {
-  it("shows Marked Done with Undo and points at it", () => {
-    const { store, toast } = markDone()
-    expect(toast).toMatchObject({ type: "success", title: "Marked Done", description: "LAN-12 is now Done.", duration: 10_000, action: { label: "Undo" } })
-    expect(store.get()).toMatchObject({ toastId: "toast-7", requestId: "r1", name: "LAN-12" })
+describe("single-Request Undo follows actual Arc toast state", () => {
+  it("shows Marked Done with the existing lifetime and latest palette pointer", () => {
+    const a = app()
+    const { toastId } = a.mark()
+    expect(a.stack.toasts[0]).toMatchObject({ id: toastId, type: "success", title: "Marked Done", description: "LAN-12 is now Done.", duration: 10_000, action: { label: "Undo" } })
+    expect(a.store.get()).toMatchObject({ toastId, requestId: "r1", name: "LAN-12" })
   })
 
-  it("runs the toast's own Undo from the palette, once, and then is gone", () => {
-    const { store, undo } = markDone()
-    store.get()!.undo()
-    expect(undo).toHaveBeenCalledExactlyOnceWith("toast-7", "r1", "LAN-12")
-    expect(store.get()).toBeNull()
+  it.each(["toast", "palette"])("consumes one operation when %s runs before the other retained entry point", first => {
+    const a = app()
+    const { toastId: id } = a.mark()
+    const palette = a.store.get()!.undo
+    const toast = () => a.stack.toasts[0].action!.onClick(id)
+    if (first === "toast") { toast(); palette() } else { palette(); toast() }
+    expect(a.undo).toHaveBeenCalledExactlyOnceWith(id, "r1", "LAN-12")
+    expect(a.store.get()).toBeNull()
   })
 
-  it("is gone once the toast's Undo button runs the same callback", () => {
-    const { store, undo, toast } = markDone()
-    toast.action!.onClick("toast-7")
-    expect(undo).toHaveBeenCalledExactlyOnceWith("toast-7", "r1", "LAN-12")
-    expect(store.get()).toBeNull()
+  it.each(["dismiss", "dismiss-all", "action removal", "replacement", "eviction"])("%s ends eligibility immediately and retained callbacks cannot submit", change => {
+    const a = app(2)
+    const { toastId: id } = a.mark()
+    const retained = a.store.get()!.undo
+    const action = a.stack.toasts[0].action!.onClick
+    if (change === "dismiss") a.stack.dismiss(id)
+    else if (change === "dismiss-all") a.stack.dismiss()
+    else if (change === "action removal") a.stack.update(id, { action: undefined })
+    else if (change === "replacement") a.stack.toast({ id, title: "Another operation", action: { label: "Open", onClick: vi.fn() } })
+    else { a.stack.toast({ title: "Second" }); a.stack.toast({ title: "Third" }) }
+    expect(a.store.get()).toBeNull()
+    retained()
+    action(id)
+    expect(a.undo).not.toHaveBeenCalled()
   })
 
-  it("is gone once the Done fails, but a failure of an older Done leaves the latest", () => {
-    const { store } = markDone()
-    clearMarkedDone("toast-7", store)
-    expect(store.get()).toBeNull()
-    markDone(store, { id: "r2", name: "LAN-13" }, "toast-8")
-    clearMarkedDone("toast-7", store)
-    expect(store.get()?.name).toBe("LAN-13")
+  it("unrelated removal and changed copy do not control availability", () => {
+    const a = app()
+    const { toastId: id } = a.mark()
+    const pointer = a.store.get()
+    const unrelated = a.stack.toast({ title: "Other message" })
+    a.stack.dismiss(unrelated)
+    a.stack.update(id, { title: "Finished", description: "Different copy", duration: 25 })
+    expect(a.store.get()).toBe(pointer)
+    pointer!.undo()
+    expect(a.undo).toHaveBeenCalledOnce()
   })
 
-  it("is gone once its own toast closes: dismissed, swiped or timed out", () => {
-    const { store } = markDone()
-    store.observe(2)
-    store.observe(3)
-    expect(store.get()?.name).toBe("LAN-12")
-    expect(store.observe(2)).toBe(true)
-    store.settle("Error: Couldn't copy Select the text and copy it instead.")
-    expect(store.get()).toBeNull()
+  it("the same callback copied onto a different toast cannot consume the original operation", () => {
+    const a = app()
+    const done = a.mark()
+    const action = a.stack.toasts[0].action!
+    const other = a.stack.toast({ title: "Another toast", action })
+    action.onClick(other)
+    expect(a.undo).not.toHaveBeenCalled()
+    expect(a.store.get()?.toastId).toBe(done.toastId)
   })
 
-  it("stays when another toast closes, such as a copy failure", () => {
-    const { store } = markDone()
-    store.observe(1)
-    store.observe(2)
-    expect(store.observe(1)).toBe(true)
-    store.settle("Success: Marked Done LAN-12 is now Done. Undo Dismiss notification")
-    expect(store.get()?.name).toBe("LAN-12")
-    // A later close of its own toast still clears it.
-    expect(store.observe(0)).toBe(true)
-    store.settle("")
-    expect(store.get()).toBeNull()
+  it("keeps older visible toast actions without falling back after the latest ends", () => {
+    const a = app()
+    const first = a.mark()
+    const firstAction = a.stack.toasts[0].action!.onClick
+    const second = a.mark("r2", "LAN-13")
+    expect(a.store.get()?.requestId).toBe("r2")
+    firstAction(first.toastId)
+    expect(a.undo).toHaveBeenCalledExactlyOnceWith(first.toastId, "r1", "LAN-12")
+    expect(a.store.get()?.requestId).toBe("r2")
+    a.stack.dismiss(second.toastId)
+    expect(a.store.get()).toBeNull()
   })
 
-  it("is gone when no stack is on the page to show it", () => {
-    const { store } = markDone()
-    store.settle(null)
-    expect(store.get()).toBeNull()
+  it("a failed Done clears only its own pointer", () => {
+    const a = app()
+    const first = a.mark()
+    const second = a.mark("r2", "LAN-13")
+    first.end()
+    expect(a.store.get()?.requestId).toBe("r2")
+    second.end()
+    expect(a.store.get()).toBeNull()
+    a.stack.toasts[0].action!.onClick(second.toastId)
+    second.restore()
+    expect(a.undo).not.toHaveBeenCalled()
   })
 
-  it("does not take a toast that has moved on (Undoing, a failure) or another Request's for it", () => {
-    const { store } = markDone()
-    store.settle("Loading: Undoing LAN-12 is moving back to In progress.")
-    expect(store.get()).toBeNull()
-    markDone(store)
-    store.settle("Success: Marked Done LAN-13 is now Done. Undo")
-    expect(store.get()).toBeNull()
+  it("restoring an older Done never displaces the newer palette operation", () => {
+    const a = app()
+    const first = a.mark()
+    const newer = a.mark("r2", "LAN-13")
+    first.restore()
+    expect(a.store.get()?.requestId).toBe("r2")
+    newer.end()
+    first.restore()
+    expect(a.store.get()).toBeNull()
+    a.stack.toasts.find(toast => toast.id === first.toastId)!.action!.onClick(first.toastId)
+    expect(a.undo).toHaveBeenCalledExactlyOnceWith(first.toastId, "r1", "LAN-12")
   })
 
-  it("asks for no check while the queue grows, or with nothing to undo", () => {
-    const store = createMarkDoneUndoStore()
-    expect(store.observe(2)).toBe(false)
-    expect(store.observe(1)).toBe(false)
-    markDone(store)
-    expect(store.observe(1)).toBe(false)
-    expect(store.observe(2)).toBe(false)
+  it("unbinding stops eligibility, and rebinding reconciles current actual state", () => {
+    const a = app()
+    const { toastId: id } = a.mark()
+    const retained = a.store.get()!.undo
+    a.disconnect()
+    retained()
+    expect(a.undo).not.toHaveBeenCalled()
+    expect(a.store.get()).toBeNull()
+    a.stack.dismiss(id)
+    a.store.bind(a.stack.state)
+    expect(a.store.get()).toBeNull()
   })
 
-  it("watches the queue afresh for each Mark Done, and only the latest counts", () => {
-    const { store } = markDone()
-    store.observe(1)
-    markDone(store, { id: "r2", name: "LAN-13" }, "toast-8")
-    expect(store.observe(2)).toBe(false)
-    expect(store.get()?.name).toBe("LAN-13")
-    expect(store.observe(1)).toBe(true)
-    store.settle("Success: Marked Done LAN-12 is now Done. Undo")
-    expect(store.get()).toBeNull()
+  it("an older provider lifetime cannot clear the newer operation with the same local toast id", () => {
+    const a = app()
+    const older = a.mark()
+    a.disconnect()
+    const nextStack = toastStack()
+    a.store.bind(nextStack.state)
+    showMarkedDone(nextStack.toast, { id: "r2", name: "LAN-13" }, a.undo, a.store)
+    older.end()
+    expect(a.store.get()?.requestId).toBe("r2")
   })
 })

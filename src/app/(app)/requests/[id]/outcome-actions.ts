@@ -1,23 +1,20 @@
-"use server";
-import { and, asc, eq, inArray } from "drizzle-orm";
-import { z } from "zod";
-import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
-import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
-import { requireActiveMember } from "@/lib/auth-guard";
-import { workspaceRoster } from "@/lib/workspace-roster";
-import type { RequestChangeContext } from "@/lib/request-reviewer-rules";
-import { changeRequest, insist, refuse } from "@/lib/request-change-store";
-import { seeable } from "@/lib/request-access";
-import { notifyReviewers } from "@/lib/request-reviewers";
-import { deliverAfterResponse, deliverGuestEmailAfterResponse } from "@/lib/inbox-delivery";
-import { releaseMeasurement } from "@/lib/request-release";
-import { journeyStatus, requesterOf } from "@/lib/request-journey";
-import { allow, journeyActionsFor, peopleNames, personName } from "@/lib/request-journey-access";
-import { agreedResult, correctableFields, guardrailHeld, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from "@/lib/request-outcome";
-import { expectedImpactSchema } from "@/lib/request-impact";
-import { utcDay } from "@/lib/utc-day";
-import { newRequestBlock } from "@/lib/billing";
+'use server';
+import { loadRequestOutcome } from '@/lib/data/request-journey';
+import { and, eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
+import { revalidatePath } from 'next/cache';
+import { requests, requestAgreements, requestAgreementEvents } from '@/db';
+import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
+import { changeRequest, insist, refuse } from '@/lib/request-change-store';
+import { notifyReviewers } from '@/lib/request-reviewers';
+import { requesterOf } from '@/lib/request-journey';
+import { allow, journeyActionsFor, personName } from '@/lib/request-journey-access';
+import { agreedResult, correctableFields, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
+import { expectedImpactSchema } from '@/lib/request-impact';
+import { utcDay } from '@/lib/utc-day';
+import { deliverAfterResponse, deliverGuestEmailAfterResponse } from '@/lib/inbox-delivery';
+import { newRequestBlock } from '@/lib/billing';
 /** Each closure change and the journey action that allows it. */
 const JOURNEY_ACTION = { measured: "close", exception: "closeWithoutResult", correction: "correctClosure" } as const;
 /** The Request's content carried into a follow-up; the follow-up is then reviewed afresh. */
@@ -119,48 +116,6 @@ export async function createFollowUpRequest(context: RequestChangeContext, input
     }
     return result;
 }
-export async function readRequestOutcome(requestId: string, context: {
-    orgId: string;
-}) {
-    try {
-        insist(z.uuid().safeParse(requestId).success, "Request unavailable.");
-        const auth = await requireActiveMember(context.orgId);
-        insist(auth, "Request unavailable.");
-        const [request] = await db.select().from(requests).where(and(eq(requests.id, requestId), seeable(auth)));
-        insist(request, "Request unavailable.");
-        const expected = request.status === "open" ? null : expectedImpactSchema.safeParse(request.expectedImpact).data ?? null;
-        const release = request.releaseState?.release ?? null;
-        const requesterId = requesterOf(request);
-        const closure = request.outcomeClosure
-            ? { ...request.outcomeClosure, guardrails: request.outcomeClosure.guardrails.map(g => ({ ...g, held: guardrailHeld(g) })) }
-            : request.exceptionClosure;
-        let roster: Awaited<ReturnType<typeof workspaceRoster>> | null = null;
-        if (auth.role !== "guest")
-            try {
-                roster = await workspaceRoster(auth.orgId);
-            }
-            catch { /* Saved facts remain readable during provider outages; actions stay unavailable. */ }
-        // Live names first, as the actions' reasons use; saved profile names cover departed people and guests.
-        const names = await peopleNames(db, roster, [requesterId, ...(closure ? [closure.actorId] : []), ...request.closureCorrections.map(c => c.actorId)]);
-        const now = new Date();
-        const measurement = releaseMeasurement(release, now);
-        // Every journey action with its reason, from the same rules the actions refuse with.
-        const actions = journeyActionsFor(request, auth, roster, names[requesterId], now);
-        const visible = seeable(auth);
-        const followRows = await db.select({ id: requests.id, title: requests.title, requestNumber: requests.requestNumber, createdBy: requests.createdBy, createdAt: requests.createdAt }).from(requests).where(and(eq(requests.orgId, auth.orgId), eq(requests.followUpOf, requestId), visible)).orderBy(asc(requests.createdAt), asc(requests.id));
-        const reasons = followRows.length ? await db.select({ requestId: requestAgreementEvents.requestId, payload: requestAgreementEvents.payload }).from(requestAgreementEvents).where(and(eq(requestAgreementEvents.orgId, auth.orgId), eq(requestAgreementEvents.kind, "follow_up_created"), inArray(requestAgreementEvents.requestId, followRows.map(f => f.id)))) : [];
-        const parent = request.followUpOf ? (await db.select({ id: requests.id, title: requests.title, requestNumber: requests.requestNumber }).from(requests).where(and(eq(requests.orgId, auth.orgId), eq(requests.id, request.followUpOf), visible)))[0] : undefined;
-        return {
-            requestId, revision: request.agreementRevision, requesterId, requesterName: names[requesterId], names,
-            journey: journeyStatus(request), actions,
-            state: closure ? "closed" as const : release ? "measuring" as const : "not_started" as const,
-            agreed: expected ? agreedResult(expected) : null,
-            release, measurement, closure: closure ?? null, corrections: request.closureCorrections,
-            followUpOf: parent ?? null,
-            followUps: followRows.map(f => ({ ...f, createdAt: f.createdAt.toISOString(), reason: String((reasons.find(r => r.requestId === f.id)?.payload.input as { reason?: string } | undefined)?.reason ?? "") })),
-        };
-    }
-    catch {
-        return { error: "Couldn't load the outcome. Try again." };
-    }
+export async function readRequestOutcome(requestId: string, context: { orgId: string }) {
+    return loadRequestOutcome(requestId, context);
 }

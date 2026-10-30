@@ -18,6 +18,7 @@ import { DueTag, useDueNow } from "./due-tag"
 import { useDetailRequest } from "./detail-context"
 import { useListAnnouncer } from "./list-announcer"
 import { useRequestMoves } from "./request-moves"
+import { useRequestNavigation } from "./request-navigation"
 import { PriorityGlyph } from "./row-presentation"
 import styles from "./detail.module.css"
 
@@ -81,6 +82,7 @@ function Value({ icon, children }: { icon: ReactNode; children: ReactNode }) {
  * context menu.
  */
 function usePropertyControls(inSheet = false) {
+  const { deferFocus } = useRequestNavigation()
   const { request, isGuest, viewer } = useDetailRequest()
   const { move: runMove, setPriority } = useDetailMoves()
   const { journey, due } = useDetailJourney()
@@ -95,7 +97,7 @@ function usePropertyControls(inSheet = false) {
     // The menu hands focus back to its trigger, but a move that leaves none
     // (Mark Done) unmounts that trigger with it. Focus then goes to the title,
     // as the strip's slot does. In the sheet the dialog keeps focus.
-    requestAnimationFrame(() => {
+    deferFocus(() => {
       const active = document.activeElement
       if (!active || active === document.body) document.getElementById("request-title")?.focus({ preventScroll: true })
     })

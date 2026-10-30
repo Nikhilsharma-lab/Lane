@@ -1,6 +1,7 @@
+import { requireTestDatabase } from "@/test/test-database";
 import postgres from 'postgres';
 import { afterAll, expect, it } from 'vitest';
-const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false });
+const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, { max: 1, prepare: false });
 afterAll(() => connection.end());
 it('migration preserves legacy statuses, priority, dates, comments and measurement without inventing release', async () => {
     const rows = await connection `select status,priority,release_state,updated_at from requests where org_id='org_agreement_legacy' order by title`;

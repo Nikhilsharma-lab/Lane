@@ -5,7 +5,7 @@
  */
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { recordingPaymentProvider } from "@/lib/payment-provider";
 
 const ORG = "org_billing_webhook";
@@ -14,7 +14,7 @@ vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => { throw new Er
 vi.mock("@/lib/payment-provider", async (actual) => ({ ...(await actual<typeof import("@/lib/payment-provider")>()), paymentProvider: () => payments.provider }));
 
 const url = new URL(process.env.DATABASE_URL!);
-if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
 
 beforeAll(async () => {

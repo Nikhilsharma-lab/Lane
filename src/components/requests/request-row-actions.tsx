@@ -11,6 +11,7 @@ import { usePendingMutations } from "./pending-mutations-provider"
 import { useListAnnouncer } from "./list-announcer"
 import { restoreRequestFocus, rowIndexOf } from "./list-focus"
 import { useRequestMoves } from "./request-moves"
+import { useRequestNavigation } from "./request-navigation"
 import { priorityOptions } from "./priority-options"
 import { PriorityGlyph, RequestRowPresentation, StatusGlyph, type RequestIdentity } from "./row-presentation"
 import { statuses } from "./tasks/statuses"
@@ -43,6 +44,7 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
   const overlay = usePendingMutations()
   // Plan item 2.4: optimistic changes speak in the list's one region when the patch begins.
   const announce = useListAnnouncer()
+  const { deferFocus } = useRequestNavigation()
   const { orgId } = context
 
   // Codes and priorities read through the overlay, so a priority change shows at once.
@@ -55,11 +57,11 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
   // page), focus the row that took its place and say where it went.
   const restoreFocus = useCallback((id: string, name: string) => {
     const index = rowIndexOf(id)
-    requestAnimationFrame(() => {
+    deferFocus(() => {
       const restored = restoreRequestFocus(id, { index })
       if (restored !== "row" && restored !== "none") announce(`${name} left this view.`, { key: "row-left" })
     })
-  }, [announce])
+  }, [announce, deferFocus])
 
   // Plan item 2.5: the moves, their toasts and their copy live in request-moves.ts, shared with Request detail.
   const moves = useRequestMoves({ orgId, announce, afterMove: restoreFocus })

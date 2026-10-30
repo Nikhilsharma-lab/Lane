@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const ORG = "org_request_priority_schema";
@@ -8,10 +8,7 @@ let connection: ReturnType<typeof postgres>;
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
-  const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) {
-    throw new Error("Request priority tests require disposable local lane_test PostgreSQL");
-  }
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into profiles (id,full_name,email) values (${USER},'Request priority','request-priority@example.test')`;
   await connection`insert into organizations (id,name,slug) values (${ORG},'Priority schema','request-priority-schema')`;

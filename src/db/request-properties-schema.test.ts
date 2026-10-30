@@ -1,3 +1,4 @@
+import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -10,9 +11,7 @@ let connection: ReturnType<typeof postgres>;
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
-  if (!["localhost", "127.0.0.1"].includes(new URL(databaseUrl).hostname)) {
-    throw new Error("Project schema tests require disposable local PostgreSQL");
-  }
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(databaseUrl, { max: 1, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG_A},'Schema A','request-properties-schema-a'), (${ORG_B},'Schema B','request-properties-schema-b')`;
   await connection`insert into profiles (id,full_name,email) values (${USER},'Schema probe','request-properties@example.test')`;

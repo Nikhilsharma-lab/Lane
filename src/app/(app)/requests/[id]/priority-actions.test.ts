@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,8 +18,7 @@ const saved = async () => (await connection`select priority::text as priority, s
 
 beforeAll(async () => {
   const databaseUrl = process.env.DATABASE_URL!;
-  const url = new URL(databaseUrl);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Priority tests require local lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Priority actions','priority-actions-a'),(${FOREIGN_ORG},'Other workspace','priority-actions-b')`;
   for (const id of [MEMBER, GUEST, FOREIGN]) await connection`insert into profiles (id,full_name,email) values (${id},${id},${id + "@example.test"})`;

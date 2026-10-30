@@ -8,7 +8,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import { AppProviders } from "@/test/app-providers";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_inbox_page";
 const MEMBER = "user_inbox_page_member", GUEST = "user_inbox_page_guest", ACTOR = "user_inbox_page_actor";
@@ -35,7 +35,7 @@ const items = (html: string) => [...html.matchAll(/data-inbox-item="[^"]+"[^>]*>
 let connection: ReturnType<typeof postgres>;
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Inbox page tests require disposable local PostgreSQL");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Inbox page','inbox-page')`;
   for (const [id, name] of [[MEMBER, "Morgan"], [GUEST, "Gale"], [ACTOR, "Priya Shah"]]) await connection`insert into profiles (id,full_name,email) values (${id},${name},${id + "@example.test"})`;

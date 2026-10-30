@@ -5,7 +5,7 @@
  */
 import postgres from "postgres"
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest"
-import { TEST_DATABASE_PATH } from "@/test/test-database"
+import { requireTestDatabase } from "@/test/test-database"
 
 const ORG = "org_inbox_daily_route"
 const REQUESTER = "daily_route_requester"
@@ -22,7 +22,7 @@ vi.mock("@clerk/nextjs/server", () => ({
 }))
 
 const url = new URL(process.env.DATABASE_URL!)
-if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only")
+requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} })
 let requestId: string
 

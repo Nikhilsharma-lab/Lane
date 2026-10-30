@@ -1,8 +1,8 @@
 import postgres from "postgres";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { mergeMetricDefinitions } from "@/lib/metrics-library";
-import { loadImpactDashboard } from "./impact";
+import { loadImpactPage } from "./impact";
 
 // #201: the Impact page totals results by the Metric definition each Request's metric resolves to now, through the
 // Metrics library: a renamed definition shows its current name, an archived one still adds up, a merged one adds up
@@ -43,14 +43,14 @@ const definition = async (name: string, unit = "count") =>
   (await connection`insert into metric_definitions (org_id,name,unit,created_by) values (${ORG},${name},${unit},${USER}) returning id`)[0].id as string;
 
 async function lines() {
-  const dashboard = await loadImpactDashboard(auth(), { now: NOW, period: { kind: "quarter", year: 2026, quarter: 3 } });
+  const { dashboard } = await loadImpactPage(auth(), { now: NOW, period: { kind: "quarter", year: 2026, quarter: 3 } });
   return dashboard.outcomeReport!.totals!.map(line => ({ metric: line.metric, unit: line.unit, titles: line.results.map(result => result.title).sort(), summed: line.summed }))
     .sort((a, b) => a.metric.localeCompare(b.metric) || a.titles[0].localeCompare(b.titles[0]));
 }
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Impact definition tests require loopback lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url.toString(), { max: 1, prepare: false });
   for (const org of ORGS) await connection`insert into organizations (id,name,slug) values (${org},'Impact definitions',${org.replaceAll("_", "-")})`;
   await connection`insert into profiles (id,full_name,email) values (${USER},'Impact','impact-definitions@example.test')`;
@@ -62,7 +62,7 @@ afterAll(async () => {
 describe("Impact totals by Metric definition", () => {
   it("adds an older built-in plan and a v5 pick of the same starter metric together, under its current name", async () => {
     await closed("Built-in", v4("events", "count"), 130);
-    await loadImpactDashboard(auth(), { now: NOW }); // the first read fills the starter metrics
+    await loadImpactPage(auth(), { now: NOW }); // the first read fills the starter metrics
     const [starter] = await connection`update metric_definitions set name = 'Checkout clicks' where org_id = ${ORG} and starter_key = 'events' returning id`;
     await closed("Picked", v5(starter.id, "Action count", "count"), 120);
     expect(await lines()).toEqual([{ metric: "Checkout clicks", unit: "count", titles: ["Built-in", "Picked"], summed: { count: 2, change: 50 } }]);
@@ -106,13 +106,13 @@ describe("Outcome report through the Impact loader (#208)", () => {
     const [project] = await connection`insert into projects (org_id,name,created_by) values (${ORG},'Checkout',${USER}) returning id`;
     await closed("No reframe", v4("events", "count"), 120);
     await closed("Reframed", v4("events", "count"), 130, { projectId: project.id, reframedProblem: "Shoppers cannot find the coupon field" });
-    const report = (await loadImpactDashboard(auth(), { now: NOW, period: { kind: "month", year: 2026, month: 8 } })).outcomeReport!;
+    const report = (await loadImpactPage(auth(), { now: NOW, period: { kind: "month", year: 2026, month: 8 } })).dashboard.outcomeReport!;
     expect(report.projects.map(section => [section.name, section.requests.map(entry => [entry.title, entry.problem])])).toEqual([
       ["Checkout", [["Reframed", "Shoppers cannot find the coupon field"]]],
       ["No Project", [["No reframe", "Fixture"]]],
     ]);
     expect(report.totals).toBeNull();
-    expect((await loadImpactDashboard({ ...auth(), role: "guest" }, { now: NOW })).outcomeReport).toBeNull();
+    expect((await loadImpactPage({ ...auth(), role: "guest" }, { now: NOW })).dashboard.outcomeReport).toBeNull();
   });
 });
 
@@ -123,14 +123,14 @@ describe("Quarter notes through the Impact loader (#209)", () => {
     await note(ORG, 1, "Winter");
     await note(ORG, 3, "Checkout rebuilt");
     await note(ORGS[0], 2, "Another workspace's note");
-    const year = (await loadImpactDashboard(auth(), { now: NOW, period: { kind: "year", year: 2026 } })).outcomeReport!;
+    const year = (await loadImpactPage(auth(), { now: NOW, period: { kind: "year", year: 2026 } })).dashboard.outcomeReport!;
     expect(year.quarterNotes.map(slot => [slot.label, slot.note])).toEqual([
       ["Q1 2026", { text: "Winter", editorName: "Impact", editedAt: "2026-09-30T10:00:00.000Z" }],
       ["Q2 2026", null],
       ["Q3 2026", { text: "Checkout rebuilt", editorName: "Impact", editedAt: "2026-09-30T10:00:00.000Z" }],
       ["Q4 2026", null],
     ]);
-    const quarter = (await loadImpactDashboard(auth(), { now: NOW, period: { kind: "quarter", year: 2026, quarter: 3 } })).outcomeReport!;
+    const quarter = (await loadImpactPage(auth(), { now: NOW, period: { kind: "quarter", year: 2026, quarter: 3 } })).dashboard.outcomeReport!;
     expect(quarter.quarterNotes.map(slot => slot.note?.text)).toEqual(["Checkout rebuilt"]);
   });
 });

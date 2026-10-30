@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 import { createTriageToken } from "@/lib/triage-token";
 import { requestEditSnapshot } from "@/lib/request-edit";
 
@@ -52,7 +52,7 @@ async function edit(requestId: string, expectedImpact: unknown) {
 
 beforeAll(async () => {
   const url = new URL(process.env.DATABASE_URL!);
-  if (!["localhost", "127.0.0.1"].includes(url.hostname) || !TEST_DATABASE_PATH.test(url.pathname)) throw new Error("Prediction metric tests require loopback lane_test");
+  requireTestDatabase(process.env.DATABASE_URL);
   sql = postgres(url.toString(), { max: 2, prepare: false });
   await sql`insert into organizations (id,name,slug) values (${ORG},'Prediction metrics','prediction-metrics'), (${OTHER},'Other','prediction-metrics-other')`;
   await sql`insert into profiles (id,full_name,email) values (${OWNER},'Owner','prediction-owner@example.test'), (${ADMIN},'Admin','prediction-admin@example.test')`;

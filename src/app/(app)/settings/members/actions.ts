@@ -2,7 +2,7 @@
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { refusal, requireOwnerOrAdmin } from "@/lib/auth-guard";
+import { guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { followSeatChanges } from "@/lib/billing";
 import { billingEnforced, customRoles } from "@/lib/feature-switches";
 import {
@@ -22,7 +22,7 @@ import type { WorkspacePermission } from "@/lib/auth-guard";
  * seat" confirmation (`confirmedPaidSeat`), and a paying workspace's billed seats follow each role change.
  */
 
-type Result = { success: true } | { error: string };
+type Result = { success: true } | { error: string; sessionExpired?: true };
 
 const ROLES_UNAVAILABLE = "Guest and Viewer aren't available in this workspace yet. Invite them as a Member, or ask whoever runs Lane to turn these roles on.";
 const CHANGE_UNAVAILABLE = "Guest and Viewer aren't available in this workspace yet. Choose Admin or Member.";
@@ -41,8 +41,8 @@ function clerkCode(error: unknown): string | null {
 export async function inviteToWorkspace(data: { email: string; role: string; confirmedPaidSeat?: boolean }, context: { orgId: string }): Promise<Result> {
   const parsed = inviteInputSchema.safeParse(data);
   if (!parsed.success) return { error: firstIssue(parsed.error) };
-  const auth = await requireOwnerOrAdmin(context.orgId);
-  if (!auth) return { error: await refusal("Only Admins can invite people to this workspace.") };
+  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can invite people to this workspace.");
+  if ("error" in auth) return auth;
   const { email, role, confirmedPaidSeat } = parsed.data;
   if (!offered(role)) return { error: ROLES_UNAVAILABLE };
   if (unconfirmedSeat(null, role, confirmedPaidSeat)) return { error: CONFIRM_PAID_SEAT };
@@ -66,8 +66,8 @@ export async function inviteToWorkspace(data: { email: string; role: string; con
 export async function changeMemberRole(data: { userId: string; role: string; confirmedPaidSeat?: boolean }, context: { orgId: string }): Promise<Result> {
   const parsed = roleChangeInputSchema.safeParse(data);
   if (!parsed.success) return { error: firstIssue(parsed.error) };
-  const auth = await requireOwnerOrAdmin(context.orgId);
-  if (!auth) return { error: await refusal("Only Admins can change people's roles.") };
+  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can change people's roles.");
+  if ("error" in auth) return auth;
   const { userId, role, confirmedPaidSeat } = parsed.data;
   // An Admin can't demote themselves, so a workspace always keeps the Admin who could undo a change.
   if (userId === auth.userId) return { error: "You can't change your own role. Ask another Admin to do it." };
@@ -93,8 +93,8 @@ export async function changeMemberRole(data: { userId: string; role: string; con
 export async function revokeInvitation(data: { invitationId: string }, context: { orgId: string }): Promise<Result> {
   const parsed = revokeInvitationInputSchema.safeParse(data);
   if (!parsed.success) return { error: "Choose an invitation to revoke." };
-  const auth = await requireOwnerOrAdmin(context.orgId);
-  if (!auth) return { error: await refusal("Only Admins can revoke invitations.") };
+  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can revoke invitations.");
+  if ("error" in auth) return auth;
   const { invitationId } = parsed.data;
   const gone = { error: "That invitation isn't pending any more. Reload to see the latest." };
 

@@ -24,7 +24,7 @@ export type OptimisticOptions<R> = {
   patch?: Omit<RequestPatch, "since">
   run: () => Promise<R>
   /** Replaces the default failure toast (an inline alert, or a toast the move already owns). */
-  /** `auth` is true when the failure looks like an expired session even after the one token refresh. */
+  /** `auth` is true only for an explicit expiry result after recovery stops. */
   onError?: (message: string, detail: FailureDetail) => void
   /** Waits for the action already in flight on this Request and is not sent if it failed (Undo after Mark Done). */
   waitForPending?: boolean

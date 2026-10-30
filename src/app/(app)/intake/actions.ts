@@ -19,7 +19,7 @@ import {
 import { canUseProject } from "@/lib/project-access";
 import type { RequestType } from "@/lib/request-properties";
 import { TEXT_KEPT } from "@/lib/failure-messages";
-import { requireCanContribute, signedInAsViewer, VIEWER_REFUSAL, type MemberAuth } from "@/lib/auth-guard";
+import { guardCanContribute, type MemberAuth } from "@/lib/auth-guard";
 import { checkAiRateLimit } from "@/lib/rate-limit";
 import { newRequestSchemaFor, sourceFieldOf, storedContext, type RequestInput, type RequestSourceField } from "@/lib/request-schema";
 import { impactColumnsOf, impactStateOfChoice } from "@/lib/request-impact";
@@ -103,13 +103,9 @@ const TRIAGE_FAILURES: Record<TriageFailureKind, IntakeFailure> = {
   provider: { code: "provider", message: REVIEW_UNAVAILABLE },
 };
 
-/** Why the guard said no: a Viewer can't file (#210); anyone else's session has ended. */
-async function sessionFailure(): Promise<IntakeFailure> {
-  if (await signedInAsViewer()) return { code: "validation", message: VIEWER_REFUSAL };
-  return {
-    code: "session_expired",
-    message: "Your session ended. Sign in again to continue this Request.",
-  };
+/** Only the initial guard's explicit expiry marker permits session replay. */
+function sessionFailure(): IntakeFailure {
+  return { code: "session_expired", message: "Your session ended. Sign in again to continue this Request." };
 }
 
 // The action response then carries the refreshed list and detail, so the
@@ -142,8 +138,8 @@ export async function runTriage(
   context: { orgId: string },
   existingRequestId?: string
 ): Promise<TriageResponse> {
-  const auth = await requireCanContribute(context.orgId);
-  if (!auth) return { success: false, error: await sessionFailure() };
+  const auth = await guardCanContribute(context.orgId, "You do not have access to this workspace.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "validation", message: auth.error } };
 
   // #213: a workspace that needs to pay hears so before writing anything more or spending a review. A Guest's
   // submission isn't a new Request until a Member takes it on, so a Guest can still file.
@@ -288,8 +284,8 @@ export async function saveRequest(
   context: { orgId: string },
   reviewerInput?: unknown
 ): Promise<SaveResponse> {
-  const auth = await requireCanContribute(context.orgId);
-  if (!auth) return { success: false, error: await sessionFailure() };
+  const auth = await guardCanContribute(context.orgId, "You do not have access to this workspace.");
+  if ("error" in auth) return { success: false, error: auth.sessionExpired ? sessionFailure() : { code: "validation", message: auth.error } };
 
   const guest = auth.role === "guest";
   const verification = verifyTriageToken(data.token, {

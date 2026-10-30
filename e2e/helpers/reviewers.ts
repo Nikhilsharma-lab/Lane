@@ -186,6 +186,17 @@ export async function createRequestThroughIntake(
     },
   );
   await page.reload();
+  // Reload starts a new Clerk client. Wait for the already signed-in fixture
+  // identity before submitting its restored review through the real action.
+  await page.waitForFunction(
+    ({ userId, orgId }) =>
+      window.Clerk?.loaded &&
+      window.Clerk.user?.id === userId &&
+      window.Clerk.session?.status === "active" &&
+      window.Clerk.organization?.id === orgId,
+    { userId: team.users[0].id, orgId: team.orgId },
+    { timeout: 30_000 },
+  );
   const create = page.getByRole("button", { name: "Create Request", exact: true });
   if (reviewers.length) {
     await page.getByRole("button", { name: "Edit Request", exact: true }).click();

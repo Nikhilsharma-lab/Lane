@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 // #196: the Metrics library's two tables (migration 0037).
 const ORG = "org_metric_definitions_a";
@@ -10,8 +10,7 @@ let connection: ReturnType<typeof postgres>;
 
 beforeAll(async () => {
   const url = process.env.DATABASE_URL!;
-  const parsed = new URL(url);
-  if (!["localhost", "127.0.0.1"].includes(parsed.hostname) || !TEST_DATABASE_PATH.test(parsed.pathname)) throw new Error("Metrics library schema tests require disposable local PostgreSQL");
+  requireTestDatabase(process.env.DATABASE_URL);
   connection = postgres(url, { max: 1, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Metrics A','metric-definitions-a'), (${OTHER_ORG},'Metrics B','metric-definitions-b')`;
   await connection`insert into profiles (id,full_name,email) values (${USER},'Maker','metric-definitions@example.test')`;

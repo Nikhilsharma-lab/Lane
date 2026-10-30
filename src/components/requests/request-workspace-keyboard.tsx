@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { focusRowWhenShown, isShown, restoreRequestFocus } from "@/components/requests/list-focus"
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { dismissOpenForm } from "@/components/popup/dismiss-form"
+import { useRequestNavigation } from "./request-navigation"
 
 const RETURN_FOCUS_KEY = "lane:request-return-focus"
 
@@ -46,6 +47,7 @@ export function RequestWorkspaceKeyboard({
   onRestoreRequest?: (id: string) => void
 }) {
   const router = useRouter()
+  const navigation = useRequestNavigation()
   const markerRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
@@ -103,27 +105,35 @@ export function RequestWorkspaceKeyboard({
 
       event.preventDefault()
       rememberReturnFocus(requestId)
+      navigation.invalidate()
       router.push(returnHref)
     }
 
     function handleReturnClick(event: MouseEvent) {
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
       const link = event.target instanceof Element ? event.target.closest("a[href]") : null
-      if (!(link instanceof HTMLAnchorElement)) return
+      if (!(link instanceof HTMLAnchorElement) || (link.target && link.target !== "_self")) return
       const destination = new URL(returnHref, window.location.origin)
       if (link.origin === destination.origin && link.pathname === destination.pathname && link.search === destination.search) {
         rememberReturnFocus(requestId)
+        navigation.invalidate()
       }
+    }
+
+    function handleBrowserBack() {
+      if (window.location.pathname === "/") rememberReturnFocus(requestId)
     }
 
     window.addEventListener("keydown", handleKeyDown)
     document.addEventListener("click", handleReturnClick, true)
+    const stopRemembering = navigation.onHistoryReturn(handleBrowserBack)
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
       document.removeEventListener("click", handleReturnClick, true)
+      stopRemembering()
       rememberLeft(requestId)
     }
-  }, [returnHref, router, selectedRequestId])
+  }, [returnHref, router, selectedRequestId, navigation])
 
   return (
     <span

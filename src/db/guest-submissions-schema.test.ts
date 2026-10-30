@@ -4,12 +4,12 @@
  */
 import postgres from "postgres";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { TEST_DATABASE_PATH } from "@/test/test-database";
+import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_guest_submission_schema";
 const [GUEST, MEMBER, OTHER] = ["gs_schema_guest", "gs_schema_member", "gs_schema_other"];
 const url = new URL(process.env.DATABASE_URL!);
-if (!TEST_DATABASE_PATH.test(url.pathname) || !["localhost", "127.0.0.1"].includes(url.hostname)) throw Error("Local test DB only");
+requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
 
 beforeAll(async () => {

@@ -8,6 +8,7 @@ import { useOptionalDetailRequest } from "@/components/requests/detail-context";
 import { useListAnnouncer } from "@/components/requests/list-announcer";
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider";
 import { useRequestMoves } from "@/components/requests/request-moves";
+import { useRequestNavigation } from "@/components/requests/request-navigation";
 import { availableMove, pickupBlockedMessage, type LifecycleMove, type RequestStatus } from "@/lib/request-lifecycle";
 
 const NETWORK_ERRORS: Record<LifecycleMove, string> = {
@@ -42,7 +43,8 @@ export function LifecycleButtons({
   pickupRequester?: string | null;
 }) {
   const readinessId = useId();
-  const { pending, run } = useRecoverableAction();
+  const { pending: running, run } = useRecoverableAction();
+  const { continuation, deferFocus } = useRequestNavigation();
   const overlay = usePendingMutations();
   const detail = useOptionalDetailRequest();
   const announce = useListAnnouncer();
@@ -53,6 +55,7 @@ export function LifecycleButtons({
   // status elsewhere. This is the double-submit guard: a second press would
   // otherwise land on the freshly mounted Mark Done.
   const [pressedFrom, setPressedFrom] = useState<RequestStatus | null>(null);
+  const pending = running && pressedFrom !== null;
   // On detail the status comes from the full row the provider already put
   // through the overlay. A partial row here would let the overlay judge a
   // pending priority patch against a row without priority. Outside detail (a
@@ -67,19 +70,21 @@ export function LifecycleButtons({
     // Focus is read before the confirmation takes it; the dialog hands it back to the button on close.
     const hadFocus = Boolean(slot.current?.contains(document.activeElement));
     const name = detail?.name ?? "This Request";
-    if (kind === "pick-up" && !(await moves.confirmPickup([{ id: requestId, name, reviewState: detail?.request.reviewState }]))) return;
-    setPressedFrom(shownStatus);
+    const current = continuation();
     // On a refusal or a lost response useOptimisticAction rolls the patch back
     // and calls router.refresh() so the detail re-syncs with the server; a
     // success already carries the revalidated tree, so nothing refreshes then.
-    const outcome = await run(() => moves.move({ id: requestId, name }, kind, {
-      networkError: NETWORK_ERRORS[kind],
-      assignee: kind === "pick-up" && detail ? detail.viewer : undefined,
-      confirmed: kind === "pick-up",
-    }));
-    if (outcome.status !== "completed" || outcome.value.status !== "success" || !hadFocus) return;
+    const outcome = await run(() => {
+      setPressedFrom(null);
+      return moves.move({ id: requestId, name, reviewState: detail?.request.reviewState }, kind, {
+        networkError: NETWORK_ERRORS[kind],
+        assignee: kind === "pick-up" && detail ? detail.viewer : undefined,
+        onStart: () => setPressedFrom(shownStatus),
+      });
+    });
+    if (outcome.status !== "completed" || outcome.value.status !== "success" || !hadFocus || !current()) return;
     // Focus stays with the person: on the new Mark Done after a pick up, on the title once nothing is left to press.
-    requestAnimationFrame(() => {
+    deferFocus(() => {
       const active = document.activeElement;
       if (active && active !== document.body && !slot.current?.contains(active)) return;
       const next = slot.current?.querySelector<HTMLButtonElement>("button:not(:disabled)");
