@@ -184,6 +184,8 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
       await expect(shortcuts).toBeVisible();
       await expect(shortcuts.locator("kbd").first()).toBeAttached();
       await expect(page.locator("kbd:visible")).toHaveCount(0);
+      // Nor the "or" written between two caps (check page leftover).
+      await expect(shortcuts.getByText("or", { exact: true }).filter({ visible: true })).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath("key-caps-phone-390.png") });
       await page.keyboard.press("Escape");
       await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
