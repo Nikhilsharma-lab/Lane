@@ -185,7 +185,7 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
   await second.getByRole("region", { name: "Journey", exact: true }).getByRole("button", { name: "Record release", exact: true }).press("Enter");
   const form = second.getByRole("region", { name: "Journey", exact: true }).locator("form").filter({ has: second.getByLabel("Release evidence", { exact: true }) });
   await expect(form.getByLabel("Release evidence", { exact: true })).toBeVisible();
-  const exposure = form.getByLabel("Actual exposure date (UTC)", { exact: true });
+  const exposure = form.getByLabel("Release date", { exact: true });
   const today = await exposure.getAttribute("max"); expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/); await exposure.fill(today!);
   const current = form.getByLabel(/^Value before release/); if (await current.count()) await current.fill("62");
   await form.getByLabel("Release evidence", { exact: true }).fill("175 retained fixture: real Release before partial bulk Undo");
@@ -197,7 +197,7 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
     const button = bulkToast(page).getByRole("button", { name: "Undo", exact: true }); await button.focus(); await button.press("Enter"); await page.keyboard.press("Enter");
   });
   const outcomes = await undo.received(); await undo.finish(); expect(outcomes.filter(result => result.success === true)).toHaveLength(1); expect(outcomes.filter(result => typeof result.error === "string")).toHaveLength(1);
-  await expect.poll(() => item!.evaluate(node => node.isConnected && /1 of 2 could not be undone/.test(node.textContent ?? ""))).toBe(true);
+  await expect.poll(() => item!.evaluate(node => node.isConnected && /1 of 2 couldn't be undone/.test(node.textContent ?? ""))).toBe(true);
   await expect(toastRegion(page)).toContainText(fixture.a.code);
   await expect(toastRegion(page)).toContainText(String(outcomes.find(result => typeof result.error === "string")!.error));
   await expect.poll(() => item!.evaluate(node => [...node.querySelectorAll("button")].some(button => button.textContent === "Undo"))).toBe(false);
