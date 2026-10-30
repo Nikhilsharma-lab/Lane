@@ -202,6 +202,8 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
         await page.goto("/");
         const row = page.getByRole("row", { name: /Motion acceptance request/ });
         await expect(row).toBeVisible();
+        // The pressed state loads once the page has loaded and is idle (src/lib/after-page-load.ts).
+        await expect(page.locator("html[data-loading-feel=ready]")).toHaveCount(1, { timeout: 20_000 });
         // Clicks the row's title link and reads the row on the next frame, while the Request page is held back.
         looks = await row.evaluate(async element => {
           const probe = document.createElement("div");
