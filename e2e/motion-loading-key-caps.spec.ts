@@ -192,24 +192,35 @@ test("motion off, placeholders, busy buttons and key caps", async ({ page }, tes
       await page.setViewportSize({ width: 1440, height: 900 });
     });
     await test.step("The clicked row shows as pressed until the next page arrives", async () => {
-      await page.goto("/");
-      const row = page.getByRole("row", { name: /Motion acceptance request/ });
-      await expect(row).toBeVisible();
-      // Clicks the row's title link and reads the row on the next frame, long before the Request page can arrive.
-      const looks = await row.evaluate(async element => {
-        const probe = document.createElement("div");
-        probe.style.background = "var(--interaction-pressed)";
-        element.append(probe);
-        const pressed = getComputedStyle(probe).backgroundColor;
-        probe.remove();
-        const before = getComputedStyle(element).backgroundColor;
-        element.querySelector<HTMLAnchorElement>("a[href^='/requests/']")!.click();
-        await new Promise(requestAnimationFrame);
-        return { before, after: getComputedStyle(element).backgroundColor, pressed };
-      });
+      // Holds the Request page from before the list loads, so a production build's prefetch can't bring it in
+      // within the frame the row is read on.
+      let release!: () => void;
+      const held = new Promise<void>(resolve => { release = resolve; });
+      await page.route(/\/requests\/[^/?]+(\?|$)/, async route => { await held; await route.continue().catch(() => undefined); });
+      let looks: { before: string; after: string; pressed: string };
+      try {
+        await page.goto("/");
+        const row = page.getByRole("row", { name: /Motion acceptance request/ });
+        await expect(row).toBeVisible();
+        // Clicks the row's title link and reads the row on the next frame, while the Request page is held back.
+        looks = await row.evaluate(async element => {
+          const probe = document.createElement("div");
+          probe.style.background = "var(--interaction-pressed)";
+          element.append(probe);
+          const pressed = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          const before = getComputedStyle(element).backgroundColor;
+          element.querySelector<HTMLAnchorElement>("a[href^='/requests/']")!.click();
+          await new Promise(requestAnimationFrame);
+          return { before, after: getComputedStyle(element).backgroundColor, pressed };
+        });
+      } finally {
+        release();
+      }
       expect(looks.before).not.toBe(looks.pressed);
       expect(looks.after).toBe(looks.pressed);
       await expect(page).toHaveURL(/\/requests\//);
+      await page.unrouteAll({ behavior: "ignoreErrors" });
       await expect(page.getByRole("button", { name: "Pick up", exact: true })).toBeVisible();
       await expect(page.locator("[data-pressed]")).toHaveCount(0);
     });
