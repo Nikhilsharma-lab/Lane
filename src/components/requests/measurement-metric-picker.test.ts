@@ -51,6 +51,18 @@ describe("the options", () => {
     expect(render({ options: [OLD], selectedId: "d" })).toMatch(/aria-label="Old signups, archived"/);
   });
 
+  it("has one tab stop, starting on the selected metric", () => {
+    const html = render({ selectedId: "b", passFail: true, addName: "Another metric" });
+    const options = html.match(/<button[^>]*role="option"[^>]*>/g)!;
+    expect(options.filter(option => option.includes('tabindex="0"'))).toHaveLength(1);
+    expect(options.find(option => option.includes('tabindex="0"'))).toContain('aria-label="Signup completion rate"');
+  });
+
+  it("keeps the list reachable when the selected metric is filtered out", () => {
+    const html = render({ options: [SIGNUPS], selectedId: "b", passFail: true });
+    expect(html.match(/<button[^>]*tabindex="0"[^>]*>/g)).toHaveLength(1);
+  });
+
   it("keeps the Pass/fail check as its own choice beside the library", () => {
     const html = render({ passFail: true });
     expect(html).toMatch(/role="group" aria-label="Metrics library"/);

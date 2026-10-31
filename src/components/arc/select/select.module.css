@@ -14,10 +14,12 @@
 .trigger[data-state="open"] .chevron { transform: rotate(180deg); }
 .hint { color: var(--text-muted); font-size: var(--text-xs); }
 /* Radix holds the animation until the menu is positioned, so it always grows from the trigger edge. */
-.content { --menu-x: 0px; --menu-y: calc(var(--space-1) * -1.5); box-sizing: border-box; z-index: 1000; width: var(--radix-select-trigger-width); min-width: var(--radix-select-trigger-width); max-width: min(calc(var(--space-1) * 96), calc(100vw - calc(var(--space-1) * 5))); max-height: min(calc(var(--space-1) * 80), var(--radix-select-content-available-height)); overflow: hidden; border: var(--floating-border-width, var(--border-width)) solid var(--border); border-radius: var(--select-panel-radius, calc(var(--radius-control) + var(--radius-xs))); padding: var(--menu-padding, calc(var(--space-1) * 1.5)); background: var(--surface-raised); color: var(--foreground); box-shadow: var(--menu-shadow, var(--shadow-floating)); transform-origin: var(--radix-select-content-transform-origin); animation: select-in var(--duration-standard) var(--ease-enter) both; }
+.content { --menu-x: 0px; --menu-y: calc(var(--space-1) * -1.5); box-sizing: border-box; z-index: 1000; width: var(--radix-select-trigger-width); min-width: var(--radix-select-trigger-width); max-width: min(calc(var(--space-1) * 96), calc(100vw - calc(var(--space-1) * 5))); max-height: min(calc(var(--space-1) * 80), var(--radix-select-content-available-height)); overflow: hidden; overscroll-behavior: contain; border: var(--floating-border-width, var(--border-width)) solid var(--border); border-radius: var(--select-panel-radius, calc(var(--radius-control) + var(--radius-xs))); padding: var(--menu-padding, calc(var(--space-1) * 1.5)); background: var(--surface-raised); color: var(--foreground); box-shadow: var(--menu-shadow, var(--shadow-floating)); transform-origin: var(--radix-select-content-transform-origin); animation: select-in var(--duration-standard) var(--ease-enter) both; }
 .content[data-side="top"] { --menu-y: calc(var(--space-1) * 1.5); }
 .content[data-custom-trigger] { width: max-content; }
-.content[data-custom-trigger] .item { white-space: nowrap; }
+.content[data-custom-trigger] .item { white-space: normal; }
+.itemText { min-width: 0; overflow-wrap: anywhere; }
+.content[data-custom-trigger] .item { padding-block: var(--space-2); }
 .content[data-side="left"] { --menu-x: calc(var(--space-1) * 1.5); --menu-y: 0px; }
 .content[data-side="right"] { --menu-x: calc(var(--space-1) * -1.5); --menu-y: 0px; }
 .content[data-state="closed"] { animation: select-out var(--duration-instant) var(--ease-standard) both; }

@@ -1,5 +1,18 @@
 # Shared Claude / Codex handoff
 
+## October 31 — Quiet New Request approved for the app
+
+The approved Quiet modal and dropdown pass is integrated onto `b6f7c20d`, the
+current production source. It keeps main's Goal wording, loading/error components,
+deferred reads and retained composer behavior. Decision and verification:
+`docs/design-system/2026-10-31-new-request-quiet.md`.
+
+Local checks: typecheck, full lint, design contracts, build and bundle budget;
+52 safety tests, 1,016 UI tests and 2,918 app tests (one skipped). The signed-in
+local app retained the draft across close/reopen and passed the picker focus
+regressions. No real AI, upload or saved Request was submitted. Hosted deployment
+evidence follows separately; this entry does not claim it is already released.
+
 ## Oct 30 — current main integration, draft retained by request
 
 Nikhil chose **“Keep PR draft without new test resources.”** No isolated recovery

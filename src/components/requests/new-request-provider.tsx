@@ -278,7 +278,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
               // The title in the compose step, the step's heading otherwise. Until
               // the form arrives, Radix focuses the close button.
               const target = formHost.querySelector<HTMLElement>("[data-composer-autofocus]");
-              if (!target) return;
+              if (!target || (target.matches("input, textarea") && window.matchMedia("(pointer: coarse)").matches)) return;
               event.preventDefault();
               target.focus({ preventScroll: true });
             }}

@@ -482,3 +482,13 @@ Lane's nine hand-drawn key cap styles (the New Request tooltip, the empty-list "
 ### 2026-10-30 main #177 merged into Build 2 (#256)
 
 The local hashes for `src/components/arc/toast-stack/toast-stack.tsx` and `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` now record the combined files. The toast stack keeps #175's same-ID restoration during exit (the `hidden` dependency) with Build 2's swipe exit on the theme's standard duration. The Project composer keeps #172's focus ownership (`focusInput(version)`) with Build 2's failure words (`failureWords`). No component API, visual value or motion behaviour is added.
+
+## Quiet Request dropdown refinements (2026-10-31)
+
+Nikhil selected Quiet from the three-direction New Request prototype. The modal keeps a single column and uses Arc Select for Goal; MeasurementPlanFields has a plain layout for Intake only. The form controller, validation, review, draft and upload contracts are unchanged.
+
+- `src/components/arc/select/select.module.css`: custom-trigger option labels may wrap inside the existing viewport width; token spacing supplies vertical room. Short labels and selection behavior remain intact.
+- `src/components/arc/dropdown-menu/dropdown-menu.module.css`: caps menus at Radix's available height and contains their scroll so short viewports keep the final action reachable.
+- Request picker compositions use the installed Arc SearchField consistently. Their panels constrain height, long option text wraps, metric/reviewer lists keep one roving tab stop, and Retry restores search focus. Portalled Request fields use the existing base text token on touch/narrow viewports.
+
+- `src/components/arc/search-field/search-field.tsx`: the reserved clear-button slot becomes inert as soon as its value is empty. Its existing exit animation still renders, while its disappearing button cannot receive focus. Request picker Tab navigation excludes inert descendants. Public props and motion remain unchanged.

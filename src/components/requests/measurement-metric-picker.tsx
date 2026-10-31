@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type RefObject } from "react"
 import { ChartNoAxesColumnIncreasing, Check, ListChecks, Plus } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Input } from "@/components/arc/input/input"
+import { SearchField } from "@/components/arc/search-field/search-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover"
 import { RadioGroup } from "@/components/arc/radio-group/radio-group"
 import {
@@ -61,11 +62,16 @@ export function MetricOptionList({ id, options, selectedId, passFail, passFailSe
   addName?: string | null
   onAdd?: () => void
 }) {
+  const [focused, setFocused] = useState<string | null>(null)
+  const keys = [...options.map(option => option.id), ...(passFail ? ["check"] : []), ...(addName ? ["add"] : [])]
+  const preferred = passFailSelected ? "check" : selectedId
+  const active = focused && keys.includes(focused) ? focused : preferred && keys.includes(preferred) ? preferred : keys[0]
+  const focusProps = (key: string) => ({ tabIndex: key === active ? 0 : -1, onFocus: () => setFocused(key) })
   return <>
     {options.length > 0 && <div role="group" aria-label="Metrics library" className={styles.metricGroup}>
       {options.map(option => {
         const selected = option.id === selectedId
-        return <Button key={option.id} role="option" aria-selected={selected} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption} ${styles.libraryOption}`}
+        return <Button key={option.id} {...focusProps(option.id)} morph="plain" role="option" aria-selected={selected} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption} ${styles.libraryOption}`}
           aria-label={option.archived ? `${option.name}, archived` : option.name} aria-describedby={`${id}-${option.id}-details`} onClick={() => onPick(option)}>
           <Check className={styles.metricCheck} data-selected={selected} aria-hidden="true"/>
           <span className={styles.optionText}>
@@ -76,13 +82,13 @@ export function MetricOptionList({ id, options, selectedId, passFail, passFailSe
       })}
     </div>}
     {passFail && <div role="group" aria-label="Pass/fail check" className={styles.metricGroup}>
-      <Button role="option" aria-selected={passFailSelected} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption}`} onClick={() => onPick("check")}>
+      <Button {...focusProps("check")} morph="plain" role="option" aria-selected={passFailSelected} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption}`} onClick={() => onPick("check")}>
         <Check className={styles.metricCheck} data-selected={passFailSelected} aria-hidden="true"/>
         <ListChecks className={styles.icon} aria-hidden="true"/><span className={styles.triggerText}>Pass/fail check</span>
       </Button>
     </div>}
     {addName && <div role="group" aria-label="Add to the Metrics library" className={styles.metricGroup}>
-      <Button role="option" aria-selected={false} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption} ${styles.libraryOption}`} onClick={onAdd}>
+      <Button {...focusProps("add")} morph="plain" role="option" aria-selected={false} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption} ${styles.libraryOption}`} onClick={onAdd}>
         <Plus className={styles.icon} aria-hidden="true"/>
         <span className={styles.optionName}>{`Add “${addName}”`}</span>
       </Button>
@@ -224,7 +230,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
         aria-label={guardrail ? "Guardrail metric" : "Metric"} aria-invalid={!!error || undefined} aria-describedby={`${id}-value${error ? ` ${id}-error` : ""}`}>
         <ChartNoAxesColumnIncreasing className={styles.icon} aria-hidden="true"/><span id={`${id}-value`} className={styles.triggerText}>{label ?? "Choose a metric"}</span>
       </Button></PopoverTrigger>
-      <PopoverContent {...pickerPopoverProps} className={`${layout.panel} ${styles.metricPanel}`} aria-label={isAdding ? "Add a metric" : guardrail ? "Choose a guardrail metric" : "Choose a metric"}
+      <PopoverContent {...pickerPopoverProps} inert={open ? undefined : true} className={`${layout.panel} ${styles.metricPanel}`} aria-label={isAdding ? "Add a metric" : guardrail ? "Choose a guardrail metric" : "Choose a metric"}
         onOpenAutoFocus={event => { event.preventDefault(); search.current?.focus() }}
         // Escape while adding goes back to the search; the place in the form is kept either way.
         onEscapeKeyDown={event => { if (isAdding) { event.preventDefault(); if (!pending) stopAdding() } }}>
@@ -237,11 +243,12 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
           }}
           onSubmit={() => void addMetric()} onBack={stopAdding} onUseOffer={() => offer && pick(offer)}
           onRename={() => { setOffer(null); nameInput.current?.focus() }}/> : <>
-          <div className={layout.header}><Input ref={search} label="Search the Metrics library" hideLabel appearance="plain" placeholder="Search metrics…" maxLength={120} value={query}
-            aria-controls={listId} onChange={event => setQuery(event.target.value)} onKeyDown={event => {
+          <div className={layout.header}><SearchField ref={search} label="Search the Metrics library" hideLabel placeholder="Search metrics…" maxLength={120} value={query}
+            aria-controls={listId} onValueChange={setQuery} onKeyDown={event => {
+              if (event.nativeEvent.isComposing) return
               if (event.key === "Enter") {
                 event.preventDefault()
-                if (shown[0]) pick(shown[0])
+                if (library.status === "ready" && shown[0]) pick(shown[0])
                 else if (passFail) pick("check")
                 else if (addName) startAdding(addName)
               }
@@ -263,7 +270,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
             {library.status === "loading" && <Placeholder label="Loading the Metrics library" lines={1} />}
             {library.status === "error" && <div className={styles.metricError}>
               <p className={styles.error} role="alert">{library.error}</p>
-              <Button type="button" size="sm" variant="secondary" onClick={library.reload}>Try again</Button>
+              <Button type="button" size="sm" variant="secondary" onClick={() => { search.current?.focus(); library.reload(); }}>Try again</Button>
             </div>}
             {library.status === "ready" && !shown.length && <p className={styles.hint} role="status">
               {typed ? `No metric in the library is called “${typed}”.` : "The Metrics library has no metrics to pick yet."}

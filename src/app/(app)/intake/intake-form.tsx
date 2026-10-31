@@ -23,6 +23,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckIcon,
+  ChevronDown,
   PlusIcon,
   LightbulbIcon,
   PaperclipIcon,
@@ -35,7 +36,7 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Input } from "@/components/arc/input/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Textarea } from "@/components/arc/textarea/textarea";
-import { RadioGroup } from "@/components/arc/radio-group/radio-group";
+import { Select } from "@/components/arc/select/select";
 import { savedFraming, storedShape } from "@/lib/request-framing";
 import { IntakeNavigationGuard, type RegisterIntakeCloseAttempt } from "@/components/requests/intake-navigation-guard";
 import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
@@ -529,7 +530,10 @@ export default function RequestEditor({
     }
     const target = focusAfterCompose.current;
     focusAfterCompose.current = "title";
-    if (target === "title") setFocus("title");
+    if (target === "title") {
+      if (window.matchMedia("(pointer: coarse)").matches) composeFormRef.current?.focus({ preventScroll: true });
+      else setFocus("title");
+    }
     else if (target === "submit") {
       submitRef.current?.focus();
       failureRef.current?.scrollIntoView({ block: "nearest" });
@@ -909,6 +913,8 @@ export default function RequestEditor({
           <form
             id={formId}
             ref={composeFormRef}
+            tabIndex={-1}
+            aria-label="Request details"
             hidden={checking}
             noValidate
             onChangeCapture={() => { draftEdited.current = true; }}
@@ -927,15 +933,17 @@ export default function RequestEditor({
               event.preventDefault();
               addFiles(Array.from(event.dataTransfer.files));
             }}
-            className="space-y-5"
+            className={styles.form}
           >
             {restoredDraft && (
               <IntakeNotice attention>
                 Your text and links were restored. Choose any files again before creating the Request.
               </IntakeNotice>
             )}
+            <div className={styles.context}>
             <div className="space-y-2">
-              <Input
+              <Textarea
+                rows={1}
                 label="Request title"
                 hideLabel
                 appearance="plain"
@@ -1023,18 +1031,22 @@ export default function RequestEditor({
             <FieldError id="intake-reviewers-error">{offerReviewers && reviewersError}</FieldError>
             {guided && offerReviewers && <FirstRunHint>Reviewers are optional: the teammates you add answer Looks good or Raise a concern before work starts.</FirstRunHint>}
             {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on sets its goal." : "A Member takes this on and sets its goal. You’ll get an email when they do."}</p>}
-            {!withoutPrediction && currentValues.expectedImpact && <>
+            </div>
+            {!withoutPrediction && currentValues.expectedImpact && <div className={styles.impact}>
               {guided && <FirstRunHint>Set the goal: pick the metric from the Metrics library, where it is now and where you want it to go.</FirstRunHint>}
-              <RadioGroup
-                label="Goal"
-                name="expected-impact-choice"
-                value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
-                onValueChange={(next) => chooseImpact(next === "none" ? "none" : "measure")}
-                options={[
-                  { value: "measure", label: "Measure a result" },
-                  { value: "none", label: "No measurable impact", description: "Operational work. Its reason is kept, and it is left out of every total." },
-                ]}
-              />
+              <div className={styles.impactHeading}>
+                <h2>Goal</h2>
+                <Select label="Goal" name="expected-impact-choice" disabled={checking}
+                  value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
+                  onValueChange={next => { if (next === "none" || next === "measure") chooseImpact(next); }}
+                  onContentKeyDown={event => event.stopPropagation()}
+                  options={[{ value: "measure", label: "Measure a result" }, { value: "none", label: "No measurable impact" }]}
+                  trigger={<Button type="button" variant="secondary" size="sm" disabled={checking}
+                    aria-label={`Goal: ${currentValues.expectedImpact.kind === "no_measurable_impact" ? "No measurable impact" : "Measure a result"}`}>
+                    {currentValues.expectedImpact.kind === "no_measurable_impact" ? "No measurable impact" : "Measure a result"}<ChevronDown data-icon-size="sm" aria-hidden="true" />
+                  </Button>} />
+              </div>
+              {currentValues.expectedImpact.kind === "no_measurable_impact" && <p className={styles.impactExplanation}>Operational work. Its reason is kept, and it is left out of every total.</p>}
               {currentValues.expectedImpact.kind === "no_measurable_impact" ? (
                 <Textarea
                   label="Why there is no measurable impact"
@@ -1052,6 +1064,7 @@ export default function RequestEditor({
                   <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
                 )}
                 <PlanFields
+                  layout="plain"
                   // The library is read on the first open, not while the closed composer renders ahead of it (#296).
                   orgId={active ? context.orgId : undefined}
                   value={currentValues.expectedImpact}
@@ -1061,7 +1074,7 @@ export default function RequestEditor({
                   submitted={isSubmitted}
                 />
               </>}
-            </>}
+            </div>}
             {editing && savedProblem !== null && <Textarea ref={problemFieldRef} label="Problem to solve" value={savedProblem} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "reframedProblem" ? framingError.message : undefined} onChange={event => { setSavedProblem(event.target.value); setFramingError(null); }} />}
             {editing && savedSolution !== null && <Textarea ref={solutionFieldRef} label="Suggested change" value={savedSolution} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "extractedSolution" ? framingError.message : undefined} onChange={event => { setSavedSolution(event.target.value); setFramingError(null); }} />}
             <EarlierDraftDetails values={currentValues} error={earlierDraftFields.map(({ name }) => errors[name]?.message).find(Boolean)} />
