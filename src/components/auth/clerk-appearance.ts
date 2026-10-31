@@ -32,19 +32,19 @@ export const clerkNeutralVariables = {
 // Sign-in links read Lane's link ink instead; the button keeps the plate (#93).
 const authLink = { color: "var(--link-ink)", "&:hover": { color: "var(--link-ink)" } };
 
-const authControl = { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", borderRadius: "var(--button-radius-md)" };
+const authControl = {
+  minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)",
+  fontWeight: "var(--weight-medium)", borderRadius: "var(--button-radius-md)",
+  "@media (pointer: coarse)": { minHeight: "var(--size-inner-xlarge)" },
+};
+
+const controlFocus = { "&:focus, &:focus-visible, &:focus:not(:focus-visible)": { boxShadow: "none" } };
+const inputFocus = { "&:focus-within, &[data-focus-within=true]": { boxShadow: "none", borderColor: "var(--input-border-hover)" } };
 
 /**
  * Plan item 2.11: Clerk's sign-in, sign-up and session-task cards in Lane's auth
- * column, so they read like the forgot and reset pages Lane draws itself.
- * Clerk's spacing unit becomes Lane's (its $N is then --space-N: $8 from the
- * heading to the form and from the fields to the button, $6 between fields,
- * as auth.module.css spaces the recovery form). The
- * title takes Lane's auth title tokens (auth.module.css .title), the subtitle
- * Lane's description with its --space-3 gap (Clerk's own column gap is $1),
- * and inputs and buttons are Arc's md Input and Button. The plan's 24px title
- * and 36px inputs predate the 2026-10-13 Supabase tokens and resolve to
- * --text-2xl and --control-height-md. Clerk keeps its copy, steps and footer.
+ * column. Clerk owns every auth step; Lane supplies the same control materials
+ * and compact spacing as its recovery forms and loading skeleton.
  */
 export const clerkEmbeddedAppearance = {
   variables: {
@@ -59,13 +59,40 @@ export const clerkEmbeddedAppearance = {
   elements: {
     rootBox: { width: "100%" },
     cardBox: { width: "100%", maxWidth: "100%" },
-    card: { width: "100%" },
+    card: { width: "100%", gap: "var(--space-6)" },
+    header: { textAlign: "start", alignItems: "flex-start", gap: "var(--space-2)" },
+    main: { gap: "var(--space-5)" },
+    form: { gap: "var(--space-5)" },
+    formFieldRow: { gap: "var(--space-4)" },
     headerTitle: { fontFamily: "var(--font-display)", fontSize: "var(--text-2xl)", lineHeight: "var(--leading-display)", letterSpacing: "var(--tracking-display)", fontWeight: "var(--weight-semibold)" },
-    headerSubtitle: { marginTop: "calc(var(--space-3) - var(--space-1))", color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)" },
+    headerSubtitle: { marginTop: 0, color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)" },
     // Arc's Input answers focus with its border colour alone; Clerk's 4px halo would also show on pointer focus.
-    formFieldInput: { minHeight: "var(--control-height-md)", paddingBlock: 0, fontSize: "var(--text-sm)", borderRadius: "var(--radius-control)", "&:focus, &:focus-visible": { boxShadow: "none" } },
-    formButtonPrimary: { ...authControl, "&:hover": { backgroundColor: "var(--primary-hover-background)" } },
-    socialButtonsBlockButton: authControl,
+    formFieldInput: {
+      minHeight: "var(--control-height-md)", paddingBlock: 0, paddingInlineStart: "var(--space-3)", fontSize: "var(--text-base)", borderRadius: "var(--radius-control)",
+      "&[data-variant=default]": {
+        boxShadow: "none", border: "var(--border-width) solid var(--input-border)", backgroundColor: "var(--input-background)", color: "var(--foreground)",
+        "&:hover": { boxShadow: "none" },
+        ...inputFocus,
+        "&[data-feedback]": { boxShadow: "none", "&:hover": { boxShadow: "none" }, ...inputFocus },
+        "&[data-feedback=error]": { borderColor: "var(--danger)", "&:focus-within": { borderColor: "var(--danger)" } },
+        "&[data-feedback=warning]": { borderColor: "var(--warning)", "&:focus-within": { borderColor: "var(--warning)" } },
+        "&[data-feedback=success]": { borderColor: "var(--success)", "&:focus-within": { borderColor: "var(--success)" } },
+      },
+      "@media (pointer: coarse)": { minHeight: "var(--size-inner-xlarge)" },
+    },
+    formButtonPrimary: {
+      ...authControl,
+      "&[data-variant=solid][data-color=primary]": { border: "var(--border-width) solid var(--primary)", boxShadow: "var(--button-default-shadow)", ...controlFocus },
+      "&[data-variant=solid]::after": { background: "none" },
+      "@media (hover: hover) and (pointer: fine)": { "&:hover": { backgroundColor: "var(--primary-hover-background)" } },
+    },
+    socialButtonsBlockButton: {
+      ...authControl, color: "var(--foreground)", backgroundColor: "var(--button-secondary-background)",
+      "&[data-variant=outline]": { border: "var(--border-width) solid var(--border-strong)", boxShadow: "var(--button-default-shadow)", ...controlFocus },
+      "@media (hover: hover) and (pointer: fine)": { "&:hover": { backgroundColor: "var(--button-secondary-hover)" } },
+    },
+    socialButtonsBlockButtonText: { color: "var(--foreground)", fontWeight: "var(--weight-medium)" },
+    footer: { gap: "var(--space-4)" },
     footerActionLink: authLink,
     formResendCodeLink: authLink,
     identityPreviewEditButton: authLink,

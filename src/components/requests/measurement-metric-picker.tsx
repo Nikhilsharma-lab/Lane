@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useId, useRef, useState, type RefObject } from "react"
-import { ChartNoAxesColumnIncreasing, Check, ListChecks, Plus } from "lucide-react"
+import { ArrowUpRight, ChartNoAxesColumnIncreasing, Check, ListChecks, Plus } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Input } from "@/components/arc/input/input"
 import { SearchField } from "@/components/arc/search-field/search-field"
@@ -119,7 +119,7 @@ export function InlineMetricForm({ id, values, fields, error, offer, pending, on
 }) {
   return <form className={styles.inlineAdd} noValidate aria-busy={pending || undefined} aria-label="Add a metric to the Metrics library" aria-describedby={`${id}-add-note`}
     onSubmit={event => { event.preventDefault(); event.stopPropagation(); if (!offer) onSubmit() }}>
-    <p id={`${id}-add-note`} className={styles.hint}>Add to the Metrics library. You can add a source and counting method there later.</p>
+    <p id={`${id}-add-note`} className={styles.hint}>Add a metric for your workspace to reuse.</p>
     <Input ref={nameRef} label="Name" value={values.name} maxLength={METRIC_NAME_MAX} readOnly={pending} error={fields.name} autoComplete="off"
       onChange={event => onChange({ ...values, name: event.target.value })}/>
     {offer ? <div className={styles.inlineOffer}>
@@ -275,10 +275,12 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
               {typed ? `No metric in the library is called “${typed}”.` : "The Metrics library has no metrics to pick yet."}
               {!library.canAddMetrics && " A Member or Admin can add it to the Metrics library."}
             </p>}
-            {library.canOpenLibrary && <a className={styles.libraryLink} href={METRICS_PAGE} target="_blank" rel="noopener noreferrer">
-              Open the Metrics library<span className="sr-only"> (opens in a new tab)</span>
-            </a>}
           </div>
+          {library.canOpenLibrary && <div className={styles.metricFooter}>
+            <a className={styles.libraryLink} href={METRICS_PAGE} target="_blank" rel="noopener noreferrer">
+              Metrics library<ArrowUpRight data-icon-size="sm" aria-hidden="true" /><span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          </div>}
         </>}
       </PopoverContent>
     </Popover>

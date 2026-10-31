@@ -47,14 +47,14 @@
 .guardrailControls > .field { max-width: 100%; }
 .thresholdRow { display: grid; width: calc(var(--spacing) * 88); max-width: 100%; grid-template-columns: fit-content(55%) minmax(0, 1fr); gap: var(--space-2); align-items: center; }
 .metricPanel { width: calc(var(--spacing) * 88); max-width: calc(100vw - var(--space-6)); }
-.metricOptions { display: grid; min-height: 0; max-height: min(calc(var(--spacing) * 80), 45dvh); overflow-y: auto; overscroll-behavior: contain; }
+.metricOptions { display: grid; align-content: start; min-height: 0; max-height: min(calc(var(--spacing) * 80), 45dvh); overflow-y: auto; overscroll-behavior: contain; }
 .metricOption { width: 100%; justify-content: flex-start; gap: var(--space-2); }
 .metricCheck { width: var(--icon-size-md); height: var(--icon-size-md); flex: none; visibility: hidden; }
 .metricCheck[data-selected="true"] { visibility: visible; }
-/* The Metrics library picker (#198): each option reads its name, then its unit, how it's counted and where it lives. */
+/* Names wrap without borrowing space from the following option. */
 .metricGroup { display: grid; min-width: 0; }
 .metricGroup + .metricGroup { margin-top: var(--space-1); padding-top: var(--space-1); border-top: var(--border-width) solid var(--border-subtle); }
-.libraryOption { height: auto; padding-block: var(--space-2); align-items: flex-start; text-align: start; }
+.metricOption.libraryOption { height: auto; padding-block: var(--space-2); align-items: flex-start; text-align: start; }
 .optionText { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; min-width: 0; gap: var(--space-3); }
 .optionName { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; white-space: normal; }
 .optionTag { color: var(--text-muted); font-size: var(--text-xs); font-weight: var(--weight-normal); }
@@ -62,7 +62,11 @@
 .metricStatus { display: grid; gap: var(--space-2); padding: var(--space-2); }
 .metricStatus:empty { display: none; }
 .metricError { display: grid; gap: var(--space-2); justify-items: start; }
-.libraryLink { justify-self: start; color: var(--link-ink); font-size: var(--text-sm); border-radius: var(--corner-sm); }
+.metricFooter { border-top: var(--border-width) solid var(--border-subtle); margin-top: var(--space-1); padding-top: var(--space-1); }
+.libraryLink { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--menu-row-height); padding: var(--menu-item-padding); color: var(--text-secondary); font-size: var(--text-sm); border-radius: var(--radius-control); text-decoration: none; }
+@media (hover: hover) and (pointer: fine) { .libraryLink:hover { color: var(--foreground); background: var(--interaction-hover); } }
+.libraryLink:focus-visible, .libraryLink:active { color: var(--foreground); background: var(--interaction-hover); }
+@media (pointer: coarse) { .metricOption, .libraryLink { min-height: var(--size-inner-xlarge); } }
 /* Adding a metric from the picker (#199): name, unit, then the actions; long names wrap. */
 .inlineAdd { display: grid; gap: var(--space-3); padding: var(--space-3); min-width: 0; overflow-wrap: anywhere; }
 .inlineUnit, .inlineOffer { display: grid; gap: var(--space-2); min-width: 0; }

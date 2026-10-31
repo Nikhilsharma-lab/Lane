@@ -6,6 +6,8 @@
 .unit { display: grid; gap: var(--space-2); }
 .lockedUnit { display: grid; gap: var(--space-1); font-size: var(--text-sm); line-height: var(--leading-body); }
 .lockedLabel { font-weight: var(--weight-medium); }
+.savedDefinition { display: grid; gap: var(--space-2); padding-top: var(--space-4); border-top: var(--border-width) solid var(--border-subtle); font-size: var(--text-sm); line-height: var(--leading-body); }
+.savedDefinition p { margin: 0; color: var(--text-secondary); overflow-wrap: anywhere; white-space: pre-wrap; }
 .note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 .error { margin: 0; color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); padding-top: var(--space-2); }

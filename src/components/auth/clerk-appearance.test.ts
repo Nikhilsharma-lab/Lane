@@ -108,7 +108,7 @@ describe("clerkEmbeddedAppearance", () => {
 
   it("takes Lane's auth title, Arc's md controls and Lane's spacing unit", () => {
     expect(elements.headerTitle).toMatchObject({ fontFamily: "var(--font-display)", fontSize: "var(--text-2xl)", lineHeight: "var(--leading-display)" });
-    expect(elements.formFieldInput).toMatchObject({ minHeight: "var(--control-height-md)", fontSize: "var(--text-sm)" });
+    expect(elements.formFieldInput).toMatchObject({ minHeight: "var(--control-height-md)", fontSize: "var(--text-base)" });
     expect(elements.formButtonPrimary).toMatchObject({ minHeight: "var(--control-height-md)", borderRadius: "var(--button-radius-md)" });
     expect(variables.colorPrimary).toBe("var(--primary)");
     expect(variables.colorPrimaryForeground).toBe("var(--primary-foreground)");
@@ -122,8 +122,8 @@ describe("clerkEmbeddedAppearance", () => {
   });
 
   it("answers input focus with the border alone and hovers the primary with Lane's token", () => {
-    expect(elements.formFieldInput["&:focus, &:focus-visible"]).toEqual({ boxShadow: "none" });
-    expect(elements.formButtonPrimary["&:hover"]).toEqual({ backgroundColor: "var(--primary-hover-background)" });
+    expect(elements.formFieldInput["&[data-variant=default]"]["&:focus-within, &[data-focus-within=true]"]).toMatchObject({ boxShadow: "none", borderColor: "var(--input-border-hover)" });
+    expect(elements.formButtonPrimary["@media (hover: hover) and (pointer: fine)"]["&:hover"]).toEqual({ backgroundColor: "var(--primary-hover-background)" });
   });
 
   it("matches the title Lane draws on the forgot and reset pages", () => {
@@ -134,7 +134,7 @@ describe("clerkEmbeddedAppearance", () => {
 
   it("keeps Clerk's header, copy and steps, and reads every value from a token", () => {
     const keys = elements as Record<string, unknown>;
-    for (const key of ["header", "footer", "footerAction", "main", "form"]) expect(keys[key]).toBeUndefined();
+    for (const key of ["footerAction"]) expect(keys[key]).toBeUndefined();
     expect(JSON.stringify(clerkEmbeddedAppearance).match(/\d+(?:\.\d+)?(?:px|rem|em)\b|#[0-9a-f]{3,8}\b/gi)).toBeNull();
   });
 });
