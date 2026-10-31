@@ -53,20 +53,24 @@ function register(id: string, timings: ServerTimings) {
   registry.byId.set(id, timings);
 }
 
+/** The request's headers, or null outside a request (a test calling a page or a route directly). */
+async function requestHeaders(): Promise<Headers | null> {
+  try {
+    return await headers();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * This render's timings. Null for anything that isn't a page render the proxy tagged: a server action (which
  * shares its page's address), a route handler, or a test rendering a page directly.
  */
 const renderTimings = cache(async function renderTimings(): Promise<ServerTimings | null> {
-  let requestHeaders: Headers;
-  try {
-    requestHeaders = await headers();
-  } catch {
-    return null;
-  }
-  const id = requestHeaders.get(TIMING_ID_HEADER);
-  if (!id || requestHeaders.has("next-action")) return null;
-  const timings = createServerTimings({ clock, kind: kindOf(requestHeaders), cold: !registry.rendered });
+  const incoming = await requestHeaders();
+  const id = incoming?.get(TIMING_ID_HEADER);
+  if (!incoming || !id || incoming.has("next-action")) return null;
+  const timings = createServerTimings({ clock, kind: kindOf(incoming), cold: !registry.rendered });
   registry.rendered = true;
   hookResponseHead();
   register(id, timings);
@@ -104,7 +108,7 @@ export function callTimings(route: RoutePattern) {
       console.info(timings.logLine());
     },
     async respond(response: Response): Promise<Response> {
-      const id = (await headers()).get(READ_TIMING_ID_HEADER);
+      const id = (await requestHeaders())?.get(READ_TIMING_ID_HEADER);
       if (!id) {
         timings.markFirstByte();
         console.info(timings.logLine());
