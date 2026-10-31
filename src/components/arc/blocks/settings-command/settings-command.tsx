@@ -4,7 +4,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { LayoutGroup, animate, motion, useMotionValue } from "motion/react";
+import { LayoutGroup, animate, m, useMotionValue } from "motion/react";
 import { Search, CornerDownLeft } from "lucide-react";
 import { motionTokens } from "../../lib/motion-tokens";
 import styles from "./settings-command.module.css";
@@ -106,7 +106,7 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
   }
 
   const listId = `${uid}-results`;
-  return <motion.div className={styles.palette} role="dialog" aria-modal="true" aria-label="Search settings" style={{ x, y, width: w, height: h, borderRadius: radius, opacity: shell }}>
+  return <m.div className={styles.palette} role="dialog" aria-modal="true" aria-label="Search settings" style={{ x, y, width: w, height: h, borderRadius: radius, opacity: shell }}>
     <div ref={content} className={styles.paletteContent} style={{ width: target.width }}>
       <div className={styles.paletteField}>
         <Search data-icon-size="md" aria-hidden="true" />
@@ -115,7 +115,7 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
           aria-activedescendant={shown[active] ? `${uid}-option-${shown[active].def.id}` : undefined} spellCheck={false} autoComplete="off" />
         <KeyCap>Esc</KeyCap>
       </div>
-      <motion.div className={styles.paletteBody} style={{ opacity: body }}>
+      <m.div className={styles.paletteBody} style={{ opacity: body }}>
         {!query.trim() && <p className={styles.paletteHint}>Suggested</p>}
         {shown.length
           ? <LayoutGroup id={`${uid}-palette`}><ul ref={list} id={listId} role="listbox" aria-label="Matching settings" className={styles.results}>
@@ -124,7 +124,7 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
               const selected = index === active;
               return <li key={result.def.id} id={`${uid}-option-${result.def.id}`} data-index={index} role="option" aria-selected={selected}
                 className={styles.result} onPointerMove={() => { if (!selected) onActive(index); }} onPointerDown={event => event.preventDefault()} onClick={() => onPick(result)}>
-                {selected && <motion.span className={styles.resultHighlight} layoutId="active" transition={reduce ? { duration: 0 } : motionTokens.spring.snappy} aria-hidden="true" />}
+                {selected && <m.span className={styles.resultHighlight} layoutId="active" transition={reduce ? { duration: 0 } : motionTokens.spring.snappy} aria-hidden="true" />}
                 <Icon data-icon-size="sm" aria-hidden="true" />
                 <span className={styles.resultText}>
                   <span className={styles.resultLabel}><Highlight text={result.def.label} match={result.match} /></span>
@@ -139,9 +139,9 @@ export function SettingsCommandPalette({ uid, origin, frameWidth, closing, onClo
           <span><KeyCap>↑</KeyCap><KeyCap>↓</KeyCap> Move</span>
           <span><KeyCap>↵</KeyCap> Jump to setting</span>
         </div>
-      </motion.div>
+      </m.div>
     </div>
-  </motion.div>;
+  </m.div>;
 }
 
 

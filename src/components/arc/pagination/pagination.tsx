@@ -1,7 +1,7 @@
 "use client";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft as NavArrowLeft, ChevronRight as NavArrowRight } from "lucide-react";
-import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, type Variants } from "motion/react";
+import { AnimatePresence, animate, m, useMotionValue, useReducedMotion, type Variants } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./pagination.module.css";
 export interface PaginationProps { page: number; pageCount: number; onPageChange: (page: number) => void; label?: string }
@@ -47,11 +47,11 @@ export function Pagination({ page, pageCount, onPageChange, label = "Pagination"
 
   if (!safePageCount) return <nav className={styles.nav} aria-label={label} />;
   return <nav ref={navRef} className={styles.nav} aria-label={label}><button type="button" className={styles.step} onClick={() => onPageChange(currentPage - 1)} disabled={currentPage <= 1} aria-label="Previous page"><NavArrowLeft aria-hidden="true" /></button>
-    <motion.span aria-hidden="true" className={styles.mark} style={{ x: markX, y: markY }} />
+    <m.span aria-hidden="true" className={styles.mark} style={{ x: markX, y: markY }} />
     <AnimatePresence mode="popLayout" initial={false} custom={shift}>
-      {visible.map(number => <motion.button type="button" key={number} onClick={() => onPageChange(number)} aria-label={`Page ${number}`} aria-current={currentPage === number ? "page" : undefined}
+      {visible.map(number => <m.button type="button" key={number} onClick={() => onPageChange(number)} aria-label={`Page ${number}`} aria-current={currentPage === number ? "page" : undefined}
         layout={reduced ? false : "position"} layoutDependency={start} custom={shift} variants={slide} initial={reduced ? false : "enter"} animate="center" exit={reduced ? undefined : "exit"}
-        transition={reduced ? { duration: 0 } : { x: motionTokens.spring.smooth, layout: motionTokens.spring.smooth, opacity: { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] } }}>{number}</motion.button>)}
+        transition={reduced ? { duration: 0 } : { x: motionTokens.spring.smooth, layout: motionTokens.spring.smooth, opacity: { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] } }}>{number}</m.button>)}
     </AnimatePresence>
     <button type="button" className={styles.step} onClick={() => onPageChange(currentPage + 1)} disabled={currentPage >= safePageCount} aria-label="Next page"><NavArrowRight aria-hidden="true" /></button></nav>;
 }

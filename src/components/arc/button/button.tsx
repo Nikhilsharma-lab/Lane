@@ -2,7 +2,7 @@
 
 import { forwardRef, isValidElement, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode, Ref, RefObject } from "react";
-import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion } from "motion/react";
+import { AnimatePresence, animate, m, useIsPresent, useMotionValue, useReducedMotion } from "motion/react";
 import type { TargetAndTransition, Variants } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./button.module.css";
@@ -84,7 +84,7 @@ function LabelPhase({ children, icon, reduced, plain, ref }: { children: ReactNo
   const present = useIsPresent();
   const initial = plain ? reduced ? plainFadeIn : icon ? plainIconIn : plainTextIn : reduced ? fadeIn : icon ? iconIn : textIn;
   const exit = reduced ? fadeOut : plain ? icon ? plainIconOut : plainTextOut : icon ? iconOut : textOut;
-  return <motion.span ref={ref} className={styles.labelPhase} aria-hidden={present ? undefined : true} initial={initial} animate={plain ? plainRest : rest} exit={exit} transition={reduced ? { duration: motionTokens.duration.instant } : icon ? iconEnter : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{children}</motion.span>;
+  return <m.span ref={ref} className={styles.labelPhase} aria-hidden={present ? undefined : true} initial={initial} animate={plain ? plainRest : rest} exit={exit} transition={reduced ? { duration: motionTokens.duration.instant } : icon ? iconEnter : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{children}</m.span>;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -108,7 +108,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   const classes = [styles.button, styles[variant], styles[size], className].filter(Boolean).join(" ");
 
   return (
-    <motion.button
+    <m.button
       ref={setRefs}
       tabIndex={props.tabIndex ?? 0}
       className={classes}
@@ -124,16 +124,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       onClick={loading ? event => event.preventDefault() : onClick}
     >
       <AnimatePresence initial={false}>
-        {loading ? <motion.span key="loader" className={styles.loader} aria-hidden="true" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={reduceMotion ? fadeOut : morph === "plain" ? { ...plainIconOut, scale: .8 } : { ...iconOut, scale: .8 }} transition={reduceMotion ? { duration: motionTokens.duration.instant } : iconEnter}><span className={styles.spinner} /></motion.span> : null}
+        {loading ? <m.span key="loader" className={styles.loader} aria-hidden="true" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: .6 }} animate={{ opacity: 1, scale: 1 }} exit={reduceMotion ? fadeOut : morph === "plain" ? { ...plainIconOut, scale: .8 } : { ...iconOut, scale: .8 }} transition={reduceMotion ? { duration: motionTokens.duration.instant } : iconEnter}><span className={styles.spinner} /></m.span> : null}
       </AnimatePresence>
-      <motion.span className={[styles.labelSlot, loading ? styles.loadingLabel : ""].filter(Boolean).join(" ")} style={{ width }}>
+      <m.span className={[styles.labelSlot, loading ? styles.loadingLabel : ""].filter(Boolean).join(" ")} style={{ width }}>
         <span ref={contentRef} className={styles.labelContent}>
           <AnimatePresence mode="popLayout" initial={false}>
             <LabelPhase key={key} icon={!/\S/.test(key.replace(/<[^>]*>/g, ""))} reduced={reduceMotion} plain={morph === "plain"}>{children}</LabelPhase>
           </AnimatePresence>
         </span>
-      </motion.span>
-    </motion.button>
+      </m.span>
+    </m.button>
   );
 });
 

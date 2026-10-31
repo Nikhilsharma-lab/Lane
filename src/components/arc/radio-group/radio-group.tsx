@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useId, useLayoutEffect, useRef } from "react";
-import { animate, motion, useReducedMotion } from "motion/react";
+import { animate, m, useReducedMotion } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./radio-group.module.css";
 import { KeyCap } from "@/components/keyboard/key-caps";
@@ -47,7 +47,7 @@ export function RadioGroup({ label, options, value, onValueChange, name }: Radio
     <span ref={highlightRef} className={styles.highlight} aria-hidden="true" />
     {options.map((option, index) => { const checked = value === option.value; return <label className={styles.option} key={option.value} ref={node => { rows.current[index] = node; }}>
       <input type="radio" name={name ?? id} value={option.value} checked={checked} aria-keyshortcuts={option.shortcut} onChange={() => onValueChange(option.value)}/>
-      <span className={styles.mark} aria-hidden="true"><motion.span className={styles.dot} initial={false} animate={checked ? { scale: 1, opacity: 1 } : { scale: .4, opacity: 0 }} transition={reduced ? { duration: 0 } : { ...motionTokens.spring.snappy, opacity: { duration: checked ? motionTokens.duration.fast : motionTokens.duration.instant } }}/></span>
+      <span className={styles.mark} aria-hidden="true"><m.span className={styles.dot} initial={false} animate={checked ? { scale: 1, opacity: 1 } : { scale: .4, opacity: 0 }} transition={reduced ? { duration: 0 } : { ...motionTokens.spring.snappy, opacity: { duration: checked ? motionTokens.duration.fast : motionTokens.duration.instant } }}/></span>
       <span><strong>{option.label}</strong>{option.description && <small>{option.description}</small>}</span>
       {option.shortcut && <KeyCap className={styles.shortcut}>{option.shortcut}</KeyCap>}
     </label>; })}

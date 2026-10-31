@@ -3,7 +3,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ComponentPropsWithoutRef, CSSProperties, FocusEvent, KeyboardEvent, PointerEvent as ReactPointerEvent, ReactNode, WheelEvent } from "react";
-import { AnimatePresence, animate, motion, useMotionValue, usePresence, useReducedMotion, useTransform } from "motion/react";
+import { AnimatePresence, animate, m, useMotionValue, usePresence, useReducedMotion, useTransform } from "motion/react";
 import { X } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./bottom-sheet.module.css";
@@ -366,7 +366,7 @@ function Sheet({ title, description, detents = [.45, .92], initialDetent = 0, on
 
   return <>
     <DialogPrimitive.Overlay asChild forceMount>
-      <motion.div className={styles.overlay} style={{ opacity: backdrop }} />
+      <m.div className={styles.overlay} style={{ opacity: backdrop }} />
     </DialogPrimitive.Overlay>
     <DialogPrimitive.Content
       asChild
@@ -378,7 +378,7 @@ function Sheet({ title, description, detents = [.45, .92], initialDetent = 0, on
       // Radix waits for the click before treating a press as outside. A press on the trigger while the sheet leaves reopens it first, so that press must not close it again.
       onPointerDownOutside={event => { contentProps?.onPointerDownOutside?.(event); const { present, at } = presenceChange.current; if (!present || event.detail.originalEvent.timeStamp < at) event.preventDefault(); }}
     >
-      <motion.div ref={sheetRef} className={[styles.sheet, className].filter(Boolean).join(" ")} style={style} data-layout={layout} data-expanded={expanded ? "" : undefined} onKeyDown={sheetKey}>
+      <m.div ref={sheetRef} className={[styles.sheet, className].filter(Boolean).join(" ")} style={style} data-layout={layout} data-expanded={expanded ? "" : undefined} onKeyDown={sheetKey}>
         <div className={styles.header} onPointerDown={headerDown} onPointerMove={headerMove} onPointerUp={headerUp} onPointerCancel={headerUp}>
           <button type="button" className={styles.grabber} data-grabber="" aria-label={expanded ? "Collapse sheet" : "Expand sheet"} aria-expanded={expanded} onClick={grabberClick} onKeyDown={grabberKey}>
             <span className={styles.grabberBar} aria-hidden="true" />
@@ -395,7 +395,7 @@ function Sheet({ title, description, detents = [.45, .92], initialDetent = 0, on
         </div>
         <div ref={bodyRef} className={styles.body} onWheel={bodyWheel} onFocus={bodyFocus}>{children}</div>
         <span className={styles.srOnly} role="status" aria-live="polite">{announcement}</span>
-      </motion.div>
+      </m.div>
     </DialogPrimitive.Content>
   </>;
 }

@@ -3,7 +3,7 @@
 import { forwardRef, useId, useState } from "react";
 import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
@@ -63,7 +63,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
           <span className={styles.srOnly}><SelectPrimitive.Value placeholder={placeholder} /></span>
           <span className={styles.valueText} aria-hidden="true">
             <AnimatePresence initial={false} custom={direction}>
-              <motion.span key={currentValue ? `value-${currentValue}` : "placeholder"} data-placeholder={currentValue ? undefined : ""} custom={direction} variants={reduceMotion ? valueFade : valueRoll} initial="enter" animate="center" exit="exit">{shown}</motion.span>
+              <m.span key={currentValue ? `value-${currentValue}` : "placeholder"} data-placeholder={currentValue ? undefined : ""} custom={direction} variants={reduceMotion ? valueFade : valueRoll} initial="enter" animate="center" exit="exit">{shown}</m.span>
             </AnimatePresence>
           </span>
           <SelectPrimitive.Icon className={styles.chevron}>

@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, LayoutGroup, m, useReducedMotion } from "motion/react";
 import { ArrowLeft, Search, UserRound, Palette, ShieldCheck, Building2, Users, Clock, ChartLine, Mail, MessageSquare, CreditCard } from "lucide-react";
 import { SettingsCommandPalette, relativeRect, type Rect, type Closing, type Result } from "@/components/arc/blocks/settings-command/settings-command";
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
@@ -153,7 +153,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
               if (!showsSettingsInPlace(settingsHref(entry.id), window.location.pathname)) return;
               event.preventDefault(); select(entry.id);
             }}>
-            {current === entry.id && <motion.span className={styles.navHighlight} layoutId="selection" transition={reduce ? { duration: 0 } : motionTokens.spring.morph} aria-hidden="true" />}
+            {current === entry.id && <m.span className={styles.navHighlight} layoutId="selection" transition={reduce ? { duration: 0 } : motionTokens.spring.morph} aria-hidden="true" />}
             <Icon aria-hidden="true" /><span>{entry.label}</span>
           </Link>
         </li>; })}
@@ -168,7 +168,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
         </section>)}
       </div>
     </section>
-    <AnimatePresence>{palette && <motion.div className={styles.scrim} onPointerDown={closePalette} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} aria-hidden="true" />}</AnimatePresence>
+    <AnimatePresence>{palette && <m.div className={styles.scrim} onPointerDown={closePalette} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} aria-hidden="true" />}</AnimatePresence>
     {palette && <SettingsCommandPalette uid={uid} origin={palette.origin} frameWidth={palette.width} closing={closing} onClosed={onClosed} query={query} onQuery={setQuery} results={results} suggestions={suggestions} active={active} onActive={setActive} onPick={pick} onClose={closePalette} reduce={reduce} />}
   </div>;
 }
