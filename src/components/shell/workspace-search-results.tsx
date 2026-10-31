@@ -5,7 +5,7 @@
 import { Fragment, memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
 import Link from "next/link";
 import { isSameTabRequestLink } from "@/components/requests/request-navigation";
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, LayoutGroup, m, useReducedMotion } from "motion/react";
 import { CalendarDays, Clock, Link2, Search, SearchX, SlidersHorizontal, X } from "lucide-react";
 import { Alert } from "@/components/arc/alert/alert";
 import { Badge } from "@/components/arc/badge/badge";
@@ -75,7 +75,7 @@ function CountRoll({ value }: { value: number }) {
   const [state, setState] = useState({ value, direction: 1 });
   if (state.value !== value) setState({ value, direction: value > state.value ? 1 : -1 });
   return <span className={styles.roll}><AnimatePresence mode="popLayout" initial={false} custom={state.direction}>
-    <motion.span key={value} custom={state.direction} variants={{ enter: (d: number) => ({ y: reduced ? 0 : `${d * .7}em`, opacity: 0 }), center: { y: 0, opacity: 1 }, exit: (d: number) => ({ y: reduced ? 0 : `${d * -.7}em`, opacity: 0 }) }} initial="enter" animate="center" exit="exit" transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}>{value}</motion.span>
+    <m.span key={value} custom={state.direction} variants={{ enter: (d: number) => ({ y: reduced ? 0 : `${d * .7}em`, opacity: 0 }), center: { y: 0, opacity: 1 }, exit: (d: number) => ({ y: reduced ? 0 : `${d * -.7}em`, opacity: 0 }) }} initial="enter" animate="center" exit="exit" transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}>{value}</m.span>
   </AnimatePresence></span>;
 }
 
@@ -117,7 +117,7 @@ const ResultRow = memo(function ResultRow({ result, optionId, pattern, selected,
   const code = codeOf(result);
   const snippet = snippetOf(result);
   return <li id={optionId} role="option" aria-selected={selected} aria-label={nameOf(result)} data-search-result={result.item.id} className={styles.result} onClick={() => onPick(result)}>
-    {selected ? <motion.span layoutId="cursor" className={styles.cursor} aria-hidden="true" transition={reduced ? { duration: 0 } : motionTokens.spring.smooth} /> : null}
+    {selected ? <m.span layoutId="cursor" className={styles.cursor} aria-hidden="true" transition={reduced ? { duration: 0 } : motionTokens.spring.smooth} /> : null}
     <Lead result={result} /><span className={styles.content}><span className={styles.title}><Highlight text={titleOf(result)} pattern={pattern} /></span>
       <span className={styles.metadata}>{result.kind === "request" ? <>{code ? <Highlight text={code} pattern={pattern} /> : "Request"}<span>·</span>{resultStatus(result.item).label}<span>·</span>{result.item.projectName ?? "No Project"}</> : "Project"}</span>
       {snippet ? <span className={styles.snippet}><Highlight text={snippet} pattern={pattern} /></span> : null}
@@ -288,9 +288,9 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
         <SearchField ref={inputRef} label="Search workspace" hideLabel role="combobox" aria-autocomplete="list" aria-expanded={showMenu} aria-controls={showMenu ? `${uid}-suggestions` : undefined} aria-activedescendant={showMenu && menuIndex >= 0 ? `${uid}-suggestion-${menuIndex}` : undefined}
           placeholder="Search Requests and Projects" value={draft} maxLength={maxLength} autoComplete="off" spellCheck={false} onValueChange={value => { onEdit(value); setMenuIndex(-1); setMenuOpen(true); }} onKeyDown={inputKey} onFocus={() => setMenuOpen(true)} onBlur={() => setMenuOpen(false)} />
       </form>
-      <AnimatePresence>{showMenu ? <motion.div className={styles.menu} initial={reduced ? { opacity: 0 } : { opacity: 0, y: -4, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}>
+      <AnimatePresence>{showMenu ? <m.div className={styles.menu} initial={reduced ? { opacity: 0 } : { opacity: 0, y: -4, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}>
         <span className={styles.menuLabel}>Recent searches</span><ul id={`${uid}-suggestions`} role="listbox" aria-label="Recent searches">{suggestions.map((query, index) => <li key={query} id={`${uid}-suggestion-${index}`} role="option" aria-selected={index === menuIndex} className={styles.menuRow} onMouseDown={event => event.preventDefault()} onMouseMove={() => setMenuIndex(index)} onClick={() => submit(query)}><Clock aria-hidden="true" /><span><Highlight text={query} pattern={draftPattern} /></span></li>)}</ul>
-      </motion.div> : null}</AnimatePresence></div>
+      </m.div> : null}</AnimatePresence></div>
       <BottomSheet title="Search filters" open={filtersOpen && active} onOpenChange={setFiltersOpen} detents={[.9]} trigger={<Button variant="secondary" size="sm" className={styles.mobileFilters}><SlidersHorizontal aria-hidden="true" />Filters{filterCount ? ` (${filterCount})` : ""}</Button>}><Facets {...facetProps} /><div className={styles.sheetFooter}><Button variant="secondary" size="sm" onClick={clearFilters} disabled={!filterCount}>Clear filters</Button><Button size="sm" onClick={() => setFiltersOpen(false)}>Show results</Button></div></BottomSheet>
       <Button variant="ghost" size="sm" aria-label="Close search" onClick={onClose}><X aria-hidden="true" /></Button>
     </header>
@@ -299,18 +299,18 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
       <section ref={scrollRef} aria-label="Search results" className={styles.results}>
         <div className={styles.mainHead}><p className={styles.summary}>{summary}</p><SegmentedControl label="Sort results" options={SORTS} value={sort} onValueChange={value => onSortChange(value as SearchSort)} /></div>
         <p role="status" className={styles.srOnly}>{announcement}</p>
-        <AnimatePresence initial={false}>{chips.length ? <motion.div className={styles.chipsFrame} initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}><FilterToolbar filters={chips} onRemove={removeChip} onClearAll={clearFilters} announce={false} /></motion.div> : null}</AnimatePresence>
+        <AnimatePresence initial={false}>{chips.length ? <m.div className={styles.chipsFrame} initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}><FilterToolbar filters={chips} onRemove={removeChip} onClearAll={clearFilters} announce={false} /></m.div> : null}</AnimatePresence>
         {failure ? <div className={styles.error}><Alert tone="danger" title="Search unavailable">{failure}</Alert><Button variant="secondary" size="sm" data-search-retry="" onClick={() => { onRetry(); }}>Retry search</Button></div> : null}
         {loading === "search" && !data ? <Placeholder><div className={styles.loading}>{[0, 1, 2, 3].map(index => <Skeleton key={index} label="Searching workspace" className={styles.skeletonRow} lines={3} />)}</div></Placeholder>
-          : matches.length ? <motion.div key={resultKey} className={styles.groups} initial={reduced ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={fade}>
+          : matches.length ? <m.div key={resultKey} className={styles.groups} initial={reduced ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={fade}>
             <LayoutGroup id={`${uid}-cursor-${resultKey}-${shownQuery}`}><ul ref={listRef} className={styles.list} role="listbox" tabIndex={0} aria-label="Search matches" aria-busy={busy} aria-activedescendant={selected ? `${uid}-${selected.item.id}` : undefined} onKeyDown={listKey}>
               {matches.map(result => <ResultRow key={`${result.kind}-${result.item.id}`} result={result} optionId={`${uid}-${result.item.id}`} pattern={pattern} selected={selected?.item.id === result.item.id} reduced={Boolean(reduced)} timeZone={timeZone} onPick={openPreview} />)}
             </ul></LayoutGroup>
             <div className={styles.more}>{settled ? (["requests", "projects"] as const).map(kind => category !== (kind === "requests" ? "projects" : "requests") && data?.[kind].hasMore ? <Button key={kind} variant="ghost" size="sm" disabled={loading !== null} loading={loading === kind} data-load-more={kind} onClick={requestMore}>Load more {kind === "requests" ? "Requests" : "Projects"}</Button> : null) : null}</div>
             <p className={styles.keys} aria-hidden="true"><KeyCap>↑</KeyCap><KeyCap>↓</KeyCap> move <KeyCap>↵</KeyCap> preview <KeyCap>{isApple() ? "⌘" : "Ctrl"}</KeyCap><KeyCap>↵</KeyCap> open <KeyCap>/</KeyCap> search</p>
-          </motion.div> : !failure ? <div className={styles.empty} aria-busy={data ? busy : undefined}><EmptyState icon={data ? <SearchX data-icon-size="2xl" /> : <Search data-icon-size="2xl" />} title={data ? "No results found" : "Find a Request or Project"} description={data ? "Try another word or check the spelling." : "Search by Request code, title or description."} action={filterCount ? <Button size="sm" variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} /></div> : null}
+          </m.div> : !failure ? <div className={styles.empty} aria-busy={data ? busy : undefined}><EmptyState icon={data ? <SearchX data-icon-size="2xl" /> : <Search data-icon-size="2xl" />} title={data ? "No results found" : "Find a Request or Project"} description={data ? "Try another word or check the spelling." : "Search by Request code, title or description."} action={filterCount ? <Button size="sm" variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} /></div> : null}
       </section>
-      <aside className={styles.preview} aria-label="Result preview"><AnimatePresence mode="wait" initial={false}>{selected ? <motion.div key={selected.item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}><Preview result={selected} pattern={pattern} timeZone={timeZone} onNavigate={onNavigate} /></motion.div> : <p className={styles.previewEmpty}>{loading ? "Searching" : "Select a result to preview it."}</p>}</AnimatePresence></aside>
+      <aside className={styles.preview} aria-label="Result preview"><AnimatePresence mode="wait" initial={false}>{selected ? <m.div key={selected.item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}><Preview result={selected} pattern={pattern} timeZone={timeZone} onNavigate={onNavigate} /></m.div> : <p className={styles.previewEmpty}>{loading ? "Searching" : "Select a result to preview it."}</p>}</AnimatePresence></aside>
     </div>
     <BottomSheet title="Result preview" open={previewOpen && active} onOpenChange={setPreviewOpen} onCloseAutoFocus={event => { event.preventDefault(); if (active) listRef.current?.focus(); }} detents={[.9]}>{selected ? <Preview result={selected} pattern={pattern} timeZone={timeZone} onNavigate={onNavigate} /> : null}</BottomSheet>
     <Dialog open={datesOpen && active} onOpenChange={setDatesOpen}><DialogContent title="Created date" className={styles.dateDialog} overlayClassName={styles.dateOverlay} onCloseAutoFocus={event => { event.preventDefault(); if (active) dateTrigger.current?.focus(); }}><DateRangePicker embedded locale="en-GB" value={range} label="Created date range" months={1} onCancel={() => setDatesOpen(false)} onChange={value => { applyFilters({ ...filters, createdFrom: dayKey(value.start), createdTo: dayKey(value.end) }); setDatesOpen(false); }} /></DialogContent></Dialog>

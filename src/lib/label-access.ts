@@ -1,7 +1,8 @@
 import "server-only";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { db, workspaceLabels } from "@/db";
-import { DEFAULT_LABELS, labelKeysSchema } from "./request-labels";
+import { DEFAULT_LABELS } from "./request-labels";
+import { labelKeysSchema } from "./request-label-schemas";
 export async function canUseLabels(keys: string[] | undefined, orgId: string, projectId: string | null = null): Promise<boolean> {
  if (!labelKeysSchema.safeParse(keys).success) return false;
  const custom=(keys ?? []).filter(key=>!DEFAULT_LABELS.some(label=>label.id===key));

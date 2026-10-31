@@ -23,6 +23,15 @@ const nextConfig: NextConfig = {
     // a quick return to a Request reuse the page segment.
     staleTimes: { dynamic: 30, static: 30 },
   },
+  turbopack: {
+    resolveAlias: {
+      // #266: `motion/react` is framer-motion re-exported, plus `const motion = fm.motion` read off the whole
+      // namespace, which keeps all of Motion (every feature) in each page however little a page uses. Resolving it
+      // to framer-motion itself (the same installed version, pinned beside motion in package.json) lets the
+      // bundler keep only what is imported, so LazyMotion's split (src/components/motion/motion-features.tsx) works.
+      "motion/react": "framer-motion",
+    },
+  },
   // Baseline security headers on every route; CSP stays Report-Only until
   // staging and production report nothing (src/lib/security-headers.ts).
   async headers() {

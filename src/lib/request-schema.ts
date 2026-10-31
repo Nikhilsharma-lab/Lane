@@ -1,4 +1,5 @@
-import { labelKeysSchema, sourceRequestType } from "./request-labels";
+import { sourceRequestType } from "./request-labels";
+import { labelKeysSchema } from "./request-label-schemas";
 import { z } from "zod";
 import { newRequestImpactSchema } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";

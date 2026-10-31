@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { FocusEvent, KeyboardEvent, MouseEvent, ReactNode, RefObject } from "react";
 import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
-import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion, useTransform, type HTMLMotionProps, type MotionValue, type Variants } from "motion/react";
+import { AnimatePresence, animate, m, useIsPresent, useMotionValue, useReducedMotion, useTransform, type HTMLMotionProps, type MotionValue, type Variants } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import { Button } from "../button/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/popover";
@@ -73,10 +73,10 @@ function MorphText({ text }: { text: string }) {
     observer.observe(node);
     return () => observer.disconnect();
   }, [reduced, width]);
-  return <motion.span className={styles.morphText} style={{ width }}>
+  return <m.span className={styles.morphText} style={{ width }}>
     <span ref={measure} className={styles.measure} aria-hidden="true">{text}</span>
-    <AnimatePresence mode="popLayout" initial={false}><motion.span key={text} className={styles.morphValue} {...textMotion(reduced)}>{text}</motion.span></AnimatePresence>
-  </motion.span>;
+    <AnimatePresence mode="popLayout" initial={false}><m.span key={text} className={styles.morphValue} {...textMotion(reduced)}>{text}</m.span></AnimatePresence>
+  </m.span>;
 }
 
 /** Springs a wrapper to the height of its content while filters change; other resizes follow at once. */
@@ -190,7 +190,7 @@ function MenuList({ rows, labelledBy, onChoose, onBack, onLeave, radio }: { rows
   }
   return <div ref={list} className={styles.list} role="menu" aria-labelledby={labelledBy} data-current={present ? "" : undefined} onKeyDown={onKeyDown} onFocus={onFocus} onBlur={onBlur}
     onPointerLeave={() => { if (pointer.current && list.current?.contains(document.activeElement)) onLeave(); }}>
-    <motion.span className={styles.highlight} data-ring={highlight?.ring || undefined} aria-hidden="true" initial={false} animate={highlight ? { y: highlight.top, height: highlight.height, opacity: highlight.shown ? 1 : 0 } : { opacity: 0 }}
+    <m.span className={styles.highlight} data-ring={highlight?.ring || undefined} aria-hidden="true" initial={false} animate={highlight ? { y: highlight.top, height: highlight.height, opacity: highlight.shown ? 1 : 0 } : { opacity: 0 }}
       transition={{ default: highlight?.glide ? motionTokens.spring.snappy : still, opacity: { duration: reduced ? 0 : motionTokens.duration.instant } }} />
     {rows.map((row, index) => <button key={row.key} type="button" className={styles.item} role={radio ? "menuitemradio" : "menuitem"} aria-checked={radio ? !!row.checked : undefined}
       tabIndex={index === current ? 0 : -1} data-row={row.key} data-text={row.label}
@@ -421,36 +421,36 @@ function MorphFilterMenu({ fields, onSelect, active = [], label = "Add filter", 
     <button ref={trigger} type="button" className={styles.trigger} data-filter-trigger="" data-icon-only={triggerIcon != null ? "" : undefined} aria-label={triggerIcon != null ? label : undefined} title={triggerIcon != null ? label : undefined} aria-haspopup="dialog" aria-expanded={open} aria-controls={panelId} tabIndex={open ? -1 : undefined}
       onClick={event => { if (phaseRef.current !== "open") openMenu(event.detail === 0 ? "first" : "panel"); }}
       onKeyDown={event => { if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); openMenu(event.key === "ArrowDown" ? "first" : "last"); } }}>
-      <motion.span className={styles.face} style={faceStyle}>
+      <m.span className={styles.face} style={faceStyle}>
         {triggerIcon ?? <><Plus strokeWidth={1.8} aria-hidden="true" />{label}</>}
-      </motion.span>
+      </m.span>
     </button>
-    <motion.div className={styles.surface} style={{ left, width, height }}>
-      <motion.div ref={panel} id={panelId} className={styles.panel} role="dialog" aria-labelledby={titleId} tabIndex={-1} inert={!open} style={{ x: panelX }} onKeyDown={onPanelKeyDown}>
-        <motion.div style={contentStyle}>
+    <m.div className={styles.surface} style={{ left, width, height }}>
+      <m.div ref={panel} id={panelId} className={styles.panel} role="dialog" aria-labelledby={titleId} tabIndex={-1} inert={!open} style={{ x: panelX }} onKeyDown={onPanelKeyDown}>
+        <m.div style={contentStyle}>
           <div className={styles.head}>
             <AnimatePresence initial={false}>
-              {field ? <motion.button key="back" type="button" className={styles.back} aria-label="Back to fields" onClick={event => goBack(event.detail === 0)}
+              {field ? <m.button key="back" type="button" className={styles.back} aria-label="Back to fields" onClick={event => goBack(event.detail === 0)}
                 initial={reduced ? { opacity: 0, width: 28, marginRight: 2 } : { opacity: 0, width: 0, marginRight: 0, scale: .6 }} animate={{ opacity: 1, width: 28, marginRight: 2, scale: 1 }}
                 exit={reduced ? { opacity: 0, transition: still } : { opacity: 0, width: 0, marginRight: 0, scale: .6, transition: { ...motionTokens.spring.snappy, opacity: leave } }}
-                transition={reduced ? fade : { ...motionTokens.spring.snappy, opacity: enter }}><ChevronLeft strokeWidth={1.8} aria-hidden="true" /></motion.button> : null}
+                transition={reduced ? fade : { ...motionTokens.spring.snappy, opacity: enter }}><ChevronLeft strokeWidth={1.8} aria-hidden="true" /></m.button> : null}
             </AnimatePresence>
             <span className={styles.title} id={titleId}>
-              <AnimatePresence mode="popLayout" initial={false}><motion.span key={field?.id ?? "fields"} className={styles.titleText} {...textMotion(reduced)}>{field ? field.label : label}</motion.span></AnimatePresence>
+              <AnimatePresence mode="popLayout" initial={false}><m.span key={field?.id ?? "fields"} className={styles.titleText} {...textMotion(reduced)}>{field ? field.label : label}</m.span></AnimatePresence>
             </span>
           </div>
           <div className={styles.stage}>
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
-              <motion.div key={field?.id ?? "fields"} className={styles.step} custom={direction} variants={step} initial="enter" animate="center" exit="exit">
+              <m.div key={field?.id ?? "fields"} className={styles.step} custom={direction} variants={step} initial="enter" animate="center" exit="exit">
                 {field
                   ? <MenuList rows={valueRows} labelledBy={titleId} radio onChoose={chooseValue} onBack={goBack} onLeave={() => panel.current?.focus({ preventScroll: true })} />
                   : <MenuList rows={fieldRows} labelledBy={titleId} onChoose={chooseField} onLeave={() => panel.current?.focus({ preventScroll: true })} />}
-              </motion.div>
+              </m.div>
             </AnimatePresence>
           </div>
-        </motion.div>
-      </motion.div>
-    </motion.div>
+        </m.div>
+      </m.div>
+    </m.div>
   </div>;
 }
 
@@ -495,22 +495,22 @@ export function FilterToolbar({ filters, onRemove, onClearAll, children, label =
   // The note waits for the leaving chips to fade before it rises in.
   const emptyText = reduced ? text : { ...text, transition: { ...enter, delay: motionTokens.duration.instant * .75 } };
   return <div ref={root} className={styles.toolbar} role="group" aria-label={label}>
-    <motion.div className={styles.frame} style={{ height: frameHeight }}>
+    <m.div className={styles.frame} style={{ height: frameHeight }}>
       <div ref={list} className={styles.chips}>
         <AnimatePresence initial={false}>
-          {filters.map((filter, index) => <motion.span className={styles.slot} key={filter.id} {...slot(8)}><motion.span className={styles.chip} {...chip}><span className={styles.chipLabel}>{filter.label}{filter.value ? <span className={styles.value}><span className={styles.separator}> · </span><MorphText text={filter.value} /></span> : null}</span><button type="button" data-chip-remove={filter.id} aria-label={`Remove ${filter.label}${filter.value ? `: ${filter.value}` : ""}`} onClick={event => { if (document.activeElement === event.currentTarget) pendingFocus.current = index; onRemove(filter.id); }}><X data-icon-size="sm" strokeWidth={1.8} aria-hidden="true" /></button></motion.span></motion.span>)}
+          {filters.map((filter, index) => <m.span className={styles.slot} key={filter.id} {...slot(8)}><m.span className={styles.chip} {...chip}><span className={styles.chipLabel}>{filter.label}{filter.value ? <span className={styles.value}><span className={styles.separator}> · </span><MorphText text={filter.value} /></span> : null}</span><button type="button" data-chip-remove={filter.id} aria-label={`Remove ${filter.label}${filter.value ? `: ${filter.value}` : ""}`} onClick={event => { if (document.activeElement === event.currentTarget) pendingFocus.current = index; onRemove(filter.id); }}><X data-icon-size="sm" strokeWidth={1.8} aria-hidden="true" /></button></m.span></m.span>)}
         </AnimatePresence>
         {/* The empty note sits over the leading edge instead of in the flow, so it fades in where the chips were rather than riding their collapsing slots across the row. */}
         <AnimatePresence initial={false}>
-          {filters.length ? null : <motion.span key="empty" className={styles.empty} {...emptyText}>No filters applied</motion.span>}
+          {filters.length ? null : <m.span key="empty" className={styles.empty} {...emptyText}>No filters applied</m.span>}
         </AnimatePresence>
       </div>
-    </motion.div>
+    </m.div>
     <div className={styles.actions}>
       {addFilter ? <FilterMenu fields={addFilter.fields} onSelect={addFilter.onAdd} active={filters} label={addFilter.label} align={addFilter.align} /> : null}
       {children}
       <AnimatePresence initial={false}>
-        {filters.length > 0 ? <motion.span key="clear" className={styles.slot} {...slot(12)}><button className={styles.clear} type="button" onClick={() => { pendingFocus.current = -1; onClearAll?.(); }}><motion.span className={styles.clearText} {...text}>Clear all</motion.span></button></motion.span> : null}
+        {filters.length > 0 ? <m.span key="clear" className={styles.slot} {...slot(12)}><button className={styles.clear} type="button" onClick={() => { pendingFocus.current = -1; onClearAll?.(); }}><m.span className={styles.clearText} {...text}>Clear all</m.span></button></m.span> : null}
       </AnimatePresence>
     </div>
     {announce ? <span className={styles.srOnly} role="status">{message}</span> : null}

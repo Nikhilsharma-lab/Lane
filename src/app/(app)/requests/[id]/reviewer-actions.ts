@@ -5,10 +5,8 @@ import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
 import { guardActiveMember, guardCanChange, type MemberAuth } from "@/lib/auth-guard";
+import { addReviewersSchema, removeReviewerSchema, answerReviewSchema } from "@/lib/request-reviewer-schemas";
 import {
-  addReviewersSchema,
-  removeReviewerSchema,
-  answerReviewSchema,
   reviewerKey,
   reviewerPickRefusal,
   type RequestChangeContext,

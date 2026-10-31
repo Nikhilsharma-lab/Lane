@@ -1,7 +1,7 @@
 "use client";
 
 import { isValidElement, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
-import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion, type AnimationPlaybackControls, type HTMLMotionProps, type MotionProps, type TargetAndTransition, type Transition } from "motion/react";
+import { AnimatePresence, animate, m, useIsPresent, useMotionValue, useReducedMotion, type AnimationPlaybackControls, type HTMLMotionProps, type MotionProps, type TargetAndTransition, type Transition } from "motion/react";
 import { Folder } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./empty-state.module.css";
@@ -26,7 +26,7 @@ const fadeOut: TargetAndTransition = { opacity: 0, transition: { duration: motio
 /** Outgoing copies are hidden from assistive tech while they fade. */
 function Swap(props: HTMLMotionProps<"span">) {
   const present = useIsPresent();
-  return <motion.span {...props} aria-hidden={present ? props["aria-hidden"] : true} />;
+  return <m.span {...props} aria-hidden={present ? props["aria-hidden"] : true} />;
 }
 
 /** A new icon component crossfades in; re-rendering the same icon stays still. */
@@ -63,9 +63,9 @@ function HeightFrame({ reduce, morphKey, children }: { reduce: boolean | null; m
     observer.observe(node);
     return () => { observer.disconnect(); controls?.stop(); };
   }, [height, reduce]);
-  return <motion.div ref={frame} className={styles.frame} style={{ height }}>
+  return <m.div ref={frame} className={styles.frame} style={{ height }}>
     <div ref={content} className={styles.copy}>{children}</div>
-  </motion.div>;
+  </m.div>;
 }
 
 export function EmptyState({ title, description, action, icon, className, label }: EmptyStateProps) {

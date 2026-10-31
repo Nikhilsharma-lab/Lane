@@ -1,9 +1,10 @@
-import { labelKeysSchema } from "./request-labels";
+import { labelKeysSchema } from "./request-label-schemas";
 import { z } from "zod";
 import { refineFraming } from "./request-framing";
 import { expectedImpactDraftSchema, hasImpactWork } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
-import { MAX_REVIEWERS, reviewerIdentitySchema, REVIEW_NOTE_MAX } from "./request-reviewer-rules";
+import { MAX_REVIEWERS, REVIEW_NOTE_MAX } from "./request-reviewer-rules";
+import { reviewerIdentitySchema } from "./request-reviewer-schemas";
 
 import type { TriageResult } from "@/lib/ai/triage";
 import {

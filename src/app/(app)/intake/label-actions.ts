@@ -2,7 +2,8 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, workspaceLabels } from "@/db";
 import { guardActiveMember, guardCanChange } from "@/lib/auth-guard";
-import { DEFAULT_LABELS, labelInputSchema, type RequestLabel } from "@/lib/request-labels";
+import { DEFAULT_LABELS, type RequestLabel } from "@/lib/request-labels";
+import { labelInputSchema } from "@/lib/request-label-schemas";
 import { canUseProject } from "@/lib/project-access";
 import { loadLabels } from "@/lib/data/labels";
 const selection = { id: workspaceLabels.id, name: workspaceLabels.name, colour: workspaceLabels.colour, projectId: workspaceLabels.projectId };

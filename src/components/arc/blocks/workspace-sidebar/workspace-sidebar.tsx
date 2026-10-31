@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type ComponentProps, type FormEvent, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactElement, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { AnimatePresence, LayoutGroup, animate, motion, useMotionValue, useReducedMotion, useTransform, type TargetAndTransition, type Transition } from "motion/react";
+import { AnimatePresence, LayoutGroup, animate, m, useMotionValue, useReducedMotion, useTransform, type TargetAndTransition, type Transition } from "motion/react";
 import { Check, ChevronRight, CircleHelp, Folder, LoaderCircle, Plus, Search, Settings, SquarePen, UsersRound, X } from "lucide-react";
 import { Button } from "../../button/button";
 import { UserMenu, type UserMenuWorkspaces } from "../../user-menu/user-menu";
@@ -151,7 +151,7 @@ function RailTip({ enabled = true, label, note, shortcut, side = "right", childr
 function PanelGlyph({ collapsed, reduce }: { collapsed: boolean; reduce: boolean }) {
   return <svg data-ui-icon data-icon-size="xl" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
     <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="3.5" />
-    <motion.path d="M8.25 4.25v11.5" initial={false} animate={{ x: collapsed ? -2.5 : 0 }} transition={reduce ? instant : spring.smooth} />
+    <m.path d="M8.25 4.25v11.5" initial={false} animate={{ x: collapsed ? -2.5 : 0 }} transition={reduce ? instant : spring.smooth} />
   </svg>;
 }
 
@@ -161,7 +161,7 @@ const isPlainClick = (event: ReactMouseEvent) => event.button === 0 && !event.me
 function Swap({ text, className, reduce }: { text: string; className?: string; reduce: boolean }) {
   return <span className={[styles.swap, className].filter(Boolean).join(" ")}>
     <AnimatePresence mode="popLayout" initial={false}>
-      <motion.span key={text} className={styles.swapText} initial={reduce ? { opacity: 0 } : { opacity: 0, y: "0.35em", filter: `blur(${blur.soft}px)` }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={reduce ? { opacity: 0, transition: instant } : { opacity: 0, y: "-0.35em", filter: `blur(${blur.subtle}px)`, transition: { duration: duration.fast, ease: standard } }} transition={reduce ? instant : { duration: duration.standard, ease: enter }}>{text}</motion.span>
+      <m.span key={text} className={styles.swapText} initial={reduce ? { opacity: 0 } : { opacity: 0, y: "0.35em", filter: `blur(${blur.soft}px)` }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={reduce ? { opacity: 0, transition: instant } : { opacity: 0, y: "-0.35em", filter: `blur(${blur.subtle}px)`, transition: { duration: duration.fast, ease: standard } }} transition={reduce ? instant : { duration: duration.standard, ease: enter }}>{text}</m.span>
     </AnimatePresence>
   </span>;
 }
@@ -181,15 +181,15 @@ function Name({ name, query, unread = false }: { name: string; query: string; un
 }
 
 function Highlight({ reduce }: { reduce: boolean }) {
-  return <motion.span layoutId="active" className={styles.highlight} aria-hidden="true" transition={reduce ? instant : spring.morph} />;
+  return <m.span layoutId="active" className={styles.highlight} aria-hidden="true" transition={reduce ? instant : spring.morph} />;
 }
 
 /** Section titles fold into a hairline in the rail. The title leaves first, then the height closes. */
 function SectionTitle({ id, text, rail, reduce }: { id: string; text: string; rail: boolean; reduce: boolean }) {
-  return <motion.h2 id={id} className={styles.sectionTitle} initial={false} animate={{ height: rail ? 17 : 32 }} transition={reduce ? instant : spring.smooth}>
+  return <m.h2 id={id} className={styles.sectionTitle} initial={false} animate={{ height: rail ? 17 : 32 }} transition={reduce ? instant : spring.smooth}>
     <span className={styles.sectionText}>{text}</span>
     <span className={styles.divider} aria-hidden="true" />
-  </motion.h2>;
+  </m.h2>;
 }
 
 type PanelProps = Pick<WorkspaceSidebarProps, "projects" | "groups" | "activeId" | "loading" | "error" | "onRetry" | "renderLink" | "notifications" | "projectTree"> & {
@@ -289,7 +289,7 @@ function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink
         {!projectsOpen && activeProject && <span className={styles.projectFolderCurrent}><span id={`${group}-project-current`} className={styles.srOnly}>Contains the current Project</span></span>}
         <ChevronRight className={styles.projectChevron} data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />
       </button> : <SectionTitle id={`${group}-projects`} text="Projects" rail={rail} reduce={reduce} />}
-      {tree ? <motion.div id={`${group}-project-branch`} className={styles.projectBranch} initial={false} animate={projectBranchOpen ? reduce ? projectUnfoldStill : projectUnfold : reduce ? projectFoldStill : projectFold} inert={!projectBranchOpen} aria-hidden={!projectBranchOpen || undefined}>{projectContents}</motion.div> : projectContents}
+      {tree ? <m.div id={`${group}-project-branch`} className={styles.projectBranch} initial={false} animate={projectBranchOpen ? reduce ? projectUnfoldStill : projectUnfold : reduce ? projectFoldStill : projectFold} inert={!projectBranchOpen} aria-hidden={!projectBranchOpen || undefined}>{projectContents}</m.div> : projectContents}
       {onCreate && <Composer reduce={reduce} rail={rail} onExpand={onExpand} onCreate={tree ? async name => { const created = await onCreate(name); setProjectsOpen(true); return created; } : onCreate} />}
     </section>
     {groups.filter(item => item.id === "settings").map(section)}
@@ -352,7 +352,7 @@ function Composer({ reduce, rail, onExpand, onCreate }: { reduce: boolean; rail:
     } finally { inFlight.current = false; }
   }
   const idle = state === "idle";
-  return <motion.div className={styles.composerWrap} initial={false} animate={{ opacity: 1 }} transition={reduce ? instant : { duration: duration.standard }}>
+  return <m.div className={styles.composerWrap} initial={false} animate={{ opacity: 1 }} transition={reduce ? instant : { duration: duration.standard }}>
     <form ref={form} className={styles.composer} data-state={state} data-invalid={error ? "" : undefined} onSubmit={submit} aria-busy={state === "commit"}>
       <span className={styles.lead} aria-hidden="true">{state === "commit" ? <LoaderCircle /> : <Plus strokeWidth={1.75} />}</span>
       <span className={styles.composerField}>
@@ -366,7 +366,7 @@ function Composer({ reduce, rail, onExpand, onCreate }: { reduce: boolean; rail:
     </form>
     {error && <p id={`${id}-error`} className={styles.createError} role="alert">{error}</p>}
     {state === "commit" && <span className={styles.srOnly} role="status">Creating Project…</span>}
-  </motion.div>;
+  </m.div>;
 }
 
 /** Locks the page behind the open drawer, keeping the scrollbar's room so nothing shifts sideways. */
@@ -551,7 +551,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
 
-  const nav = <motion.nav ref={frame} id={navId} className={[styles.sidebar, className].filter(Boolean).join(" ")} aria-label="Primary navigation" style={phone ? undefined : { width: layoutManaged ? "100%" : width }} data-rail={rail || undefined} data-placement={phone ? "drawer" : "inline"} data-force-desktop={forceDesktopLayout || undefined}>
+  const nav = <m.nav ref={frame} id={navId} className={[styles.sidebar, className].filter(Boolean).join(" ")} aria-label="Primary navigation" style={phone ? undefined : { width: layoutManaged ? "100%" : width }} data-rail={rail || undefined} data-placement={phone ? "drawer" : "inline"} data-force-desktop={forceDesktopLayout || undefined}>
       <div className={styles.header}>
         <div className={styles.identityRow}>
         <div className={styles.accountSlot} onPointerEnter={event => { if (event.pointerType !== "touch") onAccountMenuOpen?.(); }} onFocus={onAccountMenuOpen}>
@@ -575,17 +575,17 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
         </div>
       </div>
 
-      <motion.div className={styles.scroll} layoutScroll>
+      <m.div className={styles.scroll} layoutScroll>
         <div className={styles.stack}>
           <AnimatePresence initial={false}>
             <Panel key={workspace.id} projects={projects} groups={groups} activeId={activeId} reduce={reduce} rail={rail} projectTree={projectTree} onExpand={() => setRail(false)} onSelect={select}
               loading={loading} error={error} onRetry={onRetry} renderLink={renderLink} onCreate={onCreateProject ? create : undefined} onContextMenuChange={open => { contextMenuOpen.current = open; }} notifications={notifications} />
           </AnimatePresence>
         </div>
-      </motion.div>
+      </m.div>
 
       <p className={styles.srOnly} role="status" aria-live="polite">{announcement}</p>
-    </motion.nav>;
+    </m.nav>;
 
   if (!phone) return <TooltipPrimitive.Provider delayDuration={250} skipDelayDuration={300}>{nav}</TooltipPrimitive.Provider>;
 
@@ -600,12 +600,12 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
       </span>
     </div>
     {createPortal(<>
-      <motion.div className={styles.backdrop} data-open={drawer ? "" : undefined} data-shown={shown ? "" : undefined} aria-hidden="true" style={{ opacity: shade }}
+      <m.div className={styles.backdrop} data-open={drawer ? "" : undefined} data-shown={shown ? "" : undefined} aria-hidden="true" style={{ opacity: shade }}
         onPointerDown={() => { backdropPress.current = !menuOpen.current && !contextMenuOpen.current; }} onClick={() => { if (backdropPress.current) closeDrawer(); backdropPress.current = false; }} />
-      <motion.div ref={sheet} className={styles.sheet} data-shown={shown ? "" : undefined} role="dialog" aria-modal="true" aria-label="Navigation" tabIndex={-1} inert={!drawer || accountOpen || Boolean(workspaces?.pendingId)} onKeyDown={onSheetKeyDown}
+      <m.div ref={sheet} className={styles.sheet} data-shown={shown ? "" : undefined} role="dialog" aria-modal="true" aria-label="Navigation" tabIndex={-1} inert={!drawer || accountOpen || Boolean(workspaces?.pendingId)} onKeyDown={onSheetKeyDown}
         style={{ x: sheetX, opacity: sheetFade }} onPointerDown={onSheetPointerDown} onPointerMove={onSheetPointerMove} onPointerUp={onSheetPointerEnd} onPointerCancel={onSheetPointerEnd}>
         {nav}
-      </motion.div>
+      </m.div>
     </>, document.body)}
   </TooltipPrimitive.Provider>;
 }

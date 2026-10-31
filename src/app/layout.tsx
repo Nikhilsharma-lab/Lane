@@ -7,6 +7,7 @@ import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toa
 import { SpeedInsights } from "@/components/speed-insights";
 import { WebVitals } from "@/components/web-vitals";
 import { ReducedMotion } from "@/components/motion/reduced-motion";
+import { MotionFeatures } from "@/components/motion/motion-features";
 import { LoadingFeel } from "@/components/loading/loading-feel";
 import { reportsSpeedInsights } from "@/lib/speed-insights";
 import { SESSION_TASK_URLS, SIGN_IN_URL, SIGN_UP_URL } from "@/lib/session-task-urls";
@@ -90,6 +91,8 @@ export default function RootLayout({
             Keep `ui={ui}`: with it, Clerk's windows and Lane's own Members list share Clerk's in-memory
             cache, so a person removed in Manage members drops from Lane's list when the window closes
             (#257; e2e/clerk-member-windows.spec.ts is the guard). */}
+        {/* #266: Motion's renderer and animations come with the page; gestures, drag and layout load after it. */}
+        <MotionFeatures>
         <ClerkProvider
           ui={ui}
           prefetchUI={false}
@@ -109,6 +112,7 @@ export default function RootLayout({
             </ToastStackProvider>
           </ThemeProvider>
         </ClerkProvider>
+        </MotionFeatures>
       </body>
     </html>
   );
