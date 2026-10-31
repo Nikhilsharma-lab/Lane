@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { cache } from "react";
 
 import { serverTimingHeader } from "@/lib/feature-switches";
-import { TIMING_ID_HEADER, createServerTimings, type RenderKind, type RoutePattern, type ServerTimings, type TimingStep } from "@/lib/server-timing";
+import { READ_TIMING_ID_HEADER, TIMING_ID_HEADER, createServerTimings, type RenderKind, type RoutePattern, type ServerTimings, type TimingStep } from "@/lib/server-timing";
 
 /**
  * #265: the server timings of the request being rendered. Pages and the app frame time their steps through
@@ -38,7 +38,7 @@ function hookResponseHead() {
   registry.hooked = true;
   const writeHead = ServerResponse.prototype.writeHead;
   ServerResponse.prototype.writeHead = function (this: ServerResponse, ...args: Parameters<typeof writeHead>) {
-    const id = this.req?.headers[TIMING_ID_HEADER];
+    const id = this.req?.headers[TIMING_ID_HEADER] ?? this.req?.headers[READ_TIMING_ID_HEADER];
     const timings = typeof id === "string" ? registry.byId.get(id) : undefined;
     if (timings && !this.headersSent) {
       timings.markFirstByte();
@@ -89,8 +89,10 @@ export async function timePage(route: RoutePattern): Promise<void> {
 }
 
 /**
- * Timings for one call of a read route or a server action, which aren't a page render. `respond` writes the log
- * line and, while the switch is on, adds the Server-Timing header to the route's response.
+ * Timings for one call of a read route or a server action, which aren't a page render. A server action calls
+ * `finish` to write its log line. A route handler returns its response through `respond`: the log line is written
+ * once the response is complete and, while the switch is on, the response's head carries the Server-Timing header
+ * (added where Node sends it, as for a page, so the proxy's own header can't replace it).
  */
 export function callTimings(route: RoutePattern) {
   const timings = createServerTimings({ route, clock, kind: "read", cold: !registry.rendered });
@@ -101,10 +103,19 @@ export function callTimings(route: RoutePattern) {
       timings.markFirstByte();
       console.info(timings.logLine());
     },
-    respond(response: Response): Response {
-      timings.markFirstByte();
-      if (serverTimingHeader()) response.headers.append("Server-Timing", timings.header());
-      console.info(timings.logLine());
+    async respond(response: Response): Promise<Response> {
+      const id = (await headers()).get(READ_TIMING_ID_HEADER);
+      if (!id) {
+        timings.markFirstByte();
+        console.info(timings.logLine());
+        return response;
+      }
+      hookResponseHead();
+      register(id, timings);
+      after(() => {
+        registry.byId.delete(id);
+        console.info(timings.logLine());
+      });
       return response;
     },
   };

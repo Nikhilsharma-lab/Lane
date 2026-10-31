@@ -31,6 +31,8 @@ export type TimingStep = (typeof TIMING_STEPS)[number];
  * the response's first byte can carry them. It identifies nothing but that one request.
  */
 export const TIMING_ID_HEADER = "x-lane-timing-id";
+/** The same for a route handler's call under /api, which times itself rather than as a page render. */
+export const READ_TIMING_ID_HEADER = "x-lane-read-timing-id";
 
 type Interval = { start: number; end: number };
 

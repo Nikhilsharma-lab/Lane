@@ -2,20 +2,21 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
 import { serverTimingHeader } from "@/lib/feature-switches";
-import { TIMING_ID_HEADER } from "@/lib/server-timing";
+import { READ_TIMING_ID_HEADER, TIMING_ID_HEADER } from "@/lib/server-timing";
 import { SIGN_IN_URL, SIGN_UP_URL, sessionTaskRedirect } from "@/lib/session-task-urls";
 
 // D1 (#257): Clerk's middleware takes no `taskUrls`, so its server-side task address
 // (`/login/tasks`) is sent to Lane's page for the task, as the browser's taskUrls do.
-// #265: each page request passed on carries a random timing id, which ties the
-// render's timings to its response (src/lib/request-timings.ts). Route handlers
-// under /api time their own calls, so they get none.
+// #265: each request passed on carries a random timing id, which ties its timings
+// to its response (src/lib/request-timings.ts). A route handler under /api times
+// itself rather than as a page render, so its id has a name of its own.
 const clerk = clerkMiddleware((_auth, request) => {
   const taskPage = sessionTaskRedirect(request.nextUrl);
   if (taskPage) return NextResponse.redirect(taskPage);
-  if (request.nextUrl.pathname.startsWith("/api/")) return;
+  const [own, other] = request.nextUrl.pathname.startsWith("/api/") ? [READ_TIMING_ID_HEADER, TIMING_ID_HEADER] : [TIMING_ID_HEADER, READ_TIMING_ID_HEADER];
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set(TIMING_ID_HEADER, crypto.randomUUID());
+  requestHeaders.set(own, crypto.randomUUID());
+  requestHeaders.delete(other);
   return NextResponse.next({ request: { headers: requestHeaders } });
 }, { signInUrl: SIGN_IN_URL, signUpUrl: SIGN_UP_URL });
 
