@@ -19,6 +19,7 @@ import { OfflineGuard } from "@/components/shell/offline-guard";
 import { canChangeThings, canContribute } from "@/lib/role-rules";
 import { followSeatChangesAfterResponse } from "@/lib/billing";
 import { timed } from "@/lib/request-timings";
+import { AppMotionFeatures } from "@/components/motion/app-motion-features";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
 // and the composer opens from every page under this layout, so the function
@@ -64,8 +65,10 @@ export default async function AppLayout({
   );
 
   return (
-    // #260: offline, the signed-in app stays on screen and says so; nothing moves or is queued.
-    // StableRouterProvider (#296) sits inside it so the router it hands down is the guarded one.
+    // #266: the signed-in app's highlights, re-flows and sheets glide and drag from the first paint.
+    <AppMotionFeatures>
+    {/* #260: offline, the signed-in app stays on screen and says so; nothing moves or is queued.
+        StableRouterProvider (#296) sits inside it so the router it hands down is the guarded one. */}
     <OfflineGuard>
     <StableRouterProvider>
     <RequestListViewProvider key={`${result.orgId}:${result.userId}`}>
@@ -92,5 +95,6 @@ export default async function AppLayout({
     </RequestListViewProvider>
     </StableRouterProvider>
     </OfflineGuard>
+    </AppMotionFeatures>
   );
 }

@@ -4,11 +4,12 @@ import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 
-// #266 (Build 3, lighter pages): the Requests list's first load carries neither the form-checking library (zod) nor
-// Motion's deferred features (gestures, drag and layout). Judged from the scripts the page's HTML makes it fetch, by
-// text only those libraries carry, so a renamed or re-split file can't slip past: zod's own class names, and the
-// strings of Motion's drag and layout code. Motion's features then arrive on their own once the page has loaded and is idle (Build 2's
-// rule, src/lib/after-page-load.ts), and a press scales again from then on.
+// #266 (Build 3, lighter pages): the Requests list's first load carries no form-checking library (zod), and Motion's
+// features come with the page that uses them, never later (no animation may look different at any moment after the
+// first paint). Judged from the scripts each page's HTML makes it fetch, by text only those libraries carry, so a
+// renamed or re-split file can't slip past: zod's own class names, and the strings of Motion's drag and layout code.
+// The signed-in list carries layout and drag in its first load and fetches no Motion code after it; the sign-in page,
+// which has nothing that glides or drags, carries neither.
 
 const ZOD = /"\$Zod(?:Type|Error|Object)"/;
 const MOTION_FEATURES = /"drag-constraints-ref"|"projectionUpdate"/;
@@ -41,7 +42,7 @@ async function pressedTransform(page: Page) {
 }
 const scaleOf = (transform: string) => transform === "none" ? 1 : Number(/^matrix\(([^,]+),/.exec(transform)?.[1] ?? 1);
 
-test("the Requests list's first load carries no form checking and none of Motion's deferred features", async ({ page }) => {
+test("the Requests list's first load carries no form checking, and Motion's features come with the page", async ({ browser, page }, testInfo) => {
   test.setTimeout(240_000);
   const user = await createTestUser("first-load-code");
   try {
@@ -74,7 +75,7 @@ test("the Requests list's first load carries no form checking and none of Motion
     await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
     await page.setViewportSize({ width: 1440, height: 900 });
 
-    await test.step("first load: no zod, no Motion features; the features follow once the page is idle", async () => {
+    await test.step("first load: no zod; Motion's layout and drag are in it, and no Motion code follows", async () => {
       const documentResponse = page.waitForResponse(response => response.request().isNavigationRequest() && new URL(response.url()).pathname === "/");
       await page.goto("/", { waitUntil: "load", timeout: 60_000 });
       // The page's first load is the code its HTML asks for (script tags and the client components it streams), as
@@ -86,15 +87,11 @@ test("the Requests list's first load carries no form checking and none of Motion
       const firstLoad = (await timing(page)).scripts.filter(script => firstLoadNames.has(script.name));
       expect(firstLoad.length).toBeGreaterThan(10);
       expect(await carrying(firstLoad, ZOD)).toEqual([]);
-      expect(await carrying(firstLoad, MOTION_FEATURES)).toEqual([]);
-      await expect(page.locator("html[data-motion-features=ready]")).toBeAttached({ timeout: 30_000 });
-      const visit = await timing(page);
-      // Nor do the features come before the page has loaded and is idle (Build 2's rule).
-      expect(await carrying(visit.scripts.filter(script => script.start < visit.idle), MOTION_FEATURES)).toEqual([]);
-      // The check means something only if the features did arrive, on their own, after the first load.
-      const features = await carrying(visit.scripts, MOTION_FEATURES);
-      expect(features.length).toBeGreaterThan(0);
-      for (const name of features) expect(visit.scripts.find(script => script.name === name)!.start).toBeGreaterThanOrEqual(visit.idle);
+      expect((await carrying(firstLoad, MOTION_FEATURES)).length).toBeGreaterThan(0);
+      // Three more seconds after idle: whatever the page fetches on its own by then carries no Motion code.
+      await page.waitForTimeout(3_000);
+      const later = (await timing(page)).scripts.filter(script => !firstLoadNames.has(script.name));
+      expect(await carrying(later, MOTION_FEATURES)).toEqual([]);
     });
 
     await test.step("the zod marker finds zod: the New Request form brings it when it opens", async () => {
@@ -107,13 +104,27 @@ test("the Requests list's first load carries no form checking and none of Motion
       await expect(composer).toBeHidden();
     });
 
-    await test.step("once the features are in, a press scales as before; with motion turned off it doesn't", async () => {
+    await test.step("a press scales from the first load on; with motion turned off it doesn't", async () => {
+      await page.reload({ waitUntil: "load" });
       expect(scaleOf(await pressedTransform(page))).toBeLessThan(0.99);
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.reload({ waitUntil: "load" });
-      await expect(page.locator("html[data-motion-features=ready]")).toBeAttached({ timeout: 30_000 });
       expect(scaleOf(await pressedTransform(page))).toBe(1);
       await page.emulateMedia({ reducedMotion: "no-preference" });
+    });
+
+    await test.step("the sign-in page's first load carries none of Motion's layout and drag", async () => {
+      const visitor = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
+      const signIn = await visitor.newPage();
+      // The response after any redirect (Clerk's development handshake) is the sign-in page itself.
+      const response = (await signIn.goto("/login", { waitUntil: "load", timeout: 60_000 }))!;
+      expect(new URL(response.url()).pathname).toBe("/login");
+      const html = await response.text();
+      const names = [...new Set([...html.matchAll(/\/_next\/static\/chunks\/[\w.-]+\.js/g)].map(match => match[0]))];
+      expect(names.length).toBeGreaterThan(5);
+      const bodies = await Promise.all(names.map(async name => (await signIn.request.get(name)).text()));
+      expect(names.filter((_, index) => MOTION_FEATURES.test(bodies[index]))).toEqual([]);
+      await visitor.close();
     });
   } finally {
     await cleanupTestWorkspace(user.id);
