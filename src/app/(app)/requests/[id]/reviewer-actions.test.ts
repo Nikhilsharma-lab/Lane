@@ -443,3 +443,33 @@ it("an admin who edits is named, and is not told about their own edit", async ()
   expect(await notificationsFor(id)).toEqual([{ user_id: designer, type: "review_reset", actor_id: other, detail: null }]);
   expect((await reviewersOf(id)).map((r) => r.decision)).toEqual([null, null]);
 });
+
+// #266: these rules moved from request-reviewer-rules.ts to request-reviewer-schemas.ts so the Requests list's
+// browser code no longer carries the form-checking library. The actions refuse exactly what they refused before.
+it("malformed review changes are refused as before and change nothing", async () => {
+  const api = await import("./reviewer-actions");
+  const id = await freshRequest();
+  expect(await add(id, [member(designer)])).toMatchObject({ success: true });
+  const [reviewer] = await reviewersOf(id);
+  const revision = await revisionOf(id);
+  const context = () => contextFor(id, revision);
+
+  // The change context: a Request id that isn't one, a negative revision, an extra field.
+  expect(await api.addReviewers({ ...context(), requestId: "not-a-request" }, { nominees: [member(developer)], note: "" })).toEqual({ error: "Invalid review action." });
+  expect(await api.addReviewers({ ...context(), expectedRevision: -1 }, { nominees: [member(developer)], note: "" })).toEqual({ error: "Invalid review action." });
+  expect(await api.addReviewers({ ...context(), extra: true } as ReturnType<typeof context>, { nominees: [member(developer)], note: "" })).toEqual({ error: "Invalid review action." });
+  // Adding: nobody picked, an extra field, a note over 500 characters.
+  expect(await api.addReviewers(context(), { nominees: [], note: "" })).toEqual({ error: "Choose people to review." });
+  expect(await api.addReviewers(context(), { nominees: [member(developer)], note: "", extra: true })).toEqual({ error: "Choose people to review." });
+  expect(await api.addReviewers(context(), { nominees: [member(developer)], note: "x".repeat(501) })).toEqual({ error: "Choose people to review." });
+  // Removing: a reviewer id that isn't one.
+  expect(await api.removeReviewer(context(), { reviewerId: "not-a-reviewer" })).toEqual({ error: "Choose a reviewer to remove." });
+  // Answering: an unknown answer, a reason over 4000 characters.
+  as(designer);
+  expect(await api.answerReview(context(), { reviewerId: reviewer.id, kind: "maybe", reason: "" })).toEqual({ error: "Invalid review answer." });
+  expect(await api.answerReview(context(), { reviewerId: reviewer.id, kind: "concern", reason: "x".repeat(4001) })).toEqual({ error: "Invalid review answer." });
+  as(owner);
+
+  expect(await revisionOf(id)).toBe(revision);
+  expect((await reviewersOf(id)).map(r => [r.nominee.userId, r.decision])).toEqual([[designer, null]]);
+});
