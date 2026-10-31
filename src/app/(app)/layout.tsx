@@ -18,6 +18,7 @@ import { WorkspaceProjectsProvider } from "@/components/projects/workspace-proje
 import { OfflineGuard } from "@/components/shell/offline-guard";
 import { canChangeThings, canContribute } from "@/lib/role-rules";
 import { followSeatChangesAfterResponse } from "@/lib/billing";
+import { timed } from "@/lib/request-timings";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
 // and the composer opens from every page under this layout, so the function
@@ -38,9 +39,10 @@ export default async function AppLayout({
   // nothing is written) is not awaited here. It streams to the Suspense-wrapped
   // bell, so it never holds up the first byte. A failed count leaves the badge
   // empty, as a failed client fetch did before; it never breaks the shell.
-  const needsYouCount = countNeedsYou(member).catch(() => 0);
+  const needsYouCount = timed("shell", () => countNeedsYou(member)).catch(() => 0);
   // #219: the person's own saved views for the navigation. A failed read leaves the group out; it never breaks the shell.
-  const [result, projects, labels, savedViews] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member), loadSavedViews(member).catch(() => [])]);
+  // #265: the frame's own reads are the `shell` step of the server timings.
+  const [result, projects, labels, savedViews] = await Promise.all([getWorkspace(), timed("shell", () => loadProjects(member)), timed("shell", () => loadLabels(member)), timed("shell", () => loadSavedViews(member)).catch(() => [])]);
   if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
   // #215: a paying workspace's seats follow Clerk memberships; checked after the response, at most every 10 minutes.

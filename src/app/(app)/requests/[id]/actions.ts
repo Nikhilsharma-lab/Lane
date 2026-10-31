@@ -10,6 +10,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { guardActiveMember, guardCanContribute, guardCanChange } from "@/lib/auth-guard";
 import { requestPrioritySchema } from "@/lib/request-properties";
 import { removeObjects, signDownload } from "@/lib/attachment-storage";
+import { callTimings } from "@/lib/request-timings";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -187,10 +188,24 @@ export async function getAttachmentDownloadUrl(
   context: { orgId: string }
 ) {
   if (!UUID_RE.test(attachmentId)) return { error: "File not found" };
-  const auth = await guardActiveMember(context.orgId, "File not found");
+  // #265: the private-attachment read, timed as "Attachment download" (a log line; an action has no header).
+  const timings = callTimings("Attachment download");
+  try {
+    return await attachmentDownloadUrl(attachmentId, context, timings.time);
+  } finally {
+    timings.finish();
+  }
+}
+
+async function attachmentDownloadUrl(
+  attachmentId: string,
+  context: { orgId: string },
+  time: ReturnType<typeof callTimings>["time"]
+) {
+  const auth = await time("session", () => guardActiveMember(context.orgId, "File not found"));
   if ("error" in auth) return auth;
 
-  const [attachment] = await db
+  const [attachment] = await time("data", () => db
     .select({
       storagePath: requestAttachments.storagePath,
       fileName: requestAttachments.fileName,
@@ -205,12 +220,12 @@ export async function getAttachmentDownloadUrl(
         sql`${requestAttachments.uploadedAt} is not null`
       )
     )
-    .limit(1);
+    .limit(1));
 
   if (!attachment) return { error: "File not found" };
 
   try {
-    return { success: true, url: await signDownload(attachment.storagePath, attachment.fileName) };
+    return { success: true, url: await time("data", () => signDownload(attachment.storagePath, attachment.fileName)) };
   } catch (error) {
     console.error("[request/attachments] download signing failed:", error);
     return { error: "Lane couldn't prepare this download. Try again." };
