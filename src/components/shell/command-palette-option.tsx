@@ -1,6 +1,6 @@
 import { Check } from "lucide-react"
 import type { PaletteEntry, PriorityEntry } from "./command-palette-entries"
-import { ShortcutKeys } from "./keyboard-shortcuts"
+import { ShortcutKeys } from "./keyboard-shortcuts-dialog"
 import styles from "./command-palette.module.css"
 
 type Props = {

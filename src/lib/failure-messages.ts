@@ -23,6 +23,8 @@ export const CHECK_CONNECTION = "Check your connection and try again."
 export const SESSION_ENDED = "Your session ended. Sign in again to continue."
 /** A read or change refused because the session no longer matches this workspace. */
 export const SESSION_CHANGED = "Your workspace session changed. Refresh the page to continue."
+/** A popup whose code couldn't load (an old tab after a deploy): the toast title. Offline says OFFLINE_ANSWER_TITLE. */
+export const POPUP_UNAVAILABLE_TITLE = "Couldn't open this"
 /** The label on every failure message's retry button. */
 export const TRY_AGAIN = "Try again"
 

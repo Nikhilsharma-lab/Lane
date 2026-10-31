@@ -18,7 +18,8 @@ import { listMetricDefinitions, metricDefinitionUnitLocked, readMetricDefinition
 import { ProfileForm } from "../../profile/profile-form";
 import { ThemePreference } from "../../profile/theme-preference";
 import { sharedPanels } from "../../profile/shared-panels";
-import { ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
+import { ArchiveMetricControl, MergeMetricControl } from "../metric-controls";
+import { EditMetricForm } from "../edit-metric-form";
 import styles from "../metrics.module.css";
 
 /**
