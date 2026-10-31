@@ -1,5 +1,14 @@
 # Shared Claude / Codex handoff
 
+## October 31 — Metrics clarity and sign-in polish
+
+`codex/metrics-auth-polish` clarifies the optional dashboard link, removes the
+editable calculation field while retaining saved notes, fixes wrapping metric
+options and their library footer, and applies the Quiet treatment to Clerk
+sign-in. Scope and local checks: `docs/design-system/2026-10-31-metrics-auth-polish.md`.
+No schema, permissions, auth-flow or server-action changes. Hosted release
+evidence follows separately; this entry does not claim deployment.
+
 ## October 31 — Quiet Metrics follow-up
 
 `codex/quiet-metrics` applies the approved Quiet direction to the Metrics library, Add/Edit metric and inline metric creation. Picker options show name and unit. Pending metric saves hold their forms/composers open, including phone-sheet drags. Scope and local verification: `docs/design-system/2026-10-31-quiet-metrics.md`. Release follows separately; this entry does not claim hosted verification.

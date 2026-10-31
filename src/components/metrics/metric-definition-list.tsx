@@ -13,7 +13,7 @@ const EMPTY = {
 
 /**
  * The Metrics page's list (#196): each definition's name, unit, how it's counted and where it lives.
- * Each name opens the definition's own page (#197), where it is edited; so does "Add where this lives". A Viewer
+ * Each name opens the definition's own page (#197), where it is edited; so does "Add dashboard link". A Viewer
  * (`canEdit` false, #210) reads the same facts with nothing to add.
  */
 export function MetricDefinitionList({ definitions, view = "active", canEdit = true }: { definitions: MetricDefinitionListItem[]; view?: "active" | "archived"; canEdit?: boolean }) {
@@ -38,9 +38,9 @@ export function MetricDefinitionList({ definitions, view = "active", canEdit = t
 export function MetricDefinitionFacts({ definition, canEdit = true }: { definition: MetricDefinitionListItem; canEdit?: boolean }) {
   return <dl className={styles.facts}>
     <div className={styles.fact}><dt>Unit</dt><dd>{metricUnitName(definition.unit)}</dd></div>
-    <div className={styles.fact}><dt>How it&apos;s counted</dt><dd>{definition.howCounted ?? <span className={styles.missing}>Not written yet</span>}</dd></div>
-    <div className={styles.fact}><dt>Where it lives</dt><dd>{definition.link
+    {definition.howCounted && <div className={styles.fact}><dt>Saved definition</dt><dd>{definition.howCounted}</dd></div>}
+    <div className={styles.fact}><dt>Dashboard link</dt><dd>{definition.link
       ? <a className={styles.link} href={definition.link} target="_blank" rel="noopener noreferrer">{definition.link}<span className="sr-only"> (opens in a new tab)</span></a>
-      : canEdit ? <Link className={styles.add} href={`/settings/metrics/${definition.id}`}>Add where this lives</Link> : <span className={styles.missing}>Not added yet</span>}</dd></div>
+      : canEdit ? <Link className={styles.add} href={`/settings/metrics/${definition.id}`}>Add dashboard link</Link> : <span className={styles.missing}>Not added yet</span>}</dd></div>
   </dl>;
 }

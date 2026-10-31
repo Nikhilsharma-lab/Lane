@@ -108,7 +108,7 @@ describe("Plan item 2.11: the card's space is reserved while Clerk loads", () =>
     const page = render(createElement(LoginPage));
     const loading = render(createElement(LoginLoading));
     for (const html of [page, loading]) {
-      expect(html).toContain("Sign in to access your Lane workspace.");
+      expect(html).not.toContain("Sign in to access your Lane workspace.");
       expect(html).toContain('href="/forgot-password"');
       expect(html).toContain('data-skeleton="auth-card"');
       expect(statusLabels(withoutHidden(html))).toEqual(["Loading sign in"]);

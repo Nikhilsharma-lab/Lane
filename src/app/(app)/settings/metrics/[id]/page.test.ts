@@ -89,12 +89,12 @@ describe("A Metric definition's page", () => {
   });
 
   it("explains that a change in what's counted needs a new definition", async () => {
-    expect(text(await open(trials))).toContain("If what's counted changes, add a new metric instead, so results already measured keep their meaning.");
+    expect(text(await open(trials))).toContain("Use the same report for current and actual values. If the calculation changes, add a new metric.");
   });
 
   it("shows every change in history, newest first, with who made it and the before and after", async () => {
     const history = text(historyOf(await open(trials)));
-    expect(history).toMatch(/^Edited by Sam Ortiz .*Name changed from Trial starts to Trials started .*Where it lives added: https:\/\/analytics.example.test\/trials .*Added by Pat Lee .*Name: Trial starts .*Unit: Count .*How it's counted: Trials started per week\.$/);
+    expect(history).toMatch(/^Edited by Sam Ortiz .*Name changed from Trial starts to Trials started .*Dashboard link added: https:\/\/analytics.example.test\/trials .*Added by Pat Lee .*Name: Trial starts .*Unit: Count .*How it's counted: Trials started per week\.$/);
     expect(history).not.toContain("How it's counted changed");
     expect(historyOf(await open(trials))).toMatch(/<time dateTime="[^"]+"/);
   });

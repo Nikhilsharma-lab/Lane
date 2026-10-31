@@ -21,3 +21,14 @@ describe("The definition form's unit", () => {
     expect(html).toContain("A Request uses this metric, so its unit can&#x27;t change.");
   });
 });
+
+describe("existing measurement notes", () => {
+  it("keeps the saved explanation visible without offering a calculation editor", () => {
+    const html = renderToStaticMarkup(createElement(MetricDefinitionForm, {
+      initial: { name: "Checkout conversion", unit: "percent", link: "", howCounted: "Completed checkouts divided by checkout starts." },
+      submitLabel: "Save changes", onSubmit: async () => ({ ok: true as const }),
+    }));
+    expect(html).toContain("Completed checkouts divided by checkout starts.");
+    expect(html).not.toContain("<textarea");
+  });
+});

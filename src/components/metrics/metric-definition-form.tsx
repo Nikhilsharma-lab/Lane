@@ -4,9 +4,8 @@ import { useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Select } from "@/components/arc/select/select";
-import { Textarea } from "@/components/arc/textarea/textarea";
 import {
-  METRIC_HOW_COUNTED_MAX, METRIC_LINK_MAX, METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionFieldErrors, metricDefinitionInputSchema,
+  METRIC_LINK_MAX, METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionFieldErrors, metricDefinitionInputSchema,
   metricUnitName, type MetricDefinitionField,
 } from "@/lib/metric-definition-rules";
 import styles from "./metric-definition-form.module.css";
@@ -20,7 +19,7 @@ const FIELD_ORDER: MetricDefinitionField[] = ["name", "unit", "link", "howCounte
 export const UNIT_LOCKED_NOTE = "A Request uses this metric, so its unit can't change. A metric in another unit needs a new definition.";
 
 /**
- * Adding or editing a Metric definition (#197): name, unit, where it lives and how it's counted. The
+ * Adding or editing a Metric definition: name, unit and an optional dashboard link. Saved calculation notes are retained. The
  * same rules run here and on the server; the server's answer shows beside the field it is about.
  */
 export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onSaved, onCancel, onPendingChange, confirmSaved = false, unitLocked = false }: {
@@ -98,8 +97,12 @@ export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onS
       </div>
     </div>
     {unitLocked && <><p className={styles.note}>{UNIT_LOCKED_NOTE}</p><FieldError>{fields.unit}</FieldError></>}
-    <div data-field="link"><Input label="Where it lives" description="Dashboard or report link. Optional." type="url" inputMode="url" placeholder="https://" value={values.link} readOnly={pending} onChange={event => set("link")(event.target.value)} maxLength={METRIC_LINK_MAX} error={fields.link} autoComplete="off" /></div>
-    <div data-field="howCounted"><Textarea label="How it's counted" description="Describe the calculation. Optional." value={values.howCounted} readOnly={pending} onChange={event => set("howCounted")(event.target.value)} maxLength={METRIC_HOW_COUNTED_MAX} error={fields.howCounted} rows={3} /></div>
+    <div data-field="link"><Input label="Dashboard link (optional)" description="Link to the report you use to measure this metric." type="url" inputMode="url" placeholder="https://" value={values.link} readOnly={pending} onChange={event => set("link")(event.target.value)} maxLength={METRIC_LINK_MAX} error={fields.link} autoComplete="off" /></div>
+    {values.howCounted && <div className={styles.savedDefinition}>
+      <span className={styles.lockedLabel}>Saved definition</span>
+      <p>{values.howCounted}</p>
+    </div>}
+    <FieldError>{fields.howCounted}</FieldError>
     {note && <p className={styles.note}>{note}</p>}
     {error && <p id={`${id}-error`} className={styles.error} role="alert">{error}</p>}
     <div className={styles.actions}>

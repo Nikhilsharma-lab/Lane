@@ -1,7 +1,7 @@
 .shell { display: flex; min-height: 100dvh; flex: 1; flex-direction: column; color: var(--foreground); background: var(--background); font-family: var(--font-body); }
 .header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-6) clamp(var(--space-4), 4vw, var(--space-8)); }
 .main { display: flex; flex: 1; align-items: center; justify-content: center; padding: var(--space-10) clamp(var(--space-4), 4vw, var(--space-8)) var(--space-16); }
-.column { display: grid; width: 100%; max-width: calc(var(--spacing) * 100); gap: var(--space-6); }
+.column { display: grid; min-width: 0; width: 100%; max-width: calc(var(--spacing) * 100); gap: var(--space-4); }
 .form { display: grid; min-width: 0; width: 100%; gap: var(--space-8); }
 .heading { display: grid; gap: var(--space-3); }
 .title { margin: 0; font-family: var(--font-display); font-size: var(--text-2xl); line-height: var(--leading-display); letter-spacing: var(--tracking-display); font-weight: var(--weight-semibold); }
@@ -13,9 +13,12 @@
 /* Plan item 2.11: hidden while a Clerk session task is open, without moving the header. */
 .headerSlot[data-concealed] { visibility: hidden; }
 /* Plan item L1: the Privacy and Terms links, side by side under the form. */
-.legal { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); }
+.legal { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2) var(--space-4); padding-top: var(--space-2); font-size: var(--text-xs); line-height: var(--leading-body); }
+.legal .link { color: var(--text-secondary); font-weight: var(--weight-normal); }
+.column > .headerSlot .headerLink { justify-content: center; font-size: var(--text-xs); }
 .link { color: var(--foreground); font-weight: var(--weight-medium); text-decoration: none; border-radius: var(--radius-control); }
-.link:hover, .link:focus-visible { text-decoration: underline; background: var(--surface-muted); }
+.link:focus-visible { text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) { .link:hover { text-decoration: underline; } }
 /* A button that reads as the header's text links (onboarding's Sign out). */
 .textButton { padding: 0; border: 0; background: none; font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
 .textButton[aria-disabled] { cursor: default; }
@@ -23,28 +26,27 @@
 .unavailable { display: grid; gap: var(--space-8); }
 .trust { display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--leading-body); }
 .field { display: grid; gap: var(--space-2); }
-/* Plan item 2.11: the forgot and reset form keeps Clerk's form rhythm through clerkEmbeddedAppearance:
- * fields --space-6 apart ($6), the actions --space-8 below them ($8). */
-.recoveryForm { display: grid; gap: var(--space-8); }
-.recoveryFields, .recoveryActionGroup { display: grid; gap: var(--space-6); }
+/* Recovery and Clerk forms share one compact rhythm. */
+.recoveryForm { display: grid; gap: var(--space-5); }
+.recoveryFields, .recoveryActionGroup { display: grid; gap: var(--space-5); }
 .recoveryActions { display: grid; gap: var(--space-2); }
 @media (min-width: 640px) { .recoveryActions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* Resend stays focusable while unavailable (aria-disabled), so it borrows Arc's disabled look. */
 .recoveryActions button[aria-disabled="true"]:not([aria-busy="true"]) { opacity: var(--button-disabled-opacity); cursor: not-allowed; }
-/* Plan item 2.11: AuthCardSkeleton draws Clerk's card at clerkEmbeddedAppearance's tokens: the centred header,
- * --space-8 to the form and to its button, --space-6 between rows, controls at --control-height-md. Tokens only, in the Arc
- * Skeleton's fill and still, so there is nothing for reduced motion to stop. */
-.cardSkeleton { display: grid; min-width: 0; width: 100%; gap: var(--space-8); }
-.cardSkeleton .heading { justify-items: center; }
-.skeletonTitle { display: flex; width: 100%; height: calc(var(--text-2xl) * var(--leading-display)); align-items: center; justify-content: center; }
+/* Match the loaded Clerk card so its controls arrive in the reserved space. */
+.cardSkeleton { display: grid; min-width: 0; width: 100%; gap: var(--space-6); }
+.cardSkeleton .heading { justify-items: start; gap: var(--space-1); }
+.skeletonTitle { display: flex; width: 100%; height: calc(var(--text-2xl) * var(--leading-display)); align-items: center; justify-content: flex-start; }
 .skeletonText { display: flex; width: 100%; height: calc(var(--text-sm) * var(--leading-body)); align-items: center; justify-content: center; }
 .skeletonTitleBar, .skeletonBar, .skeletonDivider, .skeletonLabel, .skeletonButton { display: block; border-radius: var(--radius-control); background: var(--skeleton-fill); }
 .skeletonTitleBar { width: 48%; height: var(--space-4); }
 .skeletonBar { width: 72%; height: var(--space-3); }
 .skeletonDivider { width: var(--space-6); height: var(--space-3); }
-/* Clerk's main column ($6: social button, divider, form) and form ($8: fields, then the button). */
-.skeletonBody, .skeletonFields { display: grid; gap: var(--space-6); }
-.skeletonForm { display: grid; gap: var(--space-8); }
+/* Social button, divider, fields and action use the same spacing as Clerk. */
+.skeletonBody { display: grid; gap: var(--space-5); }
+.skeletonFields { display: grid; gap: var(--space-6); }
+.skeletonForm { display: grid; gap: var(--space-5); }
+.cardSkeleton .heading .skeletonText { justify-content: flex-start; }
 .skeletonField { display: grid; gap: var(--space-2); }
 .skeletonField .skeletonText { justify-content: flex-start; }
 .skeletonLabel { width: 32%; height: var(--space-3); }
@@ -57,3 +59,7 @@
 .shortcuts { display: none; margin: 0; color: var(--text-secondary); font-size: var(--text-xs); }
 @media (pointer: fine) { .shortcuts { display: block; } }
 @media (max-width: 640px) { .main { align-items: flex-start; padding-top: var(--space-8); } .header { padding-block: var(--space-4); } }
+@media (pointer: coarse) {
+  .header .link, .headerLink .link, .legal .link { display: inline-flex; align-items: center; min-height: var(--size-inner-xlarge); }
+  .skeletonControl, .skeletonButton { height: var(--size-inner-xlarge); }
+}
