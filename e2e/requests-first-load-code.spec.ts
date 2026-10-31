@@ -5,9 +5,9 @@ import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 
 // #266 (Build 3, lighter pages): the Requests list's first load carries neither the form-checking library (zod) nor
-// Motion's deferred features (gestures, drag and layout). Judged from the scripts the page fetches, by text only those
-// libraries carry, so a renamed or re-split file can't slip past: zod's own class names, and the strings of Motion's
-// drag and layout code. Motion's features then arrive on their own once the page has loaded and is idle (Build 2's
+// Motion's deferred features (gestures, drag and layout). Judged from the scripts the page's HTML makes it fetch, by
+// text only those libraries carry, so a renamed or re-split file can't slip past: zod's own class names, and the
+// strings of Motion's drag and layout code. Motion's features then arrive on their own once the page has loaded and is idle (Build 2's
 // rule, src/lib/after-page-load.ts), and a press scales again from then on.
 
 const ZOD = /"\$Zod(?:Type|Error|Object)"/;
@@ -75,15 +75,22 @@ test("the Requests list's first load carries no form checking and none of Motion
     await page.setViewportSize({ width: 1440, height: 900 });
 
     await test.step("first load: no zod, no Motion features; the features follow once the page is idle", async () => {
+      const documentResponse = page.waitForResponse(response => response.request().isNavigationRequest() && new URL(response.url()).pathname === "/");
       await page.goto("/", { waitUntil: "load", timeout: 60_000 });
+      // The page's first load is the code its HTML asks for (script tags and the client components it streams), as
+      // the code-size baseline counts it. Popups that load ahead on their own (the New Request form) are not part of it.
+      const html = await (await documentResponse).text();
+      const firstLoadNames = new Set([...html.matchAll(/\/_next\/static\/chunks\/[\w.-]+\.js/g)].map(match => match[0]));
       await expect(page.getByText("First load Request 1").first()).toBeVisible();
       await expect.poll(() => page.evaluate(() => (window as LoadOrderWindow).__loadOrder?.idle ?? null), { timeout: 30_000 }).not.toBeNull();
-      await expect(page.locator("html[data-motion-features=ready]")).toBeAttached({ timeout: 30_000 });
-      const visit = await timing(page);
-      const firstLoad = visit.scripts.filter(script => script.start < visit.idle);
-      expect(firstLoad.length).toBeGreaterThan(0);
+      const firstLoad = (await timing(page)).scripts.filter(script => firstLoadNames.has(script.name));
+      expect(firstLoad.length).toBeGreaterThan(10);
       expect(await carrying(firstLoad, ZOD)).toEqual([]);
       expect(await carrying(firstLoad, MOTION_FEATURES)).toEqual([]);
+      await expect(page.locator("html[data-motion-features=ready]")).toBeAttached({ timeout: 30_000 });
+      const visit = await timing(page);
+      // Nor do the features come before the page has loaded and is idle (Build 2's rule).
+      expect(await carrying(visit.scripts.filter(script => script.start < visit.idle), MOTION_FEATURES)).toEqual([]);
       // The check means something only if the features did arrive, on their own, after the first load.
       const features = await carrying(visit.scripts, MOTION_FEATURES);
       expect(features.length).toBeGreaterThan(0);
