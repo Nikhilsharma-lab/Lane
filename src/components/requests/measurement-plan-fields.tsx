@@ -125,6 +125,7 @@ function SectionHeader({ title, action, optional }: { title: string; action?: Re
 export function MeasurementPlanFields<T extends PlanImpactDraft>({ value, onChange, orgId, ...props }: {
   value: T; onChange: (value: T) => void
   requestType: RequestType | null; disabled?: boolean; submitted?: boolean
+  layout?: "cards" | "plain"
   /** The workspace whose Metrics library the pickers offer (#198). */
   orgId?: string
 }) {
@@ -161,9 +162,10 @@ export function MeasurementPlanFields<T extends PlanImpactDraft>({ value, onChan
   </>
 }
 
-function MeasurementFields({ value, onChange, requestType, disabled = false, submitted = false, legacy, library, unresolved }: {
+function MeasurementFields({ value, onChange, requestType, disabled = false, submitted = false, layout = "cards", legacy, library, unresolved }: {
   value: EditorPlan; onChange: (value: EditorPlan) => void
   requestType: RequestType | null; disabled?: boolean; submitted?: boolean; legacy: boolean
+  layout?: "cards" | "plain"
   library: MetricLibrary; unresolved: string[]
 }) {
   const prefix = useId()
@@ -226,7 +228,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
       error={error(`${path}.key`) || error(`${path}.name`)} onPick={update} />
   }
 
-  return <section id="intake-expected-impact" aria-label="Request measurement" tabIndex={-1} className={styles.plan}>
+  return <section id="intake-expected-impact" aria-label="Request measurement" tabIndex={-1} className={styles.plan} data-layout={layout}>
     <fieldset disabled={disabled} className={styles.body}>
       <section className={styles.section} aria-label="Primary metric">
         <SectionHeader title="Primary metric" action={library.canOpenLibrary && <a className={styles.headerLink} href={METRICS_PAGE} target="_blank" rel="noopener noreferrer">
