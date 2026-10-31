@@ -4,6 +4,7 @@ import { loadRequestList } from "@/lib/data/requests"
 import { loadSavedViews } from "@/lib/data/saved-views"
 import { firstRunSlot } from "@/components/first-run/first-run-slot"
 import { RequestsOverview } from "./requests-overview"
+import { timePage, timed } from "@/lib/request-timings"
 
 /**
  * The Requests list at "/". Request pages render request-detail-workspace.tsx:
@@ -11,6 +12,7 @@ import { RequestsOverview } from "./requests-overview"
  * (plan item 2.12); the list's preview loads the detail islands on demand.
  */
 export async function RequestsWorkspace() {
+  void timePage("Requests list")
   const member = await getMember()
   if (!member) redirect("/login")
 
@@ -24,9 +26,9 @@ export async function RequestsWorkspace() {
   // alongside the list.
   // #219: the person's own saved views (the layout's read, shared within this render).
   const [[workspace, firstRun], list, savedViews] = await Promise.all([
-    getWorkspace().then(async ws => [ws, ws && !ws.needsOnboarding ? await firstRunSlot(member, ws.workspaceName, "list") : null] as const),
-    loadRequestList(member),
-    loadSavedViews(member).catch(() => []),
+    getWorkspace().then(async ws => [ws, ws && !ws.needsOnboarding ? await timed("data", () => firstRunSlot(member, ws.workspaceName, "list")) : null] as const),
+    timed("data", () => loadRequestList(member)),
+    timed("data", () => loadSavedViews(member)).catch(() => []),
   ])
   if (!workspace) redirect("/login")
   if (workspace.needsOnboarding) redirect("/onboarding")

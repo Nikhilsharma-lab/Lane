@@ -1,6 +1,7 @@
 import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
+import { timed } from "@/lib/request-timings";
 import { and, count, eq, gt, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 
 import { db, freeRequestAllowances, workspaceBilling, workspaces } from "@/db";
@@ -94,11 +95,11 @@ export async function decideFreeRequests(ws: Workspace, known?: { createdBy: str
   try {
     if (await freeRequestsDecided(ws)) return;
     const client = await clerkClient();
-    const createdBy = known ? known.createdBy : (await client.organizations.getOrganization({ organizationId: ws.orgId })).createdBy;
+    const createdBy = known ? known.createdBy : (await timed("clerk", () => client.organizations.getOrganization({ organizationId: ws.orgId }))).createdBy;
     if (!createdBy) return;
     const email = known && createdBy === known.userId
       ? known.email
-      : await client.users.getUser(createdBy).then((user) => user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null);
+      : await timed("clerk", () => client.users.getUser(createdBy)).then((user) => user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null);
     await claimFreeRequests(ws, email);
   } catch (error) {
     console.error("[billing] Free Requests allowance not decided:", error instanceof Error ? error.message : "unknown error");
