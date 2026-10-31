@@ -57,11 +57,11 @@ describe("Settings → Metrics", () => {
     expect(visibleSections(html)).toEqual(["metrics"]);
     const names = [...html.matchAll(/<h4[^>]*><a[^>]*>([^<]*)<\/a><\/h4>/g)].map(match => match[1]);
     expect(names).toEqual(["Action count", "Conversion rate", "Customer satisfaction", "Feature adoption rate", "Median time to convert", "Support contact rate", "User error rate"]);
-    expect(html).toContain("<dd>Percentage</dd>");
-    expect(html).toContain("<dd>Seconds</dd>");
-    expect(html).toContain("<dd>Count</dd>");
+    expect(html).toMatch(/<span[^>]*>Percentage<\/span>/);
+    expect(html).toMatch(/<span[^>]*>Seconds<\/span>/);
+    expect(html).toMatch(/<span[^>]*>Count<\/span>/);
     expect(html).toContain("Median time from starting the step to finishing it.");
-    expect(html.match(/Add where this lives/g)).toHaveLength(7);
+    expect(html.match(/Add source/g)).toHaveLength(7);
   });
 
   it("doesn't add the starter metrics again on a second visit", async () => {
@@ -79,7 +79,7 @@ describe("Settings → Metrics", () => {
     const html = await open();
     expect(html).toMatch(/<button[^>]*>[\s\S]*?Add metric[\s\S]*?<\/button>/);
     expect(html).toMatch(/<h4[^>]*><a[^>]*href="\/settings\/metrics\/[0-9a-f-]{36}"[^>]*>Conversion rate<\/a><\/h4>/);
-    expect(html).toMatch(/<a[^>]*href="\/settings\/metrics\/[0-9a-f-]{36}"[^>]*>Add where this lives<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/settings\/metrics\/[0-9a-f-]{36}"[^>]*>Add source<span/);
   });
 
   it("keeps archived definitions behind the Archived filter (#197)", async () => {
@@ -111,8 +111,8 @@ describe("Settings → Metrics", () => {
     expect(visibleSections(html)).toEqual(["metrics"]);
     expect(html).toMatch(/<h4[^>]*><a[^>]*href="\/settings\/metrics\/[0-9a-f-]{36}"[^>]*>Conversion rate<\/a><\/h4>/);
     expect(html).not.toMatch(/<button[^>]*>[\s\S]*?Add metric[\s\S]*?<\/button>/);
-    expect(html).not.toContain("Add where this lives");
-    expect(html.match(/Not added yet/g)).toHaveLength(html.match(/<h4/g)!.length);
+    expect(html).not.toContain("Add source");
+    expect(html).toContain("Median time from starting the step to finishing it.");
     expect(html).not.toContain('id="settings-members"');
     expect(html).not.toContain('id="settings-inbox-delivery"');
   });
