@@ -6,6 +6,7 @@ import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
 import { RequestUnavailable } from "@/components/requests/detail-view"
 import { RequestDetailPane } from "@/components/requests/request-detail-pane"
 import { RequestWorkspaceKeyboard } from "@/components/requests/request-workspace-keyboard"
+import { timePage, timed } from "@/lib/request-timings"
 
 /**
  * Canonical /requests/[id] (plan items 1.7 and 2.5). Its own module, apart
@@ -15,6 +16,7 @@ import { RequestWorkspaceKeyboard } from "@/components/requests/request-workspac
  * item 2.12). The list reaches these islands on demand, through its preview.
  */
 export async function RequestDetailWorkspace({ selectedRequestId }: { selectedRequestId: string }) {
+  void timePage("Request page")
   const member = await getMember()
   if (!member) redirect("/login")
 
@@ -24,7 +26,7 @@ export async function RequestDetailWorkspace({ selectedRequestId }: { selectedRe
   // the workspace and guest guards (src/lib/data/requests.ts).
   const [workspace, selected] = await Promise.all([
     getWorkspace(),
-    loadRequestDetail(member, selectedRequestId),
+    timed("data", () => loadRequestDetail(member, selectedRequestId)),
   ])
   if (!workspace) redirect("/login")
   if (workspace.needsOnboarding) redirect("/onboarding")

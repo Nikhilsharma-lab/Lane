@@ -1,6 +1,7 @@
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { membersPanel } from "../members/members-panel";
 import { redirect } from "next/navigation";
+import { timePage, timed } from "@/lib/request-timings";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { getWorkspace } from "@/lib/ensure-workspace";
@@ -11,6 +12,7 @@ import { slackPanel } from "./slack-panel";
 import { billingPanel } from "./billing-panel";
 
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string; slack?: string; checkout?: string }> }) {
+  void timePage("Settings: Profile");
   const workspace = await getWorkspace();
   if (!workspace) redirect("/login");
   if (workspace.needsOnboarding) redirect("/onboarding");
@@ -28,9 +30,9 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         security={<AccountSecurity />}
         role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />}
         appearance={<ThemePreference compact />}
-        delivery={await inboxDeliveryPanel(workspace)}
-        slack={await slackPanel(workspace, slack)}
-        billing={await billingPanel(workspace, checkout)}
+        delivery={await timed("data", () => inboxDeliveryPanel(workspace))}
+        slack={await timed("data", () => slackPanel(workspace, slack))}
+        billing={await timed("data", () => billingPanel(workspace, checkout))}
       />
   );
 }

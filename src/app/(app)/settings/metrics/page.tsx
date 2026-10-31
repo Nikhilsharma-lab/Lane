@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { timePage, timed } from "@/lib/request-timings";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { canChangeThings } from "@/lib/role-rules";
@@ -21,6 +22,7 @@ import styles from "./metrics.module.css";
  * Admins add definitions here (#197); archived ones sit behind the Archived filter (`?show=archived`).
  */
 export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ section?: string; show?: string }> }) {
+  void timePage("Settings: Metrics");
   const workspace = await getWorkspace();
   if (!workspace) redirect("/login");
   if (workspace.needsOnboarding) redirect("/onboarding");
@@ -28,7 +30,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
 
   const { section, show } = await searchParams;
   const view = show === "archived" ? "archived" : "active";
-  const all = await listMetricDefinitions(workspace, { includeArchived: view === "archived" });
+  const all = await timed("data", () => listMetricDefinitions(workspace, { includeArchived: view === "archived" }));
   const definitions = view === "archived" ? all.filter(definition => definition.archivedAt && !definition.mergedIntoId) : all;
   // #210: a Viewer reads the library and adds or edits nothing.
   const canEdit = canChangeThings(workspace.role);
@@ -40,5 +42,5 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
     members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
-    delivery={await inboxDeliveryPanel(workspace)} slack={await slackPanel(workspace)} billing={await billingPanel(workspace)} />;
+    delivery={await timed("data", () => inboxDeliveryPanel(workspace))} slack={await timed("data", () => slackPanel(workspace))} billing={await timed("data", () => billingPanel(workspace))} />;
 }

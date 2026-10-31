@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { timePage, timed } from "@/lib/request-timings";
 import { ArrowLeft } from "lucide-react";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
@@ -27,6 +28,7 @@ import styles from "../metrics.module.css";
  * and read its history. Members and Admins only.
  */
 export default async function MetricDefinitionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ section?: string }> }) {
+  void timePage("Settings: a Metric");
   const workspace = await getWorkspace();
   if (!workspace) redirect("/login");
   if (workspace.needsOnboarding) redirect("/onboarding");
@@ -34,7 +36,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
 
   const [{ id }, { section }] = await Promise.all([params, searchParams]);
   const library = workspace;
-  const [definition, history, unitLocked] = await Promise.all([readMetricDefinition(library, id), readMetricDefinitionHistory(library, id), metricDefinitionUnitLocked(library, id)]);
+  const [definition, history, unitLocked] = await Promise.all([timed("data", () => readMetricDefinition(library, id)), timed("data", () => readMetricDefinitionHistory(library, id)), timed("data", () => metricDefinitionUnitLocked(library, id))]);
   if (!definition) notFound();
   const archived = !!definition.archivedAt;
   const merged = !!definition.mergedIntoId;
@@ -44,9 +46,9 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   // A merge needs another definition in the same unit that hasn't itself been merged away; archived ones count.
   // #203: a merged definition's Requests count under the one it was merged into, so they are listed there, not here.
   const [keptDefinition, everyDefinition, uses] = await Promise.all([
-    definition.mergedIntoId ? readMetricDefinition(library, definition.mergedIntoId) : null,
-    isAdmin && !merged ? listMetricDefinitions(library, { includeArchived: true }) : [],
-    merged ? null : loadDefinitionUses({ userId: workspace.userId, orgId: workspace.orgId, role: workspace.role }, definition.id, { now: new Date() }),
+    definition.mergedIntoId ? timed("data", () => readMetricDefinition(library, definition.mergedIntoId!)) : null,
+    isAdmin && !merged ? timed("data", () => listMetricDefinitions(library, { includeArchived: true })) : [],
+    merged ? null : timed("data", () => loadDefinitionUses({ userId: workspace.userId, orgId: workspace.orgId, role: workspace.role }, definition.id, { now: new Date() })),
   ]);
   const candidates = everyDefinition.filter(other => other.id !== definition.id && !other.mergedIntoId && other.unit === definition.unit)
     .map(other => ({ id: other.id, name: other.name, archived: !!other.archivedAt }));
@@ -84,5 +86,5 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
     members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
-    delivery={await inboxDeliveryPanel(workspace)} slack={await slackPanel(workspace)} billing={await billingPanel(workspace)} />;
+    delivery={await timed("data", () => inboxDeliveryPanel(workspace))} slack={await timed("data", () => slackPanel(workspace))} billing={await timed("data", () => billingPanel(workspace))} />;
 }

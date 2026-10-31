@@ -6,6 +6,7 @@ import { clerkWorkspacePermission, type MemberAuth, type WorkspacePermission } f
 import { loadShell } from "@/lib/data/shell";
 import { accountNameOf } from "@/lib/account-name";
 import { decideFreeRequests } from "@/lib/billing";
+import { timed } from "@/lib/request-timings";
 
 export type WorkspaceContext = {
   userId: string;
@@ -33,7 +34,7 @@ type OnboardingContext = {
  * request, so the layout and the page share one auth() call.
  */
 export const getMember = cache(async function getMember(): Promise<MemberAuth | null> {
-  const { userId, orgId, orgRole } = await auth();
+  const { userId, orgId, orgRole } = await timed("session", async () => auth());
   const role = clerkWorkspacePermission(orgRole);
   if (!userId || !orgId || !role) return null;
   return { userId, orgId, role };
@@ -49,10 +50,10 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
   const { userId, orgId, role } = member;
 
   // Plan item 1.9: profile and workspace in one statement.
-  const shell = await loadShell(member);
+  const shell = await timed("workspace", () => loadShell(member));
 
   if (!shell) {
-    const user = await currentUser();
+    const user = await timed("clerk", () => currentUser());
     return {
       needsOnboarding: true,
       userId,
@@ -65,9 +66,9 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
 
   if (workspaceName === null) {
     const client = await clerkClient();
-    const organization = await client.organizations.getOrganization({
+    const organization = await timed("clerk", () => client.organizations.getOrganization({
       organizationId: orgId,
-    });
+    }));
 
     const [workspace] = await db
       .insert(workspaces)
