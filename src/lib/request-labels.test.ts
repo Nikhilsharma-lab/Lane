@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { labelInputSchema, requestLabelKeys, labelRequestType } from "./request-labels";
+import { requestLabelKeys, labelRequestType } from "./request-labels";
+import { labelInputSchema } from "./request-label-schemas";
 
 describe("Request labels", () => {
   it("preserves historical types but allows explicit removal", () => {
