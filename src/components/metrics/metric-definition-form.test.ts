@@ -10,12 +10,13 @@ const render = (unitLocked: boolean) => renderToStaticMarkup(createElement(Metri
 
 describe("The definition form's unit", () => {
   it("can be chosen while no Request uses the definition", () => {
-    expect(render(false).match(/type="radio"/g)).toHaveLength(4);
+    expect(render(false)).toContain('role="combobox"');
+    expect(render(false)).toContain('aria-required="true"');
   });
 
   it("is shown, and explained, once a Request uses it", () => {
     const html = render(true);
-    expect(html).not.toContain('type="radio"');
+    expect(html).not.toContain('role="combobox"');
     expect(html).toContain("Count");
     expect(html).toContain("A Request uses this metric, so its unit can&#x27;t change.");
   });

@@ -2,7 +2,7 @@ import styles from "./field-error.module.css"
 
 /**
  * #260 (polish bar §4): the error under one field whose Arc control has no `error` prop of its own (Arc
- * `select`, `radio-group`, a picker button). Arc `input` and `textarea` take `error` themselves and need none
+ * `radio-group`, a picker button). Arc `input`, `textarea` and `select` take `error` themselves and need none
  * of this. It reads like their error line, is announced once, and its `id` goes in the control's
  * `aria-describedby`. Errors that aren't about one field use a toast or the offline line instead.
  */

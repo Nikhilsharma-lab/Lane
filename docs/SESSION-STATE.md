@@ -1,5 +1,9 @@
 # Shared Claude / Codex handoff
 
+## October 31 — Quiet Metrics follow-up
+
+`codex/quiet-metrics` applies the approved Quiet direction to the Metrics library, Add/Edit metric and inline metric creation. Picker options show name and unit. Pending metric saves hold their forms/composers open, including phone-sheet drags. Scope and local verification: `docs/design-system/2026-10-31-quiet-metrics.md`. Release follows separately; this entry does not claim hosted verification.
+
 ## October 31 — Quiet New Request approved for the app
 
 The approved Quiet modal and dropdown pass is integrated onto `b6f7c20d`, the

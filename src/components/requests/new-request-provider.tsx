@@ -273,7 +273,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
       {IntakeForm && formHost && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} registerCloseAttempt={registerCloseAttempt} />, formHost)}
       {hasOpened && formHost && <>
         <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
-          <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."
+          <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect." canDismiss={() => !busy.current}
             onOpenAutoFocus={event => {
               // The title in the compose step, the step's heading otherwise. Until
               // the form arrives, Radix focuses the close button.

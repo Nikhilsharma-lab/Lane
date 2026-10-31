@@ -36,15 +36,18 @@ describe("the options", () => {
     id: "metric", options: [SIGNUPS, SIGNUP_RATE], selectedId: "a", passFail: false, passFailSelected: false, onPick: () => {}, ...props,
   }));
 
-  it("shows each definition's unit, link and how it's counted, announced with the option", () => {
+  it("identifies options by name and unit without copying the full definition into the menu", () => {
     const html = render();
     const [first] = html.match(/<button[^>]*role="option"[\s\S]*?<\/button>/g)!;
     expect(first).toContain('aria-selected="true"');
     expect(first).toMatch(/aria-label="Signups"/);
     const described = first.match(/aria-describedby="([^"]+)"/)![1];
     expect(text(html.match(new RegExp(`<span[^>]*id="${described}"[\\s\\S]*?</span></span>`))![0])).toBe(
-      "Count · New accounts created in the window. · https://analytics.example.test/signups");
-    expect(text(html)).toContain("Percentage · How it's counted isn't written down yet · No link yet");
+      "Count");
+    expect(text(html)).toContain("Percentage");
+    expect(html).not.toContain(SIGNUPS.howCounted);
+    expect(html).not.toContain(SIGNUPS.link);
+    expect(text(html)).not.toContain("No link yet");
   });
 
   it("marks an archived definition the Request already uses", () => {
@@ -110,24 +113,33 @@ describe("the inline add form", () => {
     const html = render();
     expect(html).toMatch(/<label[^>]*>Name<\/label>|>Name</);
     expect(html).toContain('value="Checkout completions"');
-    expect(html).toMatch(/<legend>Unit<\/legend>/);
-    expect(text(html)).toContain("Percentage Count Seconds Minutes");
-    expect(html.match(/<input/g)).toHaveLength(5);
+    expect(html).toContain('role="combobox"');
+    expect(html).toContain("Choose a unit");
+    expect(html).not.toContain('type="radio"');
     expect(html).not.toMatch(/<label[^>]*>(Where it lives|How it)|type="url"|<textarea/);
-    expect(text(html)).toMatch(/Add and use[\s\S]*Back/);
+    expect(text(html)).toMatch(/Back[\s\S]*Add and use/);
   });
 
   it("shows each problem beside its field", () => {
     const html = render({ fields: { name: "Give the metric a name.", unit: "Choose a unit." } });
     expect(text(html)).toContain("Give the metric a name.");
     expect(html).toMatch(/role="alert"[^>]*>Choose a unit\./);
+    const unit = html.match(/<button[^>]*role="combobox"[^>]*>/)![0];
+    expect(unit).toContain('aria-invalid="true"');
+    expect(unit).toContain('aria-describedby="metric-unit-error"');
+  });
+
+  it("keeps the name and unit fixed while the metric is being added", () => {
+    const html = render({ pending: true });
+    expect(html).toMatch(/<input[^>]*readOnly=""/);
+    expect(html).toMatch(/<button[^>]*role="combobox"[^>]*disabled=""/);
   });
 
   it("offers the existing definition in place of a duplicate", () => {
     const html = render({ offer: SIGNUPS, values: { name: "signups", unit: "percent" } });
     expect(html).toMatch(/role="alert"/);
     expect(text(html)).toContain("“Signups” is already in the Metrics library, counted as Count. Use that one instead.");
-    expect(text(html)).toMatch(/Use “Signups”[\s\S]*Change the name/);
+    expect(text(html)).toMatch(/Use this metric[\s\S]*Change the name/);
     expect(text(html)).not.toContain("Add and use");
   });
 });

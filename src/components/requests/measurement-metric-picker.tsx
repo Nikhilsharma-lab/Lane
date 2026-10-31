@@ -6,7 +6,7 @@ import { Button } from "@/components/arc/button/button"
 import { Input } from "@/components/arc/input/input"
 import { SearchField } from "@/components/arc/search-field/search-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover"
-import { RadioGroup } from "@/components/arc/radio-group/radio-group"
+import { Select } from "@/components/arc/select/select"
 import {
   inlineMetricInputSchema, METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionFieldErrors, metricUnitName, type MetricChoice,
 } from "@/lib/metric-definition-rules"
@@ -49,11 +49,6 @@ export function inlineAddName(metrics: readonly MetricChoice[], query: string): 
   return name && !activeMetricNamed(metrics, name) ? name : null
 }
 
-/** The facts read with each option: its unit, how it's counted and where it lives. */
-function details(metric: MetricChoice) {
-  return [metricUnitName(metric.unit), metric.howCounted ?? "How it's counted isn't written down yet", metric.link ?? "No link yet"]
-}
-
 /** The listbox: library options, then the Pass/fail check, then adding what's typed, each as its own group. Roving focus is the picker's. */
 export function MetricOptionList({ id, options, selectedId, passFail, passFailSelected, onPick, addName = null, onAdd }: {
   id: string; options: MetricChoice[]; selectedId: string | null; passFail: boolean; passFailSelected: boolean
@@ -76,7 +71,7 @@ export function MetricOptionList({ id, options, selectedId, passFail, passFailSe
           <Check className={styles.metricCheck} data-selected={selected} aria-hidden="true"/>
           <span className={styles.optionText}>
             <span className={styles.optionName}>{option.name}{option.archived && <span className={styles.optionTag}>Archived</span>}</span>
-            <span id={`${id}-${option.id}-details`} className={styles.optionDetails}>{details(option).join(" · ")}</span>
+            <span id={`${id}-${option.id}-details`} className={styles.optionDetails}>{metricUnitName(option.unit)}</span>
           </span>
         </Button>
       })}
@@ -122,26 +117,26 @@ export function InlineMetricForm({ id, values, fields, error, offer, pending, on
   nameRef?: RefObject<HTMLInputElement | null>
   offerRef?: RefObject<HTMLButtonElement | null>
 }) {
-  return <form className={styles.inlineAdd} noValidate aria-label="Add a metric to the Metrics library" aria-describedby={`${id}-add-note`}
+  return <form className={styles.inlineAdd} noValidate aria-busy={pending || undefined} aria-label="Add a metric to the Metrics library" aria-describedby={`${id}-add-note`}
     onSubmit={event => { event.preventDefault(); event.stopPropagation(); if (!offer) onSubmit() }}>
-    <p id={`${id}-add-note`} className={styles.hint}>It joins the workspace&apos;s Metrics library. Where it lives and how it&apos;s counted can be added on the Metrics page.</p>
+    <p id={`${id}-add-note`} className={styles.hint}>Add to the Metrics library. You can add a source and counting method there later.</p>
     <Input ref={nameRef} label="Name" value={values.name} maxLength={METRIC_NAME_MAX} readOnly={pending} error={fields.name} autoComplete="off"
       onChange={event => onChange({ ...values, name: event.target.value })}/>
     {offer ? <div className={styles.inlineOffer}>
       <p className={styles.hint} role="alert">{`“${offer.name}” is already in the Metrics library, counted as ${metricUnitName(offer.unit)}. Use that one instead.`}</p>
       <div className={styles.inlineActions}>
-        <Button ref={offerRef} type="button" size="sm" onClick={onUseOffer}>{`Use “${offer.name}”`}</Button>
+        <Button ref={offerRef} type="button" size="sm" onClick={onUseOffer}>Use this metric</Button>
         <Button type="button" size="sm" variant="ghost" onClick={onRename}>Change the name</Button>
       </div>
     </div> : <>
       <div className={styles.inlineUnit} data-field="unit">
-        <RadioGroup label="Unit" options={UNIT_OPTIONS} value={values.unit} onValueChange={unit => onChange({ ...values, unit })}/>
-        <FieldError>{fields.unit}</FieldError>
+        <Select id={`${id}-unit`} label="Unit" placeholder="Choose a unit" options={UNIT_OPTIONS} value={values.unit} disabled={pending} required error={fields.unit}
+          onValueChange={unit => onChange({ ...values, unit })} onContentKeyDown={event => event.stopPropagation()}/>
       </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.inlineActions}>
+        <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onBack}>Back</Button>
         <Button type="submit" size="sm" loading={pending}>Add and use</Button>
-        <Button type="button" size="sm" variant="ghost" aria-disabled={pending || undefined} onClick={() => { if (!pending) onBack() }}>Back</Button>
       </div>
     </>}
   </form>
@@ -153,7 +148,7 @@ export function InlineMetricForm({ id, values, fields, error, offer, pending, on
  * Pass/fail check, which is never a definition. There is no typed metric: one that isn't in the library is added
  * from here (#199), by Members and Admins, with a name and a unit, and selected straight away.
  */
-export function MeasurementMetricPicker({ id, label, selectedId, passFailSelected, guardrail, disabled, error, library, onPick }: {
+export function MeasurementMetricPicker({ id, label, selectedId, passFailSelected, guardrail, disabled, error, library, onPick, onBusyChange }: {
   id: string
   /** What the trigger shows: the selected metric's name, or nothing yet. */
   label: string | null
@@ -164,6 +159,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
   error?: string
   library: MetricLibrary
   onPick: (choice: MetricChoice | "check") => void
+  onBusyChange?: (busy: boolean) => void
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -202,17 +198,19 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
       const problems = metricDefinitionFieldErrors(parsed.error)
       setFields(problems)
       if (problems.name) nameInput.current?.focus()
-      else nameInput.current?.closest("form")?.querySelector<HTMLInputElement>('[data-field="unit"] input')?.focus()
+      else nameInput.current?.closest("form")?.querySelector<HTMLButtonElement>('[data-field="unit"] [role="combobox"]')?.focus()
       return
     }
     const known = activeMetricNamed(library.metrics, parsed.data.name)
     if (known) { setOffer(known); return }
     setPending(true)
+    onBusyChange?.(true)
     try {
       const result = await library.add(parsed.data)
       if ("error" in result) {
         setFields(result.fields ?? {})
         if (result.fields?.name) nameInput.current?.focus()
+        else if (result.fields?.unit) requestAnimationFrame(() => nameInput.current?.closest("form")?.querySelector<HTMLButtonElement>('[data-field="unit"] [role="combobox"]')?.focus())
         else if (!result.fields) setAddError(result.error)
       } else if (result.existing) setOffer(result.metric)
       else pick(result.metric)
@@ -220,6 +218,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
       setAddError(thrownMessage(thrown, "The metric couldn't be added. Check your connection and try again; your Request is still here."))
     } finally {
       setPending(false)
+      onBusyChange?.(false)
     }
   }
 

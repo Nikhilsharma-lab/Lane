@@ -282,14 +282,14 @@
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.module.css",
     "upstreamSha256": "f700250cfa39db22e974f417d6d776e70b037e031500ca85c3c94e0c558a2b04",
-    "localSha256": "a03942ea00ba71e98a5002718298374f5f0b6e23255e7a35677cf6a4af510a43"
+    "localSha256": "094fb34e6ba6d4860512c331712776ac3080056296d88e6aa162caf50d46bf29"
   },
   {
     "id": "select",
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.tsx",
     "upstreamSha256": "673dc0c887a255c87bfbabd1835606d87cfbf59ed6fd4909a28038f00f673eaa",
-    "localSha256": "987a0202946cd89bbfeb98b4e0593cf39e9c6fdc3dc03b106b209bd24e61f299"
+    "localSha256": "02cad567802a7ba09cb7fce494ac5507b455ef3a6b49b50d80d6355dc408de84"
   },
   {
     "id": "skeleton",

@@ -128,6 +128,7 @@ export function MeasurementPlanFields<T extends PlanImpactDraft>({ value, onChan
   layout?: "cards" | "plain"
   /** The workspace whose Metrics library the pickers offer (#198). */
   orgId?: string
+  onBusyChange?: (busy: boolean) => void
 }) {
   const source = JSON.stringify(expectedImpactDraftSchema.parse(value))
   const [editor, setEditor] = useState(() => ({ source, plan: measurementEditorValue(value) }))
@@ -162,11 +163,12 @@ export function MeasurementPlanFields<T extends PlanImpactDraft>({ value, onChan
   </>
 }
 
-function MeasurementFields({ value, onChange, requestType, disabled = false, submitted = false, layout = "cards", legacy, library, unresolved }: {
+function MeasurementFields({ value, onChange, requestType, disabled = false, submitted = false, layout = "cards", legacy, library, unresolved, onBusyChange }: {
   value: EditorPlan; onChange: (value: EditorPlan) => void
   requestType: RequestType | null; disabled?: boolean; submitted?: boolean; legacy: boolean
   layout?: "cards" | "plain"
   library: MetricLibrary; unresolved: string[]
+  onBusyChange?: (busy: boolean) => void
 }) {
   const prefix = useId()
   const addRef = useRef<HTMLButtonElement>(null)
@@ -225,7 +227,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
     const label = metric.key === "definition" ? definition?.name ?? (metric.name.trim() || null) : metric.key === "check" ? "Pass/fail check" : metric.key ? editorMetricLabel(metric) : null
     return <MeasurementMetricPicker id={`${prefix}-${path}-key`} label={label} selectedId={metric.key === "definition" ? metric.definitionId ?? null : null}
       passFailSelected={metric.key === "check"} guardrail={guardrail} disabled={disabled} library={library}
-      error={error(`${path}.key`) || error(`${path}.name`)} onPick={update} />
+      error={error(`${path}.key`) || error(`${path}.name`)} onPick={update} onBusyChange={onBusyChange} />
   }
 
   return <section id="intake-expected-impact" aria-label="Request measurement" tabIndex={-1} className={styles.plan} data-layout={layout}>

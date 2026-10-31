@@ -40,5 +40,5 @@
   overscroll-behavior: contain;
 }
 @media (pointer: coarse), (max-width: 640px) {
-  .panel input, .panel textarea, .formPanel input, .formPanel textarea { font-size: var(--text-base); }
+  .panel input, .panel textarea, .panel [role="combobox"], .formPanel input, .formPanel textarea { font-size: var(--text-base); }
 }
