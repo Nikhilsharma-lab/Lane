@@ -66,7 +66,8 @@ describe("A Metric definition's page", () => {
     expect(html).toMatch(/<h3[^>]*>Trials started<\/h3>/);
     expect(html).toMatch(/<input[^>]*value="Trials started"/);
     expect(html).toMatch(/<input[^>]*value="https:\/\/analytics.example.test\/trials"/);
-    expect(html).toContain("Trials started per week.</textarea>");
+    expect(text(html)).toContain("Saved definition Trials started per week.");
+    expect(html).not.toContain("<textarea");
     expect(text(html)).toContain("Unit");
     expect(text(html)).toContain("Count");
     expect(text(html)).toContain("Save changes");
