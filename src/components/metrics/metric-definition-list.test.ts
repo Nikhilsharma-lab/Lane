@@ -16,14 +16,14 @@ describe("The Metrics page list", () => {
     expect(html).toContain('aria-label="Metric definitions"');
     const [item] = items(html);
     expect(item).toMatch(/<h4[^>]*><a[^>]*href="\/settings\/metrics\/d1"[^>]*>Conversion rate<\/a><\/h4>/);
-    expect(text(item)).toContain("Unit Percentage");
-    expect(text(item)).toContain("How it's counted Share of people who start the step and finish it.");
+    expect(text(item)).toContain("Conversion rate Percentage");
+    expect(text(item)).toContain("Share of people who start the step and finish it.");
   });
 
-  it("shows 'Add where this lives' when a definition has no link, leading to where it is edited (#197)", () => {
+  it("offers a source link on the definition page when none is saved", () => {
     const [item] = items(render([conversion]));
-    expect(text(item)).toContain("Where it lives Add where this lives");
-    expect(item).toMatch(/<a[^>]*href="\/settings\/metrics\/d1"[^>]*>Add where this lives<\/a>/);
+    expect(text(item)).toContain("Add source for Conversion rate");
+    expect(item).toMatch(/<a[^>]*href="\/settings\/metrics\/d1"[^>]*>Add source<span/);
     expect(item).not.toContain('target="_blank"');
   });
 
@@ -38,12 +38,12 @@ describe("The Metrics page list", () => {
     expect(item).toMatch(/target="_blank"/);
     expect(item).toMatch(/rel="noopener noreferrer"/);
     expect(text(item)).toContain("(opens in a new tab)");
-    expect(text(item)).not.toContain("Add where this lives");
+    expect(text(item)).not.toContain("Add source");
   });
 
-  it("says when how a definition is counted hasn't been written", () => {
+  it("keeps missing counting notes quiet in the list", () => {
     const [item] = items(render([trials]));
-    expect(text(item)).toContain("How it's counted Not written yet");
+    expect(text(item)).not.toContain("Not written yet");
   });
 
   it("keeps the order it is given", () => {

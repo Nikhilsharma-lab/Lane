@@ -38,15 +38,18 @@ export type Popup = {
   open: boolean
   change: (open: boolean) => void
   guardTypedText: boolean
+  dismissible: boolean
   guardRef: RefObject<CloseGuard | null>
   /** `DialogClose` calls it just before it closes the popup: a deliberate discard, which never asks. */
   closeOnPurpose: () => void
 }
 const PopupContext = createContext<Popup | null>(null)
 
-export function Dialog({ open: openProp, defaultOpen = false, onOpenChange, guardTypedText = false, ...props }: ComponentPropsWithoutRef<typeof DialogPrimitive.Root> & {
+export function Dialog({ open: openProp, defaultOpen = false, onOpenChange, guardTypedText = false, dismissible = true, ...props }: ComponentPropsWithoutRef<typeof DialogPrimitive.Root> & {
   /** Ask "Discard what you typed?" before a close would drop text typed into this popup's fields. */
   guardTypedText?: boolean
+  /** Hold the popup in place while its content is saving, including a phone-sheet drag. */
+  dismissible?: boolean
 }) {
   const [uncontrolled, setUncontrolled] = useState(defaultOpen)
   const open = openProp ?? uncontrolled
@@ -56,10 +59,11 @@ export function Dialog({ open: openProp, defaultOpen = false, onOpenChange, guar
     const commit = () => { if (openProp === undefined) setUncontrolled(next); onOpenChange?.(next) }
     const deliberate = deliberateRef.current
     deliberateRef.current = false
+    if (!next && !dismissible) return
     if (!next && guardTypedText && !deliberate && guardRef.current?.(commit)) return
     commit()
-  }, [guardTypedText, openProp, onOpenChange])
-  const value = useMemo(() => ({ open, change, guardTypedText, guardRef, closeOnPurpose: () => { deliberateRef.current = true } }), [open, change, guardTypedText])
+  }, [dismissible, guardTypedText, openProp, onOpenChange])
+  const value = useMemo(() => ({ open, change, guardTypedText, dismissible, guardRef, closeOnPurpose: () => { deliberateRef.current = true } }), [open, change, guardTypedText, dismissible])
   return <PopupContext.Provider value={value}><ArcDialog {...props} open={open} onOpenChange={change} /></PopupContext.Provider>
 }
 
@@ -89,12 +93,14 @@ export interface DialogContentProps extends ArcDialogContentProps {
   returnFocus?: ReturnFocus
   /** Class for the phone panel's surface, where `className` styles the centred dialog. */
   sheetClassName?: string
+  /** A phone drag springs back before a close owner handles a busy operation or a confirmation. */
+  canDismiss?: () => boolean
 }
 
-export function DialogContent({ returnFocus, sheetClassName, onOpenAutoFocus, onCloseAutoFocus, children, ...props }: DialogContentProps) {
+export function DialogContent({ returnFocus, sheetClassName, canDismiss, onOpenAutoFocus, onCloseAutoFocus, children, ...props }: DialogContentProps) {
   const popup = useContext(PopupContext)
   if (!popup) throw new Error("DialogContent needs Dialog from @/components/popup/adaptive-dialog.")
-  const { open, change, guardTypedText, guardRef } = popup
+  const { open, change, guardTypedText, dismissible, guardRef } = popup
   const contentRef = useRef<HTMLDivElement | null>(null)
   const openerRef = useRef<Element | null>(null)
   const { ask, prompt } = useDiscardPrompt()
@@ -138,7 +144,7 @@ export function DialogContent({ returnFocus, sheetClassName, onOpenAutoFocus, on
   return <>
     <Adaptive open={open} desktop={desktop} sheet={{
       open, onDismiss: () => change(false), title, description, layout: layout === "composer" ? "composer" : "fit",
-      className: [styles.sheet, sheetClassName].filter(Boolean).join(" "), confirmDismiss: () => !losesText(),
+      className: [styles.sheet, sheetClassName].filter(Boolean).join(" "), confirmDismiss: () => dismissible && !losesText() && (canDismiss?.() ?? true),
       contentProps: { ...panelProps, onOpenAutoFocus: opened, onCloseAutoFocus: closed }, children: body,
     }} />
     {prompt}

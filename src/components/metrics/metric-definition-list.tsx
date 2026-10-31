@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChartLine } from "lucide-react";
+import { ArrowUpRight, ChartLine } from "lucide-react";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { metricUnitName, type MetricUnit } from "@/lib/metric-definition-rules";
 import styles from "./metric-definition-list.module.css";
@@ -22,8 +22,14 @@ export function MetricDefinitionList({ definitions, view = "active", canEdit = t
   }
   return <ul className={styles.list} aria-label={view === "archived" ? "Archived metric definitions" : "Metric definitions"}>
     {definitions.map(definition => <li key={definition.id} className={styles.definition}>
-      <h4 className={styles.name}><Link className={styles.open} href={`/settings/metrics/${definition.id}`}>{definition.name}</Link></h4>
-      <MetricDefinitionFacts definition={definition} canEdit={canEdit} />
+      <div className={styles.heading}>
+        <h4 className={styles.name}><Link className={styles.open} href={`/settings/metrics/${definition.id}`}>{definition.name}</Link></h4>
+        <span className={styles.unit}>{metricUnitName(definition.unit)}</span>
+      </div>
+      {definition.howCounted && <p className={styles.summary}>{definition.howCounted}</p>}
+      {definition.link
+        ? <a className={styles.source} href={definition.link} target="_blank" rel="noopener noreferrer">View source<ArrowUpRight data-icon-size="sm" aria-hidden="true" /><span className="sr-only"> for {definition.name} (opens in a new tab)</span></a>
+        : canEdit && <Link className={styles.source} href={`/settings/metrics/${definition.id}`}>Add source<span className="sr-only"> for {definition.name}</span></Link>}
     </li>)}
   </ul>;
 }

@@ -492,3 +492,7 @@ Nikhil selected Quiet from the three-direction New Request prototype. The modal 
 - Request picker compositions use the installed Arc SearchField consistently. Their panels constrain height, long option text wraps, metric/reviewer lists keep one roving tab stop, and Retry restores search focus. Portalled Request fields use the existing base text token on touch/narrow viewports.
 
 - `src/components/arc/search-field/search-field.tsx`: the reserved clear-button slot becomes inert as soon as its value is empty. Its existing exit animation still renders, while its disappearing button cannot receive focus. Request picker Tab navigation excludes inert descendants. Public props and motion remain unchanged.
+
+## Quiet Metrics forms and picker (2026-10-31)
+
+Settings and inline Add metric compose the installed Arc Select instead of stacked unit radio cards. `src/components/arc/select/select.tsx` adds an optional `error` prop, associates the message with the trigger, and marks invalid values; `src/components/arc/select/select.module.css` uses the existing danger token for its message and border. Existing props, custom triggers, keyboard navigation and motion remain intact. Metric picker options show name and unit; definitions and source links remain in the library and definition pages.

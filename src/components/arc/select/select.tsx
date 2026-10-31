@@ -12,6 +12,7 @@ import styles from "./select.module.css";
 export interface SelectProps extends Omit<ComponentPropsWithoutRef<typeof SelectPrimitive.Root>, "children"> {
   label: string;
   description?: string;
+  error?: string;
   placeholder?: string;
   id?: string;
   className?: string;
@@ -32,12 +33,13 @@ const valueRoll: Variants = {
 const valueFade: Variants = { enter: { opacity: 0 }, center: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: motionTokens.duration.instant } }, exit: { opacity: 0, transition: { duration: motionTokens.duration.instant } } };
 
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
-  { label, description, placeholder = "Select an option", options, id, className, trigger, onContentKeyDown, indicatorPosition = "right", disabled, onValueChange, ...rootProps },
+  { label, description, error, placeholder = "Select an option", options, id, className, trigger, onContentKeyDown, indicatorPosition = "right", disabled, onValueChange, ...rootProps },
   ref,
 ) {
   const generatedId = useId();
   const controlId = id ?? generatedId;
   const hintId = description ? `${controlId}-description` : undefined;
+  const errorId = error ? `${controlId}-error` : undefined;
   const reduceMotion = useReducedMotion();
   const [uncontrolledValue, setUncontrolledValue] = useState(rootProps.defaultValue ?? "");
   const currentValue = rootProps.value ?? uncontrolledValue;
@@ -55,7 +57,8 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
           ref={ref}
           asChild={Boolean(trigger)}
           id={controlId}
-          aria-describedby={hintId}
+          aria-describedby={[hintId, errorId].filter(Boolean).join(" ") || undefined}
+          aria-invalid={error ? true : undefined}
           className={trigger ? className : [styles.trigger, className].filter(Boolean).join(" ")}
         >
           {trigger ?? <>
@@ -95,6 +98,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         </SelectPrimitive.Portal>
       </SelectPrimitive.Root>
       {description && <span id={hintId} className={styles.hint}>{description}</span>}
+      {error && <span id={errorId} className={styles.error} role="alert">{error}</span>}
     </div>
   );
 });

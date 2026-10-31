@@ -23,11 +23,12 @@ const EMPTY: MetricDefinitionValues = { name: "", unit: "", link: "", howCounted
 export function AddMetricDialog({ orgId }: { orgId: string }) {
   const [open, setOpen] = useState(false);
   const [added, setAdded] = useState("");
+  const [pending, setPending] = useState(false);
   return <>
-    <Dialog guardTypedText open={open} onOpenChange={next => { setOpen(next); if (next) setAdded(""); }}>
+    <Dialog guardTypedText dismissible={!pending} open={open} onOpenChange={next => { if (pending) return; setOpen(next); if (next) setAdded(""); }}>
       <DialogTrigger asChild><Button><Plus data-icon-size="sm" aria-hidden="true" />Add metric</Button></DialogTrigger>
-      <DialogContent title="Add metric" description="Add a metric your workspace measures, so Requests can set goals on it.">
-        <MetricDefinitionForm initial={EMPTY} submitLabel="Add metric"
+      <DialogContent title="Add metric" description="Choose what your workspace measures.">
+        <MetricDefinitionForm initial={EMPTY} submitLabel="Add metric" onPendingChange={setPending} onCancel={() => setOpen(false)}
           onSubmit={async values => {
             const result = await callAction(() => addMetricDefinition(values, { orgId }));
             if ("ok" in result) setAdded(`Added ${values.name.trim()}.`);
