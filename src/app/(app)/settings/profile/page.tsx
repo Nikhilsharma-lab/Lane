@@ -1,15 +1,13 @@
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { membersPanel } from "../members/members-panel";
 import { redirect } from "next/navigation";
-import { timePage, timed } from "@/lib/request-timings";
+import { timePage } from "@/lib/request-timings";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
-import { inboxDeliveryPanel } from "./inbox-delivery";
-import { slackPanel } from "./slack-panel";
-import { billingPanel } from "./billing-panel";
+import { sharedPanels } from "./shared-panels";
 
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string; slack?: string; checkout?: string }> }) {
   void timePage("Settings: Profile");
@@ -22,6 +20,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   // for an Admin, the Slack connection (#207; `?slack=` is how Slack’s install flow ended) and Billing
   // (#213/#214; `?checkout=` is how the payment provider’s checkout page ended).
   const { section, slack, checkout } = await searchParams;
+  const panels = await sharedPanels(workspace, { slack, checkout });
   return (
       <SettingsCommandAdapter membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section}
         members={membersPanel(workspace)}
@@ -30,9 +29,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         security={<AccountSecurity />}
         role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />}
         appearance={<ThemePreference compact />}
-        delivery={await timed("data", () => inboxDeliveryPanel(workspace))}
-        slack={await timed("data", () => slackPanel(workspace, slack))}
-        billing={await timed("data", () => billingPanel(workspace, checkout))}
+        {...panels}
       />
   );
 }
