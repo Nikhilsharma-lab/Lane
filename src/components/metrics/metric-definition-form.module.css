@@ -24,3 +24,6 @@
 
 .form { container-type: inline-size; }
 @container (min-width: 480px) { .questions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.step { display: grid; gap: var(--space-4); min-width: 0; }
+.step[hidden] { display: none; }

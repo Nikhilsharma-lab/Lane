@@ -40,7 +40,7 @@ export function GuidedMetricForm({initialName = '', onSubmit, onSaved, onCancel,
   const groups=[{value:'people',label:'People (once each)'},{value:'attempts',label:'Attempts (once each)'},{value:'sessions',label:'Visits (once each)'}];
   return <form ref={form} className={styles.form} onSubmit={submit} noValidate aria-busy={pending || undefined}>
     <p className={styles.note}>Step {step} of 2 · {step===1?'Choose a measurement':'Define it for your team'}</p>
-    {step===1?<><div data-field="kind"><RadioGroup label="What do you want to measure?" options={guideKinds} value={values.kind} onValueChange={kind=>{setValues({...blankGuide,name:values.name,kind});setFields({});}} /></div>{fields.kind&&<p className={styles.error} role="alert">{fields.kind}</p>}</>:<>
+    <div className={styles.step} hidden={step!==1}><div data-field="kind"><RadioGroup label="What do you want to measure?" options={guideKinds} value={values.kind} onValueChange={kind=>{setValues({...blankGuide,name:values.name,kind});setFields({});}} /></div>{fields.kind&&<p className={styles.error} role="alert">{fields.kind}</p>}</div><div className={styles.step} hidden={step!==2}>
       {input('name','What will your team call this metric?',values.kind === 'count' ? 'For example, Trial starts.' : values.kind === 'time' ? 'For example, Workspace setup time.' : values.kind === 'share' ? 'For example, Customer satisfaction.' : 'For example, Signup completion rate.')}
       {(values.kind==='completion'||values.kind==='time')&&<div className={styles.questions}>{input('start','What happens first?','For example, someone starts signup.')}{input('end','What counts as finished?','For example, their account is created.')}</div>}
       {values.kind==='completion'&&<div className={styles.questions}>{select('basis','Who or what are you counting?',groups)}{select('window','How long do they have to finish?', ['1 hour','24 hours','7 days','30 days'].map(value=>({value,label:value})))}</div>}
@@ -49,7 +49,7 @@ export function GuidedMetricForm({initialName = '', onSubmit, onSaved, onCancel,
       {values.kind==='time'&&<div className={styles.questions}>{select('summary','Which time will you report?',[{value:'Median',label:'Typical time (median)'},{value:'Mean',label:'Average time (mean)'}])}{select('unit','Which unit will you use?',[{value:'seconds',label:'Seconds'},{value:'minutes',label:'Minutes'}])}</div>}
       {result.ok&&<section className={styles.savedDefinition} aria-label="Definition preview"><strong>Your team will measure</strong><p>{result.values.howCounted}</p></section>}
       <p className={styles.note}>Your team enters measured values on Requests. Lane saves this definition; it does not collect the numbers.</p>
-    </>}
+    </div>
     {error&&<p className={styles.error} role="alert">{error}</p>}
     <div className={styles.actions}><Button type="button" variant="ghost" disabled={pending} onClick={step===1?onCancel:()=>{setStep(1);setError('');focus('kind');}}> {step===1?'Cancel':'Back'} </Button><Button type="submit" loading={pending}>{step===1?'Continue':'Create metric'}</Button></div>
   </form>;
