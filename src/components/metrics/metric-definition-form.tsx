@@ -5,7 +5,7 @@ import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Select } from "@/components/arc/select/select";
 import {
-  METRIC_LINK_MAX, METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionFieldErrors, metricDefinitionInputSchema,
+  METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionFieldErrors, metricDefinitionInputSchema,
   metricUnitName, type MetricDefinitionField,
 } from "@/lib/metric-definition-rules";
 import styles from "./metric-definition-form.module.css";
@@ -18,10 +18,7 @@ const UNIT_OPTIONS = METRIC_UNITS.map(unit => ({ value: unit, label: metricUnitN
 const FIELD_ORDER: MetricDefinitionField[] = ["name", "unit", "link", "howCounted"];
 export const UNIT_LOCKED_NOTE = "A Request uses this metric, so its unit can't change. A metric in another unit needs a new definition.";
 
-/**
- * Adding or editing a Metric definition: name, unit and an optional dashboard link. Saved calculation notes are retained. The
- * same rules run here and on the server; the server's answer shows beside the field it is about.
- */
+/** Edits keep saved calculation notes and historical source links intact. */
 export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onSaved, onCancel, onPendingChange, confirmSaved = false, unitLocked = false }: {
   initial: MetricDefinitionValues;
   submitLabel: string;
@@ -88,7 +85,7 @@ export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onS
     <div className={styles.identity}>
       <div data-field="name"><Input label="Name" value={values.name} readOnly={pending} onChange={event => set("name")(event.target.value)} maxLength={METRIC_NAME_MAX} error={fields.name} autoComplete="off" required /></div>
       <div data-field="unit" className={styles.unit}>
-        {unitLocked
+        {(unitLocked || Boolean(values.howCounted))
           ? <div className={styles.lockedUnit}>
             <span className={styles.lockedLabel}>Unit</span>
             <span>{UNIT_OPTIONS.find(option => option.value === values.unit)?.label ?? values.unit}</span>
@@ -97,7 +94,6 @@ export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onS
       </div>
     </div>
     {unitLocked && <><p className={styles.note}>{UNIT_LOCKED_NOTE}</p><FieldError>{fields.unit}</FieldError></>}
-    <div data-field="link"><Input label="Dashboard link (optional)" description="Link to the report you use to measure this metric." type="url" inputMode="url" placeholder="https://" value={values.link} readOnly={pending} onChange={event => set("link")(event.target.value)} maxLength={METRIC_LINK_MAX} error={fields.link} autoComplete="off" /></div>
     {values.howCounted && <div className={styles.savedDefinition}>
       <span className={styles.lockedLabel}>Saved definition</span>
       <p>{values.howCounted}</p>

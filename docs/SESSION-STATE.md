@@ -1,5 +1,13 @@
 # Shared Claude / Codex handoff
 
+## November 1 — Guided Metrics approved
+
+`codex/guided-metrics` replaces name/unit-only creation with a shared two-step guide
+in Settings and the Request picker. Dashboard inputs and missing-source prompts
+are removed; saved references and historical definitions remain. Decision and
+scope: `docs/design-system/2026-11-01-guided-metrics.md`. Hosted verification is
+recorded separately; this entry is not a deployment receipt.
+
 ## October 31 — Metrics clarity and sign-in polish
 
 `codex/metrics-auth-polish` clarifies the optional dashboard link, removes the

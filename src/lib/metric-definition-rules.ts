@@ -42,9 +42,9 @@ export const metricDefinitionInputSchema = z.object({
 });
 export type MetricDefinitionInput = z.output<typeof metricDefinitionInputSchema>;
 
-/** What adding a metric from the prediction form asks for (#199): the name and the unit, nothing else. */
-export const inlineMetricInputSchema = metricDefinitionInputSchema.pick({ name: true, unit: true })
-  .transform(({ name, unit }) => ({ name: name.replace(/\s+/g, " "), unit }));
+/** What adding a metric from the prediction form asks for (#199): the name, unit and generated definition. */
+export const inlineMetricInputSchema = metricDefinitionInputSchema.pick({ name: true, unit: true, howCounted: true })
+  .transform(({ name, unit, howCounted }) => ({ name: name.replace(/\s+/g, " "), unit, howCounted }));
 export type MetricDefinitionField = keyof MetricDefinitionInput;
 
 /** The first problem with each field, for showing beside it. */
