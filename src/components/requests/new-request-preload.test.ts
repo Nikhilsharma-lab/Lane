@@ -26,19 +26,17 @@ describe("New Request composer preload", () => {
 
   it("loads the form once through a memoised dynamic import, with no next/dynamic Suspense boundary", () => {
     expect(provider).not.toContain("next/dynamic")
-    // The type-only `typeof import(...)` brings in no code; the one runtime import is memoised.
+    // The one runtime import is memoised.
     const runtime = provider.split("\n").filter(line => line.includes('import("@/app/(app)/intake/intake-form")') && !line.includes("typeof import("))
     expect(runtime).toHaveLength(1)
-    // #267: Lane's one "load ahead, then open" helper keeps it, and renders it synchronously once it is here.
+    // Lane's one loader for code that stays out of the first load keeps it, and renders it synchronously once it is here.
     expect(runtime[0]).toMatch(/popupCode\(\(\) => import\(/)
-    expect(provider).toContain("usePopupCode(composerForm, open, unavailable, { ahead: true, transition: true })")
+    expect(provider).toContain("usePopupCode(composerForm, open,")
   })
 
-  it("preloads once the page has loaded and is idle, and when the pointer or focus reaches New Request", () => {
-    // Build 2's rule: never before the page's load event (after-page-load.ts).
-    expect(provider).toContain("afterPageLoad(preloadComposer)")
+  it("preloads on idle and when the pointer or focus reaches New Request", () => {
+    expect(provider).toContain("requestIdleCallback(preload")
     expect(link).toMatch(/onPointerEnter=\{[^}]*composer\?\.preload\(\)/)
-    expect(link).toMatch(/onPointerDown=\{[^}]*composer\?\.preload\(\)/)
     expect(link).toMatch(/onFocus=\{[^}]*composer\?\.preload\(\)/)
   })
 
@@ -56,9 +54,8 @@ describe("New Request composer host", () => {
     .map(path => ({ path, source: read(join("src", path)) }))
 
   it("opens the composer in Lane's adaptive popup (Arc Dialog, or Arc's bottom sheet under 640px, #263)", () => {
-    // #267: the popup's code loads with the form's, on intent.
-    expect(provider).toContain('popupCode(() => import("@/components/popup/adaptive-dialog"))')
-    expect(provider).toMatch(/<popup\.DialogContent layout="composer"/)
+    expect(provider).toContain('import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"')
+    expect(provider).toMatch(/<DialogContent layout="composer"/)
   })
 
   it("keeps the composer out of the Arc Drawer and /intake with no form of its own", () => {

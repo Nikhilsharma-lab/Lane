@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { popupCode, usePopupCode } from "@/components/popup/lazy-popup";
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import { Alert } from "@/components/arc/alert/alert";
 import { Badge } from "@/components/arc/badge/badge";
 import { Button } from "@/components/arc/button/button";
@@ -19,7 +19,7 @@ import styles from "./settings.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 
 /** #215: loaded the first time a paid seat is confirmed, so the confirmation adds nothing to any first load. */
-// #267: the paid seat question loads when it first opens; if it can't, Lane says so and nobody is added.
+// If it can't load, Lane says so and nobody is added.
 const seatDialogCode = popupCode(() => import("./paid-seat-dialog"));
 
 type Answer = { success?: true; error?: string };
@@ -74,7 +74,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
   const [result, setResult] = useState<{ card: Card; status: string; error: string | null } | null>(null);
   const [seat, setSeat] = useState<{ change: PaidSeatChange; add: () => void; returnTo: string } | null>(null);
   const [seatOpen, setSeatOpen] = useState(false);
-  const seatDialog = usePopupCode(seatDialogCode, seatOpen, { id: "popup-unavailable:paid-seat", close: () => setSeatOpen(false), retry: () => setSeatOpen(true) });
+  const seatDialog = usePopupCode(seatDialogCode, seatOpen, () => couldNotOpen("paid-seat", setSeatOpen));
 
   /** Runs `add` now, or once the Admin confirms the paid seat it adds. `returnTo` is the control focus goes back to. */
   function withSeat(from: WorkspacePermission | null, change: PaidSeatChange, returnTo: string, add: (confirmed: boolean) => void) {

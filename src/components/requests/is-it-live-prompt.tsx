@@ -1,12 +1,17 @@
 "use client"
 
 import { createContext, useContext, useRef, useState, type ReactNode } from "react"
-import { popupCode, usePopupCode } from "@/components/popup/lazy-popup"
-import { createIsItLive, type AskIsItLive, type IsItLiveView } from "./is-it-live"
+import { Button } from "@/components/arc/button/button"
+import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup"
+import { createIsItLive, IS_IT_LIVE_COPY, type AskIsItLive, type IsItLiveView } from "./is-it-live"
 import { restoreRequestFocus } from "./list-focus"
+import detailStyles from "./detail.module.css"
+import styles from "./is-it-live.module.css"
+import { Placeholder } from "@/components/loading/placeholder";
 
-// #267: this provider sits on every page; the prompt's code loads when a Mark Done first asks.
-const dialogCode = popupCode(() => import("./is-it-live-dialog"))
+// The release form loads only once "Yes, record release" is chosen; this provider sits on every page.
+const releaseCode = popupCode(() => import("./is-it-live-release"))
 
 const IsItLiveContext = createContext<AskIsItLive | null>(null)
 IsItLiveContext.displayName = "IsItLive"
@@ -47,11 +52,25 @@ export function IsItLiveProvider({ orgId, children }: { orgId: string; children:
     if (from) restoreRequestFocus(from.requestId, { force: true })
   }
 
-  // If the prompt's code can't load, the Request stays at Done and its Marked Done toast (with Undo) comes back, as Not yet does.
-  const dialog = usePopupCode(dialogCode, view !== null, { id: "popup-unavailable:is-it-live", close: () => prompt.notYet() })
+  // A release form that can't load leaves the Request at Done with its Undo, as Not yet does.
+  const release = usePopupCode(releaseCode, view?.step === "release", () => couldNotOpen("release", () => prompt.notYet(), { retry: null }))
 
   return <IsItLiveContext.Provider value={ask}>
     {children}
-    {dialog && <dialog.IsItLiveDialog view={view} prompt={prompt} orgId={orgId} returnFocus={returnFocus} />}
+    <Dialog guardTypedText open={view !== null} onOpenChange={open => { if (!open) prompt.notYet() }}>
+      {view && <DialogContent data-is-it-live="" onCloseAutoFocus={returnFocus}
+        title={view.step === "ask" ? IS_IT_LIVE_COPY.title : IS_IT_LIVE_COPY.releaseTitle}
+        description={view.step === "ask" ? IS_IT_LIVE_COPY.question(view.request.name) : view.request.name}>
+        {view.step === "ask" ? <>
+          <p className={styles.note}>{IS_IT_LIVE_COPY.endsUndo}</p>
+          <div className={detailStyles.dialogActions}>
+            <Button variant="ghost" onClick={prompt.notYet}>{IS_IT_LIVE_COPY.notYet}</Button>
+            <Button onClick={prompt.record}>{IS_IT_LIVE_COPY.yes}</Button>
+          </div>
+        </> : release
+          ? <release.IsItLiveRelease key={view.request.id} request={view.request} orgId={orgId} onSaved={prompt.saved} onNotYet={prompt.notYet} />
+          : <Placeholder label="Loading release" lines={2} />}
+      </DialogContent>}
+    </Dialog>
   </IsItLiveContext.Provider>
 }

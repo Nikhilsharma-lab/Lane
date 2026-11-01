@@ -4,8 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { SlidersHorizontal } from "lucide-react"
 import { Avatar } from "@/components/arc/avatar/avatar"
 import { Button } from "@/components/arc/button/button"
-import { popupCode, usePopupCode } from "@/components/popup/lazy-popup"
-import { afterPageLoad } from "@/lib/after-page-load"
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup"
 import { RequestStatusControl } from "./request-status-control"
 import { StatusGlyph } from "./status-glyph"
 import { LocalTime } from "./local-time"
@@ -26,7 +25,6 @@ import styles from "./detail.module.css"
 // The Properties sheet stays out of the phone's first load. Its chunk is fetched
 // once the page is idle, or on the first press or focus of the state line, so
 // the sheet opens without waiting on the network.
-// #267: the phone sheet loads ahead (pointer down, focus, or idle after load where the line shows), or when it opens.
 const drawerCode = popupCode(() => import("./detail-properties-drawer"))
 
 /** "In progress, High priority", "Open, No priority" or "Measuring, Due in 3 days": the phone's one state line (plan item 2.5; #133).
@@ -156,11 +154,16 @@ export function DetailStateLine() {
   const { journey, due } = useDetailJourney()
   const [open, setOpen] = useState(false)
   const line = useRef<HTMLButtonElement>(null)
-  const drawer = usePopupCode(drawerCode, open, { id: "popup-unavailable:properties", close: () => setOpen(false), retry: () => setOpen(true) })
-  // Only where the line shows (below 960px of content): fetch the sheet once the page has loaded and is idle.
+  const drawer = usePopupCode(drawerCode, open, () => couldNotOpen("properties", setOpen))
+  // Only where the line shows (below 960px of content): fetch the sheet once the page is idle.
   useEffect(() => {
     if (!line.current?.getClientRects().length) return
-    return afterPageLoad(drawerCode.preload)
+    if (typeof window.requestIdleCallback === "function") {
+      const idle = window.requestIdleCallback(drawerCode.preload, { timeout: 4000 })
+      return () => window.cancelIdleCallback(idle)
+    }
+    const timer = window.setTimeout(drawerCode.preload, 1500)
+    return () => window.clearTimeout(timer)
   }, [])
   return <>
     <div className={styles.compactProperties} role="group" aria-label="Request properties">
