@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { serverTimingHeader } from "./feature-switches";
-import { createServerTimings } from "./server-timing";
+import { createServerTimings, isTimingId, newTimingId, proxyTiming } from "./server-timing";
 
 /** A clock the test moves by hand, so every duration is a known number. */
 function handClock(start = 1000) {
@@ -85,6 +85,22 @@ describe("server timings", () => {
     expect(serverTimingHeader({ LANE_SERVER_TIMING_HEADER: "1" })).toBe(true);
     for (const value of [undefined, "", "0", "true", "on", " 1"]) {
       expect(serverTimingHeader({ LANE_SERVER_TIMING_HEADER: value })).toBe(false);
+    }
+  });
+});
+
+describe("the proxy's timing", () => {
+  it("carries the session check's duration and nothing else", () => {
+    expect(proxyTiming(12.345)).toBe("proxy;dur=12.3");
+  });
+});
+
+describe("timing ids", () => {
+  it("accept only the shape the proxy makes", () => {
+    expect(isTimingId(newTimingId())).toBe(true);
+    expect(isTimingId("0b6f1d3e-6c1a-4f8e-9d2b-3f4a5b6c7d8e")).toBe(true);
+    for (const sent of ["", "1", "anything", "0B6F1D3E-6C1A-4F8E-9D2B-3F4A5B6C7D8E", "0b6f1d3e-6c1a-4f8e-9d2b-3f4a5b6c7d8e, x", "../../etc"]) {
+      expect(isTimingId(sent), sent).toBe(false);
     }
   });
 });

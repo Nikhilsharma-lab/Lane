@@ -2,7 +2,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
 import { serverTimingHeader } from "@/lib/feature-switches";
-import { READ_TIMING_ID_HEADER, TIMING_ID_HEADER } from "@/lib/server-timing";
+import { READ_TIMING_ID_HEADER, TIMING_ID_HEADER, newTimingId, proxyTiming } from "@/lib/server-timing";
 import { SIGN_IN_URL, SIGN_UP_URL, sessionTaskRedirect } from "@/lib/session-task-urls";
 
 // D1 (#257): Clerk's middleware takes no `taskUrls`, so its server-side task address
@@ -13,10 +13,10 @@ import { SIGN_IN_URL, SIGN_UP_URL, sessionTaskRedirect } from "@/lib/session-tas
 const clerk = clerkMiddleware((_auth, request) => {
   const taskPage = sessionTaskRedirect(request.nextUrl);
   if (taskPage) return NextResponse.redirect(taskPage);
-  const [own, other] = request.nextUrl.pathname.startsWith("/api/") ? [READ_TIMING_ID_HEADER, TIMING_ID_HEADER] : [TIMING_ID_HEADER, READ_TIMING_ID_HEADER];
+  const [timingHeader, otherTimingHeader] = request.nextUrl.pathname.startsWith("/api/") ? [READ_TIMING_ID_HEADER, TIMING_ID_HEADER] : [TIMING_ID_HEADER, READ_TIMING_ID_HEADER];
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set(own, crypto.randomUUID());
-  requestHeaders.delete(other);
+  requestHeaders.set(timingHeader, newTimingId());
+  requestHeaders.delete(otherTimingHeader);
   return NextResponse.next({ request: { headers: requestHeaders } });
 }, { signInUrl: SIGN_IN_URL, signUpUrl: SIGN_UP_URL });
 
@@ -26,7 +26,7 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
   const start = performance.now();
   const response = await clerk(request, event);
   if (response && serverTimingHeader()) {
-    response.headers.append("Server-Timing", `proxy;dur=${Math.round((performance.now() - start) * 10) / 10}`);
+    response.headers.append("Server-Timing", proxyTiming(performance.now() - start));
   }
   return response;
 }
