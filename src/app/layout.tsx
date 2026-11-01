@@ -91,7 +91,7 @@ export default function RootLayout({
             Keep `ui={ui}`: with it, Clerk's windows and Lane's own Members list share Clerk's in-memory
             cache, so a person removed in Manage members drops from Lane's list when the window closes
             (#257; e2e/clerk-member-windows.spec.ts is the guard). */}
-        {/* #266: Motion's renderer and animations come with the page; gestures, drag and layout load after it. */}
+        {/* #266: Motion's renderer, animations and gestures come with every page; the (app) layout adds layout and drag. */}
         <MotionFeatures>
         <ClerkProvider
           ui={ui}
