@@ -11,5 +11,5 @@ import { LazyMotion, domMax } from "motion/react";
  * `layoutId`, `drag` or `onPan*` renders only inside it; `motion-features.test.ts` holds that line.
  */
 export function AppMotionFeatures({ children }: { children: ReactNode }) {
-  return <LazyMotion features={domMax}>{children}</LazyMotion>;
+  return <LazyMotion features={domMax} strict>{children}</LazyMotion>;
 }

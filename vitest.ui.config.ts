@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config"
 import path from "node:path"
+import { MOTION_ALIAS } from "./src/components/motion/motion-alias"
 
 // Requests UI checks isolate external Clerk/database boundaries; no database setup.
 export default defineConfig({
@@ -97,6 +98,8 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
       // As in vitest.config.ts: Next resolves this marker itself; these checks import server loaders directly.
       "server-only": path.resolve(__dirname, "src/test/server-only.ts"),
+      // As the build resolves it, so tests render the Motion the pages ship.
+      ...MOTION_ALIAS,
     },
   },
 })
