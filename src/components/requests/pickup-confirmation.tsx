@@ -1,11 +1,10 @@
 "use client"
 
 import { createContext, useContext, useState, type ReactNode } from "react"
-import { Button } from "@/components/arc/button/button"
-import { Dialog, DialogClose, DialogContent } from "@/components/popup/adaptive-dialog"
+import { popupCode, usePopupCode } from "@/components/popup/lazy-popup"
 import { pickupConfirmation, type PickupConfirmation, type ReviewState } from "@/lib/request-reviewer-rules"
-import detailStyles from "./detail.module.css"
-import styles from "./pickup-confirmation.module.css"
+
+const dialogCode = popupCode(() => import("./pickup-confirmation-dialog"))
 
 export type PickupTarget = { id: string; name: string; reviewState?: ReviewState | null }
 /** Resolves true to pick up: at once when nothing is outstanding, else once the person confirms. */
@@ -70,29 +69,11 @@ export function PickupConfirmationProvider({ children }: { children: ReactNode }
   // The logic is createPickupConfirmation; this is its dialog. Its functions keep their identity.
   const [value] = useState(() => createPickupConfirmation(setShown))
   const { settle } = value
-  const single = shown?.requests.length === 1
+  // #267: the dialog's code loads when a pickup first needs to ask. If it can't, the pickup waits: nothing changes.
+  const dialog = usePopupCode(dialogCode, shown !== null, { id: "popup-unavailable:pickup", close: () => settle(false) })
   return <PickupConfirmationContext.Provider value={value}>
     {children}
-    <Dialog open={shown !== null} onOpenChange={open => { if (!open) settle(false) }}>
-      {shown && <DialogContent title={shown.title}
-        description={single ? "Reviews never block pickup. Check what is outstanding first." : "Reviews never block pickup. Some selected Requests have something outstanding."}>
-        <ul className={styles.list} data-pickup-confirmation="">
-          {shown.requests.map((request, index) => <li key={index} className={styles.request}>
-            <p><span className={styles.name}>{request.name}</span> <span className={styles.muted}>{request.summary}</span></p>
-            {request.concerns.length > 0 && <ul className={styles.concerns} aria-label={`Concerns on ${request.name}`}>
-              {request.concerns.map((concern, concernIndex) => <li key={concernIndex}>
-                <p><span className={styles.name}>{concern.name}</span> raised a concern</p>
-                <p className={styles.muted}>{concern.reason}</p>
-              </li>)}
-            </ul>}
-          </li>)}
-        </ul>
-        <div className={detailStyles.dialogActions}>
-          <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-          <Button onClick={() => settle(true)}>Pick up anyway</Button>
-        </div>
-      </DialogContent>}
-    </Dialog>
+    {dialog && <dialog.PickupConfirmationDialog shown={shown} settle={settle} />}
   </PickupConfirmationContext.Provider>
 }
 

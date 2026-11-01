@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
+import { popupCode, popupOpener, usePopupCode } from "@/components/popup/lazy-popup";
 import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
 import styles from "./settings.module.css";
@@ -31,6 +31,7 @@ const RETURN_PROBLEMS: Partial<Record<SlackConnectResult, string>> = {
   failed: "Slack didn’t finish connecting. Try again.",
 };
 const FAILED = "Couldn’t reach Lane. Try again.";
+const dialogCode = popupCode(() => import("./disconnect-slack-dialog"));
 
 /**
  * #207 Settings → Slack, for Admins. Connect sends the Admin to Slack's install page (Slack's standard flow) and
@@ -42,6 +43,8 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState(result === "connected" ? "Slack is connected. People here can now choose Slack DM under Inbox delivery." : "");
+  const opener = useRef<HTMLButtonElement>(null);
+  const dialog = usePopupCode(dialogCode, confirming, { id: "popup-unavailable:disconnect-slack", close: () => setConfirming(false), retry: () => setConfirming(true) });
   const problem = error ?? (status || busy ? null : RETURN_PROBLEMS[result ?? "connected"] ?? null);
 
   async function connect() {
@@ -80,17 +83,11 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
   const action = connection.kind === "disconnected"
     ? <Button onClick={() => { void connect(); }} loading={busy}>Connect Slack</Button>
     : connection.kind === "connected"
-      // The trigger inside the Dialog, so closing it returns focus here.
-      ? <Dialog open={confirming} onOpenChange={open => { if (!busy) { setError(null); setConfirming(open); } }}>
-        <DialogTrigger asChild><Button variant="secondary">Disconnect Slack</Button></DialogTrigger>
-        <DialogContent title="Disconnect Slack?" description="People who chose Slack DM get email instead. They can choose Slack DM again once Slack is connected.">
-          {error && <Alert role="alert" tone="danger" title={error} />}
-          <div className={styles.dialogActions}>
-            <DialogClose asChild><Button variant="ghost" disabled={busy}>Cancel</Button></DialogClose>
-            <Button variant="danger" onClick={() => { void disconnect(); }} loading={busy}>Disconnect Slack</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      // #267: the confirmation's code loads on a press of the button (or focus on it), or when it opens; closing it returns focus to the button.
+      ? <>
+        <Button ref={opener} variant="secondary" {...popupOpener(confirming)} onClick={() => { setError(null); setConfirming(true); }} onPointerDown={dialogCode.preload} onFocus={dialogCode.preload}>Disconnect Slack</Button>
+        {dialog && <dialog.DisconnectSlackDialog open={confirming} onOpenChange={open => { if (!busy) { setError(null); setConfirming(open); } }} opener={opener} error={error} busy={busy} onDisconnect={() => { void disconnect(); }} />}
+      </>
       : null;
 
   return <div className={styles.card}>

@@ -660,7 +660,7 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
     await dialog.getByRole("combobox", { name: "Metric", exact: true }).click()
     await page.getByRole("group", { name: "Metrics library" }).getByRole("option", { name: draft.metric, exact: true }).click()
     await dialog.getByRole("spinbutton", { name: "Current value" }).fill(draft.current)
-    await dialog.getByRole("spinbutton", { name: /^Target after release/ }).fill("80")
+    await dialog.getByRole("spinbutton", { name: /^Goal after release/ }).fill("80")
 
     // Hold every server action from here on in the browser, then abort it.
     const held: Route[] = []

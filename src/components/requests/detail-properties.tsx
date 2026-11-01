@@ -1,10 +1,11 @@
 "use client"
 
-import dynamic from "next/dynamic"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { SlidersHorizontal } from "lucide-react"
 import { Avatar } from "@/components/arc/avatar/avatar"
 import { Button } from "@/components/arc/button/button"
+import { popupCode, usePopupCode } from "@/components/popup/lazy-popup"
+import { afterPageLoad } from "@/lib/after-page-load"
 import { RequestStatusControl } from "./request-status-control"
 import { StatusGlyph } from "./status-glyph"
 import { LocalTime } from "./local-time"
@@ -25,8 +26,8 @@ import styles from "./detail.module.css"
 // The Properties sheet stays out of the phone's first load. Its chunk is fetched
 // once the page is idle, or on the first press or focus of the state line, so
 // the sheet opens without waiting on the network.
-const PropertiesDrawer = dynamic(() => import("./detail-properties-drawer").then(module => module.PropertiesDrawer), { ssr: false })
-const preloadDrawer = () => { void import("./detail-properties-drawer") }
+// #267: the phone sheet loads ahead (pointer down, focus, or idle after load where the line shows), or when it opens.
+const drawerCode = popupCode(() => import("./detail-properties-drawer"))
 
 /** "In progress, High priority", "Open, No priority" or "Measuring, Due in 3 days": the phone's one state line (plan item 2.5; #133).
  * Priority is read only while it shows: before the work is Done. */
@@ -154,29 +155,24 @@ export function DetailStateLine() {
   const { statusControl, priorityControl } = usePropertyControls()
   const { journey, due } = useDetailJourney()
   const [open, setOpen] = useState(false)
-  const [loaded, setLoaded] = useState(false)
   const line = useRef<HTMLButtonElement>(null)
-  // Only where the line shows (below 960px of content): fetch the sheet once the page is idle.
+  const drawer = usePopupCode(drawerCode, open, { id: "popup-unavailable:properties", close: () => setOpen(false), retry: () => setOpen(true) })
+  // Only where the line shows (below 960px of content): fetch the sheet once the page has loaded and is idle.
   useEffect(() => {
     if (!line.current?.getClientRects().length) return
-    if (typeof window.requestIdleCallback === "function") {
-      const idle = window.requestIdleCallback(preloadDrawer, { timeout: 4000 })
-      return () => window.cancelIdleCallback(idle)
-    }
-    const timer = window.setTimeout(preloadDrawer, 1500)
-    return () => window.clearTimeout(timer)
+    return afterPageLoad(drawerCode.preload)
   }, [])
   return <>
     <div className={styles.compactProperties} role="group" aria-label="Request properties">
       {statusControl}
       {request.status !== "done" && priorityControl}
     <Button ref={line} type="button" variant="secondary" size="sm" morph="plain" className={styles.stateLine} data-detail-state-line="" aria-label={`Properties: ${stateLineText(journey, request.status !== "done" ? request.priority : null, due)}`} aria-haspopup="dialog" aria-expanded={open}
-      onPointerDown={preloadDrawer} onFocus={preloadDrawer}
-      onClick={() => { setLoaded(true); setOpen(true) }}>
+      onPointerDown={drawerCode.preload} onFocus={drawerCode.preload}
+      onClick={() => setOpen(true)}>
       <SlidersHorizontal strokeWidth={1.75} aria-hidden="true" />
       Properties
     </Button>
     </div>
-    {loaded && <PropertiesDrawer open={open} onOpenChange={setOpen} returnFocus={() => line.current?.focus({ preventScroll: true })} />}
+    {drawer && <drawer.PropertiesDrawer open={open} onOpenChange={setOpen} returnFocus={() => line.current?.focus({ preventScroll: true })} />}
   </>
 }

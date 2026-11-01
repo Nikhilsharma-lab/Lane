@@ -3,21 +3,22 @@
 import { useRef, useState, type FormEvent } from "react"
 import { Bookmark, ChevronDown } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
-import { Dialog, DialogClose, DialogContent } from "@/components/popup/adaptive-dialog"
 import { DropdownMenu, type DropdownItem } from "@/components/arc/dropdown-menu/dropdown-menu"
-import { Input } from "@/components/arc/input/input"
+import { popupCode, usePopupCode } from "@/components/popup/lazy-popup"
 import { callAction } from "@/lib/action-call"
 import { thrownMessage } from "@/lib/failure-messages"
-import { openSavedView, SAVED_VIEW_NAME_MAX, savedViewChoices, type SavedView, type SavedViewChoice } from "@/lib/saved-view-rules"
+import { openSavedView, savedViewChoices, type SavedView, type SavedViewChoice } from "@/lib/saved-view-rules"
 import { deleteSavedView, renameSavedView, saveView, updateSavedView } from "@/app/(app)/saved-view-actions"
 import { useListAnnouncer } from "./list-announcer"
 import { useRequestListContext, useSetRequestListView, withSavedView } from "./list-view-state"
 import styles from "./saved-view-menu.module.css"
 
-type DialogKind = Exclude<SavedViewChoice, "update">
+export type DialogKind = Exclude<SavedViewChoice, "update">
 const OFFLINE = "We couldn't reach Lane. Check your connection and try again."
 
-const TITLES: Record<DialogKind, string> = { save: "Save view", save_as_new: "Save as new view", rename: "Rename view", delete: "Delete view" }
+// #267: the save, rename and delete dialog's code loads on a press of the control, or when the dialog opens.
+const dialogCode = popupCode(() => import("./saved-view-dialog"))
+
 const LABELS: Record<SavedViewChoice, string> = { save: "Save view", update: "Save changes to view", save_as_new: "Save as new view…", rename: "Rename view…", delete: "Delete view…" }
 
 /**
@@ -47,6 +48,7 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
     setKind(next)
     setDialogOpen(true)
   }
+  const dialog = usePopupCode(dialogCode, dialogOpen, { id: "popup-unavailable:saved-view", close: () => setDialogOpen(false), retry: () => show(kind) })
   const focusControl = () => requestAnimationFrame(() => control.current?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true }))
 
   async function run(change: () => Promise<{ error: string } | { ok: true; view?: SavedView }>, done: (view?: SavedView) => void) {
@@ -93,7 +95,7 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
   return <span ref={control} className={styles.control}>
     {open
       ? <DropdownMenu label="Saved view" items={items}
-          trigger={<Button variant="secondary" size="sm" aria-label="Saved view"><Bookmark data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /><span className={styles.label}>Saved view</span><ChevronDown data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /></Button>}
+          trigger={<Button variant="secondary" size="sm" aria-label="Saved view" onPointerDown={dialogCode.preload} onFocus={dialogCode.preload}><Bookmark data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /><span className={styles.label}>Saved view</span><ChevronDown data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /></Button>}
           onCloseAutoFocus={event => {
             const next = afterMenu.current
             if (!next) return
@@ -101,26 +103,11 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
             afterMenu.current = null
             show(next)
           }} />
-      : <Button variant="secondary" size="sm" aria-label="Save view" onClick={() => show("save")}><Bookmark data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /><span className={styles.label}>Save view</span></Button>}
+      : <Button variant="secondary" size="sm" aria-label="Save view" onClick={() => show("save")} onPointerDown={dialogCode.preload} onFocus={dialogCode.preload}><Bookmark data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /><span className={styles.label}>Save view</span></Button>}
     {/* An update's failure has no dialog to speak in; it is read here. */}
     {error && !dialogOpen && <span className={styles.error} role="alert">{error}</span>}
-    <Dialog guardTypedText open={dialogOpen} onOpenChange={next => { if (!pending && !next) setDialogOpen(false) }}>
-      <DialogContent title={kind === "delete" && open ? `Delete “${open.name}”?` : TITLES[kind]}
-        description={kind === "delete" ? "The view leaves your navigation. The list keeps its filters, and no Request changes."
-          : kind === "rename" ? undefined : "Saves this list’s status and Project filters under a name. Only you see your views."}
-        onCloseAutoFocus={event => { event.preventDefault(); focusControl() }}>
-        <form className={styles.form} onSubmit={submit} noValidate>
-          {kind !== "delete" && <Input label="Name" value={name} maxLength={SAVED_VIEW_NAME_MAX} autoComplete="off" autoFocus required
-            error={error || undefined} onChange={event => { setName(event.target.value); setError("") }} />}
-          {kind === "delete" && error && <p className={styles.error} role="alert">{error}</p>}
-          <div className={styles.actions}>
-            <DialogClose asChild><Button type="button" variant="ghost" disabled={pending}>Cancel</Button></DialogClose>
-            <Button type="submit" variant={kind === "delete" ? "danger" : "primary"} loading={pending}>
-              {kind === "delete" ? "Delete view" : kind === "rename" ? "Rename view" : "Save view"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    {dialog && <dialog.SavedViewDialog open={dialogOpen} kind={kind} view={open} name={name} error={error} pending={pending}
+      onOpenChange={next => { if (!pending && !next) setDialogOpen(false) }} onSubmit={submit} onCloseAutoFocus={focusControl}
+      onNameChange={value => { setName(value); setError("") }} />}
   </span>
 }

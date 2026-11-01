@@ -26,7 +26,7 @@ import styles from "./popup.module.css"
  *   A Cancel built with this file's `DialogClose` is a deliberate discard and just closes.
  * - On a phone, Back closes the panel.
  *
- * Focus and the guard load with the page, so they work from the first moment. Only the switch to the phone panel
+ * Focus and the guard load with the popup itself (#267: on intent, lazy-popup.tsx), so they hold from its first frame. Only the switch to the phone panel
  * waits (popup-behaviour.tsx, through load-behaviour.ts); until it arrives a popup opens as the centred Arc dialog.
  * Menus and small pickers (Arc popover, dropdown-menu, context-menu, the date range picker's own popover) stay as
  * they are, and so do the command palette and workspace search, which build 4 owns.

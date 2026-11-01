@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 import { PaletteOption } from "./command-palette-option"
 import type { PaletteEntry } from "./command-palette-entries"
-import { ShortcutKeys } from "./keyboard-shortcuts"
+import { ShortcutKeys } from "./keyboard-shortcuts-dialog"
 
 const caps = (html: string) => [...html.matchAll(/<kbd[^>]*>([^<]*)<\/kbd>/g)].map(match => match[1])
 
