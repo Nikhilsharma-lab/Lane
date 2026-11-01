@@ -27,10 +27,23 @@ const SameProblemView = dynamic(() => loadView().then(module => module.SameProbl
 /** Build 3: the list's code is fetched once the page has loaded and is idle (src/lib/after-page-load.ts), as Build 2's
  * lazy parts are. Fetched during hydration it held `load` back on a phone, and the loads ahead after it. Its read
  * waits behind the journey's (Next sends server reads one at a time), so the code is here before the list has
- * anything to show. Already here (the preview loads it ahead), it renders at once. */
+ * anything to show. Already here (the preview loads it ahead), it renders at once. It renders only once its code is
+ * here, so a fetch that fails (offline, an old tab after a deploy) never throws the page out to the error screen:
+ * the placeholder stays, and the fetch is tried again when the browser is back online or the tab is used again. */
 function useViewCode() {
   const [ready, setReady] = useState(viewHere)
-  useEffect(() => { if (!ready) return afterPageLoad(() => setReady(true)) }, [ready])
+  useEffect(() => {
+    if (ready) return
+    let live = true
+    const retry = () => { removeEventListener("online", retry); removeEventListener("focus", retry); fetchCode() }
+    const fetchCode = () => {
+      loadView().then(() => { if (live) setReady(true) }, () => {
+        if (live) { addEventListener("online", retry); addEventListener("focus", retry) }
+      })
+    }
+    const cancel = afterPageLoad(fetchCode)
+    return () => { live = false; cancel(); removeEventListener("online", retry); removeEventListener("focus", retry) }
+  }, [ready])
   return ready
 }
 // The link dialog loads when it first opens; if it can't, Lane says so instead of a blank popup.
