@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { clsx } from "clsx";
 import styles from "./auth.module.css";
 
 export function LaneMark() {
@@ -24,5 +24,5 @@ export function AuthHeading({ title, description }: { title: string; description
 }
 
 export function AuthTrust({ icon: Icon, children, className }: { icon: LucideIcon; children: ReactNode; className?: string }) {
-  return <div className={cn(styles.trust, className)}><Icon aria-hidden="true" data-icon-size="sm" /><span>{children}</span></div>;
+  return <div className={clsx(styles.trust, className)}><Icon aria-hidden="true" data-icon-size="sm" /><span>{children}</span></div>;
 }
