@@ -10,6 +10,8 @@ import { answerIsItLive } from "./helpers/journey"
  * with a Playwright storage state the operator saved for a member of a workspace
  * that has Requests (LANE_PERF_STORAGE_STATE), and it reads data only, except
  * the Mark Done check, which runs only with LANE_PERF_MUTATE=1 and undoes itself.
+ * The workspace's Requests must fit on the list's first page (25), or a Request
+ * marked Done can regroup onto the second page and the row check loses sight of it.
  *
  *   LANE_PERF_BASE_URL=http://localhost:3000 \
  *   LANE_PERF_STORAGE_STATE=.auth/perf-member.json \
@@ -111,6 +113,19 @@ const report = (label: string, values: number[], unit = "ms", target?: number) =
 const isRscRequest = (request: Request) =>
   /[?&]_rsc=/.test(request.url()) || request.url().includes("/_next/data") || request.headers()["rsc"] === "1"
 
+/** Resolves once no RSC request has started for `quietMs` (at most `limitMs`). */
+async function rscQuiet(page: Page, quietMs = 500, limitMs = 5000) {
+  let last = Date.now()
+  const seen = (request: Request) => { if (isRscRequest(request)) last = Date.now() }
+  page.on("request", seen)
+  try {
+    const start = Date.now()
+    while (Date.now() - last < quietMs && Date.now() - start < limitMs) await page.waitForTimeout(100)
+  } finally {
+    page.off("request", seen)
+  }
+}
+
 async function throttle(page: Page, rate: number): Promise<CDPSession> {
   const cdp = await page.context().newCDPSession(page)
   await cdp.send("Emulation.setCPUThrottlingRate", { rate })
@@ -127,6 +142,12 @@ async function interactionDuration(page: Page, since: number) {
 }
 
 const now = (page: Page) => page.evaluate(() => performance.now())
+
+/** Resolves after `count` animation frames have been painted. */
+const nextFrames = (page: Page, count: number) => page.evaluate(frames => new Promise<void>(resolve => {
+  const step = (left: number) => left ? requestAnimationFrame(() => step(left - 1)) : resolve()
+  step(frames)
+}), count)
 
 async function openList(page: Page) {
   await page.goto("/")
@@ -156,6 +177,16 @@ test.beforeEach(async ({ page }) => {
 
 test("status view switch responds in the next frame with zero network", async ({ page }) => {
   await openList(page)
+  // A view's rows coming on screen for the first time start Next's normal viewport prefetches of their Requests.
+  // One unmeasured pass over the views lets those finish first (a row that leaves the screen before its prefetch
+  // starts would only start it later); a switch itself must then make no request at all.
+  for (const label of ["Open", "In progress", "Done", "All"]) {
+    const chip = statusChip(page, label)
+    if (!(await chip.isVisible())) continue
+    await chip.click()
+    await expect(chip).toHaveAttribute("aria-pressed", "true")
+    await rscQuiet(page)
+  }
   const rsc: string[] = []
   page.on("request", request => { if (isRscRequest(request)) rsc.push(request.url()) })
 
@@ -303,8 +334,13 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
     if (!(await row.count())) break
     const id = await row.getAttribute("data-request-id")
     const glyph = page.locator(`[role=row][data-request-id="${id}"] button[data-status]`)
+    // A scroll closes an open menu (by design). Playwright scrolls and clicks in one frame, and the late scroll
+    // event would close the menu it opened, so the row is brought on screen first and left to settle.
+    await glyph.scrollIntoViewIfNeeded()
+    await nextFrames(page, 2)
     await glyph.click()
-    const item = page.getByRole("menuitem", { name: /mark done/i }).first()
+    // The status menu's choices are checkbox items: the current status is the checked one.
+    const item = page.getByRole("menuitemcheckbox", { name: /mark done/i }).first()
     await expect(item).toBeVisible()
 
     // Records the time from the input to the first frame that shows Done, and
@@ -337,6 +373,7 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
       await page.keyboard.press("Escape")
       await page.locator(`[role=row][data-request-id="${id}"]`).focus()
       await page.keyboard.press("Shift+F10")
+      // The row's own menu leads with its move, a plain item (the status menu's choices are checkbox items).
       await expect(page.getByRole("menuitem", { name: "Mark Done" }).first()).toBeFocused()
       await page.keyboard.press("Enter")
     }
