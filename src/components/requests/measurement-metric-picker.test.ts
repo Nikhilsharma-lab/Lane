@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { MetricChoice } from "@/lib/metric-definition-rules";
-import { activeMetricNamed, InlineMetricForm, inlineAddName, MetricOptionList, metricPickerOptions } from "./measurement-metric-picker";
+import { activeMetricNamed, inlineAddName, MetricOptionList, metricPickerOptions } from "./measurement-metric-picker";
 
 // #198: the prediction form's metric picker offers the Metrics library.
 const choice = (over: Partial<MetricChoice>): MetricChoice => ({ id: "id", name: "Name", unit: "count", link: null, howCounted: null, archived: false, ...over });
@@ -100,46 +100,5 @@ describe("what inline add offers to add", () => {
   it("finds the active definition that already has a name, so it is offered instead", () => {
     expect(activeMetricNamed(library, "signups ")).toBe(SIGNUPS);
     expect(activeMetricNamed(library, "Old signups")).toBeNull();
-  });
-});
-
-describe("the inline add form", () => {
-  const render = (props: Partial<Parameters<typeof InlineMetricForm>[0]> = {}) => renderToStaticMarkup(createElement(InlineMetricForm, {
-    id: "metric", values: { name: "Checkout completions", unit: "" }, fields: {}, error: null, offer: null, pending: false,
-    onChange: () => {}, onSubmit: () => {}, onBack: () => {}, onUseOffer: () => {}, onRename: () => {}, ...props,
-  }));
-
-  it("asks for a name and a unit only", () => {
-    const html = render();
-    expect(html).toMatch(/<label[^>]*>Name<\/label>|>Name</);
-    expect(html).toContain('value="Checkout completions"');
-    expect(html).toContain('role="combobox"');
-    expect(html).toContain("Choose a unit");
-    expect(html).not.toContain('type="radio"');
-    expect(html).not.toMatch(/<label[^>]*>(Where it lives|How it)|type="url"|<textarea/);
-    expect(text(html)).toMatch(/Back[\s\S]*Add and use/);
-  });
-
-  it("shows each problem beside its field", () => {
-    const html = render({ fields: { name: "Give the metric a name.", unit: "Choose a unit." } });
-    expect(text(html)).toContain("Give the metric a name.");
-    expect(html).toMatch(/role="alert"[^>]*>Choose a unit\./);
-    const unit = html.match(/<button[^>]*role="combobox"[^>]*>/)![0];
-    expect(unit).toContain('aria-invalid="true"');
-    expect(unit).toContain('aria-describedby="metric-unit-error"');
-  });
-
-  it("keeps the name and unit fixed while the metric is being added", () => {
-    const html = render({ pending: true });
-    expect(html).toMatch(/<input[^>]*readOnly=""/);
-    expect(html).toMatch(/<button[^>]*role="combobox"[^>]*disabled=""/);
-  });
-
-  it("offers the existing definition in place of a duplicate", () => {
-    const html = render({ offer: SIGNUPS, values: { name: "signups", unit: "percent" } });
-    expect(html).toMatch(/role="alert"/);
-    expect(text(html)).toContain("“Signups” is already in the Metrics library, counted as Count. Use that one instead.");
-    expect(text(html)).toMatch(/Use this metric[\s\S]*Change the name/);
-    expect(text(html)).not.toContain("Add and use");
   });
 });

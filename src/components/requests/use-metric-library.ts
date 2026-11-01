@@ -18,7 +18,7 @@ export type MetricLibrary = {
   error: string | null
   reload: () => void
   /** Adds a metric with a name and a unit (#199). The definition that comes back, new or already there, joins `metrics`. */
-  add: (input: { name: string; unit: string }) => Promise<InlineMetricResult>
+  add: (input: { name: string; unit: string; howCounted?: string | null }) => Promise<InlineMetricResult>
 }
 
 type LibraryState = Omit<MetricLibrary, "reload" | "add">
@@ -62,7 +62,7 @@ export function useMetricLibrary(orgId: string | undefined, impact: unknown): Me
     })
   }, [orgId])
 
-  const add = useCallback(async (input: { name: string; unit: string }): Promise<InlineMetricResult> => {
+  const add = useCallback(async (input: { name: string; unit: string; howCounted?: string | null }): Promise<InlineMetricResult> => {
     if (!orgId) return { error: "The Metrics library isn't available here." }
     const result = await callAction(() => addPredictionMetric(input, { orgId }))
     if ("ok" in result) setState(previous => ({ ...previous, metrics: withMetric(previous.metrics, result.metric) }))

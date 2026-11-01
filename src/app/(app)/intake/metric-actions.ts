@@ -40,12 +40,12 @@ export type InlineMetricResult =
   | { error: string; sessionExpired?: true; fields?: Partial<Record<"name" | "unit", string>> };
 
 /**
- * Adding a metric that isn't in the library from the prediction form (#199): a name and a unit only. The
+ * Adding a metric that isn't in the library from the prediction form (#199): a name, unit and generated definition. The
  * definition is added through the Metrics library, recorded in its history as added by the person, and comes back
  * ready to select. If an active definition already has that name, nothing is added and that one comes back as
  * `existing`, to be offered instead. Members and Admins only: Guests pick from the library as it is.
  */
-export async function addPredictionMetric(data: { name: string; unit: string }, context: { orgId: string }): Promise<InlineMetricResult> {
+export async function addPredictionMetric(data: { name: string; unit: string; howCounted?: string | null }, context: { orgId: string }): Promise<InlineMetricResult> {
   const parsed = inlineMetricInputSchema.safeParse(data);
   if (!parsed.success) return { error: "Check the highlighted fields.", fields: metricDefinitionFieldErrors(parsed.error) };
   const auth = await guardCanChange(context.orgId, "Guests can't add metrics to the Metrics library. Pick one that's there, or ask a Member to add it.");

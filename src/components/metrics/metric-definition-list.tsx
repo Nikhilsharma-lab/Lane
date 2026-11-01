@@ -16,7 +16,7 @@ const EMPTY = {
  * Each name opens the definition's own page (#197), where it is edited; so does "Add dashboard link". A Viewer
  * (`canEdit` false, #210) reads the same facts with nothing to add.
  */
-export function MetricDefinitionList({ definitions, view = "active", canEdit = true }: { definitions: MetricDefinitionListItem[]; view?: "active" | "archived"; canEdit?: boolean }) {
+export function MetricDefinitionList({ definitions, view = "active" }: { definitions: MetricDefinitionListItem[]; view?: "active" | "archived"; canEdit?: boolean }) {
   if (!definitions.length) {
     return <EmptyState icon={<ChartLine data-icon-size="2xl" aria-hidden="true" />} {...EMPTY[view]} />;
   }
@@ -29,18 +29,16 @@ export function MetricDefinitionList({ definitions, view = "active", canEdit = t
       {definition.howCounted && <p className={styles.summary}>{definition.howCounted}</p>}
       {definition.link
         ? <a className={styles.source} href={definition.link} target="_blank" rel="noopener noreferrer">View source<ArrowUpRight data-icon-size="sm" aria-hidden="true" /><span className="sr-only"> for {definition.name} (opens in a new tab)</span></a>
-        : canEdit && <Link className={styles.source} href={`/settings/metrics/${definition.id}`}>Add source<span className="sr-only"> for {definition.name}</span></Link>}
+        : null}
     </li>)}
   </ul>;
 }
 
 /** One definition's unit, how it's counted and where it lives. Someone who can edit is offered to add a missing link. */
-export function MetricDefinitionFacts({ definition, canEdit = true }: { definition: MetricDefinitionListItem; canEdit?: boolean }) {
+export function MetricDefinitionFacts({ definition }: { definition: MetricDefinitionListItem; canEdit?: boolean }) {
   return <dl className={styles.facts}>
     <div className={styles.fact}><dt>Unit</dt><dd>{metricUnitName(definition.unit)}</dd></div>
     {definition.howCounted && <div className={styles.fact}><dt>Saved definition</dt><dd>{definition.howCounted}</dd></div>}
-    <div className={styles.fact}><dt>Dashboard link</dt><dd>{definition.link
-      ? <a className={styles.link} href={definition.link} target="_blank" rel="noopener noreferrer">{definition.link}<span className="sr-only"> (opens in a new tab)</span></a>
-      : canEdit ? <Link className={styles.add} href={`/settings/metrics/${definition.id}`}>Add dashboard link</Link> : <span className={styles.missing}>Not added yet</span>}</dd></div>
+    {definition.link && <div className={styles.fact}><dt>Saved reference</dt><dd><a className={styles.link} href={definition.link} target="_blank" rel="noopener noreferrer">Open reference<span className="sr-only"> (opens in a new tab)</span></a></dd></div>}
   </dl>;
 }

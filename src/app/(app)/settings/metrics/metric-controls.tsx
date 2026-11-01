@@ -9,15 +9,18 @@ import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
+import dynamic from "next/dynamic";
 import { MetricDefinitionForm, type MetricDefinitionValues } from "@/components/metrics/metric-definition-form";
 import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
 import { addMetricDefinition, archiveMetricDefinition, editMetricDefinition, mergeMetricDefinitions, restoreMetricDefinition } from "./actions";
 import styles from "./metrics.module.css";
 
+const GuidedMetricForm = dynamic(() => import("@/components/metrics/guided-metric-form").then(module => module.GuidedMetricForm), { loading: () => <p role="status">Loading metric setup…</p> });
+
 /** Settings → Metrics controls (#197) that save through the library's actions. */
 
-const EMPTY: MetricDefinitionValues = { name: "", unit: "", link: "", howCounted: "" };
+
 
 /** "Add metric" and its dialog. The new definition appears in the list once saved; focus returns to the button. */
 export function AddMetricDialog({ orgId }: { orgId: string }) {
@@ -27,8 +30,8 @@ export function AddMetricDialog({ orgId }: { orgId: string }) {
   return <>
     <Dialog guardTypedText dismissible={!pending} open={open} onOpenChange={next => { if (pending) return; setOpen(next); if (next) setAdded(""); }}>
       <DialogTrigger asChild><Button><Plus data-icon-size="sm" aria-hidden="true" />Add metric</Button></DialogTrigger>
-      <DialogContent title="Add metric" description="Choose what your workspace measures.">
-        <MetricDefinitionForm initial={EMPTY} submitLabel="Add metric" onPendingChange={setPending} onCancel={() => setOpen(false)}
+      <DialogContent className={styles.createDialog} title="Create metric" description="Define it once so your team can reuse it on Requests.">
+        <GuidedMetricForm onPendingChange={setPending} onCancel={() => setOpen(false)}
           onSubmit={async values => {
             const result = await callAction(() => addMetricDefinition(values, { orgId }));
             if ("ok" in result) setAdded(`Added ${values.name.trim()}.`);
@@ -45,7 +48,7 @@ export function AddMetricDialog({ orgId }: { orgId: string }) {
 export function EditMetricForm({ orgId, definition, unitLocked = false }: { orgId: string; definition: { id: string } & MetricDefinitionValues; unitLocked?: boolean }) {
   const { id, ...initial } = definition;
   return <MetricDefinitionForm initial={initial} submitLabel="Save changes" confirmSaved unitLocked={unitLocked}
-    note="Use the same report for current and actual values. If the calculation changes, add a new metric."
+    note="Keep the same definition for current and actual values. To measure something different, create a new metric."
     onSubmit={values => callAction(() => editMetricDefinition({ id, ...values }, { orgId }))} />;
 }
 

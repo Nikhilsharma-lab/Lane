@@ -76,10 +76,10 @@ describe("adding a metric inline", () => {
     expect("ok" in result && result.metric.id).not.toBe(old.metric.id);
   });
 
-  it("asks only for a name and a unit: anything else sent is not saved", async () => {
+  it("saves the guided definition without a dashboard link", async () => {
     const result = await add({ name: "Saved carts", unit: "count", link: "https://example.test/carts", howCounted: "Carts saved." } as never);
     if (!("ok" in result)) throw new Error(result.error);
-    expect(result.metric).toMatchObject({ link: null, howCounted: null });
+    expect(result.metric).toMatchObject({ link: null, howCounted: "Carts saved." });
   });
 
   it("says which field is missing", async () => {

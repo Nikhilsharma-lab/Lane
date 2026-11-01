@@ -1,22 +1,23 @@
 "use client"
 
-import { useEffect, useId, useRef, useState, type RefObject } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { ArrowUpRight, ChartNoAxesColumnIncreasing, Check, ListChecks, Plus } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
-import { Input } from "@/components/arc/input/input"
+import dynamic from "next/dynamic"
+import type { MetricDefinitionValues } from "@/components/metrics/metric-definition-form"
 import { SearchField } from "@/components/arc/search-field/search-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover"
-import { Select } from "@/components/arc/select/select"
 import {
-  inlineMetricInputSchema, METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionFieldErrors, metricUnitName, type MetricChoice,
+  metricUnitName, type MetricChoice,
 } from "@/lib/metric-definition-rules"
 import { pickerPopoverProps } from "./request-property-pickers"
 import type { MetricLibrary } from "./use-metric-library"
 import styles from "./measurement-plan-fields.module.css"
 import layout from "./request-picker-layout.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
-import { thrownMessage } from "@/lib/failure-messages"
 import { FieldError } from "@/components/forms/field-error"
+
+const GuidedMetricForm = dynamic(() => import("@/components/metrics/guided-metric-form").then(module => module.GuidedMetricForm), { loading: () => <p role="status">Loading metric setup…</p> });
 
 /** The Metrics page, which the prediction form links to (#198). */
 export const METRICS_PAGE = "/settings/metrics"
@@ -91,57 +92,6 @@ export function MetricOptionList({ id, options, selectedId, passFail, passFailSe
   </>
 }
 
-export type InlineMetricValues = { name: string; unit: string }
-type InlineFieldErrors = Partial<Record<"name" | "unit", string>>
-
-const UNIT_OPTIONS = METRIC_UNITS.map(unit => ({ value: unit, label: metricUnitName(unit) }))
-
-/**
- * Adding a metric from the picker (#199): a name and a unit only, nothing else. When an active definition already
- * has the name, that one is offered in place of a duplicate. The form lives in the picker's popover, which is
- * portalled: its submit stays its own and never reaches the Request's form.
- */
-export function InlineMetricForm({ id, values, fields, error, offer, pending, onChange, onSubmit, onBack, onUseOffer, onRename, nameRef, offerRef }: {
-  id: string
-  values: InlineMetricValues
-  fields: InlineFieldErrors
-  error: string | null
-  /** The active definition that already has the name, to use instead. */
-  offer: MetricChoice | null
-  pending: boolean
-  onChange: (values: InlineMetricValues) => void
-  onSubmit: () => void
-  onBack: () => void
-  onUseOffer: () => void
-  onRename: () => void
-  nameRef?: RefObject<HTMLInputElement | null>
-  offerRef?: RefObject<HTMLButtonElement | null>
-}) {
-  return <form className={styles.inlineAdd} noValidate aria-busy={pending || undefined} aria-label="Add a metric to the Metrics library" aria-describedby={`${id}-add-note`}
-    onSubmit={event => { event.preventDefault(); event.stopPropagation(); if (!offer) onSubmit() }}>
-    <p id={`${id}-add-note`} className={styles.hint}>Add a metric for your workspace to reuse.</p>
-    <Input ref={nameRef} label="Name" value={values.name} maxLength={METRIC_NAME_MAX} readOnly={pending} error={fields.name} autoComplete="off"
-      onChange={event => onChange({ ...values, name: event.target.value })}/>
-    {offer ? <div className={styles.inlineOffer}>
-      <p className={styles.hint} role="alert">{`“${offer.name}” is already in the Metrics library, counted as ${metricUnitName(offer.unit)}. Use that one instead.`}</p>
-      <div className={styles.inlineActions}>
-        <Button ref={offerRef} type="button" size="sm" onClick={onUseOffer}>Use this metric</Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onRename}>Change the name</Button>
-      </div>
-    </div> : <>
-      <div className={styles.inlineUnit} data-field="unit">
-        <Select id={`${id}-unit`} label="Unit" placeholder="Choose a unit" options={UNIT_OPTIONS} value={values.unit} disabled={pending} required error={fields.unit}
-          onValueChange={unit => onChange({ ...values, unit })} onContentKeyDown={event => event.stopPropagation()}/>
-      </div>
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      <div className={styles.inlineActions}>
-        <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onBack}>Back</Button>
-        <Button type="submit" size="sm" loading={pending}>Add and use</Button>
-      </div>
-    </>}
-  </form>
-}
-
 /**
  * Choosing the main metric or a guardrail from the workspace's Metrics library (#198). The search filters by name as
  * you type; Enter takes the first match; arrows, Home and End move through the options. The main metric can also be a
@@ -163,13 +113,11 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
-  const [adding, setAdding] = useState<InlineMetricValues | null>(null)
-  const [fields, setFields] = useState<InlineFieldErrors>({})
-  const [addError, setAddError] = useState<string | null>(null)
+  const [adding, setAdding] = useState<{name:string} | null>(null)
   const [offer, setOffer] = useState<MetricChoice | null>(null)
   const [pending, setPending] = useState(false)
   const search = useRef<HTMLInputElement>(null)
-  const nameInput = useRef<HTMLInputElement>(null)
+  const addForm = useRef<HTMLDivElement>(null)
   const offerButton = useRef<HTMLButtonElement>(null)
   const listId = useId()
   const shown = metricPickerOptions(library.metrics, query, selectedId)
@@ -179,47 +127,25 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
 
   // Focus follows the view: the name field when adding starts, the search when going back, the offer when one appears.
   useEffect(() => {
-    if (open) (isAdding ? nameInput : search).current?.focus()
+    if (open) { if (isAdding) addForm.current?.querySelector<HTMLInputElement>('input[type="radio"]')?.focus(); else search.current?.focus() }
   }, [open, isAdding])
   useEffect(() => { if (offer) offerButton.current?.focus() }, [offer])
 
-  const stopAdding = () => { setAdding(null); setFields({}); setAddError(null); setOffer(null) }
-  const startAdding = (name: string) => { setAdding({ name, unit: "" }); setFields({}); setAddError(null); setOffer(null) }
+  const stopAdding = () => { setAdding(null); setOffer(null) }
+  const startAdding = (name: string) => { setAdding({ name }); setOffer(null) }
   const pick = (choice: MetricChoice | "check") => {
     if (choice === "check" ? !passFailSelected : choice.id !== selectedId) onPick(choice)
     setOpen(false); setQuery(""); stopAdding()
   }
 
-  async function addMetric() {
-    if (!adding || pending) return
-    setAddError(null)
-    const parsed = inlineMetricInputSchema.safeParse(adding)
-    if (!parsed.success) {
-      const problems = metricDefinitionFieldErrors(parsed.error)
-      setFields(problems)
-      if (problems.name) nameInput.current?.focus()
-      else nameInput.current?.closest("form")?.querySelector<HTMLButtonElement>('[data-field="unit"] [role="combobox"]')?.focus()
-      return
-    }
-    const known = activeMetricNamed(library.metrics, parsed.data.name)
-    if (known) { setOffer(known); return }
-    setPending(true)
-    onBusyChange?.(true)
-    try {
-      const result = await library.add(parsed.data)
-      if ("error" in result) {
-        setFields(result.fields ?? {})
-        if (result.fields?.name) nameInput.current?.focus()
-        else if (result.fields?.unit) requestAnimationFrame(() => nameInput.current?.closest("form")?.querySelector<HTMLButtonElement>('[data-field="unit"] [role="combobox"]')?.focus())
-        else if (!result.fields) setAddError(result.error)
-      } else if (result.existing) setOffer(result.metric)
-      else pick(result.metric)
-    } catch (thrown) {
-      setAddError(thrownMessage(thrown, "The metric couldn't be added. Check your connection and try again; your Request is still here."))
-    } finally {
-      setPending(false)
-      onBusyChange?.(false)
-    }
+  async function addMetric(values: MetricDefinitionValues) {
+    const known = activeMetricNamed(library.metrics, values.name)
+    if (known) { setOffer(known); return {error:'A metric with this name already exists. Review it below, or change the name.'} }
+    const result = await library.add(values)
+    if ('error' in result) return result
+    if (result.existing) {setOffer(result.metric);return {error:'A metric with this name already exists. Review it below, or change the name.'}}
+    pick(result.metric)
+    return {ok:true as const}
   }
 
   const typed = query.trim().replace(/\s+/g, " ")
@@ -233,15 +159,10 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
         onOpenAutoFocus={event => { event.preventDefault(); search.current?.focus() }}
         // Escape while adding goes back to the search; the place in the form is kept either way.
         onEscapeKeyDown={event => { if (isAdding) { event.preventDefault(); if (!pending) stopAdding() } }}>
-        {adding ? <InlineMetricForm id={id} values={adding} fields={fields} error={addError} offer={offer} pending={pending} nameRef={nameInput} offerRef={offerButton}
-          onChange={values => {
-            if (pending) return
-            setAdding(values)
-            setFields(current => ({ ...current, ...(values.name !== adding.name ? { name: undefined } : {}), ...(values.unit !== adding.unit ? { unit: undefined } : {}) }))
-            if (values.name !== adding.name) setOffer(null)
-          }}
-          onSubmit={() => void addMetric()} onBack={stopAdding} onUseOffer={() => offer && pick(offer)}
-          onRename={() => { setOffer(null); nameInput.current?.focus() }}/> : <>
+        {adding ? <div ref={addForm} className={styles.inlineAdd}><GuidedMetricForm initialName={adding.name} onCancel={stopAdding} onSubmit={addMetric}
+          onPendingChange={busy=>{setPending(busy);onBusyChange?.(busy)}} />
+          {offer && <div className={styles.inlineOffer}><p className={styles.hint}>{offer.name} · {metricUnitName(offer.unit)}</p>{offer.howCounted && <p className={styles.hint}>{offer.howCounted}</p>}<Button ref={offerButton} type="button" disabled={pending} onClick={()=>pick(offer)}>Use this metric</Button></div>}
+        </div> : <>
           <div className={layout.header}><SearchField ref={search} label="Search the Metrics library" hideLabel placeholder="Search metrics…" maxLength={120} value={query}
             aria-controls={listId} onValueChange={setQuery} onKeyDown={event => {
               if (event.nativeEvent.isComposing) return
