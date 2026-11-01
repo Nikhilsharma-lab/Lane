@@ -105,3 +105,21 @@ it.each(["percent", "count", "minutes", "seconds"])("round-trips v4 %s for every
     await expect(insert({ ...snapshot, primary: { ...snapshot.primary, unit: "unknown" } })).rejects.toMatchObject({ code: "23514" });
   }
 });
+
+
+it("saves a custom pass/fail result and rejects incomplete or misplaced answers", async () => {
+  const details = { result: "Download an invoice", steps: "Open an order and choose Download invoice.", pass: "A PDF opens with the matching order number and amount." };
+  const snapshot = { ...plan, version: 5, primary: { ...plan.primary, key: "check", unit: "", check: "custom", checkDetails: details } };
+  const [saved] = await insert(snapshot);
+  expect(saved.expected_impact).toEqual(snapshot);
+  const [ready] = await connection`select public.request_measurement_ready(${connection.json(snapshot)}, null) as ready`;
+  expect(ready.ready).toBe(true);
+  for (const field of ["result", "steps", "pass"]) {
+    for (const invalid of [null, "", "\t\n", 42, "x".repeat(field === "result" ? 121 : 1001)]) {
+      await expect(insert({ ...snapshot, primary: { ...snapshot.primary, checkDetails: { ...details, [field]: invalid } } })).rejects.toMatchObject({ code: "23514" });
+    }
+  }
+  await expect(insert({ ...snapshot, primary: { ...snapshot.primary, checkDetails: undefined } })).rejects.toMatchObject({ code: "23514" });
+  await expect(insert({ ...snapshot, primary: { ...snapshot.primary, check: "keyboard" } })).rejects.toMatchObject({ code: "23514" });
+  await expect(insert({ ...snapshot, version: 4 })).rejects.toMatchObject({ code: "23514" });
+});

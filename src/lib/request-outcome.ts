@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { passFailDetails } from './pass-fail-check';
 import type { GuardrailOperator } from './guardrail-comparison';
 import type { ExpectedImpact } from './request-impact';
 import { measurementMetricLabel, measurementUnitLabel } from './request-measurement';
@@ -116,7 +117,7 @@ export function agreedResult(impact: ExpectedImpact): AgreedResult {
         // Saved plans always carry a limit; never invent one for an incomplete legacy guardrail.
         const guardrails = impact.guardrails.flatMap(g => g.limit === null ? [] : [{ metric: measurementMetricLabel(g), operator: g.operator, limit: g.limit, unit: measurementUnitLabel(g.unit) }]);
         if (primary.key === 'check')
-            return { form: 'pass_fail', label: measurementMetricLabel(primary), unit: '', baseline: null, target: null, guardrails };
+            return { form: 'pass_fail', label: primary.check === 'custom' ? passFailDetails(primary).result : measurementMetricLabel(primary), unit: '', baseline: null, target: null, guardrails };
         return { form: 'numeric', label: measurementMetricLabel(primary), unit: measurementUnitLabel(primary.unit), baseline: primary.noBaseline ? null : primary.current, target: primary.target, guardrails };
     }
     const guardrails = [impact.guardrail, ...(impact.additionalGuardrails ?? [])].flatMap(g => g ? [{ metric: g.metric, operator: g.operator, limit: g.limit, unit: g.unit }] : []);

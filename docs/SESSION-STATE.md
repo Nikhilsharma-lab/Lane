@@ -1,5 +1,16 @@
 # Shared Claude / Codex handoff
 
+## November 1 — Request Goal clarity, release in progress
+
+Grouped Goal panel, simplified metric guide, hidden native numeric steppers and
+custom pass/fail results are implemented. Decision and checks:
+`docs/design-system/2026-11-01-request-goal-clarity.md`. Migration 0054 adds custom
+answers to the existing v5 validator without rewriting rows. Local application,
+UI, type, design, build and bundle checks pass. Browser proof uses mocked services.
+Staging backup rehearsal is in progress. Production DATABASE_URL is write-only
+in Vercel; the user has been asked to provide it in the ignored private release
+folder. No hosted app release is claimed yet. Unrelated untracked files remain.
+
 ## November 1 — Guided Metrics approved
 
 `codex/guided-metrics` replaces name/unit-only creation with a shared two-step guide

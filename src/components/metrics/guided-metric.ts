@@ -1,10 +1,10 @@
 import { metricDefinitionInputSchema } from '@/lib/metric-definition-rules';
 
 export const guideKinds = [
-  { value: 'completion', label: 'How many people finish something', description: 'For example, finish signup after starting it. Measured as a percentage.' },
-  { value: 'share', label: 'What share of a group', description: 'For example, the percentage of survey responses rated 4 or 5.' },
-  { value: 'count', label: 'How many times something happens', description: 'For example, trials started or support requests received.' },
-  { value: 'time', label: 'How long something takes', description: 'For example, the time from opening setup to creating a workspace.' },
+  { value: 'completion', label: 'Of those who start, how many finish?', description: 'Example: 60 of 100 people finish checkout → 60% completion.' },
+  { value: 'share', label: 'Of the total, how many meet a condition?', description: 'Example: 10 of 100 checkout attempts have an error → 10% with errors.' },
+  { value: 'count', label: 'How many in total?', description: 'Example: 60 orders are placed → 60 orders.' },
+  { value: 'time', label: 'How long does it take?', description: 'Example: a checkout takes 2 minutes → time in minutes.' },
 ];
 export const blankGuide = {kind:'', name:'', start:'', end:'', basis:'', window:'', part:'', whole:'', event:'', summary:'', unit:''};
 export type MetricGuide = typeof blankGuide;
