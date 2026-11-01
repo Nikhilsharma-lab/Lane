@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { popupCode, usePopupCode } from "@/components/popup/lazy-popup";
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
@@ -10,7 +10,7 @@ import { ROLE_DESCRIPTIONS, type PaidSeatChange } from "@/lib/member-role-rules"
 import styles from "./first-run.module.css";
 
 /** #215: loaded only when a paid seat is confirmed, as Settings → Members does. */
-// #267: the paid seat question loads when it first opens; if it can't, Lane says so and nobody is added.
+// If it can't load, Lane says so and nobody is added.
 const seatDialogCode = popupCode(() => import("@/components/settings/paid-seat-dialog"));
 
 export type FirstRunInviteRole = "member" | "viewer";
@@ -44,7 +44,7 @@ export function FirstRunInviteForm({ roles, confirmPaidSeats = false, onInvite }
   const [result, setResult] = useState<{ status: string; error: string | null } | null>(null);
   const [seat, setSeat] = useState<{ change: PaidSeatChange; send: () => void } | null>(null);
   const [seatOpen, setSeatOpen] = useState(false);
-  const seatDialog = usePopupCode(seatDialogCode, seatOpen, { id: "popup-unavailable:paid-seat", close: () => setSeatOpen(false), retry: () => setSeatOpen(true) });
+  const seatDialog = usePopupCode(seatDialogCode, seatOpen, () => couldNotOpen("paid-seat", setSeatOpen));
 
   async function send(address: string, chosen: FirstRunInviteRole, confirmed: boolean) {
     setBusy(true);

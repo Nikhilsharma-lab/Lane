@@ -4,9 +4,10 @@ import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 
-// #267 (Build 3, popup code loads on open): a popup's code arrives when someone reaches for it, so on an old tab
-// after a deploy, or offline, it may never arrive. Then Lane says so inside the app and keeps what was typed: never
-// a blank popup, never the page thrown out for an error screen. Try again opens it once the code can load.
+// #267 (Build 3): the popups whose code arrives when someone reaches for it (src/components/popup/lazy-popup.tsx:
+// Edit Request's form, the discard question, the Properties sheet and the rest that never shipped with the page) may
+// never get it on an old tab after a deploy, or offline. Then Lane says so inside the app and keeps what was typed:
+// never a blank popup, never the page thrown out for an error screen. Try again opens it once the code can load.
 
 const COULDNT_OPEN = "Couldn't open this";
 const TEXT_KEPT = "Your text is still here.";
@@ -44,30 +45,23 @@ test("a popup whose code can't load says so inside Lane, keeps typed text, and o
   const user = await createTestUser("popup-code");
   try {
     await provisionAndSignIn(page, user, { name: "Popup Code PM", workspaceName: "Lane E2E Popup code", role: "pm" });
-    await seedTestRequest(user.id, "Popup code Request");
+    const request = await seedTestRequest(user.id, "Popup code Request");
     const thrownOut = page.getByRole("heading", { name: "This page couldn’t load" });
 
-    await test.step("an old tab after a deploy: ? and C say Lane couldn't open them, and nothing blank opens", async () => {
+    await test.step("an old tab after a deploy: Edit Request says Lane couldn't open it, and nothing blank stays open", async () => {
       const unblock = await blockScriptsAfterLoad(page);
-      await page.goto("/", { waitUntil: "load" });
-      await expect(page.getByRole("row", { name: /Popup code Request/ }).first()).toBeVisible();
-      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-
-      await page.keyboard.press("?");
+      await page.goto(`/requests/${request.id}`, { waitUntil: "load" });
+      await page.getByRole("button", { name: "Edit Request" }).click();
       await expect(toasts(page).getByText(COULDNT_OPEN).first()).toBeVisible();
-      await expect(page.getByRole("dialog")).toHaveCount(0);
-
-      await page.keyboard.press("c");
-      await expect(toasts(page).getByText(COULDNT_OPEN)).toHaveCount(2);
-      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(page.getByRole("dialog", { name: "Edit Request" })).toHaveCount(0);
       await expect(thrownOut).toHaveCount(0);
 
-      // Once the code can load, Try again opens the popup that couldn't.
+      // Once the code can load, Try again opens the popup that couldn't, with its form.
       await unblock();
       await toasts(page).getByRole("button", { name: "Try again" }).first().click();
-      await expect(page.getByRole("dialog").first()).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(page.getByRole("dialog")).toHaveCount(0);
+      const editor = page.getByRole("dialog", { name: "Edit Request" });
+      await expect(editor).toBeVisible();
+      await expect(editor.getByRole("button", { name: "Save changes" })).toBeVisible();
     });
 
     await test.step("a guarded popup keeps its typed text when the discard question can't load", async () => {

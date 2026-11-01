@@ -3,15 +3,14 @@ import { useCallback, useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Button } from "@/components/arc/button/button";
-import { popupCode, popupOpener, usePopupCode } from "@/components/popup/lazy-popup";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import type { RequestDetail } from "@/components/requests/detail-view";
 import type { IntakeCloseAttempt, RegisterIntakeCloseAttempt } from "@/components/requests/intake-navigation-guard";
 import styles from "@/components/requests/detail.module.css";
-
-// #267: the dialog and its form load on a press of the button (or focus on it), or when the editor opens.
-const dialogCode = popupCode(() => import("./edit-request-dialog"));
-const preload = () => { void dialogCode.load().then(module => module.editFormCode.preload(), () => undefined); };
-
+import { Placeholder } from "@/components/loading/placeholder";
+// The editor's form loads when it first opens.
+const formCode = popupCode(() => import("./edit-request-form"));
 export function EditRequest({ request, orgId, draftOwnerId, withoutPrediction = false, writePrediction }: {
     request: RequestDetail;
     orgId: string;
@@ -23,7 +22,6 @@ export function EditRequest({ request, orgId, draftOwnerId, withoutPrediction = 
 }) {
     const [open, setOpen] = useState(writePrediction?.open ?? false);
     const [busy, setBusy] = useState(false);
-    const opener = useRef<HTMLButtonElement>(null);
     const closeAttempt = useRef<IntakeCloseAttempt | null>(null);
     const registerCloseAttempt = useCallback<RegisterIntakeCloseAttempt>(attempt => {
         closeAttempt.current = attempt;
@@ -37,16 +35,22 @@ export function EditRequest({ request, orgId, draftOwnerId, withoutPrediction = 
         return busy;
     }
     const { toast } = useToastStack();
-    const dialog = usePopupCode(dialogCode, open, { id: "popup-unavailable:edit-request", close: () => setOpen(false), retry: () => setOpen(true) });
-    const trigger = { ref: opener, ...popupOpener(open), onClick: () => setOpen(true), onPointerDown: preload, onFocus: preload };
+    const form = usePopupCode(formCode, open, () => couldNotOpen("edit-request", setOpen));
+    const title = writePrediction ? "Set the goal" : "Edit Request";
     return <div>
+    <Dialog open={open} onOpenChange={next => { if (next || !holdOpen()) {
+        setOpen(next);
+    } }}>
       {writePrediction
-        ? <Button variant="primary" size="sm" {...trigger}>Set the goal</Button>
+        ? <DialogTrigger asChild><Button variant="primary" size="sm">Set the goal</Button></DialogTrigger>
         // At 640px and below the strip has room for an icon only; the name stays "Edit Request".
-        : <Button variant="secondary" size="sm" morph="plain" className={styles.editTrigger} aria-label="Edit Request" {...trigger}><Pencil className={styles.editIcon} strokeWidth={1.75} aria-hidden="true" /><span className={styles.editLabel}>Edit Request</span></Button>}
-      {dialog && <dialog.EditRequestDialog open={open} onOpenChange={next => { if (next || !holdOpen()) setOpen(next); }} onClose={() => setOpen(false)} holdOpen={holdOpen} busy={busy} opener={opener}
-        request={request} orgId={orgId} draftOwnerId={draftOwnerId} withoutPrediction={withoutPrediction} writePrediction={Boolean(writePrediction)}
-        onBusyChange={setBusy} registerCloseAttempt={registerCloseAttempt}
-        onSaved={() => { setOpen(false); toast({ type: "success", title: writePrediction ? "Goal saved" : "Changes saved" }); }} />}
-    </div>;
+        : <DialogTrigger asChild><Button variant="secondary" size="sm" morph="plain" className={styles.editTrigger} aria-label="Edit Request"><Pencil className={styles.editIcon} strokeWidth={1.75} aria-hidden="true" /><span className={styles.editLabel}>Edit Request</span></Button></DialogTrigger>}
+      <DialogContent title={title} canDismiss={() => !busy} description={writePrediction ? "You took this on, so its goal is yours to set: what it should change, and how you’ll know." : "Edit this Request while it is Open."} layout="composer" onEscapeKeyDown={event => { if (holdOpen())
+        event.preventDefault(); }} onInteractOutside={event => event.preventDefault()}>
+        {form
+            ? <form.default request={request} orgId={orgId} draftOwnerId={draftOwnerId} withoutPrediction={withoutPrediction} saveLabel={writePrediction ? "Save goal" : undefined} onBusyChange={setBusy} registerCloseAttempt={registerCloseAttempt} onSaved={() => { setOpen(false); toast({ type: "success", title: writePrediction ? "Goal saved" : "Changes saved" }); }}/>
+            : <Placeholder label="Loading Request editor" lines={5}/>}
+      </DialogContent>
+    </Dialog>
+  </div>;
 }
