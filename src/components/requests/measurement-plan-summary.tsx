@@ -3,18 +3,12 @@ import { GUARDRAIL_COMPARISONS } from "@/lib/guardrail-comparison";
 import { goalText } from "@/lib/impact-presenter";
 import { measurementAudienceLabel, measurementMetricLabel, measurementPlatformLabel, measurementUnitLabel, type MeasurementPlan } from "@/lib/request-measurement";
 import styles from "./measurement-plan-summary.module.css";
-
-const checks = { keyboard: "Keyboard navigation", required: "Required-field validation", recovery: "Network error recovery", "": "Pass/fail check" };
-const checkCriteria = {
-  keyboard: "Every control is reachable, focus is visible, and the flow described in this Request can be completed using only the keyboard.",
-  required: "Submission is blocked when a required field is empty, each missing field is identified, and valid entries allow submission.",
-  recovery: "Entered details remain available after a network error, an error is shown, and retry completes the action once without a duplicate.",
-  "": "",
-};
+import { passFailDetails } from "@/lib/pass-fail-check";
 
 /** A Request's Goal section (#261). `metricNames`: each Metric definition's current name by reference (#198). Without one, the name copied when the goal was set shows. */
 export function MeasurementPlanSummary({ plan, id, metricNames }: { plan: MeasurementPlan; id?: string; metricNames?: Record<string, string> }) {
   const { primary, measurement, guardrails } = plan;
+  const check = passFailDetails(primary);
   const metricName = (metric: MeasurementPlan["primary"] | MeasurementPlan["guardrails"][number]) =>
     (metric.key === "definition" && metric.definitionId && metricNames?.[metric.definitionId]) || measurementMetricLabel(metric);
   const unit = measurementUnitLabel(primary.unit);
@@ -28,11 +22,15 @@ export function MeasurementPlanSummary({ plan, id, metricNames }: { plan: Measur
     {primary.key === "check" ? <dl className={styles.check}>
       <div className={styles.field}>
         <dt className={styles.label}>Goal</dt>
-        <dd className={styles.metric}>{checks[primary.check]}</dd>
+        <dd className={styles.metric}>{check.result}</dd>
       </div>
       <div className={styles.field}>
-        <dt className={styles.label}>Pass criteria</dt>
-        <dd className={styles.description}>{checkCriteria[primary.check]}</dd>
+        <dt className={styles.label}>How to check</dt>
+        <dd className={styles.description}>{check.steps}</dd>
+      </div>
+      <div className={styles.field}>
+        <dt className={styles.label}>It passes when</dt>
+        <dd className={styles.description}>{check.pass}</dd>
       </div>
     </dl> : <div className={styles.metricGroup}>
       <h3 className={styles.metric}>{metricName(primary)}</h3>

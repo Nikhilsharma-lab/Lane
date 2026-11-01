@@ -60,6 +60,7 @@ function measurementMetricText(metric: SQLWrapper) {
       when 'keyboard' then 'Keyboard navigation'
       when 'required' then 'Required-field validation'
       when 'recovery' then 'Network error recovery'
+      when 'custom' then concat_ws(' ', ${metric}->'checkDetails'->>'result', ${metric}->'checkDetails'->>'steps', ${metric}->'checkDetails'->>'pass')
       else '' end
     else '' end`;
 }

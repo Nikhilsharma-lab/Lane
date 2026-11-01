@@ -100,3 +100,13 @@ describe("search by Metric definition names (#201)", () => {
     expect(await found("zebra metric")).toEqual([]);
   });
 });
+
+
+it("finds custom result answers while keeping guest and workspace boundaries", async () => {
+  const snapshot = { ...base, version: 5, primary: { ...base.primary, key: "check", unit: "", current: null, check: "custom", checkDetails: { result: "Download an invoice", steps: "Choose Download invoice", pass: "A PDF matches the order amount" } } };
+  const [row] = await connection`insert into requests(org_id,title,description,created_by,expected_impact) values(${ORG},'Request','Plain description',${OWNER},${connection.json(snapshot)}) returning id`;
+  for (const query of ["download an invoice", "choose download", "pdf matches"]) {
+    expect((await search(query)).requests.items.map(item => item.id)).toEqual([row.id]);
+    expect((await search(query, true)).requests.total).toBe(0);
+  }
+});

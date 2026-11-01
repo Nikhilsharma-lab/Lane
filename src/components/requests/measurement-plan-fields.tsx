@@ -2,7 +2,7 @@
 
 import { plannedDay } from "@/lib/dates"
 import { useEffect, useId, useRef, useState, type ReactNode } from "react"
-import { CalendarDays, Check, ListChecks, Monitor, Plus, Users } from "lucide-react"
+import { ArrowRight, CalendarDays, Check, ListChecks, Monitor, Plus, Users } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
 import { Input } from "@/components/arc/input/input"
@@ -21,10 +21,11 @@ import {
 } from "@/lib/request-measurement"
 import type { MetricChoice } from "@/lib/metric-definition-rules"
 import { measurementEditorValue, measurementEditorChanges, editorMetricLabel, editorUnitOptions, upgradePlanMetrics, type EditorPlan, type EditorPrimary, type EditorGuardrail, type EditorMetric } from "@/lib/request-measurement-editor"
-import { MeasurementMetricPicker, METRICS_PAGE } from "./measurement-metric-picker"
+import { MeasurementMetricPicker } from "./measurement-metric-picker"
 import { useMetricLibrary, type MetricLibrary } from "./use-metric-library"
 import styles from "./measurement-plan-fields.module.css"
 import { FieldError } from "@/components/forms/field-error"
+import { PASS_FAIL_EXAMPLES, PASS_FAIL_RESULT_MAX, PASS_FAIL_DETAIL_MAX, passFailDetails } from "@/lib/pass-fail-check"
 
 type Metric = EditorMetric
 type Option = { value: string; label: string; disabled?: boolean; icon?: ReactNode; trailing?: ReactNode }
@@ -32,12 +33,7 @@ const audiences = [{ value: "all", label: "All users" }, { value: "new", label: 
 const platforms = [{ value: "all", label: "All platforms" }, { value: "web", label: "Web" }, { value: "ios", label: "iOS" }, { value: "android", label: "Android" }, { value: "custom", label: "Add custom platform…" }]
 const windows = [7, 14, 30, 90].map(days => ({ value: String(days), label: `${days} days after release` }))
 const boundaries = GUARDRAIL_COMPARISONS
-const checks = {
-  keyboard: { label: "Keyboard navigation", steps: "Complete the flow described in this Request using only Tab, Shift+Tab, Enter and Space.", pass: "Every control is reachable, focus is visible, and the flow can be completed without a pointer." },
-  required: { label: "Required-field validation", steps: "Leave each required field empty in turn and submit the form described in this Request.", pass: "Submission is blocked, each missing field is identified, and valid entries allow submission." },
-  recovery: { label: "Network error recovery", steps: "Disconnect the network before submitting the flow described in this Request, reconnect, then retry.", pass: "Entered details remain available, an error is shown, and retry completes the action once without creating a duplicate." },
-}
-const checkOptions = Object.entries(checks).map(([value, check]) => ({ value, label: check.label }))
+const checkOptions = Object.entries(PASS_FAIL_EXAMPLES).map(([value, check]) => ({ value, label: check.result }))
 
 /** Arc owns popup positioning, typeahead, arrow keys, Escape and focus return. */
 function CompactSelect({ id, label, value, options, onChange, disabled, error, icon, placeholder = "Choose an option", selectedLabel, hideLabel = false, indicatorPosition }: {
@@ -91,7 +87,7 @@ function NumberField({ id, label, value, onChange, metricKey, unit, unitOptions,
   return <div className={styles.field}>
     <div className={hideLabel ? styles.srOnly : styles.labelRow}><label id={`${id}-label`} htmlFor={id} className={styles.label}>{label}</label></div>
     <div className={styles.valueControl}>
-      <Input ref={inputRef} id={id} label={label} hideLabel className={styles.numericInput} type="number" min={unrestricted ? undefined : 0}
+      <Input ref={inputRef} id={id} label={label} hideLabel className={styles.numericInput} type="number" inputMode={unit === "count" ? "numeric" : "decimal"} min={unrestricted ? undefined : 0}
         max={!unrestricted && unit === "percent" ? 100 : undefined} step={!unrestricted && unit === "count" ? 1 : "any"}
         disabled={disabled || !unit || noBaseline} placeholder={noBaseline ? "No existing data" : unit ? hideLabel ? "Value" : "Enter value" : "Choose a metric and unit"}
         defaultValue={initialValue} aria-labelledby={`${id}-label`} error={message}
@@ -198,6 +194,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
   const issues = legacy || parsed.success ? [] : parsed.error.issues
   const error = (path: string, edited = false) => submitted || edited ? issues.find(issue => issue.path.join(".") === path)?.message : undefined
   const primary = value.primary
+  const checkDetails = passFailDetails(primary)
   const measurement = value.measurement
   const primaryException = requestType === "new_feature" && primary.noBaseline
   const typeIssue = measurementRequestTypeIssue(legacy ? { kind: "metric", noBaseline: primary.noBaseline, baseline: primary.current } : value, requestType)
@@ -232,28 +229,40 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
 
   return <section id="intake-expected-impact" aria-label="Request measurement" tabIndex={-1} className={styles.plan} data-layout={layout}>
     <fieldset disabled={disabled} className={styles.body}>
-      <section className={styles.section} aria-label="Primary metric">
-        <SectionHeader title="Primary metric" action={library.canOpenLibrary && <a className={styles.headerLink} href={METRICS_PAGE} target="_blank" rel="noopener noreferrer">
-          Metrics library<span className="sr-only"> (opens in a new tab)</span></a>} />
-        <div className={styles.metricRow}>
-          {metricPicker(primary, "primary", choice => { setNotice(""); onChange({ ...value, primary: choice === "check" ? createMeasurementPrimary("check") : pickDefinition(createMeasurementPrimary(), choice) }) })}
+      <section className={`${styles.section} ${styles.primarySection}`} aria-label={primary.key === "check" ? "Pass/fail result" : "Primary metric"}>
+        <div className={styles.primaryHeader}>
+          <SectionHeader title={primary.key === "check" ? "Pass/fail result" : "Primary metric"} />
+          <div className={styles.metricRow}>
+            {metricPicker(primary, "primary", choice => { setNotice(""); onChange({ ...value, primary: choice === "check" ? createMeasurementPrimary("check") : pickDefinition(createMeasurementPrimary(), choice) }) })}
+          </div>
         </div>
         {unresolved.length > 0 && <p className={styles.hint} role="status">{`Pick ${unresolved.map(name => `“${name}”`).join(", ")} again from the Metrics library. ${unresolved.length === 1 ? "It isn't" : "They aren't"} in the library in the unit saved here.`}</p>}
         {primary.key && (primary.key === "check" ? <>
-          <CompactSelect id={`${prefix}-check`} label="Test case" value={legacy && !primary.check && value.verificationResult !== undefined ? "saved" : primary.check} options={legacy && value.verificationResult !== undefined ? [{ value: "saved", label: "Saved verified result" }, ...checkOptions] : checkOptions} placeholder="Choose a test case"
-            disabled={disabled} error={error("primary.check")} onChange={check => onChange({ ...value,
-              primary: { ...primary, check: check === "saved" ? "" : check as EditorPrimary["check"] },
-              ...(legacy && check !== "saved" ? { verificationResult: checks[check as keyof typeof checks].pass } : {}),
-            })}
+          <p className={styles.hint}>Use this for a result you can confirm with a yes or no, rather than a number.</p>
+          <CompactSelect id={`${prefix}-check`} label="Choose an example or describe your own" value={legacy && !primary.check && value.verificationResult !== undefined ? "saved" : primary.check} options={legacy ? [...(value.verificationResult !== undefined ? [{ value: "saved", label: "Saved verified result" }] : []), ...checkOptions] : [...checkOptions, { value: "custom", label: "Describe another result…" }]} placeholder="Choose a result to check"
+            disabled={disabled} error={error("primary.check")} onChange={check => {
+              const next = { ...primary, check: check === "saved" ? "" : check as EditorPrimary["check"] }
+              if (check === "custom") next.checkDetails = { result: "", steps: "", pass: "" }
+              else delete next.checkDetails
+              onChange({ ...value, primary: next, ...(legacy && check !== "saved" ? { verificationResult: passFailDetails(next).pass } : {}) })
+            }}
             icon={<ListChecks className={styles.icon} aria-hidden="true" />} />
           {legacy && !primary.check && value.verificationResult !== undefined && <Textarea label="Verified result" value={value.verificationResult} maxLength={IMPACT_RESULT_MAX} disabled={disabled} onChange={event => onChange({ ...value, verificationResult: event.target.value })} />}
-          {primary.check && <div className={styles.checkDefinition}><h3>Test steps</h3><p>{checks[primary.check].steps}</p><h3>Pass criterion</h3><p>{checks[primary.check].pass}</p></div>}
+          {primary.check === "custom" ? <div className={styles.checkDefinition}>
+            <Input label="What should work?" description="Example: Download an invoice from an order." value={primary.checkDetails?.result ?? ""} maxLength={PASS_FAIL_RESULT_MAX} disabled={disabled} required error={error("primary.checkDetails.result")}
+              onChange={event => changePrimary({ checkDetails: { ...checkDetails, result: event.target.value } })} />
+            <Textarea className={styles.checkAnswer} rows={2} label="How will you check it?" description="Example: Open an order and choose Download invoice." value={primary.checkDetails?.steps ?? ""} maxLength={PASS_FAIL_DETAIL_MAX} disabled={disabled} required error={error("primary.checkDetails.steps")}
+              onChange={event => changePrimary({ checkDetails: { ...checkDetails, steps: event.target.value } })} />
+            <Textarea className={styles.checkAnswer} rows={2} label="What must happen for it to pass?" description="Example: A PDF opens with the matching order number and amount. Describe something another person can verify." value={primary.checkDetails?.pass ?? ""} maxLength={PASS_FAIL_DETAIL_MAX} disabled={disabled} required error={error("primary.checkDetails.pass")}
+              onChange={event => changePrimary({ checkDetails: { ...checkDetails, pass: event.target.value } })} />
+          </div> : primary.check && <div className={styles.checkDefinition}><h3>How to check</h3><p>{checkDetails.steps}</p><h3>It passes when</h3><p>{checkDetails.pass}</p></div>}
         </> : <>
-          <div className={styles.twoColumns}>
+          <div className={styles.valueComparison} role="group" aria-label="Current value and goal for the primary metric">
             <NumberField unrestricted={legacy} id={`${prefix}-current`} label="Current value" value={primary.current} metricKey={primary.key} unit={primary.unit} disabled={disabled} noBaseline={primaryException}
               error={error("primary.current", primary.current !== null)} onChange={current => changePrimary({ current })}
               unitOptions={unitOptionsOf(primary)} unitLocked={!legacy}
               onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
+            <ArrowRight className={styles.valueDirection} data-icon-size="md" aria-hidden="true" />
             <NumberField unrestricted={legacy} id={`${prefix}-target`} label="Goal after release (optional)" value={primary.target} metricKey={primary.key} unit={primary.unit} disabled={disabled}
               error={error("primary.target", primary.target !== null)} onChange={target => changePrimary({ target })}
               unitOptions={unitOptionsOf(primary)} unitLocked={!legacy} onUnitChange={unit => changeUnit(primary, unit, metric => onChange({ ...value, primary: metric as EditorPrimary }))} />
