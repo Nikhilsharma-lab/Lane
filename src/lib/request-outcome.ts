@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import type { GuardrailOperator } from './guardrail-comparison';
 import type { ExpectedImpact } from './request-impact';
 import { measurementMetricLabel, measurementUnitLabel } from './request-measurement';

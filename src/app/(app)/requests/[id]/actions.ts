@@ -4,7 +4,7 @@ import { canChange, changeable, seeable, seeableSql } from "@/lib/request-access
 import { notify } from "@/lib/notify";
 import { CANNOT_CHANGE_REQUESTS, transitionRequests } from "@/lib/request-transition";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
+import * as z from "zod";
 import { db, requests, comments, notifications, requestAttachments } from "@/db";
 import { and, eq, sql } from "drizzle-orm";
 import { guardActiveMember, guardCanContribute, guardCanChange } from "@/lib/auth-guard";

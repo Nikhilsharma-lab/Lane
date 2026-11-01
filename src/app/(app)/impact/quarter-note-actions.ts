@@ -2,7 +2,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
+import * as z from "zod";
 import { db, profiles, quarterNotes } from "@/db";
 import { guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { quarterStarted } from "@/lib/impact-period";

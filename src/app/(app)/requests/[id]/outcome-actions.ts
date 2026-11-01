@@ -1,7 +1,7 @@
 'use server';
 import { loadRequestOutcome } from '@/lib/data/request-journey';
 import { and, eq } from 'drizzle-orm';
-import { z } from 'zod';
+import * as z from 'zod';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { requests, requestAgreements, requestAgreementEvents } from '@/db';

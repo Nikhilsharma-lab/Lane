@@ -2,7 +2,7 @@ import "server-only";
 import { seeable } from "@/lib/request-access";
 
 import { and, asc, count, desc, eq, gte, lt, or, sql, type SQLWrapper } from "drizzle-orm";
-import { z } from "zod";
+import * as z from "zod";
 
 import { db, projects, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { MAX_REVIEWERS, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, type RequestChangeContext, type ReviewerIdentity } from "./request-reviewer-rules";
 /**
  * The reviewer schemas server actions and the New Request form validate with. Kept apart from the plain rules in

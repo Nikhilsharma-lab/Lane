@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
+import * as z from "zod";
 
 import { requireActiveMember, guardCanChange } from "@/lib/auth-guard";
 import { loadIterations } from "@/lib/data/impact";

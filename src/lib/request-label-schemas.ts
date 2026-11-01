@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { REQUEST_TYPES } from "./request-constants";
 import { LABEL_COLOURS } from "./request-labels";
 /**

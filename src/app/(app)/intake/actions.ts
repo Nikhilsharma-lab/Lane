@@ -5,7 +5,7 @@ import { sourceRequestType } from "@/lib/request-labels";
 
 import type { OverviewRequest } from "@/lib/request-overview";
 
-import { z } from "zod";
+import * as z from "zod";
 import { requestEditSourceSchema } from "@/lib/request-edit";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";

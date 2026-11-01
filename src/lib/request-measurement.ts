@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { GUARDRAIL_OPERATORS } from "./guardrail-comparison";
 
 /** "definition" (v5, #198) names a Metric definition; the built-in keys and "custom" are how v2–v4 plans saved metrics. */
