@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/link"
 import type { ComponentProps, ReactNode } from "react"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { requestDetailHref } from "@/lib/request-workspace"

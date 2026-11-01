@@ -1,4 +1,4 @@
-import Link from "next/link"
+import Link from "@/components/link"
 import { Inbox } from "lucide-react"
 import { NewRequestLink } from "@/components/requests/new-request-link"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"

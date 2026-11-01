@@ -1,7 +1,7 @@
 "use client"
 import { callAction } from "@/lib/action-call"
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import Link from "next/link"
+import Link from "@/components/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/arc/button/button"
 import { readRequestJourney } from "@/app/(app)/requests/[id]/journey-actions"

@@ -1,7 +1,7 @@
 "use client"
 
 import { CalendarDays, UserRound } from "lucide-react"
-import Link from "next/link"
+import Link from "@/components/link"
 import { Badge } from "@/components/arc/badge/badge"
 import { Avatar } from "@/components/arc/avatar/avatar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover"

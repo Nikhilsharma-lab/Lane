@@ -1,6 +1,6 @@
 import { plannedDay } from "@/lib/dates";
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/link";
 import { ListChecks } from "lucide-react";
 import { Badge } from "@/components/arc/badge/badge";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";

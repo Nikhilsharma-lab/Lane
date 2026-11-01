@@ -133,3 +133,33 @@ test("on a cold first visit to a Request drawn before Clerk's script arrives, it
     await deleteTestUser(user.id);
   }
 });
+
+// Build 3: Next's links read the pages they point at ahead (viewport prefetch) as soon as they are on screen. When the
+// Requests list was drawn before Clerk's script arrived (about 1 in 15 staging phone loads), those reads, and the
+// Request page code their answers bring, came before `load` and held it back. Lane's links now wait for load and the
+// first idle moment after it (src/components/link.tsx). Clerk's script is held here to recreate that order every time.
+test("on a cold first visit to the Requests list drawn before Clerk's script arrives, its links read their pages ahead only after load and the first idle moment after it", async ({ page }) => {
+  test.setTimeout(300_000);
+  const user = await createTestUser("load-order-links");
+  try {
+    await provisionAndSignIn(page, user, { name: "Load Order PM", workspaceName: "Lane E2E Load order links", role: "pm" });
+    for (let i = 0; i < 3; i++) await seedTestRequest(user.id, `Load order link Request ${i + 1}`);
+    const { done } = await watchColdVisits(page);
+    await page.route(CLERK_SCRIPT, async route => { await new Promise(resolve => setTimeout(resolve, 3_000)); await route.continue(); });
+
+    const timing = await coldVisit(page, "/");
+    const reads = await page.evaluate(() => performance.getEntriesByType("resource")
+      .filter(entry => /[?&]_rsc=/.test(entry.name))
+      .map(entry => ({ path: new URL(entry.name).pathname, start: entry.startTime })));
+    await done();
+
+    // The check means something only if the links did read ahead on this visit (a Request row's page among them).
+    expect(reads.map(read => read.path)).toEqual(expect.arrayContaining([expect.stringMatching(/^\/requests\//)]));
+    const early = reads.filter(read => read.start < timing.idle)
+      .map(read => `${read.path} read ahead ${Math.round(read.start - timing.load)}ms after load, before the first idle (${Math.round(timing.idle - timing.load)}ms after load)`);
+    expect(early).toEqual([]);
+  } finally {
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});

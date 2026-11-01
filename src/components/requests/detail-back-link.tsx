@@ -1,4 +1,4 @@
-import Link from "next/link"
+import Link from "@/components/link"
 import { ArrowLeft } from "lucide-react"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import styles from "./detail.module.css"

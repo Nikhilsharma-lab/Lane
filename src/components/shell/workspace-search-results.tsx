@@ -3,7 +3,7 @@
 // Arc Pro source is licensed for Lane, not for redistribution outside this app.
 
 import { Fragment, memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
-import Link from "next/link";
+import Link from "@/components/link";
 import { isSameTabRequestLink } from "@/components/requests/request-navigation";
 import { AnimatePresence, LayoutGroup, m, useReducedMotion } from "motion/react";
 import { CalendarDays, Clock, Link2, Search, SearchX, SlidersHorizontal, X } from "lucide-react";
