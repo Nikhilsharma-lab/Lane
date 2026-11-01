@@ -44,7 +44,7 @@ export function EditRequest({ request, orgId, draftOwnerId, withoutPrediction = 
         ? <Button variant="primary" size="sm" {...trigger}>Set the goal</Button>
         // At 640px and below the strip has room for an icon only; the name stays "Edit Request".
         : <Button variant="secondary" size="sm" morph="plain" className={styles.editTrigger} aria-label="Edit Request" {...trigger}><Pencil className={styles.editIcon} strokeWidth={1.75} aria-hidden="true" /><span className={styles.editLabel}>Edit Request</span></Button>}
-      {dialog && <dialog.EditRequestDialog open={open} onOpenChange={next => { if (next || !holdOpen()) setOpen(next); }} onClose={() => setOpen(false)} holdOpen={holdOpen} opener={opener}
+      {dialog && <dialog.EditRequestDialog open={open} onOpenChange={next => { if (next || !holdOpen()) setOpen(next); }} onClose={() => setOpen(false)} holdOpen={holdOpen} busy={busy} opener={opener}
         request={request} orgId={orgId} draftOwnerId={draftOwnerId} withoutPrediction={withoutPrediction} writePrediction={Boolean(writePrediction)}
         onBusyChange={setBusy} registerCloseAttempt={registerCloseAttempt}
         onSaved={() => { setOpen(false); toast({ type: "success", title: writePrediction ? "Goal saved" : "Changes saved" }); }} />}

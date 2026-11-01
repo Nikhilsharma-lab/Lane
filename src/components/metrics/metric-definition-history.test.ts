@@ -28,7 +28,7 @@ describe("Metric definition history", () => {
   it("names units in words and says when a field was removed", () => {
     const html = render([entry(2, "edited", snapshot, { ...snapshot, unit: "percent", link: null })]);
     expect(text(html)).toContain("Unit changed from Count to Percentage");
-    expect(text(html)).toContain("Where it lives removed: https://analytics.example.test/trials");
+    expect(text(html)).toContain("Dashboard link removed: https://analytics.example.test/trials");
     expect(text(html)).not.toContain("Name");
   });
 

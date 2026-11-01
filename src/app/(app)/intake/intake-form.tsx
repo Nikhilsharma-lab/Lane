@@ -23,6 +23,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckIcon,
+  ChevronDown,
   PlusIcon,
   LightbulbIcon,
   PaperclipIcon,
@@ -35,7 +36,7 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Input } from "@/components/arc/input/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Textarea } from "@/components/arc/textarea/textarea";
-import { RadioGroup } from "@/components/arc/radio-group/radio-group";
+import { Select } from "@/components/arc/select/select";
 import { savedFraming, storedShape } from "@/lib/request-framing";
 import { IntakeNavigationGuard, type RegisterIntakeCloseAttempt } from "@/components/requests/intake-navigation-guard";
 import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
@@ -300,6 +301,8 @@ export default function RequestEditor({
   const pendingWriter = usePendingMutationWriter();
   const [projectBusy, setProjectBusy] = useState(false);
   const projectInFlight = useRef(false);
+  const [metricBusy, setMetricBusy] = useState(false);
+  const metricInFlight = useRef(false);
   const projectDefaultApplied = useRef(false);
   const draftEdited = useRef(false);
   const validationInFlight = useRef(false);
@@ -344,7 +347,7 @@ export default function RequestEditor({
     : uploadState.phase === "reconciling" ? "uploads_checking"
     : uploadState.phase === "lost" ? "uploads_lost" : uploadState.phase;
   const presentation = useEffectEvent(() => ({
-    busy: (value: boolean) => onBusyChange?.(value || projectInFlight.current || validationInFlight.current),
+    busy: (value: boolean) => onBusyChange?.(value || projectInFlight.current || metricInFlight.current || validationInFlight.current),
     finish: (id: string, options?: { open?: boolean }) => finishCreatedRequest(id, options),
     cancelCheck: (cancel: (() => boolean) | null) => onCancelCheckChange?.(cancel ? () => {
       if (!cancel()) return;
@@ -529,7 +532,10 @@ export default function RequestEditor({
     }
     const target = focusAfterCompose.current;
     focusAfterCompose.current = "title";
-    if (target === "title") setFocus("title");
+    if (target === "title") {
+      if (window.matchMedia("(pointer: coarse)").matches) composeFormRef.current?.focus({ preventScroll: true });
+      else setFocus("title");
+    }
     else if (target === "submit") {
       submitRef.current?.focus();
       failureRef.current?.scrollIntoView({ block: "nearest" });
@@ -552,7 +558,7 @@ export default function RequestEditor({
 
   const busy =
     stage !== "complete" &&
-    (checking || creating || stage === "uploading" || mutationBusy || projectBusy);
+    (checking || creating || stage === "uploading" || mutationBusy || projectBusy || metricBusy);
 
   const blocksWorkspaceSwitch = stage !== "complete" &&
     (busy || attachments.some((attachment) => attachment.status !== "uploaded"));
@@ -838,6 +844,12 @@ export default function RequestEditor({
     session.syncBusy();
   }
 
+  function onMetricBusyChange(value: boolean) {
+    metricInFlight.current = value;
+    setMetricBusy(value);
+    session.syncBusy();
+  }
+
   async function finishLink() {
     if (await trigger("usefulLink")) setLinkOpen(false);
     else setFocus("usefulLink");
@@ -859,7 +871,7 @@ export default function RequestEditor({
   }
 
   function submitForReview() {
-    if (!active || checking || projectInFlight.current || hasGuardrailEdits(getValues("expectedImpact"))) return;
+    if (!active || checking || projectInFlight.current || metricInFlight.current || hasGuardrailEdits(getValues("expectedImpact"))) return;
     const invalidNumber = [...(composeFormRef.current?.querySelectorAll<HTMLInputElement>('input[type="number"]') ?? [])]
       .find(input => !input.disabled && (input.validity.badInput || input.validity.customError));
     if (invalidNumber) {
@@ -909,10 +921,12 @@ export default function RequestEditor({
           <form
             id={formId}
             ref={composeFormRef}
+            tabIndex={-1}
+            aria-label="Request details"
             hidden={checking}
             noValidate
             onChangeCapture={() => { draftEdited.current = true; }}
-            aria-busy={checking || projectBusy || undefined}
+            aria-busy={checking || projectBusy || metricBusy || undefined}
             onSubmit={(event) => {
               event.preventDefault();
               submitForReview();
@@ -927,15 +941,17 @@ export default function RequestEditor({
               event.preventDefault();
               addFiles(Array.from(event.dataTransfer.files));
             }}
-            className="space-y-5"
+            className={styles.form}
           >
             {restoredDraft && (
               <IntakeNotice attention>
                 Your text and links were restored. Choose any files again before creating the Request.
               </IntakeNotice>
             )}
+            <div className={styles.context}>
             <div className="space-y-2">
-              <Input
+              <Textarea
+                rows={1}
                 label="Request title"
                 hideLabel
                 appearance="plain"
@@ -1023,18 +1039,22 @@ export default function RequestEditor({
             <FieldError id="intake-reviewers-error">{offerReviewers && reviewersError}</FieldError>
             {guided && offerReviewers && <FirstRunHint>Reviewers are optional: the teammates you add answer Looks good or Raise a concern before work starts.</FirstRunHint>}
             {withoutPrediction && <p className="text-sm text-muted-foreground" data-guest-prediction-note>{editing ? "The Member who takes this on sets its goal." : "A Member takes this on and sets its goal. You’ll get an email when they do."}</p>}
-            {!withoutPrediction && currentValues.expectedImpact && <>
+            </div>
+            {!withoutPrediction && currentValues.expectedImpact && <div className={styles.impact}>
               {guided && <FirstRunHint>Set the goal: pick the metric from the Metrics library, where it is now and where you want it to go.</FirstRunHint>}
-              <RadioGroup
-                label="Goal"
-                name="expected-impact-choice"
-                value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
-                onValueChange={(next) => chooseImpact(next === "none" ? "none" : "measure")}
-                options={[
-                  { value: "measure", label: "Measure a result" },
-                  { value: "none", label: "No measurable impact", description: "Operational work. Its reason is kept, and it is left out of every total." },
-                ]}
-              />
+              <div className={styles.impactHeading}>
+                <h2>Goal</h2>
+                <Select label="Goal" name="expected-impact-choice" disabled={checking || metricBusy}
+                  value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
+                  onValueChange={next => { if (next === "none" || next === "measure") chooseImpact(next); }}
+                  onContentKeyDown={event => event.stopPropagation()}
+                  options={[{ value: "measure", label: "Measure a result" }, { value: "none", label: "No measurable impact" }]}
+                  trigger={<Button type="button" variant="secondary" size="sm" disabled={checking || metricBusy}
+                    aria-label={`Goal: ${currentValues.expectedImpact.kind === "no_measurable_impact" ? "No measurable impact" : "Measure a result"}`}>
+                    {currentValues.expectedImpact.kind === "no_measurable_impact" ? "No measurable impact" : "Measure a result"}<ChevronDown data-icon-size="sm" aria-hidden="true" />
+                  </Button>} />
+              </div>
+              {currentValues.expectedImpact.kind === "no_measurable_impact" && <p className={styles.impactExplanation}>Operational work. Its reason is kept, and it is left out of every total.</p>}
               {currentValues.expectedImpact.kind === "no_measurable_impact" ? (
                 <Textarea
                   label="Why there is no measurable impact"
@@ -1052,16 +1072,18 @@ export default function RequestEditor({
                   <Alert tone="danger" title="Check measurement">Complete the metric or verified result and measurement window before reviewing.</Alert>
                 )}
                 <PlanFields
+                  layout="plain"
                   // The library is read on the first open, not while the closed composer renders ahead of it (#296).
                   orgId={active ? context.orgId : undefined}
                   value={currentValues.expectedImpact}
                   onChange={changeExpectedImpact}
                   requestType={currentValues.requestType ?? null}
-                  disabled={checking}
+                  disabled={checking || metricBusy}
+                  onBusyChange={onMetricBusyChange}
                   submitted={isSubmitted}
                 />
               </>}
-            </>}
+            </div>}
             {editing && savedProblem !== null && <Textarea ref={problemFieldRef} label="Problem to solve" value={savedProblem} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "reframedProblem" ? framingError.message : undefined} onChange={event => { setSavedProblem(event.target.value); setFramingError(null); }} />}
             {editing && savedSolution !== null && <Textarea ref={solutionFieldRef} label="Suggested change" value={savedSolution} maxLength={DESCRIPTION_MAX} readOnly={checking} error={framingError?.field === "extractedSolution" ? framingError.message : undefined} onChange={event => { setSavedSolution(event.target.value); setFramingError(null); }} />}
             <EarlierDraftDetails values={currentValues} error={earlierDraftFields.map(({ name }) => errors[name]?.message).find(Boolean)} />
@@ -1368,7 +1390,7 @@ export default function RequestEditor({
           <div className={styles.actions}>
             {guardrailEditing && !checking && <p id="intake-guardrail-pending" className={styles.footerNote}>Complete or remove the guardrail to review your Request.</p>}
             {shortcut}
-            <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy || guardrailEditing} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter"
+            <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy || metricBusy || guardrailEditing} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter"
               aria-describedby={guardrailEditing && !checking ? "intake-guardrail-pending" : undefined}>
               {originalTextUnchanged ? editing?.saveLabel ?? "Save changes" : "Review Request"}
             </Button>

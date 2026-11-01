@@ -2,11 +2,12 @@
 
 import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createProject } from "@/app/(app)/intake/project-actions";
 import { Check, Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
+import { SearchField } from "@/components/arc/search-field/search-field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Alert } from "@/components/arc/alert/alert";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
@@ -32,7 +33,7 @@ export function useWorkspaceProjects() {
 export type OptionRefs = RefObject<(HTMLButtonElement | null)[]>;
 
 const TABBABLE = 'a[href], button, input, select, textarea, [tabindex]';
-const tabbable = (element: HTMLElement) => element.tabIndex >= 0 && !element.matches(":disabled") && !element.closest('[aria-hidden="true"]') && element.getClientRects().length > 0;
+const tabbable = (element: HTMLElement) => element.tabIndex >= 0 && !element.matches(":disabled") && !element.closest('[aria-hidden="true"], [inert]') && element.getClientRects().length > 0;
 
 /** Tab and Shift+Tab leave the popover from its trigger, so focus lands on the next (or previous) control of the form that owns
  *  the picker. The content is portalled to the end of the document, so the user agent alone would walk off the page from the
@@ -42,14 +43,12 @@ function leaveFromTrigger(event: KeyboardEvent<HTMLDivElement>) {
   const content = event.currentTarget;
   const step = event.shiftKey ? -1 : 1;
   const candidates = [...document.querySelectorAll<HTMLElement>(TABBABLE)].filter(tabbable);
-  const inside = candidates.filter((element) => content.contains(element) && element.getAttribute("role") !== "option");
+  const inside = candidates.filter((element) => content.contains(element));
   const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const position = active ? inside.indexOf(active) : -1;
-  // Tab and Shift+Tab from the search field always leave: the field's clear button is not a stop here (it can
-  // still be fading out just after a clear, which would otherwise catch the Tab). From any other stop inside the
-  // popover (the Project picker's New Project button, say), the user agent moves to the next inside stop first.
-  const fromSearch = active instanceof HTMLInputElement && active.type === "search";
-  if (!fromSearch && position >= 0 && inside[position + step]) return;
+  // Let the browser and Radix handle internal Tab movement. Moving focus here
+  // would make Radix see the new edge control and wrap it a second time.
+  if (position >= 0 && inside[position + step]) return;
   const outside = candidates.filter((element) => !content.contains(element));
   const trigger = outside.find((element) => element.getAttribute("aria-controls") === content.id);
   const target = trigger && outside[outside.indexOf(trigger) + step];
@@ -69,6 +68,7 @@ export function focusOnOpen(event: Event, ref: RefObject<HTMLElement | null>) { 
 
 /** The search field's keys: ArrowDown focuses the first option; Enter chooses the first item. */
 export function searchListKeyDown<T>(event: KeyboardEvent<HTMLInputElement>, items: T[], optionRefs: OptionRefs, onEnter: (first: T) => void) {
+  if (event.nativeEvent.isComposing) return;
   if (event.key === "ArrowDown" && items.length) { event.preventDefault(); optionRefs.current[0]?.focus(); }
   if (event.key === "Enter" && items.length) { event.preventDefault(); onEnter(items[0]); }
 }
@@ -105,6 +105,9 @@ export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, i
         variant="ghost" size="sm" morph={morph} className={`${styles.option} ${styles.projectOption}`} disabled={disabled} aria-disabled={inert || undefined}
         onClick={() => { if (!inert) onChoose(item); }}
         onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (event.key === "Home") { event.preventDefault(); optionRefs.current[0]?.focus(); }
+          if (event.key === "End") { event.preventDefault(); optionRefs.current[items.length - 1]?.focus(); }
           if (event.key === "ArrowDown") { event.preventDefault(); optionRefs.current[(index + 1) % items.length]?.focus(); }
           if (event.key === "ArrowUp") { event.preventDefault(); if (index === 0) searchRef.current?.focus(); else optionRefs.current[index - 1]?.focus(); }
         }}>
@@ -130,20 +133,17 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
   const [open, setOpen] = useState(false);
   const newProjectRef = useRef<HTMLButtonElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [projectName, setProjectName] = useState("");
   const [naming, setNaming] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const focusProjectList = useCallback(() => {
-    const selectedOption = optionRefs.current.find((option) => option?.getAttribute("aria-selected") === "true");
-    (selectedOption ?? optionRefs.current[0] ?? newProjectRef.current)?.focus();
-  }, []);
   useEffect(() => {
     if (!open) return;
-    if (naming) nameRef.current?.focus();
-    else focusProjectList();
-  }, [open, naming, focusProjectList]);
+    (naming ? nameRef : searchRef).current?.focus();
+  }, [open, naming]);
   useEffect(() => {
     if (open && createError && !creating) nameRef.current?.focus();
   }, [open, createError, creating]);
@@ -152,8 +152,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
   const items: ProjectChoice[] = [
     noProject,
     ...state.projects.map((project): ProjectChoice => ({ ...project, kind: "project" })),
-  ];
-
+  ].filter(item => item.name.toLowerCase().includes(query.trim().toLowerCase()));
 
   async function choose(choice: ProjectChoice | null) {
     if (creating) return;
@@ -180,7 +179,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
 
   return <Popover open={open} onOpenChange={(next) => {
     if (creating) return;
-    setOpen(next); if (next) { setProjectName(""); setNaming(false); setCreateError(null); }
+    setOpen(next); if (next) { setProjectName(""); setQuery(""); setNaming(false); setCreateError(null); }
   }}>
     <PopoverTrigger asChild>
       <Button type="button" id="intake-project" className={styles.trigger} variant="secondary" size="sm" disabled={disabled} aria-invalid={Boolean(error) || undefined} aria-describedby={error ? "intake-project-error" : undefined} aria-label={selected ? `Project: ${selected.name}` : value ? "Project: unavailable" : "Project"} title={selected?.name}>
@@ -188,7 +187,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
       </Button>
     </PopoverTrigger>
     <PopoverContent {...pickerPopoverProps} inert={open ? undefined : true} aria-label="Choose a Project"
-      onOpenAutoFocus={(event) => { event.preventDefault(); focusProjectList(); }} className={naming ? styles.formPanel : styles.panel}>
+      onOpenAutoFocus={(event) => focusOnOpen(event, searchRef)} className={naming ? styles.formPanel : styles.panel}>
       {naming ? <div className={styles.projectName}>
         <Input ref={nameRef} label="Project name" value={projectName} maxLength={80} disabled={creating} error={createError ?? undefined}
           onChange={(event) => { setProjectName(event.target.value); setCreateError(null); }}
@@ -205,25 +204,15 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
             onClick={() => void choose({ id: "create", name: normalized, kind: "create" })}>Create Project</Button>
         </div>
       </div> : <>
-      {!state.loading && !state.error && <div role="listbox" aria-label="Project options" className={styles.optionList}>
-        {items.map((item, index) => <Button key={item.id ?? "none"} ref={(element) => { optionRefs.current[index] = element; }}
-          type="button" role="option" aria-selected={(item.id ?? null) === value}
-          variant="ghost" size="sm" className={`${styles.option} ${styles.projectOption}`} disabled={creating}
-          onClick={() => void choose(item)}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown") { event.preventDefault(); (optionRefs.current[index + 1] ?? newProjectRef.current)?.focus(); }
-            if (event.key === "ArrowUp") { event.preventDefault(); (optionRefs.current[index - 1] ?? newProjectRef.current)?.focus(); }
-            if (event.key === "Home") { event.preventDefault(); optionRefs.current[0]?.focus(); }
-            if (event.key === "End") { event.preventDefault(); newProjectRef.current?.focus(); }
-          }}>
-          <span className={styles.optionContent}>
-            <ProjectMarker projectId={item.id ?? null} /><span>{item.name}</span>
-            {item.id === value && <Check className={styles.selectionMark} aria-hidden="true" />}
-          </span>
-        </Button>)}
-      </div>}
+      <div className={styles.search}>
+        <SearchField ref={searchRef} label="Search Projects" hideLabel placeholder="Search Projects…" value={query} onValueChange={setQuery}
+          onKeyDown={event => searchListKeyDown(event, items, optionRefs, item => { if (!state.loading && !state.error) void choose(item); })} />
+      </div>
+      {!state.loading && !state.error && <PickerOptions items={items} label="Project options" optionRefs={optionRefs} searchRef={searchRef}
+        keyOf={item => item.id ?? "none"} isSelected={item => item.id === value} lead={item => <ProjectMarker projectId={item.id} />}
+        render={item => <span>{item.name}</span>} onChoose={item => void choose(item)} emptyText="No matching Projects" morph="plain" />}
       {state.loading && <Placeholder label="Loading Projects" lines={2} />}
-      {state.error && <><Alert title="Projects unavailable" tone="danger">{state.error}</Alert><Button size="sm" variant="secondary" onClick={() => void state.reload()}>Retry Projects</Button></>}
+      {state.error && <><Alert title="Projects unavailable" tone="danger">{state.error}</Alert><Button size="sm" variant="secondary" onClick={() => { searchRef.current?.focus(); void state.reload(); }}>Retry Projects</Button></>}
       {createError && <Alert title="Project not created" tone="danger">{createError}</Alert>}
       <div className={styles.newProject}>
         <Button ref={newProjectRef} type="button" variant="ghost" size="sm" className={styles.option} disabled={creating}
@@ -231,7 +220,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
             if (event.key === "ArrowDown" || event.key === "Home") { event.preventDefault(); optionRefs.current[0]?.focus(); }
             if (event.key === "ArrowUp") { event.preventDefault(); optionRefs.current[items.length - 1]?.focus(); }
           }}
-          onClick={() => { setNaming(true); setCreateError(null); }}>
+          onClick={() => { setProjectName(query.trim()); setNaming(true); setCreateError(null); }}>
           <span className={styles.optionContent}><Plus aria-hidden="true" /><span>New Project</span></span>
         </Button>
       </div>

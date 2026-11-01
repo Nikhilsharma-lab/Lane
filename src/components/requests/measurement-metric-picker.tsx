@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useId, useRef, useState, type RefObject } from "react"
-import { ChartNoAxesColumnIncreasing, Check, ListChecks, Plus } from "lucide-react"
+import { ArrowUpRight, ChartNoAxesColumnIncreasing, Check, ListChecks, Plus } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Input } from "@/components/arc/input/input"
+import { SearchField } from "@/components/arc/search-field/search-field"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover"
-import { RadioGroup } from "@/components/arc/radio-group/radio-group"
+import { Select } from "@/components/arc/select/select"
 import {
   inlineMetricInputSchema, METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionFieldErrors, metricUnitName, type MetricChoice,
 } from "@/lib/metric-definition-rules"
@@ -48,11 +49,6 @@ export function inlineAddName(metrics: readonly MetricChoice[], query: string): 
   return name && !activeMetricNamed(metrics, name) ? name : null
 }
 
-/** The facts read with each option: its unit, how it's counted and where it lives. */
-function details(metric: MetricChoice) {
-  return [metricUnitName(metric.unit), metric.howCounted ?? "How it's counted isn't written down yet", metric.link ?? "No link yet"]
-}
-
 /** The listbox: library options, then the Pass/fail check, then adding what's typed, each as its own group. Roving focus is the picker's. */
 export function MetricOptionList({ id, options, selectedId, passFail, passFailSelected, onPick, addName = null, onAdd }: {
   id: string; options: MetricChoice[]; selectedId: string | null; passFail: boolean; passFailSelected: boolean
@@ -61,28 +57,33 @@ export function MetricOptionList({ id, options, selectedId, passFail, passFailSe
   addName?: string | null
   onAdd?: () => void
 }) {
+  const [focused, setFocused] = useState<string | null>(null)
+  const keys = [...options.map(option => option.id), ...(passFail ? ["check"] : []), ...(addName ? ["add"] : [])]
+  const preferred = passFailSelected ? "check" : selectedId
+  const active = focused && keys.includes(focused) ? focused : preferred && keys.includes(preferred) ? preferred : keys[0]
+  const focusProps = (key: string) => ({ tabIndex: key === active ? 0 : -1, onFocus: () => setFocused(key) })
   return <>
     {options.length > 0 && <div role="group" aria-label="Metrics library" className={styles.metricGroup}>
       {options.map(option => {
         const selected = option.id === selectedId
-        return <Button key={option.id} role="option" aria-selected={selected} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption} ${styles.libraryOption}`}
+        return <Button key={option.id} {...focusProps(option.id)} morph="plain" role="option" aria-selected={selected} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption} ${styles.libraryOption}`}
           aria-label={option.archived ? `${option.name}, archived` : option.name} aria-describedby={`${id}-${option.id}-details`} onClick={() => onPick(option)}>
           <Check className={styles.metricCheck} data-selected={selected} aria-hidden="true"/>
           <span className={styles.optionText}>
             <span className={styles.optionName}>{option.name}{option.archived && <span className={styles.optionTag}>Archived</span>}</span>
-            <span id={`${id}-${option.id}-details`} className={styles.optionDetails}>{details(option).join(" · ")}</span>
+            <span id={`${id}-${option.id}-details`} className={styles.optionDetails}>{metricUnitName(option.unit)}</span>
           </span>
         </Button>
       })}
     </div>}
     {passFail && <div role="group" aria-label="Pass/fail check" className={styles.metricGroup}>
-      <Button role="option" aria-selected={passFailSelected} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption}`} onClick={() => onPick("check")}>
+      <Button {...focusProps("check")} morph="plain" role="option" aria-selected={passFailSelected} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption}`} onClick={() => onPick("check")}>
         <Check className={styles.metricCheck} data-selected={passFailSelected} aria-hidden="true"/>
         <ListChecks className={styles.icon} aria-hidden="true"/><span className={styles.triggerText}>Pass/fail check</span>
       </Button>
     </div>}
     {addName && <div role="group" aria-label="Add to the Metrics library" className={styles.metricGroup}>
-      <Button role="option" aria-selected={false} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption} ${styles.libraryOption}`} onClick={onAdd}>
+      <Button {...focusProps("add")} morph="plain" role="option" aria-selected={false} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption} ${styles.libraryOption}`} onClick={onAdd}>
         <Plus className={styles.icon} aria-hidden="true"/>
         <span className={styles.optionName}>{`Add “${addName}”`}</span>
       </Button>
@@ -116,26 +117,26 @@ export function InlineMetricForm({ id, values, fields, error, offer, pending, on
   nameRef?: RefObject<HTMLInputElement | null>
   offerRef?: RefObject<HTMLButtonElement | null>
 }) {
-  return <form className={styles.inlineAdd} noValidate aria-label="Add a metric to the Metrics library" aria-describedby={`${id}-add-note`}
+  return <form className={styles.inlineAdd} noValidate aria-busy={pending || undefined} aria-label="Add a metric to the Metrics library" aria-describedby={`${id}-add-note`}
     onSubmit={event => { event.preventDefault(); event.stopPropagation(); if (!offer) onSubmit() }}>
-    <p id={`${id}-add-note`} className={styles.hint}>It joins the workspace&apos;s Metrics library. Where it lives and how it&apos;s counted can be added on the Metrics page.</p>
+    <p id={`${id}-add-note`} className={styles.hint}>Add a metric for your workspace to reuse.</p>
     <Input ref={nameRef} label="Name" value={values.name} maxLength={METRIC_NAME_MAX} readOnly={pending} error={fields.name} autoComplete="off"
       onChange={event => onChange({ ...values, name: event.target.value })}/>
     {offer ? <div className={styles.inlineOffer}>
       <p className={styles.hint} role="alert">{`“${offer.name}” is already in the Metrics library, counted as ${metricUnitName(offer.unit)}. Use that one instead.`}</p>
       <div className={styles.inlineActions}>
-        <Button ref={offerRef} type="button" size="sm" onClick={onUseOffer}>{`Use “${offer.name}”`}</Button>
+        <Button ref={offerRef} type="button" size="sm" onClick={onUseOffer}>Use this metric</Button>
         <Button type="button" size="sm" variant="ghost" onClick={onRename}>Change the name</Button>
       </div>
     </div> : <>
       <div className={styles.inlineUnit} data-field="unit">
-        <RadioGroup label="Unit" options={UNIT_OPTIONS} value={values.unit} onValueChange={unit => onChange({ ...values, unit })}/>
-        <FieldError>{fields.unit}</FieldError>
+        <Select id={`${id}-unit`} label="Unit" placeholder="Choose a unit" options={UNIT_OPTIONS} value={values.unit} disabled={pending} required error={fields.unit}
+          onValueChange={unit => onChange({ ...values, unit })} onContentKeyDown={event => event.stopPropagation()}/>
       </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.inlineActions}>
+        <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onBack}>Back</Button>
         <Button type="submit" size="sm" loading={pending}>Add and use</Button>
-        <Button type="button" size="sm" variant="ghost" aria-disabled={pending || undefined} onClick={() => { if (!pending) onBack() }}>Back</Button>
       </div>
     </>}
   </form>
@@ -147,7 +148,7 @@ export function InlineMetricForm({ id, values, fields, error, offer, pending, on
  * Pass/fail check, which is never a definition. There is no typed metric: one that isn't in the library is added
  * from here (#199), by Members and Admins, with a name and a unit, and selected straight away.
  */
-export function MeasurementMetricPicker({ id, label, selectedId, passFailSelected, guardrail, disabled, error, library, onPick }: {
+export function MeasurementMetricPicker({ id, label, selectedId, passFailSelected, guardrail, disabled, error, library, onPick, onBusyChange }: {
   id: string
   /** What the trigger shows: the selected metric's name, or nothing yet. */
   label: string | null
@@ -158,6 +159,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
   error?: string
   library: MetricLibrary
   onPick: (choice: MetricChoice | "check") => void
+  onBusyChange?: (busy: boolean) => void
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -196,17 +198,19 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
       const problems = metricDefinitionFieldErrors(parsed.error)
       setFields(problems)
       if (problems.name) nameInput.current?.focus()
-      else nameInput.current?.closest("form")?.querySelector<HTMLInputElement>('[data-field="unit"] input')?.focus()
+      else nameInput.current?.closest("form")?.querySelector<HTMLButtonElement>('[data-field="unit"] [role="combobox"]')?.focus()
       return
     }
     const known = activeMetricNamed(library.metrics, parsed.data.name)
     if (known) { setOffer(known); return }
     setPending(true)
+    onBusyChange?.(true)
     try {
       const result = await library.add(parsed.data)
       if ("error" in result) {
         setFields(result.fields ?? {})
         if (result.fields?.name) nameInput.current?.focus()
+        else if (result.fields?.unit) requestAnimationFrame(() => nameInput.current?.closest("form")?.querySelector<HTMLButtonElement>('[data-field="unit"] [role="combobox"]')?.focus())
         else if (!result.fields) setAddError(result.error)
       } else if (result.existing) setOffer(result.metric)
       else pick(result.metric)
@@ -214,6 +218,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
       setAddError(thrownMessage(thrown, "The metric couldn't be added. Check your connection and try again; your Request is still here."))
     } finally {
       setPending(false)
+      onBusyChange?.(false)
     }
   }
 
@@ -224,7 +229,7 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
         aria-label={guardrail ? "Guardrail metric" : "Metric"} aria-invalid={!!error || undefined} aria-describedby={`${id}-value${error ? ` ${id}-error` : ""}`}>
         <ChartNoAxesColumnIncreasing className={styles.icon} aria-hidden="true"/><span id={`${id}-value`} className={styles.triggerText}>{label ?? "Choose a metric"}</span>
       </Button></PopoverTrigger>
-      <PopoverContent {...pickerPopoverProps} className={`${layout.panel} ${styles.metricPanel}`} aria-label={isAdding ? "Add a metric" : guardrail ? "Choose a guardrail metric" : "Choose a metric"}
+      <PopoverContent {...pickerPopoverProps} inert={open ? undefined : true} className={`${layout.panel} ${styles.metricPanel}`} aria-label={isAdding ? "Add a metric" : guardrail ? "Choose a guardrail metric" : "Choose a metric"}
         onOpenAutoFocus={event => { event.preventDefault(); search.current?.focus() }}
         // Escape while adding goes back to the search; the place in the form is kept either way.
         onEscapeKeyDown={event => { if (isAdding) { event.preventDefault(); if (!pending) stopAdding() } }}>
@@ -237,11 +242,12 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
           }}
           onSubmit={() => void addMetric()} onBack={stopAdding} onUseOffer={() => offer && pick(offer)}
           onRename={() => { setOffer(null); nameInput.current?.focus() }}/> : <>
-          <div className={layout.header}><Input ref={search} label="Search the Metrics library" hideLabel appearance="plain" placeholder="Search metrics…" maxLength={120} value={query}
-            aria-controls={listId} onChange={event => setQuery(event.target.value)} onKeyDown={event => {
+          <div className={layout.header}><SearchField ref={search} label="Search the Metrics library" hideLabel placeholder="Search metrics…" maxLength={120} value={query}
+            aria-controls={listId} onValueChange={setQuery} onKeyDown={event => {
+              if (event.nativeEvent.isComposing) return
               if (event.key === "Enter") {
                 event.preventDefault()
-                if (shown[0]) pick(shown[0])
+                if (library.status === "ready" && shown[0]) pick(shown[0])
                 else if (passFail) pick("check")
                 else if (addName) startAdding(addName)
               }
@@ -263,16 +269,18 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
             {library.status === "loading" && <Placeholder label="Loading the Metrics library" lines={1} />}
             {library.status === "error" && <div className={styles.metricError}>
               <p className={styles.error} role="alert">{library.error}</p>
-              <Button type="button" size="sm" variant="secondary" onClick={library.reload}>Try again</Button>
+              <Button type="button" size="sm" variant="secondary" onClick={() => { search.current?.focus(); library.reload(); }}>Try again</Button>
             </div>}
             {library.status === "ready" && !shown.length && <p className={styles.hint} role="status">
               {typed ? `No metric in the library is called “${typed}”.` : "The Metrics library has no metrics to pick yet."}
               {!library.canAddMetrics && " A Member or Admin can add it to the Metrics library."}
             </p>}
-            {library.canOpenLibrary && <a className={styles.libraryLink} href={METRICS_PAGE} target="_blank" rel="noopener noreferrer">
-              Open the Metrics library<span className="sr-only"> (opens in a new tab)</span>
-            </a>}
           </div>
+          {library.canOpenLibrary && <div className={styles.metricFooter}>
+            <a className={styles.libraryLink} href={METRICS_PAGE} target="_blank" rel="noopener noreferrer">
+              Metrics library<ArrowUpRight data-icon-size="sm" aria-hidden="true" /><span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          </div>}
         </>}
       </PopoverContent>
     </Popover>

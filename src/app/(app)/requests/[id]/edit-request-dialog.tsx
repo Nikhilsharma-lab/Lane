@@ -10,12 +10,14 @@ import type { RegisterIntakeCloseAttempt } from "@/components/requests/intake-na
 export const editFormCode = popupCode(() => import("./edit-request-form"));
 
 /** Edit Request's dialog (edit-request.tsx keeps the opener and its state). */
-export function EditRequestDialog({ open, onOpenChange, onClose, holdOpen, opener, request, orgId, draftOwnerId, withoutPrediction, writePrediction, onBusyChange, registerCloseAttempt, onSaved }: {
+export function EditRequestDialog({ open, onOpenChange, onClose, holdOpen, busy, opener, request, orgId, draftOwnerId, withoutPrediction, writePrediction, onBusyChange, registerCloseAttempt, onSaved }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Closes it without asking, when the form's code can't load. */
   onClose: () => void;
   holdOpen: () => boolean;
+  /** While saving, a phone drag springs back instead of closing. */
+  busy: boolean;
   opener: RefObject<HTMLElement | null>;
   request: RequestDetail;
   orgId: string;
@@ -28,7 +30,7 @@ export function EditRequestDialog({ open, onOpenChange, onClose, holdOpen, opene
 }): ReactNode {
   const form = usePopupCode(editFormCode, open, { id: "popup-unavailable:edit-request", close: onClose });
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent title={writePrediction ? "Set the goal" : "Edit Request"} description={writePrediction ? "You took this on, so its goal is yours to set: what it should change, and how you’ll know." : "Edit this Request while it is Open."} layout="composer"
+    <DialogContent title={writePrediction ? "Set the goal" : "Edit Request"} description={writePrediction ? "You took this on, so its goal is yours to set: what it should change, and how you’ll know." : "Edit this Request while it is Open."} layout="composer" canDismiss={() => !busy}
       returnFocus={() => opener.current}
       onEscapeKeyDown={event => { if (holdOpen()) event.preventDefault(); }} onInteractOutside={event => event.preventDefault()}>
       {form

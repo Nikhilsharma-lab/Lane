@@ -96,7 +96,7 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
   const needle = query.trim().toLowerCase();
   const matches = (people ?? [])
     .filter((person) => !(person.nominee.kind === "member" && person.nominee.userId === excludeUserId))
-    .filter((person) => !needle || person.name.toLowerCase().includes(needle) || person.email.includes(needle));
+    .filter((person) => !needle || person.name.toLowerCase().includes(needle) || person.email.toLowerCase().includes(needle));
   // Chosen people stay first, so the list reads as the selection plus everyone else.
   const options = [...value.filter((person) => !needle || matches.some((m) => reviewerKey(m.nominee) === reviewerKey(person.nominee))), ...matches.filter((person) => !isSelected(person))];
   const full = value.length >= MAX_REVIEWERS;
@@ -125,11 +125,11 @@ export function RequestReviewersPicker({ orgId, value, onChange, question, onQue
       <p className={labelStyles.caption}>{REVIEWERS_SUBTEXT}</p>
       {people && <PickerOptions items={options} label="People" optionRefs={optionRefs} searchRef={searchRef} keyOf={(person) => reviewerKey(person.nominee)}
         isSelected={isSelected} isInert={(person) => full && !isSelected(person)} onChoose={toggle} multiselectable morph="plain"
-        render={(person) => <span>{person.name}</span>}
+        render={(person) => <span className={pickerStyles.optionDetails}><span>{person.name}</span><small>{person.email}</small></span>}
         emptyText={needle ? "No Admin or Member matches" : "Nobody else to ask yet"} />}
       {people && <ReviewerInviteHint canInvite={canInvite} linked={false} className={labelStyles.caption} />}
       {loading && <Placeholder label="Loading people" lines={2} />}
-      {loadError && <><p role="alert" className={labelStyles.error}>{loadError}</p><Button type="button" size="sm" variant="secondary" onClick={() => void load()}>Try again</Button></>}
+      {loadError && <><p role="alert" className={labelStyles.error}>{loadError}</p><Button type="button" size="sm" variant="secondary" onClick={() => { searchRef.current?.focus(); void load(); }}>Try again</Button></>}
       {full && <p role="status" className={labelStyles.caption}>A Request can have at most {MAX_REVIEWERS} reviewers.</p>}
       {value.length > 0 && <div className={labelStyles.question}>
         <Textarea label={REVIEW_QUESTION.label} description={REVIEW_QUESTION.description} placeholder={REVIEW_QUESTION.placeholder}

@@ -18,7 +18,7 @@ const KIND: Record<MetricHistoryItem["kind"], string> = {
   merged_away: "Merged into another metric", merged_into: "Another metric merged into this one",
 };
 
-const FIELDS = [["name", "Name"], ["unit", "Unit"], ["link", "Where it lives"], ["howCounted", "How it's counted"]] as const;
+const FIELDS = [["name", "Name"], ["unit", "Unit"], ["link", "Dashboard link"], ["howCounted", "How it's counted"]] as const;
 
 function shown(field: typeof FIELDS[number][0], value: unknown): string | null {
   if (typeof value !== "string" || !value) return null;

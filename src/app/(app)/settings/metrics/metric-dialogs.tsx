@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { Button } from "@/components/arc/button/button";
 import { Dialog, DialogClose, DialogContent } from "@/components/popup/adaptive-dialog";
 import { MetricDefinitionForm, type MetricDefinitionValues } from "@/components/metrics/metric-definition-form";
@@ -21,9 +21,10 @@ export function AddMetricBody({ open, onOpenChange, opener, orgId, onAdded }: {
   /** What the page's status line reads once a definition is added. */
   onAdded: (message: string) => void;
 }) {
-  return <Dialog guardTypedText open={open} onOpenChange={onOpenChange}>
-    <DialogContent title="Add metric" description="Add a metric your workspace measures, so Requests can set goals on it." returnFocus={() => opener.current}>
-      <MetricDefinitionForm initial={EMPTY} submitLabel="Add metric"
+  const [pending, setPending] = useState(false);
+  return <Dialog guardTypedText dismissible={!pending} open={open} onOpenChange={next => { if (pending) return; onOpenChange(next); }}>
+    <DialogContent title="Add metric" description="Choose what your workspace measures." returnFocus={() => opener.current}>
+      <MetricDefinitionForm initial={EMPTY} submitLabel="Add metric" onPendingChange={setPending} onCancel={() => onOpenChange(false)}
         onSubmit={async values => {
           const result = await callAction(() => addMetricDefinition(values, { orgId }));
           if ("ok" in result) onAdded(`Added ${values.name.trim()}.`);

@@ -265,12 +265,12 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
       {form && formHost && createPortal(<form.IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} registerCloseAttempt={registerCloseAttempt} />, formHost)}
       {hasOpened && formHost && popup && <>
         <popup.Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
-          <popup.DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect."
+          <popup.DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect." canDismiss={() => !busy.current}
             onOpenAutoFocus={event => {
               // The title in the compose step, the step's heading otherwise. Until
               // the form arrives, Radix focuses the close button.
               const target = formHost.querySelector<HTMLElement>("[data-composer-autofocus]");
-              if (!target) return;
+              if (!target || (target.matches("input, textarea") && window.matchMedia("(pointer: coarse)").matches)) return;
               event.preventDefault();
               target.focus({ preventScroll: true });
             }}

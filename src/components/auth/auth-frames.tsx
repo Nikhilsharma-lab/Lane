@@ -8,9 +8,7 @@ import { AuthShell, AuthTrust } from "./auth-shell";
 
 /** The header action is passed in, so the frame stays free of Clerk: /login passes its reset link, gated by `HiddenDuringSessionTask`. */
 export function LoginFrame({ headerAction, children }: { headerAction: ReactNode; children: ReactNode }) {
-  return <AuthShell headerAction={headerAction} footer={
-    <AuthTrust icon={LockKeyholeIcon} className="justify-center sm:justify-start">Sign in to access your Lane workspace.</AuthTrust>
-  }>{children}</AuthShell>;
+  return <AuthShell footer={headerAction}>{children}</AuthShell>;
 }
 
 export function SignupFrame({ children }: { children: ReactNode }) {
