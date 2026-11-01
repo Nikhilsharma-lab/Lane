@@ -1,4 +1,4 @@
-import type { z } from "zod"
+import type * as z from "zod"
 import { DESCRIPTION_MAX, problemFramingSchema } from "./request-schema"
 
 /** The Intake gate's judgement of a Request's wording. */

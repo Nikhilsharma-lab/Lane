@@ -3,7 +3,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { RedirectType, redirect } from "next/navigation";
-import { z } from "zod";
+import * as z from "zod";
 
 import { db, profiles } from "@/db";
 import { accountNameOf } from "@/lib/account-name";

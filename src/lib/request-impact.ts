@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { GUARDRAIL_OPERATORS, guardrailComparisonPhrase } from "./guardrail-comparison";
 import { measurementPlanDraftSchema, measurementPlanSchema } from "./request-measurement";
 

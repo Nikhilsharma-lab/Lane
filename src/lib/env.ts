@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { STRIPE_NAMES } from "./feature-switches";
 
 /**

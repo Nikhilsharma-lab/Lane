@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import type { ExpectedImpact } from './request-impact';
 import { agreedResult } from './request-outcome';
 import { utcDay } from './utc-day';

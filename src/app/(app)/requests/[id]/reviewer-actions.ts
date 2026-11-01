@@ -1,7 +1,7 @@
 "use server";
 import { canChange, seeable } from "@/lib/request-access";
 import { canChangeThings } from "@/lib/role-rules";
-import { z } from "zod";
+import * as z from "zod";
 import { and, eq } from "drizzle-orm";
 import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
 import { guardActiveMember, guardCanChange, type MemberAuth } from "@/lib/auth-guard";

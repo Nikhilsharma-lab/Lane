@@ -1,4 +1,4 @@
-import { z } from "zod"
+import * as z from "zod"
 import type { WorkspacePermission } from "./auth-guard"
 import { ROLE_NAMES } from "./role-rules"
 

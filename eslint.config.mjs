@@ -24,6 +24,13 @@ const eslintConfig = defineConfig([
           message:
             "Do not call router.refresh() directly. Run Request mutations through useOptimisticAction, and use useServerRefresh from src/components/requests/use-optimistic-action.ts for an explicit re-sync.",
         },
+        // #256 Build 3: the named (or default) `z` is zod's whole namespace object, every schema type and locale,
+        // which keeps all of zod (about 34 KB gzip) in any page whose code validates in the browser. The namespace
+        // import lets the build keep only what is used, with the same schemas and messages.
+        {
+          selector: "ImportDeclaration[source.value='zod'] > ImportSpecifier[imported.name='z'], ImportDeclaration[source.value='zod'] > ImportDefaultSpecifier",
+          message: "Import zod as `import * as z from \"zod\"`, so a page carries only the zod it uses (#256 Build 3).",
+        },
       ],
     },
   },
