@@ -104,9 +104,9 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   // #267: if the code can't load, the open is given up and Lane says so; Try again opens it again.
   const reopen = useRef<() => void>(() => {});
   const unavailable = { id: "popup-unavailable:composer", close: () => setOpen(false), retry: () => reopen.current() };
-  const popup = usePopupCode(composerPopup, open, unavailable);
+  const popup = usePopupCode(composerPopup, open, unavailable, { ahead: true });
   // A transition: the closed form's first render yields to any input that arrives meanwhile.
-  const form = usePopupCode(composerForm, open, unavailable, { transition: true });
+  const form = usePopupCode(composerForm, open, unavailable, { ahead: true, transition: true });
   const preload = useCallback(() => preloadComposer(), []);
   useEffect(() => {
     if (form && !formHost) startTransition(() => setFormHost(current => current ?? createFormHost()));

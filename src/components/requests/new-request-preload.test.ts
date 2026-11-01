@@ -31,7 +31,7 @@ describe("New Request composer preload", () => {
     expect(runtime).toHaveLength(1)
     // #267: Lane's one "load ahead, then open" helper keeps it, and renders it synchronously once it is here.
     expect(runtime[0]).toMatch(/popupCode\(\(\) => import\(/)
-    expect(provider).toContain("usePopupCode(composerForm, open, unavailable, { transition: true })")
+    expect(provider).toContain("usePopupCode(composerForm, open, unavailable, { ahead: true, transition: true })")
   })
 
   it("preloads once the page has loaded and is idle, and when the pointer or focus reaches New Request", () => {

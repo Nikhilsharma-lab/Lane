@@ -74,31 +74,39 @@ export function PopupNotices() {
 }
 
 /**
- * The popup's code, from the moment it is here. While `wanted` (the popup is open) and it isn't, it is fetched; if
- * that fails (offline, or an old tab after a deploy), the open is given up and Lane says so, never a blank popup.
- * `transition`: the code's first render yields to input that arrives meanwhile (a large popup rendered closed).
+ * The popup's code, once it is open (or, with `ahead`, from the moment the code is here). While `wanted` (the popup
+ * is open) and the code isn't here, it is fetched; if that fails (offline, or an old tab after a deploy), the open is
+ * given up and Lane says so, never a blank popup. Once it has opened, it stays rendered, closed, between opens.
+ * - `ahead`: render it, closed, as soon as a load ahead brings the code (the composer's form, #296), so even the first
+ *   open only mounts it. Without it, code that arrives ahead waits for the open: a press that loads it ahead never
+ *   re-renders the page under the press.
+ * - `transition`: that early render yields to input that arrives meanwhile (a large popup rendered closed).
  */
-export function usePopupCode<T>(code: PopupCode<T>, wanted: boolean, unavailable: Unavailable, { transition = false } = {}): T | null {
-  const [value, setValue] = useState(code.current)
+export function usePopupCode<T>(code: PopupCode<T>, wanted: boolean, unavailable: Unavailable, { ahead = false, transition = false } = {}): T | null {
+  const [held, setHeld] = useState(code.current)
+  // Already here when it opens: rendered in that same render, with no extra pass.
+  const value = held ?? (wanted ? code.current() : null)
+  // Kept from its first open on, so it can animate out and open again at once.
+  if (value && !held) setHeld(() => value)
   const failed = useEffectEvent(() => {
     unavailable.close()
     showNotice?.(popupUnavailableToast(unavailable))
   })
   useEffect(() => {
-    if (value) return
+    if (!ahead || held) return
     const arrived = () => {
       const loaded = code.current()
       if (!loaded) return
-      if (transition) startTransition(() => setValue(() => loaded))
-      else setValue(() => loaded)
+      if (transition) startTransition(() => setHeld(() => loaded))
+      else setHeld(() => loaded)
     }
     arrived()
     return code.subscribe(arrived)
-  }, [code, transition, value])
+  }, [ahead, code, held, transition])
   useEffect(() => {
     if (value || !wanted) return
     let live = true
-    code.load().catch(() => { if (live) failed() })
+    code.load().then(loaded => { if (live) setHeld(() => loaded) }, () => { if (live) failed() })
     return () => { live = false }
   }, [code, value, wanted])
   return value
