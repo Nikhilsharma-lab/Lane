@@ -15,7 +15,8 @@ const PAT = "user_metric_page_pat", SAM = "user_metric_page_sam";
 const session = vi.hoisted(() => ({ workspace: null as unknown }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ensure-workspace", () => ({ getWorkspace: async () => session.workspace }));
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
   redirect: (to: string) => { throw new Error(`redirect:${to}`); },
   notFound: () => { throw new Error("not-found"); },
   usePathname: () => "/settings/metrics/x",
