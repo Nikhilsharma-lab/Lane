@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
 import dotenv from "dotenv";
+import { MOTION_ALIAS } from "./src/components/motion/motion-alias";
 import { resolveTestDatabase } from "./src/test/test-database";
 
 dotenv.config({ path: ".env.test" });
@@ -26,6 +27,8 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
       // Next resolves this marker itself; the suite imports server loaders directly.
       "server-only": path.resolve(__dirname, "src/test/server-only.ts"),
+      // As the build resolves it, so tests render the Motion the pages ship.
+      ...MOTION_ALIAS,
     },
   },
 });

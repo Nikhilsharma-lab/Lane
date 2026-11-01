@@ -11,7 +11,7 @@ vi.mock("@/lib/first-run", () => ({ loadFirstRun: async () => state.firstRun }))
 // The guide loads lazily in the app; a static render takes it directly.
 vi.mock("@/components/first-run/first-run-guide-loader", async () => ({ FirstRunGuideLoader: (await import("@/components/first-run/first-run-guide")).FirstRunGuide }))
 // Plan item 1.7: the status view and Project filter come from the URL in the browser, through the layout's list view state.
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), prefetch: vi.fn() }), useSearchParams: () => new URLSearchParams(state.search), redirect: vi.fn() }))
+vi.mock("next/navigation", async (original) => ({ ...(await original<typeof import("next/navigation")>()), useRouter: () => ({ replace: vi.fn(), prefetch: vi.fn() }), useSearchParams: () => new URLSearchParams(state.search), redirect: vi.fn() }))
 // Plan item 1.8: the workspace reads through src/lib/data (server-only). Vitest cannot resolve Next's
 // "server-only" marker, and the page now derives identity from claims (getMember) before it queries.
 vi.mock("server-only", () => ({}))

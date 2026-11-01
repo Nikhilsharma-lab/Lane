@@ -15,6 +15,7 @@ export type RoutePattern =
   | "Settings: Members"
   | "Settings: Metrics"
   | "Settings: a Metric"
+  | "Onboarding"
   | "Request preview"
   | "Attachment download";
 
@@ -34,6 +35,14 @@ export const TIMING_ID_HEADER = "x-lane-timing-id";
 /** The same for a route handler's call under /api, which times itself rather than as a page render. */
 export const READ_TIMING_ID_HEADER = "x-lane-read-timing-id";
 
+/** A new timing id, as the proxy makes one for each request. */
+export const newTimingId = () => crypto.randomUUID();
+/**
+ * Whether a header value could be an id the proxy made. A browser can send the header itself to an address the proxy
+ * skips; anything else is not a timing id.
+ */
+export const isTimingId = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
+
 type Interval = { start: number; end: number };
 
 /** A full page load, a page change inside Lane (the router's request), a prefetch, or a read route's call. */
@@ -52,7 +61,14 @@ export type ServerTimings = {
   logLine(): string;
 };
 
-const round = (ms: number) => Math.round(ms * 10) / 10;
+/** Milliseconds to one decimal place, as every timing is reported. */
+export const round = (ms: number) => Math.round(ms * 10) / 10;
+
+/**
+ * The proxy's Server-Timing entry, on every response it passes (public pages too) while the switch is on: the
+ * time Clerk's session check took, and nothing else.
+ */
+export const proxyTiming = (ms: number) => `proxy;dur=${round(ms)}`;
 
 /** Total time covered by the intervals, overlapping parts counted once. */
 function covered(intervals: Interval[]): number {

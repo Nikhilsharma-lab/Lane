@@ -6,7 +6,7 @@ import { canEditRequest } from "@/lib/request-lifecycle"
 import type { CurrentRequest } from "./current-request"
 import type { RequestDetail } from "./detail-view"
 import { usePublishOpenRequest } from "./list-view-state"
-import { usePendingMutations } from "./pending-mutations-provider"
+import { usePendingRow } from "./pending-mutations-provider"
 import { useRequestNavigation } from "./request-navigation"
 
 /** Who is reading. `readOnly` is a Viewer (#210): they read everything and are offered nothing that changes it. */
@@ -77,8 +77,7 @@ export function DetailRequestProvider({ request: serverRequest, viewer, orgId, i
   arrival?: boolean
   children: ReactNode
 }) {
-  const overlay = usePendingMutations()
-  const request = overlay ? overlay.applyOne(serverRequest) : serverRequest
+  const request = usePendingRow(serverRequest)
   const [formsOpen, setFormsOpen] = useState(0)
   const reportForm = useCallback((open: boolean) => setFormsOpen(count => Math.max(0, count + (open ? 1 : -1))), [])
   const code = requestCodeOrNull(serverRequest.requestNumber)

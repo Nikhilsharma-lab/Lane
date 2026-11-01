@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
-import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
+import { usePendingMutations, usePendingRows } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "../request-workspace-keyboard"
 import { paginateRequests, type OverviewRequest } from "@/lib/request-overview"
 import { requestListHref, parseRequestStatusFilter, type RequestStatusFilter } from "@/lib/request-workspace"
@@ -72,7 +72,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // Plan item 1.5: pending lifecycle and priority moves apply before grouping
   // and sorting, so an optimistic change regroups the row in the next frame.
   const pendingMutations = usePendingMutations()
-  const data = useMemo(() => pendingMutations?.apply(serverRows) ?? serverRows, [pendingMutations, serverRows])
+  const data = usePendingRows(serverRows)
   useRequestListUrlSync(view, setView, (pendingMutations?.unconfirmed ?? 0) > 0)
   // Plan item 2.1: `data` already carries composer inserts, so the first Request
   // ends the empty state in the same frame. It is read before any filter, so a

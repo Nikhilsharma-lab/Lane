@@ -7,7 +7,7 @@ import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { formatRequestCode } from "@/lib/request-code"
 import { type RequestPriority } from "@/lib/request-constants"
 import { availableMove, pickupBlockedMessage, type AvailableMove, type LifecycleMove } from "@/lib/request-lifecycle"
-import { usePendingMutations } from "./pending-mutations-provider"
+import { usePendingRows } from "./pending-mutations-provider"
 import { useListAnnouncer } from "./list-announcer"
 import { restoreRequestFocus, rowIndexOf } from "./list-focus"
 import { useRequestMoves } from "./request-moves"
@@ -41,14 +41,13 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
   readOnly?: boolean
   children: ReactNode
 }) {
-  const overlay = usePendingMutations()
   // Plan item 2.4: optimistic changes speak in the list's one region when the patch begins.
   const announce = useListAnnouncer()
   const { deferFocus } = useRequestNavigation()
   const { orgId } = context
 
   // Codes and priorities read through the overlay, so a priority change shows at once.
-  const rows = useMemo(() => overlay ? overlay.apply(requests) : requests, [overlay, requests])
+  const rows = usePendingRows(requests)
   const identities = useStableIdentities(rows)
 
   // A status change regroups the row and can replace its DOM. Keep the person

@@ -13,8 +13,9 @@ import { LazyMotion, domAnimation } from "motion/react";
  * app adds layout and drag (`app-motion-features.tsx`, around the `(app)` layout), which only its components use.
  *
  * Arc components render `m.*`; a `motion.*` component would bring all of Motion back into the page
- * (docs/design-system/arc-sources.md, "Motion features").
+ * (docs/design-system/arc-sources.md, "Motion features"). `strict` makes one throw in development and tests, so it
+ * can't slip in; production builds skip the check.
  */
 export function MotionFeatures({ children }: { children: ReactNode }) {
-  return <LazyMotion features={domAnimation}>{children}</LazyMotion>;
+  return <LazyMotion features={domAnimation} strict>{children}</LazyMotion>;
 }

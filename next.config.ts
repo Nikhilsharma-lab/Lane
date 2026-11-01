@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import dotenv from "dotenv";
 
+import { MOTION_ALIAS } from "./src/components/motion/motion-alias";
 import { securityHeaders } from "./src/lib/security-headers";
 
 // Force-load Lane's selected local env file so it wins over system env vars.
@@ -23,15 +24,8 @@ const nextConfig: NextConfig = {
     // a quick return to a Request reuse the page segment.
     staleTimes: { dynamic: 30, static: 30 },
   },
-  turbopack: {
-    resolveAlias: {
-      // #266: `motion/react` is framer-motion re-exported, plus `const motion = fm.motion` read off the whole
-      // namespace, which keeps all of Motion (every feature) in each page however little a page uses. Resolving it
-      // to framer-motion itself (the same installed version, pinned beside motion in package.json) lets the
-      // bundler keep only what is imported, so LazyMotion's split (src/components/motion/motion-features.tsx) works.
-      "motion/react": "framer-motion",
-    },
-  },
+  // #266: Motion's split needs `motion/react` resolved to framer-motion (src/components/motion/motion-alias.ts).
+  turbopack: { resolveAlias: MOTION_ALIAS },
   // Baseline security headers on every route; CSP stays Report-Only until
   // staging and production report nothing (src/lib/security-headers.ts).
   async headers() {
