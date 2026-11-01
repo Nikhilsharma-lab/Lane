@@ -36,7 +36,7 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
   const action = (name: keyof RequestMoveActions) => (...args: unknown[]) => new Promise<ActionResult>((resolve, reject) => { calls.push({ name, args, resolve, reject }) })
   const actions: RequestMoveActions = { markDone: action("markDone"), pickUpRequest: action("pickUpRequest"), undoMarkDone: action("undoMarkDone"), setRequestPriority: action("setRequestPriority"), pickUpRequests: async () => ({ moved: [] }), markDoneMany: async () => ({ moved: [] }) }
 
-  const pending = createPendingMutationsStore({ schedule: () => {}, now: () => 1 })
+  const pending = createPendingMutationsStore({ now: () => 1 })
   const overlay = {
     begin: (...args: Parameters<ReturnType<typeof pending.view>["begin"]>) => pending.view(pending.getSnapshot()).begin(...args),
     confirm: (...args: Parameters<ReturnType<typeof pending.view>["confirm"]>) => pending.view(pending.getSnapshot()).confirm(...args),

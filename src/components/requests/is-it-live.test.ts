@@ -18,7 +18,7 @@ function app() {
   const calls: (keyof RequestMoveActions)[] = []
   const action = (name: keyof RequestMoveActions) => async () => { calls.push(name); return results[name] ?? { success: true } }
   const actions: RequestMoveActions = { markDone: action("markDone"), pickUpRequest: action("pickUpRequest"), undoMarkDone: action("undoMarkDone"), setRequestPriority: action("setRequestPriority"), pickUpRequests: async () => ({ moved: [] }), markDoneMany: async () => ({ moved: [] }) }
-  const pending = createPendingMutationsStore({ schedule: () => {}, now: () => 1 })
+  const pending = createPendingMutationsStore({ now: () => 1 })
   const optimisticDeps = {
     overlay: pending.view(pending.getSnapshot()), refresh: vi.fn(),
     session: { current: async () => {}, renew: async () => {} }, notifyError: vi.fn(),

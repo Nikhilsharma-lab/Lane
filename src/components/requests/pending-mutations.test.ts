@@ -14,11 +14,13 @@ const row = (id: string, overrides: Partial<OverviewRequest> = {}): OverviewRequ
 })
 
 function setup() {
-  const queue: (() => void)[] = []
-  const store = createPendingMutationsStore({ schedule: task => { queue.push(task) }, now: () => 1 })
-  const flush = () => { while (queue.length) queue.shift()!() }
+  const store = createPendingMutationsStore({ now: () => 1 })
   const view = () => store.view(store.getSnapshot())
-  return { store, view, flush, queue }
+  /** A render showing these server rows (the list's) commits: what it showed settles. */
+  const commit = <T extends { id: string }>(rows: T[]) => { const shown = view().apply(rows); view().settle(rows); return shown }
+  /** The same for one server row (Request detail). */
+  const commitOne = <T extends { id: string }>(row: T) => { const shown = view().applyOne(row); view().settleOne(row); return shown }
+  return { store, view, commit, commitOne }
 }
 
 function deferred<T>() {
@@ -79,67 +81,84 @@ describe("pending-mutation overlay: apply()", () => {
 })
 
 describe("pending-mutation overlay: clearing", () => {
+  // Next commits the revalidated server row in a transition, which React can pause before committing; meanwhile a
+  // store update re-renders with the props already on screen. Clearing from the paused render showed In progress
+  // for one frame about a second after Mark Done.
+  it("keeps showing a confirmed patch until the render that shows the server row has committed", async () => {
+    const store = createPendingMutationsStore({ now: () => 1 })
+    const view = () => store.view(store.getSnapshot())
+    const token = view().begin("a", { kind: "done", status: "done" })
+    view().confirm("a", token)
+    const onScreen = row("a", { status: "in_progress" })
+    const revalidated = row("a", { status: "done" })
+    // The transition renders the server row, and React yields before committing it.
+    expect(view().apply([revalidated])[0]).toBe(revalidated)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    // A render with the committed props must still show Done.
+    expect(view().apply([onScreen])[0].status).toBe("done")
+    // The transition commits: the patch goes after that render, and the server row shows through.
+    view().settle([revalidated])
+    expect(view().patches.a).toBeUndefined()
+    expect(view().apply([revalidated])[0]).toBe(revalidated)
+  })
+
   it("keeps a pending patch even when the server rows already show its value", () => {
-    const { view, flush } = setup()
+    const { view, commit } = setup()
     // Undo begins while Done is pending: the stale server row still says In progress.
     view().begin("a", { kind: "undo", status: "in_progress" })
-    view().apply([row("a", { status: "in_progress" })])
-    flush()
+    commit([row("a", { status: "in_progress" })])
     expect(view().patches.a).toBeDefined()
   })
 
   it("clears a confirmed patch only once the server rows show it, never on stale rows", () => {
-    const { view, flush } = setup()
+    const { view, commit } = setup()
     const token = view().begin("a", { kind: "done", status: "done" })
     view().confirm("a", token)
     // The action's payload was dropped by a navigation: the rows are stale.
-    const stale = view().apply([row("a", { status: "in_progress" })])
-    flush()
+    const stale = commit([row("a", { status: "in_progress" })])
     expect(stale[0].status).toBe("done")
     expect(view().patches.a).toBeDefined()
-    // The next server render shows Done: the row reads the server's object, and the patch clears after render.
+    // The next server render shows Done: the row reads the server's object, and the patch clears once it commits.
     const fresh = row("a", { status: "done" })
     expect(view().apply([fresh])[0]).toBe(fresh)
     expect(view().patches.a).toBeDefined()
-    flush()
+    view().settle([fresh])
     expect(view().patches.a).toBeUndefined()
   })
 
   it("matches priority against the saved value, never against a row without one", () => {
-    const { view, flush } = setup()
+    const { view, commit } = setup()
     const token = view().begin("a", { kind: "priority", priority: "none" })
     view().confirm("a", token)
     // A row without priority says nothing about it: "none" is not read into it.
-    expect(view().apply([row("a", { priority: undefined })])[0].priority).toBe("none")
-    flush()
+    expect(commit([row("a", { priority: undefined })])[0].priority).toBe("none")
     expect(view().patches.a).toBeDefined()
-    view().apply([row("a", { priority: "none" })])
-    flush()
+    commit([row("a", { priority: "none" })])
     expect(view().patches.a).toBeUndefined()
   })
 
   it("lets the newest move own a field, so an Undo never falls back to Done", () => {
-    const { view, flush } = setup()
+    const { view, commit } = setup()
     const done = view().begin("a", { kind: "done", status: "done" })
     view().confirm("a", done)
     const undo = view().begin("a", { kind: "undo", status: "in_progress" })
     view().confirm("a", undo)
-    const rows = view().apply([row("a", { status: "in_progress" })])
-    flush()
+    const rows = commit([row("a", { status: "in_progress" })])
     expect(rows[0].status).toBe("in_progress")
     expect(view().apply([row("a", { status: "in_progress" })])[0].status).toBe("in_progress")
     expect(view().patches.a).toBeUndefined()
   })
 
   it("shows a composer insert until the server rows include it", () => {
-    const { view, flush } = setup()
+    const { view, commit, commitOne } = setup()
     const created = row("new", { status: "open" })
     view().insert(created)
     const server = [row("a")]
+    expect(commit(server).map(item => item.id)).toEqual(["new", "a"])
+    // Request detail's row never settles the list's insert.
+    expect(commitOne(row("new", { status: "open" }))).toEqual(created)
     expect(view().apply(server).map(item => item.id)).toEqual(["new", "a"])
-    expect(view().applyOne(server[0])).toBe(server[0])
-    expect(view().apply([row("new", { status: "open" }), ...server]).map(item => item.id)).toEqual(["new", "a"])
-    flush()
+    expect(commit([row("new", { status: "open" }), ...server]).map(item => item.id)).toEqual(["new", "a"])
     expect(view().apply(server)).toBe(server)
   })
 
@@ -156,14 +175,13 @@ describe("pending-mutation overlay: clearing", () => {
 
   it("expires an unseen composer insert even when no mutations are pending", () => {
     let clock = 0
-    const queue: (() => void)[] = []
-    const store = createPendingMutationsStore({ schedule: task => queue.push(task), clock: () => clock })
+    const store = createPendingMutationsStore({ clock: () => clock })
     const view = () => store.view(store.getSnapshot())
     const server = [row("a")]
     view().insert(row("new", { status: "open" }))
     clock = 120_001
     expect(view().apply(server)).toBe(server)
-    queue.forEach(task => task())
+    view().settle(server)
     expect(store.getSnapshot().inserts).toEqual({})
   })
 })
@@ -174,26 +192,22 @@ describe("pending-mutation overlay: a Request detail row", () => {
   const detail = (priority?: "none" | "high") => ({ id: "a", status: "open" as const, ...(priority ? { priority } : {}) })
 
   it("clears a confirmed priority patch once the detail row shows the priority", () => {
-    const { view, flush } = setup()
+    const { view, commitOne } = setup()
     const token = view().begin("a", { kind: "priority", priority: "high" })
     view().confirm("a", token)
-    expect(view().applyOne(detail("none")).priority).toBe("high")
-    flush()
+    expect(commitOne(detail("none")).priority).toBe("high")
     expect(view().patches.a).toBeDefined()
     const fresh = detail("high")
-    expect(view().applyOne(fresh)).toBe(fresh)
-    flush()
+    expect(commitOne(fresh)).toBe(fresh)
     expect(view().patches.a).toBeUndefined()
   })
 
   it("keeps a confirmed priority patch for good on a row without priority, which is why detail selects it", () => {
-    const { view, flush } = setup()
+    const { view, commitOne } = setup()
     const token = view().begin("a", { kind: "priority", priority: "high" })
     view().confirm("a", token)
-    view().applyOne(detail())
-    flush()
-    view().applyOne(detail())
-    flush()
+    commitOne(detail())
+    commitOne(detail())
     expect(view().patches.a).toBeDefined()
   })
 
@@ -201,18 +215,16 @@ describe("pending-mutation overlay: a Request detail row", () => {
   // slot used to pass one) must not clear the confirmed "none" before the
   // revalidated row arrives, or the stale High shows again.
   it("keeps a confirmed No priority through a status-only row until the detail row shows it", () => {
-    const { view, flush } = setup()
+    const { view, commitOne } = setup()
     const stale = detail("high")
     const token = view().begin("a", { kind: "priority", priority: "none" })
     view().confirm("a", token)
-    expect(view().applyOne(stale).priority).toBe("none")
-    view().applyOne({ id: "a", status: "open" as const })
-    flush()
+    expect(commitOne(stale).priority).toBe("none")
+    commitOne({ id: "a", status: "open" as const })
     expect(view().patches.a).toBeDefined()
     expect(view().applyOne(stale).priority).toBe("none")
     const fresh = detail("none")
-    expect(view().applyOne(fresh)).toBe(fresh)
-    flush()
+    expect(commitOne(fresh)).toBe(fresh)
     expect(view().patches.a).toBeUndefined()
   })
 })
@@ -222,10 +234,15 @@ describe("pending-mutation overlay: comments", () => {
 
   function commentSetup() {
     let clock = 1_000
-    const queue: (() => void)[] = []
-    const store = createPendingMutationsStore({ schedule: task => { queue.push(task) }, now: () => 1, clock: () => clock })
+    const store = createPendingMutationsStore({ now: () => 1, clock: () => clock })
     const view = () => store.view(store.getSnapshot())
-    return { store, view, flush: () => { while (queue.length) queue.shift()!() }, advance: (ms: number) => { clock += ms } }
+    /** A render showing these server comments commits: what it showed settles. */
+    const commit = <C extends { id: string }>(requestId: string, comments: C[]) => {
+      const shown = view().commentsFor(requestId, comments)
+      view().settleComments(requestId, comments)
+      return shown
+    }
+    return { store, view, commit, advance: (ms: number) => { clock += ms } }
   }
 
   it("returns the server array untouched when nothing is pending", () => {
@@ -244,13 +261,12 @@ describe("pending-mutation overlay: comments", () => {
   })
 
   it("keeps a confirmed comment while the server list lacks its id, then clears it after the render that shows it", () => {
-    const { store, view, flush } = commentSetup()
+    const { store, view, commit } = commentSetup()
     const key = view().appendComment("a", { body: "New note", authorName: "Alex Morgan" })
     view().confirmComment("a", key, { id: "c2", createdAt: new Date("2026-10-13T09:00:00Z") })
     expect(view().unconfirmed).toBe(0)
     // A stale render (the payload was dropped by a navigation) still shows it, now under its server id.
-    const stale = view().commentsFor("a", server("c1"))
-    flush()
+    const stale = commit("a", server("c1"))
     expect(stale.map(comment => comment.id)).toEqual(["c1", "c2"])
     expect(stale[1]).toMatchObject({ pending: "sent" })
     // The fresh render lists it: exactly one row with that id, and the pending copy clears afterwards.
@@ -258,7 +274,8 @@ describe("pending-mutation overlay: comments", () => {
     expect(view().commentsFor("a", fresh)).toBe(fresh)
     expect(view().commentsFor("a", fresh).filter(comment => comment.id === "c2")).toHaveLength(1)
     expect(view().commentsFor("a", fresh)).toHaveLength(2)
-    flush()
+    expect(store.getSnapshot().comments.a).toHaveLength(1)
+    view().settleComments("a", fresh)
     expect(store.getSnapshot().comments).toEqual({})
   })
 
@@ -271,13 +288,12 @@ describe("pending-mutation overlay: comments", () => {
   })
 
   it("stops showing a confirmed comment the server never lists", () => {
-    const { store, view, flush, advance } = commentSetup()
+    const { store, view, commit, advance } = commentSetup()
     const key = view().appendComment("a", { body: "New note", authorName: "Alex Morgan" })
     view().confirmComment("a", key, { id: "c2", createdAt: new Date() })
     advance(120_001)
     const comments = server("c1")
-    expect(view().commentsFor("a", comments)).toBe(comments)
-    flush()
+    expect(commit("a", comments)).toBe(comments)
     expect(store.getSnapshot().comments).toEqual({})
   })
 

@@ -21,7 +21,7 @@ function app(session: ActionSession = { current: async () => {}, renew: async ()
   const stack = toastStack()
   const undoStore = createMarkDoneUndoStore()
   undoStore.bind(stack.state)
-  const store = createPendingMutationsStore({ schedule: () => {}, now: () => 1 })
+  const store = createPendingMutationsStore({ now: () => 1 })
   const refresh = vi.fn(), announce = vi.fn(), afterMove = vi.fn(), isItLive = vi.fn(), notifyError = vi.fn()
   const execution = { overlay: store.view(store.getSnapshot()), refresh,
     session, notifyError,
