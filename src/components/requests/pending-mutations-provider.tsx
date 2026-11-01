@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useMemo, useState, useSyncExternalStore, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react"
 import type { OverviewRequest } from "@/lib/request-overview"
 
 /** The fields a pending lifecycle or priority move can change on a row. */
@@ -38,10 +38,19 @@ export type PendingMutations = {
   /** Changes whose action has not answered yet. URL sync waits for these only: a confirmed
    * change on a row the server list never re-sends ("Show older Done") stays shown but holds nothing. */
   unconfirmed: number
-  /** Returns the rows with every pending patch applied; identity is preserved for untouched rows. */
+  /** Returns the rows with every pending patch applied; identity is preserved for untouched rows. Changes nothing. */
   apply<T extends { id: string }>(rows: T[]): T[]
-  /** One row through the overlay, without composer inserts (the detail page). */
+  /** One row through the overlay, without composer inserts (the detail page). Changes nothing. */
   applyOne<T extends { id: string }>(row: T): T
+  /**
+   * The server rows a committed render showed (the list's): confirmed patches they show, and composer inserts they
+   * include or that expired, are done. Called only once that render is on screen (`usePendingRows`), never during a
+   * render: React can pause a render that shows newer rows, and a render with the rows on screen would show them
+   * without the patch.
+   */
+  settle(rows: { id: string }[]): void
+  /** The same for one server row (the detail page): only its confirmed patches, never a composer insert. */
+  settleOne(row: { id: string }): void
   /** Applies a patch in the same tick and returns its token. */
   begin(id: string, patch: Omit<RequestPatch, "since">): number
   /** The action succeeded: the patch now clears as soon as the server rows show it. */
@@ -62,6 +71,8 @@ export type PendingMutations = {
   dropComment(requestId: string, key: string): void
   /** The server's comments, then this Request's pending comments the server does not list yet. Identity is kept when none are pending. */
   commentsFor<C extends { id: string }>(requestId: string, serverComments: C[]): (C | ShownPendingComment)[]
+  /** The server's comments a committed render showed: confirmed comments they list, or that expired, are done. */
+  settleComments(requestId: string, serverComments: { id: string }[]): void
 }
 
 type Field = "status" | "priority" | "assignedTo" | "assigneeName" | "assigneeAvatarUrl"
@@ -93,11 +104,10 @@ function reflected(row: object, patch: RequestPatch) {
 
 /**
  * The overlay's state outside React, so it can be tested without a DOM and
- * shared by every consumer under the layout. `schedule` defers the clean-up a
- * render discovers (a patch the server rows now show) until after that render.
+ * shared by every consumer under the layout. Reading it during a render changes
+ * nothing; what a committed render showed clears through `settle`.
  */
-export function createPendingMutationsStore({ schedule = queueMicrotask, now = () => performance.now(), clock = () => Date.now() }: {
-  schedule?: (task: () => void) => void
+export function createPendingMutationsStore({ now = () => performance.now(), clock = () => Date.now() }: {
   now?: () => number
   clock?: () => number
 } = {}) {
@@ -105,7 +115,6 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
   let nextToken = 1
   const listeners = new Set<() => void>()
   const inflight = new Map<string, Promise<boolean>>()
-  const scheduled = new Set<string>()
   // A patched row is rebuilt only when its server row or its layers change, so
   // repeated renders hand memoised rows the same object.
   const patchedRows = new WeakMap<object, { layers: Layer[]; row: object }>()
@@ -128,24 +137,56 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
     set({ ...snapshot, comments: next })
   }
 
-  function clearLater(key: string, task: () => void) {
-    if (scheduled.has(key)) return
-    scheduled.add(key)
-    schedule(() => { scheduled.delete(key); task() })
+  /** Confirmed layers the server row shows are done; anything else still overrides it. */
+  const liveLayers = (layers: Layer[], row: object) => layers.filter(layer => !(layer.confirmed && reflected(row, layer.patch)))
+  const insertExpired = (insert: Insert) => clock() - insert.since > INSERT_TTL_MS
+  const commentDone = (comment: PendingComment, listed: Set<string>) =>
+    (comment.id !== undefined && listed.has(comment.id)) || (comment.confirmedAt !== undefined && clock() - comment.confirmedAt > INSERT_TTL_MS)
+
+  function settleLayers(rows: { id: string }[], withInserts: boolean) {
+    let layers = snapshot.layers
+    let inserts = snapshot.inserts
+    for (const row of rows) {
+      const current = layers[row.id]
+      if (!current) continue
+      const live = liveLayers(current, row)
+      if (live.length === current.length) continue
+      layers = { ...layers }
+      if (live.length) layers[row.id] = live
+      else delete layers[row.id]
+    }
+    if (withInserts && Object.keys(inserts).length) {
+      const present = new Set(rows.map(row => row.id))
+      for (const [id, insert] of Object.entries(inserts)) {
+        if (!present.has(id) && !insertExpired(insert)) continue
+        inserts = { ...inserts }
+        delete inserts[id]
+      }
+    }
+    if (layers !== snapshot.layers || inserts !== snapshot.inserts) set({ ...snapshot, layers, inserts })
+  }
+
+  function settle(rows: { id: string }[]) {
+    if (!Object.keys(snapshot.layers).length && !Object.keys(snapshot.inserts).length) return
+    settleLayers(rows, true)
+  }
+
+  function settleOne(row: { id: string }) {
+    if (snapshot.layers[row.id]) settleLayers([row], false)
+  }
+
+  function settleComments(requestId: string, serverComments: { id: string }[]) {
+    const list = snapshot.comments[requestId]
+    if (!list) return
+    const listed = new Set(serverComments.map(comment => comment.id))
+    const kept = list.filter(comment => !commentDone(comment, listed))
+    if (kept.length !== list.length) setComments(requestId, kept)
   }
 
   function overlay<T extends { id: string }>(view: PendingSnapshot, row: T): T {
     const layers = view.layers[row.id]
     if (!layers) return row
-    // Confirmed layers the server row now shows are done; anything else still overrides it.
-    const live = layers.filter(layer => !(layer.confirmed && reflected(row, layer.patch)))
-    for (const layer of layers) {
-      if (live.includes(layer)) continue
-      clearLater(`${row.id}:${layer.token}`, () => {
-        const current = snapshot.layers[row.id]
-        if (current?.some(item => item.token === layer.token)) setLayers(row.id, current.filter(item => item.token !== layer.token))
-      })
-    }
+    const live = liveLayers(layers, row)
     if (!live.length) return row
     const cached = patchedRows.get(row)
     if (cached && cached.layers.length === live.length && cached.layers.every((layer, index) => layer === live[index])) return cached.row as T
@@ -175,15 +216,8 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
         const listed = new Set(serverComments.map(comment => comment.id))
         const shown: ShownPendingComment[] = []
         for (const comment of pending) {
-          const expired = comment.confirmedAt !== undefined && clock() - comment.confirmedAt > INSERT_TTL_MS
-          if ((comment.id !== undefined && listed.has(comment.id)) || expired) {
-            // The server copy now stands in its place (same id, so the row is not remounted).
-            clearLater(`comment:${requestId}:${comment.key}`, () => {
-              const list = snapshot.comments[requestId]
-              if (list?.includes(comment)) setComments(requestId, list.filter(item => item !== comment))
-            })
-            continue
-          }
+          // The server copy now stands in its place (same id, so the row is not remounted).
+          if (commentDone(comment, listed)) continue
           shown.push({ id: comment.id ?? comment.key, body: comment.body, authorName: comment.authorName, createdAt: comment.createdAt, pending: comment.id === undefined ? "sending" : "sent" })
         }
         return shown.length ? [...serverComments, ...shown] : serverComments
@@ -202,21 +236,15 @@ export function createPendingMutationsStore({ schedule = queueMicrotask, now = (
         const present = new Set(rows.map(row => row.id))
         const added: T[] = []
         for (const [id, insert] of inserts) {
-          const expired = clock() - insert.since > INSERT_TTL_MS
-          if (present.has(id) || expired) {
-            clearLater(`insert:${id}:${insert.since}`, () => {
-              if (snapshot.inserts[id] !== insert) return
-              const inserts = { ...snapshot.inserts }
-              delete inserts[id]
-              set({ ...snapshot, inserts })
-            })
-            continue
-          }
+          if (present.has(id) || insertExpired(insert)) continue
           // Only list-shaped callers receive composer inserts; the row type is the list's.
           added.push(overlay(current, insert.row as unknown as T))
         }
         return changed || added.length ? [...added, ...out] : rows
       },
+      settle,
+      settleOne,
+      settleComments,
       begin,
       confirm,
       rollback,
@@ -334,6 +362,30 @@ export function PendingMutationsProvider({ children }: { children: ReactNode }) 
 
 /** Null outside the provider (older fixtures); consumers fall back to the server rows. */
 export const usePendingMutations = () => useContext(PendingMutationsContext)
+
+/**
+ * The server rows with every pending change on top. Once the render showing them is on screen, the confirmed
+ * changes they show are dropped (an effect: never from a render React may pause or throw away).
+ */
+export function usePendingRows<T extends { id: string }>(rows: T[]): T[] {
+  const overlay = usePendingMutations()
+  useEffect(() => { overlay?.settle(rows) }, [overlay, rows])
+  return useMemo(() => overlay ? overlay.apply(rows) : rows, [overlay, rows])
+}
+
+/** One server row (Request detail) with its pending changes on top, settled the same way. */
+export function usePendingRow<T extends { id: string }>(row: T): T {
+  const overlay = usePendingMutations()
+  useEffect(() => { overlay?.settleOne(row) }, [overlay, row])
+  return overlay ? overlay.applyOne(row) : row
+}
+
+/** A Request's server comments, then its pending ones, settled the same way. */
+export function usePendingComments<C extends { id: string }>(requestId: string, comments: C[]): (C | ShownPendingComment)[] {
+  const overlay = usePendingMutations()
+  useEffect(() => { overlay?.settleComments(requestId, comments) }, [overlay, requestId, comments])
+  return useMemo(() => overlay ? overlay.commentsFor(requestId, comments) : comments, [overlay, requestId, comments])
+}
 
 /** Null outside the provider; mutations then run without an overlay. */
 export const usePendingMutationWriter = () => useContext(PendingMutationWriterContext)
