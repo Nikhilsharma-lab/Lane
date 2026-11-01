@@ -3,6 +3,7 @@ import dynamic from "next/dynamic"
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 import { callAction } from "@/lib/action-call"
 import { thrownMessage } from "@/lib/failure-messages"
+import { popupCode, usePopupCode } from "@/components/popup/lazy-popup"
 import { linkSameProblem, readSameProblem, removeSameProblemLink } from "@/app/(app)/requests/[id]/same-problem-actions"
 import { formatRequestCode } from "@/lib/request-code"
 import { IterationsPlaceholder } from "./same-problem-placeholder"
@@ -21,7 +22,8 @@ function Loading() {
 // written inside dynamic() gets a chunk of its own, which loading ahead would not warm).
 const loadView = () => import("./same-problem-view")
 const SameProblemView = dynamic(() => loadView().then(module => module.SameProblemView), { ssr: false, loading: Loading })
-const SameProblemLinkDialog = dynamic(() => import("./same-problem-link-dialog"), { ssr: false })
+// #267: the link dialog loads when it first opens; if it can't, Lane says so instead of a blank popup.
+const linkDialogCode = popupCode(() => import("./same-problem-link-dialog"))
 /** #259: the list's code, loaded ahead with the Request preview's (preloadRequestPeek), so a preview opened after a rest
  * on its row fetches no code. */
 export const preloadSameProblemView = () => { void loadView().catch(() => undefined) }
@@ -105,11 +107,12 @@ export function SameProblemSection({ requestId, requestNumber, orgId, canLink }:
     }
   }
 
+  const linkDialog = usePopupCode(linkDialogCode, linkOpen, { id: "popup-unavailable:same-problem-link", close: () => setLinkOpen(false), retry: () => setLinkOpen(true) })
   if (hidden) return null
   const linkedIds = state.kind === "ready" ? state.iterations?.iterations.map(entry => entry.requestId) ?? [] : []
   return <CanLink value={canLink}>
     <SameProblemView requestNumber={requestNumber} canLink={canLink} state={state} onOpenLink={() => { setLinkMounted(true); setLinkOpen(true) }} onRemove={entry => { void remove(entry) }}
       onRetry={() => { setState({ kind: "loading" }); void load() }} removing={removing} actionError={actionError} announcement={announcement} headingRef={heading} linkButtonRef={linkButton} />
-    {linkMounted && <SameProblemLinkDialog open={linkOpen} onOpenChange={setLinkOpen} orgId={orgId} requestId={requestId} linkedIds={linkedIds} onLink={link} returnFocus={() => linkButton.current?.focus()} />}
+    {linkMounted && linkDialog && <linkDialog.default open={linkOpen} onOpenChange={setLinkOpen} orgId={orgId} requestId={requestId} linkedIds={linkedIds} onLink={link} returnFocus={() => linkButton.current?.focus()} />}
   </CanLink>
 }
