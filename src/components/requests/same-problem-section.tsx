@@ -1,6 +1,7 @@
 "use client"
 import dynamic from "next/dynamic"
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
+import { afterPageLoad } from "@/lib/after-page-load"
 import { callAction } from "@/lib/action-call"
 import { thrownMessage } from "@/lib/failure-messages"
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup"
@@ -20,8 +21,31 @@ function Loading() {
 // The list loads after the page and the search dialog only when someone opens it, so the Request page's first load
 // carries just this adapter. #259: the list and its load ahead share one import, so they share one chunk (an import
 // written inside dynamic() gets a chunk of its own, which loading ahead would not warm).
-const loadView = () => import("./same-problem-view")
+let viewHere = false
+const loadView = () => import("./same-problem-view").then(module => { viewHere = true; return module })
 const SameProblemView = dynamic(() => loadView().then(module => module.SameProblemView), { ssr: false, loading: Loading })
+/** Build 3: the list's code is fetched once the page has loaded and is idle (src/lib/after-page-load.ts), as Build 2's
+ * lazy parts are. Fetched during hydration it held `load` back on a phone, and the loads ahead after it. Its read
+ * waits behind the journey's (Next sends server reads one at a time), so the code is here before the list has
+ * anything to show. Already here (the preview loads it ahead), it renders at once. It renders only once its code is
+ * here, so a fetch that fails (offline, an old tab after a deploy) never throws the page out to the error screen:
+ * the placeholder stays, and the fetch is tried again when the browser is back online or the tab is used again. */
+function useViewCode() {
+  const [ready, setReady] = useState(viewHere)
+  useEffect(() => {
+    if (ready) return
+    let live = true
+    const retry = () => { removeEventListener("online", retry); removeEventListener("focus", retry); fetchCode() }
+    const fetchCode = () => {
+      loadView().then(() => { if (live) setReady(true) }, () => {
+        if (live) { addEventListener("online", retry); addEventListener("focus", retry) }
+      })
+    }
+    const cancel = afterPageLoad(fetchCode)
+    return () => { live = false; cancel(); removeEventListener("online", retry); removeEventListener("focus", retry) }
+  }, [ready])
+  return ready
+}
 // The link dialog loads when it first opens; if it can't, Lane says so instead of a blank popup.
 const linkDialogCode = popupCode(() => import("./same-problem-link-dialog"))
 /** #259: the list's code, loaded ahead with the Request preview's (preloadRequestPeek), so a preview opened after a rest
@@ -108,11 +132,12 @@ export function SameProblemSection({ requestId, requestNumber, orgId, canLink }:
   }
 
   const linkDialog = usePopupCode(linkDialogCode, linkOpen, () => couldNotOpen("same-problem-link", setLinkOpen))
+  const viewCode = useViewCode()
   if (hidden) return null
   const linkedIds = state.kind === "ready" ? state.iterations?.iterations.map(entry => entry.requestId) ?? [] : []
   return <CanLink value={canLink}>
-    <SameProblemView requestNumber={requestNumber} canLink={canLink} state={state} onOpenLink={() => { setLinkMounted(true); setLinkOpen(true) }} onRemove={entry => { void remove(entry) }}
-      onRetry={() => { setState({ kind: "loading" }); void load() }} removing={removing} actionError={actionError} announcement={announcement} headingRef={heading} linkButtonRef={linkButton} />
+    {!viewCode ? <Loading /> : <SameProblemView requestNumber={requestNumber} canLink={canLink} state={state} onOpenLink={() => { setLinkMounted(true); setLinkOpen(true) }} onRemove={entry => { void remove(entry) }}
+      onRetry={() => { setState({ kind: "loading" }); void load() }} removing={removing} actionError={actionError} announcement={announcement} headingRef={heading} linkButtonRef={linkButton} />}
     {linkMounted && linkDialog && <linkDialog.default open={linkOpen} onOpenChange={setLinkOpen} orgId={orgId} requestId={requestId} linkedIds={linkedIds} onLink={link} returnFocus={() => linkButton.current?.focus()} />}
   </CanLink>
 }
