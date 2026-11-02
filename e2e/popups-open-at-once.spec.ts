@@ -92,7 +92,7 @@ test("on a cold first visit, /, ⌘K, J, K and Escape pressed right after load w
   const user = await createTestUser("shortcuts-at-once");
   try {
     await provisionAndSignIn(page, user, { name: "Shortcuts At Once PM", workspaceName: "Lane E2E Shortcuts at once", role: "pm" });
-    const requests = [];
+    const requests: Awaited<ReturnType<typeof seedTestRequest>>[] = [];
     for (let i = 0; i < 3; i++) requests.push(await seedTestRequest(user.id, `Shortcuts at once Request ${i + 1}`));
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Network.enable");
