@@ -9,10 +9,11 @@
 .group { break-inside: avoid; padding-block-end: var(--space-5); }
 .heading { margin: 0 0 var(--space-2); color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .list { display: grid; margin: 0; }
-/* #268 (A125): every row keeps the same space above and below its label, one line or two (a one-line row is still 32px). */
-.item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--space-8); padding-block: calc(var(--space-1) * 1.5); }
-.label { min-width: 0; color: var(--text-secondary); font-size: var(--text-sm); font-weight: var(--weight-normal); }
-.keys { display: flex; flex: none; align-items: center; gap: var(--space-1); margin: 0; }
+/* #268 (A125): every label keeps the same space above and below it, on one line or two: the row is the label's
+   height plus even padding (a one-line row is still 32px), and the caps sit on its first line without making it taller. */
+.item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); min-height: var(--space-8); padding-block: calc(var(--space-1) * 1.5); }
+.label { min-width: 0; color: var(--text-secondary); font-size: var(--text-sm); font-weight: var(--weight-normal); line-height: var(--leading-body); }
+.keys { display: flex; flex: none; align-items: center; gap: var(--space-1); height: calc(var(--text-sm) * var(--leading-body)); margin: 0; }
 .or { color: var(--text-secondary); font-size: var(--text-xs); }
 /* The caps either side hide on touch screens (globals.css), so the "or" between them goes too. */
 @media (pointer: coarse) { .or { display: none; } }

@@ -80,7 +80,10 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, pathname, t
         event.preventDefault()
         focus.opened(input.current)
         const typed = takeTypeahead()
-        if (typed) { setQuery(typed); setActive(0) }
+        if (!typed) return
+        // Into the field at once as well as into state: a key typed before React next renders adds to it, not to "".
+        if (input.current) input.current.value = typed
+        setQuery(typed); setActive(0)
       }}
       onEscapeKeyDown={event => { if (step === "priority") { event.preventDefault(); setStep("entries"); setQuery(""); setActive(0) } }}
       onCloseAutoFocus={event => { if (focus.closed()) event.preventDefault() }}>
