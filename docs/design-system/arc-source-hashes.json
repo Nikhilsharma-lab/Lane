@@ -360,28 +360,28 @@
     "source": "https://uiarc.dev/r/user-menu.json",
     "file": "src/components/arc/user-menu/user-menu.tsx",
     "upstreamSha256": "077dd8457c238330e82e494af76623879d3393ef1bc7720b6205bcda06688295",
-    "localSha256": "af1caeafd8f27fe1c69e21eec180f3bda10274e38137721fb4571c21d82051c0"
+    "localSha256": "5bc4f8d44d0ec2cc45d134154dccca3e96e679dcab146a0210c4f54672099e55"
   },
   {
     "id": "workspace-sidebar",
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx",
     "upstreamSha256": "ba91e8b75357ada3b74dff408f3519671e6c582d702396bb3f76fdd0e35a5916",
-    "localSha256": "0ab1c11ab1af0c4abd461fa2cb02feb8bd9d735d8d915f99356225ee03a49516"
+    "localSha256": "4284a6e74164b65263ca7459497ce94700bde90fe6a4d989a4106afac9e4f4f8"
   },
   {
     "id": "workspace-sidebar",
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css",
     "upstreamSha256": "0c80f65cc602adf3e78890d1045edd62201e279b78a104d63416a5594a702235",
-    "localSha256": "fd5fa2b5331c80255b49afcfe4a321af8a0e4717affc1f37c884347359af769b"
+    "localSha256": "a3963e84aadd20524ee0efad17032d4d09fd90f2a768d7dfd84bb46b58397b07"
   },
   {
     "id": "context-menu",
     "source": "https://uiarc.dev/r/context-menu.json",
     "file": "src/components/arc/context-menu/context-menu.tsx",
     "upstreamSha256": "84301492fadf8cfb3dfa1682381932c4b986404b2adc2ef4e868de1582eb367e",
-    "localSha256": "324042dcc9e35162b62045be32794f19efa1f48837c65f9f5c7c5fd76845bbee"
+    "localSha256": "1db6d7acab2ebe174b65ddb475113a6456b7f1ba0c5ea53ed91a8f66f6fd39d5"
   },
   {
     "id": "context-menu",
