@@ -2,7 +2,7 @@
 // Arc Pro source (https://uiarc.dev): navigation/search composition adapted from settings-command.
 // Used as part of Lane under the Arc Pro license, not this repository's license; not for reuse outside Lane.
 
-import Link from "next/link";
+import Link from "@/components/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AnimatePresence, LayoutGroup, m, useReducedMotion } from "motion/react";
 import { ArrowLeft, Search, UserRound, Palette, ShieldCheck, Building2, Users, Clock, ChartLine, Mail, MessageSquare, CreditCard } from "lucide-react";

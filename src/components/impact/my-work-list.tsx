@@ -1,5 +1,5 @@
 import { plannedDay } from "@/lib/dates"
-import Link from "next/link"
+import Link from "@/components/link"
 import type { MyWorkEntry } from "@/lib/impact-read-model"
 import type { ResultView } from "@/lib/impact-read-model"
 import { actualText, baselineLabelOf, changeText, entryKindOf, goalText, valueText } from "@/lib/impact-presenter"

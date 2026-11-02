@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/link"
 import { useRef, useState, type KeyboardEvent } from "react"
 import type { ImpactPeriod } from "@/lib/impact-period"
 import type { ImpactDashboard, Teammate, MyWorkEntry } from "@/lib/impact-read-model"

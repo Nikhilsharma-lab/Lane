@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/link";
 import { ArrowLeft } from "lucide-react";
 import styles from "./settings.module.css";
 import { Placeholder } from "@/components/loading/placeholder";

@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/link"
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react"
 import { Hash, Inbox, Link2, Maximize2, X } from "lucide-react"
 import { Button } from "@/components/arc/button/button"

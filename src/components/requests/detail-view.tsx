@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import Link from "next/link"
+import Link from "@/components/link"
 import { ExternalLink, FileText, Image as ImageIcon, Inbox, Link as LinkIcon } from "lucide-react"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import buttonStyles from "@/components/arc/button/button.module.css"
