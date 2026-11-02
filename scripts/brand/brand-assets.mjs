@@ -2,7 +2,7 @@
 // prod audit O4, #96).
 //
 // Every asset is derived from two sources, so none of them carries a hand-picked value:
-//   - the Lane mark: the <path d> data of LaneMark in src/components/auth/auth-shell.tsx;
+//   - the Lane mark: the <path d> data of LaneGlyph in src/components/brand/lane-glyph.tsx (LaneMark's glyph);
 //   - colours and proportions: the theme file src/styles/theme.css (tweakcn's light and dark
 //     --background / --foreground, and Lane additions sizes), resolved to sRGB hex because icon
 //     files, the manifest and the theme-color meta tags are read by browsers and platforms that do
@@ -30,7 +30,7 @@ const { createElement: h } = require('react')
 
 export const sourceFiles = {
   theme: 'src/styles/theme.css',
-  mark: 'src/components/auth/auth-shell.tsx',
+  mark: 'src/components/brand/lane-glyph.tsx',
   layout: 'src/app/layout.tsx',
 }
 
@@ -99,13 +99,13 @@ const FAVICON_RATIO = 0.75
 
 // Builds every brand asset from the source texts (see sourceFiles). Returns repo path → bytes.
 export async function buildBrandAssets(sources) {
-  const markSource = sources.mark.match(/export function LaneMark\(\)[\s\S]*?<\/svg>/)
-  if (!markSource) throw new Error('LaneMark not found in src/components/auth/auth-shell.tsx')
+  const markSource = sources.mark.match(/export function LaneGlyph\(\)[\s\S]*?<\/svg>/)
+  if (!markSource) throw new Error('LaneGlyph not found in src/components/brand/lane-glyph.tsx')
   const mark = {
     viewBox: markSource[0].match(/viewBox="([^"]+)"/)[1],
     paths: [...markSource[0].matchAll(/<path d="([^"]+)"/g)].map(match => match[1]),
   }
-  if (mark.paths.length === 0) throw new Error('LaneMark has no paths')
+  if (mark.paths.length === 0) throw new Error('LaneGlyph has no paths')
 
   const colour = themeColours(sources.theme)
   const sizeToken = name => {
