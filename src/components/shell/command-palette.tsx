@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react"
 import { Dialog, DialogContent } from "@/components/arc/dialog/dialog"
+import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { SearchField } from "@/components/arc/search-field/search-field"
 import { useListAnnouncer } from "@/components/requests/list-announcer"
 import { useCurrentRequest } from "@/components/requests/list-view-state"
@@ -10,6 +11,7 @@ import { useRequestMoves } from "@/components/requests/request-moves"
 import { showSettingsSection, showsSettingsInPlace } from "@/components/settings/settings-catalog"
 import { isShown } from "@/lib/keyboard-guards"
 import { useRequestNavigation } from "@/components/requests/request-navigation"
+import { useIntentPrefetch } from "@/components/requests/use-intent-prefetch"
 import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntry, type PaletteRole, type PriorityEntry } from "./command-palette-entries"
 import { openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 import { PaletteOption } from "./command-palette-option"
@@ -32,6 +34,10 @@ export type CommandPaletteProps = CommandPaletteWorkspace & {
   onOpenChange: (open: boolean) => void
   /** What had focus when ⌘K was pressed. */
   returnFocusRef: RefObject<HTMLElement | null>
+  /** The page under it. #268 (A11): a page that lands while it is open gets focus back to the field. */
+  pathname: string
+  /** #268 (A12): what was typed between ⌘K and the field taking focus, taken once. */
+  takeTypeahead: () => string
 }
 
 
@@ -45,7 +51,7 @@ export type CommandPaletteProps = CommandPaletteWorkspace & {
  * holds both at full opacity there and hides them once closed, so it opens
  * and closes with no animation.
  */
-export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspace }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpenChange, returnFocusRef, pathname, takeTypeahead, ...workspace }: CommandPaletteProps) {
   const [step, setStep] = useState<PaletteStep>("entries")
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
@@ -56,19 +62,44 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspac
     setWasOpen(open)
     if (open) { setStep("entries"); setQuery(""); setActive(0) }
   }
+  // #268 (A11): the page that was on its way when ⌘K was pressed has landed. Its own arrival may have moved focus,
+  // so the field takes it back once that page has settled, with the caret after what was typed.
+  const landed = useEffectEvent(() => {
+    const field = input.current
+    if (!open || !field) return
+    if (document.activeElement !== field) field.focus({ preventScroll: true })
+    field.setSelectionRange(field.value.length, field.value.length)
+  })
+  useEffect(() => {
+    const frame = requestAnimationFrame(landed)
+    return () => cancelAnimationFrame(frame)
+  }, [pathname])
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent title={step === "priority" ? "Change priority" : "Command palette"} aria-describedby={undefined} className={styles.dialog} overlayClassName={styles.overlay}
-      onOpenAutoFocus={event => { event.preventDefault(); focus.opened(input.current) }}
+      onOpenAutoFocus={event => {
+        event.preventDefault()
+        focus.opened(input.current)
+        const typed = takeTypeahead()
+        if (typed) { setQuery(typed); setActive(0) }
+      }}
       onEscapeKeyDown={event => { if (step === "priority") { event.preventDefault(); setStep("entries"); setQuery(""); setActive(0) } }}
       onCloseAutoFocus={event => { if (focus.closed()) event.preventDefault() }}>
       {/* The entry acts in the same tick as its Enter, so the move's own acknowledgement shows on the next frame. */}
-      <PaletteBody {...workspace} input={input} step={step} query={query} active={active} onStep={setStep} onQuery={setQuery} onActive={setActive}
+      <PaletteBody {...workspace} pathname={pathname} input={input} step={step} query={query} active={active} onStep={setStep} onQuery={setQuery} onActive={setActive}
         onRun={() => focus.run(() => onOpenChange(false))} />
     </DialogContent>
   </Dialog>
 }
 
+/** The page an entry opens, when it leaves this one: the Inbox, Impact, or a Settings section from outside Settings. */
+function pageOf(action: PaletteEntry["action"], pathname: string): string | null {
+  if (action.kind === "go") return action.href === pathname ? null : action.href
+  if (action.kind === "settings") return showsSettingsInPlace(action.href, pathname) ? null : action.href
+  return null
+}
+
 type BodyProps = CommandPaletteWorkspace & {
+  pathname: string
   input: RefObject<HTMLInputElement | null>
   step: PaletteStep; query: string; active: number
   onStep: (step: PaletteStep) => void; onQuery: (query: string) => void; onActive: (index: number) => void
@@ -77,7 +108,7 @@ type BodyProps = CommandPaletteWorkspace & {
 }
 
 /** Mounted only while the palette shows, so the current Request and the Undo pointer are read only then. */
-function PaletteBody({ orgId, role, viewer, projects, input, step, query, active, onStep, onQuery, onActive, onRun }: BodyProps) {
+function PaletteBody({ orgId, role, viewer, projects, pathname, input, step, query, active, onStep, onQuery, onActive, onRun }: BodyProps) {
   const uid = useId()
   const navigation = useRequestNavigation()
   const list = useRef<HTMLDivElement>(null)
@@ -85,6 +116,7 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
   const undo = useUndoableMarkDone()
   const announce = useListAnnouncer()
   const moves = useRequestMoves({ orgId, announce })
+  const { toast } = useToastStack()
   // useCurrentRequest keeps one object until the Request or its pending changes change.
   const request = current
   const undoId = undo?.requestId
@@ -96,6 +128,19 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
   const activeIndex = Math.max(0, Math.min(active, shown.length - 1))
   const activeEntry = shown[activeIndex]
   const optionId = (entry: PaletteEntry) => `${uid}-option-${entry.id}`
+
+  // #268 (feel idea 11): an entry that opens another page starts loading it once the person highlights it, by
+  // pointer or keys (or by typing to it), after the rows' short pause, so moving fast through entries starts at
+  // most one load. The palette has no Request entries of its own; its pages are the Inbox, Impact and Settings.
+  const [intent, setIntent] = useState(false)
+  const pageHref = activeEntry ? pageOf(activeEntry.action, pathname) : null
+  const prefetch = useIntentPrefetch(pageHref ?? "/")
+  useEffect(() => {
+    if (!intent || !pageHref) return
+    prefetch.schedule()
+    return prefetch.cancel
+  }, [intent, pageHref, prefetch])
+  const highlight = (index: number) => { setIntent(true); onActive(index) }
 
   // Scroll only the list, so the field never leaves view.
   useEffect(() => {
@@ -133,6 +178,8 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
       },
       go: href => navigation.open(href),
       link: id => new URL(`/requests/${id}`, window.location.origin).href,
+      // One message that updates in place, so copying twice doesn't stack two.
+      copied: title => { toast({ id: "palette-copied", type: "success", title }) },
     }
     runPaletteAction(action, deps)
   }
@@ -141,7 +188,7 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
     const command = paletteListKey(event.nativeEvent, { count: shown.length, active: activeIndex, query, step: priority ? "priority" : "entries" })
     if (!command) return
     event.preventDefault()
-    if (command.type === "active") onActive(command.index)
+    if (command.type === "active") highlight(command.index)
     else if (command.type === "back") back()
     else if (activeEntry) choose(activeEntry)
   }
@@ -158,13 +205,13 @@ function PaletteBody({ orgId, role, viewer, projects, input, step, query, active
 
   return <div className={styles.palette}>
     <SearchField ref={input} label={priority ? "Find a priority" : "Find an action or place"} hideLabel placeholder={priority ? "Find a priority" : "Find an action or place"}
-      value={query} onValueChange={value => { onQuery(value); onActive(0) }} onKeyDown={onKeyDown}
+      value={query} onValueChange={value => { onQuery(value); highlight(0) }} onKeyDown={onKeyDown}
       role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list" aria-activedescendant={activeEntry ? optionId(activeEntry) : undefined}
       autoComplete="off" spellCheck={false} />
     <div ref={list} id={listId} role="listbox" aria-label={priority ? "Priorities" : "Actions and places"} className={styles.list} hidden={empty}>
       {groups.map(group => <div key={group.name} role="group" aria-labelledby={`${uid}-group-${group.name}`} className={styles.group}>
         <div role="presentation" id={`${uid}-group-${group.name}`} className={styles.heading}>{group.name}</div>
-        {group.items.map(({ entry, index }) => <PaletteOption key={entry.id} entry={entry} id={optionId(entry)} index={index} selected={index === activeIndex} onActive={onActive} onChoose={choose} />)}
+        {group.items.map(({ entry, index }) => <PaletteOption key={entry.id} entry={entry} id={optionId(entry)} index={index} selected={index === activeIndex} onActive={highlight} onChoose={choose} />)}
       </div>)}
     </div>
     {/* Mounted empty, so the first count is heard. The empty state is this same message, shown. */}

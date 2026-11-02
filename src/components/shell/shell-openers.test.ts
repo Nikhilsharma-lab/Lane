@@ -7,11 +7,12 @@ const register = (...args: Parameters<typeof registerShellOpener>) => { const of
 afterEach(() => { while (cleanups.length) cleanups.pop()!() })
 
 describe("shell openers", () => {
-  it("names the three surfaces", () => {
-    expect([...SHELL_SURFACES]).toEqual(["search", "shortcuts", "composer"])
+  // #268: the sidebar's Jump to… bar opens the ⌘K palette through the same API.
+  it("names the four surfaces", () => {
+    expect([...SHELL_SURFACES]).toEqual(["search", "shortcuts", "composer", "palette"])
   })
 
-  it.each<ShellSurface>(["search", "shortcuts", "composer"])("opens %s through the opener its component registered", surface => {
+  it.each<ShellSurface>(["search", "shortcuts", "composer", "palette"])("opens %s through the opener its component registered", surface => {
     const open = vi.fn()
     register(surface, open)
     expect(canOpenShellSurface(surface)).toBe(true)

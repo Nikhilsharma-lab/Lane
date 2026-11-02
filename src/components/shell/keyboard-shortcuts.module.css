@@ -1,11 +1,16 @@
 /* Plan item 2.4: the `?` shortcut overlay. Arc Dialog supplies the surface, motion and focus; this is its list. */
 /* Wider than Arc's 440px default so two columns of shortcuts fit; the attribute keeps it over the Dialog's own width rule. */
 .dialog[role="dialog"] { width: min(calc(100vw - var(--space-8)), calc(var(--space-1) * 160)); }
+/* #268 (A124): the title and close stay put and only the list scrolls, when the window is too short for it all.
+   Arc's Dialog lays out its header, then its body (the list) as the last child. */
+.dialog[role="dialog"] { display: flex; flex-direction: column; overflow: hidden; }
+.dialog[role="dialog"] > :last-child { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .groups { columns: 1; column-gap: var(--space-8); }
 .group { break-inside: avoid; padding-block-end: var(--space-5); }
 .heading { margin: 0 0 var(--space-2); color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .list { display: grid; margin: 0; }
-.item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--space-8); }
+/* #268 (A125): every row keeps the same space above and below its label, one line or two (a one-line row is still 32px). */
+.item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--space-8); padding-block: calc(var(--space-1) * 1.5); }
 .label { min-width: 0; color: var(--text-secondary); font-size: var(--text-sm); font-weight: var(--weight-normal); }
 .keys { display: flex; flex: none; align-items: center; gap: var(--space-1); margin: 0; }
 .or { color: var(--text-secondary); font-size: var(--text-xs); }
@@ -13,4 +18,10 @@
 @media (pointer: coarse) { .or { display: none; } }
 @media (min-width: 641px) {
   .groups { columns: 2; }
+}
+/* #268 (A122): under reduced motion the dialog appears and goes at once. Arc's Dialog still fades its layers there,
+   so both are held at full opacity and hidden while Arc keeps them mounted for its exit, as the ⌘K palette does. */
+@media (prefers-reduced-motion: reduce) {
+  .dialog[role="dialog"], .overlay { opacity: 1 !important; }
+  .dialog[role="dialog"][data-state="closed"], .overlay[data-state="closed"] { visibility: hidden; }
 }

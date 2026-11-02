@@ -22,15 +22,22 @@
 .content[hidden] { display: none; }
 .content:has([data-request-selection-bar]) { scroll-padding-bottom: calc(var(--space-16) + var(--space-8)); }
 .content:has([data-request-selection-bar] [role="alert"]) { scroll-padding-bottom: calc(var(--space-16) * 3); }
+/* #268: the Jump to… bar under the account row opens the ⌘K palette. A quiet full-width button on the sidebar's row
+   geometry, its key caps on the right. Desktop with the sidebar expanded only: never collapsed, peeking or on a phone. */
+.jump { display: flex; width: 100%; min-width: 0; height: var(--row, calc(var(--space-1) * 8)); align-items: center; justify-content: space-between; gap: var(--space-2); border: var(--border-width) solid var(--border); border-radius: var(--radius-control); padding: 0 var(--space-2) 0 var(--space-3); background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--text-sm); text-align: left; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard); }
+.jumpLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jumpKeys { display: flex; flex: none; gap: var(--space-1); }
+@media (hover: hover) and (pointer: fine) { .jump:hover { background: var(--interaction-hover); color: var(--text-secondary); } }
+.navigation[data-collapsed] .jump { display: none; }
 .skip { position: fixed; z-index: 100; top: var(--space-2); left: var(--space-2); transform: translateY(-160%); border-radius: var(--radius-control); padding: var(--space-2) var(--space-4); background: var(--foreground); color: var(--background); font-size: var(--text-sm); }
 .skip:focus { transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  .navigation[data-collapsed] .sidebarPanel, .resizeHandle::after { transition: none; }
+  .navigation[data-collapsed] .sidebarPanel, .resizeHandle::after, .jump { transition: none; }
 }
 @media (max-width: 640px) {
   .shell { flex-direction: column; }
   .navigation { height: auto; width: 100%; }
-  .resizeHandle { display: none; }
+  .resizeHandle, .jump { display: none; }
   .main { min-height: 0; }
 }
 @media (max-width: 880px) {
