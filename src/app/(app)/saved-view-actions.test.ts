@@ -81,6 +81,29 @@ describe("saving the list's filters", () => {
   });
 });
 
+describe("the title filter in a view (A214)", () => {
+  it("is saved and updated with the status view and Project, as JSON, with no new column", async () => {
+    const { saveView, updateSavedView } = await actions();
+    const saved = await saveView({ name: "Checkout", filters: { status: "open", project: "all", title: " checkout " } }, ctx);
+    expect(saved).toMatchObject({ ok: true, view: { name: "Checkout", filters: { status: "open", project: "all", title: "checkout" } } });
+    const id = (saved as { view: { id: string } }).view.id;
+    expect(await updateSavedView({ id, filters: { status: "open", project: "all", title: "pay" } }, ctx)).toMatchObject({ ok: true, view: { filters: { title: "pay" } } });
+    expect((await stored()).find(row => row.name === "Checkout")?.filters).toEqual({ status: "open", project: "all", title: "pay" });
+    // Clearing the title saves the older shape again.
+    expect(await updateSavedView({ id, filters: { status: "open", project: "all", title: "" } }, ctx)).toMatchObject({ ok: true, view: { filters: { status: "open", project: "all" } } });
+    expect((await stored()).find(row => row.name === "Checkout")?.filters).toEqual({ status: "open", project: "all" });
+  });
+
+  it("is limited to the longest Request title", async () => {
+    expect(await (await actions()).saveView({ name: "Too long", filters: { status: "all", project: "all", title: "x".repeat(201) } }, ctx)).toEqual({ error: "Those filters can't be saved. Reload the page and try again." });
+  });
+
+  it("is absent from a view saved before it, which still opens", async () => {
+    await connection`insert into saved_views(org_id, owner_id, name, filters) values (${ORG}, ${MEMBER}, 'Older view', ${connection.json({ status: "done", project: "all" })})`;
+    expect((await myViews()).find(view => view.name === "Older view")?.filters).toEqual({ status: "done", project: "all" });
+  });
+});
+
 describe("a view is its owner's alone", () => {
   let viewId: string;
   beforeAll(async () => {

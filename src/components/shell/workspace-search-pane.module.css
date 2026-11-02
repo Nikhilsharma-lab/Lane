@@ -80,7 +80,10 @@
 @container search (max-width: 679px) {
   .body { grid-template-columns: minmax(0, 1fr); }
   .sidebar { display: none; }
-  .mobileFilters { display: inline-flex; }
+  .mobileFilters { display: inline-flex; margin-inline-start: auto; }
+  /* The field takes its own row on phones, so its placeholder ("Search Requests and Projects") is shown in full. */
+  .top { flex-wrap: wrap; row-gap: var(--space-2); }
+  .queryWrap { order: 1; flex-basis: 100%; }
   /* A229: on phones the sort row waits for a query; there is nothing to sort before one. */
   .mainHead:not([data-query]) .sort { display: none; }
   .top { padding-inline: var(--space-3); }
