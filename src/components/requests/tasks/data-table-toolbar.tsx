@@ -9,11 +9,12 @@ import { Select } from "@/components/arc/select/select"
 import { Button } from "@/components/arc/button/button"
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
-import { CalendarClock, Hourglass, ListFilter, PanelRight, Search, SlidersHorizontal } from "lucide-react"
+import { CalendarClock, Funnel, Hourglass, ListFilter, PanelRight, SlidersHorizontal } from "lucide-react"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { useWorkspaceLabels } from "../workspace-labels"
 import { LabelDot } from "../request-labels"
-import { REQUEST_STATUS_FILTER_LABELS, isRequestStatusFilter } from "@/lib/request-workspace"
+import { REQUEST_STATUS_FILTER_LABELS, REQUEST_TITLE_FILTER_MAX, isRequestStatusFilter } from "@/lib/request-workspace"
+import { TITLE_FILTER_LABEL } from "../list-focus"
 import { matchesStatusView, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
 import type { RequestColumn } from "./columns"
@@ -75,10 +76,11 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
         if (isRequestStatusFilter(next) && next !== filter) onStatusChange(next)
       }} />}
       <div className={styles.actions}>
+        {/* A214: a filter, not a search. A magnifier always means workspace search, so this field shows a funnel. */}
         <Popover>
-          <PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} data-active={title ? "" : undefined} aria-label="Filter Requests by title" title="Filter Requests by title"><Search aria-hidden="true" /></Button></PopoverTrigger>
-          <PopoverContent align="end" aria-label="Filter Requests by title" className={styles.searchPanel} onOpenAutoFocus={event => { event.preventDefault(); titleInput.current?.focus() }}>
-            <SearchField ref={titleInput} label="Search Requests" aria-label="Filter Requests by title" placeholder="Filter by title…" value={title} onValueChange={value => onFilterChange("title", value)} />
+          <PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} data-active={title ? "" : undefined} aria-label={TITLE_FILTER_LABEL} title={TITLE_FILTER_LABEL}><Funnel aria-hidden="true" /></Button></PopoverTrigger>
+          <PopoverContent align="end" aria-label={TITLE_FILTER_LABEL} className={styles.searchPanel} onOpenAutoFocus={event => { event.preventDefault(); titleInput.current?.focus() }}>
+            <SearchField ref={titleInput} label={TITLE_FILTER_LABEL} icon={<Funnel data-icon-size="lg" aria-hidden="true" />} placeholder="Filter by title…" value={title} maxLength={REQUEST_TITLE_FILTER_MAX} onValueChange={value => onFilterChange("title", value)} />
           </PopoverContent>
         </Popover>
         <FilterMenu presentation="popover" fields={fields} active={chips} onSelect={addFilter} triggerIcon={<ListFilter aria-hidden="true" />} />

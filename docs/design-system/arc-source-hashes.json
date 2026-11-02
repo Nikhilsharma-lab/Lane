@@ -262,7 +262,7 @@
     "source": "https://uiarc.dev/r/search-field.json",
     "file": "src/components/arc/search-field/search-field.tsx",
     "upstreamSha256": "d93a8d0778c83d33793bf3fe7e5b206a5d0c6e50948b83f39777b89899392d93",
-    "localSha256": "3b5761c0411153cf78e675a5b25a6a0032a7d2e5a5a38177653e8929ec0254de"
+    "localSha256": "6916f5fb8168d41e9e88df59ce01f21f6ff6d3174bc6b8610643831e6b6ae356"
   },
   {
     "id": "segmented-control",

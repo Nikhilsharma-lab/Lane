@@ -10,7 +10,7 @@ vi.mock("react", async importOriginal => {
 })
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(reads.search) }))
 
-import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, withSavedView, type ListViewState } from "./list-view-state"
+import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListTitle, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, withSavedView, type ListViewState } from "./list-view-state"
 import type { OverviewRequest } from "@/lib/request-overview"
 
 beforeEach(() => { reads.names = []; reads.search = "" })
@@ -66,7 +66,7 @@ describe("Request list context (plan item 1.7)", () => {
   const base = { seen: "", written: null, current: { status: "all", project: "all" } as const, hold: false, pathname: "/", locationSearch: "" }
 
   it("adopts a status view or Project that arrives in the URL", () => {
-    expect(planListUrlSync({ ...base, search: "project=none", seen: null, locationSearch: "?project=none" })).toEqual({ seen: "project=none", adopt: { status: "all", project: "none" } })
+    expect(planListUrlSync({ ...base, search: "project=none", seen: null, locationSearch: "?project=none" })).toEqual({ seen: "project=none", adopt: { status: "all", project: "none", title: "" } })
   })
 
   it("keeps the current context on a bare return to the list and writes it to the URL", () => {
@@ -82,6 +82,41 @@ describe("Request list context (plan item 1.7)", () => {
   it("does not adopt the query it wrote itself, and writes nothing off the list", () => {
     expect(planListUrlSync({ ...base, search: "status=open", written: "status=open", current: { status: "done", project: "all" }, locationSearch: "?status=open" })).toEqual({ seen: "status=open", write: "/?status=done" })
     expect(planListUrlSync({ ...base, search: "", current: { status: "open", project: "all" }, pathname: "/requests/request-1" })).toEqual({ seen: "" })
+  })
+})
+
+describe("The title filter in the list context (A214)", () => {
+  const view = { status: "open", project: "all", title: "", pagination: { pageIndex: 3, pageSize: 25 } } as ListViewState
+  const base = { written: null, hold: false, pathname: "/" }
+
+  it("starts from the address, as status and Project do", () => {
+    reads.search = "status=open&title=checkout"
+    expect(renderInProvider(() => `${useRequestListContext().status}:${useRequestListTitle()}`)).toBe("open:checkout")
+    // Kept apart from the list context, so the sidebar doesn't re-render on each keystroke.
+    expect(renderInProvider(() => Object.keys(useRequestListContext()).filter(key => key !== "savedView").join(","))).toBe("status,project")
+    expect(renderInProvider(() => { const [state] = useRequestListView(); return listFiltersOf(state).title })).toBe("checkout")
+  })
+
+  it("returns to the first page when it changes, and a context without a title keeps it", () => {
+    const filtered = withListContext(view, { title: "checkout" })
+    expect(filtered).toMatchObject({ title: "checkout", pagination: { pageIndex: 0, pageSize: 25 } })
+    expect(withListContext(filtered, { project: "none" })).toMatchObject({ project: "none", title: "checkout" })
+    expect(withListContext(filtered, { title: "checkout" })).toBe(filtered)
+  })
+
+  it("is written to the address with the status view", () => {
+    expect(planListUrlSync({ ...base, search: "status=open", seen: "status=open", current: { status: "open", project: "all", title: "check out" }, locationSearch: "?status=open" })).toEqual({ seen: "status=open", write: "/?status=open&title=check+out" })
+  })
+
+  it("is adopted from an address that arrives (Back, Forward, a link), and cleared by one without it", () => {
+    expect(planListUrlSync({ ...base, search: "title=checkout", seen: null, current: { status: "all", project: "all", title: "" }, locationSearch: "?title=checkout" })).toEqual({ seen: "title=checkout", adopt: { status: "all", project: "all", title: "checkout" } })
+    expect(planListUrlSync({ ...base, search: "status=open", seen: "status=open&title=checkout", current: { status: "open", project: "all", title: "checkout" }, locationSearch: "?status=open" })).toEqual({ seen: "status=open", adopt: { status: "open", project: "all", title: "" } })
+  })
+
+  it("comes back with a saved view, and an older view without one clears it", () => {
+    const typed = withListContext(view, { title: "pricing" })
+    expect(withSavedView(typed, { id: "v1", filters: { status: "all", project: "all", title: "checkout" } })).toMatchObject({ title: "checkout", savedView: "v1" })
+    expect(withSavedView(typed, { id: "v2", filters: { status: "all", project: "all" } })).toMatchObject({ title: "", savedView: "v2" })
   })
 })
 
@@ -109,7 +144,7 @@ describe("An empty workspace's status view (plan item 2.1)", () => {
 
 describe("Showing a Request the filters hide (plan item 2.3)", () => {
   const view = {
-    status: "done", project: "p2", localFilters: [{ id: "title", value: "pricing" }, { id: "requestType", value: "bug" }],
+    status: "done", project: "p2", title: "pricing", localFilters: [{ id: "requestType", value: "bug" }],
     pagination: { pageIndex: 2, pageSize: 25 }, collapsedGroups: ["status:open"], ordering: "newest", grouping: "status", columnVisibility: {},
   } as ListViewState
   const created: OverviewRequest = { id: "new", title: "Checkout drops at the phone step", reframedProblem: null, status: "open", createdAt: "2026-10-11T10:00:00Z", creatorName: null, assigneeName: null, projectId: "p1", requestType: "bug" }
@@ -120,14 +155,14 @@ describe("Showing a Request the filters hide (plan item 2.3)", () => {
 
   it("moves to the smallest view that holds the Request, keeps filters that include it, and asks the list to reveal it", () => {
     const next = revealRequest(view, created)
-    expect(next).toMatchObject({ status: "open", project: "p1", localFilters: [{ id: "requestType", value: "bug" }], pagination: { pageIndex: 0, pageSize: 25 }, reveal: "new" })
+    expect(next).toMatchObject({ status: "open", project: "p1", title: "", localFilters: [{ id: "requestType", value: "bug" }], pagination: { pageIndex: 0, pageSize: 25 }, reveal: "new" })
     // A collapsed group is not a filter; the list expands it when it reveals the row.
     expect(next.collapsedGroups).toEqual(["status:open"])
   })
 
   it("moves a Request with no Project to No Project, and keeps a view that already holds it", () => {
     expect(revealRequest(view, { ...created, projectId: null }).project).toBe("none")
-    const holding = { ...view, status: "all", project: "all", localFilters: [] } as ListViewState
+    const holding = { ...view, status: "all", project: "all", title: "", localFilters: [] } as ListViewState
     const next = revealRequest(holding, created)
     expect(next).toMatchObject({ status: "all", project: "all", localFilters: [], pagination: holding.pagination, reveal: "new" })
   })

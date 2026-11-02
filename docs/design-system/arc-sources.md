@@ -506,3 +506,9 @@ Settings and inline Add metric compose the installed Arc Select instead of stack
 ### 2026-11-01 — Merge of main's Quiet refinements into Build 3
 
 The local hashes for `src/components/arc/search-field/search-field.tsx` and `src/components/arc/select/select.tsx` now record the combined files. Search field keeps #266's `m.button` with #306's inert clear-button slot; Select keeps #266's `m.*` elements with #307's `error` prop. No component API, visual value or motion behaviour is added.
+
+## Build 4: the list's title filter and workspace search (#270, 2026-11-02)
+
+- `src/components/arc/search-field/search-field.tsx`: optional decorative `icon` in place of the magnifier (A214). The Requests list's **Filter by title** field passes a funnel, so a magnifier always means workspace search. Without the prop the field is unchanged; no other prop, motion or behaviour changes.
+- Workspace search (Licensed Pro `search-results` derivation, Lane files only): the results body is its own stacking layer so the recent-searches menu paints over the "Search in" cards (A23); a long recent search is cut with "…" and shows its full text in Arc `tooltip` on hover, wrapping on touch screens (A24); the preview column says nothing when there is nothing to preview, and on phones the sort row waits for a query (A229); Label dots and counts sit on their checkbox's first line (A230); result names add status and Project; a Request result highlighted on purpose loads its page ahead through the list's intent-prefetch hook.
+- The Requests list toolbar's icon buttons are 44px on coarse pointers (A27), the size Arc's filter trigger already uses there.

@@ -22,6 +22,8 @@ import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { SearchField } from "@/components/arc/search-field/search-field";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import { Tooltip } from "@/components/arc/tooltip/tooltip";
+import { useIntentPrefetch } from "@/components/requests/use-intent-prefetch";
 import { CopyButton } from "@/components/requests/copy-button";
 import { LocalTime } from "@/components/requests/local-time";
 import { plannedDay } from "@/lib/dates";
@@ -51,8 +53,13 @@ const CATEGORIES: { value: Category; label: string }[] = [{ value: "all", label:
 const titleOf = (result: Match) => result.kind === "request" ? result.item.title : result.item.name;
 const hrefOf = (result: Match) => result.kind === "request" ? requestDetailHref(result.item.id, "all") : requestListHref("all", result.item.id);
 const codeOf = (result: Match) => result.kind === "request" && result.item.requestNumber !== undefined ? formatRequestCode(result.item.requestNumber) : null;
-/** Plan item 2.8: one concise name per result, the title and its code (or "Project"). The row's other text stays visible only. */
-const nameOf = (result: Match) => result.kind === "project" ? `${result.item.name}, Project` : [result.item.title, codeOf(result)].filter(Boolean).join(", ");
+/**
+ * Plan item 2.8: one concise name per result. A Request reads its title and code, then (#239) its status and
+ * Project, as the row shows them, so similar titles can be told apart: "Checkout fails, LAN-25. In progress,
+ * Website". A Project reads its name and "Project". Dates stay visible only.
+ */
+const nameOf = (result: Match) => result.kind === "project" ? `${result.item.name}, Project`
+  : `${[result.item.title, codeOf(result)].filter(Boolean).join(", ")}. ${resultStatus(result.item).label}, ${result.item.projectName ?? "No Project"}`;
 const countLabel = (count: number) => `${count} ${count === 1 ? "result" : "results"}`;
 // Filter chips name calendar days (YYYY-MM-DD) as planned days, the same for everyone (#261).
 const dayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -125,6 +132,18 @@ const ResultRow = memo(function ResultRow({ result, optionId, pattern, selected,
   </li>;
 });
 
+/**
+ * A24: a recent search on one line, cut with "…". Where a mouse can hover, a cut one shows its full text in Arc's
+ * tooltip; on touch screens it wraps instead (polish bar: cut text is never tooltip-only on phones).
+ */
+function RecentQuery({ query, pattern }: { query: string; pattern: RegExp | null }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [cut, setCut] = useState(false);
+  useLayoutEffect(() => { const node = ref.current; if (node) setCut(node.scrollWidth > node.clientWidth); }, [query]);
+  const text = <span ref={ref} className={styles.menuText}><Highlight text={query} pattern={pattern} /></span>;
+  return cut ? <Tooltip content={query} morph="plain">{text}</Tooltip> : text;
+}
+
 type FacetProps = { data: Data | null; filters: WorkspaceSearchFilters; category: Category; onCategory: (category: Category) => void; onChange: (filters: WorkspaceSearchFilters) => void; onDates: () => void };
 
 /** Memoised: counts come from the last server answer, so a keystroke re-renders no facet. */
@@ -138,7 +157,7 @@ const Facets = memo(function Facets({ data, filters, category, onCategory, onCha
       {statuses.map(status => { const on = filters.statuses?.includes(status.value) ?? false; const count = data?.facets ? data.facets.statuses[status.value] ?? 0 : undefined; return <div className={styles.option} key={status.value}><Checkbox label={status.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, statuses: checked ? [...(filters.statuses ?? []), status.value] : filters.statuses?.filter(value => value !== status.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
     </fieldset>
     <fieldset className={styles.facetGroup}><legend>Labels</legend>
-      {TYPES.map(type => { const on = filters.types?.includes(type.value) ?? false; const count = data?.facets ? data.facets.types[type.value] ?? 0 : undefined; return <div className={styles.option} key={type.value}><LabelDot colour={type.colour}/><Checkbox label={type.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, types: checked ? [...(filters.types ?? []), type.value] : filters.types?.filter(value => value !== type.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
+      {TYPES.map(type => { const on = filters.types?.includes(type.value) ?? false; const count = data?.facets ? data.facets.types[type.value] ?? 0 : undefined; return <div className={styles.option} key={type.value}><span className={styles.optionLead}><LabelDot colour={type.colour}/></span><Checkbox label={type.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, types: checked ? [...(filters.types ?? []), type.value] : filters.types?.filter(value => value !== type.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
     </fieldset>
     <div className={styles.facetGroup}><span className={styles.legend}>Created</span><Button variant="secondary" size="sm" onClick={onDates} onPointerEnter={preloadDateRangePicker} onFocus={preloadDateRangePicker}><CalendarDays aria-hidden="true" />{filters.createdFrom ? "Change dates" : "Any time"}</Button>{filters.createdFrom ? <span className={styles.hint}>{plannedDay(filters.createdFrom)} to {plannedDay(filters.createdTo!)}</span> : null}</div>
   </div>;
@@ -208,6 +227,17 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
   const draftPattern = useMemo(() => highlightPattern(draft), [draft]);
   const selected = matches.find(result => result.item.id === activeId) ?? matches[0] ?? null;
   const selectedIndex = selected ? matches.indexOf(selected) : -1;
+  // #230 item 11 (#239): a Request result highlighted on purpose (picked, moved to, or the list's cursor while the list
+  // has focus) loads its page ahead, as ⌘K does, so opening it lands at once. The first result shown while typing is not
+  // a highlight. The intent pause means moving fast through results starts at most one load.
+  const [listFocused, setListFocused] = useState(false);
+  const highlighted = selected?.kind === "request" && (listFocused || selected.item.id === activeId) ? hrefOf(selected) : "";
+  const loadAhead = useIntentPrefetch(highlighted);
+  useEffect(() => {
+    if (!highlighted || !active) return;
+    loadAhead.schedule();
+    return loadAhead.cancel;
+  }, [highlighted, active, loadAhead]);
   const total = data ? category === "all" ? data.requests.total + data.projects.total : data[category].total : 0;
   const busy = loading !== null;
   const suggestions = recent.filter(query => query.toLowerCase().includes(draft.trim().toLowerCase()) && query.toLowerCase() !== draft.trim().toLowerCase());
@@ -289,7 +319,7 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
           placeholder="Search Requests and Projects" value={draft} maxLength={maxLength} autoComplete="off" spellCheck={false} onValueChange={value => { onEdit(value); setMenuIndex(-1); setMenuOpen(true); }} onKeyDown={inputKey} onFocus={() => setMenuOpen(true)} onBlur={() => setMenuOpen(false)} />
       </form>
       <AnimatePresence>{showMenu ? <m.div className={styles.menu} initial={reduced ? { opacity: 0 } : { opacity: 0, y: -4, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}>
-        <span className={styles.menuLabel}>Recent searches</span><ul id={`${uid}-suggestions`} role="listbox" aria-label="Recent searches">{suggestions.map((query, index) => <li key={query} id={`${uid}-suggestion-${index}`} role="option" aria-selected={index === menuIndex} className={styles.menuRow} onMouseDown={event => event.preventDefault()} onMouseMove={() => setMenuIndex(index)} onClick={() => submit(query)}><Clock aria-hidden="true" /><span><Highlight text={query} pattern={draftPattern} /></span></li>)}</ul>
+        <span className={styles.menuLabel}>Recent searches</span><ul id={`${uid}-suggestions`} role="listbox" aria-label="Recent searches">{suggestions.map((query, index) => <li key={query} id={`${uid}-suggestion-${index}`} role="option" aria-selected={index === menuIndex} className={styles.menuRow} onMouseDown={event => event.preventDefault()} onMouseMove={() => setMenuIndex(index)} onClick={() => submit(query)}><Clock aria-hidden="true" /><RecentQuery query={query} pattern={draftPattern} /></li>)}</ul>
       </m.div> : null}</AnimatePresence></div>
       <BottomSheet title="Search filters" open={filtersOpen && active} onOpenChange={setFiltersOpen} detents={[.9]} trigger={<Button variant="secondary" size="sm" className={styles.mobileFilters}><SlidersHorizontal aria-hidden="true" />Filters{filterCount ? ` (${filterCount})` : ""}</Button>}><Facets {...facetProps} /><div className={styles.sheetFooter}><Button variant="secondary" size="sm" onClick={clearFilters} disabled={!filterCount}>Clear filters</Button><Button size="sm" onClick={() => setFiltersOpen(false)}>Show results</Button></div></BottomSheet>
       <Button variant="ghost" size="sm" aria-label="Close search" onClick={onClose}><X aria-hidden="true" /></Button>
@@ -297,20 +327,20 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
     <div className={styles.body}>
       <aside className={styles.sidebar} aria-label="Search filters"><div className={styles.facetsHead}><h2>Filters</h2>{filterCount ? <Button variant="ghost" size="sm" onClick={clearFilters}>Clear all</Button> : null}</div><Facets {...facetProps} /></aside>
       <section ref={scrollRef} aria-label="Search results" className={styles.results}>
-        <div className={styles.mainHead}><p className={styles.summary}>{summary}</p><SegmentedControl label="Sort results" options={SORTS} value={sort} onValueChange={value => onSortChange(value as SearchSort)} /></div>
+        <div className={styles.mainHead} data-query={draft.trim() ? "" : undefined}><p className={styles.summary}>{summary}</p><SegmentedControl className={styles.sort} label="Sort results" options={SORTS} value={sort} onValueChange={value => onSortChange(value as SearchSort)} /></div>
         <p role="status" className={styles.srOnly}>{announcement}</p>
         <AnimatePresence initial={false}>{chips.length ? <m.div className={styles.chipsFrame} initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}><FilterToolbar filters={chips} onRemove={removeChip} onClearAll={clearFilters} announce={false} /></m.div> : null}</AnimatePresence>
         {failure ? <div className={styles.error}><Alert tone="danger" title="Search unavailable">{failure}</Alert><Button variant="secondary" size="sm" data-search-retry="" onClick={() => { onRetry(); }}>Retry search</Button></div> : null}
         {loading === "search" && !data ? <Placeholder><div className={styles.loading}>{[0, 1, 2, 3].map(index => <Skeleton key={index} label="Searching workspace" className={styles.skeletonRow} lines={3} />)}</div></Placeholder>
           : matches.length ? <m.div key={resultKey} className={styles.groups} initial={reduced ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={fade}>
-            <LayoutGroup id={`${uid}-cursor-${resultKey}-${shownQuery}`}><ul ref={listRef} className={styles.list} role="listbox" tabIndex={0} aria-label="Search matches" aria-busy={busy} aria-activedescendant={selected ? `${uid}-${selected.item.id}` : undefined} onKeyDown={listKey}>
+            <LayoutGroup id={`${uid}-cursor-${resultKey}-${shownQuery}`}><ul ref={listRef} className={styles.list} role="listbox" tabIndex={0} aria-label="Search matches" aria-busy={busy} aria-activedescendant={selected ? `${uid}-${selected.item.id}` : undefined} onKeyDown={listKey} onFocus={() => setListFocused(true)} onBlur={() => setListFocused(false)}>
               {matches.map(result => <ResultRow key={`${result.kind}-${result.item.id}`} result={result} optionId={`${uid}-${result.item.id}`} pattern={pattern} selected={selected?.item.id === result.item.id} reduced={Boolean(reduced)} timeZone={timeZone} onPick={openPreview} />)}
             </ul></LayoutGroup>
             <div className={styles.more}>{settled ? (["requests", "projects"] as const).map(kind => category !== (kind === "requests" ? "projects" : "requests") && data?.[kind].hasMore ? <Button key={kind} variant="ghost" size="sm" disabled={loading !== null} loading={loading === kind} data-load-more={kind} onClick={requestMore}>Load more {kind === "requests" ? "Requests" : "Projects"}</Button> : null) : null}</div>
             <p className={styles.keys} aria-hidden="true"><KeyCap>↑</KeyCap><KeyCap>↓</KeyCap> move <KeyCap>↵</KeyCap> preview <KeyCap>{isApple() ? "⌘" : "Ctrl"}</KeyCap><KeyCap>↵</KeyCap> open <KeyCap>/</KeyCap> search</p>
           </m.div> : !failure ? <div className={styles.empty} aria-busy={data ? busy : undefined}><EmptyState icon={data ? <SearchX data-icon-size="2xl" /> : <Search data-icon-size="2xl" />} title={data ? "No results found" : "Find a Request or Project"} description={data ? "Try another word or check the spelling." : "Search by Request code, title or description."} action={filterCount ? <Button size="sm" variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} /></div> : null}
       </section>
-      <aside className={styles.preview} aria-label="Result preview"><AnimatePresence mode="wait" initial={false}>{selected ? <m.div key={selected.item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}><Preview result={selected} pattern={pattern} timeZone={timeZone} onNavigate={onNavigate} /></m.div> : <p className={styles.previewEmpty}>{loading ? "Searching" : "Select a result to preview it."}</p>}</AnimatePresence></aside>
+      <aside className={styles.preview} aria-label="Result preview"><AnimatePresence mode="wait" initial={false}>{selected ? <m.div key={selected.item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}><Preview result={selected} pattern={pattern} timeZone={timeZone} onNavigate={onNavigate} /></m.div> : loading ? <p key="searching" className={styles.previewEmpty}>Searching</p> : null}</AnimatePresence></aside>
     </div>
     <BottomSheet title="Result preview" open={previewOpen && active} onOpenChange={setPreviewOpen} onCloseAutoFocus={event => { event.preventDefault(); if (active) listRef.current?.focus(); }} detents={[.9]}>{selected ? <Preview result={selected} pattern={pattern} timeZone={timeZone} onNavigate={onNavigate} /> : null}</BottomSheet>
     <Dialog open={datesOpen && active} onOpenChange={setDatesOpen}><DialogContent title="Created date" className={styles.dateDialog} overlayClassName={styles.dateOverlay} onCloseAutoFocus={event => { event.preventDefault(); if (active) dateTrigger.current?.focus(); }}><DateRangePicker embedded locale="en-GB" value={range} label="Created date range" months={1} onCancel={() => setDatesOpen(false)} onChange={value => { applyFilters({ ...filters, createdFrom: dayKey(value.start), createdTo: dayKey(value.end) }); setDatesOpen(false); }} /></DialogContent></Dialog>

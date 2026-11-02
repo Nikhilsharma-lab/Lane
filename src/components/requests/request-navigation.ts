@@ -63,7 +63,7 @@ export function createRequestNavigation(state: NavigationState) {
       ? { ...selected, pagination: { ...selected.pagination, pageIndex: 0 } } : selected)
     if (location.pathname !== "/") {
       pendingPath = "/"
-      browser.push(requestListHref(selected.status, selected.project))
+      browser.push(requestListHref(selected.status, selected.project, selected.title))
     } else if (supersedesRoute) {
       // A detail transition may not have committed yet. Cancel it at the current URL;
       // the mirror still holds the selected context until pending mutations settle.
@@ -90,7 +90,7 @@ export function createRequestNavigation(state: NavigationState) {
         return { seen: input.search }
       }
       const current = state.getView()
-      const href = requestListHref(current.status, current.project)
+      const href = requestListHref(current.status, current.project, current.title)
       // Both router state and the address bar must acknowledge the selection:
       // either can still show the previous route while its list is loading.
       if (input.pathname === "/" && href === `/${input.search ? `?${input.search}` : ""}`

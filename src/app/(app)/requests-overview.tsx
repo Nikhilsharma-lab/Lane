@@ -10,7 +10,7 @@ import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { Button } from "@/components/arc/button/button"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { NewRequestLink } from "@/components/requests/new-request-link"
-import { usePublishLoadedRequests, useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { usePublishLoadedRequests, useRequestListContext, useRequestListTitle, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
@@ -107,6 +107,8 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   viewer?: PeekViewer
 }) {
   const listContext = useRequestListContext()
+  // A214: the title filter counts towards "Filters changed" on an open saved view.
+  const listTitle = useRequestListTitle()
   const status = listContext?.status ?? "all", project = listContext?.project ?? "all"
   const sharedProjects = useSharedWorkspaceProjects()
   const pendingMutations = usePendingMutations()
@@ -131,7 +133,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
 
   const openView = openSavedView(savedViews, listContext?.savedView)
   const heading = openView?.name ?? projectName ?? (project === "none" ? "No Project" : isGuest ? "My Requests" : "Requests")
-  const viewNote = openView && savedViewChanged(openView.filters, { status, project }) ? "Filters changed since you saved this view." : undefined
+  const viewNote = openView && savedViewChanged(openView.filters, { status, project, title: listTitle }) ? "Filters changed since you saved this view." : undefined
   const showOlder = older.showMore
   const footer = (activeCapped || showOlder || older.error) ? <div className={`${styles.limitNote} flex flex-wrap items-center gap-3 pt-4`}>
     {activeCapped && <p className="m-0">Showing the latest 200 Requests.</p>}

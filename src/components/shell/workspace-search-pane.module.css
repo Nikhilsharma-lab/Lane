@@ -12,8 +12,12 @@
 .menuLabel { display: block; padding: var(--space-2); font-size: var(--text-xs); color: var(--text-secondary); }
 .menuRow { display: flex; align-items: center; gap: var(--space-3); min-height: var(--menu-row-height); padding: var(--space-2); border-radius: var(--radius-control); cursor: pointer; }
 .menuRow[aria-selected="true"] { background: var(--interaction-hover); }
-.menuRow svg { color: var(--text-secondary); }
-.body { display: grid; grid-template-columns: calc(var(--space-1) * 55) minmax(0, 1fr) calc(var(--space-1) * 80); flex: 1; min-height: 0; }
+.menuRow svg { flex: none; color: var(--text-secondary); }
+/* A24: a long recent search is cut with "…" (its full text in a tooltip); touch screens wrap it instead. */
+.menuText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (pointer: coarse) { .menuText { white-space: normal; overflow-wrap: anywhere; } }
+/* A23: the results area is its own stacking layer, so nothing in it (the "Search in" cards) paints over the recent-searches menu in the header above. */
+.body { isolation: isolate; display: grid; grid-template-columns: calc(var(--space-1) * 55) minmax(0, 1fr) calc(var(--space-1) * 80); flex: 1; min-height: 0; }
 .sidebar { overflow: auto; padding: var(--space-5); border-right: var(--border-width) solid var(--border-subtle); overscroll-behavior: contain; }
 .facetsHead { display: flex; align-items: center; justify-content: space-between; min-height: var(--control-height-md); margin-bottom: var(--space-5); }
 .facetsHead h2 { font-size: var(--text-sm); font-weight: var(--weight-medium); }
@@ -21,9 +25,11 @@
 .facetGroup { min-width: 0; margin: 0; padding: 0; border: 0; }
 /* Plan item 2.8: "Search in" is Arc's radio group; its legend matches the other facet groups. */
 .facets .searchIn legend, .facetGroup legend, .legend { display: block; width: 100%; padding: 0; margin-bottom: var(--space-2); font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-secondary); }
-/* The count takes the free space, so every Label checkbox sits at the same x after its dot. */
-.option { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height-md); }
-.optionCount { margin-inline-start: auto; color: var(--text-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+/* The count takes the free space, so every Label checkbox sits at the same x after its dot.
+   A230: the dot and the count sit on the checkbox's first line, so a wrapped label leaves them in place. */
+.option { display: flex; align-items: flex-start; gap: var(--space-2); min-height: var(--control-height-md); }
+.optionLead { display: flex; flex: none; align-items: center; height: var(--control-height-md); }
+.optionCount { display: flex; align-items: center; min-height: var(--control-height-md); margin-inline-start: auto; color: var(--text-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .hint { display: block; margin-top: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); }
 .results { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--space-5); }
 .mainHead { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-4); }
@@ -75,6 +81,8 @@
   .body { grid-template-columns: minmax(0, 1fr); }
   .sidebar { display: none; }
   .mobileFilters { display: inline-flex; }
+  /* A229: on phones the sort row waits for a query; there is nothing to sort before one. */
+  .mainHead:not([data-query]) .sort { display: none; }
   .top { padding-inline: var(--space-3); }
   .results { padding: var(--space-4); }
   .result { padding-inline: var(--space-2); }

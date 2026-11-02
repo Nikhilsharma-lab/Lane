@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { REQUEST_STATUS_FILTER_LABELS, changesListInPlace, parseRequestProjectFilter, parseRequestStatusFilter, requestDetailHref, requestListHref } from "./request-workspace"
+import { REQUEST_STATUS_FILTER_LABELS, REQUEST_TITLE_FILTER_MAX, changesListInPlace, hasRequestListContext, parseRequestListContext, parseRequestProjectFilter, parseRequestStatusFilter, requestDetailHref, requestListContextFromHref, requestListHref } from "./request-workspace"
 import { JOURNEY_STATUSES } from "./request-journey"
+import { TITLE_MAX } from "./request-schema"
 
 describe("status views (#133)", () => {
   it("offers each journey status under its glossary label, plus Due soon or overdue", () => {
@@ -52,5 +53,29 @@ describe("Request navigation context", () => {
 
   it("normalizes UUID casing so client matching agrees with the database", () => {
     expect(parseRequestProjectFilter("AE000000-0000-4000-8000-000000000002")).toBe("ae000000-0000-4000-8000-000000000002")
+  })
+})
+
+describe("the title filter in the list address (A214)", () => {
+  it("sits beside status and Project, and is left out when empty", () => {
+    expect(requestListHref("open", projectId, "checkout button")).toBe(`/?status=open&project=${projectId}&title=checkout+button`)
+    expect(requestListHref("all", "all", "")).toBe("/")
+    expect(requestListHref("all", "all", "   ")).toBe("/")
+  })
+
+  it("is read back from the address, as typed, and absent reads as no title", () => {
+    expect(parseRequestListContext(new URLSearchParams("status=open&title=Checkout%20button"))).toEqual({ status: "open", project: "all", title: "Checkout button" })
+    expect(parseRequestListContext(new URLSearchParams("status=open"))).toEqual({ status: "open", project: "all", title: "" })
+    expect(hasRequestListContext(new URLSearchParams("title=checkout"))).toBe(true)
+  })
+
+  it("is cut to the longest Request title", () => {
+    expect(parseRequestListContext(new URLSearchParams(`title=${"a".repeat(250)}`)).title).toBe("a".repeat(REQUEST_TITLE_FILTER_MAX))
+    expect(REQUEST_TITLE_FILTER_MAX).toBe(TITLE_MAX)
+  })
+
+  it("names a title from a link only when the link has one, so a Project link keeps the title being typed", () => {
+    expect(requestListContextFromHref("/?title=checkout")).toEqual({ status: "all", project: "all", title: "checkout" })
+    expect(requestListContextFromHref(`/?project=${projectId}`)).toEqual({ status: "all", project: projectId })
   })
 })

@@ -11,7 +11,7 @@ import { thrownMessage } from "@/lib/failure-messages"
 import { openSavedView, SAVED_VIEW_NAME_MAX, savedViewChoices, type SavedView, type SavedViewChoice } from "@/lib/saved-view-rules"
 import { deleteSavedView, renameSavedView, saveView, updateSavedView } from "@/app/(app)/saved-view-actions"
 import { useListAnnouncer } from "./list-announcer"
-import { useRequestListContext, useSetRequestListView, withSavedView } from "./list-view-state"
+import { useRequestListContext, useRequestListTitle, useSetRequestListView, withSavedView } from "./list-view-state"
 import styles from "./saved-view-menu.module.css"
 
 type DialogKind = Exclude<SavedViewChoice, "update">
@@ -26,7 +26,9 @@ const LABELS: Record<SavedViewChoice, string> = { save: "Save view", update: "Sa
  * Views are the person's own; the server checks the owner on every change. Focus returns to the control.
  */
 export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: string }) {
-  const context = useRequestListContext()
+  const listContext = useRequestListContext()
+  const title = useRequestListTitle()
+  const context = { ...listContext, title }
   const setView = useSetRequestListView()
   const announce = useListAnnouncer()
   const open = openSavedView(views, context.savedView)
@@ -39,7 +41,7 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
   const [pending, setPending] = useState(false)
   const control = useRef<HTMLSpanElement>(null)
   const afterMenu = useRef<DialogKind | null>(null)
-  const filters = { status: context.status, project: context.project }
+  const filters = { status: context.status, project: context.project, title: context.title }
 
   function show(next: DialogKind) {
     setName(next === "rename" ? open?.name ?? "" : "")
@@ -107,7 +109,7 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
     <Dialog guardTypedText open={dialogOpen} onOpenChange={next => { if (!pending && !next) setDialogOpen(false) }}>
       <DialogContent title={kind === "delete" && open ? `Delete “${open.name}”?` : TITLES[kind]}
         description={kind === "delete" ? "The view leaves your navigation. The list keeps its filters, and no Request changes."
-          : kind === "rename" ? undefined : "Saves this list’s status and Project filters under a name. Only you see your views."}
+          : kind === "rename" ? undefined : "Saves this list’s status, Project and title filters under a name. Only you see your views."}
         onCloseAutoFocus={event => { event.preventDefault(); focusControl() }}>
         <form className={styles.form} onSubmit={submit} noValidate>
           {kind !== "delete" && <Input label="Name" value={name} maxLength={SAVED_VIEW_NAME_MAX} autoComplete="off" autoFocus required
