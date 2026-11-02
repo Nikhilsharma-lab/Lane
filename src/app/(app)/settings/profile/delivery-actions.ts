@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { guardCanContribute } from "@/lib/auth-guard";
-import { deliveryPreferenceSchema } from "@/lib/delivery-preference-rules";
+import { deliveryPreferenceSchema } from "@/lib/delivery-preference-schema";
 import { saveDeliveryChoice } from "@/lib/delivery-preferences";
 import { slackConnected } from "@/lib/slack-connection";
 

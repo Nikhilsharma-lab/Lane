@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { GUARDRAIL_OPERATORS } from "./guardrail-comparison";
 import { PASS_FAIL_RESULT_MAX, PASS_FAIL_DETAIL_MAX } from "./pass-fail-check";
 

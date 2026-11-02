@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { REQUEST_PRIORITIES, REQUEST_TYPES } from "@/lib/request-constants";
 
 // Client-safe shared values; project permissions stay in guarded server code.

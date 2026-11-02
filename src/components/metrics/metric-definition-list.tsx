@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/link";
 import { ArrowUpRight, ChartLine } from "lucide-react";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { metricUnitName, type MetricUnit } from "@/lib/metric-definition-rules";

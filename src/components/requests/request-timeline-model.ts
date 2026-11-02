@@ -10,9 +10,11 @@
 import { plannedDay } from "@/lib/dates"
 import { FORMER_MEMBER, JOURNEY_STATUSES, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
 import type { RequestStatus } from "@/lib/request-lifecycle"
-import { EXCEPTION_REASON_OPTIONS, type ExceptionReason, type OutcomeClosure, type OutcomeException } from "@/lib/request-outcome"
+import { EXCEPTION_REASON_OPTIONS, type ExceptionReason } from "@/lib/request-outcome-options"
+import type { OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
 import { valueBeforeReleaseFor } from "@/lib/request-release-facts"
-import { releaseMeasurement, type ReleaseEvent, type ReleaseFact, type ReleaseState } from "@/lib/request-release"
+import { releaseMeasurement } from "@/lib/request-release-facts"
+import type { ReleaseEvent, ReleaseFact, ReleaseState } from "@/lib/request-release"
 
 export type TimelineClosure =
   | { kind: "measured"; actorId: string; closedAt: string; release: ReleaseFact }

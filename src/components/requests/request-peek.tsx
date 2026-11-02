@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type ComponentType, type MouseEvent } from "react"
-import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/react"
+import { m, useIsPresent, useReducedMotion, type Transition } from "motion/react"
 import { Button } from "@/components/arc/button/button"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
@@ -106,12 +106,12 @@ export function RequestPeek(props: RequestPeekProps) {
     return () => window.removeEventListener("keydown", listener, true)
   }, [present])
 
-  return <motion.div className={styles.viewport} inert={!present} aria-hidden={!present || undefined}>
-    <motion.section ref={panel} className={styles.panel} role="region" aria-label="Request preview" data-request-peek="" data-request-id={requestId}
+  return <m.div className={styles.viewport} inert={!present} aria-hidden={!present || undefined}>
+    <m.section ref={panel} className={styles.panel} role="region" aria-label="Request preview" data-request-peek="" data-request-id={requestId}
       initial={reduced ? { opacity: 0 } : { x: "104%" }} animate={{ x: "0%", opacity: 1 }} exit={reduced ? { opacity: 0 } : { x: "104%", transition: leave }}
       transition={reduced ? { duration: motionTokens.duration.instant } : enter}>
       {/* Until the chunk arrives the panel shows the skeleton, never an empty frame. */}
       <Suspense fallback={<PreviewLoading onClose={onClose} />}><Content key={requestId} {...props} /></Suspense>
-    </motion.section>
-  </motion.div>
+    </m.section>
+  </m.div>
 }

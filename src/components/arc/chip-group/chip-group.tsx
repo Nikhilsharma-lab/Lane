@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode, Ref, RefObject } from "react";
-import { AnimatePresence, LayoutGroup, animate, motion, useIsPresent, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { AnimatePresence, LayoutGroup, animate, m, useIsPresent, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import type { AnimationPlaybackControls, HTMLMotionProps, MotionValue, TargetAndTransition, Transition } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./chip-group.module.css";
@@ -115,9 +115,9 @@ function HeightFrame({ morphKey, reduce, children }: { morphKey: string; reduce:
     observer.observe(node);
     return () => { observer.disconnect(); unfollow(); controls?.stop(); };
   }, [height, reduce]);
-  return <motion.div ref={frame} className={styles.frame} style={{ height }}>
+  return <m.div ref={frame} className={styles.frame} style={{ height }}>
     <div ref={content} className={styles.content}>{children}</div>
-  </motion.div>;
+  </m.div>;
 }
 
 /** Outgoing copies are hidden from assistive tech while they fade, so the button reads only its current text.
@@ -127,7 +127,7 @@ function Swap({ follow, style, ...props }: HTMLMotionProps<"span"> & { follow?: 
   const held = useMotionValue(0);
   // Runs before the chip re-measures its width in the same commit, so this reads the offset from before the change.
   useLayoutEffect(() => { if (!present && follow) held.jump(follow.get()); }, [present, follow, held]);
-  return <motion.span {...props} style={follow ? { ...style, x: present ? follow : held } : style} aria-hidden={present ? props["aria-hidden"] : true} />;
+  return <m.span {...props} style={follow ? { ...style, x: present ? follow : held } : style} aria-hidden={present ? props["aria-hidden"] : true} />;
 }
 
 interface ChipProps {
@@ -168,16 +168,16 @@ function Chip({ option, selected, tabbable, reduce, delay, onToggle, onFocusChip
   }, [selected, lag, grown]);
   // Revealed chips grow in with a short stagger; chips that fold away leave faster than they came.
   const enter: Transition = reduce ? { layout: { duration: 0 }, default: reducedFade } : { layout: motionTokens.spring.morph, default: { ...motionTokens.spring.snappy, delay }, opacity: { ...fade, delay } };
-  return <motion.button ref={ref} type="button" className={styles.chip} data-chip={option.value} aria-pressed={selected} aria-hidden={present ? undefined : true} tabIndex={present && tabbable ? 0 : -1}
+  return <m.button ref={ref} type="button" className={styles.chip} data-chip={option.value} aria-pressed={selected} aria-hidden={present ? undefined : true} tabIndex={present && tabbable ? 0 : -1}
     onClick={() => onToggle(option.value)} onFocus={() => onFocusChip(option.value)}
     layout="position" initial={reduce ? { opacity: 0 } : { opacity: 0, scale: .9 }} animate={{ opacity: 1, scale: 1 }} exit={reduce ? { opacity: 0, transition: reducedFade } : { opacity: 0, scale: .9, transition: { duration: motionTokens.duration.instant, ease: standard } }} transition={enter}>
     <span ref={body} className={styles.body} data-selected={selected}>
-      <motion.span className={styles.surface} style={{ right: edge }} aria-hidden="true" />
-      <motion.span className={styles.check} style={{ scale: checkScale, opacity: checkOpacity, filter: checkBlur }} aria-hidden="true"><svg data-ui-icon data-icon-size="sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><motion.path d="M4 12.5 9.5 18 20 6.5" style={{ pathLength: checkDraw }} /></svg></motion.span>
+      <m.span className={styles.surface} style={{ right: edge }} aria-hidden="true" />
+      <m.span className={styles.check} style={{ scale: checkScale, opacity: checkOpacity, filter: checkBlur }} aria-hidden="true"><svg data-ui-icon data-icon-size="sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><m.path d="M4 12.5 9.5 18 20 6.5" style={{ pathLength: checkDraw }} /></svg></m.span>
       <span className={styles.slot} aria-hidden="true" />
-      <motion.span className={styles.label} style={{ x: lag }}>{option.label}</motion.span>
+      <m.span className={styles.label} style={{ x: lag }}>{option.label}</m.span>
     </span>
-  </motion.button>;
+  </m.button>;
 }
 
 interface MoreChipProps { hidden: number; expanded: boolean; tabbable: boolean; reduce: boolean; onToggle: () => void; onFocusChip: (value: string) => void; ref?: Ref<HTMLButtonElement>; }
@@ -189,17 +189,17 @@ function MoreChip({ hidden, expanded, tabbable, reduce, onToggle, onFocusChip, r
   const edge = useTransform(lag, value => -value);
   // The text stays centred on the visible surface while its edge catches up.
   const centre = useTransform(lag, value => value / 2);
-  return <motion.button ref={ref} type="button" className={`${styles.chip} ${styles.more}`} data-more="" aria-expanded={expanded} tabIndex={tabbable ? 0 : -1}
+  return <m.button ref={ref} type="button" className={`${styles.chip} ${styles.more}`} data-more="" aria-expanded={expanded} tabIndex={tabbable ? 0 : -1}
     onClick={onToggle} onFocus={() => onFocusChip(MORE)} layout="position" transition={{ layout: reduce ? { duration: 0 } : motionTokens.spring.morph }}>
     <span ref={body} className={styles.body}>
-      <motion.span className={styles.surface} style={{ right: edge }} aria-hidden="true" />
+      <m.span className={styles.surface} style={{ right: edge }} aria-hidden="true" />
       <span className={styles.moreText}>
         <AnimatePresence mode="popLayout" initial={false}>
           <Swap key={text} follow={centre} className={styles.moreLine} initial={reduce ? { opacity: 0 } : textIn} animate={shown} exit={reduce ? { opacity: 0, transition: reducedFade } : textOut} transition={reduce ? reducedFade : { duration: motionTokens.duration.standard, ease: enterEase }}>{text}</Swap>
         </AnimatePresence>
       </span>
     </span>
-  </motion.button>;
+  </m.button>;
 }
 
 export function ChipGroup({ options, value, onValueChange, label, multiple = true, maxVisible = Infinity, className }: ChipGroupProps) {

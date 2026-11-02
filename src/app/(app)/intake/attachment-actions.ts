@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 
 import { and, count, eq, gt, isNull, or, sql, sum } from "drizzle-orm";
-import { z } from "zod";
+import * as z from "zod";
 
 import { db, requestAttachments, requests } from "@/db";
 import { guardCanContribute, type MemberAuth } from "@/lib/auth-guard";

@@ -26,11 +26,12 @@ describe("New Request composer preload", () => {
 
   it("loads the form once through a memoised dynamic import, with no next/dynamic Suspense boundary", () => {
     expect(provider).not.toContain("next/dynamic")
-    // The type-only `typeof import(...)` brings in no code; the one runtime import is memoised.
+    // The one runtime import is memoised.
     const runtime = provider.split("\n").filter(line => line.includes('import("@/app/(app)/intake/intake-form")') && !line.includes("typeof import("))
     expect(runtime).toHaveLength(1)
-    expect(runtime[0]).toMatch(/formPromise \?\?= import\(/)
-    expect(provider).toContain("useState<IntakeFormComponent | null>(() => loadedForm)")
+    // Lane's one loader for code that stays out of the first load keeps it, and renders it synchronously once it is here.
+    expect(runtime[0]).toMatch(/popupCode\(\(\) => import\(/)
+    expect(provider).toContain("usePopupCode(composerForm, open,")
   })
 
   it("preloads on idle and when the pointer or focus reaches New Request", () => {

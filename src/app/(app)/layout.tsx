@@ -16,8 +16,11 @@ import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
 import { IsItLiveProvider } from "@/components/requests/is-it-live-prompt";
 import { WorkspaceProjectsProvider } from "@/components/projects/workspace-projects-provider";
 import { OfflineGuard } from "@/components/shell/offline-guard";
+import { PopupNotices } from "@/components/popup/lazy-popup";
 import { canChangeThings, canContribute } from "@/lib/role-rules";
 import { followSeatChangesAfterResponse } from "@/lib/billing";
+import { timed } from "@/lib/request-timings";
+import { AppMotionFeatures } from "@/components/motion/app-motion-features";
 
 // The AI gate in the New Request composer waits up to 15 s (src/lib/ai/triage.ts),
 // and the composer opens from every page under this layout, so the function
@@ -38,9 +41,10 @@ export default async function AppLayout({
   // nothing is written) is not awaited here. It streams to the Suspense-wrapped
   // bell, so it never holds up the first byte. A failed count leaves the badge
   // empty, as a failed client fetch did before; it never breaks the shell.
-  const needsYouCount = countNeedsYou(member).catch(() => 0);
+  const needsYouCount = timed("shell", () => countNeedsYou(member)).catch(() => 0);
   // #219: the person's own saved views for the navigation. A failed read leaves the group out; it never breaks the shell.
-  const [result, projects, labels, savedViews] = await Promise.all([getWorkspace(), loadProjects(member), loadLabels(member), loadSavedViews(member).catch(() => [])]);
+  // #265: the frame's own reads are the `shell` step of the server timings.
+  const [result, projects, labels, savedViews] = await Promise.all([getWorkspace(), timed("shell", () => loadProjects(member)), timed("shell", () => loadLabels(member)), timed("shell", () => loadSavedViews(member)).catch(() => [])]);
   if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
   // #215: a paying workspace's seats follow Clerk memberships; checked after the response, at most every 10 minutes.
@@ -62,9 +66,13 @@ export default async function AppLayout({
   );
 
   return (
-    // #260: offline, the signed-in app stays on screen and says so; nothing moves or is queued.
-    // StableRouterProvider (#296) sits inside it so the router it hands down is the guarded one.
+    // #266: the signed-in app's highlights, re-flows and sheets glide and drag from the first paint.
+    <AppMotionFeatures>
+    {/* #260: offline, the signed-in app stays on screen and says so; nothing moves or is queued.
+        StableRouterProvider (#296) sits inside it so the router it hands down is the guarded one. */}
     <OfflineGuard>
+    {/* #267: where a popup whose code couldn't load says so. */}
+    <PopupNotices />
     <StableRouterProvider>
     <RequestListViewProvider key={`${result.orgId}:${result.userId}`}>
       {/* Pending Request changes live here, above every page, so a navigation
@@ -90,5 +98,6 @@ export default async function AppLayout({
     </RequestListViewProvider>
     </StableRouterProvider>
     </OfflineGuard>
+    </AppMotionFeatures>
   );
 }

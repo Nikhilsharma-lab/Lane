@@ -4,89 +4,89 @@
   "toleranceBytes": 2048,
   "routes": {
     "/": {
-      "gzipBytes": 519196,
-      "uncompressedBytes": 1742737,
-      "chunks": 35
+      "gzipBytes": 441104,
+      "uncompressedBytes": 1452656,
+      "chunks": 18
     },
     "/_not-found": {
-      "gzipBytes": 285365,
-      "uncompressedBytes": 938696,
-      "chunks": 19
+      "gzipBytes": 265531,
+      "uncompressedBytes": 883491,
+      "chunks": 12
     },
     "/forgot-password": {
-      "gzipBytes": 314449,
-      "uncompressedBytes": 1030041,
-      "chunks": 23
+      "gzipBytes": 285738,
+      "uncompressedBytes": 946650,
+      "chunks": 14
     },
     "/impact": {
-      "gzipBytes": 467267,
-      "uncompressedBytes": 1582579,
-      "chunks": 32
+      "gzipBytes": 391694,
+      "uncompressedBytes": 1288987,
+      "chunks": 17
     },
     "/inbox": {
-      "gzipBytes": 456699,
-      "uncompressedBytes": 1544403,
-      "chunks": 31
+      "gzipBytes": 382324,
+      "uncompressedBytes": 1250620,
+      "chunks": 17
     },
     "/intake": {
-      "gzipBytes": 446097,
-      "uncompressedBytes": 1513701,
-      "chunks": 30
+      "gzipBytes": 373147,
+      "uncompressedBytes": 1224212,
+      "chunks": 17
     },
     "/login": {
-      "gzipBytes": 312292,
-      "uncompressedBytes": 1019008,
-      "chunks": 23
+      "gzipBytes": 284036,
+      "uncompressedBytes": 937160,
+      "chunks": 15
     },
     "/onboarding": {
-      "gzipBytes": 318060,
-      "uncompressedBytes": 1034633,
-      "chunks": 24
+      "gzipBytes": 289181,
+      "uncompressedBytes": 951732,
+      "chunks": 15
     },
     "/privacy": {
-      "gzipBytes": 288994,
-      "uncompressedBytes": 947589,
-      "chunks": 20
+      "gzipBytes": 269160,
+      "uncompressedBytes": 892384,
+      "chunks": 13
     },
     "/requests/[id]": {
-      "gzipBytes": 516870,
-      "uncompressedBytes": 1735266,
-      "chunks": 35
+      "gzipBytes": 436710,
+      "uncompressedBytes": 1436638,
+      "chunks": 18
     },
     "/reset-password": {
-      "gzipBytes": 317453,
-      "uncompressedBytes": 1038725,
-      "chunks": 23
+      "gzipBytes": 288350,
+      "uncompressedBytes": 957059,
+      "chunks": 14
     },
     "/settings/members": {
-      "gzipBytes": 480841,
-      "uncompressedBytes": 1620055,
-      "chunks": 33
+      "gzipBytes": 406665,
+      "uncompressedBytes": 1332206,
+      "chunks": 18
     },
     "/settings/metrics": {
-      "gzipBytes": 487152,
-      "uncompressedBytes": 1643221,
-      "chunks": 33
+      "gzipBytes": 435392,
+      "uncompressedBytes": 1442145,
+      "chunks": 18
     },
     "/settings/metrics/[id]": {
-      "gzipBytes": 488232,
-      "uncompressedBytes": 1645491,
-      "chunks": 34
+      "gzipBytes": 436343,
+      "uncompressedBytes": 1444301,
+      "chunks": 18
     },
     "/settings/profile": {
-      "gzipBytes": 480841,
-      "uncompressedBytes": 1620055,
-      "chunks": 33
+      "gzipBytes": 406665,
+      "uncompressedBytes": 1332206,
+      "chunks": 18
     },
     "/signup": {
-      "gzipBytes": 305630,
-      "uncompressedBytes": 998918,
-      "chunks": 22
+      "gzipBytes": 277002,
+      "uncompressedBytes": 915345,
+      "chunks": 14
     },
     "/terms": {
-      "gzipBytes": 288994,
-      "uncompressedBytes": 947589,
-      "chunks": 20
+      "gzipBytes": 269160,
+      "uncompressedBytes": 892384,
+      "chunks": 13
     }
   }
 }

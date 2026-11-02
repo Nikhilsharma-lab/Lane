@@ -93,3 +93,13 @@ export function stripeBilling(env: Env = process.env): StripeBilling {
   if (!secretKey || !webhookSecret || !priceYearly || !priceMonthly || !foundingCoupon) return { on: false, reason: "missing_credentials" }
   return { on: true, secretKey, webhookSecret, priceYearly, priceMonthly, foundingCoupon }
 }
+
+/**
+ * #265 `LANE_SERVER_TIMING_HEADER`. On, every signed-in page and the Request preview's read route answer with a
+ * Server-Timing header (step names and durations only), which a measuring browser reads. Off, the header is left
+ * out. The one log line per render (src/lib/request-timings.ts) is written either way. On in staging and in
+ * production while Lane's speed is being measured.
+ */
+export function serverTimingHeader(env: Env = process.env): boolean {
+  return env.LANE_SERVER_TIMING_HEADER === "1"
+}

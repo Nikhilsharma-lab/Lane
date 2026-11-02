@@ -6,7 +6,7 @@ import type { WorkspaceContext } from "@/lib/ensure-workspace";
 import { billingEnforced } from "@/lib/feature-switches";
 import { paymentProvider } from "@/lib/payment-provider";
 import { zoneFreeDay } from "@/lib/dates";
-import { BillingAccount } from "./billing-account";
+import { BillingAccount, seatsOf } from "./billing-account";
 import { BillingForm } from "./billing-form";
 import { Placeholder } from "@/components/loading/placeholder";
 
@@ -22,6 +22,8 @@ const day = (at: Date | null) => at && zoneFreeDay(at);
  */
 export async function billingPanel(workspace: Pick<WorkspaceContext, "orgId" | "role">, checkout?: string): Promise<ReactNode> {
   if (workspace.role !== "admin") return undefined;
+  // #265: Clerk's roster for the seats is asked first, so it runs alongside the reads below, not after them.
+  const seats = seatsOf(workspace.orgId);
   await decideFreeRequests(workspace);
   const [{ planState, free }, plan] = await Promise.all([readFreeRequests(workspace), readPlan(workspace)]);
   const enforced = billingEnforced();
@@ -34,7 +36,7 @@ export async function billingPanel(workspace: Pick<WorkspaceContext, "orgId" | "
     founding={{ offered: plan.founding.offered, endsOn: day(plan.founding.endsAt) }} endsOn={endsOn} pages={pages}
     result={RESULTS.find((known) => known === checkout)} />;
   const account = <Suspense key="account" fallback={<Placeholder label="Loading seats and invoices…" lines={4} />}>
-    <BillingAccount orgId={workspace.orgId} planState={plan.planState} endsOn={endsOn} />
+    <BillingAccount orgId={workspace.orgId} planState={plan.planState} endsOn={endsOn} seats={seats} />
   </Suspense>;
   const freeRequests = <FreeRequestsCard key="free" planState={planState} free={free} enforced={enforced} />;
   return planState === "paying" ? [card, account, freeRequests] : [freeRequests, card, account];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Transition } from "motion/react";
+import { AnimatePresence, m, useIsPresent, useReducedMotion, type Transition } from "motion/react";
 import { Check, File, FileImage, FileText, RotateCcw, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/arc/button/button";
@@ -63,7 +63,7 @@ function AttachmentRow<T extends IntakeAttachmentItem>({
       : item.status === "failed" ? "Upload failed" : `${percentage}% uploaded`;
 
   return (
-    <motion.li
+    <m.li
       className={styles.fileRow}
       aria-label={item.file.name}
       aria-hidden={!present || undefined}
@@ -98,9 +98,9 @@ function AttachmentRow<T extends IntakeAttachmentItem>({
           </div>}
         </div>
         {mode !== "queued" && item.status === "uploaded" && (
-          <motion.span className={styles.ready} initial={reduce ? { opacity: 0 } : { opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} transition={reduce ? { duration: 0 } : motionTokens.spring.snappy}>
+          <m.span className={styles.ready} initial={reduce ? { opacity: 0 } : { opacity: 0, scale: .8 }} animate={{ opacity: 1, scale: 1 }} transition={reduce ? { duration: 0 } : motionTokens.spring.snappy}>
             <Check strokeWidth={1.75} aria-hidden="true" />
-          </motion.span>
+          </m.span>
         )}
         {mode === "queued" && onRemove && (
           <Button ref={removeRef} type="button" size="sm" variant="ghost" className={styles.remove} aria-label={`Remove ${item.file.name}`} disabled={disabled} onClick={() => void onRemove(item)}>
@@ -108,7 +108,7 @@ function AttachmentRow<T extends IntakeAttachmentItem>({
           </Button>
         )}
       </div>
-    </motion.li>
+    </m.li>
   );
 }
 

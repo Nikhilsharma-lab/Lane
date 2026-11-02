@@ -2,7 +2,7 @@
 
 import { isValidElement, useEffect, useLayoutEffect, useRef } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
-import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion, type AnimationPlaybackControls, type HTMLMotionProps, type TargetAndTransition, type Transition } from "motion/react";
+import { AnimatePresence, animate, m, useIsPresent, useMotionValue, useReducedMotion, type AnimationPlaybackControls, type HTMLMotionProps, type TargetAndTransition, type Transition } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./badge.module.css";
 import buttonStyles from "../button/button.module.css";
@@ -28,7 +28,7 @@ const fadeOnly: TargetAndTransition = { opacity: 0, transition: { duration: moti
 /** Outgoing copies are hidden from assistive tech while they fade, so only the current text is read. */
 function Swap(props: HTMLMotionProps<"span">) {
   const present = useIsPresent();
-  return <motion.span {...props} aria-hidden={present ? props["aria-hidden"] : true} />;
+  return <m.span {...props} aria-hidden={present ? props["aria-hidden"] : true} />;
 }
 
 /** A new icon component crossfades in; re-rendering the same icon stays still. */
@@ -74,12 +74,12 @@ export function Badge({ tone = "neutral", size = "md", icon, appearance = "badge
     : [styles.badge, styles[tone], styles[size], className]).filter(Boolean).join(" ");
   // The pill follows its content: text and icon swap in place while the width springs to the new size.
   return <span {...props} data-readonly={appearance === "control" ? "" : undefined} className={classes}>
-    <motion.span ref={body} className={styles.body} style={{ width }}>
+    <m.span ref={body} className={styles.body} style={{ width }}>
       <span ref={content} className={appearance === "control" ? buttonStyles.labelPhase : styles.content}>
         {icon ? <span className={styles.icon} aria-hidden="true"><AnimatePresence mode="popLayout" initial={false}><Swap key={glyphKey} className={styles.glyph} initial={reduce ? { opacity: 0 } : iconIn} animate={shown} exit={reduce ? fadeOnly : { ...iconIn, transition: exitFast }} transition={reduce ? enter : motionTokens.spring.snappy}>{icon}</Swap></AnimatePresence></span> : null}
         {text === null ? children : <span className={styles.label}><AnimatePresence mode="popLayout" initial={false}><Swap key={text} className={styles.text} initial={reduce ? { opacity: 0 } : textIn} animate={shown} exit={reduce ? fadeOnly : textOut} transition={enter}>{text}</Swap></AnimatePresence></span>}
       </span>
-    </motion.span>
+    </m.span>
   </span>;
 }
 

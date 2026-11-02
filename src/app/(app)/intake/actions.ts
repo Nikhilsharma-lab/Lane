@@ -5,7 +5,7 @@ import { sourceRequestType } from "@/lib/request-labels";
 
 import type { OverviewRequest } from "@/lib/request-overview";
 
-import { z } from "zod";
+import * as z from "zod";
 import { requestEditSourceSchema } from "@/lib/request-edit";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -25,7 +25,8 @@ import { newRequestSchemaFor, sourceFieldOf, storedContext, type RequestInput, t
 import { impactColumnsOf, impactStateOfChoice } from "@/lib/request-impact";
 import { framingShape, savedFraming } from "@/lib/request-framing";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
-import { createReviewersSchema, reviewerPickRefusal, type Reviewer } from "@/lib/request-reviewer-rules";
+import { reviewerPickRefusal, type Reviewer } from "@/lib/request-reviewer-rules";
+import { createReviewersSchema } from "@/lib/request-reviewer-schemas";
 import { workspaceRoster } from "@/lib/workspace-roster";
 import { RequestChangeError, insist, type RequestTx } from "@/lib/request-change-store";
 import { appendReviewers, notifyReviewers, type ReviewNotification } from "@/lib/request-reviewers";

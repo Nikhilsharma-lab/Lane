@@ -1,6 +1,7 @@
 "use client"
 
-import { lazy, Suspense, useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useState, useSyncExternalStore, type ReactNode } from "react"
+import { popupCode, usePopupCode } from "./lazy-popup"
 import type { PhoneSheetProps } from "./phone-sheet"
 
 /**
@@ -18,15 +19,17 @@ function subscribePhone(change: () => void) {
 }
 const usePhone = () => useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
 
-const loadPhoneSheet = () => import("./phone-sheet")
-const PhoneSheet = lazy(loadPhoneSheet)
+const sheetCode = popupCode(() => import("./phone-sheet"))
 
 /** The adaptive popup's form: `sheet` as the phone panel under 640px, else `desktop`. The form chosen when it opens holds until it closes. */
 export function AdaptiveForm({ open, desktop, sheet }: { open: boolean; desktop: ReactNode; sheet: PhoneSheetProps }) {
   const phoneNow = usePhone()
   const [phone, setPhone] = useState(phoneNow)
   if (!open && phone !== phoneNow) setPhone(phoneNow)
-  // Fetch the phone panel as soon as this is a phone, so the first open never waits for it.
-  useEffect(() => { if (phone) void loadPhoneSheet().catch(() => undefined) }, [phone])
-  return phone ? <Suspense fallback={null}><PhoneSheet {...sheet} /></Suspense> : desktop
+  // A panel whose code can't load (offline, an old tab after a deploy) leaves the centred dialog in its place.
+  const [failed, setFailed] = useState(false)
+  // Fetched as soon as this is a phone, so the first open never waits for it.
+  const phoneSheet = usePopupCode(sheetCode, phone && !failed, () => setFailed(true))
+  if (!phone || failed) return desktop
+  return phoneSheet && <phoneSheet.default {...sheet} />
 }

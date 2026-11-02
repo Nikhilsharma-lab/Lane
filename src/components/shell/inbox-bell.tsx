@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/link";
 import { Suspense, use, useCallback, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
 import { Bell } from "lucide-react";
 import { useRequestNavigation } from "@/components/requests/request-navigation";

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
+import { timed } from "@/lib/request-timings";
 import { and, eq, sql } from "drizzle-orm";
 
 import { db, firstRunProgress, requests } from "@/db";
@@ -50,7 +51,7 @@ async function readProgress(person: Person): Promise<{ progress: FirstRunProgres
 async function guideFor({ orgId, userId }: Person): Promise<FirstRunGuide | null> {
   try {
     const client = await clerkClient();
-    const organization = await client.organizations.getOrganization({ organizationId: orgId });
+    const organization = await timed("clerk", () => client.organizations.getOrganization({ organizationId: orgId }));
     return firstRunGuideFor({ createdBy: organization.createdBy, userId });
   } catch {
     console.error("[first-run] workspace creator unavailable");

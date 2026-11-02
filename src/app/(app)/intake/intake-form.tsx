@@ -4,7 +4,7 @@ import pickerLayout from "@/components/requests/request-picker-layout.module.css
 import { RequestLabels } from "@/components/requests/request-labels";
 import { RequestLabelsPicker } from "@/components/requests/request-labels-picker";
 import { requestLabelKeys, labelRequestType } from "@/lib/request-labels";
-import Link from "next/link";
+import Link from "@/components/link";
 import { useStableRouter } from "@/components/shell/stable-router";
 import {
   Fragment,

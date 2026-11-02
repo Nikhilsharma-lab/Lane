@@ -10,6 +10,9 @@ import { answerIsItLive } from "./helpers/journey"
  * with a Playwright storage state the operator saved for a member of a workspace
  * that has Requests (LANE_PERF_STORAGE_STATE), and it reads data only, except
  * the Mark Done check, which runs only with LANE_PERF_MUTATE=1 and undoes itself.
+ * The workspace's Requests must fit on one page of the list (at most 50): a Request
+ * marked Done regroups, and on a longer list it can move onto the next page, out of
+ * the row check's sight. That check shows them all on one page first.
  *
  *   LANE_PERF_BASE_URL=http://localhost:3000 \
  *   LANE_PERF_STORAGE_STATE=.auth/perf-member.json \
@@ -111,6 +114,19 @@ const report = (label: string, values: number[], unit = "ms", target?: number) =
 const isRscRequest = (request: Request) =>
   /[?&]_rsc=/.test(request.url()) || request.url().includes("/_next/data") || request.headers()["rsc"] === "1"
 
+/** Resolves once no RSC request has started for `quietMs` (at most `limitMs`). */
+async function rscQuiet(page: Page, quietMs = 500, limitMs = 5000) {
+  let last = Date.now()
+  const seen = (request: Request) => { if (isRscRequest(request)) last = Date.now() }
+  page.on("request", seen)
+  try {
+    const start = Date.now()
+    while (Date.now() - last < quietMs && Date.now() - start < limitMs) await page.waitForTimeout(100)
+  } finally {
+    page.off("request", seen)
+  }
+}
+
 async function throttle(page: Page, rate: number): Promise<CDPSession> {
   const cdp = await page.context().newCDPSession(page)
   await cdp.send("Emulation.setCPUThrottlingRate", { rate })
@@ -128,6 +144,12 @@ async function interactionDuration(page: Page, since: number) {
 
 const now = (page: Page) => page.evaluate(() => performance.now())
 
+/** Resolves after `count` animation frames have been painted. */
+const nextFrames = (page: Page, count: number) => page.evaluate(frames => new Promise<void>(resolve => {
+  const step = (left: number) => left ? requestAnimationFrame(() => step(left - 1)) : resolve()
+  step(frames)
+}), count)
+
 async function openList(page: Page) {
   await page.goto("/")
   await expect(page.locator("[role=row][data-request-id]").first()).toBeVisible()
@@ -137,6 +159,41 @@ async function openList(page: Page) {
 
 const statusChip = (page: Page, label: string) =>
   page.getByRole("group", { name: "Status views" }).getByRole("button", { name: label, exact: true })
+
+/**
+ * A Request marked Done regroups into its new group, which on a list longer than one page can be on the next page:
+ * the row leaves the view ("… left this view") and no frame shows it Done. Shows the whole list on one page, with the
+ * list's largest page size if the default doesn't hold it (the page footer shows only while there are pages), and
+ * fails naming the setup if even that can't.
+ */
+async function showWholeList(page: Page) {
+  const footer = page.getByRole("combobox", { name: "Requests per page" })
+  if (!(await footer.isVisible())) return
+  await footer.click()
+  await page.getByRole("option", { name: "50", exact: true }).click()
+  await expect(footer, "The measuring workspace has more Requests than one page of the list holds (50)").toBeHidden()
+}
+
+/** Action requests (server actions) the page has sent and not yet seen answered. */
+function inFlightActions(page: Page) {
+  const pending = new Set<Request>()
+  const isAction = (request: Request) => request.method() === "POST" && Boolean(request.headers()["next-action"])
+  page.on("request", request => { if (isAction(request)) pending.add(request) })
+  page.on("requestfinished", request => { pending.delete(request) })
+  page.on("requestfailed", request => { pending.delete(request) })
+  return pending
+}
+
+/**
+ * Server actions run one at a time, so a Mark Done check's last Undo can still be waiting to be sent: let every one
+ * reach the server before the page moves on or closes, or the workspace keeps a Request Done and the next run has one
+ * In progress Request fewer.
+ */
+async function actionsSettled(page: Page, actions: Set<Request>) {
+  await expect.poll(() => actions.size, { timeout: 15_000 }).toBe(0)
+  await page.waitForTimeout(500) // the next queued action, if any, starts once the last one's answer is in
+  await expect.poll(() => actions.size, { timeout: 15_000 }).toBe(0)
+}
 
 // Plan item 2.12 (2026-10-21): on desktop a pointer click on a row opens the Request preview beside the list,
 // which renders the same detail view (`[data-detail-peek]`). The Request page itself opens from the list with
@@ -156,6 +213,16 @@ test.beforeEach(async ({ page }) => {
 
 test("status view switch responds in the next frame with zero network", async ({ page }) => {
   await openList(page)
+  // A view's rows coming on screen for the first time start Next's normal viewport prefetches of their Requests.
+  // One unmeasured pass over the views lets those finish first (a row that leaves the screen before its prefetch
+  // starts would only start it later); a switch itself must then make no request at all.
+  for (const label of ["Open", "In progress", "Done", "All"]) {
+    const chip = statusChip(page, label)
+    if (!(await chip.isVisible())) continue
+    await chip.click()
+    await expect(chip).toHaveAttribute("aria-pressed", "true")
+    await rscQuiet(page)
+  }
   const rsc: string[] = []
   page.on("request", request => { if (isRscRequest(request)) rsc.push(request.url()) })
 
@@ -294,8 +361,10 @@ test("warm page load and interactions at 4x CPU stay within LCP, CLS, INP and lo
 
 test("Mark Done shows on the row in the next frame and never reverts", async ({ page }) => {
   test.skip(!MUTATE, "Set LANE_PERF_MUTATE=1 to measure Mark Done; it changes a Request and then undoes it.")
+  const actions = inFlightActions(page)
   await openList(page)
   await statusChip(page, "All").click()
+  await showWholeList(page)
 
   const timings: number[] = []
   for (let run = 0; run < RUNS; run++) {
@@ -303,8 +372,13 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
     if (!(await row.count())) break
     const id = await row.getAttribute("data-request-id")
     const glyph = page.locator(`[role=row][data-request-id="${id}"] button[data-status]`)
+    // A scroll closes an open menu (by design). Playwright scrolls and clicks in one frame, and the late scroll
+    // event would close the menu it opened, so the row is brought on screen first and left to settle.
+    await glyph.scrollIntoViewIfNeeded()
+    await nextFrames(page, 2)
     await glyph.click()
-    const item = page.getByRole("menuitem", { name: /mark done/i }).first()
+    // The status menu's choices are checkbox items: the current status is the checked one.
+    const item = page.getByRole("menuitemcheckbox", { name: /mark done/i }).first()
     await expect(item).toBeVisible()
 
     // Records the time from the input to the first frame that shows Done, and
@@ -337,6 +411,7 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
       await page.keyboard.press("Escape")
       await page.locator(`[role=row][data-request-id="${id}"]`).focus()
       await page.keyboard.press("Shift+F10")
+      // The row's own menu leads with its move, a plain item (the status menu's choices are checkbox items).
       await expect(page.getByRole("menuitem", { name: "Mark Done" }).first()).toBeFocused()
       await page.keyboard.press("Enter")
     }
@@ -350,6 +425,7 @@ test("Mark Done shows on the row in the next frame and never reverts", async ({ 
     await page.getByRole("button", { name: "Undo" }).first().click()
     await expect(glyph).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
   }
+  await actionsSettled(page, actions)
   test.skip(timings.length === 0, "No In progress Request to mark Done in this workspace.")
   report("Mark Done, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
@@ -413,8 +489,10 @@ test("a Request page starts at most two full detail prefetches", async ({ page }
 
 test("Mark Done on Request detail shows Done in the next frame with Undo, and never reverts", async ({ page }) => {
   test.skip(!MUTATE, "Set LANE_PERF_MUTATE=1 to measure Mark Done on detail; it changes a Request and then undoes it.")
+  const actions = inFlightActions(page)
   const timings: number[] = []
   for (let run = 0; run < RUNS; run++) {
+    await actionsSettled(page, actions)
     await openList(page)
     await statusChip(page, "All").click()
     const row = page.locator("[role=row][data-request-id]:has(button[data-status='in_progress'])").first()
@@ -452,6 +530,7 @@ test("Mark Done on Request detail shows Done in the next frame with Undo, and ne
     await page.getByRole("button", { name: "Undo" }).first().click()
     await expect(status).toHaveAttribute("data-status", "in_progress", { timeout: 10_000 })
   }
+  await actionsSettled(page, actions)
   test.skip(timings.length === 0, "No In progress Request to mark Done in this workspace.")
   report("Mark Done on detail, input to on screen", timings, "ms", BUDGET.markDoneOnScreen.target)
   expect(p75(timings)).toBeLessThanOrEqual(BUDGET.markDoneOnScreen.limit * TOLERANCE)
@@ -660,7 +739,7 @@ test("Review Request acknowledges within 100 ms and an unavailable review keeps 
     await dialog.getByRole("combobox", { name: "Metric", exact: true }).click()
     await page.getByRole("group", { name: "Metrics library" }).getByRole("option", { name: draft.metric, exact: true }).click()
     await dialog.getByRole("spinbutton", { name: "Current value" }).fill(draft.current)
-    await dialog.getByRole("spinbutton", { name: /^Target after release/ }).fill("80")
+    await dialog.getByRole("spinbutton", { name: /^Goal after release/ }).fill("80")
 
     // Hold every server action from here on in the browser, then abort it.
     const held: Route[] = []

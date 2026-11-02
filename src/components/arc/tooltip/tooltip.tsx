@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./tooltip.module.css";
 
@@ -55,12 +55,12 @@ function TooltipText({ text, plain = false }: { text: string; plain?: boolean })
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  return <motion.span className={styles.text} initial={false} animate={size ? { width: size.width, height: size.height } : undefined} transition={size?.animate && !reduced ? motionTokens.spring.morph : { duration: 0 }}>
+  return <m.span className={styles.text} initial={false} animate={size ? { width: size.width, height: size.height } : undefined} transition={size?.animate && !reduced ? motionTokens.spring.morph : { duration: 0 }}>
     <span ref={measure} className={styles.measure} aria-hidden="true">{text}</span>
     <AnimatePresence mode="popLayout" initial={false}>
-      <motion.span key={text} className={styles.line} initial={reduced ? false : plain ? { opacity: 0, y: "0.3em" } : { opacity: 0, y: "0.3em", filter: `blur(${motionTokens.blur.soft}px)` }} animate={plain ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: "blur(0px)" }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: "-0.3em", ...(plain ? {} : { filter: `blur(${motionTokens.blur.subtle}px)` }), transition: { duration: motionTokens.duration.instant, ease: [...motionTokens.ease.standard] } }} transition={{ duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{text}</motion.span>
+      <m.span key={text} className={styles.line} initial={reduced ? false : plain ? { opacity: 0, y: "0.3em" } : { opacity: 0, y: "0.3em", filter: `blur(${motionTokens.blur.soft}px)` }} animate={plain ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: "blur(0px)" }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: "-0.3em", ...(plain ? {} : { filter: `blur(${motionTokens.blur.subtle}px)` }), transition: { duration: motionTokens.duration.instant, ease: [...motionTokens.ease.standard] } }} transition={{ duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}>{text}</m.span>
     </AnimatePresence>
-  </motion.span>;
+  </m.span>;
 }
 
 export function Tooltip({ content, children, side = "top", morph = "blur" }: TooltipProps) {

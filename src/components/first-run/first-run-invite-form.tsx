@@ -1,7 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useState, type FormEvent } from "react";
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
@@ -10,7 +10,8 @@ import { ROLE_DESCRIPTIONS, type PaidSeatChange } from "@/lib/member-role-rules"
 import styles from "./first-run.module.css";
 
 /** #215: loaded only when a paid seat is confirmed, as Settings → Members does. */
-const PaidSeatDialog = dynamic(() => import("@/components/settings/paid-seat-dialog").then(module => module.PaidSeatDialog));
+// If it can't load, Lane says so and nobody is added.
+const seatDialogCode = popupCode(() => import("@/components/settings/paid-seat-dialog"));
 
 export type FirstRunInviteRole = "member" | "viewer";
 type Answer = { success?: true; error?: string };
@@ -43,6 +44,7 @@ export function FirstRunInviteForm({ roles, confirmPaidSeats = false, onInvite }
   const [result, setResult] = useState<{ status: string; error: string | null } | null>(null);
   const [seat, setSeat] = useState<{ change: PaidSeatChange; send: () => void } | null>(null);
   const [seatOpen, setSeatOpen] = useState(false);
+  const seatDialog = usePopupCode(seatDialogCode, seatOpen, () => couldNotOpen("paid-seat", setSeatOpen));
 
   async function send(address: string, chosen: FirstRunInviteRole, confirmed: boolean) {
     setBusy(true);
@@ -79,7 +81,7 @@ export function FirstRunInviteForm({ roles, confirmPaidSeats = false, onInvite }
     {result?.error && <Alert role="alert" tone="danger" title={result.error} />}
     <p role="status" className={styles.status}>{result?.status ?? ""}</p>
     <Button type="submit" variant="secondary" loading={busy} data-seat-return="first-run-invite">Send invitation</Button>
-    {seat && <PaidSeatDialog change={seat.change} open={seatOpen} onOpenChange={setSeatOpen} returnTo="first-run-invite"
+    {seat && seatDialog && <seatDialog.PaidSeatDialog change={seat.change} open={seatOpen} onOpenChange={setSeatOpen} returnTo="first-run-invite"
       onConfirm={() => { setSeatOpen(false); seat.send(); }} />}
   </form>;
 }

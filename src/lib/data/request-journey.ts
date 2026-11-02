@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { z } from "zod";
+import * as z from "zod";
 import { db, requests, requestAgreementEvents } from "@/db";
 import { guardActiveMember } from "@/lib/auth-guard";
 import { seeable } from "@/lib/request-access";

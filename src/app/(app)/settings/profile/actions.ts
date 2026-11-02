@@ -3,7 +3,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { and, eq, ne } from "drizzle-orm";
-import { z } from "zod";
+import * as z from "zod";
 import { db, profiles } from "@/db";
 import { accountNameOf } from "@/lib/account-name";
 import { guardActiveMember } from "@/lib/auth-guard";

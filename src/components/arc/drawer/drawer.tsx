@@ -3,7 +3,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import type { ComponentPropsWithoutRef, ReactNode, RefObject } from "react";
-import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from "motion/react";
+import { AnimatePresence, animate, m, useMotionValue, useReducedMotion } from "motion/react";
 import type { PanInfo, Transition } from "motion/react";
 import { X } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
@@ -54,7 +54,7 @@ function SwapText({ text }: { text: string }) {
   const reduced = useReducedMotion();
   return (
     <AnimatePresence mode="popLayout" initial={false}>
-      <motion.span
+      <m.span
         key={text}
         className={styles.swap}
         initial={reduced ? false : { opacity: 0, y: "0.3em", filter: `blur(${motionTokens.blur.soft}px)` }}
@@ -63,7 +63,7 @@ function SwapText({ text }: { text: string }) {
         transition={{ duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] }}
       >
         {text}
-      </motion.span>
+      </m.span>
     </AnimatePresence>
   );
 }
@@ -115,7 +115,7 @@ export function DrawerContent({
   }
 
   const inner = <>
-    <motion.div className={[styles.header, draggable ? styles.handle : ""].filter(Boolean).join(" ")} onPanStart={panStart} onPan={panMove} onPanEnd={panEnd}>
+    <m.div className={[styles.header, draggable ? styles.handle : ""].filter(Boolean).join(" ")} onPanStart={panStart} onPan={panMove} onPanEnd={panEnd}>
       <div>
         <DialogPrimitive.Title className={styles.title}><SwapText text={title} /></DialogPrimitive.Title>
         {description ? (
@@ -127,7 +127,7 @@ export function DrawerContent({
       <DialogPrimitive.Close className={styles.close} aria-label="Close drawer">
         <X strokeWidth={1.75} aria-hidden="true" />
       </DialogPrimitive.Close>
-    </motion.div>
+    </m.div>
     <div className={styles.body}>{children}</div>
   </>;
 
@@ -147,7 +147,7 @@ export function DrawerContent({
       {drawer.open && (
         <DialogPrimitive.Portal key="drawer" forceMount container={container}>
           <DialogPrimitive.Overlay asChild forceMount>
-            <motion.div
+            <m.div
               className={styles.overlay}
               data-contained={container ? "" : undefined}
               initial={{ opacity: 0 }}
@@ -166,7 +166,7 @@ export function DrawerContent({
               if (event.detail.originalEvent.timeStamp < drawer.openedAt.current) event.preventDefault();
             }}
           >
-            <motion.div
+            <m.div
               ref={panelRef}
               className={classes}
               data-side={side}
@@ -179,7 +179,7 @@ export function DrawerContent({
               transition={reduced ? fade : motionTokens.spring.smooth}
             >
               {inner}
-            </motion.div>
+            </m.div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       )}

@@ -1,5 +1,5 @@
 import { requestLabelKeys, sourceRequestType } from "./request-labels";
-import { z } from "zod";
+import * as z from "zod";
 import { requestSchema, problemFramingSchema, DESCRIPTION_MAX, formContext } from "./request-schema";
 import { impactStateOf } from "./request-impact";
 import { expectedImpactSchema, incompleteMeasurementSchema, noMeasurableImpactSchema, type ExpectedImpactDraft } from "./request-impact";

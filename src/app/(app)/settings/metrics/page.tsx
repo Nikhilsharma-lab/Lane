@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { timePage, timed } from "@/lib/request-timings";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { canChangeThings } from "@/lib/role-rules";
@@ -10,9 +11,7 @@ import { getWorkspace } from "@/lib/ensure-workspace";
 import { listMetricDefinitions } from "@/lib/metrics-library";
 import { ProfileForm } from "../profile/profile-form";
 import { ThemePreference } from "../profile/theme-preference";
-import { inboxDeliveryPanel } from "../profile/inbox-delivery";
-import { slackPanel } from "../profile/slack-panel";
-import { billingPanel } from "../profile/billing-panel";
+import { sharedPanels } from "../profile/shared-panels";
 import { AddMetricDialog, MetricLibraryFilter } from "./metric-controls";
 import styles from "./metrics.module.css";
 
@@ -21,6 +20,7 @@ import styles from "./metrics.module.css";
  * Admins add definitions here (#197); archived ones sit behind the Archived filter (`?show=archived`).
  */
 export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ section?: string; show?: string }> }) {
+  void timePage("Settings: Metrics");
   const workspace = await getWorkspace();
   if (!workspace) redirect("/login");
   if (workspace.needsOnboarding) redirect("/onboarding");
@@ -28,7 +28,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
 
   const { section, show } = await searchParams;
   const view = show === "archived" ? "archived" : "active";
-  const all = await listMetricDefinitions(workspace, { includeArchived: view === "archived" });
+  const [all, panels] = await Promise.all([timed("data", () => listMetricDefinitions(workspace, { includeArchived: view === "archived" })), sharedPanels(workspace)]);
   const definitions = view === "archived" ? all.filter(definition => definition.archivedAt && !definition.mergedIntoId) : all;
   // #210: a Viewer reads the library and adds or edits nothing.
   const canEdit = canChangeThings(workspace.role);
@@ -40,5 +40,5 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
     members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
-    delivery={await inboxDeliveryPanel(workspace)} slack={await slackPanel(workspace)} billing={await billingPanel(workspace)} />;
+    {...panels} />;
 }

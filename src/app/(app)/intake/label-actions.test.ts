@@ -39,3 +39,12 @@ it("saves Project scope with the session identity", async () => {
  expect(state.queries[1].params).toContain(projectId);
  expect(state.queries[1].params).toContain("user_member");
 });
+// #266: the label rules moved to request-label-schemas.ts (out of the Requests list's browser code); unchanged.
+it("refuses a blank name, a name over 80 characters and an unknown colour before querying", async () => {
+ const {createLabel}=await import("./label-actions");
+ expect(await createLabel({name:"   ",colour:"green"},{orgId:"org_a"})).toEqual({success:false,error:"Label name is required"});
+ expect(await createLabel({name:"x".repeat(81),colour:"green"},{orgId:"org_a"})).toEqual({success:false,error:"Use at most 80 characters"});
+ expect(await createLabel({name:"Feedback",colour:"arbitrary-css"},{orgId:"org_a"})).toMatchObject({success:false});
+ expect(await createLabel({name:"Feedback",colour:"green",projectId:"not-a-project"},{orgId:"org_a"})).toMatchObject({success:false});
+ expect(state.queries).toHaveLength(0);
+});

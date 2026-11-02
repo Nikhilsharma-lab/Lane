@@ -3,7 +3,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, FocusEvent, KeyboardEvent, MouseEvent, PointerEvent, ReactNode, Ref } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import type { PanInfo, Transition, Variants } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, LoaderCircle, LogOut, Monitor, Moon, Sun, SunMoon } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
@@ -134,9 +134,9 @@ function Face({ user, status, size }: { user: UserMenuUser; status?: UserStatus;
 /** Changing text rises out of a small blur while the old text lifts away. */
 function Rise({ text, reduced }: { text: string; reduced: boolean }) {
   return <AnimatePresence mode="popLayout" initial={false}>
-    <motion.span key={text} className={styles.rise} initial={reduced ? { opacity: 0 } : { opacity: 0, y: "0.35em", filter: `blur(${motionTokens.blur.subtle}px)` }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+    <m.span key={text} className={styles.rise} initial={reduced ? { opacity: 0 } : { opacity: 0, y: "0.35em", filter: `blur(${motionTokens.blur.subtle}px)` }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: "-0.35em", filter: `blur(${motionTokens.blur.subtle}px)`, transition: { duration: motionTokens.duration.fast, ease: standard } }}
-      transition={reduced ? { duration: 0 } : { duration: motionTokens.duration.standard, ease: enter }}>{text}</motion.span>
+      transition={reduced ? { duration: 0 } : { duration: motionTokens.duration.standard, ease: enter }}>{text}</m.span>
   </AnimatePresence>;
 }
 
@@ -147,7 +147,7 @@ function Keys({ keys }: { keys: string[] }) {
 /** A compact inline switch. It is one stop in the menu: up and down pass over it, left and right choose within it. */
 function Segmented<T extends string>({ label, icon, value, options, onChange, variants }: { label: string; icon: ReactNode; value: T; options: { value: T; label: string; icon: ReactNode }[]; onChange: (value: T) => void; variants?: Variants }) {
   const index = Math.max(0, options.findIndex(option => option.value === value));
-  return <motion.div className={styles.row} data-stop="group" data-label={label} variants={variants}>
+  return <m.div className={styles.row} data-stop="group" data-label={label} variants={variants}>
     <span className={styles.icon} aria-hidden="true">{icon}</span>
     <span className={styles.rowLabel} aria-hidden="true">{label}</span>
     <div className={styles.segments} role="group" aria-label={label} style={{ "--index": index, "--count": options.length } as CSSProperties}>
@@ -155,7 +155,7 @@ function Segmented<T extends string>({ label, icon, value, options, onChange, va
       {options.map(option => <button key={option.value} type="button" role="menuitemradio" tabIndex={-1} aria-checked={option.value === value} aria-label={option.label} title={option.label}
         className={styles.segment} onClick={() => onChange(option.value)}>{option.icon}</button>)}
     </div>
-  </motion.div>;
+  </m.div>;
 }
 
 const getStops = (root: HTMLElement | null) => Array.from(root?.querySelectorAll<HTMLElement>("[data-stop]") ?? []);
@@ -549,15 +549,15 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
   </>;
 
   const content = <>
-    <motion.div className={styles.header} variants={row}>
+    <m.div className={styles.header} variants={row}>
       <Face user={user} status={showStatus ? status : undefined} size="md" />
       <div className={styles.identity}>
         <div className={styles.nameRow}><span className={styles.name}>{user.name}</span>{user.plan && <span className={styles.plan}>{user.plan}</span>}</div>
         <span className={styles.email} title={user.email}>{user.email}</span>
       </div>
-    </motion.div>
+    </m.div>
     <div ref={listRef} className={styles.list} onFocus={onListFocus} onPointerMove={onListPointerMove} onPointerLeave={onListPointerLeave}>
-      <motion.span className={styles.highlight} data-tone={highlight?.tone} aria-hidden="true" initial={false}
+      <m.span className={styles.highlight} data-tone={highlight?.tone} aria-hidden="true" initial={false}
         animate={highlight ? { y: highlight.top, height: highlight.height, opacity: 1 } : { opacity: 0 }}
         transition={{ default: glide, opacity: { duration: reduced ? 0 : motionTokens.duration.instant } }} />
       {items.length > 0 && <>
@@ -568,23 +568,23 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
           <span className={styles.itemLabel}>{item.label}</span>
           {item.keys && <Keys keys={item.keys} />}
           </>;
-          return item.href ? <motion.a key={item.label} href={item.href} role="menuitem" aria-current={item.current ? "page" : undefined} tabIndex={-1}
+          return item.href ? <m.a key={item.label} href={item.href} role="menuitem" aria-current={item.current ? "page" : undefined} tabIndex={-1}
             aria-disabled={!!(workspaces?.pendingId || switchingId) || undefined}
             className={styles.item} data-stop="item" data-label={item.label} variants={row} onPointerMove={onItemPointerMove}
-            onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (workspacePending.current || workspaces?.pendingId) { event.preventDefault(); return; } close(true); item.onSelect?.(); if (onNavigate && inApp(item.href!)) { event.preventDefault(); onNavigate(item.href!); } }}>{contents}</motion.a>
-            : <motion.button key={item.label} type="button" role="menuitem" tabIndex={-1} className={styles.item} data-stop="item" data-label={item.label} variants={row}
+            onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; if (workspacePending.current || workspaces?.pendingId) { event.preventDefault(); return; } close(true); item.onSelect?.(); if (onNavigate && inApp(item.href!)) { event.preventDefault(); onNavigate(item.href!); } }}>{contents}</m.a>
+            : <m.button key={item.label} type="button" role="menuitem" tabIndex={-1} className={styles.item} data-stop="item" data-label={item.label} variants={row}
               aria-disabled={!!(workspaces?.pendingId || switchingId) || undefined}
-              onPointerMove={onItemPointerMove} onClick={() => { if (workspacePending.current || workspaces?.pendingId) return; close(true); item.onSelect?.(); }}>{contents}</motion.button>;
+              onPointerMove={onItemPointerMove} onClick={() => { if (workspacePending.current || workspaces?.pendingId) return; close(true); item.onSelect?.(); }}>{contents}</m.button>;
         })}
       </>}
       {workspaces && <>
         {items.length === 0 && <div className={styles.separator} role="separator" />}
-        <motion.button ref={workspaceTriggerRef} id={workspaceTriggerId} type="button" role="menuitem" tabIndex={-1} className={styles.item} data-stop="item" data-label="Switch workspace" variants={row}
+        <m.button ref={workspaceTriggerRef} id={workspaceTriggerId} type="button" role="menuitem" tabIndex={-1} className={styles.item} data-stop="item" data-label="Switch workspace" variants={row}
           aria-haspopup="menu" aria-expanded={workspaceOpen} aria-controls={workspaceOpen ? workspaceMenuId : undefined}
           onPointerMove={event => { onItemPointerMove(event); if (!sheet && event.pointerType !== "touch") openWorkspaces("pointer"); }} onClick={() => openWorkspaces()}>
           <span className={styles.icon} aria-hidden="true"><Layers strokeWidth={1.75} /></span><span className={styles.itemLabel}>Switch workspace</span>
           <ChevronRight strokeWidth={1.75} aria-hidden="true" />
-        </motion.button>
+        </m.button>
       </>}
       {(showTheme || showStatus) && <>
         <div className={styles.separator} role="separator" />
@@ -593,39 +593,39 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
         {showTheme && <Segmented label="Theme" icon={<SunMoon strokeWidth={1.75} />} value={theme} onChange={changeTheme} options={themes} variants={row} />}
       </>}
       <div className={styles.separator} role="separator" />
-      <motion.button type="button" role="menuitem" tabIndex={-1} className={styles.item} data-stop="item" data-tone="danger" data-label={signOutLabel} variants={row}
+      <m.button type="button" role="menuitem" tabIndex={-1} className={styles.item} data-stop="item" data-tone="danger" data-label={signOutLabel} variants={row}
         aria-label={signOutLabel}
         aria-disabled={!!(workspaces?.pendingId || switchingId) || undefined}
         aria-busy={signingOut || undefined} onPointerMove={onItemPointerMove} onClick={signOut}>
         <span className={styles.icon} aria-hidden="true">{signingOut ? <LoaderCircle className={styles.spinner} strokeWidth={1.75} /> : <LogOut strokeWidth={1.75} />}</span>
         <span className={styles.itemLabel}><Rise text={signOutLabel} reduced={reduced} /></span>
         {signOutKeys && <Keys keys={signOutKeys} />}
-      </motion.button>
+      </m.button>
       {signOutError && <p className={`${styles.message} ${styles.error}`} role="alert">Couldn’t sign out. Try again.</p>}
     </div>
   </>;
 
   const panel = <AnimatePresence>
-    {open && !sheet && <motion.div key="panel" ref={surfaceRef} {...menuProps} data-ui-surface="floating" className={styles.panel} data-inline={inline || undefined} data-align={align}
+    {open && !sheet && <m.div key="panel" ref={surfaceRef} {...menuProps} data-ui-surface="floating" className={styles.panel} data-inline={inline || undefined} data-align={align}
       variants={reduced ? stillMotion : panelMotion} initial="closed" animate="open" exit="exit">
       {content}
-    </motion.div>}
-    {open && !sheet && workspaceOpen && workspaces && <motion.div key="workspaces" ref={workspaceSurfaceRef} id={workspaceMenuId} role="menu" aria-label="Workspaces" tabIndex={-1}
+    </m.div>}
+    {open && !sheet && workspaceOpen && workspaces && <m.div key="workspaces" ref={workspaceSurfaceRef} id={workspaceMenuId} role="menu" aria-label="Workspaces" tabIndex={-1}
       data-ui-surface="floating" className={`${styles.panel} ${styles.workspacePanel}`} onKeyDown={onWorkspaceKeyDown} variants={reduced ? stillMotion : panelMotion} initial="closed" animate="open" exit="exit">
       {workspaceContent}
-    </motion.div>}
+    </m.div>}
   </AnimatePresence>;
 
   const bottomSheet = <AnimatePresence>
-    {open && sheet && <motion.div key="scrim" className={styles.scrim} aria-hidden="true" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    {open && sheet && <m.div key="scrim" className={styles.scrim} aria-hidden="true" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       transition={{ duration: reduced ? motionTokens.duration.instant : motionTokens.duration.standard, ease: standard }} onClick={() => close(true)} />}
-    {open && sheet && <motion.div key="sheet" ref={surfaceRef} {...menuProps} aria-label={workspaceOpen ? "Workspaces" : undefined} aria-labelledby={workspaceOpen ? undefined : triggerId} data-ui-surface="floating" className={`${styles.panel} ${styles.sheet}`}
+    {open && sheet && <m.div key="sheet" ref={surfaceRef} {...menuProps} aria-label={workspaceOpen ? "Workspaces" : undefined} aria-labelledby={workspaceOpen ? undefined : triggerId} data-ui-surface="floating" className={`${styles.panel} ${styles.sheet}`}
       variants={reduced ? stillMotion : sheetMotion} initial="closed" animate="open" exit="exit"
       onAnimationComplete={definition => { if (definition === "open") setSheetEntered(true); }}
       drag={reduced ? false : "y"} dragListener={sheetEntered} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: .04, bottom: .9 }} dragMomentum={false} onDragEnd={onDragEnd}>
       <span className={styles.handle} aria-hidden="true" />
       {workspaceOpen && workspaces ? <div ref={workspaceSurfaceRef} id={workspaceMenuId} role="group" aria-label="Workspaces" onKeyDown={onWorkspaceKeyDown}>{workspaceContent}</div> : content}
-    </motion.div>}
+    </m.div>}
   </AnimatePresence>;
 
   return <span ref={rootRef} className={styles.root}>

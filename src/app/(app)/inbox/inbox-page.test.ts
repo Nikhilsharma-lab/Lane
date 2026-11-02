@@ -18,7 +18,8 @@ vi.mock("@/lib/ensure-workspace", () => ({
   getMember: async () => ({ userId: session.userId, orgId: ORG, role: session.role }),
   getWorkspace: async () => ({ needsOnboarding: false, userId: session.userId, orgId: ORG, role: session.role, profileRole: "pm", fullName: "Pat", email: "pat@example.test", workspaceName: "Inbox page" }),
 }));
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
   redirect: (to: string) => { throw new Error(`redirect:${to}`); },
   usePathname: () => "/inbox",
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),

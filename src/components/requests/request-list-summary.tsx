@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { motion, useIsPresent, useReducedMotion, type Transition } from "motion/react"
+import { m, useIsPresent, useReducedMotion, type Transition } from "motion/react"
 import { X } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { ChipGroup } from "@/components/arc/chip-group/chip-group"
@@ -47,8 +47,8 @@ export function RequestListSummary({ rows, filter, project, requestType, onFilte
   const active = dimension === "status" ? filter : dimension === "project" ? project : requestType
   const label = dimensions.find(item => item.value === dimension)!.label
   // The viewport only clips; it animates nothing, and AnimatePresence still waits for the panel's exit.
-  return <motion.div className={styles.summaryViewport} inert={!present} aria-hidden={!present || undefined}>
-    <motion.section ref={panel} tabIndex={-1} className={styles.summary} role="region" aria-label="List summary"
+  return <m.div className={styles.summaryViewport} inert={!present} aria-hidden={!present || undefined}>
+    <m.section ref={panel} tabIndex={-1} className={styles.summary} role="region" aria-label="List summary"
       initial={reduced ? { opacity: 0 } : { x: "104%" }} animate={{ x: "0%", opacity: 1 }} exit={reduced ? { opacity: 0 } : { x: "104%", transition: leave }}
       transition={reduced ? { duration: motionTokens.duration.instant } : enter} onKeyDown={event => {
     if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); onClose() }
@@ -63,5 +63,5 @@ export function RequestListSummary({ rows, filter, project, requestType, onFilte
       <span>{item.label}</span><span>{item.count}</span>
     </button>)}</div>
     {!rows.length && <p className={styles.summaryCount}>Clear a filter to see Requests here.</p>}
-  </motion.section></motion.div>
+  </m.section></m.div>
 }

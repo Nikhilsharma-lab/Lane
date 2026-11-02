@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/link";
 import { Compass } from "lucide-react";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import buttonStyles from "@/components/arc/button/button.module.css";

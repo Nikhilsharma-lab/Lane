@@ -1,7 +1,7 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { z } from "zod";
+import * as z from "zod";
 import { db, profiles } from "@/db";
 import { guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { openBillingPage as openProviderPage, startCheckout } from "@/lib/billing";

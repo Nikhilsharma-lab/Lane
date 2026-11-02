@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, FocusEvent, KeyboardEvent, ReactElement, ReactNode } from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion } from "motion/react";
+import { AnimatePresence, animate, m, useIsPresent, useMotionValue, useReducedMotion } from "motion/react";
 import type { TargetAndTransition } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import { Tooltip } from "../tooltip/tooltip";
@@ -72,7 +72,7 @@ const fadeOut: TargetAndTransition = { opacity: 0, transition: { duration: motio
 
 function Phase({ children, reduced }: { children: ReactNode; reduced: boolean }) {
   const present = useIsPresent();
-  return <motion.span className={styles.phase} aria-hidden={present ? undefined : true} initial={reduced ? fadeIn : textIn} animate={rest} exit={reduced ? fadeOut : textOut} transition={{ duration: reduced ? motionTokens.duration.instant : motionTokens.duration.standard, ease: enter }}>{children}</motion.span>;
+  return <m.span className={styles.phase} aria-hidden={present ? undefined : true} initial={reduced ? fadeIn : textIn} animate={rest} exit={reduced ? fadeOut : textOut} transition={{ duration: reduced ? motionTokens.duration.instant : motionTokens.duration.standard, ease: enter }}>{children}</m.span>;
 }
 
 /**
@@ -254,7 +254,7 @@ export function FloatingButtonGroup({ items, label, leading, variant = "muted", 
     onKeyDown={onKeyDown}
     onBlur={onBlur}
   >
-    <motion.span className={styles.highlight} data-pressing={pressing && activeId ? "" : undefined} style={{ x, y, width, height, opacity, scale }} aria-hidden="true" />
+    <m.span className={styles.highlight} data-pressing={pressing && activeId ? "" : undefined} style={{ x, y, width, height, opacity, scale }} aria-hidden="true" />
     {leading}
     {items.map((item, position) => {
       if (!isAction(item)) return <span key={item.id ?? `separator-${position}`} className={styles.separator} role="separator" aria-orientation={vertical ? "horizontal" : "vertical"} />;

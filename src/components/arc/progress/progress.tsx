@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion, useTransform, type HTMLMotionProps, type TargetAndTransition, type Transition } from "motion/react";
+import { AnimatePresence, animate, m, useIsPresent, useMotionValue, useReducedMotion, useTransform, type HTMLMotionProps, type TargetAndTransition, type Transition } from "motion/react";
 import { Check } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./progress.module.css";
@@ -23,7 +23,7 @@ const fadeOut: TargetAndTransition = { opacity: 0, transition: { duration: motio
 /** Outgoing copies are hidden from assistive tech while they fade. */
 function Swap(props: HTMLMotionProps<"span">) {
   const present = useIsPresent();
-  return <motion.span {...props} aria-hidden={present ? props["aria-hidden"] : true} />;
+  return <m.span {...props} aria-hidden={present ? props["aria-hidden"] : true} />;
 }
 
 export function Progress({ value = 0, max = 100, label, showValue = false, className, ...props }: ProgressProps) {
@@ -49,11 +49,11 @@ export function Progress({ value = 0, max = 100, label, showValue = false, class
       {label ? <span className={styles.label}><AnimatePresence mode="popLayout" initial={false}><Swap key={label} className={styles.line} initial={reduce ? { opacity: 0 } : textIn} animate={shown} exit={reduce ? fadeOut : textOut} transition={enter}>{label}</Swap></AnimatePresence></span> : <span />}
       {showValue ? <span className={styles.value}>
         {/* Completion lands as the fill arrives: a check settles in beside the final count. */}
-        <AnimatePresence initial={false}>{complete && <motion.span key="done" className={styles.done} initial={reduce ? { opacity: 0 } : iconIn} animate={shown} exit={reduce ? fadeOut : { ...iconIn, transition: exitFast }} transition={reduce ? enter : { ...motionTokens.spring.snappy, delay: motionTokens.duration.standard }}><Check data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /></motion.span>}</AnimatePresence>
-        <motion.span className={styles.count}>{counted}</motion.span>
+        <AnimatePresence initial={false}>{complete && <m.span key="done" className={styles.done} initial={reduce ? { opacity: 0 } : iconIn} animate={shown} exit={reduce ? fadeOut : { ...iconIn, transition: exitFast }} transition={reduce ? enter : { ...motionTokens.spring.snappy, delay: motionTokens.duration.standard }}><Check data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" /></m.span>}</AnimatePresence>
+        <m.span className={styles.count}>{counted}</m.span>
       </span> : null}
     </div> : null}
-    <div className={styles.track}><motion.span className={styles.fill} style={{ x }} /></div>
+    <div className={styles.track}><m.span className={styles.fill} style={{ x }} /></div>
   </div>;
 }
 

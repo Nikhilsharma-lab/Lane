@@ -7,7 +7,7 @@ import {
   RetryError,
 } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { z } from "zod";
+import * as z from "zod";
 import { refineFraming } from "@/lib/request-framing";
 
 // Explicit baseURL because Claude Desktop sets ANTHROPIC_BASE_URL to

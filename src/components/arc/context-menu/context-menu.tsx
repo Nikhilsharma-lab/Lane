@@ -3,7 +3,7 @@
 import { createPortal } from "react-dom";
 import { Fragment, cloneElement, isValidElement, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, FocusEvent, HTMLAttributes, KeyboardEvent, MouseEvent, ReactElement, ReactNode } from "react";
-import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/react";
+import { AnimatePresence, m, useIsPresent, useReducedMotion } from "motion/react";
 import { Check, ChevronLeft, ChevronRight, Copy, MoreHorizontal, Trash2 } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./context-menu.module.css";
@@ -152,7 +152,7 @@ function MenuPanel({ id, treeId, label, items, point, panelRef, reduced, isLive,
   }
   const activePoint = anchor ? placement : point;
   return <>
-    <motion.div id={id} ref={node => { localRef.current = node; if (panelRef) panelRef.current = node; }}
+    <m.div id={id} ref={node => { localRef.current = node; if (panelRef) panelRef.current = node; }}
       data-context-tree={treeId} data-ui-surface="floating" data-submenu={anchor ? "" : undefined}
       className={styles.menu} role="menu" aria-label={label} tabIndex={-1} inert={hiddenByChild || undefined}
       style={{ left: activePoint.x, top: activePoint.y, transformOrigin: `${activePoint.originX}px ${activePoint.originY}px`, visibility: hiddenByChild ? "hidden" : undefined }}
@@ -162,7 +162,7 @@ function MenuPanel({ id, treeId, label, items, point, panelRef, reduced, isLive,
       initial={reduced ? { opacity: 0 } : { opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }}
       exit={reduced ? { opacity: 0, transition: { duration: motionTokens.duration.instant } } : { opacity: 0, scale: .98, transition: { duration: motionTokens.duration.instant, ease: [...motionTokens.ease.standard] } }}
       transition={reduced ? { duration: motionTokens.duration.instant } : { default: motionTokens.spring.snappy, opacity: { duration: motionTokens.duration.fast, ease: [...motionTokens.ease.enter] } }}>
-      <motion.span className={styles.highlight} data-tone={highlight?.danger ? "danger" : undefined} aria-hidden="true" initial={false}
+      <m.span className={styles.highlight} data-tone={highlight?.danger ? "danger" : undefined} aria-hidden="true" initial={false}
         animate={highlight ? { y: highlight.top, height: highlight.height, opacity: 1 } : { opacity: 0 }}
         transition={{ default: highlight?.glide && !reduced ? motionTokens.spring.snappy : { duration: 0 }, opacity: { duration: reduced ? 0 : motionTokens.duration.instant } }} />
       {anchor && placement.overlap && <><button type="button" role="menuitem" tabIndex={-1} data-index={-1} className={styles.item} onClick={onBack} aria-label={`Back to ${anchor.label}`}>
@@ -205,7 +205,7 @@ function MenuPanel({ id, treeId, label, items, point, panelRef, reduced, isLive,
           {!!item.children?.length && <ChevronRight className={styles.chevron} data-icon-size="sm" aria-hidden="true" />}
         </button>
       </Fragment>; })}
-    </motion.div>
+    </m.div>
     <AnimatePresence>
       {openedItem && child && <MenuPanel key={openedItem.id} id={submenuId} treeId={treeId} label={openedItem.label} items={openedItem.children!}
         point={point} anchor={child.anchor} focusFirst={child.focus} focusRequest={child.focusRequest} reduced={reduced} isLive={isLive} onClose={onClose} onBack={closeChild} onOverlap={setChildOverlaps} />}

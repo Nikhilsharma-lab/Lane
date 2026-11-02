@@ -1,6 +1,7 @@
-import { labelKeysSchema, sourceRequestType } from "./request-labels";
+import { sourceRequestType } from "./request-labels";
+import { labelKeysSchema } from "./request-label-schemas";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
-import { z } from "zod";
+import * as z from "zod";
 import { expectedImpactSchema, noMeasurableImpactSchema } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
 import { measurementRequestTypeIssue } from "./request-measurement";

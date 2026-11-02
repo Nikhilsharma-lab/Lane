@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import dotenv from "dotenv";
 
+import { MOTION_ALIAS } from "./src/components/motion/motion-alias";
 import { securityHeaders } from "./src/lib/security-headers";
 
 // Force-load Lane's selected local env file so it wins over system env vars.
@@ -22,7 +23,16 @@ const nextConfig: NextConfig = {
     // static default and could show a stale status; 30 s also lets Back and
     // a quick return to a Request reuse the page segment.
     staleTimes: { dynamic: 30, static: 30 },
+    // Build 3 (phone first visit): Turbopack's documented chunker setting (turbopackChunking.md). At its 50 KB
+    // default it split each page's first load into about 30 small files and copied the small modules the error and
+    // not-found screens share (the empty state, the page strip, Link) into each screen's own file. Merging up to
+    // 200 KB of source per chunk sends 10-14 KB (gzip) less on every signed-in page, in about 18 files. The code and
+    // the order it runs in are unchanged; only how it is packed into files. Code fetched later (a popup's on first
+    // open, another page's) grows about 5%, since merged files share less between groups.
+    turbopackChunking: { minChunkSize: 200_000 },
   },
+  // #266: Motion's split needs `motion/react` resolved to framer-motion (src/components/motion/motion-alias.ts).
+  turbopack: { resolveAlias: MOTION_ALIAS },
   // Baseline security headers on every route; CSP stays Report-Only until
   // staging and production report nothing (src/lib/security-headers.ts).
   async headers() {

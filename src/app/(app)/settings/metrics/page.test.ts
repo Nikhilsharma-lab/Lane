@@ -12,7 +12,8 @@ const ORG = "org_metrics_page";
 const session = vi.hoisted(() => ({ workspace: null as unknown }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ensure-workspace", () => ({ getWorkspace: async () => session.workspace }));
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (original) => ({
+  ...(await original<typeof import("next/navigation")>()),
   redirect: (to: string) => { throw new Error(`redirect:${to}`); },
   usePathname: () => "/settings/metrics",
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),

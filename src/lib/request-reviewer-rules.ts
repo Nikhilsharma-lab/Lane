@@ -1,12 +1,11 @@
-import { z } from "zod";
+// Plain reviewer rules, safe for any page's browser code (the Requests list's rows use concernMarker). The
+// schemas server actions and the New Request form validate with are in request-reviewer-schemas.ts, so the
+// form-checking library stays out of pages without a form (#266).
 /**
  * A Reviewer is always a teammate on a paid seat: an Admin or a Member of the
  * workspace (#211). Email-address and pending-invitation Reviewers are retired.
  */
-export const reviewerIdentitySchema = z
-  .object({ kind: z.literal("member"), userId: z.string().min(1).max(200) })
-  .strict();
-export type ReviewerIdentity = z.infer<typeof reviewerIdentitySchema>;
+export type ReviewerIdentity = { kind: "member"; userId: string };
 /** Why the server refuses anyone who isn't an Admin or a Member as a Reviewer. */
 export const PAID_SEATS_ONLY = "Only Admins and Members can be Reviewers.";
 /**
@@ -44,46 +43,8 @@ export type Reviewer = {
   note: string;
   decision: ReviewDecision | null;
 };
-export const requestChangeContextSchema = z
-  .object({
-    orgId: z.string().min(1),
-    requestId: z.uuid(),
-    expectedRevision: z.number().int().nonnegative(),
-    operationId: z.uuid(),
-  })
-  .strict();
-export type RequestChangeContext = z.infer<typeof requestChangeContextSchema>;
-export const reviewerIdentitiesSchema = z.array(reviewerIdentitySchema).max(MAX_REVIEWERS);
-/**
- * The most picks a create payload may carry. MAX_REVIEWERS is enforced with
- * its own message by the shared add rules; this bound only refuses an absurd
- * payload before those rules run.
- */
-const CREATE_PICKS_LIMIT = MAX_REVIEWERS * 5;
-/** Reviewers picked while creating a Request, with the optional question each of them is sent. */
-export const createReviewersSchema = z
-  .object({
-    nominees: z.array(reviewerIdentitySchema).max(CREATE_PICKS_LIMIT),
-    note: z.string().trim().max(REVIEW_NOTE_MAX, `Keep the question to ${REVIEW_NOTE_MAX} characters.`),
-  })
-  .strict()
-  .optional();
-export const addReviewersSchema = z
-  .object({
-    nominees: reviewerIdentitiesSchema.min(1),
-    note: z.string().trim().max(REVIEW_NOTE_MAX),
-  })
-  .strict();
-export const removeReviewerSchema = z
-  .object({ reviewerId: z.uuid() })
-  .strict();
-export const answerReviewSchema = z
-  .object({
-    reviewerId: z.uuid(),
-    kind: z.enum(["looks_good", "concern"]),
-    reason: z.string().trim().max(REVIEW_REASON_MAX),
-  })
-  .strict();
+/** Which Request a lifecycle change is for, the revision it was made on, and its retry key. */
+export type RequestChangeContext = { orgId: string; requestId: string; expectedRevision: number; operationId: string };
 /** What the Request page knows of a saved reviewer before the reviewers load (#295): enough to hold their row's shape. */
 export type ReviewerOutline = { note: boolean; concern: boolean; mine: boolean };
 

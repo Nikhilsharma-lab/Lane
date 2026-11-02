@@ -9,10 +9,8 @@ import {
   type WorkspacePerson,
 } from "./workspace-roster";
 import { guardCanChange, type MemberAuth } from "./auth-guard";
-import {
-  requestChangeContextSchema,
-  type RequestChangeContext,
-} from "./request-reviewer-rules";
+import type { RequestChangeContext } from "./request-reviewer-rules";
+import { requestChangeContextSchema } from "./request-reviewer-schemas";
 export type RequestTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export class RequestChangeError extends Error {}
 export function insist(value: unknown, message: string): asserts value {

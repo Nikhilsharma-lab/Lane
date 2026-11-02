@@ -2,10 +2,11 @@
 
 import { createPortal } from "react-dom";
 import { usePathname, useSearchParams } from "next/navigation";
-import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState, type MemoExoticComponent, type ReactNode } from "react";
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog";
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import type { IntakeCloseAttempt, RegisterIntakeCloseAttempt } from "./intake-navigation-guard";
 import { NewRequestContext } from "./new-request-context";
 import { listFiltersOf, revealRequest, useListViewSnapshot, useRequestListContext, useSetDetailSession, useSetRequestListView } from "./list-view-state";
@@ -24,26 +25,17 @@ import { useStableRouter } from "@/components/shell/stable-router";
 
 export { NewRequestLink } from "./new-request-link";
 
-// Memoised: the closed form renders ahead of the first open, and a list view change re-renders this provider.
-type IntakeFormComponent = MemoExoticComponent<typeof import("@/app/(app)/intake/intake-form").default>;
-
 // Plan item 2.3: C focuses the title within 100 ms on the first open. The form
 // (react-hook-form, zod, the AI review) stays out of every route's first load:
 // it loads once, on idle after the provider mounts or when the pointer or
 // focus reaches New Request, and from then on renders synchronously, with no
 // Suspense boundary. The skeleton shows only if C beats the preload. Once it
 // has loaded, the form renders, closed, into its detached host (#296), so the
-// first C only mounts the dialog around it, as every later C does.
-let loadedForm: IntakeFormComponent | null = null;
-let formPromise: Promise<IntakeFormComponent> | null = null;
-
-export function preloadComposer(): Promise<IntakeFormComponent> {
-  formPromise ??= import("@/app/(app)/intake/intake-form").then(
-    (module) => (loadedForm = memo(module.default)),
-    (error: unknown) => { formPromise = null; throw error; },
-  );
-  return formPromise;
-}
+// first C only mounts the dialog around it, as every later C does. If the form
+// can't load (offline, an old tab after a deploy), the open is given up and Lane
+// says so, with Try again (lazy-popup.tsx).
+// Memoised: the closed form renders ahead of the first open, and a list view change re-renders this provider.
+const composerForm = popupCode(() => import("@/app/(app)/intake/intake-form").then(module => ({ IntakeForm: memo(module.default) })));
 
 // The composer dialog's body hands its height to its child, so the composer can
 // scroll its own content and keep the footer at the bottom of the panel.
@@ -103,15 +95,14 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   // closed form, already rendered, does not render again before the dialog's first frame.
   const [formActive, setFormActive] = useState(false);
   const [formHost, setFormHost] = useState<HTMLDivElement | null>(null);
-  const [IntakeForm, setIntakeForm] = useState<IntakeFormComponent | null>(() => loadedForm);
-  const preload = useCallback(() => {
-    if (loadedForm) return;
-    // A transition: the closed form's first render yields to any input that arrives meanwhile.
-    preloadComposer().then((form) => startTransition(() => setIntakeForm(() => form)), () => undefined);
-  }, []);
+  // Try again, when the form couldn't load, opens the composer again as it was opened.
+  const reopen = useRef<() => void>(() => {});
+  // A transition: the closed form's first render yields to any input that arrives meanwhile.
+  const form = usePopupCode(composerForm, open, () => couldNotOpen("composer", setOpen, { retry: () => reopen.current() }), { ahead: true, transition: true });
+  const preload = composerForm.preload;
   useEffect(() => {
-    if (IntakeForm && !formHost) startTransition(() => setFormHost(current => current ?? createFormHost()));
-  }, [IntakeForm, formHost]);
+    if (form && !formHost) startTransition(() => setFormHost(current => current ?? createFormHost()));
+  }, [form, formHost]);
   const busy = useRef(false);
   const closeAttempt = useRef<IntakeCloseAttempt | null>(null);
   const registerCloseAttempt = useCallback<RegisterIntakeCloseAttempt>(attempt => {
@@ -143,22 +134,23 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
       completed.current = false;
     }
     setFormHost(current => current ?? createFormHost());
-    if (!IntakeForm) preload();
+    if (!form) preload();
     setHasOpened(true);
     setOpen(true);
     setFormActive(false);
     startTransition(() => setFormActive(true));
-  }, [IntakeForm, hasOpened, preload, projectFilter, projectId, statusFilter]);
+  }, [form, hasOpened, preload, projectFilter, projectId, statusFilter]);
+  useEffect(() => { reopen.current = () => openComposer(trigger.current ?? undefined); }, [openComposer]);
 
   useEffect(() => {
-    if (IntakeForm) return;
+    if (form) return;
     if (typeof window.requestIdleCallback === "function") {
       const idle = window.requestIdleCallback(preload, { timeout: 4000 });
       return () => window.cancelIdleCallback(idle);
     }
     const timer = window.setTimeout(preload, 1500);
     return () => window.clearTimeout(timer);
-  }, [IntakeForm, preload]);
+  }, [form, preload]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -266,11 +258,11 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     <NewRequestContext.Provider value={value}>
       {children}
       {/* For the perf spec (e2e/perf.spec.ts): C after this has no chunk to wait for and no form to build. */}
-      <span hidden data-composer-ready={IntakeForm && formHost ? "true" : undefined} />
+      <span hidden data-composer-ready={form && formHost ? "true" : undefined} />
       {/* Keep the controller and File objects alive in a detached host while the
           Arc dialog is closed, before the first open too. Its overlay and focus
           scope still unmount normally. */}
-      {IntakeForm && formHost && createPortal(<IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} registerCloseAttempt={registerCloseAttempt} />, formHost)}
+      {form && formHost && createPortal(<form.IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} registerCloseAttempt={registerCloseAttempt} />, formHost)}
       {hasOpened && formHost && <>
         <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
           <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect." canDismiss={() => !busy.current}
@@ -314,7 +306,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
                 event.preventDefault();
               }
             }}>
-            {!IntakeForm && <Placeholder><div className="p-6"><Skeleton label="Loading New Request" lines={5} /></div></Placeholder>}
+            {!form && <Placeholder><div className="p-6"><Skeleton label="Loading New Request" lines={5} /></div></Placeholder>}
             <div style={fill} ref={element => { if (element && formHost.parentElement !== element) element.appendChild(formHost); }} />
           </DialogContent>
         </Dialog>

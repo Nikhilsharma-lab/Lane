@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/link";
 import { LaneMark } from "@/components/auth/auth-shell";
 import { SUPPORT_EMAIL } from "@/app/support-contact";
 // One stylesheet for both legal pages, so Terms reads exactly like the Privacy policy.

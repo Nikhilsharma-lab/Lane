@@ -1,9 +1,9 @@
 "use client"
 
-import dynamic from "next/dynamic"
 import { createContext, useContext, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup"
 import { createIsItLive, IS_IT_LIVE_COPY, type AskIsItLive, type IsItLiveView } from "./is-it-live"
 import { restoreRequestFocus } from "./list-focus"
 import detailStyles from "./detail.module.css"
@@ -11,10 +11,7 @@ import styles from "./is-it-live.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
 
 // The release form loads only once "Yes, record release" is chosen; this provider sits on every page.
-const IsItLiveRelease = dynamic(() => import("./is-it-live-release").then(module => module.IsItLiveRelease), {
-  ssr: false,
-  loading: () => <Placeholder label="Loading release" lines={2} />,
-})
+const releaseCode = popupCode(() => import("./is-it-live-release"))
 
 const IsItLiveContext = createContext<AskIsItLive | null>(null)
 IsItLiveContext.displayName = "IsItLive"
@@ -55,6 +52,9 @@ export function IsItLiveProvider({ orgId, children }: { orgId: string; children:
     if (from) restoreRequestFocus(from.requestId, { force: true })
   }
 
+  // A release form that can't load leaves the Request at Done with its Undo, as Not yet does.
+  const release = usePopupCode(releaseCode, view?.step === "release", () => couldNotOpen("release", () => prompt.notYet(), { retry: null }))
+
   return <IsItLiveContext.Provider value={ask}>
     {children}
     <Dialog guardTypedText open={view !== null} onOpenChange={open => { if (!open) prompt.notYet() }}>
@@ -67,7 +67,9 @@ export function IsItLiveProvider({ orgId, children }: { orgId: string; children:
             <Button variant="ghost" onClick={prompt.notYet}>{IS_IT_LIVE_COPY.notYet}</Button>
             <Button onClick={prompt.record}>{IS_IT_LIVE_COPY.yes}</Button>
           </div>
-        </> : <IsItLiveRelease key={view.request.id} request={view.request} orgId={orgId} onSaved={prompt.saved} onNotYet={prompt.notYet} />}
+        </> : release
+          ? <release.IsItLiveRelease key={view.request.id} request={view.request} orgId={orgId} onSaved={prompt.saved} onNotYet={prompt.notYet} />
+          : <Placeholder label="Loading release" lines={2} />}
       </DialogContent>}
     </Dialog>
   </IsItLiveContext.Provider>

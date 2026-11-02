@@ -4,7 +4,7 @@ import { changeable } from "@/lib/request-access";
 import { canUseLabels } from "@/lib/label-access";
 import { sourceRequestType } from "@/lib/request-labels";
 import { and, eq } from "drizzle-orm";
-import { z } from "zod";
+import * as z from "zod";
 import { db, requests } from "@/db";
 import { guardCanContribute } from "@/lib/auth-guard";
 import { canUseProject } from "@/lib/project-access";

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, CSSProperties, FocusEvent as ReactFocusEvent, ReactNode } from "react";
-import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { AnimatePresence, animate, m, useIsPresent, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import type { Transition, Variants } from "motion/react";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
@@ -126,7 +126,7 @@ function Rolling({ text, direction, reduced }: { text: string; direction: number
   return <span className={styles.rolling} aria-hidden="true">
     {words.map((word, index) => <span key={index} className={styles.word}>
       <AnimatePresence initial={false} mode="popLayout" custom={direction}>
-        <motion.span key={word} className={styles.wordInner} custom={direction} variants={reduced ? fade : roll} initial="enter" animate="center" exit="exit">{word}</motion.span>
+        <m.span key={word} className={styles.wordInner} custom={direction} variants={reduced ? fade : roll} initial="enter" animate="center" exit="exit">{word}</m.span>
       </AnimatePresence>
     </span>)}
   </span>;
@@ -156,7 +156,7 @@ function Bar({ row, segment, reduced }: { row: number; segment: Segment; reduced
     wasEmpty.current = false;
     animate(opacity, 1, { duration: reduced ? 0 : motionTokens.duration.fast });
   }, [left, opacity, reduced, segment, width]);
-  return <motion.span className={styles.bar} style={{ left: leftPct, width: widthPct, opacity, top: `calc(${row} * var(--cell) + var(--space-1) * .75)` }} />;
+  return <m.span className={styles.bar} style={{ left: leftPct, width: widthPct, opacity, top: `calc(${row} * var(--cell) + var(--space-1) * .75)` }} />;
 }
 
 /** A solid end of the range. It glides from day to day and only fades when the end leaves this month. */
@@ -172,7 +172,7 @@ function Thumb({ cell, reduced }: { cell: { row: number; col: number } | null; r
     animate(opacity, 1, { duration: reduced ? 0 : motionTokens.duration.fast });
     animate(scale, 1, reduced ? { duration: 0 } : GLIDE);
   }, [cell, opacity, reduced, scale, x, y]);
-  return <motion.span className={styles.thumb} style={{ transform, opacity }} />;
+  return <m.span className={styles.thumb} style={{ transform, opacity }} />;
 }
 
 interface MonthProps {
@@ -259,8 +259,8 @@ function Month({ month, range, tabbable, today, minDate, maxDate, weekStartsOn, 
 /** The visible months travel together; a leaving set turns inert so focus and queries only find the current one. */
 function Months({ children, direction, reduced }: { children: ReactNode; direction: number; reduced: boolean }) {
   const present = useIsPresent();
-  return <motion.div className={styles.months} data-current={present || undefined} inert={!present || undefined} custom={direction}
-    variants={reduced ? fade : slide} initial="enter" animate="center" exit="exit">{children}</motion.div>;
+  return <m.div className={styles.months} data-current={present || undefined} inert={!present || undefined} custom={direction}
+    variants={reduced ? fade : slide} initial="enter" animate="center" exit="exit">{children}</m.div>;
 }
 
 export function DateRangePicker({ value, defaultValue = null, onChange, label = "Date range", placeholder = "Select dates", presets = defaultDateRangePresets, minDate, maxDate, weekStartsOn = 0, locale = "en-US", months = "auto", boundary, className, embedded = false, onCancel }: DateRangePickerProps) {
@@ -589,11 +589,11 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
   const quiet = open ? (reduced ? { opacity: 0 } : { opacity: 0, filter: `blur(${blur.subtle}px)` }) : { opacity: 1, filter: "blur(0px)" };
   const quietTransition = open ? { duration: motionTokens.duration.instant, ease: standardEase } : { duration: motionTokens.duration.standard, ease: enterEase, delay: reduced ? 0 : motionTokens.stagger.line };
 
-  const panel = open && today && <motion.div key="panel" ref={panelRef} id={`${uid}-panel`} className={[styles.panel, embedded && styles.embeddedPanel].filter(Boolean).join(" ")} role={embedded ? "group" : "dialog"} aria-label={label} data-compact={compact || undefined}
+  const panel = open && today && <m.div key="panel" ref={panelRef} id={`${uid}-panel`} className={[styles.panel, embedded && styles.embeddedPanel].filter(Boolean).join(" ")} role={embedded ? "group" : "dialog"} aria-label={label} data-compact={compact || undefined}
           style={{ "--panel-width": panelWidth ? `${panelWidth}px` : undefined, width: compact && panelWidth ? panelWidth : undefined } as CSSProperties} exit={{ opacity: 1, transition: { duration: motionTokens.duration.fast } }}>
-          <motion.div className={styles.body} variants={reduced ? faceFade : faceIn} initial="hidden" animate="shown" exit="gone">
+          <m.div className={styles.body} variants={reduced ? faceFade : faceIn} initial="hidden" animate="shown" exit="gone">
             {presets.length > 0 && <div ref={railRef} className={styles.rail} role="group" aria-label="Presets" onKeyDown={onRailKey}>
-              <motion.span className={styles.railHighlight} style={{ x: gx, y: gy, width: gw, height: gh, opacity: go }} aria-hidden="true" />
+              <m.span className={styles.railHighlight} style={{ x: gx, y: gy, width: gw, height: gh, opacity: go }} aria-hidden="true" />
               {presets.map((preset, index) => <button key={preset.label} type="button" className={styles.preset} data-preset={index} aria-pressed={index === activePreset}
                 onClick={() => choosePreset(preset)}>{preset.label}</button>)}
             </div>}
@@ -613,51 +613,51 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
                 </AnimatePresence>
               </div>
             </div>
-          </motion.div>
+          </m.div>
 
           <div className={styles.footer}>
             <div className={styles.summary}>
-              <motion.span layoutId={layoutId} layout={layoutId ? "position" : undefined} className={styles.summaryValue} transition={GROW}
+              <m.span layoutId={layoutId} layout={layoutId ? "position" : undefined} className={styles.summaryValue} transition={GROW}
                 variants={layoutId ? undefined : faceFade} initial={layoutId ? undefined : "hidden"} animate={layoutId ? undefined : "shown"} exit={layoutId ? undefined : "gone"}>
                 <Rolling text={shownText} direction={shownDirection} reduced={reduced} />
-              </motion.span>
-              <motion.span className={styles.summaryCount} variants={reduced ? faceFade : faceIn} initial="hidden" animate="shown" exit="gone">
+              </m.span>
+              <m.span className={styles.summaryCount} variants={reduced ? faceFade : faceIn} initial="hidden" animate="shown" exit="gone">
                 {countText && <Rolling text={anchor && sameDay(anchor, hover) ? "Pick an end date" : countText} direction={shownDirection} reduced={reduced} />}
-              </motion.span>
+              </m.span>
             </div>
-            <motion.div className={styles.actions} variants={reduced ? faceFade : faceIn} initial="hidden" animate="shown" exit="gone">
+            <m.div className={styles.actions} variants={reduced ? faceFade : faceIn} initial="hidden" animate="shown" exit="gone">
               <button type="button" className={styles.ghost} onClick={() => close(true)}>Cancel</button>
               <button type="button" className={styles.primary} onClick={apply} disabled={!shown}>Apply</button>
-            </motion.div>
+            </m.div>
           </div>
           <p className={styles.srOnly} aria-live="polite">{status}</p>
-        </motion.div>;
+        </m.div>;
 
   if (embedded) return <div ref={rootRef} className={[styles.root, styles.embedded, className].filter(Boolean).join(" ")} onKeyDown={onRootKey}>
     {panel}
   </div>;
 
-  return <motion.div ref={rootRef} className={[styles.root, className].filter(Boolean).join(" ")} style={{ width: rootWidth }} data-open={open || undefined} onKeyDown={onRootKey} onBlur={onRootBlur}>
+  return <m.div ref={rootRef} className={[styles.root, className].filter(Boolean).join(" ")} style={{ width: rootWidth }} data-open={open || undefined} onKeyDown={onRootKey} onBlur={onRootBlur}>
     {/* The trigger stays in place under the panel. Its icons fade, while the value itself flies to the panel footer and back. */}
     <button ref={triggerRef} type="button" className={styles.trigger} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? `${uid}-panel` : undefined}
       aria-label={`${label}: ${committedText}`} disabled={!today} inert={open || undefined} onClick={openPanel}>
-      <motion.span className={styles.triggerIcon} initial={false} animate={quiet} transition={quietTransition}><CalendarDays strokeWidth={1.75} aria-hidden="true" /></motion.span>
+      <m.span className={styles.triggerIcon} initial={false} animate={quiet} transition={quietTransition}><CalendarDays strokeWidth={1.75} aria-hidden="true" /></m.span>
       {open || !layoutId
-        ? <motion.span key="resting" className={styles.value} data-empty={!committed || undefined} initial={false} animate={open ? { opacity: 0 } : { opacity: 1 }} transition={quietTransition}>
+        ? <m.span key="resting" className={styles.value} data-empty={!committed || undefined} initial={false} animate={open ? { opacity: 0 } : { opacity: 1 }} transition={quietTransition}>
           <Rolling text={committedText} direction={committedDirection} reduced={reduced} />
-        </motion.span>
-        : <motion.span key="shared" layoutId={layoutId} layout="position" className={styles.value} data-empty={!committed || undefined} transition={SHRINK}>
+        </m.span>
+        : <m.span key="shared" layoutId={layoutId} layout="position" className={styles.value} data-empty={!committed || undefined} transition={SHRINK}>
           <Rolling text={committedText} direction={committedDirection} reduced={reduced} />
-        </motion.span>}
-      <motion.span className={styles.chevron} initial={false} animate={quiet} transition={quietTransition}><ChevronDown strokeWidth={1.75} aria-hidden="true" /></motion.span>
+        </m.span>}
+      <m.span className={styles.chevron} initial={false} animate={quiet} transition={quietTransition}><ChevronDown strokeWidth={1.75} aria-hidden="true" /></m.span>
     </button>
 
-    <motion.div className={styles.surface} style={{ width, height, borderRadius: radius, x }}>
+    <m.div className={styles.surface} style={{ width, height, borderRadius: radius, x }}>
       <AnimatePresence>
         {panel}
       </AnimatePresence>
-    </motion.div>
-  </motion.div>;
+    </m.div>
+  </m.div>;
 }
 
 export default DateRangePicker;

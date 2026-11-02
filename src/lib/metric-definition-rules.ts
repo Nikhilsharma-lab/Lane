@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 
 /**
  * Client-safe facts about Metric definitions (#196). The Metrics library itself, which owns every read

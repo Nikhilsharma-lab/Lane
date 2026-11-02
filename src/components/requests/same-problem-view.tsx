@@ -1,5 +1,5 @@
 import { useEffect, useRef, type Ref } from "react"
-import Link from "next/link"
+import Link from "@/components/link"
 import { Badge } from "@/components/arc/badge/badge"
 import { Button } from "@/components/arc/button/button"
 import { actualText, changeText, goalText } from "@/lib/impact-presenter"

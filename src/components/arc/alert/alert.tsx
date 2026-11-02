@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
-import { AnimatePresence, animate, motion, useIsPresent, useMotionValue, useReducedMotion, type AnimationPlaybackControls, type HTMLMotionProps, type MotionProps, type TargetAndTransition, type Transition } from "motion/react";
+import { AnimatePresence, animate, m, useIsPresent, useMotionValue, useReducedMotion, type AnimationPlaybackControls, type HTMLMotionProps, type MotionProps, type TargetAndTransition, type Transition } from "motion/react";
 import { Check, Info as InfoCircle, TriangleAlert as WarningTriangle, CircleX as XmarkCircle, X } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./alert.module.css";
@@ -30,7 +30,7 @@ const fadeOut: TargetAndTransition = { opacity: 0, transition: { duration: motio
 /** Outgoing copies are hidden from assistive tech while they fade, so the live region reads only the current text. */
 function Swap(props: HTMLMotionProps<"span">) {
   const present = useIsPresent();
-  return <motion.span {...props} aria-hidden={present ? props["aria-hidden"] : true} />;
+  return <m.span {...props} aria-hidden={present ? props["aria-hidden"] : true} />;
 }
 
 /** Follows its content height. After `morphKey` changes, the height springs from the old size to the new one and then returns to auto, so passive reflows (a resize, a font swap) follow instantly. It clips only while moving, so focus rings stay visible at rest. */
@@ -60,9 +60,9 @@ function HeightFrame({ className, reduce, morphKey, children }: { className?: st
     observer.observe(node);
     return () => { observer.disconnect(); controls?.stop(); };
   }, [height, reduce]);
-  return <motion.div ref={frame} className={className} style={{ height }}>
+  return <m.div ref={frame} className={className} style={{ height }}>
     <div ref={content} className={styles.content}>{children}</div>
-  </motion.div>;
+  </m.div>;
 }
 
 function AlertBox({ tone = "info", title, children, className, reduce, onDismiss, animateIcon = false, role, ...props }: AlertBoxProps) {
@@ -73,15 +73,15 @@ function AlertBox({ tone = "info", title, children, className, reduce, onDismiss
   const swap: MotionProps = { initial: reduce ? { opacity: 0 } : textIn, animate: shown, exit: reduce ? fadeOut : textOut, transition: enter };
   return <div {...props} className={[styles.alert, styles[tone], className].filter(Boolean).join(" ")} role={role ?? (tone === "danger" ? "alert" : "status")}>
     {/* A new tone morphs its icon in place; a newly shown alert gives the icon a small settle. */}
-    <motion.span className={styles.icon} initial={animateIcon && !reduce ? iconIn : false} animate={shown} transition={motionTokens.spring.snappy}>
+    <m.span className={styles.icon} initial={animateIcon && !reduce ? iconIn : false} animate={shown} transition={motionTokens.spring.snappy}>
       <AnimatePresence mode="popLayout" initial={false}><Swap key={tone} className={styles.glyph} initial={reduce ? { opacity: 0 } : iconIn} animate={shown} exit={reduce ? fadeOut : { ...iconIn, transition: exitFast }} transition={reduce ? enter : motionTokens.spring.snappy}><Icon data-icon-size="lg" aria-hidden="true"/></Swap></AnimatePresence>
-    </motion.span>
+    </m.span>
     {/* The copy column follows its content height, so longer or shorter messages never snap the alert. */}
     <HeightFrame className={styles.copy} reduce={reduce} morphKey={`${title}\n${hasDetails}\n${text ?? ""}`}>
       <strong className={styles.title}><AnimatePresence mode="popLayout" initial={false}><Swap key={title} className={styles.line} {...swap}>{title}</Swap></AnimatePresence></strong>
-      <AnimatePresence mode="popLayout" initial={false}>{hasDetails && <motion.p key="details" className={styles.description} {...swap}>
+      <AnimatePresence mode="popLayout" initial={false}>{hasDetails && <m.p key="details" className={styles.description} {...swap}>
         {text === null ? children : <AnimatePresence mode="popLayout" initial={false}><Swap key={text} className={styles.line} {...swap}>{text}</Swap></AnimatePresence>}
-      </motion.p>}</AnimatePresence>
+      </m.p>}</AnimatePresence>
     </HeightFrame>
     {onDismiss && <button type="button" className={styles.dismiss} aria-label={`Dismiss: ${title}`} onClick={onDismiss}><X strokeWidth={1.75} aria-hidden="true"/></button>}
   </div>;
@@ -99,9 +99,9 @@ export function Alert({ open, onDismiss, ...props }: AlertProps) {
   const exit: TargetAndTransition = { height: 0, opacity: 0, transition: reduce ? { duration: 0 } : { height: motionTokens.spring.smooth, opacity: exitFast } };
   // Presence collapses the height with the fade, so the content below closes the gap instead of jumping.
   return <AnimatePresence initial={false} onExitComplete={() => { if (open === undefined) onDismiss?.(); }}>
-    {isOpen && <motion.div key="alert" className={styles.presence} initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={exit} transition={presence} ref={shell} onAnimationStart={() => setClip("hidden")} onAnimationComplete={() => setClip("")}>
+    {isOpen && <m.div key="alert" className={styles.presence} initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={exit} transition={presence} ref={shell} onAnimationStart={() => setClip("hidden")} onAnimationComplete={() => setClip("")}>
       <AlertBox {...props} reduce={reduce} onDismiss={dismiss} animateIcon/>
-    </motion.div>}
+    </m.div>}
   </AnimatePresence>;
 }
 
