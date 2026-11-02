@@ -10,9 +10,8 @@ export { isShown, overlayOpen } from "@/lib/keyboard-guards"
 export const requestRowSelector = (id: string) => `[role="row"][data-request-id="${CSS.escape(id)}"]`
 const WORKSPACE = '[data-slot="requests-workspace"]'
 const TAB_STOP = '[role="row"][tabindex="0"]'
-/** A214: the list toolbar's title filter, named apart from workspace search. */
-export const TITLE_FILTER_LABEL = "Filter by title"
-const TITLE_FILTER = `button[aria-label="${TITLE_FILTER_LABEL}"]`
+// A214: the list toolbar's title filter (data-table-toolbar.tsx), named apart from workspace search.
+const TITLE_FILTER = 'button[aria-label="Filter by title"]'
 // Arc ToastStack's region: the only live section that lists additions (Undo, Show it).
 const TOAST_STACK = 'section[aria-live][aria-relevant]'
 

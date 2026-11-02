@@ -14,7 +14,6 @@ import { ProjectMarker } from "@/components/projects/project-marker"
 import { useWorkspaceLabels } from "../workspace-labels"
 import { LabelDot } from "../request-labels"
 import { REQUEST_STATUS_FILTER_LABELS, REQUEST_TITLE_FILTER_MAX, isRequestStatusFilter } from "@/lib/request-workspace"
-import { TITLE_FILTER_LABEL } from "../list-focus"
 import { matchesStatusView, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
 import type { RequestColumn } from "./columns"
@@ -23,6 +22,9 @@ import rowStyles from "../request-rows.module.css"
 import styles from "./data-table-toolbar.module.css"
 import { StatusPills, statusViewsFor } from "./status-pills"
 import { matchCountText } from "../request-row-label"
+
+/** A214: the title filter's name, apart from workspace search. list-focus.ts finds the button by it. */
+const TITLE_FILTER_LABEL = "Filter by title"
 
 export function DataTableToolbar({ controls = true, data, filter, title, project, projectName, requestType, matchCount, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
   /** False in an empty workspace (plan item 2.1): the row keeps its height with nothing to filter, so the first Request's controls fill it without moving the list. */
