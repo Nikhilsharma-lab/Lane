@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { WorkspaceLabelsProvider } from "@/components/requests/workspace-labels";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
@@ -39,6 +39,11 @@ export type WorkspaceFrameProps = {
   children: ReactNode;
 };
 
+const InWorkspaceFrame = createContext(false);
+/** #271: true under a WorkspaceFrame. A 404 thrown under the (app) layout renders the root not-found inside its
+ * frame, so the not-found's own frame steps aside there. */
+export const useInWorkspaceFrame = () => useContext(InWorkspaceFrame);
+
 /**
  * The signed-in app frame: the sidebar and the providers every page under it shares. The (app) layout reads its
  * data and renders it around each page. #271: the root not-found renders the same frame around "Page not found"
@@ -63,6 +68,7 @@ export function WorkspaceFrame({ orgId, userId, role, workspaceName, fullName, e
 
   return (
     // #266: the signed-in app's highlights, re-flows and sheets glide and drag from the first paint.
+    <InWorkspaceFrame value>
     <AppMotionFeatures>
     {/* #260: offline, the signed-in app stays on screen and says so; nothing moves or is queued.
         StableRouterProvider (#296) sits inside it so the router it hands down is the guarded one. */}
@@ -94,5 +100,6 @@ export function WorkspaceFrame({ orgId, userId, role, workspaceName, fullName, e
     </StableRouterProvider>
     </OfflineGuard>
     </AppMotionFeatures>
+    </InWorkspaceFrame>
   );
 }

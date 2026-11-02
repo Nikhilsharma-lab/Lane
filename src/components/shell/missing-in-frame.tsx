@@ -8,7 +8,7 @@ import buttonStyles from "@/components/arc/button/button.module.css";
 import { PageStrip } from "@/components/shell/page-strip";
 import { RequestUnavailable } from "@/components/requests/request-unavailable";
 import { requestListHref } from "@/lib/request-workspace";
-import { WorkspaceFrame, type WorkspaceFrameProps } from "./workspace-frame";
+import { WorkspaceFrame, useInWorkspaceFrame, type WorkspaceFrameProps } from "./workspace-frame";
 
 /** The address the frame treats as current: no sidebar item is, and a missing /settings/… address keeps the sidebar. */
 const MISSING_PAGE = "/not-found";
@@ -34,13 +34,14 @@ export function MissingPage() {
 /**
  * #271: the root not-found's screen for a signed-in person, inside the app frame with the sidebar. An unknown
  * Request (A117) keeps "This Request can't be opened"; any other address gets "Page not found" (A118). It is
- * loaded on demand (lazy-missing-in-frame.tsx), so the frame never joins every route's first load.
+ * loaded on demand (lazy-missing-in-frame.tsx), so the frame never joins every route's first load. A 404 thrown
+ * under the (app) layout (an unknown Request, a missing Metric) lands inside that layout's frame, so it adds none.
  */
 export function MissingInFrame(props: Omit<WorkspaceFrameProps, "children" | "pageAddress">) {
   const request = REQUEST_ADDRESS.test(usePathname());
-  return <WorkspaceFrame {...props} pageAddress={request ? undefined : MISSING_PAGE}>
-    {request
-      ? <div data-slot="requests-workspace" className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden"><RequestUnavailable returnHref={requestListHref("all")} /></div>
-      : <MissingPage />}
-  </WorkspaceFrame>;
+  const content = request
+    ? <div data-slot="requests-workspace" className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden"><RequestUnavailable returnHref={requestListHref("all")} /></div>
+    : <MissingPage />;
+  if (useInWorkspaceFrame()) return content;
+  return <WorkspaceFrame {...props} pageAddress={request ? undefined : MISSING_PAGE}>{content}</WorkspaceFrame>;
 }
