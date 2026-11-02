@@ -3,7 +3,10 @@
 import { useAuth, useOrganizationList } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { assertWorkspaceCanSwitch } from "@/lib/workspace-switch-guard";
-import { createWorkspaceSwitch, type WorkspaceSwitchItem, type WorkspaceSwitchSnapshot } from "./workspace-switcher";
+import { isOffline } from "@/lib/connection-status";
+import { ShownFailure } from "@/lib/failure-messages";
+import { OfflineError } from "@/lib/offline-error";
+import { createWorkspaceSwitch, SwitchFailed, type WorkspaceSwitchItem, type WorkspaceSwitchSnapshot } from "./workspace-switcher";
 
 export type WorkspaceSwitcher = {
   items: WorkspaceSwitchItem[];
@@ -52,12 +55,15 @@ export function useWorkspaceSwitcher(currentOrgId: string, options: { beforeSwit
       },
       onPendingChange: setPendingId,
       replace: href => window.location.replace(href),
+      isOffline,
+      watchOffline: onOffline => { addEventListener("offline", onOffline); return () => removeEventListener("offline", onOffline); },
     });
+    // #269 (A111): the menu says the switch failed, with Try again for the same workspace. Lane's own reasons
+    // (a draft to finish, a workspace that's gone) are words for people; anything else is said by the menu.
     try { await selectWorkspace.current(id); }
     catch (cause) {
-      const failure = cause instanceof Error ? cause : new Error("Couldn't switch workspaces. Try again.");
-      setError(failure.message);
-      throw failure;
+      if (cause instanceof OfflineError || cause instanceof SwitchFailed || !(cause instanceof Error)) throw cause;
+      throw new ShownFailure(cause.message);
     }
   }, []);
   const onRetry = useCallback(async () => {
