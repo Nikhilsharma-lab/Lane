@@ -25,6 +25,7 @@ export default defineConfig({
       "src/app/**/intake/intake-save.test.ts",
       "src/app/**/intake/intake-gate-contract.test.ts",
       "src/lib/intake-draft.test.ts",
+      "src/lib/custom-pass-fail.test.ts",
       "src/lib/request-workspace.test.ts",
       "src/lib/request-overview.test.ts",
       "src/components/requests/list-view-model.test.ts",

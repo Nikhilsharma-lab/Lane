@@ -46,3 +46,21 @@ describe("measurement Intake boundaries", () => {
     }
   });
 });
+
+
+it("recovers and signs custom pass/fail answers without allowing a changed passing condition", () => {
+  const expectedImpact = { ...measurement, version: 5 as const, primary: { ...measurement.primary, key: "check" as const, unit: "" as const, target: null, check: "custom" as const, checkDetails: { result: "Download an invoice", steps: "Open an order and choose Download invoice.", pass: "The PDF matches the order and amount." } }, guardrails: [] };
+  const source = { ...input, expectedImpact };
+  const store = new Map<string, string>();
+  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => { store.set(key, value); }, removeItem: (key: string) => { store.delete(key); } };
+  writeIntakeDraft(storage, "person:workspace", { source, review: null }, 1000);
+  expect(readIntakeDraft(storage, "person:workspace", 1001)?.source.expectedImpact).toEqual(expectedImpact);
+  vi.stubEnv("TRIAGE_TOKEN_SECRET", "measurement-test-secret".repeat(4));
+  const token = createTriageToken(source, triage, context);
+  const verified = verifyTriageToken(token, context);
+  expect(verified.valid && verified.payload.expectedImpact).toEqual(expectedImpact);
+  const [encoded, signature] = token.split(".");
+  const payload = JSON.parse(Buffer.from(encoded, "base64url").toString());
+  payload.expectedImpact.primary.checkDetails.pass = "Anything passes";
+  expect(verifyTriageToken(`${Buffer.from(JSON.stringify(payload)).toString("base64url")}.${signature}`, context)).toEqual({ valid: false, reason: "invalid" });
+});

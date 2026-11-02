@@ -1,5 +1,6 @@
 import * as z from "zod";
 import { GUARDRAIL_OPERATORS } from "./guardrail-comparison";
+import { PASS_FAIL_RESULT_MAX, PASS_FAIL_DETAIL_MAX } from "./pass-fail-check";
 
 /** "definition" (v5, #198) names a Metric definition; the built-in keys and "custom" are how v2–v4 plans saved metrics. */
 export const MEASUREMENT_METRIC_KEYS = ["conversion", "adoption", "error", "support", "csat", "duration", "events", "custom", "check", "definition", ""] as const;
@@ -33,7 +34,8 @@ const metricFields = {
 };
 const primaryDraftSchema = z.object({
   ...metricFields, target: numberDraft, noBaseline: z.boolean(),
-  check: z.enum(["keyboard", "required", "recovery", ""]),
+  check: z.enum(["keyboard", "required", "recovery", "custom", ""]),
+  checkDetails: z.object({ result: z.string().max(PASS_FAIL_RESULT_MAX), steps: z.string().max(PASS_FAIL_DETAIL_MAX), pass: z.string().max(PASS_FAIL_DETAIL_MAX) }).optional(),
 });
 const guardrailDraftSchema = z.object({
   ...metricFields, noBaseline: z.literal(false),
@@ -104,6 +106,7 @@ export function pickDefinition<T extends { key: string; unit: string; current: n
   metric: T, definition: { id: string; name: string; unit: Exclude<MeasurementUnit, ""> },
 ): T & { key: "definition"; definitionId: string } {
   const values = metric.key === "check" || metric.key === "" ? { ...metric, unit: definition.unit } : changeMetricUnit(metric, definition.unit);
+  if ("checkDetails" in values) delete values.checkDetails;
   return { ...values, ...("check" in metric ? { check: "" } : {}), key: "definition", definitionId: definition.id, name: definition.name, unit: definition.unit };
 }
 
@@ -135,6 +138,12 @@ export const measurementPlanSchema = measurementPlanDraftSchema.extend({
   }),
 }).superRefine((plan, context) => {
   const issue = (path: (string | number)[], message: string) => context.addIssue({ code: "custom", path, message });
+  if (plan.primary.check === "custom") {
+    if (plan.version !== 5 || plan.primary.key !== "check") issue(["primary", "check"], "Choose a supported pass/fail result");
+    for (const [field, message] of Object.entries({ result: "Describe what should work.", steps: "Say how someone can check it.", pass: "Say what must happen for it to pass." })) {
+      if (!plan.primary.checkDetails?.[field as keyof NonNullable<typeof plan.primary.checkDetails>]?.trim()) issue(["primary", "checkDetails", field], message);
+    }
+  } else if (plan.primary.checkDetails !== undefined) issue(["primary", "checkDetails"], "Custom answers belong to a custom pass/fail result.");
   const validateMetric = (metric: MeasurementPrimaryDraft | MeasurementGuardrailDraft, path: (string | number)[], guardrail: boolean) => {
     if (!metric.key) issue([...path, "key"], "Choose a metric");
     // v5 metrics come only from the Metrics library (or the Pass/fail check); older versions never name a definition.

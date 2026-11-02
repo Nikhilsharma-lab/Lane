@@ -20,10 +20,9 @@ describe("The Metrics page list", () => {
     expect(text(item)).toContain("Share of people who start the step and finish it.");
   });
 
-  it("offers a source link on the definition page when none is saved", () => {
+  it("does not ask for a dashboard when none is saved", () => {
     const [item] = items(render([conversion]));
-    expect(text(item)).toContain("Add source for Conversion rate");
-    expect(item).toMatch(/<a[^>]*href="\/settings\/metrics\/d1"[^>]*>Add source<span/);
+    expect(text(item)).not.toContain("Add source");
     expect(item).not.toContain('target="_blank"');
   });
 

@@ -66,7 +66,7 @@ describe("A Metric definition's page", () => {
     const html = await open(trials);
     expect(html).toMatch(/<h3[^>]*>Trials started<\/h3>/);
     expect(html).toMatch(/<input[^>]*value="Trials started"/);
-    expect(html).toMatch(/<input[^>]*value="https:\/\/analytics.example.test\/trials"/);
+    expect(html).not.toMatch(/<input[^>]*type="url"/);
     expect(text(html)).toContain("Saved definition Trials started per week.");
     expect(html).not.toContain("<textarea");
     expect(text(html)).toContain("Unit");
@@ -91,7 +91,7 @@ describe("A Metric definition's page", () => {
   });
 
   it("explains that a change in what's counted needs a new definition", async () => {
-    expect(text(await open(trials))).toContain("Use the same report for current and actual values. If the calculation changes, add a new metric.");
+    expect(text(await open(trials))).toContain("Keep the same definition for current and actual values. To measure something different, create a new metric.");
   });
 
   it("shows every change in history, newest first, with who made it and the before and after", async () => {

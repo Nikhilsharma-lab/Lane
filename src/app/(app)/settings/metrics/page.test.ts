@@ -62,7 +62,7 @@ describe("Settings → Metrics", () => {
     expect(html).toMatch(/<span[^>]*>Seconds<\/span>/);
     expect(html).toMatch(/<span[^>]*>Count<\/span>/);
     expect(html).toContain("Median time from starting the step to finishing it.");
-    expect(html.match(/Add source/g)).toHaveLength(7);
+    expect(html).not.toContain("Add source");
   });
 
   it("doesn't add the starter metrics again on a second visit", async () => {
@@ -80,7 +80,7 @@ describe("Settings → Metrics", () => {
     const html = await open();
     expect(html).toMatch(/<button[^>]*>[\s\S]*?Add metric[\s\S]*?<\/button>/);
     expect(html).toMatch(/<h4[^>]*><a[^>]*href="\/settings\/metrics\/[0-9a-f-]{36}"[^>]*>Conversion rate<\/a><\/h4>/);
-    expect(html).toMatch(/<a[^>]*href="\/settings\/metrics\/[0-9a-f-]{36}"[^>]*>Add source<span/);
+    expect(html).not.toContain("Add source");
   });
 
   it("keeps archived definitions behind the Archived filter (#197)", async () => {
