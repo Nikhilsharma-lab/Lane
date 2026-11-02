@@ -34,7 +34,11 @@ function kindOf(requestHeaders: Headers): RenderKind {
   return requestHeaders.get("rsc") === "1" ? "navigation" : "page";
 }
 
-function hookResponseHead() {
+/**
+ * Called once at server start (instrumentation): the platform keeps the response head's writer it finds when a
+ * request begins, so a hook added during a new server's first render would miss that render's own head.
+ */
+export function hookResponseHead() {
   if (registry.hooked) return;
   registry.hooked = true;
   const writeHead = ServerResponse.prototype.writeHead;

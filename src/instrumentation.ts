@@ -18,6 +18,10 @@ export async function register() {
   // Throws on a production boot when a required name is missing. In
   // development it prints one warning and lets the server start.
   reportServerEnv();
+
+  // #265: hooked before any request starts, so a new server's first page carries its timing steps too.
+  const { hookResponseHead } = await import("@/lib/request-timings");
+  hookResponseHead();
 }
 
 // Next calls this for every uncaught error in a Server Component, Server Action
