@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { ProfileForm } from "../profile/profile-form";
 import { ThemePreference } from "../profile/theme-preference";
@@ -8,6 +9,9 @@ import { getWorkspace } from "@/lib/ensure-workspace";
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { membersPanel } from "./members-panel";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
+
+// #271 (A114): the tab reads "Settings · Lane".
+export const metadata: Metadata = { title: "Settings" };
 
 export default async function MembersPage() {
   void timePage("Settings: Members");

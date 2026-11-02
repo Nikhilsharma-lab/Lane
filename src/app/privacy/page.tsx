@@ -4,7 +4,7 @@ import { LaneMark } from "@/components/auth/auth-shell";
 import styles from "./privacy.module.css";
 
 export const metadata: Metadata = {
-  title: "Privacy policy | Lane",
+  title: "Privacy policy",
   description: "How Lane handles account information, Google sign-in and workspace content.",
 };
 

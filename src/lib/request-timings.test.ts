@@ -94,7 +94,7 @@ describe("a page render's timings", () => {
 // (app), and onboarding (signed in, outside the app frame), with the name it must give; a new page fails here until
 // it is timed and listed.
 const SIGNED_IN_PAGES: Record<string, string> = {
-  "src/app/(app)/page.tsx": "Requests list",
+  "src/app/(app)/(list)/page.tsx": "Requests list",
   "src/app/(app)/requests/[id]/page.tsx": "Request page",
   "src/app/(app)/inbox/page.tsx": "Inbox",
   "src/app/(app)/intake/page.tsx": "Intake",

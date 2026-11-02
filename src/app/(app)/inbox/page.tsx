@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { InboxScreen } from "@/components/inbox/inbox-screen";
 import { toInboxItem, toNeedsYouItem } from "@/components/inbox/inbox-item";
@@ -6,6 +7,9 @@ import { loadInbox } from "@/lib/data/inbox";
 import { getsNeedsYou } from "@/lib/inbox-read-model";
 import { countInboxUnread } from "@/lib/data/notifications";
 import { timePage, timed } from "@/lib/request-timings";
+
+// #271 (A114): the tab reads "Inbox · Lane".
+export const metadata: Metadata = { title: "Inbox" };
 
 // #204 / #205: the Inbox, one page of what needs a person and their updates. Identity, workspace and role come from the Clerk session
 // through getMember; the read model decides what the Inbox holds (a Guest sees only their own submissions).

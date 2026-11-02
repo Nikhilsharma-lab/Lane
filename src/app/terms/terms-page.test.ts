@@ -14,7 +14,8 @@ describe("Plan item L1: the Terms of service page", () => {
     expect(html.match(/<h1[\s>]/g)).toHaveLength(1);
     expect(html).toContain("<h1>Terms of service</h1>");
     expect(text).toMatch(/Effective \d{1,2} [A-Z][a-z]+ \d{4}/);
-    expect(metadata.title).toBe("Terms of service | Lane");
+    // #271: the root layout's template adds " · Lane".
+    expect(metadata.title).toBe("Terms of service");
   });
 
   it("links to the Privacy policy, the support address and back to sign in", () => {

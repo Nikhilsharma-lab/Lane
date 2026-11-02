@@ -6,7 +6,7 @@ import { SUPPORT_EMAIL } from "@/app/support-contact";
 import styles from "../privacy/privacy.module.css";
 
 export const metadata: Metadata = {
-  title: "Terms of service | Lane",
+  title: "Terms of service",
   description: "The terms that apply when you use Lane, a free pilot for teams that plan and track design work.",
 };
 

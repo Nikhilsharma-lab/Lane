@@ -31,7 +31,8 @@ const description = "Collect design requests, clarify the problem, and track the
 
 export const metadata: Metadata = {
   metadataBase: appUrl && URL.canParse(appUrl) ? new URL(appUrl) : undefined,
-  title: "Lane",
+  // #271 (A114): each page names its tab "Page · Lane"; plain "Lane" stays the fallback and the sharing cards' title.
+  title: { default: "Lane", template: "%s · Lane" },
   description,
   openGraph: { type: "website", siteName: "Lane", title: "Lane", description },
   twitter: { card: "summary_large_image", title: "Lane", description },

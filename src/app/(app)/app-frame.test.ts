@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/fonts", () => ({ fontVariables: "" }))
 
 import { SidebarView } from "@/components/shell/sidebar-view"
-import ListLoading from "./loading"
+import ListLoading from "./(list)/loading"
 import DetailLoading from "./requests/[id]/loading"
 import IntakeLoading from "./intake/loading"
 import ImpactLoading from "./impact/loading"
@@ -26,9 +26,10 @@ import MetricsLoading from "./settings/metrics/loading"
 import MetricDefinitionLoading from "./settings/metrics/[id]/loading"
 import AppError from "./error"
 import RootError from "../error"
-import NotFound from "../not-found"
+import { MissingPageSignedOut } from "../missing-page"
+import { MissingPage } from "@/components/shell/missing-in-frame"
 import GlobalError from "../global-error"
-import { RequestUnavailable } from "@/components/requests/detail-view"
+import { RequestUnavailable } from "@/components/requests/request-unavailable"
 import { ProjectUnavailable } from "./requests-overview"
 import { statusLabels, withoutHidden } from "@/test/exposed-markup"
 
@@ -46,7 +47,7 @@ const inShell = (pathname: string, children: ReactNode) => renderToStaticMarkup(
 }, children)))
 
 const skeletons: [string, string, ComponentType, string, string][] = [
-  ["loading.tsx", "/", ListLoading, "list", "Loading Requests"],
+  ["(list)/loading.tsx", "/", ListLoading, "list", "Loading Requests"],
   ["requests/[id]/loading.tsx", "/requests/x", DetailLoading, "detail", "Loading selected Request"],
   ["intake/loading.tsx", "/intake", IntakeLoading, "intake", "Loading New Request"],
   ["impact/loading.tsx", "/impact", ImpactLoading, "impact", "Loading impact"],
@@ -112,8 +113,7 @@ describe("error frames", () => {
   })
 
   it.each([
-    ["error.tsx", () => createElement(RootError, { error: new Error("Illustrative"), reset: () => {} }), "Database unavailable"],
-    ["not-found.tsx", () => createElement(NotFound), "Page not found"],
+    ["error.tsx", () => createElement(RootError, { error: new Error("Illustrative"), reset: () => {} }), "Workspace unavailable"],
     ["global-error.tsx", () => createElement(GlobalError, { error: new Error("Illustrative"), reset: () => {} }), "Lane unavailable"],
   ])("root %s renders the strip with its h1 and no expand control", (_file, element, title) => {
     const html = renderToStaticMarkup(createElement(AppProviders, null, element()))
@@ -121,6 +121,36 @@ describe("error frames", () => {
     expect(/<header\b[^>]*data-slot="page-strip"[^>]*>[\s\S]*?<\/header>/.exec(html)?.[0]).toMatch(new RegExp(`<h1\\b[^>]*>${title}</h1>`))
     expect(html).not.toContain("Expand sidebar")
     expect(html).not.toContain('aria-label="Breadcrumb"')
+  })
+
+  it("keeps the (app) error's way to get help under its actions (#271, A120)", () => {
+    const html = inShell("/requests/x", createElement(AppError, { error: new Error("Illustrative"), retry: () => {} }))
+    const alert = /role="alert"[\s\S]*$/.exec(page(html))?.[0] ?? ""
+    expect(alert).toContain("If this keeps happening, email")
+    expect(alert).toContain('href="mailto:uselaneapp@gmail.com"')
+  })
+
+  it("says the root error can't load the workspace, without blaming the database (#271, A121)", () => {
+    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(RootError, { error: new Error("Illustrative"), reset: () => {} })))
+    expect(html).toContain("Lane can’t load your workspace right now")
+    expect(html).not.toMatch(/database/i)
+  })
+
+  it("keeps the frame's strip on a signed-in Page not found, with one heading and Go to Requests (#271, A118)", () => {
+    const main = page(inShell("/not-found", createElement(MissingPage)))
+    expect(strips(main)).toBe(1)
+    expect([...main.matchAll(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/g)].map(match => match[1].replace(/<[^>]+>/g, ""))).toEqual(["This page doesn’t exist"])
+    expect(main).toMatch(/<a\b[^>]*href="\/"[^>]*>Go to Requests<\/a>/)
+  })
+
+  it("shows the Lane mark and Sign in on a signed-out Page not found, and promises no Requests (#271, A119)", () => {
+    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(MissingPageSignedOut)))
+    expect(html).toContain("data-lane-mark")
+    expect(html.indexOf("data-lane-mark")).toBeLessThan(html.indexOf("This page doesn’t exist"))
+    expect(html).toMatch(/<a\b[^>]*href="\/login"[^>]*>Sign in<\/a>/)
+    expect(html.replace(/<[^>]+>/g, " ")).not.toContain("Requests")
+    expect(strips(html)).toBe(0)
+    expect(html).not.toContain("Expand sidebar")
   })
 
   it("names the global error's failure inside its alert, as a heading below the strip's h1", () => {

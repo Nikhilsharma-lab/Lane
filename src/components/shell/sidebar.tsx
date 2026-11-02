@@ -28,6 +28,7 @@ export function Sidebar({
   userId,
   needsYouCount,
   savedViews,
+  pageAddress,
 }: {
   children?: React.ReactNode;
   workspaceName: string;
@@ -41,8 +42,12 @@ export function Sidebar({
   needsYouCount?: Promise<number>;
   /** #219: the person's own saved views, for the navigation. */
   savedViews?: SavedView[];
+  /** #271: the address the frame treats as current, in place of the browser's. "Page not found" passes its own, so
+   * a missing /settings/… or /requests/…/… address still draws the sidebar and marks no item as current. */
+  pageAddress?: string;
 }) {
-  const pathname = usePathname();
+  const browserPathname = usePathname();
+  const pathname = pageAddress ?? browserPathname;
   const navigation = useRequestNavigation();
   const projectState = useSharedWorkspaceProjects();
   const { isLoaded, organization } = useOrganization();
