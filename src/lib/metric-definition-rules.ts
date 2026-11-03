@@ -27,18 +27,31 @@ export const METRIC_NAME_MAX = 120;
 export const METRIC_LINK_MAX = 2048;
 export const METRIC_HOW_COUNTED_MAX = 500;
 
+const MESSAGES = {
+  nameMissing: "Give the metric a name.",
+  nameTooLong: `Keep the name to ${METRIC_NAME_MAX} characters or fewer.`,
+  unit: "Choose a unit.",
+  linkTooLong: `Keep the link to ${METRIC_LINK_MAX} characters or fewer.`,
+  linkNotWeb: "Enter a link that starts with https:// or http://.",
+  howCountedTooLong: `Keep how it's counted to ${METRIC_HOW_COUNTED_MAX} characters or fewer.`,
+};
+const WEB_LINK = /^https?:\/\/\S+$/i;
+
 /** Blank optional text is saved as nothing. */
 const optionalText = (max: number, tooLong: string) => z.string().nullish()
   .transform(value => value?.trim() || null)
   .refine(value => value === null || value.length <= max, tooLong);
 
-/** What someone gives when adding or editing a Metric definition (#197). The form and the actions share it. */
+/**
+ * What someone gives when adding or editing a Metric definition (#197). The server actions parse with it; the forms
+ * check with `metricDefinitionProblems`, which gives the same answers without zod.
+ */
 export const metricDefinitionInputSchema = z.object({
-  name: z.string({ error: "Give the metric a name." }).trim().min(1, "Give the metric a name.").max(METRIC_NAME_MAX, `Keep the name to ${METRIC_NAME_MAX} characters or fewer.`),
-  unit: z.enum(METRIC_UNITS, { error: "Choose a unit." }),
-  link: optionalText(METRIC_LINK_MAX, `Keep the link to ${METRIC_LINK_MAX} characters or fewer.`)
-    .refine(value => value === null || /^https?:\/\/\S+$/i.test(value), "Enter a link that starts with https:// or http://."),
-  howCounted: optionalText(METRIC_HOW_COUNTED_MAX, `Keep how it's counted to ${METRIC_HOW_COUNTED_MAX} characters or fewer.`),
+  name: z.string({ error: MESSAGES.nameMissing }).trim().min(1, MESSAGES.nameMissing).max(METRIC_NAME_MAX, MESSAGES.nameTooLong),
+  unit: z.enum(METRIC_UNITS, { error: MESSAGES.unit }),
+  link: optionalText(METRIC_LINK_MAX, MESSAGES.linkTooLong)
+    .refine(value => value === null || WEB_LINK.test(value), MESSAGES.linkNotWeb),
+  howCounted: optionalText(METRIC_HOW_COUNTED_MAX, MESSAGES.howCountedTooLong),
 });
 export type MetricDefinitionInput = z.output<typeof metricDefinitionInputSchema>;
 
@@ -55,4 +68,21 @@ export function metricDefinitionFieldErrors(error: z.ZodError): Partial<Record<M
     errors[field] ??= issue.message;
   }
   return errors;
+}
+
+/**
+ * The forms' check of a definition as typed: the first problem with each field, the same as `metricDefinitionInputSchema`
+ * gives (metric-definition-rules.test.ts holds them to it). Plain code, so the Metrics pages don't carry zod (#256).
+ */
+export function metricDefinitionProblems(values: { name: string; unit: string; link: string; howCounted: string }): Partial<Record<MetricDefinitionField, string>> {
+  const problems: Partial<Record<MetricDefinitionField, string>> = {};
+  const name = values.name.trim();
+  if (!name) problems.name = MESSAGES.nameMissing;
+  else if (name.length > METRIC_NAME_MAX) problems.name = MESSAGES.nameTooLong;
+  if (!(METRIC_UNITS as readonly string[]).includes(values.unit)) problems.unit = MESSAGES.unit;
+  const link = values.link.trim();
+  if (link.length > METRIC_LINK_MAX) problems.link = MESSAGES.linkTooLong;
+  else if (link && !WEB_LINK.test(link)) problems.link = MESSAGES.linkNotWeb;
+  if (values.howCounted.trim().length > METRIC_HOW_COUNTED_MAX) problems.howCounted = MESSAGES.howCountedTooLong;
+  return problems;
 }
