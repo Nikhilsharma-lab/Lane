@@ -102,6 +102,8 @@ export function paletteEntries({ role, request, undo, projects }: PaletteInput):
     { id: "search", label: "Search workspace", group: "Actions", keys: anywhereKeys("Search workspace"), action: { kind: "open", surface: "search" } },
     ...views, ...places, ...settings,
     { id: "inbox", label: "Inbox", group: "Go to", keys: [], action: { kind: "go", href: "/inbox" } },
+    // #268 (A13): the third main place the sidebar shows.
+    { id: "impact", label: "Impact", group: "Go to", keys: [], action: { kind: "go", href: "/impact" } },
     { id: "shortcuts", label: "Keyboard shortcuts", group: "Help", keys: anywhereKeys("Show or hide keyboard shortcuts"), action: { kind: "open", surface: "shortcuts" } },
   ]
 }
