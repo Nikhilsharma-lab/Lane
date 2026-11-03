@@ -87,7 +87,7 @@ export function createWorkspaceSwitch({ getSnapshot, beforeSwitch, onPendingChan
         abandoned = true;
         // Should Clerk finish that switch after all, its session goes back to the workspace still on screen.
         activation.then(() => setActive({ organization: initial.currentId }), () => {}).catch(() => {});
-        throw outcome === "offline" ? new OfflineError() : new Error("Couldn't switch workspaces. Try again.");
+        throw outcome === "offline" ? new OfflineError() : new Error("Couldn't switch workspace. Try again.");
       }
       // Keep the old workspace blocked until document navigation completes.
     } catch (error) {
@@ -96,7 +96,7 @@ export function createWorkspaceSwitch({ getSnapshot, beforeSwitch, onPendingChan
       if (error instanceof OfflineError) throw error;
       // #269 (A111): Clerk's own failure (refused, or no answer in time) is said by the menu in Lane's words;
       // Lane's own reasons before it (a draft to finish, a workspace that's gone) are already words for people.
-      if (activationStarted) throw new Error("Couldn't switch workspaces. Try again.");
+      if (activationStarted) throw new Error("Couldn't switch workspace. Try again.");
       throw error instanceof Error ? new ShownFailure(error.message) : error;
     }
   };

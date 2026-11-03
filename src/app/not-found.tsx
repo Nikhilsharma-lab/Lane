@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
+import { auth } from "@clerk/nextjs/server";
 import { unstable_rethrow } from "next/navigation";
 import { LazyMissingInFrame } from "@/components/shell/lazy-missing-in-frame";
 import { getMember } from "@/lib/ensure-workspace";
 import { loadWorkspaceFrame } from "@/lib/data/workspace-frame";
-import { MissingPageSignedOut } from "./missing-page";
+import { MissingPageNoWorkspace } from "./missing-page";
 
 export const metadata: Metadata = { title: "Page not found" };
 
-/** The signed-in frame's data, or null for anyone without a workspace to show. */
-async function signedInFrame() {
+/** The signed-in frame's data; "signed-in" for someone with no workspace to show yet; null for anyone signed out. */
+async function visitor() {
   try {
     const member = await getMember();
-    if (!member) return null;
-    const workspace = await loadWorkspaceFrame(member);
-    return workspace && !workspace.needsOnboarding ? workspace.frame : null;
+    if (member) {
+      const workspace = await loadWorkspaceFrame(member);
+      if (workspace && !workspace.needsOnboarding) return workspace.frame;
+    }
+    // A session waiting on Clerk's choose-a-workspace step counts as signed in here.
+    return member || (await auth({ treatPendingAsSignedOut: false })).userId ? "signed-in" : null;
   } catch (error) {
     unstable_rethrow(error);
     // An address the proxy skips (one ending in a file extension) has no Clerk session to read, and a failed read
@@ -24,10 +28,10 @@ async function signedInFrame() {
 
 // Root not-found (plan item 1.12): every address no page answers, and an unknown Request (requests/[id]/layout.tsx),
 // with status 404. #271 (A117, A118, A119): signed in with a workspace, it keeps the app frame and the sidebar;
-// anyone else sees the Lane mark and Sign in.
+// anyone else sees the Lane mark, with Sign in, or Go to Lane for someone signed in who hasn't a workspace yet.
 export default async function NotFound() {
-  const signedIn = await signedInFrame();
-  return signedIn
-    ? <LazyMissingInFrame {...signedIn} />
-    : <MissingPageSignedOut />;
+  const shown = await visitor();
+  return shown && shown !== "signed-in"
+    ? <LazyMissingInFrame {...shown} />
+    : <MissingPageNoWorkspace signedIn={shown === "signed-in"} />;
 }

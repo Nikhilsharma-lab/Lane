@@ -112,16 +112,39 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await expectNothingOpened(page, "/");
     });
 
-    await test.step("A112: a name that fits is shown whole; the row shows no tip for it", async () => {
-      const name = accountButton(page).getByText("Priya Raman", { exact: true });
-      const cut = await name.evaluate(node => node.scrollWidth > node.clientWidth);
-      await name.hover();
-      await page.waitForTimeout(600);
-      // At the default width the name may still be cut; then, and only then, its whole text shows on hover.
-      if (cut) await expect(page.getByRole("tooltip")).toHaveText("Priya Raman");
-      else await expect(page.getByRole("tooltip")).toHaveCount(0);
-      await page.mouse.move(800, 600);
-      await page.screenshot({ path: testInfo.outputPath("A112-account-row-1440.png"), clip: { x: 0, y: 0, width: 260, height: 80 } });
+    await test.step("A112: an everyday name fits whole beside the arrow, Search and New Request; a long one is cut, with a tip", async () => {
+      for (const width of [1440, 1024]) {
+        await page.setViewportSize({ width, height: 900 });
+        const name = accountButton(page).getByText("Priya Raman", { exact: true });
+        await expect(name).toBeVisible();
+        expect(await name.evaluate(node => node.scrollWidth - node.clientWidth), `${width}`).toBeLessThanOrEqual(0);
+        await expect(sidebar(page).getByRole("button", { name: "Search workspace", exact: true })).toBeVisible();
+        await expect(sidebar(page).getByRole("link", { name: "New Request", exact: true }).first()).toBeVisible();
+        await name.hover();
+        await page.waitForTimeout(600);
+        await expect(page.getByRole("tooltip")).toHaveCount(0);
+        await page.mouse.move(800, 600);
+        await page.screenshot({ path: testInfo.outputPath(`A112-account-row-${width}.png`), clip: { x: 0, y: 0, width: 280, height: 80 } });
+      }
+      await page.setViewportSize({ width: 1440, height: 900 });
+      const sql = e2eDatabase();
+      const long = "Priyanka Ramanathan-Venkataraman";
+      try {
+        await sql`update profiles set full_name = ${long} where id = ${admin.id}`;
+        await page.reload();
+        await hydrated(page);
+        const name = accountButton(page).getByText(long, { exact: true });
+        expect(await name.evaluate(node => node.scrollWidth > node.clientWidth)).toBe(true);
+        await name.hover();
+        await expect(page.getByRole("tooltip")).toHaveText(long);
+        await page.mouse.move(800, 600);
+      } finally {
+        await sql`update profiles set full_name = 'Priya Raman' where id = ${admin.id}`;
+        await sql.end();
+      }
+      await page.reload();
+      await expect(row(page, request.id)).toBeVisible({ timeout: 60_000 });
+      await hydrated(page);
     });
 
     await test.step("A17: New Project with keyboard focus reads New Project once", async () => {
@@ -142,8 +165,8 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await field.fill("checkout");
       await field.press("Enter");
       // A development server compiles the action on its first call.
-      await expect(sidebar(page).getByRole("alert")).toContainText("A Project called Checkout already exists", { timeout: 45_000 });
-      await expect(field).toHaveAccessibleDescription(/A Project called Checkout already exists/);
+      await expect(sidebar(page).getByRole("alert")).toContainText("A Project called Checkout already exists. Choose another name.", { timeout: 45_000 });
+      await expect(field).toHaveAccessibleDescription(/A Project called Checkout already exists\. Choose another name\./);
       await expect(field).toHaveValue("checkout");
       await expect(field).toHaveAttribute("aria-invalid", "true");
       await expect(sidebar(page).getByRole("link", { name: "Checkout", exact: true })).toHaveCount(1);
@@ -161,6 +184,30 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await expect(sidebar(page).getByText("No characters left").first()).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath("A110-counter-1440.png"), clip: { x: 0, y: 0, width: 260, height: 460 } });
       await field.press("Escape");
+    });
+
+    await test.step("New Request's Project picker: a name that exists, in other capitals, quietly picks that Project", async () => {
+      await page.locator("#lane-main").focus();
+      await page.keyboard.press("c");
+      const composer = page.getByRole("dialog", { name: "New Request", exact: true });
+      await expect(composer).toBeVisible();
+      await composer.locator("#intake-project").click();
+      const picker = page.getByRole("dialog", { name: "Choose a Project", exact: true });
+      await picker.getByRole("button", { name: "New Project", exact: true }).click();
+      const field = picker.getByRole("textbox", { name: "Project name", exact: true });
+      await field.fill("CHECKOUT");
+      await picker.getByRole("button", { name: "Create Project", exact: true }).click();
+      await expect(picker).toBeHidden({ timeout: 45_000 });
+      await expect(composer.locator("#intake-project")).toHaveAccessibleName("Project: Checkout");
+      await expect(page.getByRole("alert").filter({ hasText: "already exists" })).toHaveCount(0);
+      // Still one Checkout, in the picker and, once the composer closes, in the sidebar.
+      await composer.locator("#intake-project").click();
+      await expect(picker.getByRole("option", { name: "Checkout", exact: true })).toHaveCount(1);
+      await page.keyboard.press("Escape");
+      await expect(picker).toBeHidden();
+      await page.keyboard.press("Escape");
+      await expect(composer).toBeHidden();
+      await expect(sidebar(page).getByRole("link", { name: "Checkout", exact: true })).toHaveCount(1);
     });
 
     await test.step("A126: at 1024 the Request trail cuts the Project before the workspace name", async () => {
@@ -248,8 +295,13 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
           for (const spot of [() => target.getByText("Another frame Request"), () => target.getByRole("button", { name: /Assignee/ })]) {
             await touchPage.getByRole("button", { name: "Expand sidebar" }).first().tap();
             await expect(touchPage.locator("#lane-sidebar")).toHaveAttribute("data-peeking", "true");
+            // The tap lands beside the peek once it has slid fully in: on a phone it covers the start of each row.
+            const panel = touchPage.locator("[data-sidebar-panel]");
+            await expect.poll(async () => (await panel.boundingBox())?.x).toBe(0);
+            const edge = (await panel.boundingBox())!.width;
             const box = (await spot().boundingBox())!;
-            await touchPage.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+            const x = Math.max(box.x + box.width / 2, Math.min(edge + 12, box.x + box.width - 2));
+            await touchPage.touchscreen.tap(x, box.y + box.height / 2);
             await expect(touchPage.locator("#lane-sidebar")).not.toHaveAttribute("data-peeking", /.*/);
             await expectNothingOpened(touchPage, "/");
           }

@@ -21,12 +21,14 @@ import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
+import { NAVIGATION_WIDTH } from "./sidebar-motion";
 import { useSidebarPeek } from "./use-sidebar-peek";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { JumpBar } from "./jump-bar";
 import { openShellSurface, useShellOpener } from "./shell-openers";
-import { swallowPress } from "@/lib/outside-press";
+import { onOutsidePress, swallowPress } from "@/lib/outside-press";
 import { holdsOffline } from "@/lib/offline-navigation";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import styles from "./workspace-shell.module.css";
 
 export interface SidebarViewProps {
@@ -34,7 +36,9 @@ export interface SidebarViewProps {
   workspaceName: string;
   fullName: string;
   email: string;
-  role: string;
+  role: WorkspacePermission;
+  /** #269 (A113): the account menu's Members item, as the server's role rules name it (workspace-frame.ts); none without. */
+  membersLabel?: string;
   pathname: string;
   projects?: ProjectOption[];
   projectsLoading?: boolean;
@@ -64,7 +68,7 @@ const expandButton = <SidebarExpandButton />;
 const jumpBar = <JumpBar />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, onDeleteProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, savedViews = noViews }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, membersLabel, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, onDeleteProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, savedViews = noViews }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
   const { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, true, openAutoPeek);
   // No peek while the panel slides (plan item 2.4).
@@ -76,19 +80,16 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     showPeek(trigger);
   }
   // #269 (A15): a press on the page beside the peek only closes it; the row, picker or composer under it never reacts.
-  // It listens on the page itself, so a menu open above the peek takes that press first (and only closes, too).
-  // The expand control keeps its own press, which pins or reopens the peek.
+  // It is taken before any listener on the page sees it, and a menu opened above the peek takes that press first
+  // (and only closes, too). The expand control keeps its own press, which pins or reopens the peek.
   const mainRef = useRef<HTMLElement>(null);
   const pressBesidePeek = useEffectEvent((event: PointerEvent) => {
+    if (!(event.target instanceof Node && mainRef.current?.contains(event.target))) return;
     if (!(event.target instanceof Element && event.target.closest('button[aria-label="Expand sidebar"]'))) swallowPress(event);
     dismissPeek();
   });
   useEffect(() => {
-    const main = mainRef.current;
-    if (!peeking || !main) return;
-    const listener = (event: PointerEvent) => pressBesidePeek(event);
-    main.addEventListener("pointerdown", listener, true);
-    return () => main.removeEventListener("pointerdown", listener, true);
+    if (peeking) return onOutsidePress(event => pressBesidePeek(event));
   }, [peeking]);
   // Plan items 1.7 and 1.14: the list context comes from the layout's list
   // view state (the URL only mirrors it on "/"), and the sidebar subscribes to
@@ -96,9 +97,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // re-render it. Fixtures without the provider fall back to the props.
   const navigation = useRequestNavigation();
   const router = useRouter();
-  const membersHref = role === "admin" || role === "member" ? "/settings/members" : undefined;
-  // #269 (A113): only Admins invite; a Member's Members page is read-only, so its item says just that.
-  const membersLabel = role === "admin" ? "Invite and manage members" : "Members";
+  const membersHref = membersLabel ? "/settings/members" : undefined;
   // #258: opening the account menu fully prefetches Settings (and Members, for people who see it), as Request
   // rows do (FULL_PREFETCH in use-intent-prefetch.ts), so choosing either answers at once. Spelled here so the shell carries no module for it.
   // #259: it starts as the pointer reaches the account button or focus lands on it, and loads once while what it
@@ -218,7 +217,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // Pinning a visible peek keeps the panel where it already is, with no slide.
   // Plan item 2.7 (decision D6): the shell hosts the one polite region, so the bell, the list and detail all speak through it;
   // the page providers pass through. The region sits inside the shell element, as the page's did inside the page.
-  return <SidebarControlsProvider collapsed={collapsed || motion === "expanding"} peeking={peeking} expand={() => { const fromPeek = peeking; if (!autoCollapsed) dismissPeek(); expand(fromPeek); }} {...triggerEvents}><div ref={shellRef} className={styles.shell} style={{ "--sidebar-width": `${layoutWidth}px`, "--sidebar-peek-width": `${peekWidth}px`, "--sidebar-peek-top": `${peekTop}px` } as CSSProperties} data-workspace-shell data-resizing={resizing || undefined} data-linear-preview-auto-collapse="true"><ListAnnouncerProvider>
+  return <SidebarControlsProvider collapsed={collapsed || motion === "expanding"} peeking={peeking} expand={() => { const fromPeek = peeking; if (!autoCollapsed) dismissPeek(); expand(fromPeek); }} {...triggerEvents}><div ref={shellRef} className={styles.shell} style={{ "--sidebar-width": `${layoutWidth}px`, "--sidebar-slide-width": `${peekWidth}px`, "--sidebar-peek-width": peekWidth === NAVIGATION_WIDTH ? undefined : `${peekWidth}px`, "--sidebar-peek-top": `${peekTop}px` } as CSSProperties} data-workspace-shell data-resizing={resizing || undefined} data-linear-preview-auto-collapse="true"><ListAnnouncerProvider>
     {switchingWorkspace && <span className="sr-only" role="status">Switching workspace…</span>}
     <a href="#lane-main" className={styles.skip}>Skip to content</a>
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>

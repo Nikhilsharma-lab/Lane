@@ -22,8 +22,8 @@ vi.mock("next/navigation", async (original) => ({
 vi.mock("@/components/auth/clerk-members-profile", () => ({ ClerkMembersProfile: () => null, ClerkWorkspaceProfile: () => null }));
 vi.mock("@/components/settings/workspace-members-loader", () => ({ WorkspaceMembersLoader: () => null }));
 vi.mock("@/components/settings/account-profile", () => ({ AccountProfile: () => null, AccountSecurity: () => null }));
-vi.mock("../profile/profile-form", () => ({ ProfileForm: () => null }));
-vi.mock("../profile/theme-preference", () => ({ ThemePreference: () => null }));
+vi.mock("../../profile/profile-form", () => ({ ProfileForm: () => null }));
+vi.mock("../../profile/theme-preference", () => ({ ThemePreference: () => null }));
 
 const as = (role: WorkspaceContext["role"]): WorkspaceContext => ({ userId: `user_metrics_page_${role}`, orgId: ORG, role, profileRole: "pm", fullName: "Pat", email: "pat@example.test", workspaceName: "Metrics page" });
 const open = async (section?: string) => {

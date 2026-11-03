@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
-import { createTestUser, deleteTestUser } from "./helpers/test-user";
+import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
 
 // #271 (Build 4 of #256, walk findings A114, A117, A118, A119): every tab names its page, a Request's tab its
 // typed title, and a missing page or Request answers a real 404. Signed in, "Page not found" keeps the sidebar;
@@ -55,6 +55,16 @@ test("each signed-in page names its tab, a Request uses its typed title, and mis
       await expectHeadings(page, main(page), ["This page doesn’t exist"]);
       await expect(main(page).getByRole("link", { name: "Go to Requests" })).toHaveAttribute("href", "/");
     }
+    // A Metric that doesn't exist is a missing page too, answered 404 in the Settings frame (no workspace sidebar
+    // there, as on every Settings page).
+    for (const path of [`/settings/metrics/${randomUUID()}`, "/settings/metrics/abc"]) {
+      const response = await page.goto(path, { waitUntil: "domcontentloaded" });
+      expect(response?.status(), path).toBe(404);
+      await expect(page).toHaveTitle("Page not found · Lane");
+      await expectHeadings(page, main(page), ["This page doesn’t exist"]);
+      await expect(main(page).getByRole("link", { name: "Go to Requests" })).toHaveAttribute("href", "/");
+    }
+    await page.goto("/nope", { waitUntil: "domcontentloaded" });
     await main(page).getByRole("link", { name: "Go to Requests" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page).toHaveTitle("Requests · Lane");
@@ -95,5 +105,31 @@ test("signed out, a missing page shows the Lane mark and Sign in, without the ap
     }
   } finally {
     await context.close();
+  }
+});
+
+test("signed in without a workspace, a missing page shows the Lane mark and Go to Lane, which leads on, and answers 404", async ({ page }) => {
+  test.setTimeout(300_000);
+  // A person in no workspace yet: Clerk's choose-a-workspace step is still ahead of them.
+  const user = await createTestUser("not-found-no-workspace");
+  try {
+    await signInTestUser(page, user);
+    for (const path of ["/nope", "/settings/nope"]) {
+      const response = await page.goto(path, { waitUntil: "domcontentloaded" });
+      expect(response?.status(), path).toBe(404);
+      await expect(page).toHaveTitle("Page not found · Lane");
+      await expect(page.getByRole("main").getByText("Lane", { exact: true })).toBeVisible();
+      await expectHeadings(page, page.getByRole("main"), ["This page doesn’t exist"]);
+      await expect(page.getByRole("main").getByRole("link", { name: "Sign in" })).toHaveCount(0);
+      await expect(page.getByRole("main").getByRole("link", { name: "Go to Lane", exact: true })).toHaveAttribute("href", "/");
+      await expect(page.getByRole("main")).not.toContainText("Requests");
+      await expect(sidebar(page)).toHaveCount(0);
+    }
+    // "/" takes them on to where they stopped: choosing or creating a workspace, never the sign-in form.
+    await page.getByRole("main").getByRole("link", { name: "Go to Lane", exact: true }).click();
+    await expect(page).not.toHaveURL(/\/nope|\/settings\/nope/);
+    await expect(page.locator('input[name="identifier"]')).toHaveCount(0);
+  } finally {
+    await deleteTestUser(user.id);
   }
 });

@@ -1,8 +1,7 @@
 /**
  * #269 (A15, A16): a press outside an open menu or the navigation peek only closes it, as a press outside a dialog
- * does. Call it from the capture-phase `pointerdown` (on the document or window) that closes the layer: that press
- * and what it turns into (its mouse events, the click, a right-click's context menu) never reach the page
- * underneath, and focus stays where it was for the layer to hand back. Browser-only.
+ * does. That press and what it turns into (its mouse events, the click, a right-click's context menu) never reach
+ * the page underneath, and focus stays where it was for the layer to hand back. Browser-only.
  */
 // Holding pointerdown's default already stops the mouse events it would become; the click (a tap's too) and a
 // right-click's menu are held here, until the next press or a moment later.
@@ -20,4 +19,24 @@ export function swallowPress(press: PointerEvent) {
   for (const type of HELD) addEventListener(type, hold, true)
   addEventListener("pointerdown", release, true)
   const timer = setTimeout(release, 1500)
+}
+
+/** An open layer's look at a press: one outside it closes it (and is swallowed); one inside is left alone. */
+type Layer = (press: PointerEvent) => void
+// Open layers, oldest first. Only the one opened last (a menu over the peek) hears a press.
+const layers: Layer[] = []
+const ask = (press: PointerEvent) => layers.at(-1)?.(press)
+
+/**
+ * Listens for presses while a layer is open; returns the stop. The listener is the window's, in the capture phase,
+ * so it runs before every listener on the document and the page (React's own included), and a layer that swallows
+ * the press does so before anything underneath sees it.
+ */
+export function onOutsidePress(layer: Layer): () => void {
+  if (!layers.length) addEventListener("pointerdown", ask, true)
+  layers.push(layer)
+  return () => {
+    layers.splice(layers.indexOf(layer) >>> 0, 1)
+    if (!layers.length) removeEventListener("pointerdown", ask, true)
+  }
 }

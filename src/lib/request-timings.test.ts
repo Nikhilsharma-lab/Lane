@@ -101,7 +101,7 @@ const SIGNED_IN_PAGES: Record<string, string> = {
   "src/app/(app)/impact/page.tsx": "Impact",
   "src/app/(app)/settings/profile/page.tsx": "Settings: Profile",
   "src/app/(app)/settings/members/page.tsx": "Settings: Members",
-  "src/app/(app)/settings/metrics/page.tsx": "Settings: Metrics",
+  "src/app/(app)/settings/metrics/(library)/page.tsx": "Settings: Metrics",
   "src/app/(app)/settings/metrics/[id]/page.tsx": "Settings: a Metric",
   "src/app/(auth)/onboarding/page.tsx": "Onboarding",
 };

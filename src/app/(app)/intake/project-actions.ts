@@ -14,7 +14,9 @@ export type ProjectFailure = {
   field?: "name" | "description";
 };
 export type ListProjectsResponse = { success: true; projects: ProjectOption[] } | { success: false; error: ProjectFailure };
-export type CreateProjectResponse = { success: true; project: ProjectOption } | { success: false; error: ProjectFailure };
+/** A `duplicate` refusal carries the `existing` Project: the sidebar's New Project says the name is taken, and the
+ * New Request composer's picker quietly picks that Project instead. */
+export type CreateProjectResponse = { success: true; project: ProjectOption } | { success: false; error: ProjectFailure; existing?: ProjectOption };
 export type DeleteProjectResponse = { success: true } | { success: false; error: ProjectFailure };
 
 const projectSelection = { id: projects.id, name: projects.name, description: projects.description };
@@ -87,7 +89,7 @@ export async function createProject(
     const [existing] = await db.select(projectSelection).from(projects)
       .where(and(accessibleProjectsWhere(auth), eq(sql`lower(${projects.name})`, sql`lower(${parsed.data.name})`)))
       .limit(1);
-    if (existing) return { success: false, error: { code: "duplicate", field: "name", message: `A Project called ${existing.name} already exists` } };
+    if (existing) return { success: false, error: { code: "duplicate", field: "name", message: `A Project called ${existing.name} already exists. Choose another name.` }, existing };
     return { success: false, error: { code: "conflict", message: "This Project name is unavailable. Choose another name.", field: "name" } };
   } catch (error) {
     console.error("[projects] create failed:", error);

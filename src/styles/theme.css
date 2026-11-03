@@ -385,7 +385,8 @@
   --lane-menu-row-height: calc(var(--spacing) * 3 + var(--lane-text-xs) * var(--lane-text-xs--line-height));
   --lane-table-head-height: 2.5rem;
   --lane-popover-width: 18rem;
-  --lane-navigation-width: 13rem;
+  --lane-navigation-width: 15rem;
+  --lane-navigation-peek-width: 13rem;
   --lane-checkbox-size: 1rem;
   --lane-icon-size-xs: 12px;
   --lane-icon-size-sm: 14px;

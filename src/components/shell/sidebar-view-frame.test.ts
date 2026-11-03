@@ -1,3 +1,4 @@
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import { createElement, type ReactNode } from "react";
 import { AppProviders } from "@/test/app-providers";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -66,7 +67,7 @@ describe("SidebarView frame", () => {
 
 // #210: a Viewer files nothing, so the sidebar has no New Request control for them.
 describe("SidebarView for a Viewer", () => {
-  const as = (role: string) => renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
+  const as = (role: WorkspacePermission) => renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
     workspaceName: "Lane Studio", fullName: "Test Viewer", email: "viewer@example.test", role, pathname: "/", projects: [], notifications: null,
   })));
   it("leaves out New Request, and keeps it for a Member", () => {

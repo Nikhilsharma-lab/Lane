@@ -22,11 +22,11 @@ import ImpactLoading from "./impact/loading"
 import InboxLoading from "./inbox/loading"
 import ProfileLoading from "./settings/profile/loading"
 import MembersLoading from "./settings/members/loading"
-import MetricsLoading from "./settings/metrics/loading"
+import MetricsLoading from "./settings/metrics/(library)/loading"
 import MetricDefinitionLoading from "./settings/metrics/[id]/loading"
 import AppError from "./error"
 import RootError from "../error"
-import { MissingPageSignedOut } from "../missing-page"
+import { MissingPageNoWorkspace } from "../missing-page"
 import { MissingPage } from "@/components/shell/missing-in-frame"
 import GlobalError from "../global-error"
 import { RequestUnavailable } from "@/components/requests/request-unavailable"
@@ -57,7 +57,7 @@ const skeletons: [string, string, ComponentType, string, string][] = [
 const settingsSkeletons: [string, string, ComponentType, string][] = [
   ["settings/profile/loading.tsx", "/settings/profile", ProfileLoading, "Loading Profile settings"],
   ["settings/members/loading.tsx", "/settings/members", MembersLoading, "Loading Members"],
-  ["settings/metrics/loading.tsx", "/settings/metrics", MetricsLoading, "Loading Metrics"],
+  ["settings/metrics/(library)/loading.tsx", "/settings/metrics", MetricsLoading, "Loading Metrics"],
   ["settings/metrics/[id]/loading.tsx", "/settings/metrics/x", MetricDefinitionLoading, "Loading metric"],
 ]
 
@@ -144,13 +144,23 @@ describe("error frames", () => {
   })
 
   it("shows the Lane mark and Sign in on a signed-out Page not found, and promises no Requests (#271, A119)", () => {
-    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(MissingPageSignedOut)))
+    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(MissingPageNoWorkspace, { signedIn: false })))
     expect(html).toContain("data-lane-mark")
     expect(html.indexOf("data-lane-mark")).toBeLessThan(html.indexOf("This page doesn’t exist"))
     expect(html).toMatch(/<a\b[^>]*href="\/login"[^>]*>Sign in<\/a>/)
     expect(html.replace(/<[^>]+>/g, " ")).not.toContain("Requests")
     expect(strips(html)).toBe(0)
     expect(html).not.toContain("Expand sidebar")
+  })
+
+  it("offers Go to Lane, not Sign in, to someone signed in without a workspace, under the same Lane mark", () => {
+    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(MissingPageNoWorkspace, { signedIn: true })))
+    expect(html.indexOf("data-lane-mark")).toBeLessThan(html.indexOf("This page doesn’t exist"))
+    // "/" takes them on to finishing onboarding, or choosing a workspace.
+    expect(html).toMatch(/<a\b[^>]*href="\/"[^>]*>Go to Lane<\/a>/)
+    expect(html).not.toContain("Sign in")
+    expect(html.replace(/<[^>]+>/g, " ")).not.toContain("Requests")
+    expect(strips(html)).toBe(0)
   })
 
   it("names the global error's failure inside its alert, as a heading below the strip's h1", () => {
