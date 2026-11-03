@@ -15,14 +15,27 @@ export type ActionSession = {
   renew(): Promise<unknown>
 }
 
-type ClerkGlobal = { Clerk?: { session?: { getToken(options?: { skipCache?: boolean }): Promise<string | null> } | null } }
-const clerkSession = () => (globalThis as ClerkGlobal).Clerk?.session
+type ClerkGlobal = { Clerk?: { loaded?: boolean; session?: { getToken(options?: { skipCache?: boolean }): Promise<string | null> } | null } }
+const clerk = () => (globalThis as ClerkGlobal).Clerk
+const clerkSession = () => clerk()?.session
+
+/** How long a renewal waits for Clerk's script to load (a press on a fresh tab can beat it). */
+const CLERK_LOAD_WAIT_MS = 5_000
+
+/** Clerk's session once Clerk has loaded, or undefined if it hasn't within CLERK_LOAD_WAIT_MS. */
+async function loadedClerkSession() {
+  for (let waited = 0; !clerk()?.loaded && !clerkSession() && waited < CLERK_LOAD_WAIT_MS; waited += 100) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  return clerkSession()
+}
 
 /** Reads the Clerk instance ClerkProvider installs; without one (fixtures,
- * tests) there is no token to refresh and the call simply runs. */
+ * tests) there is no token to refresh and the call simply runs. An expiry that comes back before Clerk's script has
+ * loaded renews once it has, instead of giving up on a session Clerk could still renew. */
 export const clerkActionSession: ActionSession = {
   current: async () => clerkSession()?.getToken(),
-  renew: async () => clerkSession()?.getToken({ skipCache: true }),
+  renew: async () => (await loadedClerkSession())?.getToken({ skipCache: true }),
 }
 
 /** Only an explicit pre-write expiry result permits recovery. Throws can
