@@ -12,6 +12,7 @@ import { detailCommand, isTypingTarget } from "./request-detail-keys"
 import { useDetailSession } from "./list-view-state"
 import { useRequestNavigation } from "./request-navigation"
 import { advanceSequence, sequencePosition, type SequencePosition } from "./request-sequence"
+import { afterPageLoad } from "@/lib/after-page-load"
 import { FULL_PREFETCH, useIntentPrefetch } from "./use-intent-prefetch"
 import styles from "./detail.module.css"
 import { KeyCap } from "@/components/keyboard/key-caps";
@@ -40,20 +41,14 @@ export function useDetailSequence(requestId: string) {
   return { position, go }
 }
 
-/** Both neighbours, fully prefetched once the page is idle: at most two per detail view (plan item 2.5). */
+/** Both neighbours, fully prefetched once the page has loaded and is idle: at most two per detail view (plan item 2.5). */
 function useNeighbourPrefetch(position: SequencePosition | null) {
   const router = useRouter()
   const nextId = position?.nextId, previousId = position?.previousId
   useEffect(() => {
     const hrefs = [nextId, previousId].filter((id): id is string => Boolean(id)).map(id => requestDetailHref(id, "all"))
     if (!hrefs.length) return
-    const run = () => { for (const href of hrefs) router.prefetch(href, FULL_PREFETCH) }
-    if (typeof window.requestIdleCallback === "function") {
-      const handle = window.requestIdleCallback(run, { timeout: 2000 })
-      return () => window.cancelIdleCallback(handle)
-    }
-    const timer = window.setTimeout(run, 200)
-    return () => window.clearTimeout(timer)
+    return afterPageLoad(() => { for (const href of hrefs) router.prefetch(href, FULL_PREFETCH) })
   }, [nextId, previousId, router])
 }
 
