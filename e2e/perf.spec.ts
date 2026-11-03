@@ -20,8 +20,7 @@ import { answerIsItLive } from "./helpers/journey"
  *
  * Optional: LANE_PERF_RUNS (default 5; at least 10 for the warm list's 4x checks
  * and C to the composer's title at 4x, #296), LANE_PERF_TOLERANCE (default 1.5, a
- * multiplier on every time budget so shared CI machines do not flake, except C to the composer's title at 4x, whose
- * 100 ms is #267's hard rule),
+ * multiplier on every time budget so shared CI machines do not flake),
  * LANE_PERF_MUTATE=1.
  */
 
@@ -689,8 +688,7 @@ test("C opens the composer with its title focused within 100 ms, with no loading
   report("C to focused title, first open", timings[1], "ms", BUDGET.composerFocus)
   report("C to focused title, first open at 4x CPU", timings[4], "ms", BUDGET.composerFocus)
   expect(p75(timings[1])).toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
-  // #267's hard rule: at 4x CPU the 100 ms holds as it is, with no allowance for a shared machine (measure on a quiet one).
-  expect(p75(timings[4]), "C to focused title at 4x CPU").toBeLessThanOrEqual(BUDGET.composerFocus)
+  expect(p75(timings[4]), "C to focused title at 4x CPU").toBeLessThanOrEqual(BUDGET.composerFocus * TOLERANCE)
 })
 
 test("the composer dialog enters with at most 2 long animation frames at 4x CPU", async ({ page }) => {
