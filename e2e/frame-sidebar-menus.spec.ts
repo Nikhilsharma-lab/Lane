@@ -112,16 +112,39 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await expectNothingOpened(page, "/");
     });
 
-    await test.step("A112: a name that fits is shown whole; the row shows no tip for it", async () => {
-      const name = accountButton(page).getByText("Priya Raman", { exact: true });
-      const cut = await name.evaluate(node => node.scrollWidth > node.clientWidth);
-      await name.hover();
-      await page.waitForTimeout(600);
-      // At the default width the name may still be cut; then, and only then, its whole text shows on hover.
-      if (cut) await expect(page.getByRole("tooltip")).toHaveText("Priya Raman");
-      else await expect(page.getByRole("tooltip")).toHaveCount(0);
-      await page.mouse.move(800, 600);
-      await page.screenshot({ path: testInfo.outputPath("A112-account-row-1440.png"), clip: { x: 0, y: 0, width: 260, height: 80 } });
+    await test.step("A112: an everyday name fits whole beside the arrow, Search and New Request; a long one is cut, with a tip", async () => {
+      for (const width of [1440, 1024]) {
+        await page.setViewportSize({ width, height: 900 });
+        const name = accountButton(page).getByText("Priya Raman", { exact: true });
+        await expect(name).toBeVisible();
+        expect(await name.evaluate(node => node.scrollWidth - node.clientWidth), `${width}`).toBeLessThanOrEqual(0);
+        await expect(sidebar(page).getByRole("button", { name: "Search workspace", exact: true })).toBeVisible();
+        await expect(sidebar(page).getByRole("link", { name: "New Request", exact: true }).first()).toBeVisible();
+        await name.hover();
+        await page.waitForTimeout(600);
+        await expect(page.getByRole("tooltip")).toHaveCount(0);
+        await page.mouse.move(800, 600);
+        await page.screenshot({ path: testInfo.outputPath(`A112-account-row-${width}.png`), clip: { x: 0, y: 0, width: 280, height: 80 } });
+      }
+      await page.setViewportSize({ width: 1440, height: 900 });
+      const sql = e2eDatabase();
+      const long = "Priyanka Ramanathan-Venkataraman";
+      try {
+        await sql`update profiles set full_name = ${long} where id = ${admin.id}`;
+        await page.reload();
+        await hydrated(page);
+        const name = accountButton(page).getByText(long, { exact: true });
+        expect(await name.evaluate(node => node.scrollWidth > node.clientWidth)).toBe(true);
+        await name.hover();
+        await expect(page.getByRole("tooltip")).toHaveText(long);
+        await page.mouse.move(800, 600);
+      } finally {
+        await sql`update profiles set full_name = 'Priya Raman' where id = ${admin.id}`;
+        await sql.end();
+      }
+      await page.reload();
+      await expect(row(page, request.id)).toBeVisible({ timeout: 60_000 });
+      await hydrated(page);
     });
 
     await test.step("A17: New Project with keyboard focus reads New Project once", async () => {

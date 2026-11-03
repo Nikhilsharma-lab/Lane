@@ -106,6 +106,20 @@ test("⌘K stays open through a page change, keeps what is typed, finds Impact, 
       await expect(page).toHaveURL(/\/$/);
     });
 
+    await test.step("A11: a page change that starts after ⌘K closes it", async () => {
+      await page.locator("#lane-main").focus();
+      await page.keyboard.press("Meta+k");
+      await expect(field(page)).toBeFocused();
+      await page.keyboard.type("imp");
+      // Something other than the palette moves the page on (a push, as a redirect after an action makes).
+      await page.evaluate(() => { (window as unknown as { next: { router: { push: (href: string) => void } } }).next.router.push("/inbox"); });
+      await expect(palette(page)).toBeHidden();
+      await expect(page).toHaveURL(/\/inbox$/);
+      await expect(page.getByRole("heading", { level: 1, name: "Inbox", includeHidden: true })).toBeAttached();
+      await page.waitForTimeout(500);
+      await expect(palette(page)).toBeHidden();
+    });
+
     await test.step("A13: Impact has its own entry, next to Inbox", async () => {
       await page.goto("/");
       await expect(page.getByText("Palette trust request").first()).toBeVisible();

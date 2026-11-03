@@ -89,7 +89,7 @@ The values are the 2026-10-13 Supabase-derived values, copied as-is, including c
 
 ## Brand assets
 
-`pnpm brand:assets` (`scripts/brand/brand-assets.mjs`) generates the favicon, app icons, web app manifest, browser tab colours (`src/app/theme-color.json`, read by the root layout and by `TabColour`, which switches the tab to Lane's resolved theme, the saved Profile choice) and Open Graph image from the theme file's light and dark `--background` / `--foreground` and Lane additions sizes, converted to hex because icon files are not CSS. `pnpm design:check` fails if a committed file differs from what the theme would produce. The mark is `LaneGlyph` in `src/components/brand/lane-glyph.tsx`, which `LaneMark` (`src/components/auth/auth-shell.tsx`) and the signed-out "Page not found" draw.
+`pnpm brand:assets` (`scripts/brand/brand-assets.mjs`) generates the favicon, app icons, web app manifest, browser tab colours (`src/app/theme-color.json`, read by the root layout and by `TabColour`, which switches the tab to Lane's resolved theme, the saved Profile choice) and Open Graph image from the theme file's light and dark `--background` / `--foreground` and Lane additions sizes, converted to hex because icon files are not CSS. `pnpm design:check` fails if a committed file differs from what the theme would produce. The mark is `LaneGlyph` in `src/components/brand/lane-glyph.tsx`, which `LaneMark` (`src/components/brand/lane-mark.tsx`) draws in the auth header, Privacy, Terms and the "Page not found" outside a workspace.
 
 ## History
 

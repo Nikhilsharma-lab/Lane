@@ -1,7 +1,14 @@
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import { describe, expect, it } from "vitest"
-import { layoutWidthFor, planToggle, slideFor } from "./sidebar-motion"
+import { layoutWidthFor, NAVIGATION_WIDTH, planToggle, slideFor } from "./sidebar-motion"
 
 describe("sidebar motion", () => {
+  it("starts at the theme's navigation width, which is where that width changes", () => {
+    const theme = readFileSync(join(process.cwd(), "src/styles/theme.css"), "utf8")
+    const rem = Number(/--navigation-width:\s*([\d.]+)rem;/.exec(theme)?.[1])
+    expect(NAVIGATION_WIDTH).toBe(rem * 16)
+  })
   it("collapses the layout at the start of a collapse", () => {
     const plan = planToggle({ collapsed: false, motion: null, reduced: false })
     expect(plan).toEqual({ motion: "collapsing", slide: "start" })

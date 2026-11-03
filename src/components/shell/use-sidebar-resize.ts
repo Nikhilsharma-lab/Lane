@@ -2,7 +2,7 @@
 
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
 import { useReducedMotion } from "motion/react";
-import { layoutWidthFor, planToggle, slideFor, type SidebarMotion } from "./sidebar-motion";
+import { layoutWidthFor, NAVIGATION_WIDTH, planToggle, slideFor, type SidebarMotion } from "./sidebar-motion";
 
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 400;
@@ -32,8 +32,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
   const previewCompact = useSyncExternalStore(subscribeLinearPreviewCompact, () => window.matchMedia(LINEAR_PREVIEW_COMPACT).matches, () => false);
   const autoCollapsed = linearPreviewAutoCollapse && previewCompact;
   const reduced = useReducedMotion();
-  // The theme's navigation width (--navigation-width, 13rem).
-  const initialWidth = 208;
+  const initialWidth = NAVIGATION_WIDTH;
   const [width, setWidth] = useState(initialWidth);
   const [resizing, setResizing] = useState(false);
   const [lastExpanded, setLastExpanded] = useState(initialWidth);

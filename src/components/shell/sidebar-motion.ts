@@ -7,6 +7,13 @@ import { motionTokens } from "@/components/arc/lib/motion-tokens"
  */
 export type SidebarMotion = "collapsing" | "expanding" | null
 
+/**
+ * The expanded sidebar's width in px before anyone drags it: theme.css's `--navigation-width`, which is where it is
+ * changed. The server draws the first frame at this width, so it is a number here too; sidebar-motion.test.ts
+ * fails if the two differ.
+ */
+export const NAVIGATION_WIDTH = 224
+
 /** The width the shell lays the content out with. While the panel slides in, the content keeps its width. */
 export function layoutWidthFor({ width, autoCollapsed, motion }: { width: number; autoCollapsed: boolean; motion: SidebarMotion }) {
   if (autoCollapsed || motion === "expanding") return 0

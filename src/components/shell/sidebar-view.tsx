@@ -25,7 +25,7 @@ import { useSidebarPeek } from "./use-sidebar-peek";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { JumpBar } from "./jump-bar";
 import { openShellSurface, useShellOpener } from "./shell-openers";
-import { swallowPress } from "@/lib/outside-press";
+import { onOutsidePress, swallowPress } from "@/lib/outside-press";
 import { holdsOffline } from "@/lib/offline-navigation";
 import { managesMembers, seesMembers } from "@/lib/role-rules";
 import type { WorkspacePermission } from "@/lib/auth-guard";
@@ -77,19 +77,17 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     showPeek(trigger);
   }
   // #269 (A15): a press on the page beside the peek only closes it; the row, picker or composer under it never reacts.
-  // It listens on the page itself, so a menu open above the peek takes that press first (and only closes, too).
-  // The expand control keeps its own press, which pins or reopens the peek.
+  // It is taken before any listener on the page sees it, and a menu opened above the peek takes that press first
+  // (and only closes, too). The expand control keeps its own press, which pins or reopens the peek.
   const mainRef = useRef<HTMLElement>(null);
   const pressBesidePeek = useEffectEvent((event: PointerEvent) => {
+    if (!(event.target instanceof Node && mainRef.current?.contains(event.target))) return false;
     if (!(event.target instanceof Element && event.target.closest('button[aria-label="Expand sidebar"]'))) swallowPress(event);
     dismissPeek();
+    return true;
   });
   useEffect(() => {
-    const main = mainRef.current;
-    if (!peeking || !main) return;
-    const listener = (event: PointerEvent) => pressBesidePeek(event);
-    main.addEventListener("pointerdown", listener, true);
-    return () => main.removeEventListener("pointerdown", listener, true);
+    if (peeking) return onOutsidePress(event => pressBesidePeek(event));
   }, [peeking]);
   // Plan items 1.7 and 1.14: the list context comes from the layout's list
   // view state (the URL only mirrors it on "/"), and the sidebar subscribes to

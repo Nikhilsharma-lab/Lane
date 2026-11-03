@@ -10,7 +10,7 @@ import { motionTokens } from "../lib/motion-tokens";
 import styles from "./user-menu.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 import { KeyCap } from "@/components/keyboard/key-caps";
-import { swallowPress } from "@/lib/outside-press";
+import { onOutsidePress, swallowPress } from "@/lib/outside-press";
 import { CHECK_CONNECTION, failureWords, TRY_AGAIN, worthRetrying } from "@/lib/failure-messages";
 
 export type UserStatus = "available" | "busy" | "away";
@@ -340,10 +340,10 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
   // Lane #269 (A16): the press only closes it, as a dialog's does; nothing underneath reacts to it.
   useEffect(() => {
     if (!open || sheet) return;
-    const onPointerDown = (event: globalThis.PointerEvent) => {
-      if (workspacePending.current || workspaces?.pendingId) return;
+    return onOutsidePress(event => {
+      if (workspacePending.current || workspaces?.pendingId) return false;
       const target = event.target as Node;
-      if (surfaceRef.current?.contains(target) || workspaceSurfaceRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
+      if (surfaceRef.current?.contains(target) || workspaceSurfaceRef.current?.contains(target) || triggerRef.current?.contains(target)) return false;
       swallowPress(event);
       session.current += 1;
       setWorkspaceOpen(false);
@@ -351,9 +351,8 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
       setHighlight(null);
       setInnerOpen(false);
       onOpenChange?.(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+      return true;
+    });
   }, [open, sheet, onOpenChange, workspaces?.pendingId]);
 
   // The page behind the sheet stays put.
