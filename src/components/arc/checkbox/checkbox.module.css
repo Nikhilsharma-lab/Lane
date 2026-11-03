@@ -11,7 +11,7 @@
 .box:focus-visible { color: var(--surface); }
 @media (hover: hover) and (pointer: fine) { .box[data-state="unchecked"]:hover:not(:disabled) .visual { border-color: var(--text-muted); } }
 .box:active:not(:disabled) .visual { transform: scale(.95); transition: border-color var(--duration-fast) var(--ease-standard), transform var(--duration-instant) var(--ease-standard); }
-.box:disabled { opacity: .5; cursor: not-allowed; }
+.box:disabled { opacity: var(--lane-opacity-disabled); cursor: not-allowed; }
 /* The label's first line centers on the square: (44px box - 19.6px line) / 2. */
 .copy { display: grid; gap: calc(var(--space-1) * 0.5); min-width: 0; margin-left: calc(var(--space-1) * 0.25); padding-top: calc((var(--control-height-md) - var(--text-sm) * 1.4) / 2); }
 .copy label { color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--leading-body); cursor: pointer; }

@@ -1,0 +1,4 @@
+.form { display: grid; gap: var(--space-2); }
+.shortcut { display: inline-flex; align-items: center; gap: var(--space-1); padding-inline-start: calc(var(--size-inner-small) + var(--space-1) * 2.5); font-size: var(--text-xs); color: var(--text-muted); }
+@container detail (max-width: 420px) { .shortcut { padding-inline-start: 0; } }
+@media (pointer: coarse) { .shortcut { display: none; } }

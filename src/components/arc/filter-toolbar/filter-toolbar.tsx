@@ -431,7 +431,7 @@ function MorphFilterMenu({ fields, onSelect, active = [], label = "Add filter", 
           <div className={styles.head}>
             <AnimatePresence initial={false}>
               {field ? <m.button key="back" type="button" className={styles.back} aria-label="Back to fields" onClick={event => goBack(event.detail === 0)}
-                initial={reduced ? { opacity: 0, width: 28, marginRight: 2 } : { opacity: 0, width: 0, marginRight: 0, scale: .6 }} animate={{ opacity: 1, width: 28, marginRight: 2, scale: 1 }}
+                initial={reduced ? { opacity: 0, width: "var(--size-inner-small)", marginRight: "calc(var(--space-1) / 2)" } : { opacity: 0, width: 0, marginRight: 0, scale: .6 }} animate={{ opacity: 1, width: "var(--size-inner-small)", marginRight: "calc(var(--space-1) / 2)", scale: 1 }}
                 exit={reduced ? { opacity: 0, transition: still } : { opacity: 0, width: 0, marginRight: 0, scale: .6, transition: { ...motionTokens.spring.snappy, opacity: leave } }}
                 transition={reduced ? fade : { ...motionTokens.spring.snappy, opacity: enter }}><ChevronLeft strokeWidth={1.8} aria-hidden="true" /></m.button> : null}
             </AnimatePresence>

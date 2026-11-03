@@ -1,9 +1,9 @@
 /* The region only holds the list; it never blocks clicks outside the toasts themselves. */
-.viewport { position: fixed; z-index: 60; bottom: var(--space-6); width: min(calc(var(--space-1) * 90), calc(100% - var(--space-8))); pointer-events: none; }
+.viewport { position: fixed; z-index: var(--lane-layer-menu); bottom: var(--space-6); width: min(calc(var(--space-1) * 90), calc(100% - var(--space-8))); pointer-events: none; }
 .bottom-right { right: var(--space-6); }
 .bottom-left { left: var(--space-6); }
 .bottom-center { right: 0; left: 0; margin-inline: auto; }
-.contained { position: absolute; z-index: 2; bottom: var(--space-4); }
+.contained { position: absolute; z-index: var(--lane-layer-raised); bottom: var(--space-4); }
 .contained.bottom-right { right: var(--space-4); }
 .contained.bottom-left { left: var(--space-4); }
 @media (max-width: 30rem) { .viewport:not(.contained) { right: 0; bottom: var(--space-4); left: 0; margin-inline: auto; } }

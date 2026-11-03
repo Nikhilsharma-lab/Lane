@@ -5,7 +5,7 @@
 @media (hover: hover) and (pointer: fine) { .trigger:hover:not([data-disabled]) { border-color: var(--border-strong); background: var(--interaction-hover, var(--surface-muted)); } }
 .trigger:active:not([data-disabled]), .trigger[data-state="open"] { border-color: var(--border-strong); background: var(--interaction-pressed, var(--surface-muted)); }
 .trigger:focus-visible { border-color: var(--border-strong); }
-.trigger[data-disabled] { opacity: .5; cursor: not-allowed; }
+.trigger[data-disabled] { opacity: var(--lane-opacity-disabled); cursor: not-allowed; }
 .valueText { display: grid; flex: 1; min-width: 0; grid-template-columns: minmax(0, 1fr); }
 .valueText > span { grid-area: 1 / 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .valueText > [data-placeholder] { color: var(--text-muted); }
@@ -16,7 +16,7 @@
 .error { color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); }
 .trigger[aria-invalid="true"], .trigger[aria-invalid="true"]:hover:not([data-disabled]) { border-color: var(--danger); }
 /* Radix holds the animation until the menu is positioned, so it always grows from the trigger edge. */
-.content { --menu-x: 0px; --menu-y: calc(var(--space-1) * -1.5); box-sizing: border-box; z-index: 1000; width: var(--radix-select-trigger-width); min-width: var(--radix-select-trigger-width); max-width: min(calc(var(--space-1) * 96), calc(100vw - calc(var(--space-1) * 5))); max-height: min(calc(var(--space-1) * 80), var(--radix-select-content-available-height)); overflow: hidden; overscroll-behavior: contain; border: var(--floating-border-width, var(--border-width)) solid var(--border); border-radius: var(--select-panel-radius, calc(var(--radius-control) + var(--radius-xs))); padding: var(--menu-padding, calc(var(--space-1) * 1.5)); background: var(--surface-raised); color: var(--foreground); box-shadow: var(--menu-shadow, var(--shadow-floating)); transform-origin: var(--radix-select-content-transform-origin); animation: select-in var(--duration-standard) var(--ease-enter) both; }
+.content { --menu-x: 0px; --menu-y: calc(var(--space-1) * -1.5); box-sizing: border-box; z-index: var(--lane-layer-select); width: var(--radix-select-trigger-width); min-width: var(--radix-select-trigger-width); max-width: min(calc(var(--space-1) * 96), calc(100vw - calc(var(--space-1) * 5))); max-height: min(calc(var(--space-1) * 80), var(--radix-select-content-available-height)); overflow: hidden; overscroll-behavior: contain; border: var(--floating-border-width, var(--border-width)) solid var(--border); border-radius: var(--select-panel-radius, calc(var(--radius-control) + var(--radius-xs))); padding: var(--menu-padding, calc(var(--space-1) * 1.5)); background: var(--surface-raised); color: var(--foreground); box-shadow: var(--menu-shadow, var(--shadow-floating)); transform-origin: var(--radix-select-content-transform-origin); animation: select-in var(--duration-standard) var(--ease-enter) both; }
 .content[data-side="top"] { --menu-y: calc(var(--space-1) * 1.5); }
 .content[data-custom-trigger] { width: max-content; }
 .content[data-custom-trigger] .item { white-space: normal; }
@@ -28,7 +28,7 @@
 .viewport { padding: var(--select-viewport-padding, calc(var(--space-1) * 0.5) 0); }
 .item { position: relative; display: flex; align-items: center; min-height: var(--menu-row-height, calc(var(--space-1) * 9)); border-radius: var(--menu-item-radius, calc(var(--radius-control) - var(--radius-sm))); padding: var(--select-item-padding, 0 calc(var(--space-1) * 8.5) 0 calc(var(--space-1) * 2.75)); color: var(--foreground); font-size: var(--text-sm); cursor: default; outline: none; user-select: none; transition: background-color var(--duration-instant) var(--ease-standard), color var(--duration-instant) var(--ease-standard); }
 .item[data-highlighted] { background: var(--interaction-hover, var(--surface-muted)); }
-.item[data-disabled] { opacity: .45; }
+.item[data-disabled] { opacity: var(--lane-opacity-quiet); }
 .optionIcon { display: inline-flex; align-items: center; flex: none; width: var(--icon-size-md); height: var(--icon-size-md); margin-inline-end: var(--space-2); }
 .indicator { position: absolute; right: calc(var(--space-1) * 2.5); display: inline-flex; align-items: center; color: var(--foreground); animation: indicator-in var(--duration-standard) var(--ease-enter) calc(var(--duration-standard) * 0.2) both; }
 .item[data-indicator-position="left"] { padding-inline: calc(var(--space-2) + var(--icon-size-md) + var(--space-2)) var(--space-2); gap: var(--space-3); }

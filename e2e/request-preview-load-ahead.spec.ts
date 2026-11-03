@@ -143,6 +143,78 @@ test("the Request preview loads ahead on the Requests list and the Inbox", async
       await expect(page.locator("[data-request-peek]")).toHaveCount(0);
     });
 
+    await test.step("row title, code and blank space toggle one in-flow pane without stealing control clicks or drafts", async () => {
+      const row = page.locator(ROW).first();
+      const title = row.locator("a[data-request-title]");
+      const code = row.locator("[data-request-code]");
+      await code.click();
+      await expect(preview.getByRole("heading", { level: 2, name: (await title.textContent())!, exact: true })).toBeVisible();
+      const other = page.locator(ROW).nth(1);
+      await other.locator("a[data-request-title]").click();
+      await expect(preview).toHaveAttribute("data-request-id", (await other.getAttribute("data-request-id"))!);
+      await other.getByRole("checkbox").click();
+      await expect(preview).toHaveAttribute("data-request-id", (await other.getAttribute("data-request-id"))!);
+      await other.getByRole("checkbox").click();
+      await code.click();
+      await expect(preview).toHaveAttribute("data-request-id", (await row.getAttribute("data-request-id"))!);
+      await other.getByRole("checkbox").click();
+      await expect(preview).toHaveAttribute("data-request-id", (await row.getAttribute("data-request-id"))!);
+      await other.getByRole("checkbox").click();
+      const listBox = await row.boundingBox();
+      const paneBox = await preview.boundingBox();
+      expect(listBox).not.toBeNull();
+      expect(paneBox).not.toBeNull();
+      expect(listBox!.x + listBox!.width).toBeLessThanOrEqual(paneBox!.x);
+      await preview.getByRole("tab", { name: /^Conversation/ }).click();
+      await preview.getByRole("textbox", { name: "Comment", exact: true }).fill("Keep this unsent draft while toggling the pane.");
+      await preview.getByRole("tab", { name: "Activity", exact: true }).click();
+      await expect(preview.getByRole("tabpanel", { name: "Activity", exact: true })).toBeVisible();
+      await preview.getByRole("tab", { name: /^Conversation/ }).click();
+      await expect(preview.getByRole("textbox", { name: "Comment", exact: true })).toHaveValue("Keep this unsent draft while toggling the pane.");
+      await title.click();
+      await expect(preview).toHaveCount(0);
+      await expect(row).toBeFocused();
+      await row.click({ position: { x: 2, y: 22 } });
+      await preview.getByRole("tab", { name: /^Conversation/ }).click();
+      await expect(preview.getByRole("textbox", { name: "Comment", exact: true })).toHaveValue("Keep this unsent draft while toggling the pane.");
+      await row.getByRole("checkbox").click();
+      await expect(row).toHaveAttribute("aria-selected", "true");
+      await expect(preview).toBeVisible();
+      await row.getByRole("checkbox").click();
+      await code.click();
+      await expect(preview).toHaveCount(0);
+      await row.press("Space");
+      await expect(preview).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(preview).toHaveCount(0);
+      await expect(row).toBeFocused();
+    });
+
+    await test.step("short windows keep the header in place when keyboard focus reaches the comment action", async () => {
+      await page.setViewportSize({ width: 1024, height: 600 });
+      try {
+        await page.locator(ROW).first().locator("a[data-request-title]").click();
+        const header = preview.locator("[data-detail-title]");
+        await expect(header).toBeVisible();
+        const before = await header.boundingBox();
+        const conversation = preview.getByRole("tab", { name: /^Conversation/ });
+        await conversation.click();
+        await expect(conversation).toHaveAttribute("aria-selected", "true");
+        const input = preview.getByRole("textbox", { name: "Comment", exact: true });
+        await input.fill("Unsent keyboard check");
+        await input.press("Tab");
+        await expect(preview.getByRole("button", { name: "Post comment", exact: true })).toBeFocused();
+        const after = await header.boundingBox();
+        expect(before).not.toBeNull();
+        expect(after).not.toBeNull();
+        expect(Math.abs(after!.y - before!.y)).toBeLessThan(1);
+        await input.fill("");
+        await preview.getByRole("button", { name: "Close preview", exact: true }).click();
+      } finally {
+        await page.setViewportSize({ width: 1440, height: 1000 });
+      }
+    });
+
     await test.step("Requests list: opening while the read ahead is in flight waits on it, one read", async () => {
       const row = page.locator(ROW).nth(4);
       const id = (await row.getAttribute("data-request-id"))!;
@@ -197,7 +269,13 @@ test("the Request preview loads ahead on the Requests list and the Inbox", async
       expect(await sawSkeleton(page)).toBe(false);
       expect(await opening()).toEqual({ shown: true, scripts: [], panelLoading: false });
 
-      await page.keyboard.press("Escape");
+      const slotBox = await page.locator("[data-inbox-preview]").boundingBox();
+      const paneBox = await preview.boundingBox();
+      expect(slotBox).not.toBeNull();
+      expect(paneBox).not.toBeNull();
+      expect(Math.abs(paneBox!.y - slotBox!.y)).toBeLessThan(1);
+      expect(Math.abs(paneBox!.height - slotBox!.height)).toBeLessThan(1);
+      await open.click();
       await expect(page.locator("[data-request-peek]")).toHaveCount(0);
 
       await items.first().locator("[data-inbox-open]").focus();

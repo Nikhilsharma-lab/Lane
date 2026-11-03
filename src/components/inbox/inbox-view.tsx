@@ -185,7 +185,7 @@ export function InboxView({
             </ul>}
         </section>
       </div>
-      <div className={styles.preview} data-inbox-preview="">
+      <div className={styles.preview} data-inbox-preview="" data-preview-open={previewOpen || undefined}>
         {!previewOpen && <p className={styles.previewNote}>Select an item to see its Request here.</p>}
         {preview}
       </div>

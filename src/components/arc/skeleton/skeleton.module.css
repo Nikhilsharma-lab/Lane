@@ -7,5 +7,5 @@
 .line:first-child { width: 48%; height: var(--space-4); }
 .line:last-child { width: 72%; }
 .frame { position: relative; display: flow-root; }
-@keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .52; } }
+@keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: var(--lane-opacity-skeleton); } }
 @media (prefers-reduced-motion: reduce) { .avatar, .line { animation: none; } }
