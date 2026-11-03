@@ -15,14 +15,37 @@ export type ActionSession = {
   renew(): Promise<unknown>
 }
 
-type ClerkGlobal = { Clerk?: { session?: { getToken(options?: { skipCache?: boolean }): Promise<string | null> } | null } }
-const clerkSession = () => (globalThis as ClerkGlobal).Clerk?.session
+type ClerkStatusListener = (status: string) => void
+type ClerkGlobal = { Clerk?: {
+  status?: string
+  on?(event: "status", handler: ClerkStatusListener, options?: { notify: boolean }): void
+  off?(event: "status", handler: ClerkStatusListener): void
+  session?: { getToken(options?: { skipCache?: boolean }): Promise<string | null> } | null
+} }
+const clerk = () => (globalThis as ClerkGlobal).Clerk
+const clerkSession = () => clerk()?.session
+
+/** How long a renewal waits for a Clerk that is still loading. */
+const CLERK_LOAD_WAIT_MS = 10_000
+
+/** An action can answer before Clerk has loaded (a role saved right after the page appears): until it has, there
+ * is no session to renew. Waits until Clerk leaves "loading", or CLERK_LOAD_WAIT_MS, whichever comes first. */
+function clerkLoaded(): Promise<void> {
+  const instance = clerk()
+  if (instance?.status !== "loading" || !instance.on) return Promise.resolve()
+  return new Promise(resolve => {
+    const done = () => { clearTimeout(timer); instance.off?.("status", onStatus); resolve() }
+    const onStatus: ClerkStatusListener = status => { if (status !== "loading") done() }
+    const timer = setTimeout(done, CLERK_LOAD_WAIT_MS)
+    instance.on?.("status", onStatus, { notify: true })
+  })
+}
 
 /** Reads the Clerk instance ClerkProvider installs; without one (fixtures,
  * tests) there is no token to refresh and the call simply runs. */
 export const clerkActionSession: ActionSession = {
   current: async () => clerkSession()?.getToken(),
-  renew: async () => clerkSession()?.getToken({ skipCache: true }),
+  renew: async () => { await clerkLoaded(); return clerkSession()?.getToken({ skipCache: true }) },
 }
 
 /** Only an explicit pre-write expiry result permits recovery. Throws can
