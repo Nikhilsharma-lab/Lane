@@ -38,7 +38,7 @@ function changed() {
   revalidatePath("/", "layout");
 }
 
-export async function saveView(data: { name: string; filters: { status: string; project: string; title?: string } }, context: { orgId: string }): Promise<SavedViewResult> {
+export async function saveView(data: { name: string; filters: SavedViewFilters }, context: { orgId: string }): Promise<SavedViewResult> {
   const name = parseSavedViewName(data?.name);
   if ("error" in name) return name;
   const auth = await guardActiveMember(context.orgId, "You can't save views in this workspace.");
@@ -73,7 +73,7 @@ export async function renameSavedView(data: { id: string; name: string }, contex
 }
 
 /** Saves the list's current filters into a view the person already has. */
-export async function updateSavedView(data: { id: string; filters: { status: string; project: string; title?: string } }, context: { orgId: string }): Promise<SavedViewResult> {
+export async function updateSavedView(data: { id: string; filters: SavedViewFilters }, context: { orgId: string }): Promise<SavedViewResult> {
   const auth = await guardActiveMember(context.orgId, "You can't change views in this workspace.");
   if ("error" in auth) return auth;
   if (typeof data?.id !== "string" || !UUID.test(data.id)) return { error: GONE };

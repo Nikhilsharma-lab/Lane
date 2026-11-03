@@ -1,3 +1,4 @@
+import type { SavedViewFilters } from "@/lib/saved-view-rules";
 /**
  * #219: saved views. Anyone in the workspace, Viewers and Guests included, saves the Requests list's current filters
  * under a name, then renames, updates or deletes it. Views are personal: nobody else sees or changes them. Opening one
@@ -68,7 +69,7 @@ describe("saving the list's filters", () => {
   });
 
   it("refuses filters the list doesn't have, and a Project from another workspace", async () => {
-    expect(await (await actions()).saveView({ name: "Shipped", filters: { status: "shipped", project: "all" } }, ctx)).toEqual({ error: "Those filters can't be saved. Reload the page and try again." });
+    expect(await (await actions()).saveView({ name: "Shipped", filters: { status: "shipped", project: "all" } as unknown as SavedViewFilters }, ctx)).toEqual({ error: "Those filters can't be saved. Reload the page and try again." });
     expect(await (await actions()).saveView({ name: "Elsewhere", filters: { status: "all", project: otherWorkspaceProject } }, ctx)).toEqual({ error: "That Project isn't available. Choose another and try again." });
   });
 

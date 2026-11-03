@@ -80,7 +80,7 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
       }} />}
       <div className={styles.actions}>
         <Popover>
-          <PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} data-active={title ? "" : undefined} aria-label={TITLE_FILTER_LABEL} title={TITLE_FILTER_LABEL}><Funnel aria-hidden="true" /></Button></PopoverTrigger>
+          <PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} data-active={title ? "" : undefined} data-title-filter="" aria-label={TITLE_FILTER_LABEL} title={TITLE_FILTER_LABEL}><Funnel aria-hidden="true" /></Button></PopoverTrigger>
           <PopoverContent align="end" aria-label={TITLE_FILTER_LABEL} className={styles.searchPanel} onOpenAutoFocus={event => { event.preventDefault(); titleInput.current?.focus() }}>
             <SearchField ref={titleInput} label={TITLE_FILTER_LABEL} icon={<Funnel data-icon-size="lg" aria-hidden="true" />} placeholder="Filter by title…" value={title} maxLength={REQUEST_TITLE_FILTER_MAX} onValueChange={value => onFilterChange("title", value)} />
           </PopoverContent>

@@ -11,6 +11,21 @@ import { createTestUser, deleteTestUser } from "./helpers/test-user";
 
 const SCRIPT = /\/_next\/static\/.+\.js$/;
 
+// #268 (Nikhil, 2026-11-03, kept as is until Build 9): the New Request form's code and the one chunk ⌘K and search
+// share are fetched once the page is idle after it mounts. On a busy machine that idle moment comes after `load`, so a
+// press in between waits for that code, and holding every later script made this check flaky. Lane keeps that
+// behaviour for now, so the C, ⌘K and / checks first wait until their code has arrived, then check that the popup
+// opens at once, focused, with nothing more to fetch.
+const SHELL_SURFACES_MARKER = "Find an action or place";
+
+/** Loads `path` and waits until the chunk ⌘K and search share has arrived. */
+async function loadWithShellSurfaces(page: Page, path: string) {
+  const arrived = page.waitForResponse(async response => SCRIPT.test(new URL(response.url()).pathname)
+    && (await response.text().catch(() => "")).includes(SHELL_SURFACES_MARKER), { timeout: 60_000 });
+  await page.goto(path, { waitUntil: "load" });
+  await arrived;
+}
+
 /** Holds every script requested from now on, unanswered; the function it returns lets them through. */
 async function holdScripts(page: Page) {
   const held: Route[] = [];
@@ -40,6 +55,8 @@ test("on a cold first visit, C and ? pressed right after load open their popups 
 
       await test.step(`${width}: C opens New Request with its title focused`, async () => {
         await page.goto("/", { waitUntil: "load" });
+        // The form's code has arrived and the form is drawn, closed (#268 decision above).
+        await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
         const release = await holdScripts(page);
         try {
           await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
@@ -80,9 +97,11 @@ const SEARCH_INPUT = 'section[aria-label="Workspace search"] input[role="combobo
 const palette = (page: Page) => page.getByRole("dialog").filter({ has: page.getByPlaceholder("Find an action or place") });
 const blur = (page: Page) => page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 
-/** Loads `path` cold, holds every later script, runs `check`, then lets them through. */
-async function rightAfterLoad(page: Page, path: string, check: () => Promise<void>) {
-  await page.goto(path, { waitUntil: "load" });
+/** Loads `path` cold, holds every later script, runs `check`, then lets them through. With `shellSurfaces`, it first
+ * waits for ⌘K's and search's code (#268 decision above). */
+async function rightAfterLoad(page: Page, path: string, check: () => Promise<void>, { shellSurfaces = false } = {}) {
+  if (shellSurfaces) await loadWithShellSurfaces(page, path);
+  else await page.goto(path, { waitUntil: "load" });
   const release = await holdScripts(page);
   try { await check(); } finally { await release(); }
 }
@@ -108,7 +127,7 @@ test("on a cold first visit, /, ⌘K, J, K and Escape pressed right after load w
         await expect(page.getByRole("status", { name: "Loading search" })).toHaveCount(0);
         await page.keyboard.press("Escape");
         await expect(page.locator(SEARCH_INPUT)).toBeHidden({ timeout: 2_000 });
-      }));
+      }, { shellSurfaces: true }));
 
       await test.step(`${width}: ⌘K opens the command palette with its field focused, and Escape closes it`, () => rightAfterLoad(page, "/", async () => {
         await blur(page);
@@ -117,7 +136,7 @@ test("on a cold first visit, /, ⌘K, J, K and Escape pressed right after load w
         await expect(page.getByPlaceholder("Find an action or place")).toBeFocused({ timeout: 2_000 });
         await page.keyboard.press("Escape");
         await expect(palette(page)).toBeHidden({ timeout: 2_000 });
-      }));
+      }, { shellSurfaces: true }));
 
       await test.step(`${width}: J and K move along the list's rows`, () => rightAfterLoad(page, "/", async () => {
         const focusedRow = () => page.evaluate(() => document.activeElement?.closest("[role=row][data-request-id]")?.getAttribute("data-request-id") ?? null);

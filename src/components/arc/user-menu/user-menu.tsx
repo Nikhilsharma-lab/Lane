@@ -637,11 +637,11 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
   </AnimatePresence>;
 
   return <span ref={rootRef} className={styles.root}>
-    <button ref={setTriggerRef} id={triggerId} type="button" className={[styles.trigger, className].filter(Boolean).join(" ")} data-state={open ? "open" : "closed"} data-name={showName || undefined}
+    <button ref={setTriggerRef} id={triggerId} type="button" className={[styles.trigger, className].filter(Boolean).join(" ")} data-account="" data-state={open ? "open" : "closed"} data-name={showName || undefined}
       aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} aria-label={`Account menu, ${user.name}${showStatus ? `, ${statusLabel(status)}` : ""}`}
       onClick={onTriggerClick} onKeyDown={onTriggerKeyDown}>
       <Face user={user} status={showStatus ? status : undefined} size="sm" />
-      {showName && <><span className={styles.triggerName}>{user.name}</span><ChevronDown className={styles.chevron} strokeWidth={1.75} aria-hidden="true" /></>}
+      {showName && <><span className={styles.triggerName} data-account-name="">{user.name}</span><ChevronDown className={styles.chevron} strokeWidth={1.75} aria-hidden="true" /></>}
     </button>
     {sheet ? createPortal(bottomSheet, document.body) : inline ? panel : hydrated ? createPortal(panel, document.body) : null}
   </span>;
