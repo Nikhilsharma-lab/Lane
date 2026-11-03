@@ -122,6 +122,17 @@ export async function deleteTestUser(id: string): Promise<void> {
   forgetUser(id);
 }
 
+/**
+ * After a server-side role change: the session token carries the workspace role and Lane reads it from there, so
+ * an already signed-in page keeps its old role until Clerk renews the token (within a minute). Renew it now.
+ */
+export async function renewSessionRole(page: Page, organizationId: string): Promise<void> {
+  await page.evaluate(async (orgId) => {
+    await window.Clerk.setActive({ organization: orgId });
+    await window.Clerk.session?.getToken({ skipCache: true });
+  }, organizationId);
+}
+
 export async function signInTestUser(
   page: Page,
   user: Pick<TestUser, "email">,
