@@ -17,8 +17,10 @@
 .launcherGlyph > span, .launcherLine { display: block; border-radius: var(--radius-control); background: var(--skeleton-fill); }
 .launcherGlyph > span { width: var(--space-6); height: var(--space-6); }
 .launcherTitle { display: flex; width: calc(var(--space-1) * 52); max-width: 100%; height: calc(var(--text-base) * var(--leading-body)); align-items: center; margin-top: var(--space-5); }
-/* The Arc Skeleton's bar starts at its line's edge; the launcher's title is centred. */
-.launcherTitle [aria-hidden="true"] > * { justify-self: center; }
+/* The Arc Skeleton's bar starts at its line's edge; the launcher's title is centred. Its bar is the span in the
+ * Skeleton's hidden span. Not `[aria-hidden="true"] > *`: every modal popup sets aria-hidden on the rest of the
+ * page, and that selector made the browser restyle the whole page as the popup opened (+20 ms to C at 4x CPU). */
+.launcherTitle span > span { justify-self: center; }
 .launcherDescription { display: flex; width: 100%; height: calc(var(--text-sm) * var(--leading-body)); align-items: center; justify-content: center; margin-top: var(--space-2); }
 .launcherLine { width: calc(var(--space-1) * 68); max-width: 100%; height: var(--space-3); }
 .launcherButton { display: block; width: calc(var(--space-1) * 34); height: var(--control-height-md); margin-top: var(--space-5); border: var(--border-width) solid var(--border); border-radius: var(--radius-pill); }
