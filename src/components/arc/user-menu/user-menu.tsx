@@ -11,7 +11,7 @@ import styles from "./user-menu.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 import { KeyCap } from "@/components/keyboard/key-caps";
 import { swallowPress } from "@/lib/outside-press";
-import { CHECK_CONNECTION, failureWords, TRY_AGAIN } from "@/lib/failure-messages";
+import { CHECK_CONNECTION, failureWords, TRY_AGAIN, worthRetrying } from "@/lib/failure-messages";
 
 export type UserStatus = "available" | "busy" | "away";
 export type ThemePreference = "light" | "dark" | "system";
@@ -186,7 +186,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
   const [sheetEntered, setSheetEntered] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
-  // Lane #269 (A111): the workspace a switch failed for, so Try again switches to it again.
+  // Lane #269 (A111): the workspace a switch failed for, so Try again switches to it again; null when trying again can't work.
   const [retryId, setRetryId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<Highlight | null>(null);
   const open = openProp ?? innerOpen;
@@ -397,7 +397,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
       // Clerk may resolve setActive before the new workspace document replaces this one.
       if (mounted.current && session.current === started && !controlledPendingId.current) close(true, true);
     } catch (failure) {
-      if (mounted.current) { setWorkspaceError(`Couldn't switch workspace. ${failureWords(failure, CHECK_CONNECTION)}`); setRetryId(workspaceId); }
+      if (mounted.current) { setWorkspaceError(`Couldn't switch workspace. ${failureWords(failure, CHECK_CONNECTION)}`); setRetryId(worthRetrying(failure) ? workspaceId : null); }
     } finally {
       workspacePending.current = false;
       if (mounted.current) setSwitchingId(null);
@@ -549,8 +549,9 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
     {workspaces.loading && <div className={styles.message}><Placeholder label="Loading workspaces" lines={2} /></div>}
     {!workspaces.loading && !workspaces.error && workspaces.items.length === 0 && <p className={styles.message}>No workspaces available.</p>}
     {(workspaceError || workspaces.error) && <p className={`${styles.message} ${styles.error}`} role="alert">{workspaces.error || workspaceError}</p>}
-    {retryId && !workspaces.pendingId && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label={TRY_AGAIN} onPointerMove={onItemPointerMove} onClick={() => void selectWorkspace(retryId)}>{TRY_AGAIN}</button>}
-    {workspaces.error && workspaces.onRetry && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Try again" onPointerMove={onItemPointerMove} onClick={() => void loadWorkspaces(workspaces.onRetry)}>Try again</button>}
+    {/* One Try again: the list that didn't load is read again, else the switch that failed is tried again. */}
+    {((workspaces.error && workspaces.onRetry) || (retryId && !workspaces.pendingId)) && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label={TRY_AGAIN} onPointerMove={onItemPointerMove}
+      onClick={() => void (workspaces.error && workspaces.onRetry ? loadWorkspaces(workspaces.onRetry) : retryId && selectWorkspace(retryId))}>{TRY_AGAIN}</button>}
     {workspaces.hasMore && workspaces.onLoadMore && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Load more workspaces"
       aria-busy={workspaces.loadingMore || undefined} onPointerMove={onItemPointerMove} onClick={() => { if (!workspaces.loadingMore) void loadWorkspaces(workspaces.onLoadMore); }}>
       Load more workspaces

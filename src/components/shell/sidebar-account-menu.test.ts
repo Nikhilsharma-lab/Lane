@@ -1,3 +1,4 @@
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +25,7 @@ vi.mock("@/components/arc/blocks/workspace-sidebar/workspace-sidebar", () => ({
 
 import { SidebarView } from "./sidebar-view";
 
-function openAccountMenu(role: string) {
+function openAccountMenu(role: WorkspacePermission) {
   sidebar = null;
   prefetch.mockClear();
   renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
@@ -34,7 +35,7 @@ function openAccountMenu(role: string) {
   return { members: sidebar!.membersHref, loaded: prefetch.mock.calls.map(([href]) => href) };
 }
 
-function membersItem(role: string) {
+function membersItem(role: WorkspacePermission) {
   openAccountMenu(role);
   return sidebar!.membersHref ? sidebar!.membersLabel : undefined;
 }
@@ -42,11 +43,11 @@ function membersItem(role: string) {
 describe("The account menu's Settings, loaded ahead (#258)", () => {
   beforeEach(() => { prefetch.mockClear(); });
 
-  it.each(["viewer", "guest"])("offers a %s no Members and loads only Settings → Profile ahead", (role) => {
+  it.each(["viewer", "guest"] as const)("offers a %s no Members and loads only Settings → Profile ahead", (role) => {
     expect(openAccountMenu(role)).toEqual({ members: undefined, loaded: ["/settings/profile"] });
   });
 
-  it.each(["admin", "member"])("offers an %s Members and loads it ahead with Settings → Profile", (role) => {
+  it.each(["admin", "member"] as const)("offers an %s Members and loads it ahead with Settings → Profile", (role) => {
     expect(openAccountMenu(role)).toEqual({ members: "/settings/members", loaded: ["/settings/profile", "/settings/members"] });
   });
 
@@ -74,7 +75,7 @@ describe("The account menu's Settings, loaded ahead (#258)", () => {
     ["member", "Members"],
     ["viewer", undefined],
     ["guest", undefined],
-  ])("names the Members item for an %s as %s", (role, label) => {
+  ] as const)("names the Members item for an %s as %s", (role, label) => {
     expect(membersItem(role)).toBe(label);
   });
 });

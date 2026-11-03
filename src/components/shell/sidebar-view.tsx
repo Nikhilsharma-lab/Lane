@@ -27,6 +27,8 @@ import { JumpBar } from "./jump-bar";
 import { openShellSurface, useShellOpener } from "./shell-openers";
 import { swallowPress } from "@/lib/outside-press";
 import { holdsOffline } from "@/lib/offline-navigation";
+import { managesMembers, seesMembers } from "@/lib/role-rules";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import styles from "./workspace-shell.module.css";
 
 export interface SidebarViewProps {
@@ -34,7 +36,7 @@ export interface SidebarViewProps {
   workspaceName: string;
   fullName: string;
   email: string;
-  role: string;
+  role: WorkspacePermission;
   pathname: string;
   projects?: ProjectOption[];
   projectsLoading?: boolean;
@@ -95,9 +97,9 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // re-render it. Fixtures without the provider fall back to the props.
   const navigation = useRequestNavigation();
   const router = useRouter();
-  const membersHref = role === "admin" || role === "member" ? "/settings/members" : undefined;
+  const membersHref = seesMembers(role) ? "/settings/members" : undefined;
   // #269 (A113): only Admins invite; a Member's Members page is read-only, so its item says just that.
-  const membersLabel = role === "admin" ? "Invite and manage members" : "Members";
+  const membersLabel = managesMembers(role) ? "Invite and manage members" : "Members";
   // #258: opening the account menu fully prefetches Settings (and Members, for people who see it), as Request
   // rows do (FULL_PREFETCH in use-intent-prefetch.ts), so choosing either answers at once. Spelled here so the shell carries no module for it.
   // #259: it starts as the pointer reaches the account button or focus lands on it, and loads once while what it

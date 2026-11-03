@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OfflineError } from "@/lib/offline-error";
-import { ShownFailure } from "@/lib/failure-messages";
+import { ShownFailure, worthRetrying } from "@/lib/failure-messages";
 import { createWorkspaceSwitch, type WorkspaceSwitchSnapshot } from "./workspace-switcher";
 import { assertWorkspaceCanSwitch, WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
 
@@ -46,6 +46,17 @@ describe("Clerk workspace switching boundary", () => {
     expect(f.events).toEqual([]);
   });
 
+  // #269 (A111): the menu offers Try again only when trying again can work.
+  it("answers a workspace that's gone for good with no Try again; a refusal or a slow answer from Clerk keeps it", async () => {
+    const f = fixture();
+    const gone = await f.select("org-forged").catch((failure: unknown) => failure);
+    expect(worthRetrying(gone)).toBe(false);
+    f.update({ setActive: async () => { throw new Error("private provider payload"); } });
+    const refused = await f.select("org-b").catch((failure: unknown) => failure);
+    expect(worthRetrying(refused)).toBe(true);
+    expect(worthRetrying(new OfflineError())).toBe(true);
+  });
+
   it.each([
     { loaded: false },
     { userId: null },
@@ -85,7 +96,7 @@ describe("Clerk workspace switching boundary", () => {
     const original = f.snapshot().setActive;
     f.update({ setActive: async () => { throw new Error("private provider payload"); } });
     const failed = f.select("org-b");
-    await expect(failed).rejects.toThrow("Couldn't switch workspaces. Try again.");
+    await expect(failed).rejects.toThrow("Couldn't switch workspace. Try again.");
     // #269: Clerk's failure is never shown as it is; the menu says it in Lane's words.
     await expect(failed).rejects.not.toBeInstanceOf(ShownFailure);
     expect(f.events).toEqual(["pending:org-b", "pending:null"]);
@@ -161,7 +172,7 @@ describe("Clerk workspace switching boundary", () => {
       vi.useFakeTimers();
       const f = failing({ timeoutMs: 10_000 });
       const pending = f.select("org-b");
-      const outcome = expect(pending).rejects.toThrow("Couldn't switch workspaces. Try again.");
+      const outcome = expect(pending).rejects.toThrow("Couldn't switch workspace. Try again.");
       await vi.advanceTimersByTimeAsync(10_000);
       await outcome;
       expect(f.events).toEqual(["pending:org-b", "pending:null"]);

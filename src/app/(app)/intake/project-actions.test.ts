@@ -66,8 +66,10 @@ describe("Project actions", () => {
   it("refuses a name that exists in other capitals, naming the Project as it is stored", async () => {
     const { createProject } = await import("./project-actions");
     boundary.responses = [[], [PROJECT]];
+    // The answer carries the Project it found, so the New Request composer can pick it quietly (as before Build 4).
     expect(await createProject({ name: "website" }, { orgId: "org_a" })).toEqual({
-      success: false, error: { code: "duplicate", field: "name", message: "A Project called Website already exists" },
+      success: false, error: { code: "duplicate", field: "name", message: "A Project called Website already exists. Choose another name." },
+      existing: { id: PROJECT[0], name: "Website", description: null },
     });
     expect(boundary.queries[0].sql).toContain("on conflict do nothing");
     expect(boundary.queries[1].sql).toContain("lower(");
@@ -82,7 +84,7 @@ describe("Project actions", () => {
       createProject({ name: "WEBSITE" }, { orgId: "org_a" }),
     ]);
     expect(first).toEqual({ success: true, project: { id: PROJECT[0], name: "Website", description: null } });
-    expect(second).toEqual({ success: false, error: { code: "duplicate", field: "name", message: "A Project called Website already exists" } });
+    expect(second).toEqual({ success: false, error: { code: "duplicate", field: "name", message: "A Project called Website already exists. Choose another name." }, existing: { id: PROJECT[0], name: "Website", description: null } });
   });
   it("keeps the 80-character limit before any database work", async () => {
     const { createProject } = await import("./project-actions");

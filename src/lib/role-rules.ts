@@ -33,6 +33,16 @@ export function readsWholeWorkspace(role: WorkspacePermission): boolean {
   return role !== "guest"
 }
 
+/** Admin or Member: the Members page is theirs (a Viewer and a Guest don't see it). */
+export function seesMembers(role: WorkspacePermission): boolean {
+  return canChangeThings(role)
+}
+
+/** Only an Admin invites people and changes their roles; a Member's Members page is read-only. */
+export function managesMembers(role: WorkspacePermission): boolean {
+  return role === "admin"
+}
+
 /** The role's name as people read it. */
 export const ROLE_NAMES: Record<WorkspacePermission, string> = {
   admin: "Admin",

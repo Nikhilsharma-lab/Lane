@@ -142,8 +142,8 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await field.fill("checkout");
       await field.press("Enter");
       // A development server compiles the action on its first call.
-      await expect(sidebar(page).getByRole("alert")).toContainText("A Project called Checkout already exists", { timeout: 45_000 });
-      await expect(field).toHaveAccessibleDescription(/A Project called Checkout already exists/);
+      await expect(sidebar(page).getByRole("alert")).toHaveText("A Project called Checkout already exists. Choose another name.", { timeout: 45_000 });
+      await expect(field).toHaveAccessibleDescription(/A Project called Checkout already exists\. Choose another name\./);
       await expect(field).toHaveValue("checkout");
       await expect(field).toHaveAttribute("aria-invalid", "true");
       await expect(sidebar(page).getByRole("link", { name: "Checkout", exact: true })).toHaveCount(1);
@@ -161,6 +161,30 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await expect(sidebar(page).getByText("No characters left").first()).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath("A110-counter-1440.png"), clip: { x: 0, y: 0, width: 260, height: 460 } });
       await field.press("Escape");
+    });
+
+    await test.step("New Request's Project picker: a name that exists, in other capitals, quietly picks that Project", async () => {
+      await page.locator("#lane-main").focus();
+      await page.keyboard.press("c");
+      const composer = page.getByRole("dialog", { name: "New Request", exact: true });
+      await expect(composer).toBeVisible();
+      await composer.locator("#intake-project").click();
+      const picker = page.getByRole("dialog", { name: "Choose a Project", exact: true });
+      await picker.getByRole("button", { name: "New Project", exact: true }).click();
+      const field = picker.getByRole("textbox", { name: "Project name", exact: true });
+      await field.fill("CHECKOUT");
+      await picker.getByRole("button", { name: "Create Project", exact: true }).click();
+      await expect(picker).toBeHidden({ timeout: 45_000 });
+      await expect(composer.locator("#intake-project")).toHaveAccessibleName("Project: Checkout");
+      await expect(page.getByRole("alert").filter({ hasText: "already exists" })).toHaveCount(0);
+      // Still one Checkout, in the sidebar and in the picker.
+      await expect(sidebar(page).getByRole("link", { name: "Checkout", exact: true })).toHaveCount(1);
+      await composer.locator("#intake-project").click();
+      await expect(picker.getByRole("option", { name: "Checkout", exact: true })).toHaveCount(1);
+      await page.keyboard.press("Escape");
+      await expect(picker).toBeHidden();
+      await page.keyboard.press("Escape");
+      await expect(composer).toBeHidden();
     });
 
     await test.step("A126: at 1024 the Request trail cuts the Project before the workspace name", async () => {
