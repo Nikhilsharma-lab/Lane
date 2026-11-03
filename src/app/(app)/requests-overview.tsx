@@ -20,7 +20,6 @@ import styles from "./requests-overview.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
-import { RequestsWelcome } from "./requests-welcome"
 import type { PeekViewer } from "@/components/requests/request-peek"
 import { SavedViewMenu } from "@/components/requests/saved-view-menu"
 import { openSavedView, savedViewChanged, type SavedView } from "@/lib/saved-view-rules"
@@ -88,7 +87,7 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
 
 const noViews: SavedView[] = []
 
-export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, canInvite = false, viewer, firstRun, savedViews = noViews }: {
+export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, welcome: workspaceWelcome, viewer, firstRun, savedViews = noViews }: {
   /** #219: the person's own saved views; the strip saves, updates, renames and deletes them. */
   savedViews?: SavedView[]
   /** #217: the person's first run, rendered by the server. The first Request guide is an empty workspace's welcome. */
@@ -97,8 +96,8 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   isGuest: boolean
   /** A Viewer (#210): the whole workspace's list, with no New Request and no moves. */
   readOnly?: boolean
-  /** The empty workspace's welcome offers Invite teammates (admins only). */
-  canInvite?: boolean
+  /** The empty workspace's welcome (requests-welcome.tsx), rendered by the server so its code never ships to the browser. */
+  welcome?: ReactNode
   context?: { orgId: string }
   /** More Open and In progress Requests exist than the list loads. */
   activeCapped?: boolean
@@ -146,7 +145,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   const guideIsWelcome = Boolean(firstRun?.replacesWelcome && workspaceEmpty)
   const welcome = firstRun?.replacesWelcome
     ? <div data-requests-welcome className={firstRunStyles.welcomeSlot}>{firstRun.node}</div>
-    : <RequestsWelcome canInvite={canInvite} isGuest={isGuest} readOnly={readOnly} />
+    : workspaceWelcome
 
   return (
     <div data-slot="requests-workspace" className={styles.overview}>
