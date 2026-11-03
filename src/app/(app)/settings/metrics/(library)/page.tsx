@@ -15,6 +15,8 @@ import { sharedPanels } from "../../profile/shared-panels";
 import { AddMetricDialog, MetricLibraryFilter } from "../metric-controls";
 import styles from "../metrics.module.css";
 
+export { metadata } from "../../settings-metadata";
+
 /**
  * Settings → Metrics (#196): the workspace's Metrics library. Members and Admins only. Members and
  * Admins add definitions here (#197); archived ones sit behind the Archived filter (`?show=archived`).

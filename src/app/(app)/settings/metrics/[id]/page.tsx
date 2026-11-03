@@ -22,6 +22,8 @@ import { sharedPanels } from "../../profile/shared-panels";
 import { ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
 import styles from "../metrics.module.css";
 
+export { metadata } from "../../settings-metadata";
+
 /**
  * One Metric definition under Settings → Metrics (#197): edit it, archive, restore or merge it (Admins, #202),
  * and read its history. Members and Admins only.

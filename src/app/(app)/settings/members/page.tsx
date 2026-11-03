@@ -9,6 +9,8 @@ import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { membersPanel } from "./members-panel";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 
+export { metadata } from "../settings-metadata";
+
 export default async function MembersPage() {
   void timePage("Settings: Members");
   const workspace = await getWorkspace();

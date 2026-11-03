@@ -47,8 +47,7 @@ test("each signed-in page names its tab, a Request uses its typed title, and mis
     await expect(page).toHaveTitle("Impact · Lane");
 
     // A118: a signed-in "Page not found" keeps the sidebar, has one heading and Go to Requests, and answers 404.
-    // A Metric that doesn't exist is a missing page too.
-    for (const path of ["/nope", "/settings/nope", "/requests/abc/more", `/settings/metrics/${randomUUID()}`, "/settings/metrics/abc"]) {
+    for (const path of ["/nope", "/settings/nope", "/requests/abc/more"]) {
       const response = await page.goto(path, { waitUntil: "domcontentloaded" });
       expect(response?.status(), path).toBe(404);
       await expect(page).toHaveTitle("Page not found · Lane");
@@ -56,6 +55,16 @@ test("each signed-in page names its tab, a Request uses its typed title, and mis
       await expectHeadings(page, main(page), ["This page doesn’t exist"]);
       await expect(main(page).getByRole("link", { name: "Go to Requests" })).toHaveAttribute("href", "/");
     }
+    // A Metric that doesn't exist is a missing page too, answered 404 in the Settings frame (no workspace sidebar
+    // there, as on every Settings page).
+    for (const path of [`/settings/metrics/${randomUUID()}`, "/settings/metrics/abc"]) {
+      const response = await page.goto(path, { waitUntil: "domcontentloaded" });
+      expect(response?.status(), path).toBe(404);
+      await expect(page).toHaveTitle("Page not found · Lane");
+      await expectHeadings(page, main(page), ["This page doesn’t exist"]);
+      await expect(main(page).getByRole("link", { name: "Go to Requests" })).toHaveAttribute("href", "/");
+    }
+    await page.goto("/nope", { waitUntil: "domcontentloaded" });
     await main(page).getByRole("link", { name: "Go to Requests" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page).toHaveTitle("Requests · Lane");

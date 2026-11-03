@@ -9,6 +9,8 @@ import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
 import { sharedPanels } from "./shared-panels";
 
+export { metadata } from "../settings-metadata";
+
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string; slack?: string; checkout?: string }> }) {
   void timePage("Settings: Profile");
   const workspace = await getWorkspace();
