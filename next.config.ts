@@ -29,7 +29,11 @@ const nextConfig: NextConfig = {
     // 200 KB of source per chunk sends 10-14 KB (gzip) less on every signed-in page, in about 18 files. The code and
     // the order it runs in are unchanged; only how it is packed into files. Code fetched later (a popup's on first
     // open, another page's) grows about 5%, since merged files share less between groups.
-    turbopackChunking: { minChunkSize: 200_000 },
+    // Build 4 (size cut): 400 KB. At 200 KB the error and not-found screens' shared parts (the empty state, the
+    // button, the page strip) were still copied into three or four of every page's files, and a few more lines in a
+    // page could tip its own code into two files (the list did, after #270). At 400 KB every page's first load is
+    // 0.9-3.6 KB (gzip) lighter in up to 3 fewer files; moving between pages and opening a popup fetch the same or less.
+    turbopackChunking: { minChunkSize: 400_000 },
   },
   // #266: Motion's split needs `motion/react` resolved to framer-motion (src/components/motion/motion-alias.ts).
   turbopack: { resolveAlias: MOTION_ALIAS },
