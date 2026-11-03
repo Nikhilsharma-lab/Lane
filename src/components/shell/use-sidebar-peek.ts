@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
+import { ACCOUNT_BUTTON } from "./sidebar-controls";
 
 /** A temporary sidebar preview. It never changes the saved width or moves focus on hover. */
 export function useSidebarPeek(collapsed: boolean, disabled: boolean) {
@@ -60,7 +61,7 @@ export function useSidebarPeek(collapsed: boolean, disabled: boolean) {
         focused.current = false;
         return;
       }
-      const first = panel?.querySelector<HTMLButtonElement>('button[aria-label^="Account menu,"]');
+      const first = panel?.querySelector<HTMLButtonElement>(ACCOUNT_BUTTON);
       first?.focus({ preventScroll: true });
       if (document.activeElement !== first) focused.current = false;
     });

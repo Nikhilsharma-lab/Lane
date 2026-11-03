@@ -585,7 +585,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
           {/* Lane #269 (A112): the name takes the row's spare room; only a name that still doesn't fit gets "…" and its full text on hover. */}
           {/* Hover only: the button's own name already says the whole name, and focus arriving (the peek opening) shows no tip. */}
           <RailTip enabled={nameCut && !rail && !accountOpen} label={user.name} side="bottom"><span className={styles.accountName} onFocus={event => event.preventDefault()}
-            onPointerEnter={event => { const name = event.currentTarget.querySelector("button > span:nth-child(2)"); setNameCut(!!name && name.scrollWidth > name.clientWidth); }}>
+            onPointerEnter={event => { const name = event.currentTarget.querySelector("[data-user-menu-name]"); setNameCut(!!name && name.scrollWidth > name.clientWidth); }}>
           <UserMenu ref={accountTrigger} user={user} showName={!rail} showTheme={false} align="start" onNavigate={push}
             className={styles.accountTrigger} open={accountOpen} onOpenChange={onAccountOpenChange}
             items={[

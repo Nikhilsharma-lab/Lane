@@ -1,6 +1,7 @@
 import { sourceRequestType } from "./request-labels";
 import { labelKeysSchema } from "./request-label-schemas";
 import * as z from "zod";
+import { TITLE_MAX } from "./request-constants";
 import { newRequestImpactSchema } from "./request-impact";
 import { projectIdSchema, requestPrioritySchema, requestTypeSchema } from "./request-properties";
 import { measurementRequestTypeIssue } from "./request-measurement";
@@ -14,7 +15,7 @@ import { measurementRequestTypeIssue } from "./request-measurement";
  */
 
 export const TITLE_MIN = 3;
-export const TITLE_MAX = 200;
+export { TITLE_MAX };
 export const DESCRIPTION_MIN = 10;
 export const DESCRIPTION_MAX = 5000;
 export const CONTEXT_MAX = 3000;

@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
 import { useReducedMotion } from "motion/react";
+import { ACCOUNT_BUTTON, EXPAND_SIDEBAR } from "./sidebar-controls";
 import { layoutWidthFor, NAVIGATION_WIDTH, planToggle, slideFor, type SidebarMotion } from "./sidebar-motion";
 
 const MIN_WIDTH = 200;
@@ -116,7 +117,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
     if (disabled || phone) return;
     if (autoCollapsed) { onAutoExpand?.(); return; }
     toggleWidth(lastExpanded, fromPeek);
-    focusVisible('button[aria-label^="Account menu,"]');
+    focusVisible(ACCOUNT_BUTTON);
   }
   function focusVisible(selector: string) {
     requestAnimationFrame(() => [...(shellRef.current?.querySelectorAll<HTMLButtonElement>(selector) ?? [])]
@@ -126,7 +127,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
     if (disabled || phone) return;
     if (collapsed) { expand(); return; }
     toggleWidth(0);
-    focusVisible('button[aria-label="Expand sidebar"]');
+    focusVisible(EXPAND_SIDEBAR);
   }
   function finish(cancel: boolean) {
     const current = drag.current;
@@ -184,7 +185,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
   useEffect(() => () => { slide.current?.cancel(); }, []);
   useEffect(() => {
     if (autoCollapsed && (shellRef.current?.querySelector("#lane-sidebar")?.contains(document.activeElement) || document.activeElement === handleRef.current)) {
-      focusVisible('button[aria-label="Expand sidebar"]');
+      focusVisible(EXPAND_SIDEBAR);
     }
   }, [autoCollapsed]);
 

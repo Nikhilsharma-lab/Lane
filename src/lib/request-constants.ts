@@ -25,6 +25,8 @@ export const REQUEST_PRIORITY_LABELS: Record<RequestPriority, string> = {
 export type ProjectOption = { id: string; name: string; description: string | null };
 /** #269 (A110): a Project name's limit, the same in every field, the shared validation and the database's projects_name_check. */
 export const PROJECT_NAME_MAX = 80;
+/** The longest Request title; request-schema.ts validates it, and the list's title filter is cut to it. */
+export const TITLE_MAX = 200;
 
 // Zod's RFC 9562 UUID pattern, the one projectIdSchema applies. Client code
 // that only reads a ?project= value uses projectIdOrNull so it does not pull

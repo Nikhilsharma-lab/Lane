@@ -641,7 +641,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
       aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} aria-label={`Account menu, ${user.name}${showStatus ? `, ${statusLabel(status)}` : ""}`}
       onClick={onTriggerClick} onKeyDown={onTriggerKeyDown}>
       <Face user={user} status={showStatus ? status : undefined} size="sm" />
-      {showName && <><span className={styles.triggerName}>{user.name}</span><ChevronDown className={styles.chevron} strokeWidth={1.75} aria-hidden="true" /></>}
+      {showName && <><span className={styles.triggerName} data-user-menu-name="">{user.name}</span><ChevronDown className={styles.chevron} strokeWidth={1.75} aria-hidden="true" /></>}
     </button>
     {sheet ? createPortal(bottomSheet, document.body) : inline ? panel : hydrated ? createPortal(panel, document.body) : null}
   </span>;
