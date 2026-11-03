@@ -186,6 +186,11 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // Settings has its own Arc navigation and search. Preserve all workspace state
   // above this boundary so returning to Requests restores the same view.
   if (pathname.startsWith("/settings/")) return <PageStripProvider value={frame}><main id="lane-main" tabIndex={-1}>{children}</main>{palette}</PageStripProvider>;
+  // The Inbox link sits in the block's notification slot, outside its own links, so following it closes the peek (the
+  // phone's open sidebar) here, as onNavigate does for every other sidebar link. A new-tab click leaves it open.
+  const notificationSlot = <span className={styles.notificationSlot} onClickCapture={event => {
+    if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && (event.target as Element).closest("a[href]")) dismissPeek();
+  }}>{notifications}</span>;
   // Plan item 2.4: the content's width (--sidebar-width) changes once per toggle while the panel slides;
   // the strips keep their expand control until an expand ends, so it leaves with the width change.
   // Pinning a visible peek keeps the panel where it already is, with no slide.
@@ -208,7 +213,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
           const view = id.startsWith(VIEW_ID) ? savedViews.find(item => VIEW_ID + item.id === id) : undefined;
           if (view) navigation.selectList({ ...view.filters, savedView: view.id });
         }}
-        renderLink={renderLink} notifications={notifications} onMobileOpenChange={setMobileOpen} />
+        renderLink={renderLink} notifications={notificationSlot} onMobileOpenChange={setMobileOpen} />
       </div>
     </aside>
     <div {...separator} className={styles.resizeHandle} />
