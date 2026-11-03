@@ -522,6 +522,8 @@ The local hashes for `src/components/arc/search-field/search-field.tsx` and `src
 - `src/components/arc/context-menu/context-menu.tsx`: with `outsidePressOnlyCloses`, the outside handler registers through the same `onOutsidePress` instead of a document capture listener. Without it, unchanged.
 - `src/components/arc/user-menu/user-menu.tsx`: the trigger carries `data-account` (the sidebar moves focus to it) and its name span `data-account-name`, and `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` finds it by that attribute (it measured `button > span:nth-child(2)`) to decide whether the name is cut (A112).
 
+- `src/components/arc/tooltip/tooltip.tsx` and the `RailTip` in `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx`: a popup that takes focus (the ⌘K palette, the composer, the shortcuts dialog, a menu) removes an open tip at once and keeps it from opening while it has focus (`src/lib/popup-focus.ts`). Left showing under a resting pointer, the tip was Radix's top layer and took the popup's Escape.
+
 ## Build 4: the list's title filter and workspace search (#270, 2026-11-02)
 
 - `src/components/arc/search-field/search-field.tsx`: optional decorative `icon` in place of the magnifier (A214). The Requests list's **Filter by title** field passes a funnel, so a magnifier always means workspace search. Without the prop the field is unchanged; no other prop, motion or behaviour changes.

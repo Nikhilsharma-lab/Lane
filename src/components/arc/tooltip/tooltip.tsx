@@ -6,6 +6,7 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./tooltip.module.css";
+import { closeWhenPopupTakesFocus, popupElsewhere } from "@/lib/popup-focus";
 
 export interface TooltipProps {
   content: ReactNode;
@@ -70,10 +71,14 @@ export function Tooltip({ content, children, side = "top", morph = "blur" }: Too
   const [instant, setInstant] = useState(false);
   const delay = useRef(0);
   const focused = useRef(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  // Lane (Build 4): a popup that takes focus removes the tip at once, its fade-out included (src/lib/popup-focus.ts).
+  const [gone, setGone] = useState(false);
   useEffect(() => {
     if (!open) return;
     warmth.opened();
-    return warmth.closed;
+    const stop = closeWhenPopupTakesFocus(trigger.current, () => { setGone(true); setOpen(false); });
+    return () => { stop(); warmth.closed(); };
   }, [open]);
   const cancel = () => window.clearTimeout(delay.current);
   useEffect(() => cancel, []);
@@ -81,17 +86,19 @@ export function Tooltip({ content, children, side = "top", morph = "blur" }: Too
   const onOpenChange = (next: boolean) => {
     cancel();
     if (!next) { setOpen(false); return; }
+    if (popupElsewhere(trigger.current)) return;
+    setGone(false);
     if (focused.current || warmth.get()) { setInstant(warmth.get()); setOpen(true); return; }
-    delay.current = window.setTimeout(() => { setInstant(false); setOpen(true); }, DELAY);
+    delay.current = window.setTimeout(() => { if (!popupElsewhere(trigger.current)) { setInstant(false); setOpen(true); } }, DELAY);
   };
   const root = <TooltipPrimitive.Root open={open} delayDuration={0} onOpenChange={onOpenChange}>
-    <TooltipPrimitive.Trigger asChild onPointerLeave={cancel} onPointerDown={cancel} onBlur={cancel}
+    <TooltipPrimitive.Trigger asChild ref={trigger} onPointerLeave={cancel} onPointerDown={cancel} onBlur={cancel}
       onFocus={() => { focused.current = true; queueMicrotask(() => { focused.current = false; }); }}>{children}</TooltipPrimitive.Trigger>
-    <TooltipPrimitive.Portal>
+    {!gone && <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content className={styles.tooltip} data-instant={instant || undefined} side={side} sideOffset={8} collisionPadding={12}>
         {typeof content === "string" || typeof content === "number" ? <TooltipText text={String(content)} plain={morph === "plain"}/> : content}
       </TooltipPrimitive.Content>
-    </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Portal>}
   </TooltipPrimitive.Root>;
   if (shared) return root;
   return <TooltipPrimitive.Provider delayDuration={0} skipDelayDuration={0}>{root}</TooltipPrimitive.Provider>;

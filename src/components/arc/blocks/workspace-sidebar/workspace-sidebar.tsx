@@ -22,6 +22,7 @@ import { failureWords } from "@/lib/failure-messages";
 import { PROJECT_NAME_MAX } from "@/lib/request-constants";
 import { afterPageLoad } from "@/lib/after-page-load";
 import { popupCode, usePopupCode } from "@/components/popup/lazy-popup";
+import { closeWhenPopupTakesFocus, popupElsewhere } from "@/lib/popup-focus";
 
 // Lane #269: the New Project field's Arc input and counter load on their own, after the page (project-name-field.tsx).
 const projectNameField = popupCode(() => import("@/components/shell/project-name-field"));
@@ -155,12 +156,16 @@ function useRailShortcut(frame: RefObject<HTMLElement | null>, onToggle: () => v
 /** In the rail every item names itself on hover and focus. Closing the rail disarms any open tip. */
 function RailTip({ enabled = true, label, note, shortcut, side = "right", children }: { enabled?: boolean; label: string; note?: string; shortcut?: string; side?: "right" | "bottom"; children: ReactElement }) {
   const [open, setOpen] = useState(false);
+  // Lane (Build 4): a popup that takes focus removes the tip at once, its fade-out included (src/lib/popup-focus.ts).
+  const [gone, setGone] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
   if (!enabled && open) setOpen(false);
-  return <TooltipPrimitive.Root open={enabled && open} onOpenChange={next => setOpen(next && enabled)}>
-    <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
-    <TooltipPrimitive.Portal>
+  useEffect(() => open ? closeWhenPopupTakesFocus(trigger.current, () => { setGone(true); setOpen(false); }) : undefined, [open]);
+  return <TooltipPrimitive.Root open={enabled && open} onOpenChange={next => { const shown = next && enabled && !popupElsewhere(trigger.current); if (shown) setGone(false); setOpen(shown); }}>
+    <TooltipPrimitive.Trigger asChild ref={trigger}>{children}</TooltipPrimitive.Trigger>
+    {!gone && <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content className={styles.tip} side={side} sideOffset={side === "right" ? 14 : 8} collisionPadding={8}>{label}{note && <span className={styles.tipNote}>{note}</span>}{shortcut && <KeyCap>{shortcut}</KeyCap>}</TooltipPrimitive.Content>
-    </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Portal>}
   </TooltipPrimitive.Root>;
 }
 

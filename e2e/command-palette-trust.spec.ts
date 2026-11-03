@@ -220,6 +220,45 @@ test("⌘K stays open through a page change, keeps what is typed, finds Impact, 
       await page.setViewportSize({ width: 1440, height: 900 });
     });
 
+    await test.step("with a sidebar tip showing behind it, Escape goes to the popup on top: C, ?, and Change priority's step back", async () => {
+      // A tip under a resting pointer was Radix's top layer and took the popup's Escape; a popup taking focus closes it.
+      const tipShowing = async () => {
+        await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "New Request" }).hover();
+        await expect(page.getByRole("tooltip")).toHaveCount(1);
+        await page.locator("#lane-main").focus();
+      };
+      await page.goto("/");
+      await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await tipShowing();
+        await page.keyboard.press("c");
+        const composer = page.getByRole("dialog", { name: "New Request", exact: true });
+        await expect(page.locator("#intake-title")).toBeFocused();
+        await expect(page.getByRole("tooltip")).toHaveCount(0);
+        await page.keyboard.press("Escape");
+        await expect(composer).toHaveCount(0, { timeout: 3_000 });
+        await tipShowing();
+        await page.keyboard.press("?");
+        const shortcuts = page.getByRole("dialog", { name: "Keyboard shortcuts", exact: true });
+        await expect(shortcuts).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(shortcuts).toHaveCount(0, { timeout: 3_000 });
+      }
+      await page.goto(`/requests/${request.id}`);
+      await hydrated(page);
+      await tipShowing();
+      await page.keyboard.press("Meta+k");
+      await field(page).fill("Change priority");
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("dialog", { name: "Change priority" })).toBeVisible();
+      await page.keyboard.press("Escape");
+      // Its Escape still steps back to the entries rather than closing.
+      await expect(palette(page)).toBeVisible({ timeout: 3_000 });
+      await page.keyboard.press("Escape");
+      await expect(palette(page)).toHaveCount(0);
+      await page.mouse.move(900, 600);
+    });
+
     await test.step("A125 and A122: the shortcuts dialog spaces rows evenly and appears at once under reduced motion", async () => {
       await page.emulateMedia({ reducedMotion: "reduce" });
       for (const width of [1440, 1024]) {
