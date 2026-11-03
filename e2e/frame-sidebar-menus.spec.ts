@@ -200,14 +200,14 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await expect(picker).toBeHidden({ timeout: 45_000 });
       await expect(composer.locator("#intake-project")).toHaveAccessibleName("Project: Checkout");
       await expect(page.getByRole("alert").filter({ hasText: "already exists" })).toHaveCount(0);
-      // Still one Checkout, in the sidebar and in the picker.
-      await expect(sidebar(page).getByRole("link", { name: "Checkout", exact: true })).toHaveCount(1);
+      // Still one Checkout, in the picker and, once the composer closes, in the sidebar.
       await composer.locator("#intake-project").click();
       await expect(picker.getByRole("option", { name: "Checkout", exact: true })).toHaveCount(1);
       await page.keyboard.press("Escape");
       await expect(picker).toBeHidden();
       await page.keyboard.press("Escape");
       await expect(composer).toBeHidden();
+      await expect(sidebar(page).getByRole("link", { name: "Checkout", exact: true })).toHaveCount(1);
     });
 
     await test.step("A126: at 1024 the Request trail cuts the Project before the workspace name", async () => {

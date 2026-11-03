@@ -10,7 +10,8 @@ export type SidebarMotion = "collapsing" | "expanding" | null
 /**
  * The expanded sidebar's width in px before anyone drags it: theme.css's `--lane-navigation-width`, which is where it is
  * changed. The server draws the first frame at this width, so it is a number here too; sidebar-motion.test.ts
- * fails if the two differ.
+ * fails if the two differ. At this width the collapsed sidebar's hover peek keeps its own, narrower width
+ * (`--lane-navigation-peek-width`, Build 4's A112 widened only the expanded sidebar); a width dragged to is the peek's too.
  */
 export const NAVIGATION_WIDTH = 240
 
