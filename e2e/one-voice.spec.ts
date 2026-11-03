@@ -96,7 +96,9 @@ test.describe("Goal wording (C2-6, Z3)", () => {
       await page.goto("/");
       await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "New Request" }).click();
       const composer = page.getByRole("dialog", { name: "New Request" });
-      await expect(composer.getByRole("group", { name: "Goal", exact: true })).toBeVisible({ timeout: 30_000 });
+      // #306: Goal is a heading with a dropdown (Measure a result or No measurable impact), no longer a radio group.
+      await expect(composer.getByRole("heading", { name: "Goal", exact: true })).toBeVisible({ timeout: 30_000 });
+      await expect(composer.getByRole("combobox", { name: "Goal: Measure a result", exact: true })).toBeVisible();
       await expect(composer).not.toContainText(NOT_GOAL_WORDS);
       await page.keyboard.press("Escape");
 
