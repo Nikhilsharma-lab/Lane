@@ -1,5 +1,5 @@
 /* In-flow dock adapted from Arc's ai-side-panel: the list and detail own separate columns. */
-.viewport { position: relative; display: flex; flex: 0 0 55%; min-width: 0; min-height: 0; overflow: clip; }
+.viewport { position: relative; display: flex; flex: 0 0 55%; min-width: 0; min-height: 0; overflow: clip; container: request-peek / inline-size; }
 .panel { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: clip; border-inline-start: var(--border-width) solid var(--border-subtle); background: var(--surface); }
 /* Each column keeps its own scroll position. */
 .panel :global([data-detail]) { min-height: 0; }
@@ -11,3 +11,10 @@
 .skeletonTabs { display: grid; align-content: center; height: var(--size-inner-xlarge); }
 .skeletonBlocks { display: grid; gap: var(--space-6); max-width: calc(var(--space-1) * 180); margin-inline: auto; }
 .kbd { margin-inline-start: var(--space-3); }
+.copyTools { display: flex; align-items: center; gap: var(--space-1); }
+.compactCopy { display: none; }
+@container request-peek (max-width: 480px) {
+  .copyTools { display: none; }
+  .compactCopy { display: contents; }
+  .panel :global([data-slot="page-strip"]) { padding-inline: var(--space-4); }
+}

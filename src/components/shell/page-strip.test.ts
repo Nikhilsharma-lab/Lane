@@ -56,6 +56,11 @@ describe("PageStrip", () => {
     expect(html).toMatch(/^<header\b[^>]*><span\b[^>]*><button\b[^>]*aria-label="Expand sidebar"/);
   });
 
+  it("lets a nested pane explicitly omit the shell's reserved expand slot", () => {
+    const html = renderToStaticMarkup(framed(strip({ title: "LAN-2", leading: createElement("button", null, "Close preview") }), { trail: [], expand: null, link: Link }));
+    expect(html).toMatch(/^<header\b[^>]*><button>Close preview<\/button>/);
+  });
+
   it("titles a string title so a truncated name stays readable", () => {
     expect(renderToStaticMarkup(strip({ title: "Members" }))).toContain('title="Members"');
     expect(renderToStaticMarkup(framed(strip({ title: "Members" })))).toMatch(/<span\b[^>]*title="Members"[^>]*>Members<\/span>/);
