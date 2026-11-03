@@ -10,14 +10,14 @@
   line-height: var(--leading-body);
 }
 .root { z-index: 0; transition: z-index 0s linear calc(var(--duration-standard) * 2.5); }
-.root[data-open] { z-index: 30; transition-delay: 0s; }
+.root[data-open] { z-index: var(--lane-layer-filter); transition-delay: 0s; }
 .root:not([data-open]) .surface { z-index: 0; }
 .root *, .root *::before, .root *::after { box-sizing: border-box; }
 
 /* One material from trigger to panel. Size, corners, and offset come from springs; the border is an overlay so it never changes a measurement. */
 .surface {
   position: absolute;
-  z-index: 2;
+  z-index: var(--lane-layer-raised);
   top: 0;
   left: 0;
   overflow: clip;
@@ -89,7 +89,7 @@
 .calendars { position: relative; padding: 0 calc(var(--space-1) * 0.5); }
 .navButton {
   position: absolute;
-  z-index: 2;
+  z-index: var(--lane-layer-raised);
   top: 0;
   display: grid;
   width: calc(var(--space-1) * 8);
@@ -107,7 +107,7 @@
 .navButton[data-side="prev"] { left: calc(var(--space-1) * 0.5); }
 .navButton[data-side="next"] { right: calc(var(--space-1) * 0.5); }
 .navButton:active:not(:disabled) { transform: scale(.92); }
-.navButton:disabled { opacity: .35; cursor: default; }
+.navButton:disabled { opacity: var(--lane-opacity-subtle); cursor: default; }
 
 /* Months slide horizontally inside a clipped window that keeps a little room for the blur. */
 .viewport { position: relative; overflow: clip; overflow-clip-margin: calc(var(--space-1) * 0.5); }
@@ -149,7 +149,7 @@
 .day[data-edge] { color: var(--accent-foreground); font-weight: var(--weight-medium); transition-delay: calc(var(--duration-standard) * 0.2); }
 .day[data-today]::after { content: ""; position: absolute; bottom: calc(var(--space-1) * 1.25); left: 50%; width: var(--space-1); height: var(--space-1); margin-left: calc(var(--space-1) * -0.5); border-radius: 50%; background: var(--accent); }
 .day[data-today][data-edge]::after { background: var(--accent-foreground); }
-.day:disabled { color: var(--text-muted); cursor: default; opacity: .5; }
+.day:disabled { color: var(--text-muted); cursor: default; opacity: var(--lane-opacity-disabled); }
 .day:focus-visible:not([data-edge]) > span { background: var(--interaction-hover); }
 
 /* Footer: the formatted range and the two decisions. */
@@ -176,7 +176,7 @@
 .ghost { background: transparent; color: var(--text-secondary); }
 .primary { min-width: calc(var(--space-1) * 19); background: var(--accent); color: var(--accent-foreground); }
 .ghost:active, .primary:active:not(:disabled) { transform: scale(.97); }
-.primary:disabled { opacity: .45; cursor: default; }
+.primary:disabled { opacity: var(--lane-opacity-quiet); cursor: default; }
 .ghost:focus-visible { background: var(--surface-muted); color: var(--foreground); }
 .preset:focus-visible, .navButton:focus-visible { background: var(--interaction-hover); color: var(--foreground); }
 

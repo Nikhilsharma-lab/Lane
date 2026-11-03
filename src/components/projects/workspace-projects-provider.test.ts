@@ -10,6 +10,18 @@ const existing = { id: "project-existing", name: "Website", description: null };
 const created = { id: "project-created", name: "Brand", description: null };
 
 describe("shared workspace Projects read adapter", () => {
+  it("does not restore a deleted Project from an overlapping reload or local creation", async () => {
+    const pending = Promise.withResolvers<Awaited<ReturnType<typeof listProjects>>>();
+    vi.mocked(listProjects).mockReturnValueOnce(pending.promise);
+    const catalogue = createWorkspaceProjects("workspace-a", [existing]);
+    catalogue.getSnapshot().add(created);
+    const loading = catalogue.getSnapshot().reload();
+    catalogue.getSnapshot().remove(existing.id);
+    catalogue.getSnapshot().remove(created.id);
+    pending.resolve({ success: true, projects: [existing, created] });
+    await loading;
+    expect(catalogue.getSnapshot().entries).toEqual([]);
+  });
   it("keeps a newly created Project when an overlapping read omits it", async () => {
     const pending = Promise.withResolvers<Awaited<ReturnType<typeof listProjects>>>();
     vi.mocked(listProjects).mockReturnValueOnce(pending.promise);

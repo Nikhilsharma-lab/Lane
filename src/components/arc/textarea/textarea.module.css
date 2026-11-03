@@ -7,7 +7,7 @@
 @media (hover: hover) and (pointer: fine) { .control:hover:not(:disabled, [aria-invalid="true"]) { border-color: var(--input-border-hover, var(--foreground)); } }
 .control:focus-visible { border-color: var(--input-border-hover, var(--foreground)); box-shadow: 0 0 0 calc(var(--space-1) * 0.75) var(--focus-ring); outline: calc(var(--border-width) * 2) solid transparent; outline-offset: calc(var(--border-width) * 2); }
 .control[aria-invalid="true"] { border-color: var(--input-error-border, var(--danger)); background: var(--input-error-background, var(--surface)); }
-.control:disabled { cursor: not-allowed; background: var(--surface-muted); opacity: .6; }
+.control:disabled { cursor: not-allowed; background: var(--surface-muted); opacity: var(--lane-opacity-medium); }
 /* Lane adaptation (plan item 2.3): a borderless field. It also removes Arc's own focus border and 3px halo above, so the caret is the only
    focus cue; the keyboard and VoiceOver pass must confirm that is enough. */
 .plain, .plain:focus-visible, .plain[aria-invalid="true"] { min-height: auto; padding: 0; resize: none; border-color: transparent; border-radius: 0; background: transparent; box-shadow: none; }

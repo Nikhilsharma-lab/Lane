@@ -1,14 +1,13 @@
 "use client"
 
 import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type ComponentType, type MouseEvent } from "react"
-import { m, useIsPresent, useReducedMotion, type Transition } from "motion/react"
+import { useIsPresent } from "motion/react"
 import { Button } from "@/components/arc/button/button"
-import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { dismissOpenForm } from "@/components/popup/dismiss-form"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { PreviewSkeleton } from "./request-peek-skeleton"
 import styles from "./request-peek.module.css"
+import { RequestPeekSkeleton } from "./request-peek-skeleton"
 
 /** Who is reading, from the list page's own render: the pane names them on Pick up and on a posted comment. */
 /** Who is reading the preview. `readOnly` is a Viewer (#210), offered nothing that changes the Request. */
@@ -62,11 +61,6 @@ function PreviewFailed({ onClose }: { onClose: () => void }) {
   </div>
 }
 
-// Plan §2.3: the panel moves on transform only, entering in 240 ms on the enter curve and leaving in
-// 180 ms on the exit curve, like the list summary and every Arc Dialog. Reduced motion fades instead.
-const enter: Transition = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] as [number, number, number, number] }
-const leave: Transition = { duration: motionTokens.duration.exit, ease: [...motionTokens.ease.exit] as [number, number, number, number] }
-
 /**
  * Plan item 2.12: a Request beside the list, without leaving it. Not a
  * dialog: the list keeps its keys, so J and K move the list and the preview
@@ -76,7 +70,6 @@ const leave: Transition = { duration: motionTokens.duration.exit, ease: [...moti
  */
 export function RequestPeek(props: RequestPeekProps) {
   const { requestId, onClose } = props
-  const reduced = !!useReducedMotion()
   const present = useIsPresent()
   const panel = useRef<HTMLElement>(null)
   // Chosen once for this panel, so the content never remounts when its code arrives.
@@ -99,13 +92,11 @@ export function RequestPeek(props: RequestPeekProps) {
     return () => window.removeEventListener("keydown", listener, true)
   }, [present])
 
-  return <m.div className={styles.viewport} inert={!present} aria-hidden={!present || undefined}>
-    <m.section ref={panel} className={styles.panel} role="region" aria-label="Request preview" data-request-peek="" data-request-id={requestId}
-      initial={reduced ? { opacity: 0 } : { x: "104%" }} animate={{ x: "0%", opacity: 1 }} exit={reduced ? { opacity: 0 } : { x: "104%", transition: leave }}
-      transition={reduced ? { duration: motionTokens.duration.instant } : enter}>
-      {/* Until the chunk arrives (it is fetched once a row takes focus, so rarely) the panel shows the content's own
+  return <div className={styles.viewport} inert={!present} aria-hidden={!present || undefined}>
+    <section ref={panel} className={styles.panel} role="region" aria-label="Request preview" data-request-peek="" data-request-id={requestId}>
+      {/* Until the chunk arrives (it is fetched once a row takes focus, so rarely) the pane shows the content's own
           skeleton, with Close, from its first frame: never an empty frame or a bare button (#271, A116). */}
-      <Suspense fallback={<PreviewSkeleton onClose={onClose} />}><Content key={requestId} {...props} /></Suspense>
-    </m.section>
-  </m.div>
+      <Suspense fallback={<RequestPeekSkeleton onClose={onClose} />}><Content key={requestId} {...props} /></Suspense>
+    </section>
+  </div>
 }

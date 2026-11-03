@@ -1,7 +1,7 @@
 /* Arc Pro source (https://uiarc.dev), adapted from licensed settings-command for Lane. Not covered by this repository's license; not for reuse outside Lane.  */
 /* Palette. The scrim only dims; the palette itself is a floating layer and the one shadowed thing. */
-.scrim { position: absolute; z-index: 14; inset: 0; background: var(--overlay); }
-.palette { position: absolute; z-index: 15; top: 0; left: 0; overflow: hidden; border: var(--border-width) solid var(--border); background: var(--surface-raised); box-shadow: var(--shadow-floating); will-change: transform; }
+.scrim { position: absolute; z-index: var(--lane-layer-settings-backdrop); inset: 0; background: var(--overlay); }
+.palette { position: absolute; z-index: var(--lane-layer-settings-drawer); top: 0; left: 0; overflow: hidden; border: var(--border-width) solid var(--border); background: var(--surface-raised); box-shadow: var(--shadow-floating); will-change: transform; }
 .paletteContent { max-width: none; }
 .paletteField { display: flex; height: calc(var(--spacing) * 11.5); align-items: center; gap: calc(var(--spacing) * 2.5); border-bottom: var(--border-width) solid var(--border-subtle); padding: 0 calc(var(--spacing) * 3) 0 calc(var(--spacing) * 3.25); color: var(--text-muted); }
 .paletteField > svg { flex: none; }
@@ -14,7 +14,7 @@
 .result > svg { color: var(--text-muted); }
 .result[aria-selected="true"] { color: var(--foreground); }
 .result[aria-selected="true"] > svg, .result[aria-selected="true"] .resultEnd { color: var(--accent); }
-.resultHighlight { position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: var(--surface-muted); }
+.resultHighlight { position: absolute; z-index: var(--lane-layer-underlay); inset: 0; border-radius: inherit; background: var(--surface-muted); }
 .resultText { display: grid; min-width: 0; gap: var(--border-width); }
 .resultLabel { overflow: hidden; color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); text-overflow: ellipsis; white-space: nowrap; }
 .resultDescription { overflow: hidden; color: var(--text-muted); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }

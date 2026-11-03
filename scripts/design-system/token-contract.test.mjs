@@ -13,7 +13,30 @@ test('rejects fixed visual values including fallbacks and local tokens', () => {
   }
 })
 test('accepts tokens, derived spacing and geometric mechanics', () => {
-  assert.deepEqual(auditCss('.control { padding: var(--space-2); width: calc(var(--space-1) * 10); border-radius: var(--radius-control); opacity: .5; transform: scale(.98); height: 100%; margin: 0; line-height: 1; }'), [])
+  assert.deepEqual(auditCss('.control { padding: var(--space-2); width: calc(var(--space-1) * 10); border-radius: var(--radius-control); opacity: var(--opacity-disabled); transform: scale(.98); height: 100%; margin: 0; line-height: 1; }'), [])
+})
+test('opacity, layers and alternate colour syntaxes cannot bypass the theme', () => {
+  for (const declaration of ['opacity: .45', 'z-index: 51', 'stroke-width: 1.75', 'color: lab(60 0 0)', 'color: lch(60 0 0)', 'color: color(display-p3 1 0 0)', 'font-family: Arial', 'padding: 2ch']) {
+    assert.ok(auditCss(`.control { ${declaration} }`).length, declaration)
+  }
+  assert.deepEqual(auditCss('.control { opacity: 0; z-index: var(--lane-layer-dialog); color: currentColor; font-family: inherit; }'), [])
+})
+test('static style objects and Motion dimensions cannot hide outside the style prop', () => {
+  for (const source of ['const appearance = { color: "#fff" }', 'const shown = { width: 28, marginRight: 2 }', 'const view = <motion.div animate={{ width: 28 }} />', 'const style = { fontFamily: "Arial" }']) {
+    assert.ok(tokenContract.auditInlineStyles(source).length, source)
+  }
+  assert.deepEqual(tokenContract.auditInlineStyles('const shown = { width: "var(--size-inner-small)", height: measuredHeight }; const frame = { opacity: 0, scale: 1 };'), [])
+})
+test('undefined tokens fail while declared runtime slots and explicit fallbacks remain valid', () => {
+  assert.equal(typeof tokenContract.auditTokenReferences, 'function')
+  const sources = { 'src/styles/theme.css': ':root { --lane-gap: 1rem; }', 'src/components/example.tsx': 'const style = { "--measured-height": height }', 'src/components/example.css': '.x { gap: var(--missing); height: var(--measured-height); color: var(--optional-ink, currentColor); padding: var(--lane-gap); }' }
+  assert.deepEqual(tokenContract.auditTokenReferences(sources), ['src/components/example.css:1 --missing has no definition or runtime provider'])
+  assert.deepEqual(tokenContract.auditTokenReferences({ 'src/components/test.css': '.x { width: var(--radix-popover-trigger-width); }' }), [])
+})
+test('utility classes cannot introduce a parallel palette or arbitrary design literals', () => {
+  assert.equal(typeof tokenContract.auditUtilityClasses, 'function')
+  for (const source of ['const x = <div className="bg-blue-500" />', 'const x = <div className={cn("p-[12px]", classes.row)} />', 'const x = <div className="text-[#fff]" />']) assert.ok(tokenContract.auditUtilityClasses(source).length)
+  assert.deepEqual(tokenContract.auditUtilityClasses('const x = <div className="p-4 text-foreground bg-background w-full" />'), [])
 })
 
 test('pages cannot redefine shared control tokens even with token-valued overrides', () => {
@@ -71,7 +94,7 @@ test('inline styles cannot bypass the CSS contract', async () => {
   const { auditInlineStyles } = await import('./token-contract.mjs')
   assert.ok(auditInlineStyles('const x = <div style={{ padding: 12, borderRadius: "8px" }} />').length)
   assert.ok(auditInlineStyles('const x = <div style={{ fontWeight: 500 }} />').length)
-  assert.deepEqual(auditInlineStyles('const x = <div style={{ padding: "var(--space-3)", width: measuredWidth, opacity: .5 }} />'), [])
+  assert.deepEqual(auditInlineStyles('const x = <div style={{ padding: "var(--space-3)", width: measuredWidth, opacity: "var(--lane-opacity-disabled)" }} />'), [])
   assert.deepEqual(auditInlineStyles('const x = <svg width={24} viewBox="0 0 24 24" />'), [])
 })
 
@@ -293,12 +316,13 @@ test('the theme CLI exits cleanly with contrast warnings and fails on rule break
 
 // #262: the JavaScript motion presets are the theme's motion scale written for Motion, so CSS and
 // JavaScript animations agree. design:check compares them with theme.css and rejects any bounce.
-const motionTheme = cleanTheme.replace('--duration-standard: 200ms;', '--duration-instant: 100ms; --duration-fast: 150ms; --duration-standard: 200ms; --duration-exit: var(--duration-fast); --ease-enter: cubic-bezier(.16, 1, .3, 1);')
+const motionTheme = cleanTheme.replace('--duration-standard: 200ms;', '--duration-instant: 100ms; --duration-fast: 150ms; --duration-standard: 200ms; --duration-exit: var(--duration-fast); --ease-enter: cubic-bezier(.16, 1, .3, 1); --lane-stagger-item: 35ms; --lane-blur-soft: 4px;')
 const motionPresets = `export const motionTokens = {
   duration: { instant: 0.1, fast: 0.15, exit: 0.15, standard: 0.2 },
   ease: { enter: [0.16, 1, 0.3, 1] },
   spring: { snappy: { type: "spring", visualDuration: 0.15, bounce: 0 }, smooth: { type: "spring", visualDuration: 0.2, bounce: 0 } },
   stagger: { item: 0.035 },
+  blur: { soft: 4 },
 } as const;
 `
 const motionFile = 'src/components/arc/motion-tokens.ts'
@@ -306,6 +330,10 @@ const motionErrors = presets => auditFixture({ 'src/styles/theme.css': motionThe
 
 test('the JavaScript motion presets on the theme scale pass', () => {
   assert.deepEqual(motionErrors(motionPresets), [])
+})
+test('stagger and blur must match the Lane theme too', () => {
+  assert.ok(motionErrors(motionPresets.replace('item: 0.035', 'item: 0.05')).some(error => error.includes('stagger.item')))
+  assert.ok(motionErrors(motionPresets.replace('soft: 4', 'soft: 7')).some(error => error.includes('blur.soft')))
 })
 
 test('a JavaScript duration or ease that differs from the theme fails', () => {

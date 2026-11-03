@@ -35,14 +35,24 @@ function withOutline(request: RequestDetail, reader: { readOnly?: boolean; isGue
   }) }
 }
 
-const render = (request: RequestDetail, reader: { readOnly?: boolean; isGuest?: boolean } = {}) => renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(AppProviders, null,
-  createElement(RequestDetailPane, { request: withOutline(request, reader), comments: [], attachments: [], returnHref: "/", orgId: "org_test", isGuest: reader.isGuest ?? false, currentUserId: "user_reader", viewerName: "Robin", isAdmin: false, readOnly: reader.readOnly ?? false }))))
+const render = (request: RequestDetail, reader: { readOnly?: boolean; isGuest?: boolean; peek?: boolean } = {}) => renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(AppProviders, null,
+  createElement(RequestDetailPane, { request: withOutline(request, reader), comments: [], attachments: [], returnHref: "/", orgId: "org_test", isGuest: reader.isGuest ?? false, currentUserId: "user_reader", viewerName: "Robin", isAdmin: false, readOnly: reader.readOnly ?? false, peekStrip: reader.peek ? () => createElement('span', null, 'LAN-7') : undefined }))))
 const section = (markup: string, id: string) => markup.match(new RegExp(`<section id="${id}"[\\s\\S]*?</section>`))?.[0] ?? ""
 /** The Journey's section, up to the end of its steps (the reviewers' section nests inside it). */
 const journey = (markup: string) => markup.slice(markup.indexOf('<section id="journey"'), markup.indexOf("</ol>", markup.indexOf('<section id="journey"')))
 const text = (markup: string) => markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ")
 
 describe("the Request page before its reads arrive (#295)", () => {
+  it("opens the peek on Overview with four labelled panels, retaining inactive form content", () => {
+    const markup = render(open, { peek: true })
+    expect(markup.match(/role="tab"/g)).toHaveLength(4)
+    expect(markup.match(/role="tabpanel"/g)).toHaveLength(4)
+    expect(markup).toMatch(/role="tab"[^>]*aria-selected="true"[^>]*>[\s\S]*?Overview/)
+    expect(markup).toMatch(/<[^>]+(?=[^>]*data-pane-section="conversation")(?=[^>]*hidden="")[^>]*>/)
+    expect(markup).toContain('aria-label="Comment"')
+    expect(markup).toContain('id="journey"')
+    expect(render(open)).not.toContain('role="tablist"')
+  })
   it("draws the Journey's five steps from the Request, who asked and when, and what is next", () => {
     const shown = journey(render(open))
     expect(text(shown)).toMatch(/Open .*In progress .*Done .*Measuring .*Closed/)

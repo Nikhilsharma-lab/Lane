@@ -206,7 +206,7 @@ const aiAttribution: Record<Exclude<TriageResult["classification"], "problem">, 
 
 /** #217: one line of the first-run guide, beside the part of the composer it explains. */
 function FirstRunHint({ children }: { children: React.ReactNode }) {
-  return <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground" data-first-run-hint="">{children}</p>;
+  return <p className="max-w-[var(--lane-prose-width)] text-pretty text-sm leading-relaxed text-muted-foreground" data-first-run-hint="">{children}</p>;
 }
 
 function IntakeNotice({
@@ -1142,7 +1142,7 @@ export default function RequestEditor({
           <header className="space-y-2">
             <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Review Request</h2>
             {triage.classification !== "problem" && (
-              <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground">
+              <p className="max-w-[var(--lane-prose-width)] text-pretty text-sm leading-relaxed text-muted-foreground">
                 {aiAttribution[triage.classification]}
               </p>
             )}
@@ -1372,7 +1372,7 @@ export default function RequestEditor({
           <div className={cn(reveal, "space-y-6")}>
             <header className="space-y-2">
               <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Some files weren’t added</h2>
-              <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground">
+              <p className="max-w-[var(--lane-prose-width)] text-pretty text-sm leading-relaxed text-muted-foreground">
                 Your Request is saved. These files did not finish uploading, and their contents are no longer available here. Check the Request before adding them again.
               </p>
             </header>

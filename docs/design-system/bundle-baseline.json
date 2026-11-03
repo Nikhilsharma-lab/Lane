@@ -49,9 +49,9 @@
       "chunks": 13
     },
     "/requests/[id]": {
-      "gzipBytes": 436710,
-      "uncompressedBytes": 1436638,
-      "chunks": 18
+      "gzipBytes": 457926,
+      "uncompressedBytes": 1505602,
+      "chunks": 19
     },
     "/reset-password": {
       "gzipBytes": 288350,
@@ -64,14 +64,14 @@
       "chunks": 18
     },
     "/settings/metrics": {
-      "gzipBytes": 435392,
-      "uncompressedBytes": 1442145,
-      "chunks": 18
+      "gzipBytes": 437241,
+      "uncompressedBytes": 1447645,
+      "chunks": 19
     },
     "/settings/metrics/[id]": {
-      "gzipBytes": 436343,
-      "uncompressedBytes": 1444301,
-      "chunks": 18
+      "gzipBytes": 438647,
+      "uncompressedBytes": 1449801,
+      "chunks": 19
     },
     "/settings/profile": {
       "gzipBytes": 406665,
