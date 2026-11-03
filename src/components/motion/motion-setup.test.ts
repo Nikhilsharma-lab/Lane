@@ -5,6 +5,9 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { CommentThread } from "../arc/comment-thread/comment-thread";
+import { Timeline } from "../arc/timeline/timeline";
+
 import { m, motion } from "motion/react";
 import { AppMotionFeatures } from "./app-motion-features";
 import { MotionFeatures } from "./motion-features";
@@ -53,6 +56,22 @@ describe("Motion's lazy features", () => {
     try {
       expect(() => render(MotionFeatures, motion.div)).toThrow(/LazyMotion/);
       expect(() => render(AppMotionFeatures, motion.div)).toThrow(/LazyMotion/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+
+describe("Request history under the app motion boundary", () => {
+  it("renders the comment thread and timeline without bringing full Motion back", () => {
+    vi.stubGlobal("window", new EventTarget());
+    try {
+      const author = { id: "member", name: "Member" };
+      const thread = createElement(CommentThread, { currentUser: author, readOnly: true, comments: [{ id: "comment", author, body: "Saved comment", createdAt: "2026-11-02T09:00:00Z" }] });
+      const history = createElement(Timeline, { label: "Request history", now: 1793610000000, events: [{ id: "event", at: "2026-11-02T09:00:00Z", title: "Request created" }] });
+      expect(renderToStaticMarkup(createElement(AppMotionFeatures, null, thread))).toContain("Saved comment");
+      expect(renderToStaticMarkup(createElement(AppMotionFeatures, null, history))).toContain("Request created");
     } finally {
       vi.unstubAllGlobals();
     }

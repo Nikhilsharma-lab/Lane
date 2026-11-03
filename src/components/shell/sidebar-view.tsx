@@ -40,6 +40,7 @@ export interface SidebarViewProps {
   projectsLoading?: boolean;
   projectsError?: string | null;
   onRetryProjects?: () => void | Promise<void>;
+  onDeleteProject?: (id: string) => Promise<void>;
   onCreateProject?: (name: string) => Promise<ProjectOption>;
   notifications: ReactNode;
   /** Issue #106: the ⌘K command palette. Mounted on every page, Settings included, so one ⌘K works everywhere. */
@@ -63,7 +64,7 @@ const expandButton = <SidebarExpandButton />;
 const jumpBar = <JumpBar />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, savedViews = noViews }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, onDeleteProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, savedViews = noViews }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
   const { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, true, openAutoPeek);
   // No peek while the panel slides (plan item 2.4).
@@ -228,6 +229,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
         activeId={searchOpen ? "search" : active} currentPage={searchOpen ? "Search" : page ?? section} loading={projectsLoading} error={projectsError} onRetry={onRetryProjects}
         onSearch={openSearch} searchActive={searchOpen}
         workspaces={workspaceSwitcher ?? { items: [{ id: "current", name: workspaceName }], currentId: "current", onSelect: () => {} }}
+        onDeleteProject={onDeleteProject}
         onCreateProject={onCreateProject ? async name => { const created = await onCreateProject(name); return { ...created, href: requestListHref("all", created.id) }; } : undefined}
         onNavigate={({ id }) => {
           dismissPeek(); closeSearch(false);

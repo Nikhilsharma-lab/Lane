@@ -1,0 +1,18 @@
+{
+  "capturedAt": "2026-11-02",
+  "browserScope": "Signed-in sandbox Metrics page, dark mode",
+  "sourceComparison": "Public main at capture time, not verified deployed commit",
+  "files": {
+    "polar-token-comparison.json": "b429ca4279f329c080fd01e26e41eb568bc30ca9fde3f3670773d0c630f0000a",
+    "preview-mapping.json": "dcca367cfa205a8fbf8253ee1bc919b71b8f1e39cf54998ecda00fa3d61b1b18",
+    "tailwind-4.3.3-theme.css": "443d7af364200f8ec8352dc78e39485a118a1840d498c97967bf0ae402b39167",
+    "polar-source-globals.css": "d2269fcb051fd822ddb7e13eda0f806e8eceaddc041204a1de5db9b0a9a70323",
+    "polar-colours.csv": "4fbdc7f73a16c05c31850f4de9039d57c6171e0c13d3b6e1ee42229bbfb3b56c"
+  },
+  "productPromotion": {
+    "approvedAt": "2026-11-02",
+    "export": "approved-theme-export.css",
+    "sha256": "cd288f166ecb69caf359542bf29ec4dfedd911ccb8cf0488d328b10c0ca34974",
+    "runtimeSource": "src/styles/theme.css"
+  }
+}

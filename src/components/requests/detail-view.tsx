@@ -11,6 +11,8 @@ import { LocalTime } from "./local-time"
 import { DetailRequestProvider, type DetailViewer } from "./detail-context"
 import { DetailProperties, DetailStateLine } from "./detail-properties"
 import { DetailStrip } from "./detail-strip"
+import { RequestPaneTabs, RequestPanePanel } from "./request-pane-tabs"
+import { RequestPaneHeader } from "./request-pane-header"
 import detailStyles from "./detail.module.css"
 import styles from "./requests.module.css"
 
@@ -97,11 +99,11 @@ export type RequestAttachment = {
  * times are phrased here so the client islands never disagree with the
  * server about "3h ago".
  */
-export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest, requestPanels, guestSubmission, peekStrip }: {
+export function RequestDetailView({ request, comments, attachments, isGuest, viewer, orgId, returnHref = "/", lifecycleActions, commentForm, attachmentAction, currentValues, editRequest, requestPanels, relatedRequests, guestSubmission, peekStrip }: {
   request: RequestDetail; comments: RequestComment[]; attachments: RequestAttachment[]; isGuest: boolean;
   /** Who is reading: Pick up names them as Assignee and a posted comment shows their name in the same frame. */
   viewer: DetailViewer; orgId: string; returnHref?: string;
-  lifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; currentValues?: ReactNode; editRequest?: ReactNode; requestPanels?: ReactNode;
+  lifecycleActions?: ReactNode; commentForm: ReactNode; attachmentAction: (attachment: RequestAttachment) => ReactNode; currentValues?: ReactNode; editRequest?: ReactNode; requestPanels?: ReactNode; relatedRequests?: ReactNode;
   /** #212: the Guest submission notice, after the problem. */
   guestSubmission?: ReactNode;
   /** Plan item 2.12: the list's peek. Its strip replaces the page's, the title is the panel's h2 (the list keeps the page's h1), and arrival moves no focus. */
@@ -113,16 +115,17 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
   const Title = peekStrip ? "h2" : "h1"
   const action = isGuest || viewer.readOnly ? undefined : lifecycleActions
   return <DetailRequestProvider request={request} viewer={viewer} orgId={orgId} isGuest={isGuest} arrival={!peekStrip}>
-    <section aria-label={`Request detail: ${request.title}`} className={detailStyles.root} data-detail="" data-detail-peek={peekStrip ? "" : undefined} data-request-id={request.id}>
+    <RequestPaneTabs key={request.id}><section aria-label={`Request detail: ${request.title}`} className={detailStyles.root} data-detail="" data-detail-peek={peekStrip ? "" : undefined} data-request-id={request.id}>
       {peekStrip ? peekStrip({ action, editAction: editRequest }) : <DetailStrip returnHref={returnHref} editAction={editRequest} action={action} />}
-      <div className={`${detailStyles.body} px-5 py-6 md:px-8`}>
+      {peekStrip && <div className="shrink-0 px-5 pt-4 md:px-8"><RequestPaneHeader comments={comments} /></div>}
+      <div className={`${detailStyles.body} px-5 py-6 md:px-8`} data-detail-body="">
         <div className={detailStyles.layout}>
           <div className={detailStyles.main} data-detail-main="">
-            <header className={detailStyles.titleBlock} data-detail-title="">
+            {!peekStrip && <header className={detailStyles.titleBlock} data-detail-title="">
               <Title id="request-title" tabIndex={-1} className={detailStyles.title}>{request.title}</Title>
               <DetailStateLine />
-            </header>
-            <section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>
+            </header>}
+            <RequestPanePanel value="overview"><section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>
               <h2 id="problem-heading" className="sr-only">Problem</h2>
               <p className={detailStyles.description}>{problem}</p>
               {supportingLink && <a href={supportingLink} target="_blank" rel="noopener noreferrer" className={styles.fileRow}><LinkIcon aria-hidden="true" /><span className="min-w-0 flex-1 break-all text-sm">{supportingLink}<span className="sr-only"> (opens in a new tab)</span></span><ExternalLink aria-hidden="true" /></a>}
@@ -144,19 +147,23 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
               <p className="whitespace-pre-wrap break-words">{request.noMeasurableImpactReason}</p>
             </section>}
             {currentValues}
-            {requestPanels}
+            {!peekStrip && requestPanels}
+            {!peekStrip && relatedRequests}
             {attachments.length > 0 && <section id="files" aria-labelledby="files-heading" className={detailStyles.section}>
               <div className={detailStyles.sectionHeader}><h2 id="files-heading" className={detailStyles.sectionHeading}>Files</h2><span className={detailStyles.sectionCount}>{attachments.length}</span></div>
               <ul aria-label="Request files" className={detailStyles.files}>{attachments.map(attachment => <li key={attachment.id} className={styles.fileRow}>{attachment.mimeType.startsWith("image/") ? <ImageIcon aria-hidden="true" /> : <FileText aria-hidden="true" />}<div className="min-w-0 flex-1"><p className={detailStyles.fileName}>{attachment.fileName}</p><p className={detailStyles.fileMeta}>{formatAttachmentSize(attachment.sizeBytes)} · Added {attachment.uploadedAt ? <LocalTime iso={new Date(attachment.uploadedAt).toISOString()} /> : "just now"}</p></div>{attachmentAction(attachment)}</li>)}</ul>
             </section>}
             <RequestDesignLink relatedLink={request.usefulLink} reviews={request.designReviews} />
-            <DetailConversation comments={comments}>{commentForm}</DetailConversation>
+            {peekStrip && relatedRequests}
+            </RequestPanePanel>
+            {peekStrip && requestPanels}
+            <RequestPanePanel value="conversation"><DetailConversation comments={comments}>{commentForm}</DetailConversation></RequestPanePanel>
           </div>
           <aside id="properties" aria-label="Properties" className={detailStyles.panel} data-detail-panel="">
             <DetailProperties />
           </aside>
         </div>
       </div>
-    </section>
+    </section></RequestPaneTabs>
   </DetailRequestProvider>
 }
