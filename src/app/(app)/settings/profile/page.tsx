@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { membersPanel } from "../members/members-panel";
 import { redirect } from "next/navigation";
@@ -9,9 +8,6 @@ import { getWorkspace } from "@/lib/ensure-workspace";
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
 import { sharedPanels } from "./shared-panels";
-
-// #271 (A114): the tab reads "Settings · Lane".
-export const metadata: Metadata = { title: "Settings" };
 
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string; slack?: string; checkout?: string }> }) {
   void timePage("Settings: Profile");
