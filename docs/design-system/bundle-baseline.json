@@ -64,9 +64,9 @@
       "chunks": 18
     },
     "/settings/metrics": {
-      "gzipBytes": 435392,
-      "uncompressedBytes": 1442145,
-      "chunks": 18
+      "gzipBytes": 437241,
+      "uncompressedBytes": 1447645,
+      "chunks": 19
     },
     "/settings/metrics/[id]": {
       "gzipBytes": 438647,

@@ -6,12 +6,14 @@ The release is based on current main's Build 3 performance work. Conflict resolu
 
 ## Bundle budget waiver
 
-The repository allows an intentional feature addition to update its measured baseline with a written waiver. Two routes require one for this release:
+The repository allows an intentional feature addition to update its measured baseline with a written waiver. Three routes require one for this release:
 
 - Request detail: 436,710 to 457,926 gzip bytes (+21,216 bytes, about 20.7 KiB). The approved Arc thread/timeline and Request pane header/tabs add to the route graph. This is not attributed solely to CommentThread.
 - Metric detail: 436,343 to 438,647 gzip bytes (+2,304 bytes, about 2.3 KiB), from the combined shared client graph.
 
-Only these two baseline entries change. The global 2 KiB tolerance and every other route baseline remain unchanged. The release does not hide the increase behind a cosmetic dynamic import; the new components retain their real interactions and strict lazy-motion compatibility. Future optimization should measure separating peek-only tabs and unused editable thread controls.
+Only these three baseline entries change. The global 2 KiB tolerance and every other route baseline remain unchanged. The release does not hide the increase behind a cosmetic dynamic import; the new components retain their real interactions and strict lazy-motion compatibility. Future optimization should measure separating peek-only tabs and unused editable thread controls.
+
+- Metrics library: 435,392 to 437,241 gzip bytes (+1,849 bytes locally). CI measures about 2.1 KiB growth, just over the 2 KiB budget; its build environment adds about 0.2 KiB compared with the local measurement. The baseline uses the actual local measurement, not an invented allowance.
 
 ## Verification boundary
 
