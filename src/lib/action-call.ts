@@ -15,14 +15,28 @@ export type ActionSession = {
   renew(): Promise<unknown>
 }
 
-type ClerkGlobal = { Clerk?: { session?: { getToken(options?: { skipCache?: boolean }): Promise<string | null> } | null } }
-const clerkSession = () => (globalThis as ClerkGlobal).Clerk?.session
+type ClerkGlobal = { Clerk?: {
+  status?: string
+  on?(event: "status", handler: (status: string) => void, options?: { notify: boolean }): void
+  session?: { getToken(options?: { skipCache?: boolean }): Promise<string | null> } | null
+} }
+const clerk = () => (globalThis as ClerkGlobal).Clerk
+const clerkSession = () => clerk()?.session
+
+/** An action can answer before Clerk has loaded (a role saved right after the page appears): until it has, there
+ * is no session to renew. Waits until Clerk leaves "loading", or 10 s, whichever comes first. */
+const clerkLoaded = () => new Promise<void>(resolve => {
+  const instance = clerk()
+  if (instance?.status !== "loading" || !instance.on) return resolve()
+  setTimeout(resolve, 10_000)
+  instance.on("status", status => { if (status !== "loading") resolve() }, { notify: true })
+})
 
 /** Reads the Clerk instance ClerkProvider installs; without one (fixtures,
  * tests) there is no token to refresh and the call simply runs. */
 export const clerkActionSession: ActionSession = {
   current: async () => clerkSession()?.getToken(),
-  renew: async () => clerkSession()?.getToken({ skipCache: true }),
+  renew: async () => { await clerkLoaded(); return clerkSession()?.getToken({ skipCache: true }) },
 }
 
 /** Only an explicit pre-write expiry result permits recovery. Throws can

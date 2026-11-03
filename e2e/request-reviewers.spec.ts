@@ -64,7 +64,8 @@ test("a reviewer added while creating raises a concern; pickup confirms, then go
         const unwanted = await createRequestThroughIntake(team, `${width} ${colorScheme}: not needed`);
         await page.goto(`/requests/${unwanted.id}`);
         await page.getByRole("button", { name: "Delete Request" }).click();
-        await page.getByRole("button", { name: "Delete Request", exact: true }).last().click();
+        // The confirming button is the dialog's own; its place in the page differs on a phone.
+        await page.getByRole("dialog", { name: "Delete this Request?", exact: true }).getByRole("button", { name: "Delete Request", exact: true }).click();
         await page.waitForURL((url) => url.pathname === "/");
         await page.goto(`/requests/${unwanted.id}`);
         await expect(page.getByText(/can’t be opened|unavailable/i).first()).toBeVisible();

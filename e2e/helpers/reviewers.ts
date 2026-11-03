@@ -203,8 +203,9 @@ export async function createRequestThroughIntake(
     await page.getByRole("button", { name: "Reviewers", exact: true }).click();
     const picker = page.getByRole("dialog", { name: "Reviewers", exact: true });
     await expect(picker).toContainText("Add people who should look at this before work starts. Optional.");
+    // Each option shows the person's name over their email (#306); match the name exactly.
     for (const name of reviewers)
-      await picker.getByRole("option", { name, exact: true }).click();
+      await picker.getByRole("option").filter({ has: page.getByText(name, { exact: true }) }).click();
     await page.keyboard.press("Escape");
     await expect(page.locator("#intake-reviewers")).toHaveAccessibleName(`Reviewers: ${reviewers.join(", ")}`);
     await page.getByRole("button", { name: "Review Request", exact: true }).click();

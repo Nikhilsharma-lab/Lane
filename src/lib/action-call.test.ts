@@ -91,6 +91,37 @@ describe("production Clerk session adapter", () => {
     expect(getToken.mock.calls).toEqual([[], [{ skipCache: true }]])
     expect(run).toHaveBeenCalledTimes(2)
   })
+  // An action answered right after the page loads can come back before Clerk has: renewal waits for it.
+  it("renews once Clerk finishes loading when the expiry arrives while it is still loading", async () => {
+    const listeners: ((status: string) => void)[] = []
+    const getToken = vi.fn(async () => "renewed")
+    const clerk = {
+      status: "loading", loaded: false, session: null as null | { getToken: typeof getToken },
+      on: (event: string, handler: (status: string) => void) => { if (event === "status") listeners.push(handler) },
+      off: vi.fn(),
+    }
+    vi.stubGlobal("Clerk", clerk)
+    const run = vi.fn().mockResolvedValueOnce(expired).mockResolvedValueOnce({ success: true })
+    const result = callAction(run)
+    await vi.waitFor(() => expect(listeners).toHaveLength(1))
+    expect(run).toHaveBeenCalledTimes(1)
+    Object.assign(clerk, { status: "ready", loaded: true, session: { getToken } })
+    for (const listener of listeners) listener("ready")
+    await expect(result).resolves.toEqual({ success: true })
+    expect(getToken).toHaveBeenCalledWith({ skipCache: true })
+    expect(run).toHaveBeenCalledTimes(2)
+  })
+  it("keeps the first failure when Clerk is still loading after the wait", async () => {
+    vi.useFakeTimers()
+    try {
+      vi.stubGlobal("Clerk", { status: "loading", loaded: false, session: null, on: vi.fn(), off: vi.fn() })
+      const run = vi.fn(async () => expired)
+      const result = callAction(run)
+      await vi.advanceTimersByTimeAsync(10_000)
+      await expect(result).resolves.toBe(expired)
+      expect(run).toHaveBeenCalledTimes(1)
+    } finally { vi.useRealTimers() }
+  })
   it.each([undefined, { session: null }, { session: { getToken: async () => null } }])("does not replay without a usable Clerk session", async clerk => {
     vi.stubGlobal("Clerk", clerk)
     const run = vi.fn(async () => expired)

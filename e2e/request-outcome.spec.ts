@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
+import { renewSessionToken } from './helpers/test-user';
 import { answerIsItLive, journey, journeyStep } from './helpers/journey';
 import { expectOpenFormSurvivesReturn, observeJourneyReads } from './helpers/journey-refresh';
 
@@ -96,7 +97,8 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
     const client = await assertOwnedOrganization(team.orgId);
     await client.organizations.updateOrganizationMembership({ organizationId: team.orgId, userId: team.users[1].id, role: 'org:admin' });
     await client.organizations.deleteOrganizationMembership({ organizationId: team.orgId, userId: team.users[0].id });
-    const admin = team.pages[1]; await admin.goto(path); await admin.reload();
+    // The new Admin's tab picks up the role change before it reads the Request.
+    const admin = team.pages[1]; await renewSessionToken(admin); await admin.goto(path); await admin.reload();
     await expect(admin.getByRole('region', { name: 'Journey', exact: true }).getByRole('button', { name: 'Close without a result…' })).toHaveCount(0);
     const release = admin.getByRole('region', { name: 'Journey', exact: true });
     await release.getByRole('button', { name: 'Hand over to a new Requester' }).click();
@@ -104,6 +106,8 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
     await admin.getByRole('option', { name: 'Review Developer' }).click();
     await release.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
     await release.getByRole('button', { name: 'Hand over' }).click();
+    // Wait for the saved handover before the new Requester opens the Request.
+    await expect(release).toContainText('Requester: Review Developer', { timeout: 20_000 });
     const developer = team.pages[2]; await developer.goto(path);
     const outcome = developer.getByRole('region', { name: 'Journey', exact: true });
     await outcome.getByRole('button', { name: 'Close without a result…' }).click();
