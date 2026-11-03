@@ -114,7 +114,7 @@ export async function createCatalogueProject(page: Page, orgId: string, name: st
 
 async function labelColourStep(page: Page, name: string, scope: string) {
   await composer(page).locator("#intake-request-labels").press("Enter");
-  const field = labels(page).getByRole("textbox", { name: "Search labels", exact: true });
+  const field = labels(page).getByRole("searchbox", { name: "Search labels", exact: true });
   await expect(field).toBeFocused();
   await field.fill(name);
   await labels(page).getByRole("button", { name: `Create new label: “${name}”`, exact: true }).press("Enter");
