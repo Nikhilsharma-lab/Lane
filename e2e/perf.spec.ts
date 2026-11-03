@@ -632,6 +632,9 @@ const LOADING_COMPOSER = '[role="status"][aria-label="Loading New Request"]'
 async function openListForComposer(page: Page) {
   await openList(page)
   await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 10_000 })
+  // The search pane and palette load ahead at the same moment as the form (after-page-load.ts) and arrive just after
+  // it; a person reading the list presses C once they are in, not during their evaluation.
+  await page.waitForLoadState("networkidle")
   // Nothing focused, so C reaches the page's shortcut.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
 }
