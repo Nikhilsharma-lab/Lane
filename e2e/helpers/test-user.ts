@@ -80,6 +80,13 @@ export async function createTestUser(
  * marks it, and names it as a new fixture. deleteTestUser gives it back; a crashed run leaves the mark for
  * inspection, so that user isn't borrowed again until someone clears it.
  */
+/** Only on a local database (LANE_E2E_LOCAL_DATABASE=1); Lane Staging's profiles are never read here. */
+async function hasLocalProfile(userId: string): Promise<boolean> {
+  if (assertE2ETarget().ssl) return false;
+  const sql = e2eDatabase();
+  try { return (await sql`select 1 from profiles where id = ${userId}`).length > 0; } finally { await sql.end(); }
+}
+
 async function borrowTestUser(client: ClerkClient, password: string, borrowFrom: "first" | "last" = "first"): Promise<TestUser> {
   const { data } = await client.users.getUserList({ query: "lane-e2e-", limit: 100 });
   for (const candidate of borrowFrom === "last" ? [...data].reverse() : data) {
@@ -87,6 +94,9 @@ async function borrowTestUser(client: ClerkClient, password: string, borrowFrom:
     if (!email || borrowedUserNames(candidate.id) || BORROW_KEY in candidate.privateMetadata) continue;
     const memberships = await client.users.getOrganizationMembershipList({ userId: candidate.id, limit: 1 });
     if (memberships.totalCount > 0) continue;
+    // On this machine's own database, an earlier run can have kept this user's profile (rows that name it, such as
+    // release history, can't be deleted), whose saved role would skip onboarding: borrow a user it has never seen.
+    if (await hasLocalProfile(candidate.id)) continue;
     try {
       await client.users.verifyPassword({ userId: candidate.id, password });
     } catch {
@@ -100,12 +110,6 @@ async function borrowTestUser(client: ClerkClient, password: string, borrowFrom:
     if (marked.privateMetadata[BORROW_KEY] !== borrowMarker[BORROW_KEY]) continue;
     recordBorrowedUser(candidate.id, { firstName: candidate.firstName, lastName: candidate.lastName });
     await client.users.updateUser(candidate.id, FIXTURE_NAMES);
-    // On this machine's own database, an earlier run's kept rows can still give the borrowed user a role, which
-    // skips onboarding: a borrowed user starts as new, as a created one does. Lane Staging's rows are never touched.
-    if (!assertE2ETarget().ssl) {
-      const sql = e2eDatabase();
-      try { await sql`update profiles set role = null where id = ${candidate.id}`; } finally { await sql.end(); }
-    }
     return { id: candidate.id, email, password };
   }
   throw new Error("[e2e] Clerk is at its user cap and no free lane-e2e user is left to borrow.");
