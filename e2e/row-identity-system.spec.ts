@@ -141,6 +141,8 @@ test("rows and identities keep one contract on every surface", async ({
       }
       await notifications.click();
       await expect(page).toHaveURL(/\/inbox$/);
+      // On a phone, following Inbox closes the sidebar drawer, as every other sidebar link does.
+      if (surface.viewport.width < 640) await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeHidden();
       const notificationRow = page.getByRole("region", { name: "For your information" }).locator("[data-inbox-item]").first();
       await expect(notificationRow).toBeVisible();
       await expectNotificationLanes(notificationRow);
@@ -160,7 +162,6 @@ test("rows and identities keep one contract on every surface", async ({
         { animations: "disabled" }
       );
       await page.keyboard.press("Escape");
-      if (surface.viewport.width < 640) await page.keyboard.press("Escape");
     }
   } finally {
     await cleanupTestWorkspace(user.id);

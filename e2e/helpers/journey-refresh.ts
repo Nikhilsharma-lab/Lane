@@ -1,5 +1,6 @@
 import { expect, type APIResponse, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { journey } from "./journey";
+import { compiledJourneyRead } from "./server-action-identity";
 
 function hasJourneyArguments(request: Request, requestId: string, orgId: string) {
   if (request.method() !== "POST" || !request.headers()["next-action"]) return false;
@@ -10,23 +11,37 @@ function hasJourneyArguments(request: Request, requestId: string, orgId: string)
   } catch { return false; }
 }
 
-/** Discover the compiled read from a real response, never a checked-in action ID. */
+/** The running build's journey read (its manifest, never a checked-in action ID), checked on a real response. */
 export async function observeJourneyReads(page: Page, requestId: string, orgId: string) {
+  const { id: actionId } = await compiledJourneyRead();
   // Finish leaving the previous document before listening: a same-URL reload
   // can otherwise capture its in-flight read, whose CDP response body is gone.
   await page.goto("about:blank");
-  const initial = page.waitForResponse(response => hasJourneyArguments(response.request(), requestId, orgId));
-  await page.goto(`/requests/${requestId}`);
-  const response = await initial;
+  // The page's Flight reader can stop before the end of the response, and the browser then keeps no body to read
+  // back (Network.getResponseBody: "No data found"), so the first read's body is taken as it passes, then delivered.
+  const initial = Promise.withResolvers<{ response: APIResponse; body: string }>();
+  const capture = async (route: Route) => {
+    if (route.request().headers()["next-action"] !== actionId || !hasJourneyArguments(route.request(), requestId, orgId)) return route.continue();
+    try {
+      const fetched = await route.fetch();
+      initial.resolve({ response: fetched, body: await fetched.text() });
+      await route.fulfill({ response: fetched });
+    } catch (error) { initial.reject(error); }
+  };
+  await page.route("**/requests/**", capture);
+  let read: Awaited<typeof initial.promise>;
+  try {
+    await page.goto(`/requests/${requestId}`);
+    read = await initial.promise;
+  } finally { await page.unroute("**/requests/**", capture); }
+  const { response, body } = read;
   expect(response.ok()).toBe(true);
-  const body = await response.text();
   // The two standalone reads have the same arguments. Only the combined action
   // returns both projections and the shared roster state in one Flight response.
   expect(body).toContain('"release":');
   expect(body).toContain('"outcome":');
   expect(body).toContain('"rosterUnavailable":');
   await expect(journey(page).getByRole("button", { name: "Correct release", exact: true })).toBeVisible();
-  const actionId = response.request().headers()["next-action"];
   const matches = (request: Request) => request.headers()["next-action"] === actionId &&
     hasJourneyArguments(request, requestId, orgId);
   let count = 0;
@@ -40,7 +55,8 @@ export async function observeJourneyReads(page: Page, requestId: string, orgId: 
       const before = count;
       const next = page.waitForResponse(response => matches(response.request()));
       await dispatchWindowReturn(page);
-      expect(await (await next).finished()).toBeNull();
+      // Its status, not finished(): the page's Flight reader may stop before the response's end (see above).
+      expect((await next).ok()).toBe(true);
       await page.waitForTimeout(300);
       expect(count).toBe(before + 1);
     },

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
+import { renewSessionRole } from './helpers/test-user';
 import { answerIsItLive, journey, journeyStep } from './helpers/journey';
 import { expectOpenFormSurvivesReturn, observeJourneyReads } from './helpers/journey-refresh';
 
@@ -96,7 +97,8 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
     const client = await assertOwnedOrganization(team.orgId);
     await client.organizations.updateOrganizationMembership({ organizationId: team.orgId, userId: team.users[1].id, role: 'org:admin' });
     await client.organizations.deleteOrganizationMembership({ organizationId: team.orgId, userId: team.users[0].id });
-    const admin = team.pages[1]; await admin.goto(path); await admin.reload();
+    // Now an admin: its session token must say so before Lane offers the handover (journeyViewer).
+    const admin = team.pages[1]; await admin.goto(path); await renewSessionRole(admin, team.orgId); await admin.reload();
     await expect(admin.getByRole('region', { name: 'Journey', exact: true }).getByRole('button', { name: 'Close without a result…' })).toHaveCount(0);
     const release = admin.getByRole('region', { name: 'Journey', exact: true });
     await release.getByRole('button', { name: 'Hand over to a new Requester' }).click();

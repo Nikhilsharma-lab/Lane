@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { expect, type Page, type Route } from "@playwright/test";
-import { assertLocalUndoTarget } from "./server-action-identity";
+import { assertLocalUndoTarget, serverReferenceManifestPath } from "./server-action-identity";
 import type { NavigationRequest } from "./request-navigation";
 
 const lifecycleExports = new Map([
@@ -25,7 +24,7 @@ export async function verifyNativeHistoryFocus(page: Page, request: NavigationRe
   const blockLifecycle = async (route: Route) => {
     const id = route.request().headers()["next-action"];
     if (!id) return route.fallback();
-    const manifest: { node?: Record<string, { filename?: string; exportedName?: string }> } = JSON.parse(await readFile(resolve(process.cwd(), ".next-e2e/dev/server/server-reference-manifest.json"), "utf8"));
+    const manifest: { node?: Record<string, { filename?: string; exportedName?: string }> } = JSON.parse(await readFile(serverReferenceManifestPath(), "utf8"));
     const entry = manifest.node?.[id];
     if (entry?.filename && entry.exportedName && lifecycleExports.get(entry.filename)?.has(entry.exportedName)) {
       refused.push({ filename: entry.filename, exportedName: entry.exportedName });

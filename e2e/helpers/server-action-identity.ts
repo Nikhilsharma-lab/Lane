@@ -12,11 +12,18 @@ export function assertLocalUndoTarget() {
   }
 }
 
+/**
+ * The running app's server action manifest. The Playwright config launches Next dev with .next-e2e in this same cwd,
+ * or with LANE_E2E_START=1 serves the production build in .next (playwright.config.ts); it refuses an
+ * already-running server either way, so the manifest is this checkout's.
+ */
+export function serverReferenceManifestPath() {
+  return resolve(process.cwd(), process.env.LANE_E2E_START === "1" ? ".next/server/server-reference-manifest.json" : ".next-e2e/dev/server/server-reference-manifest.json");
+}
+
 async function compiledRequestAction(kind: "pick-up" | "done" | "undo" | "release" | "journey") {
   assertLocalUndoTarget();
-  // The original Playwright config launches Next dev with .next-e2e in this same cwd,
-  // refuses an already-running server, and compiles the route before this is read.
-  const path = resolve(process.cwd(), ".next-e2e/dev/server/server-reference-manifest.json");
+  const path = serverReferenceManifestPath();
   const source = await readFile(path, "utf8");
   const manifest: { node?: Record<string, { filename?: string; exportedName?: string }> } = JSON.parse(source);
   const exports = {

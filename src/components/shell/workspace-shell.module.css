@@ -46,3 +46,5 @@
   .main { overflow: visible; border: 0; border-radius: 0; }
   .content { overflow: visible; }
 }
+/* The Inbox link's wrapper in the sidebar's notification slot (sidebar-view.tsx) adds no box. */
+.notificationSlot { display: contents; }
