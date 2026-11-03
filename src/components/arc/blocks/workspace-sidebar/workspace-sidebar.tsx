@@ -5,13 +5,12 @@ import { useRouter } from "next/navigation";
 // Licensed Arc Pro workspace-sidebar. Lane data/route adapters are documented in arc-sources.md.
 // Arc Pro source (https://uiarc.dev), used under the Arc Pro license as part of the Lane app.
 // It is not covered by any license of this repository and may not be reused outside Lane.
-import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type ComponentProps, type FormEvent, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactElement, type ReactNode, type RefObject } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type ChangeEvent, type ComponentProps, type FormEvent, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactElement, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { AnimatePresence, LayoutGroup, animate, m, useMotionValue, useReducedMotion, useTransform, type TargetAndTransition, type Transition } from "motion/react";
 import { Check, ChevronRight, CircleHelp, Folder, Keyboard, LoaderCircle, Plus, Search, Settings, SquarePen, UsersRound, X } from "lucide-react";
 import { Button } from "../../button/button";
-import { Input } from "../../input/input";
 import { UserMenu, type UserMenuWorkspaces } from "../../user-menu/user-menu";
 import { ProjectContextMenu } from "@/components/shell/project-context-menu";
 import { motionTokens } from "../../lib/motion-tokens";
@@ -20,8 +19,12 @@ import styles from "./workspace-sidebar.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 import { KeyCap } from "@/components/keyboard/key-caps";
 import { failureWords } from "@/lib/failure-messages";
-import { charactersLeftNote } from "@/lib/character-count";
 import { PROJECT_NAME_MAX } from "@/lib/request-constants";
+import { afterPageLoad } from "@/lib/after-page-load";
+import { popupCode, usePopupCode } from "@/components/popup/lazy-popup";
+
+// Lane #269: the New Project field's Arc input and counter load on their own, after the page (project-name-field.tsx).
+const projectNameField = popupCode(() => import("@/components/shell/project-name-field"));
 
 export type WorkspaceNavigationItem = { id: string; name: string; href: string; icon?: ReactNode };
 export type WorkspaceNavigationGroup = { id: string; name: string; items: WorkspaceNavigationItem[] };
@@ -96,14 +99,15 @@ function useReducedMotionSafe() {
 
 /** Phones get a top bar and an off-canvas drawer instead of a column beside the content. The stylesheet hides the inline column at the same width, so a phone never flashes it before hydration. */
 const PHONE = "(max-width: 640px)";
-const subscribePhone = (change: () => void) => {
-  const query = window.matchMedia(PHONE);
-  query.addEventListener("change", change);
-  return () => query.removeEventListener("change", change);
-};
-function usePhone() {
-  return useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false);
+/** Whether a media query matches, following it live; false on the server and the first render. */
+function useMedia(media: string) {
+  return useSyncExternalStore(change => {
+    const query = window.matchMedia(media);
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
+  }, () => window.matchMedia(media).matches, () => false);
 }
+const usePhone = () => useMedia(PHONE);
 
 /** Lane #269 (A112): whether the account button's name is cut to "…" at its current width. */
 function useNameCut(trigger: RefObject<HTMLButtonElement | null>, name: string, rail: boolean) {
@@ -123,15 +127,7 @@ function useNameCut(trigger: RefObject<HTMLButtonElement | null>, name: string, 
 }
 
 /** Lane #269 (A123): a screen with a keyboard to press shortcuts on: wider than a phone, with a mouse or trackpad. */
-const KEYBOARD_SCREEN = "(min-width: 640px) and (pointer: fine)";
-const subscribeKeyboardScreen = (change: () => void) => {
-  const query = window.matchMedia(KEYBOARD_SCREEN);
-  query.addEventListener("change", change);
-  return () => query.removeEventListener("change", change);
-};
-function useKeyboardScreen() {
-  return useSyncExternalStore(subscribeKeyboardScreen, () => window.matchMedia(KEYBOARD_SCREEN).matches, () => false);
-}
+const useKeyboardScreen = () => useMedia("(min-width: 640px) and (pointer: fine)");
 
 const focusable = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -387,18 +383,24 @@ function Composer({ reduce, rail, onExpand, onCreate }: { reduce: boolean; rail:
     } finally { inFlight.current = false; }
   }
   const idle = state === "idle";
+  const field = usePopupCode(projectNameField, !idle, () => {}, { ahead: true });
+  useEffect(() => afterPageLoad(projectNameField.preload), []);
+  const fieldProps = { id: `${id}-name`, className: styles.composerInput, value, readOnly: state === "commit", placeholder: "Project name", "aria-describedby": `${id}-help`, autoComplete: "off", enterKeyHint: "done" as const,
+    onChange: (event: ChangeEvent<HTMLInputElement>) => { setValue(event.target.value); setError(""); },
+    onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); } } };
   return <m.div className={styles.composerWrap} initial={false} animate={{ opacity: 1 }} transition={reduce ? instant : { duration: duration.standard }}>
     <form ref={form} className={styles.composer} data-state={state} data-invalid={error ? "" : undefined} onSubmit={submit} aria-busy={state === "commit"}>
       <span className={styles.lead} aria-hidden="true">{state === "commit" ? <LoaderCircle /> : <Plus strokeWidth={1.75} />}</span>
       <span className={styles.composerField}>
         {/* Lane #269 (A19, A110): Arc `input` carries the field's error and, near the limit, the shared counter, both under the row. */}
         {idle ? <span className={styles.composerLabel} aria-hidden="true">New Project</span> :
-          <Input ref={input} id={`${id}-name`} label="Project name" hideLabel appearance="plain" className={styles.composerInput} value={value} maxLength={PROJECT_NAME_MAX} readOnly={state === "commit"} placeholder="Project name" aria-describedby={`${id}-help`} autoComplete="off" enterKeyHint="done"
-            error={error || undefined} description={charactersLeftNote(value, PROJECT_NAME_MAX)}
-            onChange={event => { setValue(event.target.value); setError(""); }} onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); } }} />}
+          field ? <field.ProjectNameField ref={input} {...fieldProps} error={error || undefined} />
+            // The field's code is still on its way (or couldn't come): the same field, plainly, with its error under it.
+            : <span><input {...fieldProps} ref={input} maxLength={PROJECT_NAME_MAX} aria-label="Project name" aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-help ${id}-error` : `${id}-help`} />
+              {error && <span id={`${id}-error`} className={styles.composerError} role="alert">{error}</span>}</span>}
       </span>
       {!idle && <button type="submit" className={styles.createButton} disabled={state === "commit"} aria-label="Create Project"><Check strokeWidth={1.75} aria-hidden="true" /></button>}
-      {idle && <RailTip enabled={rail} label="New Project"><button ref={trigger} type="button" className={styles.composerTrigger} onClick={() => { if (rail) onExpand(); open(); }}>New Project</button></RailTip>}
+      {idle && <RailTip enabled={rail} label="New Project"><button ref={trigger} type="button" className={styles.composerTrigger} onPointerEnter={projectNameField.preload} onFocus={projectNameField.preload} onClick={() => { if (rail) onExpand(); open(); }}>New Project</button></RailTip>}
       <span id={`${id}-help`} className={styles.srOnly}>Press Enter to create the Project or Escape to cancel.</span>
     </form>
     {state === "commit" && <span className={styles.srOnly} role="status">Creating Project…</span>}

@@ -103,6 +103,8 @@
 .composerLabel { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .composerInput { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; height: 100%; border: 0; padding: 0; background: transparent; color: var(--foreground); font: inherit; outline: 0; }
 .composerInput:focus-visible { outline: 0; }
+/* While the field's code is still on its way, its error sits where Arc input's would. */
+.composerError { display: block; padding-top: var(--space-2); color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .composerInput::placeholder { color: var(--text-muted); }
 .message { margin: calc(var(--space-1) * 2) calc(var(--space-1) * 3); color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .message p { margin: 0 0 calc(var(--space-1) * 2); }
