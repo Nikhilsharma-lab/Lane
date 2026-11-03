@@ -25,7 +25,8 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
       const title = `Undo lifetime retained Request ${index + 1}`;
       const saved = await createRequestThroughIntake(team, title, { windowDays: 7 });
       await testInfo.attach(`saved-request-${index}`, { body: JSON.stringify(saved), contentType: "application/json" });
-      const sql = postgres(assertE2ETarget().databaseUrl, { ssl: "require", max: 1 });
+      const { databaseUrl, ssl } = assertE2ETarget();
+      const sql = postgres(databaseUrl, { ssl, max: 1 });
       try {
         await sql.begin("read only", async tx => {
           const [row] = await tx`select request_number,title from requests where id=${saved.id} and org_id=${orgId}`;
