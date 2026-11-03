@@ -1,0 +1,21 @@
+/* Adapted from Arc page-header's introInner, titleRow, meta and tabs. */
+.header { width: 100%; max-width: calc(var(--space-1) * 180); min-width: 0; margin-inline: auto; background: var(--surface); }
+.introInner { display: grid; justify-items: start; gap: var(--space-3); padding-block: var(--space-2) var(--space-5); }
+.titleRow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.title { margin: 0; font-family: var(--font-display); font-size: var(--text-2xl); font-weight: var(--weight-medium); letter-spacing: var(--tracking-display); line-height: var(--leading-display); text-wrap: balance; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); color: var(--text-secondary); font-size: var(--text-xs); }
+.metaIcon { display: inline-flex; align-items: center; gap: var(--space-2); }
+.meta strong { color: var(--foreground); font-weight: var(--weight-medium); }
+.tabs { display: flex; overflow-x: auto; gap: var(--space-6); }
+.tab { display: inline-flex; position: relative; flex-shrink: 0; min-height: var(--size-inner-xlarge); align-items: center; gap: var(--space-2); padding: 0; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--text-sm); font-weight: var(--weight-medium); text-decoration: none; cursor: pointer; touch-action: manipulation; user-select: none; }
+.count { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+@media (hover: hover) and (pointer: fine) { .tab:hover { color: var(--foreground); } }
+
+.tab[data-state="active"] { color: var(--foreground); }
+.tab[data-state="active"]::after { content: ""; position: absolute; inset-inline: 0; bottom: 0; height: var(--focus-outline-width); border-radius: var(--radius-pill); background: var(--foreground); }
+.tabPanel { display: grid; min-width: 0; gap: var(--space-6); }
+.tabPanel[hidden] { display: none; }
+@media (max-height: 640px) {
+  .introInner { gap: var(--space-2); padding-block: 0 var(--space-3); }
+  .meta { gap: var(--space-1) var(--space-3); }
+}

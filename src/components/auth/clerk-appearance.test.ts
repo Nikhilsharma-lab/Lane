@@ -48,11 +48,11 @@ describe("clerkOrganizationAppearance", () => {
 
 // Spec #87 (Clerk): every Clerk colour key reads the one theme file, so no Clerk default colour paints.
 describe("clerkNeutralVariables", () => {
-  it("maps every Clerk colour key to a name the theme file defines", () => {
+  it("maps every Clerk colour key to the theme or its compatibility bridge", () => {
     const clerkTypes = readFileSync(join(process.cwd(), "node_modules/@clerk/ui/dist/internal/appearance.d.ts"), "utf8");
     const colourKeys = [...new Set([...clerkTypes.matchAll(/^\s+(color[A-Za-z]+)\??:/gm)].map(match => match[1]))];
     expect(colourKeys).toHaveLength(17);
-    const theme = readFileSync(join(process.cwd(), "src/styles/theme.css"), "utf8");
+    const theme = ["src/styles/theme.css", "src/styles/theme-bridge.css"].map(file => readFileSync(join(process.cwd(), file), "utf8")).join("\n");
     const variables = clerkNeutralVariables as Record<string, string>;
     for (const key of colourKeys) {
       const name = /^var\((--[a-z0-9-]+)\)$/.exec(variables[key] ?? "")?.[1];
@@ -87,12 +87,12 @@ describe("sign-in links", () => {
     expect(clerkEmbeddedAppearance.variables.colorPrimary).toBe("var(--primary)");
   });
 
-  // The token follows --accent-ink, which has light and dark values; the parity e2e checks the
+  // The token follows --lane-accent-strong, which has light and dark values; the parity e2e checks the
   // painted dark link's contrast.
   it("have a link ink in the theme file's Lane additions", () => {
     const theme = readFileSync(join(process.cwd(), "src/styles/theme.css"), "utf8");
     const additions = theme.slice(theme.indexOf("/* Lane additions"));
-    expect(additions).toMatch(/^\s*--link-ink: var\(--accent-ink\);/m);
+    expect(additions).toMatch(/^\s*--lane-link-ink: var\(--lane-accent-strong\);/m);
   });
 });
 

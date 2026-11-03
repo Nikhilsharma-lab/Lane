@@ -45,7 +45,7 @@ describe("Reliable comment posting contract", () => {
   })
 
   it("preserves the draft and exposes an explicit retry after failure", () => {
-    expect(FORM).toContain("value={body}")
+    expect(FORM).toContain("value: body")
     expect(FORM).toContain("try {")
     expect(FORM).toContain("} catch (thrown) {")
     expect(FORM).toContain("} finally {")
@@ -59,7 +59,7 @@ describe("Reliable comment posting contract", () => {
     expect(FORM).toContain('aria-atomic="true"')
     expect(FORM).toContain("Posting comment.")
     expect(FORM).toContain("Comment posted.")
-    expect(FORM).toContain("maxLength={5000}")
+    expect(FORM).toContain("maxLength: 5000")
   })
 
   it("trims and validates the same limits on the server", () => {

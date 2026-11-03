@@ -37,7 +37,7 @@
   position: absolute;
   right: 0;
   bottom: 0;
-  z-index: 2;
+  z-index: var(--lane-layer-raised);
   width: calc(var(--space-1) * 2.5);
   height: calc(var(--space-1) * 2.5);
   border: calc(var(--border-width) * 2) solid var(--surface);

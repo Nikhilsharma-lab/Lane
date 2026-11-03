@@ -4,8 +4,8 @@
   "description": "Collect design requests, clarify the problem, and track the work from Open to Done.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#131413",
-  "theme_color": "#131413",
+  "background_color": "#090909",
+  "theme_color": "#090909",
   "icons": [
     {
       "src": "/icon.svg",

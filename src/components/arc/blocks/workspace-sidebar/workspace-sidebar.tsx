@@ -58,6 +58,7 @@ export interface WorkspaceSidebarProps {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void | Promise<void>;
+  onDeleteProject?: (id: string) => Promise<void>;
   onCreateProject?: (name: string) => Promise<WorkspaceProject>;
   onNavigate?: (target: { workspace: string; id: string; name: string }) => void;
   defaultCollapsed?: boolean;
@@ -192,7 +193,7 @@ function SectionTitle({ id, text, rail, reduce }: { id: string; text: string; ra
   </m.h2>;
 }
 
-type PanelProps = Pick<WorkspaceSidebarProps, "projects" | "groups" | "activeId" | "loading" | "error" | "onRetry" | "renderLink" | "notifications" | "projectTree"> & {
+type PanelProps = Pick<WorkspaceSidebarProps, "projects" | "groups" | "activeId" | "loading" | "error" | "onRetry" | "renderLink" | "notifications" | "projectTree" | "onDeleteProject"> & {
   reduce: boolean; rail: boolean;
   onExpand: () => void;
   onSelect: (id: string, name: string) => void;
@@ -200,7 +201,7 @@ type PanelProps = Pick<WorkspaceSidebarProps, "projects" | "groups" | "activeId"
   onContextMenuChange: (open: boolean) => void;
 };
 
-function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink, reduce, rail, onExpand, onSelect, onCreate, notifications, onContextMenuChange, projectTree = false }: PanelProps) {
+function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink, reduce, rail, onExpand, onSelect, onCreate, notifications, onContextMenuChange, onDeleteProject, projectTree = false }: PanelProps) {
   const group = useId();
   const projectSection = useRef<HTMLElement>(null);
   const projectFolder = useRef<HTMLButtonElement>(null);
@@ -262,7 +263,7 @@ function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink
       </>,
     });
     return <li key={item.id} className={styles.item}>
-      {project ? <ProjectContextMenu href={item.href} label={item.name} onNavigate={() => onSelect(item.id, item.name)} onOpenChange={onContextMenuChange}>{link}</ProjectContextMenu> : <RailTip enabled={rail} label={item.name}>{link}</RailTip>}
+      {project ? <ProjectContextMenu onDelete={onDeleteProject && item.id !== "none" ? () => onDeleteProject(item.id) : undefined} href={item.href} label={item.name} onNavigate={() => onSelect(item.id, item.name)} onOpenChange={onContextMenuChange}>{link}</ProjectContextMenu> : <RailTip enabled={rail} label={item.name}>{link}</RailTip>}
     </li>;
   };
 
@@ -381,7 +382,7 @@ function usePageLock(locked: boolean) {
   }, [locked]);
 }
 
-export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onAccountMenuOpen, help, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onAccountMenuOpen, help, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onDeleteProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
   const reduce = useReducedMotionSafe();
   // Lane #259: the account menu's Lane destinations open inside the app, so Settings loaded ahead shows at once.
   const { push } = useRouter();
@@ -579,7 +580,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
         <div className={styles.stack}>
           <AnimatePresence initial={false}>
             <Panel key={workspace.id} projects={projects} groups={groups} activeId={activeId} reduce={reduce} rail={rail} projectTree={projectTree} onExpand={() => setRail(false)} onSelect={select}
-              loading={loading} error={error} onRetry={onRetry} renderLink={renderLink} onCreate={onCreateProject ? create : undefined} onContextMenuChange={open => { contextMenuOpen.current = open; }} notifications={notifications} />
+              loading={loading} error={error} onRetry={onRetry} renderLink={renderLink} onDeleteProject={onDeleteProject} onCreate={onCreateProject ? create : undefined} onContextMenuChange={open => { contextMenuOpen.current = open; }} notifications={notifications} />
           </AnimatePresence>
         </div>
       </m.div>

@@ -1,15 +1,406 @@
 # Shared Claude / Codex handoff
 
-## November 1 — Request Goal clarity, release in progress
+## November 3 — Approved palette release
 
-Grouped Goal panel, simplified metric guide, hidden native numeric steppers and
-custom pass/fail results are implemented. Decision and checks:
-`docs/design-system/2026-11-01-request-goal-clarity.md`. Migration 0054 adds custom
-answers to the existing v5 validator without rewriting rows. Local application,
-UI, type, design, build and bundle checks pass. Browser proof uses mocked services.
-Staging backup rehearsal is in progress. Production DATABASE_URL is write-only
-in Vercel; the user has been asked to provide it in the ignored private release
-folder. No hosted app release is claimed yet. Unrelated untracked files remain.
+Nikhil explicitly requested production deployment. Release prepared on `codex/lane-palette-release` from current main `8d643870` in `/private/tmp/lane-palette-release`, preserving the original dirty checkout. Ships the approved Lane palette, Request pane/Arc conversation, and guarded Project deletion. Settings/Profile/Members prototypes remain planning only. Full regression: 2,974 passed (one skipped), UI: 1,040 passed; production build, lint, design/source/brand, architecture safety and measured bundle checks pass. See `docs/design-system/2026-11-03-palette-release.md` for scope, bundle waiver and evidence limits.
+
+## November 3 — Existing Settings build tickets refined; blockers retained
+
+Nikhil explicitly chose “keep the existing two tickets and blockers, go ahead and update them”. Updated the bodies of [Settings headings over row groups, and Billing tells the truth while Lane is free](https://github.com/Nikhilsharma-lab/Lane/issues/287) and [Members, Metrics and getting around Settings](https://github.com/Nikhilsharma-lab/Lane/issues/288) with the accepted spec scope and verifiable criteria. Every original body/criterion was preserved; added concrete layout, callback, permissions, persistence, role/pricing reconciliation and verification requirements.
+
+Verified saved bodies, unchanged labels, both OPEN and native blockers unchanged: Settings row groups waits on the Build 7 check/release ticket; Members waits on the entire Settings row-group/Billing ticket. This latest explicit decision supersedes the spec's allowance for earlier partial progression: finishing only frame/Profile does not bypass the whole-ticket Billing gate. Existing Build 8 parent and release gate retained. No duplicate tickets, splits, reparenting or parent-issue edits; no product implementation in this session.
+
+## November 3 — Consolidated Settings build spec published
+
+Nikhil invoked to-spec to turn the completed map into a build spec, reusing existing build tickets and preserving Billing/Metrics obligations. Published [Integrate the accepted Arc Settings, Profile and Members designs](https://github.com/Nikhilsharma-lab/Lane/issues/325), labelled ready-for-agent; saved body and label verified. Existing test seams were already accepted in the implementation-sequence decision, so no repeat approval was requested.
+
+The spec reuses the existing Settings row-group and Members/Metrics build tickets. No duplicate implementation tickets or reparenting. Settings/Profile comes first, Members second; original residual acceptance criteria and Build 8 release gate remain. Cross-links are recorded on both build tickets and the completed map.
+
+Important reconciliation: [Guest becomes the one free role, 2 Free Requests, seats from one](https://github.com/Nikhilsharma-lab/Lane/issues/311) remains a separate approved product change with its existing children. Current runtime still has Guest and Viewer separately. The Settings UI must describe effective shared rules, then reflect read-only Guest and Viewer retirement when those changes land; no fixed four-role fixture or independent authorization model. Whichever change lands second verifies combined controls/guide and pricing explanations. Later user instructions supersede that older spec's assumption of Better Auth before launch: Clerk stays, migration timing and replacement provider are undecided. This correction does not revoke Guest/pricing decisions.
+
+This session published planning artifacts only. No product code, database, membership, deployment or auth migration changes. Read the published spec before implementation; do not treat accepted fixture screenshots as real-app verification.
+
+## November 3 — Settings implementation sequence accepted
+
+Nikhil answered “yes to both” for [Agree the Settings implementation sequence and verification boundary](https://github.com/Nikhilsharma-lab/Lane/issues/323#issuecomment-6596506763). Resolution published and decision closed. All three map children are resolved; no design questions remain inside the accepted destination.
+
+Implementation order: Settings frame/Profile first, then Members. Reuse existing Clerk data/callback adapters and server guards; no auth migration or generic auth framework. The accepted Members role guide stays collapsed at the bottom. Preserve permission flags, paid-seat confirmation, lazy Members mount and drafts across existing in-place Settings switches; Metrics remains a separate route without a new draft-persistence promise.
+
+Handoff pointers are posted to the existing Settings row-group and Members/Metrics build tickets. Their remaining Billing/Metrics obligations and the Build 8 release gate remain open. Required proof: automated loader/action/authorization checks, token checks and production build; real app themes/widths/keyboard/focus/states/offline rollback; controlled local-database and Clerk development test-account checks. Fixture, local and hosted evidence remain distinct. No production implementation, deployment or provider mutations occurred in this planning session.
+
+## November 3 — Members/Invite A accepted with read-only role guide
+
+Nikhil explicitly invoked [Review the Arc Members list and invitation flow](https://github.com/Nikhilsharma-lab/Lane/issues/322).
+Claimed to Nikhilsharma-lab; Nikhil accepted A — Stacked groups. The prior
+Settings/Profile A acceptance is used. Both design decisions are now closed as completed.
+
+Preview: http://127.0.0.1:3232/settings/members?variant=A (server session 63293).
+A = stacked groups, B = invitations beside the list, C = combined directory.
+Source/provenance/verification: `/Users/nikhilsharma/.codex/visualizations/2026/11/02/01a19a52-3374-77f2-bd8c-5e59e18ec977/members-prototype/README.md`.
+Actual Arc Team members/Invite people source was consulted and adapted to Lane's
+single-invite contract. All mutations are fixture-only; no Clerk/network writes.
+Typecheck, lint, build, token audits and documented responsive/interaction checks
+passed within that boundary. Build retains a prototype bundle-size warning.
+Captured locally on `codex/prototype-members-a` under
+`/private/tmp/lane-members-a/prototypes/members/`. No production edits, push or deployment.
+Nikhil also asked about Arc Roles and permissions. Its official source provides an
+editable permission matrix, role duplication and a save bar, which are explicitly
+outside this map's fixed-role scope. Nikhil approved a read-only role guide inside
+Members; it is added as “What each role can do”, with Lane-derived permissions,
+custom-role availability explanation and a horizontally scrollable table on phones.
+Keyboard toggling/scrolling and 390px page fit were checked. No editable permissions.
+Latest hierarchy correction: the role guide is below People, Pending invitations and management controls, collapsed by default. Browser keyboard checks and the final Vite build pass.
+Nikhil explicitly requested tracker closure: [Members resolution](https://github.com/Nikhilsharma-lab/Lane/issues/322#issuecomment-6596197967) published, issue closed completed, and map #320 updated. Production implementation remains separate.
+
+## November 3 — Settings/Profile A accepted; decision closed
+
+The decision [Review the Arc Settings frame and Profile composition](https://github.com/Nikhilsharma-lab/Lane/issues/321)
+is claimed by Nikhilsharma-lab. Nikhil accepted A — compact grouped rows. Three local
+variants are available at http://127.0.0.1:3231/settings/profile?variant=A
+(change A to B or C, or use the bottom arrows). A uses compact grouped rows,
+B a profile summary with open rows, and C section labels beside controls.
+
+Source and evidence: `/Users/nikhilsharma/.codex/visualizations/2026/11/02/01a19a52-3374-77f2-bd8c-5e59e18ec977/settings-prototype/README.md`.
+Vite server exec session: 92610. Actual Arc Settings page/Command source and shared
+Lane components/tokens were used. Build and token audit pass; browser checks cover
+responsive widths, themes, search/focus, simulated role failure/retry, permission
+navigation and lazy Members fixture state. Provider handoffs and saves are simulated.
+This is not signed-in backend verification or production implementation. A is
+captured on local throwaway branch `codex/prototype-settings-profile-a`, commit
+`c518e969`, at `/private/tmp/lane-settings-profile-a/prototypes/settings-profile/`,
+including the compiled dependency snapshot. No push or production code changes.
+Automatic approval review initially blocked the tracker update. Nikhil subsequently explicitly requested closure of both accepted decisions. A concise [Settings/Profile resolution](https://github.com/Nikhilsharma-lab/Lane/issues/321#issuecomment-6596194608) is now published, issue #321 is closed completed, and map #320 records both accepted directions.
+
+## November 3 — Settings and Members Wayfinder map charted
+
+Nikhil confirmed the Arc redesign with small, replaceable provider connections.
+Clerk stays now; neither migration timing nor a replacement provider is decided.
+Keep dedicated Settings navigation/search, Back to Requests, clearer Personal and
+Workspace groups, a searchable Members list with pending invitations alongside it,
+and one Invite people action opening the form. Preserve existing permissions,
+single-invitation behavior, auto-save and Clerk account/security/removal handoffs.
+Use actual Arc source and Lane theme tokens; no new auth framework or features.
+
+Canonical map: [Arc Settings and Members on Lane tokens](https://github.com/Nikhilsharma-lab/Lane/issues/320).
+Native child decisions, linked in review order:
+- [Review the Arc Settings frame and Profile composition](https://github.com/Nikhilsharma-lab/Lane/issues/321).
+- [Review the Arc Members list and invitation flow](https://github.com/Nikhilsharma-lab/Lane/issues/322).
+- [Agree the Settings implementation sequence and verification boundary](https://github.com/Nikhilsharma-lab/Lane/issues/323).
+
+Charting only: no decisions resolved or product files changed. The first prototype
+decision is open, unassigned and unblocked; claim it before work on resumption.
+Existing Settings build tickets remain open, with their Billing/Metrics obligations
+preserved and linked in the map. GitHub connector creation returned 403; repository
+gh access successfully published the map, child issues and native dependencies.
+
+## November 2 — Lane token ownership and hardcoded-value audit
+
+Nikhil asked for every approved Polar role to apply globally, Lane naming and no
+remaining hardcoded product styling. All Lane additions now use `--lane-*` in
+theme.css; theme-bridge.css preserves Arc consumers through value-free aliases.
+Standard tweakcn import/export slots retain their standard names and expose Lane
+aliases. Runtime product code has no `--polar-*` or preview-palette dependency.
+Original Polar capture and manifest remain frozen; current export and guide are
+references/lane/theme-export.css and docs/design-system/lane-tokens.md.
+
+Centralized opacity, stacking layers, icon stroke, text-relative dimensions,
+Intake prose width/leading and filter animation dimensions. Replaced obsolete
+green secondary brand/link/gradient states with the captured blue family. Expanded
+design:check to catch static JS styles, arbitrary utility literals, palette
+utilities, undefined references and JS stagger/blur drift. Mechanical layout,
+responsive thresholds, SVG drawing and Arc animation geometry remain documented
+exceptions; this is not a claim that source contains no numeric literals.
+
+Verified: all 79 approved colour roles in light/dark, frozen source hashes,
+59 design tests, Arc provenance and nine generated brand assets, 1,035 UI tests
+across 97 files, changed-file ESLint, diff check and final production build.
+Signed-in localhost:3230 resolves Lane tokens; Project menu and confirmation
+Cancel/focus return passed without deletion. Shared-component fixture on 3229
+renders the Conversation pane in both themes. Screenshots lane-token-app.png,
+lane-token-pane-dark.png and lane-token-pane-light.png are in the November 2
+visualization directory. Actual app database has no Requests under No Project;
+populated conversation evidence is fixture data, not a backend journey.
+
+Three approved-palette contrast warnings remain: destructive text 3.82:1 in both
+themes and muted-on-muted dark 4.36:1. No colours were altered to conceal them.
+Actual app runs in exec session 11372 with /private/tmp/lane-polar-app/.env.local;
+do not reset its local database. No migrations, hosted changes, commit or deploy.
+
+## November 2 — Project deletion from the left sidebar
+
+Nikhil reported that Projects had no Delete action. Added a visible Arc actions
+button and Delete Project to both the button menu and right-click menu. No Project
+is a built-in filter and has no delete control. Uses PermanentActionConfirmation:
+Cancel receives initial focus, Enter cancels, focus returns to the actions button,
+repeat submits are blocked and failures stay in the dialog for retry. All new CSS
+uses existing theme tokens. Admins/Members only; the server derives workspace and
+role from Clerk and rejects Guests, Viewers, invalid IDs and mismatched workspaces.
+
+Deletion locks the workspace-scoped Project and performs one transaction: move its
+Requests to No Project, remove only its Project-scoped label keys/catalogue entries,
+then delete the Project. Workspace labels, Request content and other workspaces
+remain unchanged. Confirmation discloses label removal and permanence. Shared
+catalogues retain deletion tombstones so stale reads/local additions cannot bring
+the deleted Project or labels back. An active deleted Project filter becomes No
+Project; the action revalidates the app layout. No schema changes or new routes.
+
+Verified: 106 focused UI/action tests; one real local-database integration test
+with isolated disposable fixtures (removed afterwards), covering preservation,
+workspace isolation and repeated confirmation; ESLint, production build including
+TypeScript, design/source/brand contracts and diff check. Existing palette contrast
+warnings remain unchanged. Signed-in browser on localhost:3230 verified the visible
+menu, confirmation, initial Cancel focus, keyboard cancellation/focus return and
+keyboard reopening. Existing Test Project was not deleted. Screenshot:
+project-delete-menu.png in the November 2 visualization directory. Rebuilt local
+server now runs in exec session 1567 with the same scratch env/local DB; do not
+reset that database. No hosted changes, commit, push or deployment.
+
+
+## November 2 — Approved preview wired into the actual app
+
+Nikhil approved wiring the reviewed result into the actual app. Requests and Inbox
+already use the edited shared DataTable/RequestPeek/RequestDetailPane/CommentThread
+components with real loaders, actions and role guards. Promoted every approved
+Polar colour role into src/styles/theme.css: complete export through theme:paste,
+then matching Lane additions in place. Original source OKLCH replaces browser Lab
+serialization; no per-screen palette, preview attributes or fixture handlers enter
+product code. Spacing, type, radii and motion retain the reviewed values. Regenerated
+brand assets from the same theme. Added light/dark parity checks for all mapped roles
+to design:check. Frozen capture remains in references/polar with a separate promotion
+receipt. Updated DESIGN.md and theme/provenance docs to mark actual-app adoption.
+Removed the fixture's extra palette stylesheet import and comparison switch: it now
+uses the product stylesheet directly.
+
+Verified: 93 focused Request/Inbox UI tests, 51 design tests, token/source/brand
+contracts, ESLint, diff check and production build with TypeScript passed. Design
+check still reports the approved palette's three contrast warnings (destructive
+button text light/dark 3.82:1; muted text on muted dark 4.36:1); no palette values
+were silently changed. Built actual app on localhost:3230, using a private scratch
+env at /private/tmp/lane-polar-app/.env.local and the existing local database
+lane_test_lane_27ba263223d9e723b14e. Its sign-in page renders #090909 canvas, #111
+surface and Polar blue with no data-preview-palette attribute. Screenshot:
+actual-app-polar-login.png in the November 2 visualization directory.
+
+Signed-in backend verification remains pending: 99 existing lane-e2e Clerk users
+were inspected read-only; the 15 with memberships have no organization matching the
+local database. No users, organizations, memberships, database rows, migrations or
+hosted data were changed. No sign-in submission, full E2E run, commit, push or deploy.
+Port 3000 is the separate marketing site and was left alone. The actual built app
+runs in exec session 60364; fixture remains on 3229. Do not reset the local database
+while the app server is in use.
+
+## November 2 — Tighter Request selection spacing
+
+Removed the empty priority slot before Done Request codes and moved the existing
+priority control after the title on other rows. Checkbox/code/status/title now
+share consistent starting columns. Row gap uses --space-1; the shared --spacing
+base matches Polar's captured Tailwind baseline. No visual literals added.
+Documented spacing compatibility in polar-preview-colours.md. Browser measured
+a 10px visible checkbox-to-code gap, with selection working; checking selection
+cleared. Screenshot: request-row-spacing.png in the November 2 visualization.
+20 existing row/keyboard tests, ESLint, design checks and production build passed.
+
+## November 2 — Arc reference review, pane tabs and Polar token docs
+
+Re-read page-header, timeline, comment-thread and licensed ai-side-panel sources.
+Removed redundant section dividers in the preview, including the Journey/Activity
+component's own top rule. The strip edge and actual Arc thread/composer boundaries
+remain. Header navigation now uses Arc page-header's controlled Radix tabs;
+Overview, Journey, Activity and Conversation show one panel. Hidden panels stay
+mounted for drafts. Full-page order and the shared Journey loader are preserved.
+Pane opening/replacement and tab changes are immediate. Timeline row padding and
+marker offset now leave a visible vertical connector. Comment has an associated
+label and password-manager ignore hints; posting logic is unchanged.
+
+Added @radix-ui/react-tabs (the primitive used in the Arc reference), component
+composition rules and a Polar token reference indexed from DESIGN.md. Frozen
+capture evidence includes all 150 variables (106 Polar, 44 Tailwind), their source
+comparison, the exact preview mapping and SHA-256 manifest. Product theme values
+are unchanged. This capture covers the signed-in dark Metrics page, not all Polar
+screens or a verified deployed commit.
+
+Verified in the actual-component local fixture at its measured 1710x951 viewport:
+light/dark Polar and Lane palettes; different-row replacement; same-row close;
+Arrow/Home/End tab keys; Escape returning focus to the row; drafts retained across
+tabs and Request changes; fixed header when Tab reaches Post comment; no page or
+pane horizontal overflow. Checking draft cleared, nothing posted. No app console
+errors observed (Grammarly extension errors are unrelated). Default viewport
+settings and Polar dark restored; Conversation left open. Evidence in the November
+2 visualization directory: request-pane-refined-dark.png, -light.png and -activity.png.
+
+71 focused UI tests, typecheck, focused ESLint, 49 design contract tests, Arc source
+hashes, brand checks and production build passed. The initial sandboxed build
+stalled; the authorized unsandboxed rerun completed. E2E selectors were updated
+for actual tabs but the database-backed suite was not run. Viewport override was
+ignored (measured width stayed 1710), so this turn does not claim fresh narrow/phone
+coverage. No authenticated posting, backend mutation or deployment was performed.
+
+## November 2 — Actual Arc Conversation and alignment correction
+
+Replaced the hand-styled conversation with the complete official Arc CommentThread
+registry component in both full Request detail and the split preview. Documented
+optional readOnly, composer and renderTimestamp extensions preserve Lane's
+existing optimistic posting, per-Request drafts, recovery and Viewer permissions.
+Unsupported thread mutations are hidden; static comments skip height observers
+and arrival animation. The composer uses Arc's avatar, inline field and action
+row. Comment and composer avatars share an inset. Corrected the header status
+icon baseline, timeline text/time alignment and icon stroke weight. The filter
+bar now stacks within a narrow list container instead of overlapping its count.
+
+Verified in the local fixture at 1710x951 and 1024x600, light and dark: different
+Requests replace the pane, same-row clicking closes it, drafts survive switching,
+tabbing to Post comment keeps the pane top fixed, and the narrow layout has no
+horizontal overflow. Checking draft cleared; nothing posted. Default viewport
+and Polar dark restored. Screenshots: request-pane-arc-thread-dark.png and
+request-pane-arc-thread-light.png in the November 2 visualization directory.
+
+Typecheck, focused ESLint, 70 focused UI tests, 49 design contract tests, source
+hashes and brand checks passed. Browser console returned no errors. These are
+fixture/shared-component checks, not a signed-in local-database posting check,
+full E2E run, production build or deployment.
+
+## November 2 — Emil craft pass on the Request preview
+
+Applied the relevant Emil review, foundations, typography, surfaces, colour,
+forms, accessibility, polish, component, motion, performance and code-cleanup
+principles to the existing Arc pane. Section links now have a persistent current
+indicator and keyboard focus destination. Activity uses smaller markers/icons,
+tighter spacing and no entrance reveal for existing history. The comment composer
+has one input frame, a visible label in the pane, associated errors, platform key
+caps and touch-sized type. Both chunk and data loading share a header-shaped
+skeleton with Close in the normal strip position. Polar preview secondary text
+now uses polar-400 in dark and gray-600 in light; the product palette is unchanged.
+
+Browser evidence before the Mac locked: another Request replaces the pane; a
+comment draft survives switching away and back; Activity/Conversation anchors
+focus their headings and mark the selected section; activity icons are 14px and
+the input is 80px; the 1024x600 layout has no horizontal overflow. A further
+keyboard check reproduced an outer-frame scrolling bug that moved the header
+upward when Tab reached Post comment. Changed the non-scrolling dock wrappers
+from overflow:hidden to overflow:clip and added a short-window E2E assertion.
+After manual unlock, the final browser recheck passed at 1024x600: header top
+remained 164px before and after Tab focused Post comment, dock scrollTop stayed
+zero, and there was no horizontal overflow. Rechecked different-row switching
+and same-row close. Restored the default 1710x951 viewport and dark mode. Saved
+request-pane-emil-light.png and request-pane-emil-dark.png in the November 2
+visualization directory. No comment was posted; the checking draft was cleared.
+
+Typecheck, focused ESLint, 95 focused UI tests (vitest.ui.config.ts, no database),
+49 design contract tests, source hashes and brand checks pass. The E2E spec has
+not been executed. No signed-in local-database check or deployment is claimed.
+
+## November 2 — Request switching and Arc pane content
+
+Fixed a reproduced pointer-focus/click race: native focus changed the active row
+and the preview before click, so clicking a different Request then closed it.
+Preview following now comes from explicit keyboard navigation; pointer selection
+only toggles in the row click handler. Another row replaces content, the same row
+closes it, and focusing/clicking another row's checkbox leaves the preview alone.
+Added the different-row cases to the existing E2E spec (spec still unrun).
+
+The real Request pane now uses a fixed page-header adaptation with section links,
+the official Arc Timeline registry source for saved chronological activity, and
+comment-thread article/composer layout adapted onto Lane's existing draft/posting
+controller. Arc ai-side-panel supplies dock geometry only. Journey actions remain
+in Journey; no AI, replies, reactions, resolve or backend operations were added.
+Section navigation scrolls only the inner body and focuses its heading. Polar
+colours remain fixture-only. Source provenance and hashes are in the Arc ledger.
+
+Browser proof at port 3229: different-row switching, repeat-click close, checkbox
+independence, draft restoration, Space/J/Escape, fixed header after Activity jump,
+light/dark, 768/1024 desktop fit and restored full desktop with 208px sidebar.
+Screenshots: `request-pane-rich-dark.png` and `request-pane-rich-light.png` in the
+November 2 visualization directory. Typecheck, focused lint, 95 UI tests across
+eight files and design/source/brand checks pass. An initial default Vitest command
+stopped at its machine-identity lock before DB reset; the successful runs used
+`vitest.ui.config.ts` (no database setup). No full build, signed-in local-DB walk,
+end-to-end execution or deployment is claimed.
+
+## November 2 — Polar preview palette and sidebar
+
+The port 3229 fixture now composes the actual SidebarView/WorkspaceSidebar and
+InboxBell, with the real PageStrip above Requests. The missing left navigation
+was a fixture omission. Preview-only `polar-preview.css` maps the extracted
+Polar tokens onto existing Lane colour roles; the product theme is unchanged.
+The top bar switches Polar/Lane and dark/light, retaining the open Request.
+Sidebar Requests/Inbox navigation works through the local router adapter.
+Browser verified dark canvas #090909, panes #111111, divider #212121, a 208px
+sidebar and non-overlapping list/detail; both themes fit without horizontal
+overflow. Colours and fixture data are local only. Mapping and before/after
+declarations: `pane/polar-mapping.json` in the November 2 visualization directory.
+
+## November 2 — Request split pane and Polar colour reference (local)
+
+User requested consistent row clicks, repeat-click close and an Inbox-style in-flow
+detail pane. Code/title/blank row areas now toggle one pane; explicit property,
+selection and menu controls retain their actions. Copy code stays in the menu and
+detail strip. Requests splits list/detail 45/55 with independent scrolling and
+the toolbar in the list column; Inbox uses the same dock and repeat-item toggle.
+Arc ai-side-panel's inspected dock source informed the layout; existing Lane
+Journey, Conversation, permissions, loaders and draft memory remain shared.
+
+Local actual-component fixture at `http://127.0.0.1:3229/` passed pointer, keyboard,
+draft-retention, non-overlap and responsive checks; Inbox's centering inheritance
+was corrected and its pane bounds now equal the slot. TypeScript, changed-file
+lint, 59 UI tests and design contracts pass. Full lint fails on 29 existing
+backup-script require-import errors. Added E2E assertions are unrun. No signed-in
+local-DB walk, production build or deployment is claimed. Prior handoff edits and
+unrelated untracked files were preserved.
+
+Polar's signed-in dark Metrics page yielded 150 colour variables: 106 resolve
+through current public globals.css and 44 through its imported Tailwind 4.3.3
+theme. All 150 match within one sRGB byte. Other routes, hidden states and light mode
+were not inspected. Lane's palette was not changed. Full CSV/JSON/source/report
+and pane screenshots: `/Users/nikhilsharma/.codex/visualizations/2026/11/02/01a19a52-3374-77f2-bd8c-5e59e18ec977/`.
+Scope and evidence: `docs/superpowers/plans/2026-11-02-request-split-pane.md`.
+
+## November 1 — Preview/app style parity checked
+
+Port 3218 now uses the actual `NewRequestProvider` and its layout providers,
+adaptive dialog, motion and loading hooks. Preview controls sit outside the modal.
+All preview HTML uses the app's `lane`/`semantic` root flags; Metrics demo CSS is
+scoped; Geist and Geist Mono files are local assets rather than mutable `.next`
+paths. The mock library dialog was removed and its link opens the Metrics preview.
+Compared signed-in production at 1055×918 and 390×844 in dark/light: 25 desktop
+and 26 phone Request controls, dropdown surfaces, numeric/guardrail/pass-fail
+fields and both Create metric steps match measured typography/layout. Desktop
+empty Request bounds match exactly. Different sample names have different
+intrinsic widths. Preview data/actions/background remain simulated. No product
+source or deployment changed, no production records saved; production theme
+restored to Dark. Evidence: `metrics/parity-audit.json` in the October 31
+visualization directory; screenshot `/private/tmp/lane-preview-parity-fixed.png`.
+
+## November 1 — Local preview toolbar spacing corrected
+
+The metrics Vite preview on port 3218 omitted Tailwind utilities from Lane's source:
+the Request properties row computed to `gap: normal`, while signed-in production
+correctly computed to `8px`. Set `tailwind({base:repo})` in the preview's
+`vite.config.mjs` under the October 31 visualization directory. Desktop and 390px
+browser checks now show 8px gaps, including wrapped rows; light theme has no
+horizontal overflow. Product source and production deployment are unchanged.
+
+## November 1 — Request Goal clarity released
+
+PR319 merged as `ca8e65db`; grouped Goal panel, simpler create-metric questions,
+hidden native numeric steppers and custom pass/fail results are live at
+`https://app.uselane.app`. Production `dpl_HYyhPfR9PhuNFVXcJtTCp8yeUGMM` and staging
+`dpl_9aL7s2eN2Fc5mSHXPHG5LRG97p2v` match all 1,394 uploaded source files of reviewed
+`cf3b1161`; its tree equals the merge. CI41319919786 passed.
+
+Migration 0054 passed local tests, restored-backup rehearsals, then staging and
+production apply. All 24 staging and 25 production table counts/content hashes
+were unchanged. Backups and receipts: `backups/custom-pass-fail-2026-11-01/`.
+Temporary production connection removed. Existing production-only waitlist/RLS
+objects were preserved; the restore's only schema differences were reviewed PG
+17.6→17.10 associative-expression formatting and the version comment.
+
+Signed-in production: custom pass/fail choices and three questions, Create metric
+examples and next-step questions inspected without saved records or AI calls.
+Local actual-component browser checks cover keyboard, phone themes, numeric
+validation and custom review/edit. Persistence/search/signed review are covered
+by local integration tests. Release receipt and screenshots:
+`/private/tmp/lane-goal-release/release.json`. No runtime errors in the checked
+release window. Unrelated untracked files remain.
 
 ## November 1 — Guided Metrics approved
 

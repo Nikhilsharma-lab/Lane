@@ -2,16 +2,19 @@
 
 import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
-import { useEffect, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { useEffect, useId, useRef, useState, type TextareaHTMLAttributes } from "react";
 import { Button } from "@/components/arc/button/button";
 import { Alert } from "@/components/arc/alert/alert";
-import { Textarea } from "@/components/arc/textarea/textarea";
+import { KeyCap } from "@/components/keyboard/key-caps";
+import { usePlatform } from "@/components/arc/shortcut-recorder/shortcut-recorder";
+import { CommentThreadAvatar } from "@/components/arc/comment-thread/comment-thread";
+import threadStyles from "@/components/arc/comment-thread/comment-thread.module.css";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { useOptionalDetailRequest } from "@/components/requests/detail-context";
 import { useDetailSession } from "@/components/requests/list-view-state";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
 import { addComment } from "./actions";
+import styles from "./comment-form.module.css";
 
 type SubmissionState = "idle" | "posting" | "error" | "success";
 
@@ -36,6 +39,8 @@ export function CommentForm({
   /** The name the pending comment shows; defaults to the Request detail's viewer. */
   author?: string;
 }) {
+  const fieldId = useId();
+  const platform = usePlatform();
   const overlay = usePendingMutationWriter();
   const detail = useOptionalDetailRequest();
   const { commentDrafts } = useDetailSession();
@@ -113,101 +118,59 @@ export function CommentForm({
     }
   }
 
-  return (
-    <form
-      ref={formRef}
-      onSubmit={handleSubmit}
-      className="space-y-2"
-      aria-busy={pending || undefined}
-    >
-      <Textarea
-        label="Comment"
-        hideLabel
-        aria-label="Comment"
-        aria-describedby="comment-posting-shortcut"
-        name="body"
-        placeholder="Add a comment..."
-        rows={2}
-        required
-        maxLength={5000}
-        value={body}
-        onChange={(event) => {
-          setBody(event.target.value);
-          keepDraft(event.target.value);
-          // Typing while a post is in flight starts the next draft; the post keeps its lock.
-          if (submissionState === "error" || submissionState === "success") {
-            setSubmissionState("idle");
-            setError(null);
-          }
-        }}
-        className="min-h-16 resize-none"
-        onKeyDown={(event) => {
-          if (
-            event.key === "Enter" &&
-            (event.metaKey || event.ctrlKey) &&
-            !submissionLock.current &&
-            !empty
-          ) {
-            event.preventDefault();
-            formRef.current?.requestSubmit();
-          }
-          // Plan item 2.5: Esc keeps the draft and leaves the box; a second Esc returns to Requests.
-          if (event.key === "Escape" && !event.nativeEvent.isComposing) {
-            event.preventDefault();
-            event.currentTarget.blur();
-            document.getElementById("conversation-heading")?.focus({ preventScroll: true });
-          }
-        }}
-      />
-      {error && (
-        <div id="comment-posting-error">
-          <Alert tone="danger" title="Action failed">
-            {error}
-          </Alert>
-        </div>
-      )}
-      <p
-        id="comment-posting-status"
-        className="sr-only"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        {pending
-          ? "Posting comment."
-          : submissionState === "success"
-            ? "Comment posted."
-            : ""}
-      </p>
-      <div className="flex items-center justify-between gap-3">
-        <span
-          id="comment-posting-shortcut"
-          className="sr-only"
-        >
-          Press Command or Control plus Enter to post.
-        </span>
-        <span
-          aria-hidden="true"
-          className="hidden text-xs text-muted-foreground sm:inline"
-        >
-          ⌘/Ctrl + Enter to post
-        </span>
-        {/* Plan item 2.5 (decision D8): the strip's action is the page's one filled button. */}
-        <Button
-          type="submit"
-          variant="secondary"
-          size="sm"
-          disabled={empty && !pending}
-          loading={pending}
-          className="ml-auto"
-        >
-          <Send
-            aria-hidden="true"
-            data-icon="inline-start"
-          />
+  const fieldProps: TextareaHTMLAttributes<HTMLTextAreaElement> = {
+    "aria-label": "Comment",
+    "aria-invalid": Boolean(error) || undefined,
+    "aria-describedby": error ? "comment-posting-shortcut comment-posting-error" : "comment-posting-shortcut",
+    id: fieldId,
+    autoComplete: "off",
+    name: "body",
+    placeholder: "Add a comment…",
+    rows: 1,
+    required: true,
+    maxLength: 5000,
+    value: body,
+    onChange(event) {
+      setBody(event.target.value);
+      keepDraft(event.target.value);
+      if (submissionState === "error" || submissionState === "success") {
+        setSubmissionState("idle");
+        setError(null);
+      }
+    },
+    onKeyDown(event) {
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing && !submissionLock.current && !empty) {
+        event.preventDefault();
+        formRef.current?.requestSubmit();
+      }
+      if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+        event.preventDefault();
+        event.currentTarget.blur();
+        document.getElementById("conversation-heading")?.focus({ preventScroll: true });
+      }
+    },
+  };
+
+  return <form ref={formRef} onSubmit={handleSubmit} className={styles.form} aria-busy={pending || undefined}>
+    <div className={threadStyles.composer}>
+      <CommentThreadAvatar author={{ id: detail?.viewer.id ?? requestId, name: authorName }} />
+      <div className={threadStyles.fieldWrap}>
+        <label htmlFor={fieldId} className="sr-only">Comment</label>
+        <textarea {...fieldProps} data-1p-ignore="" data-lpignore="true" className={threadStyles.field} />
+      </div>
+      <div className={threadStyles.composerActions}>
+        <Button type="submit" size="sm" loading={pending} disabled={empty && !pending}>
           {submissionState === "error" ? "Try again" : "Post comment"}
         </Button>
       </div>
-    </form>
-  );
+    </div>
+    {error && <div id="comment-posting-error"><Alert tone="danger" title="Action failed">{error}</Alert></div>}
+    <p id="comment-posting-status" className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {pending ? "Posting comment." : submissionState === "success" ? "Comment posted." : ""}
+    </p>
+    <span id="comment-posting-shortcut" className="sr-only">Press Command or Control plus Enter to post.</span>
+    <span aria-hidden="true" className={styles.shortcut}>
+      <KeyCap>{platform === "mac" ? "⌘" : "Ctrl"}</KeyCap><KeyCap>↵</KeyCap> to post
+    </span>
+  </form>;
 }

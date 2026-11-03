@@ -24,6 +24,8 @@ export type RequestGridOptions = {
   announce: (text: string) => void
   /** Plan item 2.12: Space on a Request row previews it. Returns false when the preview is not available (phones). */
   onPeek?: (id: string) => boolean
+  /** Keyboard movement follows an open preview; pointer focus on a control does not. */
+  onNavigate?: (id: string) => void
 }
 
 /** Plan item 2.12: the open preview beside the list. J and K pressed in it move the list from its active row. */
@@ -35,7 +37,7 @@ const PEEK = "[data-request-peek]"
  * has tabIndex 0; a move re-renders two rows and focuses after the commit, so
  * the shared Arc ring (which skips tabindex="-1") always draws.
  */
-export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, isCollapsed, setCollapsed, toggleSelected, page, announce, onPeek }: RequestGridOptions) {
+export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, isCollapsed, setCollapsed, toggleSelected, page, announce, onPeek, onNavigate }: RequestGridOptions) {
   const [active, setActiveState] = useState<{ key: GridKey; index: number } | null>(null)
   const [focusTick, setFocusTick] = useState(0)
   const pendingFocus = useRef<GridKey | null>(null)
@@ -92,7 +94,11 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
     const target = keysForPage(index)
     const key = edge === "first" ? target[0] : target[target.length - 1]
     page.go(index)
-    if (key) focusKey(key, edge === "first" ? 0 : target.length - 1)
+    if (key) {
+      focusKey(key, edge === "first" ? 0 : target.length - 1)
+      const id = requestIdOf(key)
+      if (id) onNavigate?.(id)
+    }
     announce(`Page ${index + 1} of ${page.count}.`)
   }
 
@@ -100,7 +106,11 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
   const move = (key: GridKey, command: "next" | "previous" | "first" | "last") => {
     const target = nextKey(keys, key, command)
     if (!target) return false
-    if ("key" in target) focusKey(target.key)
+    if ("key" in target) {
+      focusKey(target.key)
+      const id = requestIdOf(target.key)
+      if (id) onNavigate?.(id)
+    }
     else if (target.edge === "next-page" && page.index + 1 < page.count) crossPage(page.index + 1, "first")
     else if (target.edge === "previous-page" && page.index > 0) crossPage(page.index - 1, "last")
     return true
@@ -128,7 +138,11 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
         if (isCollapsed(group)) toggleGroup(group, false)
         else {
           const first = keys[keys.indexOf(key) + 1]
-          if (first && !isGroupKey(first)) focusKey(first)
+          if (first && !isGroupKey(first)) {
+            focusKey(first)
+            const id = requestIdOf(first)
+            if (id) onNavigate?.(id)
+          }
         }
         break
       }

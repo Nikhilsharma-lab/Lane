@@ -1,7 +1,7 @@
 "use client"
 
-import type { ReactNode } from "react"
-import { Avatar } from "@/components/arc/avatar/avatar"
+import { useMemo, type ReactNode } from "react"
+import { CommentThread } from "@/components/arc/comment-thread/comment-thread"
 import { LocalTime } from "./local-time"
 import { useDetailRequest } from "./detail-context"
 import type { RequestComment } from "./detail-view"
@@ -20,28 +20,23 @@ export type ConversationComment = RequestComment
  * the text.
  */
 export function DetailConversation({ comments, children }: { comments: ConversationComment[]; children: ReactNode }) {
-  const { request } = useDetailRequest()
+  const { request, viewer } = useDetailRequest()
   const shown = usePendingComments(request.id, comments)
+  const threadComments = useMemo(() => shown.map(comment => ({
+    id: comment.id,
+    author: { id: comment.id, name: comment.authorName ?? "Unknown member" },
+    body: comment.body,
+    createdAt: "pending" in comment && comment.pending === "sending" ? "Sending…" : comment.createdAt.toISOString(),
+  })), [shown])
   return <section id="conversation" aria-labelledby="conversation-heading" className={styles.section}>
-    <div className={styles.sectionHeader}>
-      <h2 id="conversation-heading" tabIndex={-1} className={styles.sectionHeading}>Conversation</h2>
-      {shown.length > 0 && <span className={styles.sectionCount}>{shown.length}</span>}
-    </div>
-    {shown.length ? <ul aria-label="Request comments" className={styles.comments}>{shown.map(comment => {
-      const author = comment.authorName ?? "Unknown member"
-      const pending = "pending" in comment ? comment.pending : null
-      return <li key={comment.id} className={styles.comment} data-pending={pending ?? undefined}>
-        <Avatar name={author} size="sm" aria-hidden="true" />
-        <div className={styles.commentBody}>
-          <div className={styles.commentMeta}>
-            <span className={styles.commentAuthor}>{author}</span>
-            {pending === "sending" ? <span className={styles.commentTime}>Sending…</span>
-              : <LocalTime iso={comment.createdAt.toISOString()} className={styles.commentTime} />}
-          </div>
-          <p className={styles.commentText}>{comment.body}</p>
-        </div>
-      </li>
-    })}</ul> : children ? null : <p className={styles.secondaryText}>No comments yet.</p>}
-    {children}
+    <h2 id="conversation-heading" tabIndex={-1} className={styles.sectionHeading}>Conversation</h2>
+    <CommentThread
+      comments={threadComments}
+      currentUser={viewer}
+      readOnly
+      composer={children ?? null}
+      renderTimestamp={comment => comment.createdAt === "Sending…" ? comment.createdAt : <LocalTime iso={comment.createdAt} />}
+      labels={{ thread: "Request comments", empty: "No comments yet." }}
+    />
   </section>
 }
