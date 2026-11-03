@@ -23,6 +23,7 @@ import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
 import { useSidebarPeek } from "./use-sidebar-peek";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
+import { JumpBar } from "./jump-bar";
 import { useShellOpener } from "./shell-openers";
 import styles from "./workspace-shell.module.css";
 
@@ -56,6 +57,8 @@ const noProjects: ProjectOption[] = [];
 const unavailableSearch = async (): Promise<WorkspaceSearchResponse> => ({ success: false, error: { code: "search_failed", message: "Search is unavailable in this preview." } });
 // Plan item 2.0: each page's strip carries the expand control, so phones keep a way into navigation.
 const expandButton = <SidebarExpandButton />;
+// #268: the way into ⌘K for mouse users, under the account row.
+const jumpBar = <JumpBar />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
 export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, savedViews = noViews }: SidebarViewProps) {
@@ -197,7 +200,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>
       <div className={styles.sidebarPanel} data-sidebar-panel="">
       <WorkspaceSidebar className={styles.sidebar} layoutManaged forceDesktopLayout projectTree workspace={{ id: "current", name: workspaceName, initial: workspaceName.trim().slice(0, 1).toUpperCase() || "L" }}
-        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={membersHref} onAccountMenuOpen={loadSettingsAhead} canCompose={role !== "viewer"} help={FIRST_RUN_HELP} onSignOut={onSignOut}
+        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={membersHref} onAccountMenuOpen={loadSettingsAhead} canCompose={role !== "viewer"} help={FIRST_RUN_HELP} accountAccessory={palette ? jumpBar : undefined} onSignOut={onSignOut}
         groups={groups} projects={[...projects.map(item => ({ ...item, href: requestListHref(filter, item.id) })), { id: "none", name: "No Project", href: requestListHref(filter, "none") }]}
         activeId={searchOpen ? "search" : active} currentPage={searchOpen ? "Search" : page ?? section} loading={projectsLoading} error={projectsError} onRetry={onRetryProjects}
         onSearch={openSearch} searchActive={searchOpen}

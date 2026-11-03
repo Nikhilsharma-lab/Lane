@@ -337,14 +337,15 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   (`issue_intake__status__in=[0, 2, -2]` in notification views). Trigger: decision to accept
   non-invited submissions.
 
-## COMMAND PALETTE BUTTON — when phone or mouse users need the palette
+## COMMAND PALETTE BUTTON — when phone users need the palette
 
-- **A visible "Jump to… ⌘K" button.** What: a button in the shell (the sidebar header or the page strip)
-  that opens the ⌘K command palette, with its key hint, so people on a phone or using only a mouse can reach
-  it. Why deferred: spec #101 (Q14) adds no new button. Everything the palette offers stays reachable through
-  the sidebar, the Request buttons and the row menus, and phones have no ⌘K. Trigger: usability rounds or
-  support show people looking for one place to type what they want on a phone or with a mouse, or the shell
-  is redesigned. — spec #101 (Q14), recorded by #107, 2026-10-22.
+- **A phone way into the ⌘K palette.** What: a button or bar on phones that opens the command palette.
+  Why deferred: desktop got its **Jump to… ⌘K** bar under the account row in Build 4 (#268, from #239 and
+  #230 item 2), shown only with the sidebar expanded. Phones keep the Search button and their usual buttons,
+  because two search-like boxes would confuse on a small screen, and everything the palette offers stays
+  reachable through the navigation, the Request buttons and the row menus. Trigger: usability rounds or
+  support show phone users looking for one place to type what they want, or the phone shell is redesigned.
+  — spec #101 (Q14), recorded by #107, 2026-10-22; narrowed to phones by #268, 2026-11-02.
 
 ## CACHE COMPONENTS — when Build 9's re-measure still misses the speed targets
 

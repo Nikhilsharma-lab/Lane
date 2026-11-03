@@ -40,7 +40,7 @@ function renderConsumer(children: ReactNode) {
 
 it("the actual palette status callback edits the named view, while Project/search/list choices depart and another saved view swaps identity", () => {
   const closed = vi.fn()
-  const app = renderConsumer(createElement(CommandPalette, { open: true, onOpenChange: closed, returnFocusRef: { current: null }, orgId: "org", role: "member", viewer: { id: "person", name: "Alex" }, projects: [{ id: "project", name: "Project" }] }))
+  const app = renderConsumer(createElement(CommandPalette, { open: true, onOpenChange: closed, returnFocusRef: { current: null }, pathname: "/", takeTypeahead: () => "", orgId: "org", role: "member", viewer: { id: "person", name: "Alex" }, projects: [{ id: "project", name: "Project" }] }))
   const saved = { id: "saved", name: "My saved view", filters: { status: "open" as const, project: "none" } }
   app.navigation.selectList({ ...saved.filters, savedView: saved.id })
   const option = captured.options.get("view:done")

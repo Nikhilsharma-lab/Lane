@@ -48,6 +48,8 @@ export interface WorkspaceSidebarProps {
   onAccountMenuOpen?: () => void;
   /** Lane #217: a help link in the account menu (the first-run guide). */
   help?: { label: string; href: string };
+  /** Lane #268: a control under the account row (Lane's Jump to… bar). */
+  accountAccessory?: ReactNode;
   /** Lane #210: false hides the New Request control for someone who can't file (a Viewer). */
   canCompose?: boolean;
   onSignOut?: () => void | Promise<unknown>;
@@ -381,7 +383,7 @@ function usePageLock(locked: boolean) {
   }, [locked]);
 }
 
-export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onAccountMenuOpen, help, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onAccountMenuOpen, help, accountAccessory, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
   const reduce = useReducedMotionSafe();
   // Lane #259: the account menu's Lane destinations open inside the app, so Settings loaded ahead shows at once.
   const { push } = useRouter();
@@ -573,6 +575,7 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
               : !layoutManaged && <RailTip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} shortcut="[" side={rail ? "right" : "bottom"}><button ref={toggleRef} type="button" className={styles.headerAction} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-keyshortcuts="[" onClick={() => setRail(!collapsed)}><PanelGlyph collapsed={collapsed} reduce={reduce} /></button></RailTip>}
           </div>
         </div>
+        {accountAccessory}
       </div>
 
       <m.div className={styles.scroll} layoutScroll>
