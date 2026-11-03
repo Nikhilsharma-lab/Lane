@@ -21,10 +21,14 @@ async function expectRequests(list: Locator, requests: ImpactRequest[]) {
   }
 }
 
-async function expectImpact(page: Page) {
+/** The Outcome report replaced the By project and Whole org tabs (#208). */
+type ImpactTab = "My work" | "Outcome report";
+
+async function expectImpact(page: Page, open: ImpactTab = "My work") {
   await expect(page.getByRole("heading", { name: "Impact", exact: true })).toBeVisible();
   await expect(page.getByRole("tablist", { name: "Impact views" })).toBeVisible();
-  await expect(page.getByRole("tab", { name: "My work", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab")).toHaveText(["My work", "Outcome report"]);
+  await expect(page.getByRole("tab", { name: open, exact: true })).toHaveAttribute("aria-selected", "true");
   // Next's route announcer is itself an alert; check the app failure heading.
   await expect(page.getByRole("heading", { name: "This page couldn’t load", exact: true })).toHaveCount(0);
 }
@@ -89,22 +93,30 @@ export async function verifyImpactEmptyAndTeammate(
   await capture("selected-teammate");
 
   const mine = page.getByRole("tab", { name: "My work", exact: true });
-  const projects = page.getByRole("tab", { name: "By project", exact: true });
-  const whole = page.getByRole("tab", { name: "Whole org", exact: true });
+  const outcome = page.getByRole("tab", { name: "Outcome report", exact: true });
+  const report = page.getByRole("tabpanel", { name: "Outcome report", exact: true });
   await mine.focus();
   await page.keyboard.press("ArrowRight");
-  await expect(projects).toBeFocused();
-  await expect(projects).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tabpanel", { name: "By project", exact: true })).toContainText(fixture.requests[0].title);
+  await expect(outcome).toBeFocused();
+  await expect(outcome).toHaveAttribute("aria-selected", "true");
+  await expect(myWork(page)).toBeHidden();
+  // The fixture's Request is Open, never Released, so no period's report counts it.
+  await expect(report).toBeVisible();
+  await expect(report).not.toContainText(fixture.requests[0].title);
+  // Arrows wrap; End stays on the last tab.
+  await page.keyboard.press("ArrowRight");
+  await expect(mine).toBeFocused();
+  await expect(mine).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("End");
-  await expect(whole).toBeFocused();
-  await expect(whole).toHaveAttribute("aria-selected", "true");
+  await expect(outcome).toBeFocused();
+  await expect(outcome).toHaveAttribute("aria-selected", "true");
   const period = await choosePreviousYearQuarter(page);
-  await expect(page.getByText(`Grouped by release date. Showing ${period.label}.`, { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Whole org impact", exact: true })).toContainText("Nothing measured this period yet");
+  await expect(report.locator("[data-report-as-of]")).toContainText(`${period.label} · Up to date as of `);
+  await expect(report).toContainText(`Nothing was Released in ${period.label}.`);
   expect(new URL(page.url()).searchParams.get("person")).toBe(fixture.personId);
+  await expect(outcome).toHaveAttribute("aria-selected", "true");
   await capture("period");
-  await whole.focus();
+  await outcome.focus();
   await page.keyboard.press("Home");
   await expect(mine).toBeFocused();
   await expect(mine).toHaveAttribute("aria-selected", "true");
@@ -112,10 +124,15 @@ export async function verifyImpactEmptyAndTeammate(
   await expect(myWork(page).getByText("Nothing requested or picked up yet", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
-  // A selected person is a permitted Request participant, never an arbitrary URL identity.
+  // A selected person is a permitted Request participant, never an arbitrary URL identity. With no permitted
+  // teammate, an address that names a period opens the Outcome report (#208).
   for (const personId of [fixture.viewerId, "user_not_a_permitted_impact_person"]) {
     await page.goto(`/impact?period=${period.key}&person=${encodeURIComponent(personId)}`);
-    await expectImpact(page);
+    await expectImpact(page, "Outcome report");
+    await expect(page.getByRole("heading", { name: /^Requests by / })).toHaveCount(0);
+    await outcome.focus();
+    await page.keyboard.press("Home");
+    await expect(mine).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("heading", { name: /^Requests by / })).toHaveCount(0);
     await expect(myWork(page).getByText("Nothing requested or picked up yet", { exact: true })).toBeVisible();
   }

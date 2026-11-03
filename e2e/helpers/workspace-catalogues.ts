@@ -1,6 +1,7 @@
 import { expect, type Page, type Request, type Route } from "@playwright/test";
 import type { ProjectOption } from "../../src/lib/request-properties";
 import type { RequestLabel } from "../../src/lib/request-labels";
+import { nextActionResponse } from "./action-response";
 
 export const catalogueSurfaces = [
   { width: 1440, colorScheme: "light" }, { width: 1440, colorScheme: "dark" },
@@ -96,11 +97,11 @@ export async function createCatalogueProject(page: Page, orgId: string, name: st
   await capture("project-create-failure-draft-kept");
 
   await recorder.pending("project", name, null);
-  const response = page.waitForResponse(value => matchesCreate(value.request(), orgId, name));
+  const response = await nextActionResponse(page, request => matchesCreate(request, orgId, name));
   await submit();
-  const result = await response;
-  expect(result.ok()).toBe(true);
-  const project = savedEntry<ProjectOption>(await result.text(), "project");
+  const result = await response.delivered();
+  expect(result.ok).toBe(true);
+  const project = savedEntry<ProjectOption>(result.body, "project");
   await recorder.confirmed("project", project);
   expect(project.name).toBe(name);
   await expect(projects(page)).toBeHidden();
@@ -114,7 +115,8 @@ export async function createCatalogueProject(page: Page, orgId: string, name: st
 
 async function labelColourStep(page: Page, name: string, scope: string) {
   await composer(page).locator("#intake-request-labels").press("Enter");
-  const field = labels(page).getByRole("textbox", { name: "Search labels", exact: true });
+  // An Arc SearchField since #306: a search input, so a searchbox rather than a textbox.
+  const field = labels(page).getByRole("searchbox", { name: "Search labels", exact: true });
   await expect(field).toBeFocused();
   await field.fill(name);
   await labels(page).getByRole("button", { name: `Create new label: “${name}”`, exact: true }).press("Enter");
@@ -137,11 +139,11 @@ export async function createCatalogueLabel(page: Page, orgId: string, name: stri
     await capture("label-create-failure-draft-kept");
   }
   await recorder.pending(kind, name, projectId);
-  const response = page.waitForResponse(value => matchesCreate(value.request(), orgId, name, projectId));
+  const response = await nextActionResponse(page, request => matchesCreate(request, orgId, name, projectId));
   await submit();
-  const result = await response;
-  expect(result.ok()).toBe(true);
-  const label = savedEntry<RequestLabel>(await result.text(), "label");
+  const result = await response.delivered();
+  expect(result.ok).toBe(true);
+  const label = savedEntry<RequestLabel>(result.body, "label");
   await recorder.confirmed(kind, label);
   expect(label.name).toBe(name);
   expect(label.projectId).toBe(projectId);
