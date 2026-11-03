@@ -12,7 +12,7 @@ function source(path: string) {
 const WORKSPACE = source("src/app/(app)/requests-workspace.tsx")
 // Plan item 2.12: the Request page has its own server module, so neither route's first load carries the other's client code.
 const DETAIL_WORKSPACE = source("src/app/(app)/request-detail-workspace.tsx")
-const LIST_PAGE = source("src/app/(app)/page.tsx")
+const LIST_PAGE = source("src/app/(app)/(list)/page.tsx")
 const DETAIL_PAGE = source("src/app/(app)/requests/[id]/page.tsx")
 const DETAIL_VIEW = source("src/components/requests/detail-view.tsx")
 // Plan item 2.12: the detail pane both the Request page and the list's preview render.
@@ -46,12 +46,14 @@ describe("Requests workspace contract", () => {
   })
 
   it("reads through the server-only loaders instead of querying inline (plan items 1.8 and 1.9)", () => {
+    // #271: the Request page reads through readRequestPage, the cached loader its title and 404 check share.
+    expect(WORKSPACE).toContain('from "@/lib/data/requests"')
+    expect(DETAIL_WORKSPACE).toContain('from "@/lib/data/request-page"')
     for (const workspace of [WORKSPACE, DETAIL_WORKSPACE]) {
-      expect(workspace).toContain('from "@/lib/data/requests"')
       expect(workspace).toContain("Promise.all([")
       expect(workspace).not.toContain('from "@/db"')
     }
-    for (const loader of ["shell", "requests", "projects", "notifications"]) {
+    for (const loader of ["shell", "requests", "request-page", "projects", "notifications", "workspace-frame"]) {
       expect(source(`src/lib/data/${loader}.ts`)).toMatch(/^import "server-only"/)
     }
   })
@@ -75,7 +77,8 @@ describe("Requests workspace contract", () => {
 
   it("loads only the selected Request on a Request page (plan item 1.10)", () => {
     expect(DETAIL_WORKSPACE).not.toContain("loadRequestList")
-    expect(DETAIL_WORKSPACE).toContain("loadRequestDetail(member, selectedRequestId)")
+    expect(source("src/lib/data/request-page.ts")).toContain("loadRequestDetail(member, requestId)")
+    expect(DETAIL_WORKSPACE).toContain("readRequestPage(member, selectedRequestId)")
     expect(DETAIL_WORKSPACE).not.toContain("<RequestListPane")
   })
 

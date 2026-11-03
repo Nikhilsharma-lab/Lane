@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
@@ -5,6 +6,9 @@ import { IntakeLauncher } from "@/components/requests/intake-launcher";
 import { PageStrip } from "@/components/shell/page-strip";
 import { firstRunSlot } from "@/components/first-run/first-run-slot";
 import { timePage, timed } from "@/lib/request-timings";
+
+// #271 (A114): the tab reads "New Request · Lane".
+export const metadata: Metadata = { title: "New Request" };
 
 export default async function IntakePage() {
   void timePage("Intake");

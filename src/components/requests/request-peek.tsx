@@ -7,6 +7,7 @@ import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { dismissOpenForm } from "@/components/popup/dismiss-form"
 import type { OverviewRequest } from "@/lib/request-overview"
+import { PreviewSkeleton } from "./request-peek-skeleton"
 import styles from "./request-peek.module.css"
 
 /** Who is reading, from the list page's own render: the pane names them on Pick up and on a posted comment. */
@@ -53,14 +54,6 @@ export type RequestPeekProps = {
 
 // A chunk that fails to load (an old tab after a deploy, or offline) says so in the panel, never in place of the list.
 const LazyContent = lazy(() => loadContent().catch(() => ({ default: PreviewFailed })))
-
-/** Until the content's chunk arrives (it is fetched once a row takes focus, so rarely): the panel's
- * place and its way out. The content renders the full skeleton while it reads the Request. */
-function PreviewLoading({ onClose }: { onClose: () => void }) {
-  return <div className={styles.state} aria-busy="true" aria-label="Loading Request preview" role="status">
-    <Button type="button" variant="ghost" size="sm" onClick={onClose}>Close preview</Button>
-  </div>
-}
 
 function PreviewFailed({ onClose }: { onClose: () => void }) {
   return <div className={styles.state} role="alert">
@@ -110,8 +103,9 @@ export function RequestPeek(props: RequestPeekProps) {
     <m.section ref={panel} className={styles.panel} role="region" aria-label="Request preview" data-request-peek="" data-request-id={requestId}
       initial={reduced ? { opacity: 0 } : { x: "104%" }} animate={{ x: "0%", opacity: 1 }} exit={reduced ? { opacity: 0 } : { x: "104%", transition: leave }}
       transition={reduced ? { duration: motionTokens.duration.instant } : enter}>
-      {/* Until the chunk arrives the panel shows the skeleton, never an empty frame. */}
-      <Suspense fallback={<PreviewLoading onClose={onClose} />}><Content key={requestId} {...props} /></Suspense>
+      {/* Until the chunk arrives (it is fetched once a row takes focus, so rarely) the panel shows the content's own
+          skeleton, with Close, from its first frame: never an empty frame or a bare button (#271, A116). */}
+      <Suspense fallback={<PreviewSkeleton onClose={onClose} />}><Content key={requestId} {...props} /></Suspense>
     </m.section>
   </m.div>
 }

@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
 import { ClerkFailed, ClerkLoading, SignUp } from "@clerk/nextjs";
 
 import { SignupFrame } from "@/components/auth/auth-frames";
 import { AuthCardSkeleton } from "@/components/auth/auth-card-skeleton";
 import { ClerkUnavailable } from "@/components/auth/clerk-unavailable";
 import { clerkEmbeddedAppearance } from "@/components/auth/clerk-appearance";
+
+// #271 (A114): the tab reads "Sign up · Lane".
+export const metadata: Metadata = { title: "Sign up" };
 
 export default function SignupPage() {
   return (

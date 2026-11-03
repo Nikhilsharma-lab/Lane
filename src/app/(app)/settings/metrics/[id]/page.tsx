@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "@/components/link";
 import { notFound, redirect } from "next/navigation";
 import { timePage, timed } from "@/lib/request-timings";
@@ -20,6 +21,9 @@ import { ThemePreference } from "../../profile/theme-preference";
 import { sharedPanels } from "../../profile/shared-panels";
 import { ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
 import styles from "../metrics.module.css";
+
+// #271 (A114): the tab reads "Settings · Lane".
+export const metadata: Metadata = { title: "Settings" };
 
 /**
  * One Metric definition under Settings → Metrics (#197): edit it, archive, restore or merge it (Admins, #202),
