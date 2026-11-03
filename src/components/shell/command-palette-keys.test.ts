@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { paletteListKey } from "./command-palette-keys"
-import { paletteShortcut } from "./command-palette-shortcut"
+import { paletteShortcut, typeaheadKey } from "./command-palette-shortcut"
 
 const key = (overrides: Partial<Parameters<typeof paletteShortcut>[0]> = {}) => ({
   key: "k", metaKey: true, ctrlKey: false, altKey: false, shiftKey: false, repeat: false, isComposing: false, defaultPrevented: false, ...overrides,
@@ -35,6 +35,43 @@ describe("⌘K opens and closes the palette (#106)", () => {
     expect(paletteShortcut(key({ repeat: true }), closed)).toBeNull()
     expect(paletteShortcut(key({ isComposing: true }), closed)).toBeNull()
     expect(paletteShortcut(key({ defaultPrevented: true }), closed)).toBeNull()
+  })
+})
+
+describe("keys pressed while the palette is opening (#268, A12)", () => {
+  const typed = (value: string, overrides: Partial<Parameters<typeof typeaheadKey>[0]> = {}) => key({ key: value, metaKey: false, ...overrides })
+
+  it("keeps the letters typed before the field can take them, in order, spaces included", () => {
+    let buffer = ""
+    for (const letter of "in prog") {
+      const command = typeaheadKey(typed(letter), buffer)
+      if (command?.type !== "type") throw new Error(`"${letter}" was not kept`)
+      buffer = command.text
+    }
+    expect(buffer).toBe("in prog")
+    expect(typeaheadKey(typed("I", { shiftKey: true }), "")).toEqual({ type: "type", text: "I" })
+  })
+
+  it("takes back the last letter on Backspace", () => {
+    expect(typeaheadKey(typed("Backspace"), "inbx")).toEqual({ type: "type", text: "inb" })
+    expect(typeaheadKey(typed("Backspace"), "")).toEqual({ type: "type", text: "" })
+  })
+
+  it("holds every other key, so no page shortcut or row key fires (C, /, ?, J, Enter, the arrows)", () => {
+    for (const value of ["c", "/", "?", "j", "x"]) expect(typeaheadKey(typed(value), "")).toEqual({ type: "type", text: value })
+    for (const value of ["Enter", "ArrowDown", "Tab", "Shift"]) expect(typeaheadKey(typed(value), "ab")).toEqual({ type: "type", text: "ab" })
+    expect(typeaheadKey(typed("j", { repeat: true }), "j")).toEqual({ type: "type", text: "jj" })
+  })
+
+  it("closes the opening palette on Escape", () => {
+    expect(typeaheadKey(typed("Escape"), "ab")).toEqual({ type: "close" })
+  })
+
+  it("leaves chords to their own handlers (⌘K closes, ⌘V pastes) and leaves a composing input method alone", () => {
+    expect(typeaheadKey(key(), "ab")).toBeNull()
+    expect(typeaheadKey(typed("v", { metaKey: true }), "ab")).toBeNull()
+    expect(typeaheadKey(typed("t", { altKey: true }), "ab")).toBeNull()
+    expect(typeaheadKey(typed("a", { isComposing: true }), "")).toBeNull()
   })
 })
 
