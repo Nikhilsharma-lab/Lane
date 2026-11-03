@@ -33,13 +33,16 @@ const MODES: Mode[] = ["light", "dark"];
  */
 const BODY_TEXT_CONTRAST = 4.5;
 
-/** Every Clerk colour key and the theme-file name it reads (spec #87 *Clerk*). */
+/**
+ * Every Clerk colour key and the theme name it reads (spec #87 *Clerk*): defined in the theme file, or (since #326,
+ * 7f09455e) in the bridge, which only points Lane's names at the theme file's.
+ */
 const CLERK_COLOURS = (() => {
   const read = (file: string) => readFileSync(path.join(__dirname, "..", file), "utf8");
   return clerkColourTokens(
     read("src/components/auth/clerk-appearance.ts"),
     read("node_modules/@clerk/ui/dist/internal/appearance.d.ts"),
-    read("src/styles/theme.css")
+    `${read("src/styles/theme.css")}\n${read("src/styles/theme-bridge.css")}`
   );
 })();
 
@@ -101,7 +104,7 @@ test("Lane paints the same theme on every page in light and dark", async ({
       );
       expect(unresolved, "Clerk colour keys whose theme name is empty on the sign-in page").toEqual([]);
     });
-    expect(CLERK_COLOURS.problems, "Clerk colour keys not on a theme or additions token").toEqual([]);
+    expect(CLERK_COLOURS.problems, "Clerk colour keys not on a theme, additions or bridge name").toEqual([]);
     // Clerk's card is flush (transparent), so the link sits on the page colour.
     const darkSignIn = captured["sign-in"].dark?.elements;
     const link = darkSignIn?.clerkFooterLink?.color ?? "";
