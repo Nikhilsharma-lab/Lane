@@ -54,7 +54,7 @@ export function PageStrip({ title, heading = false, note, leading, tools, action
   const Current = heading ? "h1" : "span";
   const label = typeof title === "string" ? title : undefined;
   return <header className={styles.strip} data-slot="page-strip" data-compact-trail={compactTrail || undefined}>
-    <span className={styles.expandSlot}>{frame?.expand}</span>
+    {frame?.expand !== null && <span className={styles.expandSlot}>{frame?.expand}</span>}
     {leading}
     {trail.length > 0
       ? <nav aria-label="Breadcrumb" className={styles.crumbs}><ol>

@@ -132,8 +132,8 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
   return <DetailRequestProvider request={request} viewer={viewer} orgId={orgId} isGuest={isGuest} arrival={!peekStrip}>
     <RequestPaneTabs key={request.id}><section aria-label={`Request detail: ${request.title}`} className={detailStyles.root} data-detail="" data-detail-peek={peekStrip ? "" : undefined} data-request-id={request.id}>
       {peekStrip ? peekStrip({ action, editAction: editRequest }) : <DetailStrip returnHref={returnHref} editAction={editRequest} action={action} />}
-      {peekStrip && <div className="shrink-0 px-5 pt-4 md:px-8"><RequestPaneHeader comments={comments} /></div>}
-      <div className={`${detailStyles.body} px-5 py-6 md:px-8`} data-detail-body="">
+      <div className={`${detailStyles.body} ${peekStrip ? detailStyles.peekBody : "px-5 py-6 md:px-8"}`} data-detail-body="">
+        {peekStrip && <RequestPaneHeader comments={comments} />}
         <div className={detailStyles.layout}>
           <div className={detailStyles.main} data-detail-main="">
             {!peekStrip && <header className={detailStyles.titleBlock} data-detail-title="">
