@@ -12,6 +12,7 @@ Arc UI supplies Lane's product components and the current production visual them
 | Requests first-use and unavailable states | `empty-state`, `button`, `skeleton` | Plan item 2.1: an empty workspace renders the list itself (its page strip, an empty toolbar row and the list pane) with the Arc EmptyState in the records region, so the first Request lands in place. Lane's admin/member/guest copy, New Request and admin-only Invite teammates actions, and a "Press C to create a Request." hint shown on fine pointers only. Request detail back path and status-specific loading. |
 | Requests list | `badge`, `popover`, `chip-group`, `filter-toolbar`/`FilterMenu`, `search-field`, `select`, `pagination`, `button`, `empty-state` | Lane's semantic title-led rows replace the table. Compact saved-property pills expose complete values; Display controls grouping, order and visible properties. Open/In Progress/Done filters, pagination, Project deep links and list-return focus remain application behavior. Arc has no exact Request row block: this is a Lane composition of installed Arc components. |
 | Request detail | `avatar`, `badge`, `empty-state`, `button`, `skeleton`, `input`, `textarea`, `alert` | Lane's saved Request fields, expected impact, comments, private attachments, pickup/Done actions and permission checks remain application behavior. |
+| Request split pane (2026-11-02) | Licensed [`ai-side-panel`](https://uiarc.dev/components/blocks/ai-side-panel) source via Arc MCP; official free [`page-header`](https://uiarc.dev/components/blocks/page-header), [`timeline`](https://uiarc.dev/components/timeline), [`comment-thread`](https://uiarc.dev/components/comment-thread) registry source | The AI block supplies the relative dock geometry. `request-pane-header.tsx` and its CSS adapt page-header intro/title/metadata/controlled Radix tabs with real Request data. Panels remain mounted to retain form drafts. DetailConversation adapts comment-thread article/avatar/author/time/body/composer structure while retaining Lane posting, drafts and pending comments. Installed Timeline renders saved creation, pickup, Done, release/handover and closure timestamps; it is separate from the five-stage Journey and its actions. No demo mutations, AI responder, replies, reactions or resolve controls. |
 | New Request and AI review | `dialog`, `input`, `textarea`, `search-field`, `popover`, `radio-group`, `progress`, `alert`, `button`, `empty-state` | The controller retains its signed AI review, draft and file recovery, optional Project and Request type, creation and failure states. The centred Dialog (`layout="composer"`, chosen 2026-10-13) is only presentation; the form host remains mounted across close/reopen to preserve File objects. `/intake` is an Arc EmptyState launcher that opens the same dialog. Search and selection share one Arc Popover in the Project picker. Lane keeps the Dialog open during interactions in its portalled property menus. |
 | Auth, onboarding and Settings | `password-field`, `input`, `radio-group`, `button`, `skeleton` | Clerk continues to own authentication, organizations and invitations. Lane maps supported Clerk appearance variables to Arc tokens. Role and browser theme preferences retain their existing actions. |
 | ⌘K command palette (spec #101) | `dialog`, `search-field`, `toast-stack` | Recorded functional gap: the Arc skill maps "Global search and commands" to the free `command-palette` item, which is not installed. Spec #101 decided an Arc Dialog holding the Arc SearchField as an APG combobox, with "No new component source": the palette's entries are Lane actions (Request moves through the same hook as their buttons, a priority step, the shell's shared openers, Requests views, Projects and Settings sections), its first load must stay inside the 2 KB route budget, and Lane already ships Dialog and SearchField. Installing `command-palette` is a registry fetch that waits for Nikhil's go-ahead; if it is installed later, compare its keyboard model and motion with this composition first. Lane code: `src/components/shell/command-palette*.ts(x)` and `.module.css`. The key caps are `ShortcutKeys`, shared with the `?` overlay (see the `?` overlay deviation below). Under reduced motion the palette's stylesheet adapts Arc Dialog without editing it: both layers are held at `opacity: 1` and hidden (`visibility: hidden`) as soon as Radix marks them `data-state="closed"`, so the palette appears and goes at once instead of fading for Arc's 120 ms exit. Build 4 (#268) keeps the gap recorded: Arc's block still can't do the priority step, the current Request's entries, several keys per entry or the first-load budget. The palette now confirms Copy link and Copy code with an Arc `toast-stack` message, and the sidebar's Jump to… bar (Lane's `jump-bar.tsx`, a plain button with `ShortcutKbd` caps) opens it. |
@@ -520,3 +521,79 @@ The local hashes for `src/components/arc/search-field/search-field.tsx` and `src
 - `src/components/arc/search-field/search-field.tsx`: optional decorative `icon` in place of the magnifier (A214). The Requests list's **Filter by title** field passes a funnel, so a magnifier always means workspace search. Without the prop the field is unchanged; no other prop, motion or behaviour changes.
 - Workspace search (Licensed Pro `search-results` derivation, Lane files only): the results body is its own stacking layer so the recent-searches menu paints over the "Search in" cards (A23); a long recent search is cut with "…" and shows its full text in Arc `tooltip` on hover, wrapping on touch screens (A24); the preview column says nothing when there is nothing to preview, and on phones the sort row waits for a query (A229); Label dots and counts sit on their checkbox's first line (A230); result names add status and Project; a Request result highlighted on purpose loads its page ahead through the list's intent-prefetch hook.
 - The Requests list toolbar's icon buttons are 44px on coarse pointers (A27), the size Arc's filter trigger already uses there.
+
+### Timeline adaptation (2026-11-02)
+
+- `src/components/arc/timeline/timeline.tsx`: official registry source; icon sizing and stagger use Lane tokens. Grouping, expandable rows and keyboard navigation retained. Existing history renders immediately on Request navigation; only new events reveal. Reduced motion also disables text/count fades.
+- `src/components/arc/timeline/timeline.module.css`: official registry source; visual literals mapped to existing theme tokens; remove bottom scroll fade so content stays readable. Marker size and row spacing use smaller existing tokens to keep history compact.
+
+### Comment thread integration and alignment (2026-11-02)
+
+- `src/components/arc/comment-thread/comment-thread.tsx`: installed the complete official `https://uiarc.dev/r/comment-thread.json` source. Preserved upstream props and added `readOnly` to suppress unsupported mutations, `composer` for Lane's persisted form, and `renderTimestamp` for semantic LocalTime. Exported its existing avatar for that composer. Read-only display skips height observers and arrival motion; Lane continues to own drafts, optimistic comments and failed-post recovery. No replies, edit/delete, reactions, mentions or resolve operations were added to Lane.
+- `src/components/arc/comment-thread/comment-thread.module.css`: mapped upstream values to existing theme tokens; preserved the enclosing thread, unboxed articles, avatar/text columns and inline composer/action row. Added a container breakpoint for the narrow split pane and invalid/touch field states. Replaces the earlier hand-styled comment cards and separate author row.
+- Timeline row markers align to the first text line using font and marker tokens, text/time baselines align, and Lucide strokes match the pane's 1.75 weight. The header's read-only status value now centers its glyph with the label; its old icon-height variable only existed in the separate properties table.
+- `src/components/arc/filter-toolbar/filter-toolbar.module.css`: the existing narrow-screen stacked layout also responds to the Requests filter container, preventing chip/count overlap when the split pane narrows the list. Comment and composer avatars share the same inset.
+
+### Request pane reference review (2026-11-02)
+
+Re-read all four requested reference sources and page-header's Radix composition.
+`RequestPaneTabs` uses the same controlled Root/List/Trigger/Content primitives;
+Overview, Journey, Activity and Conversation now select content rather than scroll
+anchors. Inactive panels stay mounted. Full-page detail retains its original
+reading order and one Journey loader. Removed Lane's repeated section rules in
+the peek; kept the strip edge and Arc CommentThread's enclosing/composer borders.
+Tab changes and frequent pane opening/replacement are immediate. Timeline row
+padding and marker offset use space-3 together, making its vertical connectors
+visible without changing event data. Source hashes record that CSS adaptation.
+
+The Polar capture and preview-role decisions are indexed from DESIGN.md and
+documented in `lane-tokens.md`; product theme values are unchanged.
+
+## November 2 — Project deletion in the workspace sidebar
+
+`src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` forwards an optional `onDeleteProject` callback into Lane’s ProjectContextMenu, excluding the built-in No Project filter. The adapter uses the installed Arc ContextMenu and Button for the visible actions trigger and the shared PermanentActionConfirmation for confirmation, pending and retry states. All added layout values reference the central theme.
+
+## November 2 — Lane namespace and complete material tokens
+
+Installed Arc component APIs and numeric appearance are preserved while CSS opacity, stacking levels, text-relative dimensions and icon strokes now consume Lane theme roles. The filter toolbar back-button animation consumes shared size/spacing tokens. Canonical values live under `--lane-*`; Arc compatibility hooks remain in the value-free bridge. Secondary accent, gradient and link ink now use the captured blue family instead of retired green values. No new component source or dependencies.
+
+Updated source files:
+- `src/components/arc/avatar/avatar.module.css`
+- `src/components/arc/blocks/settings-command/settings-command.module.css`
+- `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css`
+- `src/components/arc/bottom-sheet/bottom-sheet.module.css`
+- `src/components/arc/checkbox/checkbox.module.css`
+- `src/components/arc/chip-group/chip-group.module.css`
+- `src/components/arc/comment-thread/comment-thread.module.css`
+- `src/components/arc/context-menu/context-menu.module.css`
+- `src/components/arc/date-range-picker/date-range-picker.module.css`
+- `src/components/arc/dialog/dialog.module.css`
+- `src/components/arc/drawer/drawer.module.css`
+- `src/components/arc/dropdown-menu/dropdown-menu.module.css`
+- `src/components/arc/filter-toolbar/filter-toolbar.module.css`
+- `src/components/arc/floating-button-group/floating-button-group.module.css`
+- `src/components/arc/input/input.module.css`
+- `src/components/arc/notification-center/notification-center.module.css`
+- `src/components/arc/pagination/pagination.module.css`
+- `src/components/arc/password-field/password-field.module.css`
+- `src/components/arc/popover/popover.module.css`
+- `src/components/arc/radio-group/radio-group.module.css`
+- `src/components/arc/segmented-control/segmented-control.module.css`
+- `src/components/arc/select/select.module.css`
+- `src/components/arc/skeleton/skeleton.module.css`
+- `src/components/arc/textarea/textarea.module.css`
+- `src/components/arc/timeline/timeline.module.css`
+- `src/components/arc/toast-stack/toast-stack.module.css`
+- `src/components/arc/tooltip/tooltip.module.css`
+- `src/components/arc/user-menu/user-menu.module.css`
+- `src/components/arc/filter-toolbar/filter-toolbar.tsx`
+
+### Release integration with Build 3 (2026-11-03)
+
+Filter toolbar retains Build 3 lazy motion elements while using the approved Lane size tokens. Workspace sidebar retains the combined upstream performance and Project action changes. Local hashes record those merged adaptations.
+
+The new Timeline and CommentThread use `m.*` under the existing strict LazyMotion boundary, retaining their public APIs, token motion and behavior without restoring the full Motion feature bundle. A rendered-provider regression test covers both.
+
+### Merge of main's palette and Request pane into Build 4 (2026-11-03)
+
+The local hashes for `workspace-sidebar.tsx` and `workspace-sidebar.module.css` now record the combined files: Build 4's `membersLabel`, `onShowShortcuts`, account-name room and New Project field sit alongside #326's `onDeleteProject` and Lane theme tokens. Lane's Project menu passes `outsidePressOnlyCloses` to both its right-click menu and its visible actions button, so the A16 swallowing covers the new Delete Project item too. The New Project composer's `::before` box sits on `--lane-layer-underlay` instead of a literal `-1`, as #326's theme contract requires. Because #326's focus wash is opaque, the New Project trigger's keyboard-focus fill moves from the trigger (which lies over the label) to that `::before` box beneath it, so A17's single "New Project" label stays visible. No component API, visual value or motion behaviour is added.

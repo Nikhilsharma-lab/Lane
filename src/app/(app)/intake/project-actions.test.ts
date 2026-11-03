@@ -6,6 +6,7 @@ const boundary = vi.hoisted(() => ({
   responses: [] as unknown[][][],
 }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: async () => boundary.session }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/db", async () => {
   const { drizzle } = await import("drizzle-orm/pg-proxy");
   const schema = await import("@/db/schema");
@@ -23,6 +24,20 @@ beforeEach(() => {
 });
 
 describe("Project actions", () => {
+  it.each(["org:guest", "org:viewer"])("refuses Project deletion for %s", async role => {
+    const actions = await import("./project-actions");
+    boundary.session.orgRole = role;
+    expect(typeof actions.deleteProject).toBe("function");
+    expect(await actions.deleteProject(PROJECT[0]!, { orgId: "org_a" })).toMatchObject({ success: false });
+    expect(boundary.queries).toHaveLength(0);
+  });
+  it("refuses a forged workspace and invalid Project before querying", async () => {
+    const actions = await import("./project-actions");
+    expect(typeof actions.deleteProject).toBe("function");
+    expect(await actions.deleteProject(PROJECT[0]!, { orgId: "org_b" })).toMatchObject({ success: false });
+    expect(await actions.deleteProject("none", { orgId: "org_a" })).toMatchObject({ success: false });
+    expect(boundary.queries).toHaveLength(0);
+  });
   it("rejects a different active workspace without querying", async () => {
     const { listProjects, createProject } = await import("./project-actions");
     expect(await listProjects({ orgId: "org_b" })).toMatchObject({ success: false, error: { code: "validation" } });

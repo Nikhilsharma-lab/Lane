@@ -1,5 +1,5 @@
 /* Plan item 2.0: one fixed 44px strip per page. No wrapping, so skeletons and pages share its height. */
-.strip { position: sticky; top: 0; z-index: 2; display: flex; flex: none; min-width: 0; min-height: var(--workspace-header-height, calc(var(--space-1) * 11)); align-items: center; gap: var(--space-3); padding-inline: var(--space-6); background: var(--surface); }
+.strip { position: sticky; top: 0; z-index: var(--lane-layer-raised); display: flex; flex: none; min-width: 0; min-height: var(--workspace-header-height, calc(var(--space-1) * 11)); align-items: center; gap: var(--space-3); padding-inline: var(--space-6); background: var(--surface); }
 /* The rule is drawn over the strip's last pixel, not as a border: a border would leave 43px for content,
  * so a 44px touch control would grow the strip to 45px. Drawn last, it stays unbroken across controls. */
 .strip::after { content: ""; position: absolute; inset-inline: 0; bottom: 0; height: calc(var(--space-1) * 0.25); background: var(--border-subtle); pointer-events: none; }

@@ -19,7 +19,7 @@ import { peekEntry, peekKey, readForPreview, subscribePeek } from "./request-pee
 import type { RequestPeekProps } from "./request-peek"
 import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
-import { PreviewClose, PreviewFrame, PreviewSkeleton } from "./request-peek-skeleton"
+import { PreviewClose, PreviewFrame, RequestPeekSkeleton } from "./request-peek-skeleton"
 
 /** The preview's strip: its code, copy, Open full page, Edit Request and the one lifecycle action. */
 function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: ReactNode; editAction?: ReactNode; onClose: () => void; onOpenFullPage: RequestPeekProps["onOpenFullPage"] }) {
@@ -85,7 +85,7 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
     return merged
   }, [detail, serverRow])
 
-  if (!entry) return <PreviewSkeleton onClose={onClose} />
+  if (!entry) return <RequestPeekSkeleton onClose={onClose} />
   if (entry.status !== "ready" || !request || !detail) {
     const unavailable = entry.status === "unavailable"
     return <section className={detailStyles.root}>

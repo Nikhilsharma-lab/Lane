@@ -4,7 +4,7 @@ import { thrownMessage } from "./failure-messages";
 type ReadResult<Entry, Metadata> = { success: true; entries: Entry[]; metadata: Metadata } | { success: false; error: string };
 export type CatalogueSnapshot<Entry, Metadata> = {
   entries: Entry[]; metadata: Metadata; loading: boolean; error: string | null;
-  add: (entry: Entry) => void; reload: () => Promise<void>;
+  add: (entry: Entry) => void; remove: (id: string) => void; reload: () => Promise<void>;
 };
 
 /** In-process ownership for the workspace's two seeded catalogues. */
@@ -18,13 +18,14 @@ export function createWorkspaceCatalogue<Entry extends { id: string }, Metadata>
   let sequence = 0, generation = 0;
   let active = true;
   const additions = new Map<string, Entry>();
+  const removals = new Set<string>();
   const listeners = new Set<() => void>();
   function publish(patch: Partial<CatalogueSnapshot<Entry, Metadata>>) {
     snapshot = { ...snapshot, error: options.clearErrorOnChange ? null : snapshot.error, ...patch };
     listeners.forEach(listener => listener());
   }
   function merge(entries: Entry[]) {
-    const combined = [...entries.filter(entry => !additions.has(entry.id)), ...additions.values()];
+    const combined = [...entries.filter(entry => !additions.has(entry.id)), ...additions.values()].filter(entry => !removals.has(entry.id));
     return options.arrange?.(combined) ?? combined;
   }
   async function reload(lifetime: number) {
@@ -49,7 +50,12 @@ export function createWorkspaceCatalogue<Entry extends { id: string }, Metadata>
     publish({ entries: merge(snapshot.entries) });
   }
   function seed(lifetime: number): CatalogueSnapshot<Entry, Metadata> {
-    return { ...options.initial, error: null, loading: false, add: entry => add(entry, lifetime), reload: () => reload(lifetime) };
+    return { ...options.initial, error: null, loading: false, add: entry => add(entry, lifetime), remove: id => {
+      if (!active || lifetime !== generation) return;
+      additions.delete(id);
+      removals.add(id);
+      publish({ entries: merge(snapshot.entries) });
+    }, reload: () => reload(lifetime) };
   }
   let snapshot = seed(generation);
   return {
@@ -62,6 +68,7 @@ export function createWorkspaceCatalogue<Entry extends { id: string }, Metadata>
           active = false;
           generation++;
           additions.clear();
+          removals.clear();
           // Cleanup/setup can reconnect; old creation callbacks stay invalid.
           snapshot = seed(generation);
         }

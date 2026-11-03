@@ -4,10 +4,11 @@ import { X } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Skeleton } from "@/components/arc/skeleton/skeleton"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
-import { PageStrip, PageStripProvider } from "@/components/shell/page-strip"
 import { Placeholder } from "@/components/loading/placeholder"
 import { KeyCap } from "@/components/keyboard/key-caps"
+import { PageStrip, PageStripProvider } from "@/components/shell/page-strip"
 import detailStyles from "./detail.module.css"
+import headerStyles from "./request-pane-header.module.css"
 import styles from "./request-peek.module.css"
 
 /** The shell's trail and sidebar control belong to the page's strip, not the preview's. */
@@ -24,14 +25,25 @@ export function PreviewClose({ onClose }: { onClose: () => void }) {
   </Tooltip>
 }
 
-/** The loaded preview's boxes while its code or its Request loads. Close is there from the first frame.
- * #271 (A116): its own module, so the panel draws it before the content's code arrives, never a bare Close. */
-export function PreviewSkeleton({ onClose }: { onClose: () => void }) {
+/** The pane's boxes while its code or its Request loads. Close is there from the first frame.
+ * #271 (A116): its own module, so the pane draws it before the content's code arrives, never a bare Close. */
+export function RequestPeekSkeleton({ onClose }: { onClose: () => void }) {
   return <section className={detailStyles.root} aria-busy="true" data-skeleton="request-preview">
     <PreviewFrame><PageStrip leading={<PreviewClose onClose={onClose} />} title={<span aria-hidden="true" className="block w-16"><Skeleton lines={1} /></span>} /></PreviewFrame>
-    <Placeholder><div className={styles.skeleton}>
-      <div className={styles.skeletonTitle}><Skeleton label="Loading Request preview" lines={1} /></div>
-      <div aria-hidden="true" className={styles.skeleton}><Skeleton lines={3} /><Skeleton lines={4} /></div>
-    </div></Placeholder>
+    <Placeholder>
+      <div className="shrink-0 px-5 pt-4 md:px-8">
+        <div className={headerStyles.header}>
+          <div className={headerStyles.introInner}>
+            <div className={styles.skeletonTitle}><Skeleton label="Loading Request preview" lines={1} /></div>
+            <div aria-hidden="true" className={styles.skeletonStatus}><Skeleton lines={1} /></div>
+            <div aria-hidden="true" className={styles.skeletonMeta}><Skeleton lines={1} avatar /></div>
+          </div>
+          <div className={styles.skeletonTabs} aria-hidden="true"><Skeleton lines={1} /></div>
+        </div>
+      </div>
+      <div aria-hidden="true" className={`${detailStyles.body} px-5 py-6 md:px-8`}>
+        <div className={styles.skeletonBlocks}><Skeleton lines={3} /><Skeleton lines={4} /></div>
+      </div>
+    </Placeholder>
   </section>
 }

@@ -2,11 +2,21 @@
 
 Decided 2026-10-22 (spec [#87](https://github.com/Nikhilsharma-lab/Lane/issues/87), built in #91). Every colour, font, corner, shadow, size and motion value Lane paints is written in one file: `src/styles/theme.css`. Nothing else holds a visual value. This replaces the 2026-10-13 Supabase token setup (`supabase-tokens.css` and `lane-arc-theme.css`), which is deleted.
 
+## Lane palette and namespace (2026-11-02)
+
+Nikhil approved wiring the reviewed preview into the actual app. The complete
+Polar-mapped export was pasted through the existing theme CLI, and the corresponding
+Lane additions were updated in place. This is a source-grounded export in tweakcn
+format, not an export from a saved tweakcn account. See [provenance and exact mapping](lane-tokens.md).
+The blue accent, neutral surfaces and semantic colour roles now match that preview;
+fonts, spacing, radii and motion retain the reviewed values. This supersedes the
+older palette decisions, while the one-file editing contract still applies.
+
 ## The files
 
 | File | What it is | Who edits it |
 | --- | --- | --- |
-| `src/styles/theme.css` | The theme. Top half: tweakcn's export. Bottom half: **Lane additions**. | Top half: re-paste only. Bottom half: by hand, rarely. |
+| `src/styles/theme.css` | The theme. Top half: tweakcn's export. Bottom half: **Lane additions**. | Top half: re-paste only. Bottom half: Lane token edits. |
 | `src/styles/theme-bridge.css` | Plumbing only. Points the names Arc and Lane's screens already use at the theme's names. Holds no values. | Only when a new Arc component or screen needs a name the theme doesn't have yet. |
 | `src/app/globals.css` | Loads the theme, Arc's foundation (in a lower layer, so Arc's defaults can never paint over the theme) and the bridge. | Rarely. |
 | `src/lib/fonts.ts` | Loads Geist and Geist Mono so the font names in the theme work. | Only when the font changes (see below). |
@@ -15,10 +25,10 @@ Decided 2026-10-22 (spec [#87](https://github.com/Nikhilsharma-lab/Lane/issues/8
 
 **Top half: tweakcn's export.** Everything above the `/* Lane additions` comment is exactly what tweakcn's Code panel gives you (Tailwind v4, oklch): the Tailwind import, the light `:root` and dark `.dark` colours, fonts, corner radius, shadows, the `@theme inline` block and the base layer. Never edit it by hand. A re-paste replaces it entirely.
 
-**Bottom half: Lane additions.** Everything below that comment is Lane's own: what tweakcn has no slot for. Each group has a one-line comment saying why it is there:
+**Bottom half: Lane additions (`--lane-*`).** Everything below that comment is Lane's own: what tweakcn has no slot for. Each group has a one-line comment saying why it is there:
 
 - Extra text, surface and line levels, including the see-through hairlines and washes (tweakcn drops transparency).
-- Brand ink for links and the Done glyph, separate from the green button (tweakcn's `--accent` is a grey hover).
+- Blue brand ink for links and interaction states, separate from semantic success (tweakcn's `--accent` is a grey hover).
 - Focus ring geometry (2px outline, 2px away).
 - Success, warning and info colours, so changing the brand colour never moves them.
 - Project, avatar and label colours: fixed hues.
@@ -52,7 +62,7 @@ Keep `pnpm dev` running and Lane open in the browser.
 The browser updates on its own within a second, in light and dark (switch in Profile). The command replaces only the top half of `theme.css` and keeps the Lane additions, refreshes the tab colour and app icon, and runs the design check. Hard-to-read text colours are listed as warnings; they never block you.
 
 - **Try another option:** copy a different theme in tweakcn and run `pnpm theme:paste` again. Repeat as often as you like.
-- **Keep several options side by side:** save each one in tweakcn under its own name (for example "Lane – grey frame", "Lane – warm"). To switch, open it, Copy, `pnpm theme:paste`. You can also keep exports as files and paste one with `pnpm theme:paste -- path/to/option.css`.
+- **Keep several options side by side:** save each one in tweakcn under its own name (for example "Lane – grey frame", "Lane – warm"). To switch, open it, Copy, `pnpm theme:paste`. You can also keep exports as files and paste one with `pnpm theme:paste path/to/option.css`.
 - **Go back:** `pnpm theme:reset` returns the theme to the last committed version.
 - **Keep one:** ask an engineer (or Claude) to commit it. Visible changes still go through the parity check: re-record with `LANE_E2E_ALLOW_REMOTE=1 pnpm theme-parity:record` and review the listed differences.
 
@@ -64,28 +74,32 @@ If you change the font in tweakcn, an engineer also needs to load the new font i
 
 - **Keep the theme saved in tweakcn.** Importing an exported file back into tweakcn loses the shadow offsets and the letter-spacing. The saved theme in tweakcn is the real source; the CSS is a copy.
 - **Transparency is dropped** in every export format except rgb. That is why Lane's see-through lines and washes live in Lane additions.
-- **One radius, four corners.** tweakcn only exports small to extra-large corners (`--radius-sm` to `--radius-xl`) from one `--radius`. Lane's exact corner steps are in additions as `--corner-*`, ratios of `--radius`; the bridge points the `--radius-*` names Arc, Lane and Tailwind read at them.
+- **One radius, four corners.** tweakcn only exports small to extra-large corners (`--radius-sm` to `--radius-xl`) from one `--radius`. Lane's exact corner steps are in additions as `--lane-corner-*`, ratios of `--radius`; the bridge points the `--radius-*` names Arc, Lane and Tailwind read at them.
 - **tweakcn's preview won't match Lane exactly** for corner steps, menu shadows and slots Lane doesn't use (tweakcn's grey `--accent`, the charts it previews).
 - Lane sets dark mode with the `.dark` class tweakcn expects; your light/dark/system choice in Profile keeps working.
 
 ## Rules for code (enforced by `pnpm design:check`)
 
-- Product CSS and JSX write no visual literals: no colour, px/rem, ms or font values. They read theme or bridge names. Mechanical exceptions only: the 1px screen-reader pattern, zero values, media/container query thresholds, SVG geometry, measured layout, and Arc's JavaScript motion springs (`src/components/arc/motion-tokens.ts`, a recorded exemption).
+- Product CSS and JSX write no visual literals: no colour, px/rem, ms or font values. They read theme or bridge names. Mechanical exceptions only: the 1px screen-reader pattern, zero values, media/container query thresholds, SVG geometry, measured layout, and Arc animation geometry. JavaScript motion durations, eases, stagger and blur are a checked numeric adapter of Lane tokens; they may not drift.
 - Only the theme file (and Arc's layered foundation) has dark-mode selectors (`.dark`, `[data-theme="dark"]`, `prefers-color-scheme: dark`). When a screen looks different in dark, give it a Lane additions token with a light and a dark value.
 - The bridge holds only renames: no literals, calculations, colour mixing, keywords or dark-mode selectors. Every name it reads must be defined in `theme.css`.
+- Non-binary opacity, stacking layers, text-relative dimensions and icon strokes read Lane tokens. Required variable references must resolve; component slots with explicit fallbacks and Radix-provided measurements are allowed.
 - Every Arc foundation name must be defined by the theme or the bridge, so no Arc default can paint.
 - Icons read `--icon-size` (roles xs to 2xl via `data-icon-size`); numeric icon sizes are rejected. Search inputs use Arc `SearchField`. Page CSS must not override shared control padding, corners or materials.
-- `e2e/theme-parity.spec.ts` checks that pages paint the same resolved values as before the switch, in light and dark.
+- `e2e/theme-parity.spec.ts` checks that pages paint the same resolved values as before the switch, in light and dark; the November 2 palette has its own frozen-role tests in `lane-theme.test.mjs`.
 
-## Known differences from before the switch
+## Current verification boundaries
 
-Two dark colours (dark `--primary` and the old red text) sat outside the normal colour range and differ only on wide-gamut screens. Before Geist loads, text uses plain sans-serif instead of a size-matched fallback.
+The November 2 source capture covered the signed-in dashboard in dark mode.
+All 79 approved semantic colour mappings are checked against that capture; light
+mode uses the frozen source definitions. The source inventory has 150 variables,
+including unused library and Orbit values; those are reference material, not 150
+colours that every Lane screen should paint. Typography, radii and motion retain
+Lane's reviewed settings; the spacing base matches the source's Tailwind base.
 
-Deliberate change after the switch (2026-10-22, Nikhil): in light mode the page frame and sidebar are a soft grey (`oklch(0.97 0 0)`) so the white main panel, cards and dialogs stand out. Dialogs read the `--dialog-surface` addition: white in light, the darkest surface in dark (unchanged).
-
-## Accessibility exception (still in force)
-
-The values are the 2026-10-13 Supabase-derived values, copied as-is, including colour pairs, outlines, badge sizes and target sizes that miss WCAG AA (Nikhil, 2026-10-13). Keyboard focus rings remain. The design check's contrast report shows the weak pairs.
+The current palette retains three documented contrast warnings: destructive-button
+text in light/dark (3.82:1), and muted text on the muted dark surface (4.36:1).
+The token audit does not claim those pairs pass WCAG AA. Keyboard focus remains.
 
 ## Brand assets
 
