@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
+import { withListFilter, withoutListFilters } from "@/components/requests/list-filters"
 import { usePendingMutations, usePendingRows } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "../request-workspace-keyboard"
 import { paginateRequests, type OverviewRequest } from "@/lib/request-overview"
@@ -200,16 +201,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     }
     navigation.prepareDetail(openedId, { sequence: captureSequence(matching.map(row => row.id), openedId) })
   }, [matching, navigation, peekAvailable, focusGridKey, openPeek])
-  const setFilter = useCallback((id: string, value: string) => {
-    if (id === "project") {
-      setView(previous => withListContext(previous, { project: value || "all" }))
-      return
-    }
-    setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: 0 }, localFilters: [...previous.localFilters.filter(item => item.id !== id), ...(value ? [{ id, value }] : [])] }))
-  }, [setView])
-  const clearFilters = useCallback(() => {
-    setView(previous => ({ ...withListContext(previous, { status: "all", project: "all" }), localFilters: [], pagination: { ...previous.pagination, pageIndex: 0 } }))
-  }, [setView])
+  const setFilter = useCallback((id: string, value: string) => setView(previous => withListFilter(previous, id, value)), [setView])
+  const clearFilters = useCallback(() => setView(withoutListFilters), [setView])
   const setStatus = useCallback((next: RequestStatusFilter) => setView(previous => withListContext(previous, { status: next })), [setView])
   const setVisibility = useCallback((next: Record<string, boolean>) => setView(previous => ({ ...previous, columnVisibility: { ...previous.columnVisibility, ...Object.fromEntries(Object.entries(next).filter(([key, value]) => value !== (columnVisibility[key] !== false))) } })), [setView, columnVisibility])
   const setOrdering = useCallback((next: typeof ordering) => setView(previous => ({ ...previous, ordering: next, pagination: { ...previous.pagination, pageIndex: 0 } })), [setView])

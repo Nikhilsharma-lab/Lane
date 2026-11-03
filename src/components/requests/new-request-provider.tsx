@@ -221,7 +221,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
         // it, in the view that holds the new Request, and the list consumes the reveal there.
         if (onList.current) return;
         const revealed = revealRequest(listSnapshot?.() ?? view, created);
-        router.push(requestListHref(revealed.status, revealed.project));
+        router.push(requestListHref(revealed.status, revealed.project, revealed.title));
       } : undefined,
     }));
   }, [listSnapshot, pathname, router, setDetailSession, setListView, toast]);

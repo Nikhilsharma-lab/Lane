@@ -301,8 +301,8 @@ test("sidebar Project, No Project, Group by and title typing make zero network r
         await measure(() => page.getByRole("option", { name: option }).click())
       }
       await page.keyboard.press("Escape")
-      await page.getByRole("button", { name: "Filter Requests by title" }).click()
-      const title = page.getByRole("searchbox", { name: "Filter Requests by title" })
+      await page.getByRole("button", { name: "Filter by title" }).click()
+      const title = page.getByRole("searchbox", { name: "Filter by title" })
       for (const key of ["e", "Backspace"]) await measure(() => title.press(key))
       await page.keyboard.press("Escape")
     }

@@ -232,7 +232,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
         onNavigate={({ id }) => {
           dismissPeek(); closeSearch(false);
           const view = id.startsWith(VIEW_ID) ? savedViews.find(item => VIEW_ID + item.id === id) : undefined;
-          if (view) navigation.selectList({ ...view.filters, savedView: view.id });
+          // A214: a view applies all its filters, so one saved without a title clears the title being typed.
+          if (view) navigation.selectList({ ...view.filters, title: view.filters.title ?? "", savedView: view.id });
         }}
         renderLink={renderLink} notifications={notifications} onMobileOpenChange={setMobileOpen} />
       </div>
