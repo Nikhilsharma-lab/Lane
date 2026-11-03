@@ -91,10 +91,34 @@ describe("production Clerk session adapter", () => {
     expect(getToken.mock.calls).toEqual([[], [{ skipCache: true }]])
     expect(run).toHaveBeenCalledTimes(2)
   })
-  it.each([undefined, { session: null }, { session: { getToken: async () => null } }])("does not replay without a usable Clerk session", async clerk => {
+  it.each([{ loaded: true, session: null }, { session: { getToken: async () => null } }])("does not replay without a usable Clerk session", async clerk => {
     vi.stubGlobal("Clerk", clerk)
     const run = vi.fn(async () => expired)
     await expect(callAction(run)).resolves.toBe(expired)
     expect(run).toHaveBeenCalledTimes(1)
+  })
+  // An expiry that comes back before Clerk's script has loaded (a quick press on a fresh tab) renews once it has.
+  it("renews once Clerk finishes loading, then replays once", async () => {
+    vi.useFakeTimers()
+    try {
+      const run = vi.fn().mockResolvedValueOnce(expired).mockResolvedValueOnce({ success: true })
+      const result = callAction(run)
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(run).toHaveBeenCalledTimes(1)
+      vi.stubGlobal("Clerk", { loaded: true, session: { getToken: async () => "renewed" } })
+      await vi.advanceTimersByTimeAsync(200)
+      await expect(result).resolves.toEqual({ success: true })
+      expect(run).toHaveBeenCalledTimes(2)
+    } finally { vi.useRealTimers() }
+  })
+  it("gives up without a replay when Clerk never loads", async () => {
+    vi.useFakeTimers()
+    try {
+      const run = vi.fn(async () => expired)
+      const result = callAction(run)
+      await vi.advanceTimersByTimeAsync(10_000)
+      await expect(result).resolves.toBe(expired)
+      expect(run).toHaveBeenCalledTimes(1)
+    } finally { vi.useRealTimers() }
   })
 })
