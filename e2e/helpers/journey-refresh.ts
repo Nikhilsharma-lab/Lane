@@ -114,7 +114,8 @@ export async function holdNextJourneyRead(page: Page, reads: JourneyReads) {
       delivery.resolve();
       await expect.poll(() => finished, { timeout: 30_000 }).toBe(true);
       if (failure) throw failure;
-      expect(await (await arrived).finished()).toBeNull();
+      // Its status, not finished(), which can wait forever on a read the page stopped reading (see above).
+      expect((await arrived).ok()).toBe(true);
       // Give React a turn to apply (or reject) the actual delivered response.
       await page.waitForTimeout(300);
     },

@@ -106,6 +106,8 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
     await admin.getByRole('option', { name: 'Review Developer' }).click();
     await release.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
     await release.getByRole('button', { name: 'Hand over' }).click();
+    // Wait for the saved handover before the new Requester looks.
+    await expect(release).toContainText('Requester: Review Developer', { timeout: 20_000 });
     const developer = team.pages[2]; await developer.goto(path);
     const outcome = developer.getByRole('region', { name: 'Journey', exact: true });
     await outcome.getByRole('button', { name: 'Close without a result…' }).click();
