@@ -113,7 +113,7 @@ export async function verifyMoveCancellations(page: Page, orgId: string, fixture
       // #263: on a phone the confirmation is a bottom panel, and Back closes it first, staying on the list.
       await page.goBack();
       await expect(confirmation(page)).toBeHidden(); await expect(page).toHaveURL(url => url.pathname === "/");
-      await expect.poll(() => page.evaluate(() => (history.state as { lanePopup?: string } | null)?.lanePopup ?? null)).toBeNull();
+      await expect.poll(() => page.evaluate(() => (window.history.state as { lanePopup?: string } | null)?.lanePopup ?? null)).toBeNull();
     }
     await page.goBack();
     await expect(page).toHaveURL(url => url.pathname === `/requests/${fixture.a.id}`); await page.goForward();
