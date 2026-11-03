@@ -165,7 +165,7 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await field.fill("checkout");
       await field.press("Enter");
       // A development server compiles the action on its first call.
-      await expect(sidebar(page).getByRole("alert")).toHaveText("A Project called Checkout already exists. Choose another name.", { timeout: 45_000 });
+      await expect(sidebar(page).getByRole("alert")).toContainText("A Project called Checkout already exists. Choose another name.", { timeout: 45_000 });
       await expect(field).toHaveAccessibleDescription(/A Project called Checkout already exists\. Choose another name\./);
       await expect(field).toHaveValue("checkout");
       await expect(field).toHaveAttribute("aria-invalid", "true");

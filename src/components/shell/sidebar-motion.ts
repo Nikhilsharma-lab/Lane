@@ -12,7 +12,7 @@ export type SidebarMotion = "collapsing" | "expanding" | null
  * changed. The server draws the first frame at this width, so it is a number here too; sidebar-motion.test.ts
  * fails if the two differ.
  */
-export const NAVIGATION_WIDTH = 224
+export const NAVIGATION_WIDTH = 240
 
 /** The width the shell lays the content out with. While the panel slides in, the content keeps its width. */
 export function layoutWidthFor({ width, autoCollapsed, motion }: { width: number; autoCollapsed: boolean; motion: SidebarMotion }) {
