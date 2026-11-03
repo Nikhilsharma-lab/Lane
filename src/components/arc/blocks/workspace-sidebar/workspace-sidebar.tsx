@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 // Licensed Arc Pro workspace-sidebar. Lane data/route adapters are documented in arc-sources.md.
 // Arc Pro source (https://uiarc.dev), used under the Arc Pro license as part of the Lane app.
 // It is not covered by any license of this repository and may not be reused outside Lane.
-import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type ComponentProps, type FormEvent, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactElement, type ReactNode, type RefObject } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type ChangeEvent, type ComponentProps, type FormEvent, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactElement, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { AnimatePresence, LayoutGroup, animate, m, useMotionValue, useReducedMotion, useTransform, type TargetAndTransition, type Transition } from "motion/react";
-import { Check, ChevronRight, CircleHelp, Folder, LoaderCircle, Plus, Search, Settings, SquarePen, UsersRound, X } from "lucide-react";
+import { Check, ChevronRight, CircleHelp, Folder, Keyboard, LoaderCircle, Plus, Search, Settings, SquarePen, UsersRound, X } from "lucide-react";
 import { Button } from "../../button/button";
 import { UserMenu, type UserMenuWorkspaces } from "../../user-menu/user-menu";
 import { ProjectContextMenu } from "@/components/shell/project-context-menu";
@@ -19,6 +19,12 @@ import styles from "./workspace-sidebar.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 import { KeyCap } from "@/components/keyboard/key-caps";
 import { failureWords } from "@/lib/failure-messages";
+import { PROJECT_NAME_MAX } from "@/lib/request-constants";
+import { afterPageLoad } from "@/lib/after-page-load";
+import { popupCode, usePopupCode } from "@/components/popup/lazy-popup";
+
+// Lane #269: the New Project field's Arc input and counter load on their own, after the page (project-name-field.tsx).
+const projectNameField = popupCode(() => import("@/components/shell/project-name-field"));
 
 export type WorkspaceNavigationItem = { id: string; name: string; href: string; icon?: ReactNode };
 export type WorkspaceNavigationGroup = { id: string; name: string; items: WorkspaceNavigationItem[] };
@@ -42,6 +48,10 @@ export interface WorkspaceSidebarProps {
   user: { name: string; email: string };
   settingsHref: string;
   membersHref?: string;
+  /** Lane #269 (A113): the Members item's words, which say what the person can do there. */
+  membersLabel?: string;
+  /** Lane #269 (A123): opens the keyboard shortcuts list; offered in the account menu where there is a keyboard. */
+  onShowShortcuts?: () => void;
   /** Lane #258: runs each time the account menu opens (once per open), so the parent can load its destinations ahead.
    * #259: also as soon as someone heads for it: the pointer reaching the account button (not touch), or focus landing on
    * it or inside the menu. It can run several times for one visit, so the parent loads once per what it keeps fresh. */
@@ -91,14 +101,18 @@ function useReducedMotionSafe() {
 
 /** Phones get a top bar and an off-canvas drawer instead of a column beside the content. The stylesheet hides the inline column at the same width, so a phone never flashes it before hydration. */
 const PHONE = "(max-width: 640px)";
-const subscribePhone = (change: () => void) => {
-  const query = window.matchMedia(PHONE);
-  query.addEventListener("change", change);
-  return () => query.removeEventListener("change", change);
-};
-function usePhone() {
-  return useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false);
+/** Whether a media query matches, following it live; false on the server and the first render. */
+function useMedia(media: string) {
+  return useSyncExternalStore(change => {
+    const query = window.matchMedia(media);
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
+  }, () => window.matchMedia(media).matches, () => false);
 }
+const usePhone = () => useMedia(PHONE);
+
+/** Lane #269 (A123): a screen with a keyboard to press shortcuts on: wider than a phone, with a mouse or trackpad. */
+const useKeyboardScreen = () => useMedia("(min-width: 640px) and (pointer: fine)");
 
 const focusable = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -354,19 +368,26 @@ function Composer({ reduce, rail, onExpand, onCreate }: { reduce: boolean; rail:
     } finally { inFlight.current = false; }
   }
   const idle = state === "idle";
+  const field = usePopupCode(projectNameField, !idle, () => {}, { ahead: true });
+  useEffect(() => afterPageLoad(projectNameField.preload), []);
+  const fieldProps = { id: `${id}-name`, className: styles.composerInput, value, readOnly: state === "commit", placeholder: "Project name", "aria-describedby": `${id}-help`, autoComplete: "off", enterKeyHint: "done" as const,
+    onChange: (event: ChangeEvent<HTMLInputElement>) => { setValue(event.target.value); setError(""); },
+    onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); } } };
   return <m.div className={styles.composerWrap} initial={false} animate={{ opacity: 1 }} transition={reduce ? instant : { duration: duration.standard }}>
     <form ref={form} className={styles.composer} data-state={state} data-invalid={error ? "" : undefined} onSubmit={submit} aria-busy={state === "commit"}>
       <span className={styles.lead} aria-hidden="true">{state === "commit" ? <LoaderCircle /> : <Plus strokeWidth={1.75} />}</span>
       <span className={styles.composerField}>
+        {/* Lane #269 (A19, A110): Arc `input` carries the field's error and, near the limit, the shared counter, both under the row. */}
         {idle ? <span className={styles.composerLabel} aria-hidden="true">New Project</span> :
-          <input ref={input} id={`${id}-name`} className={styles.composerInput} value={value} maxLength={80} readOnly={state === "commit"} placeholder="Project name" aria-label="Project name" aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : `${id}-help`} autoComplete="off" enterKeyHint="done"
-            onChange={event => { setValue(event.target.value); setError(""); }} onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); } }} />}
+          field ? <field.ProjectNameField ref={input} {...fieldProps} error={error || undefined} />
+            // The field's code is still on its way (or couldn't come): the same field, plainly, with its error under it.
+            : <span><input {...fieldProps} ref={input} maxLength={PROJECT_NAME_MAX} aria-label="Project name" aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-help ${id}-error` : `${id}-help`} />
+              {error && <span id={`${id}-error`} className={styles.composerError} role="alert">{error}</span>}</span>}
       </span>
       {!idle && <button type="submit" className={styles.createButton} disabled={state === "commit"} aria-label="Create Project"><Check strokeWidth={1.75} aria-hidden="true" /></button>}
-      {idle && <RailTip enabled={rail} label="New Project"><button ref={trigger} type="button" className={styles.composerTrigger} onClick={() => { if (rail) onExpand(); open(); }}>New Project</button></RailTip>}
+      {idle && <RailTip enabled={rail} label="New Project"><button ref={trigger} type="button" className={styles.composerTrigger} onPointerEnter={projectNameField.preload} onFocus={projectNameField.preload} onClick={() => { if (rail) onExpand(); open(); }}>New Project</button></RailTip>}
       <span id={`${id}-help`} className={styles.srOnly}>Press Enter to create the Project or Escape to cancel.</span>
     </form>
-    {error && <p id={`${id}-error`} className={styles.createError} role="alert">{error}</p>}
     {state === "commit" && <span className={styles.srOnly} role="status">Creating Project…</span>}
   </m.div>;
 }
@@ -383,11 +404,12 @@ function usePageLock(locked: boolean) {
   }, [locked]);
 }
 
-export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, onAccountMenuOpen, help, accountAccessory, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
+export function WorkspaceSidebar({ className, layoutManaged = false, forceDesktopLayout = false, projectTree = false, workspace, user, settingsHref, membersHref, membersLabel = "Invite and manage members", onShowShortcuts, onAccountMenuOpen, help, accountAccessory, canCompose = true, onSignOut, projects, groups, activeId, currentPage, loading, error, onRetry, onCreateProject, onNavigate, defaultCollapsed = false, onCollapsedChange, onMobileOpenChange, renderLink, notifications, onSearch, searchActive = false, workspaces }: WorkspaceSidebarProps) {
   const reduce = useReducedMotionSafe();
   // Lane #259: the account menu's Lane destinations open inside the app, so Settings loaded ahead shows at once.
   const { push } = useRouter();
   const phone = usePhone() && !forceDesktopLayout;
+  const keyboard = useKeyboardScreen();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [drawer, setDrawer] = useState(false);
   // The drawer stays visible until its slide out settles, then leaves the accessibility tree.
@@ -417,6 +439,8 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
   const width = useRailWidth(rail, reduce, () => {});
   const [announcement, setAnnouncement] = useState("");
   const accountTrigger = useRef<HTMLButtonElement>(null);
+  // Lane #269 (A112): whether the account button's name is cut to "…", measured as the pointer arrives.
+  const [nameCut, setNameCut] = useState(false);
 
   usePageLock(phone && drawer);
   useEffect(() => { onMobileOpenChange?.(phone && drawer); return () => onMobileOpenChange?.(false); }, [phone, drawer, onMobileOpenChange]);
@@ -557,15 +581,21 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
       <div className={styles.header}>
         <div className={styles.identityRow}>
         <div className={styles.accountSlot} onPointerEnter={event => { if (event.pointerType !== "touch") onAccountMenuOpen?.(); }} onFocus={onAccountMenuOpen}>
+          {/* Lane #269 (A112): the name takes the row's spare room; only a name that still doesn't fit gets "…" and its full text on hover. */}
+          {/* Hover only: the button's own name already says the whole name, and focus arriving (the peek opening) shows no tip. */}
+          <RailTip enabled={nameCut && !rail && !accountOpen} label={user.name} side="bottom"><span className={styles.accountName} onFocus={event => event.preventDefault()}
+            onPointerEnter={event => { const name = event.currentTarget.querySelector("button > span:nth-child(2)"); setNameCut(!!name && name.scrollWidth > name.clientWidth); }}>
           <UserMenu ref={accountTrigger} user={user} showName={!rail} showTheme={false} align="start" onNavigate={push}
             className={styles.accountTrigger} open={accountOpen} onOpenChange={onAccountOpenChange}
             items={[
               { label: "Settings", icon: <Settings />, href: settingsHref, current: activeId === settingsHref, onSelect: () => select(settingsHref, "Settings") },
-              ...(membersHref ? [{ label: "Invite and manage members", icon: <UsersRound />, href: membersHref, current: activeId === membersHref, onSelect: () => select(membersHref, "Invite and manage members") }] : []),
+              ...(membersHref ? [{ label: membersLabel, icon: <UsersRound />, href: membersHref, current: activeId === membersHref, onSelect: () => select(membersHref, membersLabel) }] : []),
               ...(help ? [{ label: help.label, icon: <CircleHelp />, href: help.href, onSelect: () => select(help.href, help.label) }] : []),
+              ...(onShowShortcuts && keyboard ? [{ label: "Keyboard shortcuts", icon: <Keyboard />, keys: ["?"], onSelect: onShowShortcuts }] : []),
             ]}
             workspaces={workspaces} signOutLabel="Log out"
             onSignOut={onSignOut ? async () => { await onSignOut(); if (phone) closeDrawer(); } : undefined} />
+          </span></RailTip>
         </div>
           <div className={styles.identityActions}>
             <RailTip label="Search workspace" shortcut="/" side={rail ? "right" : "bottom"}><button type="button" className={styles.headerAction} aria-label="Search workspace" aria-keyshortcuts="/" aria-pressed={searchActive} onClick={() => { if (phone) closeDrawer(); onSearch?.(); }}><Search strokeWidth={1.75} aria-hidden="true" /></button></RailTip>

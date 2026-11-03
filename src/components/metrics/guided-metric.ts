@@ -1,4 +1,4 @@
-import { metricDefinitionInputSchema } from '@/lib/metric-definition-rules';
+import { metricDefinitionProblems } from '@/lib/metric-definition-rules';
 
 export const guideKinds = [
   { value: 'completion', label: 'Of those who start, how many finish?', description: 'Example: 60 of 100 people finish checkout → 60% completion.' },
@@ -26,7 +26,6 @@ export function buildMetricDefinition(input: MetricGuide) {
     : v.kind === 'count' ? v.basis === 'people' ? `Number of unique people who perform “${v.event}” during the measurement period. Count each person once.` : `Number of times “${v.event}” happens during the measurement period. Include repeat occurrences.`
     : `${v.summary} time from “${v.start}” to “${v.end}”, in ${unit}. Include completed attempts only, pairing each finish with its matching start.`;
   const values = {name:v.name,unit,link:'',howCounted};
-  const parsed = metricDefinitionInputSchema.safeParse(values);
-  if (!parsed.success) return {ok:false as const, fields:{name:'Shorten the name or answers so the definition fits.'}};
+  if (Object.keys(metricDefinitionProblems(values)).length) return {ok:false as const, fields:{name:'Shorten the name or answers so the definition fits.'}};
   return {ok:true as const, values};
 }

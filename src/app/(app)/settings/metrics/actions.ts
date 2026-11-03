@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { guardCanChange } from "@/lib/auth-guard";
-import { metricDefinitionFieldErrors, metricDefinitionInputSchema, type MetricDefinitionField } from "@/lib/metric-definition-rules";
+import type { MetricDefinitionField } from "@/lib/metric-definition-rules";
+import { metricDefinitionFieldErrors, metricDefinitionInputSchema } from "@/lib/metric-definition-schema";
 import {
   addMetricDefinition as addToLibrary, archiveMetricDefinition as archiveInLibrary, editMetricDefinition as editInLibrary,
   mergeMetricDefinitions as mergeInLibrary, restoreMetricDefinition as restoreInLibrary, type MetricsLibraryRefusal,

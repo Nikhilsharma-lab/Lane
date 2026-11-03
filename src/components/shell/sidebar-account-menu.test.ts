@@ -34,6 +34,11 @@ function openAccountMenu(role: string) {
   return { members: sidebar!.membersHref, loaded: prefetch.mock.calls.map(([href]) => href) };
 }
 
+function membersItem(role: string) {
+  openAccountMenu(role);
+  return sidebar!.membersHref ? sidebar!.membersLabel : undefined;
+}
+
 describe("The account menu's Settings, loaded ahead (#258)", () => {
   beforeEach(() => { prefetch.mockClear(); });
 
@@ -61,5 +66,15 @@ describe("The account menu's Settings, loaded ahead (#258)", () => {
     } finally {
       clock.mockRestore();
     }
+  });
+
+  // #269 (A113): the item says what the person can do on that page.
+  it.each([
+    ["admin", "Invite and manage members"],
+    ["member", "Members"],
+    ["viewer", undefined],
+    ["guest", undefined],
+  ])("names the Members item for an %s as %s", (role, label) => {
+    expect(membersItem(role)).toBe(label);
   });
 });
