@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { REQUEST_STATUS_FILTER_LABELS, REQUEST_TITLE_FILTER_MAX, changesListInPlace, hasRequestListContext, parseRequestListContext, parseRequestProjectFilter, parseRequestStatusFilter, requestDetailHref, requestListContextFromHref, requestListHref } from "./request-workspace"
+import { REQUEST_STATUS_FILTER_LABELS, changesListInPlace, hasRequestListContext, parseRequestListContext, parseRequestProjectFilter, parseRequestStatusFilter, requestDetailHref, requestListContextFromHref, requestListHref } from "./request-workspace"
 import { JOURNEY_STATUSES } from "./request-journey"
 import { TITLE_MAX } from "./request-schema"
+import { REQUEST_TITLE_FILTER_MAX } from "./saved-view-rules"
 
 describe("status views (#133)", () => {
   it("offers each journey status under its glossary label, plus Due soon or overdue", () => {

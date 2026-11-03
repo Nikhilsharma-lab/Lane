@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { openSavedView, parseSavedViewName, savedViewChoices, readSavedViewFilters, savedViewFilters, savedViewHref, savedViewChanged, savedViewSelection, viewInNavigation } from "./saved-view-rules";
+import { openSavedView, parseSavedViewName, savedViewChoices, readSavedViewFilters, savedViewFilters, savedViewHref, savedViewChanged, viewInNavigation } from "./saved-view-rules";
 
 const WEBSITE = "11111111-1111-4111-8111-111111111111";
 
@@ -73,11 +73,6 @@ describe("a saved view's title filter (A214)", () => {
     expect(savedViewChanged({ status: "open", project: "all", title: "checkout" }, { status: "open", project: "all", title: "check" })).toBe(true);
     expect(savedViewChanged({ status: "open", project: "all" }, { status: "open", project: "all", title: "" })).toBe(false);
     expect(savedViewChanged({ status: "open", project: "all" }, { status: "open", project: "all", title: "x" })).toBe(true);
-  });
-
-  it("is applied in full when a view opens, so an older view clears a title being typed", () => {
-    expect(savedViewSelection({ id: "v1", name: "Open", filters: { status: "open", project: "all" } })).toEqual({ status: "open", project: "all", title: "", savedView: "v1" });
-    expect(savedViewSelection({ id: "v2", name: "Checkout", filters: { status: "all", project: "all", title: "checkout" } })).toEqual({ status: "all", project: "all", title: "checkout", savedView: "v2" });
   });
 });
 

@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
+import { withListFilter, withoutListFilters } from "@/components/requests/list-filters"
 import { usePendingMutations, usePendingRows } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "../request-workspace-keyboard"
 import { paginateRequests, type OverviewRequest } from "@/lib/request-overview"
@@ -200,17 +201,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     }
     navigation.prepareDetail(openedId, { sequence: captureSequence(matching.map(row => row.id), openedId) })
   }, [matching, navigation, peekAvailable, focusGridKey, openPeek])
-  const setFilter = useCallback((id: string, value: string) => {
-    if (id === "project" || id === "title") {
-      // A214: the title filter is list context, like the Project, so the address and saved views keep it.
-      setView(previous => withListContext(previous, id === "project" ? { project: value || "all" } : { title: value }))
-      return
-    }
-    setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: 0 }, localFilters: [...previous.localFilters.filter(item => item.id !== id), ...(value ? [{ id, value }] : [])] }))
-  }, [setView])
-  const clearFilters = useCallback(() => {
-    setView(previous => ({ ...withListContext(previous, { status: "all", project: "all", title: "" }), localFilters: [], pagination: { ...previous.pagination, pageIndex: 0 } }))
-  }, [setView])
+  const setFilter = useCallback((id: string, value: string) => setView(previous => withListFilter(previous, id, value)), [setView])
+  const clearFilters = useCallback(() => setView(withoutListFilters), [setView])
   const setStatus = useCallback((next: RequestStatusFilter) => setView(previous => withListContext(previous, { status: next })), [setView])
   const setVisibility = useCallback((next: Record<string, boolean>) => setView(previous => ({ ...previous, columnVisibility: { ...previous.columnVisibility, ...Object.fromEntries(Object.entries(next).filter(([key, value]) => value !== (columnVisibility[key] !== false))) } })), [setView, columnVisibility])
   const setOrdering = useCallback((next: typeof ordering) => setView(previous => ({ ...previous, ordering: next, pagination: { ...previous.pagination, pageIndex: 0 } })), [setView])
@@ -275,7 +267,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const renderRow = (request: OverviewRequest, level?: number) => <RequestRow key={request.id} request={request} columns={columns} visibility={columnVisibility} level={level}
     tabbable={grid.tabbable === `r:${request.id}`} checked={selection.selected.some(row => row.id === request.id)} disabled={selection.busy} onCheckedChange={checked => selection.toggle(request.id, checked)} />
   return <RequestPeekOpener value={peekFromMenu}><RequestPeekLoadAhead value={loadAhead}><div ref={layoutRef} className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
-    <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter, title)} onRestoreRequest={restoreRequest} />
+    <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
     <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={changeSummary} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter} onStatusChange={setStatus} onVisibilityChange={setVisibility} onOrderingChange={setOrdering} onGroupingChange={setGrouping} onClear={clearFilters} />

@@ -3,7 +3,7 @@ import type { OverviewRequest } from "@/lib/request-overview"
 import type { ListViewState } from "./list-view-state"
 import { listViewModel, viewResets } from "./list-view-model"
 
-const view: ListViewState = {
+const view: ListViewState = { title: "",
   columnVisibility: {}, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
   pagination: { pageIndex: 0, pageSize: 2 }, status: "all", project: "all",
 }

@@ -52,13 +52,7 @@ export function parseRequestProjectFilter(
 }
 
 /** A214: the list's title filter (URL `?title=`) is cut to the longest Request title (request-schema.ts TITLE_MAX). */
-export const REQUEST_TITLE_FILTER_MAX = 200
-
-/** The title filter of a URL query, as typed and cut to REQUEST_TITLE_FILTER_MAX; absent reads as "" (no filter). */
-export function parseRequestTitleFilter(value: string | string[] | null | undefined): string {
-  const candidate = Array.isArray(value) ? value[0] : value
-  return typeof candidate === "string" ? candidate.slice(0, REQUEST_TITLE_FILTER_MAX) : ""
-}
+const REQUEST_TITLE_FILTER_MAX = 200
 
 function requestQuery(filter: RequestStatusFilter, projectFilter: RequestProjectFilter, title = "") {
   const query = new URLSearchParams()
@@ -89,12 +83,12 @@ export type RequestListContext = { status: RequestStatusFilter; project: Request
 
 type SearchParamsLike = { get(name: string): string | null; has(name: string): boolean }
 
-/** Reads the list context of a URL query. Absent values mean "all", and no title. */
+/** Reads the list context of a URL query. Absent values mean "all", and no title; a title is kept as typed, cut to REQUEST_TITLE_FILTER_MAX. */
 export function parseRequestListContext(params: SearchParamsLike | null | undefined): Required<RequestListContext> {
   return {
     status: parseRequestStatusFilter(params?.get("status") ?? undefined),
     project: parseRequestProjectFilter(params?.get("project")),
-    title: parseRequestTitleFilter(params?.get("title")),
+    title: (params?.get("title") ?? "").slice(0, REQUEST_TITLE_FILTER_MAX),
   }
 }
 
@@ -111,8 +105,9 @@ export function requestListContextFromHref(href: string): RequestListContext | n
   if (!href.startsWith("/") || href.startsWith("//")) return null
   const url = new URL(href, "https://lane.invalid")
   if (url.pathname !== "/" || url.hash) return null
-  const { title, ...context } = parseRequestListContext(url.searchParams)
-  return url.searchParams.has("title") ? { ...context, title } : context
+  const context: RequestListContext = parseRequestListContext(url.searchParams)
+  if (!url.searchParams.has("title")) delete context.title
+  return context
 }
 
 /** Already on "/", a Requests list link (a view, a Project, No Project) changes the list in place with no request; elsewhere it navigates. */

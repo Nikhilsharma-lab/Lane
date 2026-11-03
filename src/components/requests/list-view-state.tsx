@@ -12,7 +12,7 @@ import { usePendingMutations } from "./pending-mutations-provider"
 import type { DetailSequence } from "./request-sequence"
 import { createRequestNavigation, RequestNavigationContext } from "./request-navigation"
 
-export type ListViewState = RequestListContext & {
+export type ListViewState = Required<RequestListContext> & {
   columnVisibility: ColumnVisibilityState
   localFilters: ColumnFiltersState
   ordering: RequestOrdering
@@ -24,7 +24,7 @@ export type ListViewState = RequestListContext & {
   /** #219: the saved view the person opened, kept while they change its filters so the change can be saved into it. */
   savedView?: string
 }
-/** The status view and Project plus the open saved view (#219). The title filter has its own context (A214). */
+/** The status view and Project plus the open saved view (#219). The title filter (A214) changes on each keystroke, so it stays out: the sidebar reads this. */
 export type OpenListContext = Omit<RequestListContext, "title"> & { savedView?: string }
 export type SetListView = Dispatch<SetStateAction<ListViewState>>
 
@@ -43,14 +43,11 @@ const initialView: ListViewState = {
 const ListViewStateContext = createContext<ListViewState | null>(null)
 const ListViewSetterContext = createContext<SetListView | null>(null)
 const ListContextContext = createContext<OpenListContext | null>(null)
-// A214: the title filter changes on every keystroke, so it is kept apart from the list context the sidebar reads.
-const ListTitleContext = createContext("")
 const ListViewSnapshotContext = createContext<(() => ListViewState) | null>(null)
 ListViewStateContext.displayName = "RequestListViewState"
 ListViewSnapshotContext.displayName = "RequestListViewSnapshot"
 ListViewSetterContext.displayName = "RequestListViewSetter"
 ListContextContext.displayName = "RequestListContext"
-ListTitleContext.displayName = "RequestListTitle"
 
 /**
  * Plan item 2.5: what Request detail keeps between Requests. The sequence the
@@ -125,7 +122,7 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
       <ListContextContext.Provider value={listContext}>
         <DetailSessionSetterContext.Provider value={setDetailSession}>
           <DetailSessionContext.Provider value={detailSession}>
-            <ListTitleContext.Provider value={state.title ?? ""}><ListViewStateContext.Provider value={state}>{children}</ListViewStateContext.Provider></ListTitleContext.Provider>
+            <ListViewStateContext.Provider value={state}>{children}</ListViewStateContext.Provider>
           </DetailSessionContext.Provider>
         </DetailSessionSetterContext.Provider>
       </ListContextContext.Provider>
@@ -230,22 +227,17 @@ export function useRequestListContext(): OpenListContext {
   return required(useContext(ListContextContext), "useRequestListContext")
 }
 
-/** A214: the list's title filter ("" for none). Re-renders on every keystroke in it, so only what shows or saves it reads it. */
-export function useRequestListTitle(): string {
-  return useContext(ListTitleContext)
-}
-
 /** Moves the list to another status view, Project or title filter and returns to the first page. A missing part stays as it is. */
 export function withListContext(view: ListViewState, next: Partial<RequestListContext>): ListViewState {
-  const status = next.status ?? view.status, project = next.project ?? view.project, title = next.title ?? view.title ?? ""
-  if (status === view.status && project === view.project && title === (view.title ?? "")) return view
+  const status = next.status ?? view.status, project = next.project ?? view.project, title = next.title ?? view.title
+  if (status === view.status && project === view.project && title === view.title) return view
   return { ...view, status, project, title, pagination: { ...view.pagination, pageIndex: 0 } }
 }
 
-/** #219: opens a saved view (its filters, on the first page), or with null closes the open one and keeps the filters. A view without a title (A214) clears the title filter. */
+/** #219: opens a saved view (its filters, on the first page), or with null closes the open one and keeps the filters. */
 export function withSavedView(view: ListViewState, saved: { id: string; filters: RequestListContext } | null): ListViewState {
   if (!saved) return view.savedView === undefined ? view : { ...view, savedView: undefined }
-  const moved = withListContext(view, { ...saved.filters, title: saved.filters.title ?? "" })
+  const moved = withListContext(view, saved.filters)
   return { ...moved, savedView: saved.id, pagination: { ...moved.pagination, pageIndex: 0 } }
 }
 

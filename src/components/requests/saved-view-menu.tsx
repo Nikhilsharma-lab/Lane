@@ -11,7 +11,8 @@ import { thrownMessage } from "@/lib/failure-messages"
 import { openSavedView, SAVED_VIEW_NAME_MAX, savedViewChoices, type SavedView, type SavedViewChoice } from "@/lib/saved-view-rules"
 import { deleteSavedView, renameSavedView, saveView, updateSavedView } from "@/app/(app)/saved-view-actions"
 import { useListAnnouncer } from "./list-announcer"
-import { useRequestListContext, useRequestListTitle, useSetRequestListView, withSavedView } from "./list-view-state"
+import { useSetRequestListView, withSavedView } from "./list-view-state"
+import { useRequestListFilters } from "./list-filters"
 import styles from "./saved-view-menu.module.css"
 
 type DialogKind = Exclude<SavedViewChoice, "update">
@@ -26,9 +27,7 @@ const LABELS: Record<SavedViewChoice, string> = { save: "Save view", update: "Sa
  * Views are the person's own; the server checks the owner on every change. Focus returns to the control.
  */
 export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: string }) {
-  const listContext = useRequestListContext()
-  const title = useRequestListTitle()
-  const context = { ...listContext, title }
+  const context = useRequestListFilters()
   const setView = useSetRequestListView()
   const announce = useListAnnouncer()
   const open = openSavedView(views, context.savedView)

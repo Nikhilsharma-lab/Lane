@@ -16,7 +16,7 @@ import type { ProjectOption } from "@/lib/request-constants";
 import type { LocalSearchSource, WorkspaceSearchInput, WorkspaceSearchResponse } from "@/lib/workspace-search";
 import { rowJourney } from "@/lib/request-overview";
 import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
-import { openSavedView, savedViewHref, savedViewSelection, viewInNavigation, type SavedView } from "@/lib/saved-view-nav";
+import { openSavedView, savedViewHref, viewInNavigation, type SavedView } from "@/lib/saved-view-nav";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
@@ -209,7 +209,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
         onNavigate={({ id }) => {
           dismissPeek(); closeSearch(false);
           const view = id.startsWith(VIEW_ID) ? savedViews.find(item => VIEW_ID + item.id === id) : undefined;
-          if (view) navigation.selectList(savedViewSelection(view));
+          // A214: a view applies all its filters, so one saved without a title clears the title being typed.
+          if (view) navigation.selectList({ ...view.filters, title: view.filters.title ?? "", savedView: view.id });
         }}
         renderLink={renderLink} notifications={notifications} onMobileOpenChange={setMobileOpen} />
       </div>

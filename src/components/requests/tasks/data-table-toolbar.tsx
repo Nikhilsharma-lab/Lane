@@ -13,7 +13,8 @@ import { CalendarClock, Funnel, Hourglass, ListFilter, PanelRight, SlidersHorizo
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { useWorkspaceLabels } from "../workspace-labels"
 import { LabelDot } from "../request-labels"
-import { REQUEST_STATUS_FILTER_LABELS, REQUEST_TITLE_FILTER_MAX, isRequestStatusFilter } from "@/lib/request-workspace"
+import { REQUEST_STATUS_FILTER_LABELS, isRequestStatusFilter } from "@/lib/request-workspace"
+import { REQUEST_TITLE_FILTER_MAX } from "@/lib/saved-view-rules"
 import { matchesStatusView, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
 import type { RequestColumn } from "./columns"
@@ -23,7 +24,7 @@ import styles from "./data-table-toolbar.module.css"
 import { StatusPills, statusViewsFor } from "./status-pills"
 import { matchCountText } from "../request-row-label"
 
-/** A214: the title filter's name, apart from workspace search. list-focus.ts finds the button by it. */
+// A214: a funnel, as a magnifier means workspace search. list-focus.ts finds the button by this name.
 const TITLE_FILTER_LABEL = "Filter by title"
 
 export function DataTableToolbar({ controls = true, data, filter, title, project, projectName, requestType, matchCount, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
@@ -78,7 +79,6 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
         if (isRequestStatusFilter(next) && next !== filter) onStatusChange(next)
       }} />}
       <div className={styles.actions}>
-        {/* A214: a filter, not a search. A magnifier always means workspace search, so this field shows a funnel. */}
         <Popover>
           <PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} data-active={title ? "" : undefined} aria-label={TITLE_FILTER_LABEL} title={TITLE_FILTER_LABEL}><Funnel aria-hidden="true" /></Button></PopoverTrigger>
           <PopoverContent align="end" aria-label={TITLE_FILTER_LABEL} className={styles.searchPanel} onOpenAutoFocus={event => { event.preventDefault(); titleInput.current?.focus() }}>

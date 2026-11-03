@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: 
 afterEach(() => vi.unstubAllGlobals())
 
 function workspace(pathname = "/") {
-  let view: ListViewState = {
+  let view: ListViewState = { title: "",
     status: "open", project: "none", pagination: { pageIndex: 3, pageSize: 50 },
     columnVisibility: { submittedBy: true }, localFilters: [{ id: "title", value: "checkout" }, { id: "requestType", value: "bug" }],
     ordering: "oldest", grouping: "project", collapsedGroups: ["project:none"],

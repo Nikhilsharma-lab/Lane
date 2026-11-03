@@ -10,8 +10,9 @@ vi.mock("react", async importOriginal => {
 })
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(reads.search) }))
 
-import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListTitle, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, withSavedView, type ListViewState } from "./list-view-state"
+import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, withSavedView, type ListViewState } from "./list-view-state"
 import type { OverviewRequest } from "@/lib/request-overview"
+import { withListFilter, withoutListFilters } from "./list-filters"
 
 beforeEach(() => { reads.names = []; reads.search = "" })
 
@@ -86,12 +87,12 @@ describe("Request list context (plan item 1.7)", () => {
 })
 
 describe("The title filter in the list context (A214)", () => {
-  const view = { status: "open", project: "all", title: "", pagination: { pageIndex: 3, pageSize: 25 } } as ListViewState
+  const view = { status: "open", project: "all", title: "", localFilters: [] as ListViewState["localFilters"], pagination: { pageIndex: 3, pageSize: 25 } } as ListViewState
   const base = { written: null, hold: false, pathname: "/" }
 
   it("starts from the address, as status and Project do", () => {
     reads.search = "status=open&title=checkout"
-    expect(renderInProvider(() => `${useRequestListContext().status}:${useRequestListTitle()}`)).toBe("open:checkout")
+    expect(renderInProvider(() => `${useRequestListContext().status}:${useRequestListView()[0].title}`)).toBe("open:checkout")
     // Kept apart from the list context, so the sidebar doesn't re-render on each keystroke.
     expect(renderInProvider(() => Object.keys(useRequestListContext()).filter(key => key !== "savedView").join(","))).toBe("status,project")
     expect(renderInProvider(() => { const [state] = useRequestListView(); return listFiltersOf(state).title })).toBe("checkout")
@@ -113,10 +114,18 @@ describe("The title filter in the list context (A214)", () => {
     expect(planListUrlSync({ ...base, search: "status=open", seen: "status=open&title=checkout", current: { status: "open", project: "all", title: "checkout" }, locationSearch: "?status=open" })).toEqual({ seen: "status=open", adopt: { status: "open", project: "all", title: "" } })
   })
 
-  it("comes back with a saved view, and an older view without one clears it", () => {
+  it("is changed and cleared with the other list filters, each on the first page", () => {
+    const filtered = withListFilter(withListFilter(view, "title", "checkout"), "requestType", "bug")
+    expect(filtered).toMatchObject({ title: "checkout", localFilters: [{ id: "requestType", value: "bug" }], pagination: { pageIndex: 0 } })
+    expect(withListFilter(filtered, "project", "")).toMatchObject({ project: "all", title: "checkout" })
+    expect(withoutListFilters({ ...filtered, pagination: { pageIndex: 2, pageSize: 25 } })).toMatchObject({ status: "all", project: "all", title: "", localFilters: [], pagination: { pageIndex: 0 } })
+  })
+
+  it("comes back with a saved view", () => {
     const typed = withListContext(view, { title: "pricing" })
     expect(withSavedView(typed, { id: "v1", filters: { status: "all", project: "all", title: "checkout" } })).toMatchObject({ title: "checkout", savedView: "v1" })
-    expect(withSavedView(typed, { id: "v2", filters: { status: "all", project: "all" } })).toMatchObject({ title: "", savedView: "v2" })
+    // The sidebar opens a view with all its filters, so one saved without a title clears it (e2e A214).
+    expect(withSavedView(typed, { id: "v2", filters: { status: "all", project: "all", title: "" } })).toMatchObject({ title: "", savedView: "v2" })
   })
 })
 

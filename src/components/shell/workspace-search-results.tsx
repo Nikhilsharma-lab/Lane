@@ -140,7 +140,7 @@ function RecentQuery({ query, pattern }: { query: string; pattern: RegExp | null
   const ref = useRef<HTMLSpanElement>(null);
   const [cut, setCut] = useState(false);
   useLayoutEffect(() => { const node = ref.current; if (node) setCut(node.scrollWidth > node.clientWidth); }, [query]);
-  const text = <span ref={ref} className={styles.menuText}><Highlight text={query} pattern={pattern} /></span>;
+  const text = <span ref={ref} data-recent-query=""><Highlight text={query} pattern={pattern} /></span>;
   return cut ? <Tooltip content={query} morph="plain">{text}</Tooltip> : text;
 }
 
@@ -157,7 +157,7 @@ const Facets = memo(function Facets({ data, filters, category, onCategory, onCha
       {statuses.map(status => { const on = filters.statuses?.includes(status.value) ?? false; const count = data?.facets ? data.facets.statuses[status.value] ?? 0 : undefined; return <div className={styles.option} key={status.value}><Checkbox label={status.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, statuses: checked ? [...(filters.statuses ?? []), status.value] : filters.statuses?.filter(value => value !== status.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
     </fieldset>
     <fieldset className={styles.facetGroup}><legend>Labels</legend>
-      {TYPES.map(type => { const on = filters.types?.includes(type.value) ?? false; const count = data?.facets ? data.facets.types[type.value] ?? 0 : undefined; return <div className={styles.option} key={type.value}><span className={styles.optionLead}><LabelDot colour={type.colour}/></span><Checkbox label={type.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, types: checked ? [...(filters.types ?? []), type.value] : filters.types?.filter(value => value !== type.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
+      {TYPES.map(type => { const on = filters.types?.includes(type.value) ?? false; const count = data?.facets ? data.facets.types[type.value] ?? 0 : undefined; return <div className={styles.option} key={type.value}><span data-option-lead=""><LabelDot colour={type.colour}/></span><Checkbox label={type.label} checked={on} disabled={count === 0 && !on} onCheckedChange={checked => onChange({ ...filters, types: checked ? [...(filters.types ?? []), type.value] : filters.types?.filter(value => value !== type.value) })} /><span className={styles.optionCount}>{count ?? ""}</span></div>; })}
     </fieldset>
     <div className={styles.facetGroup}><span className={styles.legend}>Created</span><Button variant="secondary" size="sm" onClick={onDates} onPointerEnter={preloadDateRangePicker} onFocus={preloadDateRangePicker}><CalendarDays aria-hidden="true" />{filters.createdFrom ? "Change dates" : "Any time"}</Button>{filters.createdFrom ? <span className={styles.hint}>{plannedDay(filters.createdFrom)} to {plannedDay(filters.createdTo!)}</span> : null}</div>
   </div>;
@@ -327,7 +327,7 @@ export function WorkspaceSearchResults({ active, rootRef, inputRef, draft, data,
     <div className={styles.body}>
       <aside className={styles.sidebar} aria-label="Search filters"><div className={styles.facetsHead}><h2>Filters</h2>{filterCount ? <Button variant="ghost" size="sm" onClick={clearFilters}>Clear all</Button> : null}</div><Facets {...facetProps} /></aside>
       <section ref={scrollRef} aria-label="Search results" className={styles.results}>
-        <div className={styles.mainHead} data-query={draft.trim() ? "" : undefined}><p className={styles.summary}>{summary}</p><SegmentedControl className={styles.sort} label="Sort results" options={SORTS} value={sort} onValueChange={value => onSortChange(value as SearchSort)} /></div>
+        <div className={styles.mainHead} data-query={draft.trim() ? "" : undefined}><p className={styles.summary}>{summary}</p><SegmentedControl label="Sort results" options={SORTS} value={sort} onValueChange={value => onSortChange(value as SearchSort)} /></div>
         <p role="status" className={styles.srOnly}>{announcement}</p>
         <AnimatePresence initial={false}>{chips.length ? <m.div className={styles.chipsFrame} initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={reduced ? { duration: 0 } : motionTokens.spring.smooth}><FilterToolbar filters={chips} onRemove={removeChip} onClearAll={clearFilters} announce={false} /></m.div> : null}</AnimatePresence>
         {failure ? <div className={styles.error}><Alert tone="danger" title="Search unavailable">{failure}</Alert><Button variant="secondary" size="sm" data-search-retry="" onClick={() => { onRetry(); }}>Retry search</Button></div> : null}
