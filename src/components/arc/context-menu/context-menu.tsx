@@ -259,7 +259,7 @@ export function ContextMenu({ children, items, label = "Context menu", asChild =
     if (!open) return;
     const closeOnPointerDown = (event: PointerEvent) => {
       const menu = menuRef.current;
-      if (event.target instanceof Element && event.target.closest(`[data-context-tree="${CSS.escape(menuId)}"]`)) return false;
+      if (event.target instanceof Element && event.target.closest(`[data-context-tree="${CSS.escape(menuId)}"]`)) return;
       if (outsidePressOnlyCloses) swallowPress(event);
       closeMenu();
       // Let the outside press focus its own link/button first. A non-focusable
@@ -268,7 +268,6 @@ export function ContextMenu({ children, items, label = "Context menu", asChild =
         const active = document.activeElement;
         if (!live.current && (active === document.body || (active && menu?.contains(active)))) closeMenu(true);
       });
-      return true;
     };
     const closeOnViewportChange = (event: Event) => {
       if (event.target instanceof Element && event.target.closest(`[data-context-tree="${CSS.escape(menuId)}"]`)) return;

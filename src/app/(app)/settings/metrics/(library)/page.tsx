@@ -3,17 +3,17 @@ import { timePage, timed } from "@/lib/request-timings";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { canChangeThings } from "@/lib/role-rules";
-import { membersPanel } from "../members/members-panel";
+import { membersPanel } from "../../members/members-panel";
 import { MetricDefinitionList } from "@/components/metrics/metric-definition-list";
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { listMetricDefinitions } from "@/lib/metrics-library";
-import { ProfileForm } from "../profile/profile-form";
-import { ThemePreference } from "../profile/theme-preference";
-import { sharedPanels } from "../profile/shared-panels";
-import { AddMetricDialog, MetricLibraryFilter } from "./metric-controls";
-import styles from "./metrics.module.css";
+import { ProfileForm } from "../../profile/profile-form";
+import { ThemePreference } from "../../profile/theme-preference";
+import { sharedPanels } from "../../profile/shared-panels";
+import { AddMetricDialog, MetricLibraryFilter } from "../metric-controls";
+import styles from "../metrics.module.css";
 
 /**
  * Settings → Metrics (#196): the workspace's Metrics library. Members and Admins only. Members and

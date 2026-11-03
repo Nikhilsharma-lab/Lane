@@ -21,11 +21,11 @@ export function swallowPress(press: PointerEvent) {
   const timer = setTimeout(release, 1500)
 }
 
-/** An open layer's answer to a press: true when the press was outside it and it took it (closing, and swallowing). */
-type Layer = (press: PointerEvent) => boolean
-// Open layers, oldest first: the one opened last (a menu over the peek) is asked first.
+/** An open layer's look at a press: one outside it closes it (and is swallowed); one inside is left alone. */
+type Layer = (press: PointerEvent) => void
+// Open layers, oldest first. Only the one opened last (a menu over the peek) hears a press.
 const layers: Layer[] = []
-const ask = (press: PointerEvent) => { for (let index = layers.length - 1; index >= 0; index--) if (layers[index](press)) return }
+const ask = (press: PointerEvent) => layers.at(-1)?.(press)
 
 /**
  * Listens for presses while a layer is open; returns the stop. The listener is the window's, in the capture phase,
@@ -36,8 +36,7 @@ export function onOutsidePress(layer: Layer): () => void {
   if (!layers.length) addEventListener("pointerdown", ask, true)
   layers.push(layer)
   return () => {
-    const index = layers.indexOf(layer)
-    if (index >= 0) layers.splice(index, 1)
+    layers.splice(layers.indexOf(layer) >>> 0, 1)
     if (!layers.length) removeEventListener("pointerdown", ask, true)
   }
 }

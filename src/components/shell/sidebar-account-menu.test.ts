@@ -24,12 +24,13 @@ vi.mock("@/components/arc/blocks/workspace-sidebar/workspace-sidebar", () => ({
 }));
 
 import { SidebarView } from "./sidebar-view";
+import { membersItemLabel } from "@/lib/role-rules";
 
 function openAccountMenu(role: WorkspacePermission) {
   sidebar = null;
   prefetch.mockClear();
   renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
-    workspaceName: "Lane Studio", fullName: "Test Person", email: "person@example.test", role, pathname: "/", projects: [], notifications: null,
+    workspaceName: "Lane Studio", fullName: "Test Person", email: "person@example.test", role, membersLabel: membersItemLabel(role), pathname: "/", projects: [], notifications: null,
   })));
   sidebar!.onAccountMenuOpen?.();
   return { members: sidebar!.membersHref, loaded: prefetch.mock.calls.map(([href]) => href) };

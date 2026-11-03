@@ -33,14 +33,13 @@ export function readsWholeWorkspace(role: WorkspacePermission): boolean {
   return role !== "guest"
 }
 
-/** Admin or Member: the Members page is theirs (a Viewer and a Guest don't see it). */
-export function seesMembers(role: WorkspacePermission): boolean {
-  return canChangeThings(role)
-}
-
-/** Only an Admin invites people and changes their roles; a Member's Members page is read-only. */
-export function managesMembers(role: WorkspacePermission): boolean {
-  return role === "admin"
+/**
+ * #269 (A113): the account menu's Members item. Admins and Members see the Members page (a Viewer and a Guest
+ * don't); only an Admin invites people and changes their roles, so a Member's item says just "Members".
+ */
+export function membersItemLabel(role: WorkspacePermission): string | undefined {
+  if (!canChangeThings(role)) return undefined
+  return role === "admin" ? "Invite and manage members" : "Members"
 }
 
 /** The role's name as people read it. */

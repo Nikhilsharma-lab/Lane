@@ -27,7 +27,6 @@ import { JumpBar } from "./jump-bar";
 import { openShellSurface, useShellOpener } from "./shell-openers";
 import { onOutsidePress, swallowPress } from "@/lib/outside-press";
 import { holdsOffline } from "@/lib/offline-navigation";
-import { managesMembers, seesMembers } from "@/lib/role-rules";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 import styles from "./workspace-shell.module.css";
 
@@ -37,6 +36,8 @@ export interface SidebarViewProps {
   fullName: string;
   email: string;
   role: WorkspacePermission;
+  /** #269 (A113): the account menu's Members item, as the server's role rules name it (workspace-frame.ts); none without. */
+  membersLabel?: string;
   pathname: string;
   projects?: ProjectOption[];
   projectsLoading?: boolean;
@@ -65,7 +66,7 @@ const expandButton = <SidebarExpandButton />;
 const jumpBar = <JumpBar />;
 
 /** Real Arc Pro workspace-sidebar, composed with Lane routes and authorized data. */
-export function SidebarView({ children, workspaceName, fullName, email, role, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, savedViews = noViews }: SidebarViewProps) {
+export function SidebarView({ children, workspaceName, fullName, email, role, membersLabel, pathname, projects = noProjects, projectsLoading = false, projectsError, onRetryProjects, onCreateProject, notifications, palette, onSignOut, onSearch = unavailableSearch, workspaceSwitcher, savedViews = noViews }: SidebarViewProps) {
   const switchingWorkspace = Boolean(workspaceSwitcher?.pendingId);
   const { shellRef, layoutWidth, motion, collapsed, autoCollapsed, resizing, phone, expand, separator, peekWidth } = useSidebarResize(switchingWorkspace, true, openAutoPeek);
   // No peek while the panel slides (plan item 2.4).
@@ -81,10 +82,9 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // (and only closes, too). The expand control keeps its own press, which pins or reopens the peek.
   const mainRef = useRef<HTMLElement>(null);
   const pressBesidePeek = useEffectEvent((event: PointerEvent) => {
-    if (!(event.target instanceof Node && mainRef.current?.contains(event.target))) return false;
+    if (!(event.target instanceof Node && mainRef.current?.contains(event.target))) return;
     if (!(event.target instanceof Element && event.target.closest('button[aria-label="Expand sidebar"]'))) swallowPress(event);
     dismissPeek();
-    return true;
   });
   useEffect(() => {
     if (peeking) return onOutsidePress(event => pressBesidePeek(event));
@@ -95,9 +95,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   // re-render it. Fixtures without the provider fall back to the props.
   const navigation = useRequestNavigation();
   const router = useRouter();
-  const membersHref = seesMembers(role) ? "/settings/members" : undefined;
-  // #269 (A113): only Admins invite; a Member's Members page is read-only, so its item says just that.
-  const membersLabel = managesMembers(role) ? "Invite and manage members" : "Members";
+  const membersHref = membersLabel ? "/settings/members" : undefined;
   // #258: opening the account menu fully prefetches Settings (and Members, for people who see it), as Request
   // rows do (FULL_PREFETCH in use-intent-prefetch.ts), so choosing either answers at once. Spelled here so the shell carries no module for it.
   // #259: it starts as the pointer reaches the account button or focus lands on it, and loads once while what it

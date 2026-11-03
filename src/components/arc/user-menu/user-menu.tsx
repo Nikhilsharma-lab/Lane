@@ -341,9 +341,9 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
   useEffect(() => {
     if (!open || sheet) return;
     return onOutsidePress(event => {
-      if (workspacePending.current || workspaces?.pendingId) return false;
+      if (workspacePending.current || workspaces?.pendingId) return;
       const target = event.target as Node;
-      if (surfaceRef.current?.contains(target) || workspaceSurfaceRef.current?.contains(target) || triggerRef.current?.contains(target)) return false;
+      if (surfaceRef.current?.contains(target) || workspaceSurfaceRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
       swallowPress(event);
       session.current += 1;
       setWorkspaceOpen(false);
@@ -351,7 +351,6 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
       setHighlight(null);
       setInnerOpen(false);
       onOpenChange?.(false);
-      return true;
     });
   }, [open, sheet, onOpenChange, workspaces?.pendingId]);
 

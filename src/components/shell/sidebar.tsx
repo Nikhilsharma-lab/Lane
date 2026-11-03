@@ -24,6 +24,7 @@ export function Sidebar({
   fullName,
   email,
   role,
+  membersLabel,
   orgId,
   userId,
   needsYouCount,
@@ -35,6 +36,7 @@ export function Sidebar({
   fullName: string;
   email: string;
   role: PaletteRole;
+  membersLabel?: string;
   orgId: string;
   /** The signed-in user: a Pick up from the palette on Request detail names them as Assignee (#106). */
   userId: string;
@@ -70,6 +72,7 @@ export function Sidebar({
       fullName={fullName}
       email={email}
       role={role}
+      membersLabel={membersLabel}
       pathname={pathname}
       projects={projectState.projects}
       projectsLoading={projectState.loading}
