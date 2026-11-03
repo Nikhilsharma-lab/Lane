@@ -20,6 +20,10 @@ export default function PhoneSheet({ open, onDismiss, ...props }: PhoneSheetProp
     if (!open) return
     const ours = () => (window.history.state as { lanePopup?: string } | null)?.lanePopup === marker
     const page = window.history.state
+    // Only a move that starts once the panel is open goes with its close: one just before it (the link that led to
+    // this page, a second earlier) would leave the panel's entry behind as a second copy of this page.
+    const openedAt = performance.now()
+    const moved = () => navigatedWithin(1000, openedAt)
     window.history.pushState({ lanePopup: marker }, "")
     const back = () => {
       if (ours()) return
@@ -33,8 +37,8 @@ export default function PhoneSheet({ open, onDismiss, ...props }: PhoneSheetProp
       // A close that also moves to another page (Delete Request, a link) must not step back: that would undo the
       // move before Next.js records it. The entry becomes the page's own again, so Back from the new page returns
       // here as it would without the panel. Otherwise an entry still on top goes.
-      if (navigatedWithin(1000)) { if (ours()) window.history.replaceState(page, ""); return }
-      window.setTimeout(() => { if (ours() && !navigatedWithin(1000)) window.history.back() }, 0)
+      if (moved()) { if (ours()) window.history.replaceState(page, ""); return }
+      window.setTimeout(() => { if (ours() && !moved()) window.history.back() }, 0)
     }
   }, [marker, open])
 
