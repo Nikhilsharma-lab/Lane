@@ -175,7 +175,9 @@ export async function createRequestThroughIntake(
       editedProblem: "",
     },
   };
-  await page.goto("/intake");
+  // The tab's draft is written on a same-origin page outside the workspace (Privacy policy). On a workspace page,
+  // the composer's closed form, rendered ahead once its code is in (#296), saves its own empty draft over it.
+  await page.goto("/privacy");
   await page.evaluate(
     ({ key, value }) => sessionStorage.setItem(key, JSON.stringify(value)),
     {
@@ -185,8 +187,8 @@ export async function createRequestThroughIntake(
       value: draft,
     },
   );
-  await page.reload();
-  // Reload starts a new Clerk client. Wait for the already signed-in fixture
+  await page.goto("/intake");
+  // A new document starts a new Clerk client. Wait for the already signed-in fixture
   // identity before submitting its restored review through the real action.
   await page.waitForFunction(
     ({ userId, orgId }) =>
