@@ -80,7 +80,7 @@ export async function prepareMoveCoordination(page: Page, orgId: string, fixture
   await panel.getByRole("button", { name: "Add reviewer", exact: true }).click();
   await panel.getByRole("combobox", { name: "Reviewer", exact: true }).click();
   await page.getByRole("option", { name: fixture.reviewerName, exact: true }).click();
-  const change = await beginCoordinatedChange(page, orgId, "reviewers", [fixture.b.id], recorder, () => panel.getByRole("button", { name: "Add", exact: true }).press("Enter"));
+  const change = await beginCoordinatedChange(page, orgId, "reviewers", [fixture.b.id], recorder, () => panel.getByRole("button", { name: "Add reviewer", exact: true }).press("Enter"));
   await change.finish();
   await expect(panel.getByRole("listitem").filter({ hasText: fixture.reviewerName })).toContainText("Waiting");
   await capture("existing-optional-reviewer-waiting");
