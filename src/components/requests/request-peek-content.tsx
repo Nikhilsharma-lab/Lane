@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import { Hash, Inbox, Link2, Maximize2, X } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
-import { Skeleton } from "@/components/arc/skeleton/skeleton"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { PageStrip, PageStripProvider } from "@/components/shell/page-strip"
@@ -20,7 +19,7 @@ import { peekEntry, peekKey, readForPreview, subscribePeek } from "./request-pee
 import type { RequestPeekProps } from "./request-peek"
 import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
-import { Placeholder } from "@/components/loading/placeholder";
+import { RequestPeekSkeleton } from "./request-peek-skeleton";
 import { KeyCap } from "@/components/keyboard/key-caps";
 
 /** The shell's trail and sidebar control belong to the page's strip, not the preview's. */
@@ -35,17 +34,6 @@ function PreviewClose({ onClose }: { onClose: () => void }) {
       <X strokeWidth={1.75} aria-hidden="true" />
     </Button>
   </Tooltip>
-}
-
-/** The loaded preview's boxes while its code or its Request loads. Close is there from the first frame. */
-function PreviewSkeleton({ onClose }: { onClose: () => void }) {
-  return <section className={detailStyles.root} aria-busy="true" data-skeleton="request-preview">
-    <PreviewFrame><PageStrip leading={<PreviewClose onClose={onClose} />} title={<span aria-hidden="true" className="block w-16"><Skeleton lines={1} /></span>} /></PreviewFrame>
-    <Placeholder><div className={styles.skeleton}>
-      <div className={styles.skeletonTitle}><Skeleton label="Loading Request preview" lines={1} /></div>
-      <div aria-hidden="true" className={styles.skeleton}><Skeleton lines={3} /><Skeleton lines={4} /></div>
-    </div></Placeholder>
-  </section>
 }
 
 /** The preview's strip: its code, copy, Open full page, Edit Request and the one lifecycle action. */
@@ -112,7 +100,7 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
     return merged
   }, [detail, serverRow])
 
-  if (!entry) return <PreviewSkeleton onClose={onClose} />
+  if (!entry) return <RequestPeekSkeleton onClose={onClose} />
   if (entry.status !== "ready" || !request || !detail) {
     const unavailable = entry.status === "unavailable"
     return <section className={detailStyles.root}>

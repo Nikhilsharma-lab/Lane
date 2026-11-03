@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "@/components/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/arc/button/button"
+import { Timeline, type TimelineEvent } from "@/components/arc/timeline/timeline"
+import { Check, CirclePlus, Play, History } from "lucide-react"
+import { useOptionalDetailRequest } from "./detail-context"
+import { useInBrowser } from "./local-time"
 import { readRequestJourney } from "@/app/(app)/requests/[id]/journey-actions"
 import { formatRequestCode } from "@/lib/request-code"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
@@ -23,6 +27,7 @@ import { JourneyLine } from "./journey-line"
 import { LocalTime } from "./local-time"
 import { createJourneyRefresh, watchJourneyDate } from "./journey-refresh"
 import styles from "./request-timeline.module.css"
+import { RequestPanePanel } from "./request-pane-tabs"
 import { Placeholder } from "@/components/loading/placeholder";
 
 type Views = Exclude<Awaited<ReturnType<typeof readRequestJourney>>, { error: string }>
@@ -86,6 +91,7 @@ export function RequestTimeline(props: Props) {
 }
 
 function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: Props) {
+  const peek = useOptionalDetailRequest()?.peek
   const router = useRouter()
   const requestId = request.id
   const revision = request.agreementRevision ?? 0
@@ -121,10 +127,10 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
     void refresh.closeForm()
   }
 
-  if (!views && error) return <section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
+  if (!views && error) return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <h2 id="journey-heading" className={styles.heading}>Journey</h2>
     <p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></div>
-  </section>
+  </section></RequestPanePanel>{peek && <RequestPanePanel value="activity"><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></RequestPanePanel>}</>
   const open = request.status === "open"
   // Drawn in the outline, read once the journey's reads are back: the reviewers' read would otherwise go ahead of them.
   const reviews = <RequestReviews requestId={requestId} orgId={orgId} isGuest={isGuest} revision={revision} deferred={!views}
@@ -133,7 +139,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
   // #295: until the reads arrive, the journey as the server drew it from the saved Request, in the same places as below.
   if (!views) {
     const outline = request.journeyOutline ?? NO_OUTLINE
-    return <section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
+    return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
       <div className={styles.header}>
         <h2 id="journey-heading" tabIndex={-1} ref={heading} className={styles.heading}>Journey</h2>
         <p className={`${styles.end} ${styles.muted}`}>Requester: <span className={styles.heldName} data-pending="" /></p>
@@ -152,7 +158,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
         }))}
       </ol>
       {outline.history && <Held />}
-    </section>
+    </section></RequestPanePanel>{peek && <RequestPanePanel value="activity"><p role="status">Loading activity…</p></RequestPanePanel>}</>
   }
 
   const { release, outcome } = views
@@ -216,7 +222,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
     </div>
   }
 
-  return <section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
+  return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <div className={styles.header}>
       <h2 id="journey-heading" tabIndex={-1} ref={heading} className={styles.heading}>Journey</h2>
       <p className={`${styles.end} ${styles.muted}`}>Requester: {release.requesterName}</p>
@@ -259,5 +265,34 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
         <p className={styles.muted}>{f.reason}</p>
       </li>)}</ul>
     </div>}
+  </section></RequestPanePanel>{peek && <RequestPanePanel value="activity"><RequestActivity request={request} views={views} /></RequestPanePanel>}</>
+}
+
+function RequestActivity({ request, views: { release, outcome } }: { request: RequestDetail; views: Views }) {
+  const [now, setNow] = useState(() => new Date(request.createdAt).getTime())
+  useEffect(() => {
+    const tick = () => setNow(Date.now())
+    const first = window.setTimeout(tick, 0)
+    const timer = window.setInterval(tick, 60_000)
+    return () => { window.clearTimeout(first); window.clearInterval(timer) }
+  }, [])
+  const inBrowser = useInBrowser()
+  const names = { ...release.names, ...outcome.names }
+  const events: TimelineEvent[] = [
+    { id: "created", at: new Date(request.createdAt).toISOString(), actor: request.creatorName ?? FORMER_MEMBER, title: "created the Request", icon: <CirclePlus data-icon-size="sm" /> },
+    ...(release.pickedUpAt ? [{ id: "picked-up", at: release.pickedUpAt, title: "Work started", icon: <Play data-icon-size="sm" /> }] : []),
+    ...(release.doneAt ? [{ id: "done", at: release.doneAt, title: "Marked Done", icon: <Check data-icon-size="sm" />, tone: "success" as const }] : []),
+    ...release.history.map(event => ({ id: `release-${event.revision}`, at: event.at, actor: names[event.actorId] ?? FORMER_MEMBER,
+      title: historyLine(event).toLowerCase(), icon: <History data-icon-size="sm" />,
+      detail: <div className={styles.facts}>
+        {"reason" in event.input && <p>{event.input.reason}</p>}
+        {event.release && <p>Audience: {event.release.audience}. Evidence: {event.release.evidence}</p>}
+      </div>,
+    })),
+    ...(outcome.closure ? [{ id: "closed", at: outcome.closure.closedAt, title: "Request closed", icon: <Check data-icon-size="sm" /> }] : []),
+  ]
+  return <section id="request-activity" aria-labelledby="request-activity-heading" className={styles.timeline}>
+    <h2 id="request-activity-heading" tabIndex={-1} className={styles.heading}>Activity</h2>
+    <Timeline events={events} now={now} label="Recorded Request activity" timeZone={inBrowser ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC"} scrollToNew={false} />
   </section>
 }

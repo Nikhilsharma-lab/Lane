@@ -2,8 +2,7 @@
 
 import { useRequestLabels } from "./request-labels"
 import { requestLabelKeys } from "@/lib/request-labels"
-import { memo, useEffect, useId, useRef, useState } from "react"
-import { Check, Copy, RotateCcw } from "lucide-react"
+import { memo, useRef, useState } from "react"
 import { formatRequestCode } from "@/lib/request-code"
 import { concernMarker } from "@/lib/request-reviewer-rules"
 import { WAITING_TO_BE_TAKEN_ON } from "@/lib/guest-submission"
@@ -17,66 +16,19 @@ import { GlyphMenu } from "./glyph-menu"
 import { requestRowLabel } from "./request-row-label"
 import styles from "./request-rows.module.css"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
-import { Button } from "@/components/arc/button/button"
 import { ContextMenu, type ContextMenuItem } from "@/components/arc/context-menu/context-menu"
-import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { PriorityGlyph, StatusGlyph, useRequestRowPresentation } from "./row-presentation"
 import { statusOfJourney } from "./tasks/statuses"
 import { DueTag, useDueNow } from "./due-tag"
-import { useListAnnouncer } from "./list-announcer"
 import { useRequestPeekOpener } from "./request-peek"
 import { useRowLoadAhead } from "./request-peek-load-ahead"
-
-function RequestCodeControl({ code }: { code: string }) {
-  const feedbackId = useId()
-  const [state, setState] = useState<"idle" | "copying" | "copied" | "error">("idle")
-  // Plan item 2.4: progress and success speak in the list's one region; only the error stays visible here.
-  const announce = useListAnnouncer()
-  const inFlight = useRef(false)
-  const mounted = useRef(false)
-  useEffect(() => {
-    mounted.current = true
-    return () => { mounted.current = false }
-  }, [])
-
-  async function copyCode() {
-    if (inFlight.current) return
-    inFlight.current = true
-    setState("copying")
-    // Said only if the clipboard is slow; a quick result replaces it unheard.
-    announce(`Copying ${code}.`, { key: "copy", delay: 400 })
-    try {
-      await navigator.clipboard.writeText(code)
-      announce(`${code} copied.`, { key: "copy" })
-      if (mounted.current) setState("copied")
-    } catch {
-      announce("Copy failed. Try again.", { key: "copy" })
-      if (mounted.current) setState("error")
-    } finally { inFlight.current = false }
-  }
-
-  const Icon = state === "copied" ? Check : state === "error" ? RotateCcw : Copy
-  // Arc's loading button swallows repeat activation. The wrapper also prevents
-  // those pending clicks from reaching any containing row navigation handler.
-  // data-state keeps the copy glyph visible while a result is showing.
-  return <span className={styles.savedCode} data-state={state} onClick={event => event.stopPropagation()}>
-    {/* Plan item 2.4 (decision 8.22): no blur morphs in dense rows. */}
-    <Tooltip morph="plain" content={state === "copied" ? "Copied. Copy again" : state === "error" ? "Retry copying code" : "Copy code"}>
-      <Button type="button" variant="ghost" size="sm" morph="plain" tabIndex={-1} className={styles.codeButton}
-        aria-label={`Copy code ${code}`} aria-describedby={state === "error" ? feedbackId : undefined}
-        loading={state === "copying"} onClick={() => { void copyCode() }}>
-        <span data-request-code>{code}</span><Icon data-icon-size="sm" strokeWidth={1.75} aria-hidden="true" />
-      </Button>
-    </Tooltip>
-    {state === "error" && <span id={feedbackId} className={styles.codeError}>Copy failed. Try again.</span>}
-  </span>
-}
 
 type RequestRowProps = {
   request: OverviewRequest
   columns: RequestColumn[]
   visibility: Record<string, boolean>
   checked: boolean
+  previewed?: boolean
   disabled: boolean
   /** Plan item 2.4: this row holds the grid's one tab stop. */
   tabbable?: boolean
@@ -100,7 +52,8 @@ const shallowEqual = (a: object, b: object) => {
  * change re-renders only the rows it brings in (#296). The row presentation
  * context still re-renders rows when codes or priorities change. */
 function sameRow(previous: RequestRowProps, next: RequestRowProps) {
-  return previous.checked === next.checked
+  return previous.previewed === next.previewed
+    && previous.checked === next.checked
     && previous.disabled === next.disabled
     && previous.tabbable === next.tabbable
     && previous.level === next.level
@@ -109,7 +62,7 @@ function sameRow(previous: RequestRowProps, next: RequestRowProps) {
     && (previous.request === next.request || shallowEqual(previous.request, next.request))
 }
 
-export const RequestRow = memo(function RequestRow({ request, columns, visibility, checked, disabled, tabbable = false, level, onCheckedChange }: RequestRowProps) {
+export const RequestRow = memo(function RequestRow({ request, columns, visibility, checked, previewed = false, disabled, tabbable = false, level, onCheckedChange }: RequestRowProps) {
   const labels = useRequestLabels(request)
   const presentation = useRequestRowPresentation()
   const identity = presentation?.identities[request.id]
@@ -143,26 +96,24 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   // Plan item 2.4 (decision 8.24): an APG grid row. The row is the one tab
   // stop and carries every value in its name; each control inside it is
   // tabIndex -1 and stays reachable through the row menu or a key.
-  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
+  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-current={previewed || undefined} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
     id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
-    className={styles.row} data-pressable="" data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-menu-open={menuOpen || undefined}
+    className={styles.row} data-pressable="" data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-previewed={previewed || undefined} data-menu-open={menuOpen || undefined}
     {...rest.focus} {...rest.pointer}>
     <div role="gridcell" className={styles.selectCell}>
       <Checkbox tabIndex={-1} checked={checked} disabled={disabled} onCheckedChange={value => onCheckedChange(value === true)} aria-label={`Select ${request.reframedProblem ?? request.title}`} />
     </div>
     <div role="gridcell" className={styles.rowContent}>
-    {/* Done rows drop the priority glyph but keep its slot, so codes and titles line up across groups. */}
-    {identity && request.status === "done" && <span className={styles.identitySlot} aria-hidden="true" />}
+    {code && <span className={styles.requestCode} data-request-code>{code}</span>}
+    {identity && visibility.status !== false && <GlyphMenu label="Request status" items={actionItems.find(item => item.id === "status")?.children ?? []} tip={`Status: ${status.label}`}>
+        <button type="button" tabIndex={-1} className={styles.identityControl} data-status={journey.status} aria-haspopup="menu" aria-label={`Status: ${status.label}`}><StatusGlyph status={journey.status} /></button>
+      </GlyphMenu>}
+    {columns[0].render(request)}
     {identity && request.status !== "done" &&
       <GlyphMenu label="Request priority" items={actionItems.find(item => item.id === "priority")?.children ?? []} tip={`Priority: ${priorityLabel}`}>
         <button type="button" tabIndex={-1} className={styles.identityControl} data-priority={identity.priority} aria-haspopup="menu" aria-label={`Priority: ${priorityLabel}`}><PriorityGlyph priority={identity.priority} /></button>
       </GlyphMenu>
     }
-    {savedCode ? <RequestCodeControl key={savedCode} code={savedCode} /> : identity ? <span className={styles.requestCode} data-request-code>{identity.code}</span> : null}
-    {identity && visibility.status !== false && <GlyphMenu label="Request status" items={actionItems.find(item => item.id === "status")?.children ?? []} tip={`Status: ${status.label}`}>
-        <button type="button" tabIndex={-1} className={styles.identityControl} data-status={journey.status} aria-haspopup="menu" aria-label={`Status: ${status.label}`}><StatusGlyph status={journey.status} /></button>
-      </GlyphMenu>}
-    {columns[0].render(request)}
     {/* The sketch's reserved "waiting" token (2026-10-11): a Guest submission waiting to be taken on (#212); see request-rows.module.css. */}
     <div className={styles.properties}>
       {request.guestSubmission === "waiting" && <span data-row-property="waiting" aria-hidden="true"><Badge size="sm" tone="warning">{WAITING_TO_BE_TAKEN_ON}</Badge></span>}

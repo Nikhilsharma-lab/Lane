@@ -17,7 +17,7 @@
     "theme:paste": "node scripts/design-system/theme-paste.mjs",
     "theme:copy": "node scripts/design-system/theme-paste.mjs --copy",
     "theme:reset": "node scripts/design-system/theme-paste.mjs --reset",
-    "design:check": "node --test scripts/design-system/token-contract.test.mjs scripts/design-system/theme-paste.test.mjs scripts/brand/brand-assets.test.mjs && node scripts/design-system/token-contract.mjs && node scripts/design-system/arc-source-check.mjs && node scripts/brand/brand-assets.mjs --check",
+    "design:check": "node --test scripts/design-system/token-contract.test.mjs scripts/design-system/theme-paste.test.mjs scripts/design-system/lane-theme.test.mjs scripts/brand/brand-assets.test.mjs && node scripts/design-system/token-contract.mjs && node scripts/design-system/arc-source-check.mjs && node scripts/brand/brand-assets.mjs --check",
     "brand:assets": "node scripts/brand/brand-assets.mjs",
     "bundle:check": "node scripts/bundle-baseline.mjs"
   },
@@ -31,6 +31,7 @@
     "@radix-ui/react-dropdown-menu": "^2.1.24",
     "@radix-ui/react-popover": "^1.1.23",
     "@radix-ui/react-select": "^2.3.7",
+    "@radix-ui/react-tabs": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.2.16",
     "@sentry/nextjs": "^11.8.0",
     "@supabase/supabase-js": "^2.107.0",

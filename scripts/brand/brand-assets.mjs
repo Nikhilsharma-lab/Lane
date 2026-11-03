@@ -118,10 +118,10 @@ export async function buildBrandAssets(sources) {
   // The sign-in header draws the mark at --icon-size-lg beside "Lane" at --text-base, 2 spacing
   // units apart, tracked --tracking-display (auth.module.css .mark). The OG image scales that lockup.
   const lockup = {
-    mark: sizeToken('icon-size-lg'),
-    text: sizeToken('text-base'),
+    mark: sizeToken('lane-icon-size-lg'),
+    text: sizeToken('lane-text-base'),
     gap: sizeToken('spacing') * 2,
-    tracking: sizeToken('tracking-display'),
+    tracking: sizeToken('lane-tracking-display'),
   }
 
   const name = 'Lane'

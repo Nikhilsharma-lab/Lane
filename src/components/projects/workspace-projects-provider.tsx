@@ -8,7 +8,7 @@ import { createWorkspaceCatalogue, useWorkspaceCatalogue } from "@/lib/workspace
 
 type SharedWorkspaceProjects = {
   orgId: string; projects: ProjectOption[]; loading: boolean; error: string | null;
-  reload: () => Promise<void>; addProject: (project: ProjectOption) => void;
+  reload: () => Promise<void>; addProject: (project: ProjectOption) => void; removeProject: (id: string) => void;
 };
 const WorkspaceProjectsContext = createContext<SharedWorkspaceProjects | null>(null);
 
@@ -34,7 +34,7 @@ export function WorkspaceProjectsProvider(props: ProviderProps) {
 function WorkspaceProjectsCatalogue({ orgId, initialProjects, children }: ProviderProps) {
   // Layout seeds once. Same-workspace refresh props do not replace local state.
   const state = useWorkspaceCatalogue(() => createWorkspaceProjects(orgId, initialProjects));
-  const value = useMemo(() => ({ orgId, projects: state.entries, loading: state.loading, error: state.error, reload: state.reload, addProject: state.add }), [orgId, state]);
+  const value = useMemo(() => ({ orgId, projects: state.entries, loading: state.loading, error: state.error, reload: state.reload, addProject: state.add, removeProject: state.remove }), [orgId, state]);
   return <WorkspaceProjectsContext.Provider value={value}>{children}</WorkspaceProjectsContext.Provider>;
 }
 

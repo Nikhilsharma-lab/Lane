@@ -3,7 +3,7 @@
 .content {
   --popover-x: 0px;
   --popover-y: calc(var(--space-1) * -1.25);
-  z-index: 80;
+  z-index: var(--lane-layer-popover);
   min-width: calc(var(--space-1) * 48);
   max-width: min(calc(var(--space-1) * 88), calc(100vw - calc(var(--space-1) * 5)));
   padding: var(--popover-padding, calc(var(--space-1) * 4));
