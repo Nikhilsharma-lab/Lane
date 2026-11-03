@@ -247,10 +247,10 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
           await expect(target).toBeVisible({ timeout: 60_000 });
           for (const spot of [() => target.getByText("Another frame Request"), () => target.getByRole("button", { name: /Assignee/ })]) {
             await touchPage.getByRole("button", { name: "Expand sidebar" }).first().tap();
-            await expect(touchPage.locator("#lane-sidebar[data-peeking]")).toBeVisible();
+            await expect(touchPage.locator("#lane-sidebar")).toHaveAttribute("data-peeking", "true");
             const box = (await spot().boundingBox())!;
             await touchPage.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-            await expect(touchPage.locator("#lane-sidebar[data-peeking]")).toHaveCount(0);
+            await expect(touchPage.locator("#lane-sidebar")).not.toHaveAttribute("data-peeking", /.*/);
             await expectNothingOpened(touchPage, "/");
           }
           await touchPage.screenshot({ path: testInfo.outputPath(`A15-after-tap-${device.viewport.width}.png`) });
