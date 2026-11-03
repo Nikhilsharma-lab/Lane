@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { expect, type Page, type Request, type Route } from "@playwright/test";
-import { assertLocalUndoTarget, flightResultShape } from "./server-action-identity";
+import { assertLocalUndoTarget, flightResultShape, runningActionManifestPath } from "./server-action-identity";
 
 export type CoordinatedChange = "pickup" | "done" | "undo" | "bulk-pickup" | "bulk-done" | "edit" | "reviewers" | "release";
 const actionExports = {
@@ -18,7 +17,7 @@ const actionExports = {
 } as const;
 async function compiled(kind: keyof typeof actionExports) {
   assertLocalUndoTarget();
-  const source = await readFile(resolve(process.cwd(), ".next-e2e/dev/server/server-reference-manifest.json"), "utf8");
+  const source = await readFile(runningActionManifestPath(), "utf8");
   const manifest: { node?: Record<string, { filename?: string; exportedName?: string }> } = JSON.parse(source);
   const [filename, exportedName] = actionExports[kind];
   const matches = Object.entries(manifest.node ?? {}).filter(([, value]) => value.filename === filename && value.exportedName === exportedName);

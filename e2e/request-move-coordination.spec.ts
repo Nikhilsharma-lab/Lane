@@ -21,7 +21,8 @@ test("single and batch moves preserve their distinct contracts across real navig
       const title = `Move coordination retained ${name}`;
       const saved = await createRequestThroughIntake(team, title);
       await testInfo.attach(`saved-request-${name}`, { body: JSON.stringify(saved), contentType: "application/json" });
-      const sql = postgres(assertE2ETarget().databaseUrl, { ssl: "require", max: 1 });
+      const { databaseUrl, ssl } = assertE2ETarget();
+      const sql = postgres(databaseUrl, { ssl, max: 1 });
       try {
         await sql.begin("read only", async tx => {
           const [row] = await tx`select title,request_number from requests where id=${saved.id} and org_id=${team.orgId}`;
@@ -46,7 +47,8 @@ test("single and batch moves preserve their distinct contracts across real navig
       if (receipt) await attach(`${name}-receipt`, receipt);
     };
     const readSavedRequests = async () => {
-      const sql = postgres(assertE2ETarget().databaseUrl, { ssl: "require", max: 1 });
+      const { databaseUrl, ssl } = assertE2ETarget();
+      const sql = postgres(databaseUrl, { ssl, max: 1 });
       try {
         return await sql.begin("read only", tx => tx`select id,status,agreement_revision,release_state,expected_impact from requests where org_id=${team.orgId} order by id`);
       } finally { await sql.end(); }

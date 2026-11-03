@@ -287,7 +287,8 @@ function Panel({ projects, groups, activeId, loading, error, onRetry, renderLink
     return <section key={sectionGroup.id} className={styles.section} role="group" aria-label={sectionGroup.name}>
       <SectionTitle id={`${group}-${sectionGroup.id}`} text={sectionGroup.name} rail={rail} reduce={reduce} />
       <ul className={styles.list}>{sectionGroup.items.map(item => row(item))}</ul>
-      {sectionGroup.id === "workspace" && <div className={styles.notificationSlot}>{notifications}</div>}
+      {/* A link in the notifications slot (Lane's Inbox) is a destination like the rows: it puts the drawer or peek away. */}
+      {sectionGroup.id === "workspace" && <div className={styles.notificationSlot} onClick={event => { if (isPlainClick(event) && (event.target as Element).closest("a")) onSelect("inbox", "Inbox"); }}>{notifications}</div>}
     </section>;
   }
   const projectContents = <>

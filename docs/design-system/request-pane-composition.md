@@ -52,6 +52,10 @@ Home/End use Radix's tab behavior; Tab enters the selected content.
 ## Spacing and surfaces
 
 - Title, metadata, tabs and body share one reading-column inset and maximum width.
+- Empty first-run guide slots take no space. The pane edge must meet the page strip
+  when no guide is shown; do not add a compensating border or negative margin.
+- The nested strip explicitly supplies `expand: null`, omitting the shell's sidebar
+  placeholder. Only the page strip reserves room for the sidebar control.
 - Separate content groups with `--space-6`; do not put a border above every section.
 - Keep the pane's structural edge and strip boundary. Keep Arc CommentThread's
   outer border and composer separator; do not wrap every comment in another card.
@@ -92,6 +96,14 @@ The preview is available at 768px and wider with a fine pointer. Narrow/touch
 navigation uses the full Request page. At constrained desktop widths, the tab
 strip may scroll horizontally; the page and pane body must not. The composer
 stacks within its own narrow container. Touch inputs use the existing base size.
+
+The dock is the `request-peek` size container. Edit/Delete become labelled icon
+controls below 640px of **pane** width; below 480px, copy actions use the installed
+Arc DropdownMenu. Open full page remains directly available. The toolbar stays
+fixed; title, metadata, tabs and content share the scrolling body so long titles
+cannot leave the selected section without usable space on short screens. The
+loading skeleton uses the same structure and insets. Tab focus outlines draw
+inside the horizontal scrolling strip rather than being clipped at its edges.
 
 ## Check before accepting
 

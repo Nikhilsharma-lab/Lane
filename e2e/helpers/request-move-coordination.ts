@@ -80,7 +80,7 @@ export async function prepareMoveCoordination(page: Page, orgId: string, fixture
   await panel.getByRole("button", { name: "Add reviewer", exact: true }).click();
   await panel.getByRole("combobox", { name: "Reviewer", exact: true }).click();
   await page.getByRole("option", { name: fixture.reviewerName, exact: true }).click();
-  const change = await beginCoordinatedChange(page, orgId, "reviewers", [fixture.b.id], recorder, () => panel.getByRole("button", { name: "Add", exact: true }).press("Enter"));
+  const change = await beginCoordinatedChange(page, orgId, "reviewers", [fixture.b.id], recorder, () => panel.getByRole("button", { name: "Add reviewer", exact: true }).press("Enter"));
   await change.finish();
   await expect(panel.getByRole("listitem").filter({ hasText: fixture.reviewerName })).toContainText("Waiting");
   await capture("existing-optional-reviewer-waiting");
@@ -108,7 +108,14 @@ export async function verifyMoveCancellations(page: Page, orgId: string, fixture
     await row(page, fixture.c).focus(); await page.keyboard.press("Escape"); await expect(bar(page)).toBeHidden();
     await selectMoveRows(page, [fixture.a, fixture.b, fixture.c]);
     const history = await beginCoordinatedChange(page, orgId, "bulk-pickup", [fixture.a.id, fixture.b.id], recorder, () => bar(page).getByRole("button", { name: "Pick up", exact: true }).press("Enter"));
-    await expect(confirmation(page)).toBeVisible(); await page.goBack();
+    await expect(confirmation(page)).toBeVisible();
+    if (surface.width < 640) {
+      // #263: on a phone the confirmation is a bottom panel, and Back closes it first, staying on the list.
+      await page.goBack();
+      await expect(confirmation(page)).toBeHidden(); await expect(page).toHaveURL(url => url.pathname === "/");
+      await expect.poll(() => page.evaluate(() => (window.history.state as { lanePopup?: string } | null)?.lanePopup ?? null)).toBeNull();
+    }
+    await page.goBack();
     await expect(page).toHaveURL(url => url.pathname === `/requests/${fixture.a.id}`); await page.goForward();
     await expect(page).toHaveURL(url => url.pathname === "/");
     if (await confirmation(page).isVisible()) await confirmation(page).getByRole("button", { name: "Pick up anyway", exact: true }).press("Enter");

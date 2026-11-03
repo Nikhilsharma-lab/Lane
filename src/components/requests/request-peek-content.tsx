@@ -2,14 +2,16 @@
 
 import Link from "@/components/link"
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react"
-import { Hash, Inbox, Link2, Maximize2 } from "lucide-react"
+import { Hash, Inbox, Link2, Maximize2, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
+import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { CopyButton } from "./copy-button"
+import { useCopy } from "./use-copy"
 import { useDetailRequest } from "./detail-context"
 import type { RequestDetail } from "./detail-view"
 import { usePendingMutations } from "./pending-mutations-provider"
@@ -24,10 +26,17 @@ import { PreviewClose, PreviewFrame, RequestPeekSkeleton } from "./request-peek-
 /** The preview's strip: its code, copy, Open full page, Edit Request and the one lifecycle action. */
 function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: ReactNode; editAction?: ReactNode; onClose: () => void; onOpenFullPage: RequestPeekProps["onOpenFullPage"] }) {
   const { request, code, formsOpen } = useDetailRequest()
+  const copy = useCopy()
   return <PageStrip title={code ?? "Request"} leading={<PreviewClose onClose={onClose} />}
     tools={<><span className={detailStyles.desktopTools}>
+      <span className={styles.copyTools}>
       <CopyButton label="Copy link" value={() => new URL(`/requests/${request.id}`, window.location.origin).href} copied="Link copied." icon={<Link2 strokeWidth={1.75} aria-hidden="true" />} />
       {code && <CopyButton label={`Copy code ${code}`} value={code} copied={`${code} copied.`} icon={<Hash strokeWidth={1.75} aria-hidden="true" />} />}
+      </span>
+      <span className={styles.compactCopy}><DropdownMenu label="Copy Request" trigger={<Button variant="ghost" size="sm" morph="plain" className={detailStyles.iconButton} aria-label="Copy Request"><MoreHorizontal aria-hidden="true" /></Button>} items={[
+        { label: "Copy link", icon: <Link2 />, onSelect: () => { void copy(new URL(`/requests/${request.id}`, window.location.origin).href, "Link copied.") } },
+        ...(code ? [{ label: `Copy code ${code}`, icon: <Hash />, onSelect: () => { void copy(code, `${code} copied.`) } }] : []),
+      ]} /></span>
       <Tooltip morph="plain" side="bottom" content="Open full page">
         <Link href={requestDetailHref(request.id, "all")} onClick={onOpenFullPage} aria-label="Open full page" className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.sm} ${detailStyles.iconButton}`} data-request-peek-open="">
           <Maximize2 strokeWidth={1.75} aria-hidden="true" />

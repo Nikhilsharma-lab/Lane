@@ -39,7 +39,9 @@ const CLERK_COLOURS = (() => {
   return clerkColourTokens(
     read("src/components/auth/clerk-appearance.ts"),
     read("node_modules/@clerk/ui/dist/internal/appearance.d.ts"),
-    read("src/styles/theme.css")
+    // Since #326 some names Clerk reads are bridged: theme-bridge.css points them at theme-file names (and
+    // design:check refuses any value there), so a bridged name counts as defined by the theme.
+    `${read("src/styles/theme.css")}\n${read("src/styles/theme-bridge.css")}`
   );
 })();
 
