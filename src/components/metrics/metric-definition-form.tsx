@@ -5,8 +5,7 @@ import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Select } from "@/components/arc/select/select";
 import {
-  METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionFieldErrors, metricDefinitionInputSchema,
-  metricUnitName, type MetricDefinitionField,
+  METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionProblems, metricUnitName, type MetricDefinitionField,
 } from "@/lib/metric-definition-rules";
 import styles from "./metric-definition-form.module.css";
 import { FieldError } from "@/components/forms/field-error";
@@ -55,9 +54,8 @@ export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onS
     event.preventDefault();
     if (pending) return;
     setError(null); setSaved(false);
-    const parsed = metricDefinitionInputSchema.safeParse(values);
-    if (!parsed.success) {
-      const problems = metricDefinitionFieldErrors(parsed.error);
+    const problems = metricDefinitionProblems(values);
+    if (Object.keys(problems).length) {
       setFields(problems); focusFirst(problems);
       return;
     }
