@@ -2,6 +2,7 @@
 .guide { width: 100%; max-width: calc(var(--spacing) * 160); min-width: 0; margin-inline: auto; overflow: hidden; border: var(--border-width) solid var(--border); border-radius: var(--radius-surface); background: var(--surface); color: var(--foreground); }
 /* Above the list it is a panel inside the page's gutter; in an empty workspace it is the welcome, centred in the list pane. */
 .slot { padding: var(--space-4) var(--space-6) 0; }
+.slot:empty { display: none; }
 .welcomeSlot { padding: var(--space-6); }
 .body { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); min-width: 0; }
 .body h2 { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-medium); line-height: var(--leading-display); overflow-wrap: anywhere; }

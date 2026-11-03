@@ -85,6 +85,16 @@
 .kbd { margin-inline-start: var(--space-3); }
 .back, .phoneOnly { display: none; }
 .editIcon { display: none; }
+@container request-peek (max-width: 640px) {
+  .editTrigger { min-width: var(--control-height-sm); padding-inline: 0; }
+  .editIcon { display: block; }
+  .editLabel { display: none; }
+}
+.peekBody { padding: var(--space-4) var(--space-6) var(--space-6); }
+.peekBody > header { margin-block-end: var(--space-6); }
+@container request-peek (max-width: 480px) {
+  .peekBody { padding-inline: var(--space-4); }
+}
 @media (max-width: 640px) {
   .back { display: inline-flex; }
   .phoneOnly { display: contents; }
