@@ -18,7 +18,7 @@ import { rowJourney } from "@/lib/request-overview";
 import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
 import { openSavedView, savedViewHref, viewInNavigation, type SavedView } from "@/lib/saved-view-nav";
 import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-pane-lazy";
-import { ACCOUNT_BUTTON, EXPAND_SIDEBAR, SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
+import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
 import { NAVIGATION_WIDTH } from "./sidebar-motion";
@@ -74,7 +74,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, me
   // No peek while the panel slides (plan item 2.4).
   const { peeking, peekTop, dismiss: dismissPeek, show: showPeek, triggerEvents, panelEvents } = useSidebarPeek(collapsed && !resizing && !motion, switchingWorkspace);
   function openAutoPeek() {
-    const triggers = [...(shellRef.current?.querySelectorAll<HTMLButtonElement>(EXPAND_SIDEBAR) ?? [])];
+    const triggers = [...(shellRef.current?.querySelectorAll<HTMLButtonElement>("[data-sidebar-expand]") ?? [])];
     const trigger = triggers.find(button => button === document.activeElement && button.getClientRects().length > 0)
       ?? triggers.find(button => button.getClientRects().length > 0 && !button.closest("[hidden],[inert]"));
     showPeek(trigger);
@@ -85,7 +85,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, me
   const mainRef = useRef<HTMLElement>(null);
   const pressBesidePeek = useEffectEvent((event: PointerEvent) => {
     if (!(event.target instanceof Node && mainRef.current?.contains(event.target))) return;
-    if (!(event.target instanceof Element && event.target.closest(EXPAND_SIDEBAR))) swallowPress(event);
+    if (!(event.target instanceof Element && event.target.closest("[data-sidebar-expand]"))) swallowPress(event);
     dismissPeek();
   });
   useEffect(() => {
@@ -150,8 +150,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, me
   function closeSearch(restoreFocus = true) {
     setSearchOpen(false);
     if (restoreFocus) navigation.deferFocus(() => {
-      const selector = phone ? 'button[aria-label="Open navigation"]' : collapsed ? EXPAND_SIDEBAR : 'button[aria-label="Search workspace"]';
-      document.querySelector<HTMLButtonElement>(selector)?.focus({ preventScroll: true });
+      const selector = phone ? '[aria-label="Open navigation"]' : collapsed ? "[data-sidebar-expand]" : '[aria-label="Search workspace"]';
+      document.querySelector<HTMLButtonElement>(`button${selector}`)?.focus({ preventScroll: true });
     });
   }
   // Preview links and keyboard commands share one routing owner.
@@ -180,7 +180,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, me
   });
   useEffect(() => { const listener = (event: KeyboardEvent) => searchShortcut(event); window.addEventListener("keydown", listener); return () => window.removeEventListener("keydown", listener); }, []);
   // #269 (A123): the account menu's Keyboard shortcuts opens the ? list through the shell's opener; focus goes back to the account button.
-  const showShortcuts = () => openShellSurface("shortcuts", { returnFocus: document.querySelector<HTMLElement>(`#lane-sidebar ${ACCOUNT_BUTTON}`) });
+  const showShortcuts = () => openShellSurface("shortcuts", { returnFocus: document.querySelector<HTMLElement>("[data-account]") });
   // Issue #102: the palette opens search as / does. Settings has no search pane, so no opener there.
   useShellOpener("search", () => openSearch(), !pathname.startsWith("/settings/"));
   const isRequests = pathname === "/" || pathname.startsWith("/requests/");

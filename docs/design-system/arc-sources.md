@@ -520,7 +520,7 @@ The local hashes for `src/components/arc/search-field/search-field.tsx` and `src
 
 - `src/components/arc/user-menu/user-menu.tsx`: the outside-press handler registers through Lane's `onOutsidePress` (`src/lib/outside-press.ts`): one window capture listener, asked for the newest open layer only, so the menu over the navigation peek closes first and the peek's own swallowing runs before any listener on the page (A15, A16). A switch failure offers Try again only when trying again can work (`worthRetrying`, `src/lib/failure-messages.ts`): never for a workspace that's no longer available; the list's and the switch's retries are one row (A111).
 - `src/components/arc/context-menu/context-menu.tsx`: with `outsidePressOnlyCloses`, the outside handler registers through the same `onOutsidePress` instead of a document capture listener. Without it, unchanged.
-- `src/components/arc/user-menu/user-menu.tsx`: the trigger's name span carries `data-user-menu-name`, and `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` finds it by that attribute (it measured `button > span:nth-child(2)`) to decide whether the name is cut (A112).
+- `src/components/arc/user-menu/user-menu.tsx`: the trigger carries `data-account` (the sidebar moves focus to it) and its name span `data-account-name`, and `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.tsx` finds it by that attribute (it measured `button > span:nth-child(2)`) to decide whether the name is cut (A112).
 
 ## Build 4: the list's title filter and workspace search (#270, 2026-11-02)
 

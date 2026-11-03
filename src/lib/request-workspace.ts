@@ -1,4 +1,3 @@
-import { TITLE_MAX } from "./request-constants"
 /**
  * The list's status views (URL `?status=`): every Request, each of the five journey statuses
  * (request-journey.ts), "due" for Measuring Requests due soon, due today or overdue (#133), and "waiting" for Guest
@@ -52,8 +51,10 @@ export function parseRequestProjectFilter(
   return candidate ?? "all"
 }
 
-/** A214: the list's title filter (URL `?title=`, and a saved view's) is cut to the longest Request title. */
-export const REQUEST_TITLE_FILTER_MAX = TITLE_MAX
+/** A214: the list's title filter (URL `?title=`, and a saved view's) is cut to the longest Request title,
+ * request-schema.ts TITLE_MAX. Not imported from there, which would bring zod into the list's first load;
+ * request-workspace.test.ts holds the two equal. */
+export const REQUEST_TITLE_FILTER_MAX = 200
 
 function requestQuery(filter: RequestStatusFilter, projectFilter: RequestProjectFilter, title = "") {
   const query = new URLSearchParams()

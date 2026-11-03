@@ -5,11 +5,6 @@ import { PanelLeft } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import styles from "./workspace-shell.module.css";
 
-/** #256 (fix round): the frame's two focus targets other parts look up, named once. The expand control carries its
- * own data attribute; the account button is Arc's user-menu trigger, found by the name its label starts with. */
-export const EXPAND_SIDEBAR = "button[data-sidebar-expand]";
-export const ACCOUNT_BUTTON = 'button[aria-label^="Account menu,"]';
-
 type Controls = { collapsed: boolean; peeking: boolean; expand: () => void; onPointerEnter: PointerEventHandler<HTMLButtonElement>; onPointerLeave: PointerEventHandler<HTMLButtonElement> };
 const SidebarControls = createContext<Controls | null>(null);
 
