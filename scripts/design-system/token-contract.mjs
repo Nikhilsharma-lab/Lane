@@ -15,8 +15,8 @@ export const themeFiles = {
   foundation: 'src/components/arc/foundation.css',
 }
 const themePolicy = (files = themeFiles) => ({ sources: new Set([files.theme, files.foundation, files.bridge]), controlOwner: files.bridge })
-const length = /(?<![\w-])-?(?:\d*\.)?\d+(?:px|rem|em|ms|s|pt)\b/gi
-const paint = /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|color-mix)\(|(?<![\w-])(?:black|white|red|blue|green|gray|grey)\b(?!-)/i
+const length = /(?<![\w-])-?(?:\d*\.)?\d+(?:px|rem|em|ms|s|pt|ch|ex|cap|lh|rlh)\b/gi
+const paint = /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|hwb|color|color-mix)\(|(?<![\w-])(?:black|white|red|blue|green|gray|grey)\b(?!-)/i
 
 export function auditCss(css, file = 'component.css', policy = themePolicy()) {
   const { sources, controlOwner } = policy
@@ -37,6 +37,10 @@ export function auditCss(css, file = 'component.css', policy = themePolicy()) {
     const mask = /mask/.test(d.prop)
     const dimensions = [...d.value.matchAll(length)].filter(m => Number.parseFloat(m[0]) !== 0)
     const fixedType = /^(?:font-weight|line-height|letter-spacing)$/.test(d.prop) && /^-?[.\d]+$/.test(d.value) && !['0', '1'].includes(d.value)
+    const fixedLayer = /^(?:z-index|stroke-width)$/.test(d.prop) && /^-?[.\d]+$/.test(d.value) && !['0', '1'].includes(d.value)
+    const fixedOpacity = d.prop === 'opacity' && /^-?[.\d]+$/.test(d.value) && !['0', '1'].includes(d.value)
+    const fixedFont = d.prop === 'font-family' && !/var\(|^(?:inherit|initial|unset|revert)$/.test(d.value)
+    const namedPaint = /^(?:color|background-color|border-color|fill|stroke)$/.test(d.prop) && /^[a-z]+$/i.test(d.value) && !/^(?:transparent|currentColor|inherit|initial|unset|revert|none)$/i.test(d.value)
     // Component geometry/materials belong to their shared implementation. Semantic
     // Badge tone and row-density composition remain legitimate context decisions.
     const sharedControlToken = /^--(?:button-|input-|segment-|badge-(?:height|padding-|gap$|font-weight|sm-(?:height|padding|font|gap|icon-padding)|icon-padding))/.test(d.prop)
@@ -46,7 +50,7 @@ export function auditCss(css, file = 'component.css', policy = themePolicy()) {
     }
     // The Supabase-era token files are retired: nothing may read their names again.
     if (/var\(\s*--sb-/.test(d.value)) errors.push(`${file}:${d.source.start.line} ${d.prop} reads a retired --sb-* token: use the theme file's name`)
-    if ((!mechanicalClip && dimensions.length) || (!mask && paint.test(d.value)) || fixedType) {
+    if ((!mechanicalClip && dimensions.length) || (!mask && paint.test(d.value)) || fixedType || fixedLayer || fixedOpacity || fixedFont || namedPaint) {
       errors.push(`${file}:${d.source.start.line} ${d.prop}: ${d.value}`)
     }
   })
@@ -85,17 +89,37 @@ export function auditInlineStyles(source, file = 'component.tsx') {
   const errors = []
   function visit(node, inStyle = false) {
     if (ts.isJsxAttribute(node) && node.name.getText(tree) === 'style') inStyle = true
-    if (inStyle && ts.isPropertyAssignment(node)) {
+    if (ts.isPropertyAssignment(node) && (inStyle || /^(?:background(?:Color)?|color|border(?:Color|Radius|Width)?|boxShadow|font(?:Size|Weight|Family)|lineHeight|letterSpacing|padding\w*|margin\w*|gap|rowGap|columnGap|width|height|minWidth|maxWidth|minHeight|maxHeight)$/.test(node.name.getText(tree).replace(/['"]/g, '')))) {
       const prop = node.name.getText(tree).replace(/['"]/g, '').replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
       const value = node.initializer
       const numeric = ts.isNumericLiteral(value) && /^(?:padding|margin|gap|width|height|min-|max-|top|left|right|bottom|border|font-size)/.test(prop) && Number(value.text) !== 0
-      const literal = ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value)
+      const literal = (ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value)) && value.text !== ''
       const numericType = ts.isNumericLiteral(value) && auditCss(`.inline { ${prop}: ${value.text} }`).length
       if (numeric || numericType || (literal && auditCss(`.inline { ${prop}: ${value.text} }`).length)) {
         errors.push(`${file}:${tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1} inline ${prop}: ${value.getText(tree)}`)
       }
     }
     ts.forEachChild(node, child => visit(child, inStyle))
+  }
+  visit(tree)
+  return errors
+}
+
+export function auditUtilityClasses(source, file = 'component.tsx') {
+  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const errors = []
+  function visit(node, inClass = false) {
+    if (ts.isJsxAttribute(node) && node.name.getText(tree) === 'className') inClass = true
+    if (inClass && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node))) {
+      for (const utility of node.text.split(/\s+/)) {
+        const palette = /(?:^|:)(?:bg|text|border|ring|fill|stroke)-(?:blue|red|green|gray|zinc|neutral|slate|white|black|emerald|purple|violet|yellow|orange|indigo|pink|amber)(?:-|$)/.test(utility)
+        const arbitrary = /\[([^\]]+)\]/.exec(utility)?.[1]
+        if (palette || arbitrary && (paint.test(arbitrary) || [...arbitrary.matchAll(length)].some(match => Number.parseFloat(match[0]) !== 0))) {
+          errors.push(`${file}:${tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1} ${utility}: use a semantic theme utility or token`)
+        }
+      }
+    }
+    ts.forEachChild(node, child => visit(child, inClass))
   }
   visit(tree)
   return errors
@@ -202,14 +226,34 @@ export function auditTree(root, policy = themePolicy()) {
       else if (entry.name.endsWith('.tsx') && !/\.(?:test|spec|stories)\./.test(entry.name)) {
         const source = readFileSync(path, 'utf8')
         const file = relative(root, path).replaceAll('\\', '/')
-        errors.push(...auditInlineStyles(source, file), ...auditIcons(source, file), ...auditSharedControls(source, file), ...auditMotionLiterals(source, file), ...auditKeyCaps(source, file))
+        errors.push(...auditInlineStyles(source, file), ...auditUtilityClasses(source, file), ...auditIcons(source, file), ...auditSharedControls(source, file), ...auditMotionLiterals(source, file), ...auditKeyCaps(source, file))
       }
       else if (entry.name.endsWith('.ts') && !/\.(?:test|spec|stories|d)\./.test(entry.name)) {
-        errors.push(...auditMotionLiterals(readFileSync(path, 'utf8'), relative(root, path).replaceAll('\\', '/')))
+        const source = readFileSync(path, 'utf8'), file = relative(root, path).replaceAll('\\', '/')
+        errors.push(...auditInlineStyles(source, file), ...auditMotionLiterals(source, file))
       }
     }
   }
   for (const folder of ['src/app', 'src/components', 'src/styles']) walk(join(root, folder))
+  return errors
+}
+
+/** Required references must have a CSS definition or an explicitly supplied runtime slot. */
+export function auditTokenReferences(sources) {
+  const defined = new Set()
+  for (const source of Object.values(sources)) {
+    for (const match of source.matchAll(/(--[\w-]+)(?:["']?\s*:|["']\s*,)/g)) defined.add(match[1])
+  }
+  const errors = []
+  for (const [file, source] of Object.entries(sources)) {
+    if (!file.endsWith('.css') || file === themeFiles.foundation) continue
+    postcss.parse(source).walkDecls(declaration => {
+      for (const match of declaration.value.matchAll(/var\(\s*(--[\w-]+)\s*\)/g)) {
+        const name = match[1]
+        if (!defined.has(name) && !/^--(?:radix|tw)-/.test(name)) errors.push(`${file}:${declaration.source.start.line} ${name} has no definition or runtime provider`)
+      }
+    })
+  }
   return errors
 }
 
@@ -322,8 +366,8 @@ export function auditArcCoverage(foundationCss, themeCss, bridgeCss, file = them
 // #262: one motion scale. Motion (the JavaScript animation library) cannot read CSS variables, so
 // `motionTokens` restates the theme's motion scale in seconds. This rule keeps the two equal: every
 // duration and ease names a theme.css `--duration-*` / `--ease-*` value and matches it, and every
-// spring has bounce 0 and settles on a theme duration. Stagger steps and blur radii have no CSS
-// counterpart and stay as written.
+// spring has bounce 0 and settles on a theme duration. Stagger steps and blur radii also
+// match their canonical Lane CSS tokens.
 export const motionPresetsFile = 'src/components/arc/motion-tokens.ts'
 
 const kebab = name => name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
@@ -333,8 +377,8 @@ const near = (a, b) => Math.abs(a - b) < 1e-9
 function themeMotion(themeCss) {
   const values = new Map()
   postcss.parse(themeCss).walkDecls(d => {
-    if (!/^--(?:duration|ease)-/.test(d.prop) || insideTheme(d) || d.parent.type !== 'rule' || darkScope.test(d.parent.selector)) return
-    values.set(d.prop, d.value.trim())
+    if (!/^--(?:lane-)?(?:duration|ease)-/.test(d.prop) || insideTheme(d) || d.parent.type !== 'rule' || darkScope.test(d.parent.selector)) return
+    values.set(d.prop.replace('--lane-', '--'), d.value.trim().replaceAll('--lane-', '--'))
   })
   const resolve = (name, seen = new Set()) => {
     const value = values.get(name)
@@ -391,9 +435,19 @@ export function auditMotionPresets(source, themeCss, file = motionPresetsFile) {
   })
   if (!presets || typeof presets !== 'object') return [`${file} has no motionTokens object: the JavaScript motion presets live there`]
   const { durations, eases } = themeMotion(themeCss)
+  const details = new Map()
+  postcss.parse(themeCss).walkDecls(d => {
+    if (/^--lane-(?:stagger|blur)-/.test(d.prop)) details.set(d.prop, d.value)
+  })
   const scale = [...durations.values()]
   const errors = []
   const at = (group, key) => `${file}:${group.__lines?.[key] ?? 1}`
+  for (const kind of ['stagger', 'blur']) for (const [key, value] of Object.entries(presets[kind] ?? {})) {
+    const name = `--lane-${kind}-${key}`
+    const match = details.get(name)?.match(/^([\d.]+)(ms|s|px)$/)
+    const expected = match ? Number(match[1]) / (match[2] === 'ms' ? 1000 : 1) : undefined
+    if (expected === undefined || !near(value, expected)) errors.push(`${at(presets[kind], key)} ${kind}.${key} must match ${name} in theme.css`)
+  }
   const durationGroup = presets.duration ?? {}
   for (const [key, value] of Object.entries(durationGroup)) {
     const name = `--duration-${kebab(key)}`
@@ -507,7 +561,8 @@ export function contrastReport(themeCss, file = themeFiles.theme) {
   const resolve = (mode, name, seen = new Set()) => {
     if (seen.has(name)) return null
     seen.add(name)
-    const value = (mode === 'dark' ? dark.get(name) : undefined) ?? light.get(name)
+    const laneName = name.replace(/^--(?!lane-)/, '--lane-')
+    const value = (mode === 'dark' ? dark.get(name) ?? dark.get(laneName) : undefined) ?? light.get(name) ?? light.get(laneName)
     if (value === undefined) return null
     const ref = value.trim().match(/^var\((--[\w-]+)\)$/)
     return ref ? resolve(mode, ref[1], seen) : linearRgb(value)

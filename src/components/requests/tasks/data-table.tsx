@@ -130,6 +130,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     page: { index: pageIndex, count: pageCount, go: index => setView(previous => ({ ...previous, pagination: { ...previous.pagination, pageIndex: index } })) },
     // A page crossing drops the selection; the same message says so.
     announce: text => announce(selection.withDropNotice(text), { key: "page" }),
+    onNavigate: id => { if (peekAvailable && peekIdRef.current) openPeek(id) },
     onPeek: id => {
       if (!peekAvailable) return false
       // Space on the previewed row closes the preview; focus is already on the row.
@@ -140,17 +141,10 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   })
   const setGridActive = grid.setActive
   const focusGridKey = grid.focusKey
-  // The preview follows the active row; a group header keeps the last Request. The active row,
-  // not the tab stop: a Request that leaves the view after a change made in the preview stays in it.
   const activeRequestId = grid.activeKey ? requestIdOf(grid.activeKey) : null
   // #103: the shell's current Request when nothing is open; the ticked rows never count.
   usePublishHighlightedRequest(activeRequestId)
-  const [followedId, setFollowedId] = useState(activeRequestId)
   let nextPeekId = peekId
-  if (followedId !== activeRequestId) {
-    setFollowedId(activeRequestId)
-    if (peekId && activeRequestId) nextPeekId = activeRequestId
-  }
   // A filter, view or page change that leaves the previewed Request off the page closes the
   // preview (a J or K across a page has already moved it to the new row above). A change made in
   // the preview that moves its Request out of the view does not: that is no view change.
@@ -184,22 +178,32 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   useLayoutEffect(() => { navigation.previewChanged(shownPeek) }, [navigation, shownPeek])
   const captureOpen = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    const link = event.target instanceof Element ? event.target.closest("a[data-request-title]") : null
-    const openedId = link?.closest<HTMLElement>("[data-request-id]")?.dataset.requestId
-    if (!openedId || (link instanceof HTMLAnchorElement && link.target && link.target !== "_self")) return
-    // Plan item 2.12 (Nikhil, 2026-10-21): on desktop a click on a row previews it beside the list.
-    // Only a pointer click (detail > 0): Enter and the row menu's "Open Request" click the title in
-    // code and still open the page, as do modifier and middle clicks (a new tab) and every phone tap.
-    // Prevented here, in capture, so neither Next's Link nor the browser navigates.
+    const target = event.target instanceof Element ? event.target : null
+    const row = target?.closest<HTMLElement>("[data-request-id]")
+    const openedId = row?.dataset.requestId
+    if (!openedId) return
+    const link = target?.closest("a[data-request-title]")
+    // The whole reading surface toggles detail. Labelled controls keep their own actions.
+    if (!link && target?.closest("button, a, input, select, textarea, [role='checkbox'], [role='menuitem'], [contenteditable='true']")) return
+    if (link instanceof HTMLAnchorElement && link.target && link.target !== "_self") return
+    const selectedText = window.getSelection()
+    if (selectedText?.toString() && row?.contains(selectedText.anchorNode)) return
+    // Enter and Open Request still follow the real link; modifiers retain native new-tab behavior.
     if (peekAvailable && event.detail > 0) {
       event.preventDefault()
-      // The row takes the list's focus, so J and K carry on from it and the preview follows.
-      focusGridKey(`r:${openedId}`)
-      openPeek(openedId)
+      if (peekIdRef.current === openedId) closePeek()
+      else {
+        focusGridKey(`r:${openedId}`)
+        openPeek(openedId)
+      }
+      return
+    }
+    if (!link) {
+      row?.querySelector<HTMLAnchorElement>("a[data-request-title]")?.click()
       return
     }
     navigation.prepareDetail(openedId, { sequence: captureSequence(matching.map(row => row.id), openedId) })
-  }, [matching, navigation, peekAvailable, focusGridKey, openPeek])
+  }, [matching, navigation, peekAvailable, focusGridKey, openPeek, closePeek])
   const setFilter = useCallback((id: string, value: string) => {
     if (id === "project") {
       setView(previous => withListContext(previous, { project: value || "all" }))
@@ -272,14 +276,15 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const emptyTitle = hasFilter ? "No matching Requests" : projectFilter === "none" ? "No Requests without a Project" : projectFilter !== "all" ? "No Requests in this Project yet" : "No Requests yet"
   const gridLabel = projectName ? `${projectName} Requests` : projectFilter === "none" ? "Requests without a Project" : isGuest ? "My Requests" : "Requests"
   const renderRow = (request: OverviewRequest, level?: number) => <RequestRow key={request.id} request={request} columns={columns} visibility={columnVisibility} level={level}
-    tabbable={grid.tabbable === `r:${request.id}`} checked={selection.selected.some(row => row.id === request.id)} disabled={selection.busy} onCheckedChange={checked => selection.toggle(request.id, checked)} />
+    tabbable={grid.tabbable === `r:${request.id}`} previewed={shownPeek === request.id} checked={selection.selected.some(row => row.id === request.id)} disabled={selection.busy} onCheckedChange={checked => selection.toggle(request.id, checked)} />
   return <RequestPeekOpener value={peekFromMenu}><RequestPeekLoadAhead value={loadAhead}><div ref={layoutRef} className={layoutStyles.tableLayout} data-preview-table={presentation ? "" : undefined}>
     <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
+    <div className={layoutStyles.listAndSummary} data-summary-open={summaryOpen || undefined} data-preview-open={shownPeek ? "" : undefined}>
+    <div className={layoutStyles.listPane} data-empty-workspace={workspaceEmpty || undefined}>
     <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={changeSummary} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter} onStatusChange={setStatus} onVisibilityChange={setVisibility} onOrderingChange={setOrdering} onGroupingChange={setGrouping} onClear={clearFilters} />
-    <div className={layoutStyles.listAndSummary} data-summary-open={summaryOpen || undefined}>
-    <div className={layoutStyles.listPane} data-empty-workspace={workspaceEmpty || undefined}>
+    <div className={layoutStyles.listScroll}>
     <div className={`${styles.records} ${layoutStyles.recordRegion}`}>
       {workspaceEmpty ? welcome : !matching.length ? <EmptyState title={emptyTitle} description={hasFilter ? "Change or clear your filters." : "Create a Request to get started."} action={hasFilter ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} />
         : <div ref={gridRef} role={grouped ? "treegrid" : "grid"} aria-label={gridLabel} aria-multiselectable="true" className={styles.list} data-request-grid="" {...grid.gridProps} onClickCapture={captureOpen}
@@ -310,6 +315,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     {footer}
     </div>
     {pageCount > 1 && <ListFooter pageIndex={pageIndex} pageCount={pageCount} pageSize={pagination.pageSize} total={matching.length} setView={setView} />}
+    </div>
     </div>
     <AnimatePresence initial={false}>
     {presentation && summaryOpen && <RequestListSummary rows={matching} filter={filter} project={project} requestType={requestType} onFilter={filterFromSummary} onClose={closeSummary} />}

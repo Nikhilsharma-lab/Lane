@@ -14,7 +14,7 @@
 .iconButton { width: var(--toolbar-icon-size); min-width: var(--toolbar-icon-size); min-height: var(--toolbar-icon-size); border-radius: var(--radius-control); padding: 0; }
 .iconButton[data-active] { color: var(--selection-icon); background: var(--selection-background); }
 .searchPanel { width: min(var(--popover-width), calc(100vw - var(--space-5))); }
-.activeFilters { padding: var(--space-2) var(--space-6) 0; }
+.activeFilters { container: request-filters / inline-size; padding: var(--space-2) var(--space-6) 0; }
 .matchCount { flex: none; color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .recordRegion { min-width: 0; margin-top: var(--space-2); padding-inline: var(--space-6); }
 .tableFooter { margin-top: var(--space-5); padding: 0 var(--space-6) var(--space-6); }
@@ -39,17 +39,19 @@
 :global(:root[data-visual-system="lane"]) .status { --control-height-sm: var(--size-inner-small); }
 
 .listAndSummary { position: relative; display: flex; min-width: 0; }
-.listPane { flex: 1; min-width: 0; }
+.listPane { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; }
+.listScroll { flex: 1; min-height: 0; }
 .tableLayout[data-preview-table] { min-height: 0; overflow: hidden; }
 .tableLayout[data-preview-table] .toolbarStack { flex: none; }
 .tableLayout[data-preview-table] .listAndSummary { flex: 1; min-height: 0; overflow: hidden; }
-.tableLayout[data-preview-table] .listPane { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+.tableLayout[data-preview-table] .listScroll { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
 /* Plan item 2.1: an empty workspace centres its welcome in the same list pane the first row lands in. */
 .listPane[data-empty-workspace] { display: flex; flex-direction: column; }
-.listPane[data-empty-workspace] > .recordRegion { display: flex; flex: 1; flex-direction: column; justify-content: center; }
+.listPane[data-empty-workspace] > .listScroll { display: flex; flex-direction: column; }
+.listPane[data-empty-workspace] .recordRegion { display: flex; flex: 1; flex-direction: column; justify-content: center; }
 /* Plan item 2.4: the summary overlays the list's trailing edge instead of taking width from it, so opening it
    never reflows the rows. The viewport clips the sliding panel and lets the pointer through around it. */
-.summaryViewport { position: absolute; z-index: 2; inset-block: 0; inset-inline-end: 0; width: min(calc(var(--spacing) * 87.5), 100%); overflow: hidden; pointer-events: none; }
+.summaryViewport { position: absolute; z-index: var(--lane-layer-raised); inset-block: 0; inset-inline-end: 0; width: min(calc(var(--spacing) * 87.5), 100%); overflow: hidden; pointer-events: none; }
 .summary { position: absolute; inset: 0 var(--space-2) var(--space-2) auto; width: calc(var(--spacing) * 85.5); max-width: calc(100cqw - var(--space-2)); overflow-y: auto; pointer-events: auto; overscroll-behavior: contain; padding: var(--space-3); border: var(--border-width) solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface-raised); }
 .summaryHeading { position: relative; margin-bottom: var(--space-2); }
 .summaryDimensions { --control-height-sm: var(--size-inner-small); --text-sm: var(--text-xs); gap: var(--space-1); }

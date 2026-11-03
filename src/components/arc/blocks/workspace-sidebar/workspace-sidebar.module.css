@@ -39,7 +39,7 @@
 .list { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; padding: 0; list-style: none; }
 .item { position: relative; min-width: 0; border-radius: var(--row-radius); }
 .item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-.item[data-lifted] { z-index: 2; background: var(--surface-raised); box-shadow: var(--shadow-floating); }
+.item[data-lifted] { z-index: var(--lane-layer-raised); background: var(--surface-raised); box-shadow: var(--shadow-floating); }
 
 .row { position: relative; display: grid; width: 100%; height: var(--row); grid-template-columns: calc(var(--space-1) * 4) minmax(0, 1fr) auto; align-items: center; gap: calc(var(--space-1) * 2.5); border: 0; border-radius: var(--row-radius); padding: 0 calc(var(--space-1) * 2.5) 0 calc(var(--space-1) * 3); background: transparent; color: var(--text-secondary); font: inherit; text-align: left; cursor: pointer; transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); -webkit-tap-highlight-color: transparent; }
 .row > :not(.highlight) { position: relative; z-index: 1; }
@@ -74,7 +74,7 @@
 .projectFolder:focus-visible { background: var(--row-hover); color: var(--foreground); }
 .projectFolder:active { background: var(--row-active); }
 .unread { display: block; width: calc(var(--space-1) * 1.5); height: calc(var(--space-1) * 1.5); margin-right: calc(var(--space-1) * 0.5); border-radius: var(--radius-pill); background: var(--accent); }
-.row > .railDot { position: absolute; top: calc(var(--row) / 2 - calc(var(--space-1) * 2.5)); left: calc(var(--space-1) * 6.25); z-index: 2; display: grid; width: calc(var(--space-1) * 1.5); height: calc(var(--space-1) * 1.5); pointer-events: none; }
+.row > .railDot { position: absolute; top: calc(var(--row) / 2 - calc(var(--space-1) * 2.5)); left: calc(var(--space-1) * 6.25); z-index: var(--lane-layer-raised); display: grid; width: calc(var(--space-1) * 1.5); height: calc(var(--space-1) * 1.5); pointer-events: none; }
 .railDotFace { display: block; border-radius: var(--radius-pill); background: var(--accent); }
 
 /* New project: one row that becomes a field and then the project itself. Its border offsets its padding so the text never moves. */
@@ -150,7 +150,7 @@
 .sidebar[data-rail] :is(.divider, .row > .railDot) { opacity: 1; scale: 1; transition: opacity var(--duration-standard) var(--ease-enter) calc(var(--duration-standard) * 0.8), scale calc(var(--duration-standard) * 1.8) var(--ease-spring) calc(var(--duration-standard) * 0.8); }
 
 /* Rail tips name each item beside the rail. Radix waits for an animation before unmounting, so a no-op keyframe times the exit while the transition fades it. */
-.tip { z-index: 60; display: flex; align-items: center; gap: calc(var(--space-1) * 2); border-radius: var(--radius-control); padding: calc(var(--space-1) * 1.5) calc(var(--space-1) * 3); background: var(--foreground); color: var(--background); box-shadow: var(--shadow-raised); font-family: var(--font-body); font-size: var(--text-sm); font-weight: var(--weight-medium); letter-spacing: var(--tracking-body); line-height: var(--leading-body); white-space: nowrap; transition: opacity var(--duration-fast) var(--ease-enter), transform var(--duration-fast) var(--ease-enter); }
+.tip { z-index: var(--lane-layer-menu); display: flex; align-items: center; gap: calc(var(--space-1) * 2); border-radius: var(--radius-control); padding: calc(var(--space-1) * 1.5) calc(var(--space-1) * 3); background: var(--foreground); color: var(--background); box-shadow: var(--shadow-raised); font-family: var(--font-body); font-size: var(--text-sm); font-weight: var(--weight-medium); letter-spacing: var(--tracking-body); line-height: var(--leading-body); white-space: nowrap; transition: opacity var(--duration-fast) var(--ease-enter), transform var(--duration-fast) var(--ease-enter); }
 .tipNote { color: var(--tooltip-muted); font-weight: var(--weight-normal); }
 @starting-style {
   .tip[data-state$="-open"] { opacity: 0; transform: translateX(calc(var(--space-1) * -1)); }
@@ -192,15 +192,15 @@
   .accountTrigger { min-height: calc(var(--space-1) * 11); }
   .createButton { width: calc(var(--space-1) * 11); height: calc(var(--space-1) * 11); }
 }
-.topbar { position: sticky; top: 0; z-index: 10; display: grid; min-width: 0; min-height: calc(var(--space-1) * 14); grid-template-columns: calc(var(--space-1) * 11) calc(var(--space-1) * 7) minmax(0, 1fr); align-items: center; gap: calc(var(--space-1) * 2.5); border: var(--border-width) solid var(--border); border-radius: var(--radius-xl); padding: calc(var(--space-1) * 1.75) calc(var(--space-1) * 4) calc(var(--space-1) * 1.75) calc(var(--space-1) * 1.75); background: var(--navigation-background); color: var(--foreground); font-family: var(--font-body); font-size: var(--text-sm); letter-spacing: var(--tracking-body); line-height: var(--leading-body); }
+.topbar { position: sticky; top: 0; z-index: var(--lane-layer-toolbar); display: grid; min-width: 0; min-height: calc(var(--space-1) * 14); grid-template-columns: calc(var(--space-1) * 11) calc(var(--space-1) * 7) minmax(0, 1fr); align-items: center; gap: calc(var(--space-1) * 2.5); border: var(--border-width) solid var(--border); border-radius: var(--radius-xl); padding: calc(var(--space-1) * 1.75) calc(var(--space-1) * 4) calc(var(--space-1) * 1.75) calc(var(--space-1) * 1.75); background: var(--navigation-background); color: var(--foreground); font-family: var(--font-body); font-size: var(--text-sm); letter-spacing: var(--tracking-body); line-height: var(--leading-body); }
 .opener { display: grid; width: calc(var(--space-1) * 11); height: calc(var(--space-1) * 11); place-items: center; border: 0; border-radius: var(--radius-surface); padding: 0; background: transparent; color: var(--text-secondary); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard); }
 .opener:active, .opener[aria-expanded="true"] { background: var(--interaction-pressed); color: var(--foreground); }
 .topbarText { display: grid; min-width: 0; }
 .topbarPage { font-weight: var(--weight-medium); line-height: var(--leading-body); }
 .topbarWorkspace { color: var(--text-muted); font-size: var(--text-xs); line-height: var(--leading-body); }
-.backdrop { position: fixed; inset: 0; z-index: 50; background: var(--overlay-backdrop); opacity: 0; pointer-events: none; -webkit-tap-highlight-color: transparent; }
+.backdrop { position: fixed; inset: 0; z-index: var(--lane-layer-backdrop); background: var(--overlay-backdrop); opacity: 0; pointer-events: none; -webkit-tap-highlight-color: transparent; }
 .backdrop[data-open] { pointer-events: auto; }
-.sheet { position: fixed; top: max(calc(var(--space-1) * 2), env(safe-area-inset-top)); bottom: max(calc(var(--space-1) * 2), env(safe-area-inset-bottom)); left: max(calc(var(--space-1) * 2), env(safe-area-inset-left)); z-index: 51; display: flex; width: min(calc(var(--space-1) * 76), calc(100vw - calc(var(--space-1) * 14))); outline: 0; visibility: hidden; touch-action: pan-y; will-change: transform; }
+.sheet { position: fixed; top: max(calc(var(--space-1) * 2), env(safe-area-inset-top)); bottom: max(calc(var(--space-1) * 2), env(safe-area-inset-bottom)); left: max(calc(var(--space-1) * 2), env(safe-area-inset-left)); z-index: var(--lane-layer-dialog); display: flex; width: min(calc(var(--space-1) * 76), calc(100vw - calc(var(--space-1) * 14))); outline: 0; visibility: hidden; touch-action: pan-y; will-change: transform; }
 .sheet[data-shown] { visibility: visible; }
 .sidebar[data-placement="drawer"] { width: 100%; height: 100%; box-shadow: var(--shadow-floating); }
 @media (prefers-reduced-motion: reduce) {

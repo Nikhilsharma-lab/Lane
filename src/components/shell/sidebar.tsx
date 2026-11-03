@@ -7,7 +7,9 @@ import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useRequestNavigation } from "@/components/requests/request-navigation";
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider";
-import { createProject } from "@/app/(app)/intake/project-actions";
+import { createProject, deleteProject } from "@/app/(app)/intake/project-actions";
+import { useListViewSnapshot } from "@/components/requests/list-view-state";
+import { useWorkspaceLabels } from "@/components/requests/workspace-labels";
 import { InboxBell } from "./inbox-bell";
 import { SidebarView } from "./sidebar-view";
 import { CommandPaletteHost } from "./command-palette-lazy";
@@ -43,6 +45,8 @@ export function Sidebar({
   savedViews?: SavedView[];
 }) {
   const pathname = usePathname();
+  const getView = useListViewSnapshot();
+  const labels = useWorkspaceLabels();
   const navigation = useRequestNavigation();
   const projectState = useSharedWorkspaceProjects();
   const { isLoaded, organization } = useOrganization();
@@ -70,6 +74,16 @@ export function Sidebar({
       projectsLoading={projectState.loading}
       projectsError={projectState.error}
       onRetryProjects={() => projectState.reload()}
+      onDeleteProject={role === "admin" || role === "member" ? async id => {
+        const stillCurrent = navigation.continuation();
+        const result = await callAction(() => deleteProject(id, { orgId }));
+        if (!result.success) throw new ShownFailure(result.error.message);
+        projectState.removeProject(id);
+        if (!stillCurrent()) return;
+        if (getView?.().project === id) navigation.selectList({ project: "none" });
+        for (const label of labels.labels) if (label.projectId === id) labels.remove(label.id);
+        labels.reload();
+      } : undefined}
       // #210: a Viewer creates no Projects (the server refuses too), so the sidebar offers no New Project.
       onCreateProject={role === "viewer" ? undefined : async name => {
         const stillCurrent = navigation.continuation();

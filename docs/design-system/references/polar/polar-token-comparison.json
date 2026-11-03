@@ -1,0 +1,1357 @@
+{
+  "source": "https://github.com/polarsource/polar/blob/main/clients/apps/web/src/styles/globals.css",
+  "observedURL": "https://sandbox.polar.sh/dashboard/uselane/analytics/metrics",
+  "observedTheme": "antialiased dark",
+  "rows": [
+    {
+      "name": "--accent",
+      "value": "lab(44.0605% 29.0279 -86.0352)",
+      "hex": "#155dfc",
+      "definition": "var(--color-blue)",
+      "sourceHex": "#155dfc",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--accent-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--color-polar-50)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--background",
+      "value": "#181818",
+      "hex": "#181818",
+      "definition": "var(--color-polar-800)",
+      "sourceHex": "#181818",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--border",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "var(--color-polar-700)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--card-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--color-polar-50)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-accent",
+      "value": "lab(44.0605% 29.0279 -86.0352)",
+      "hex": "#155dfc",
+      "definition": "var(--accent)",
+      "sourceHex": "#155dfc",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-accent-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--accent-foreground)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-amber-100",
+      "value": "lab(95.916% -1.21653 23.111)",
+      "hex": "#fef3c6",
+      "definition": "oklch(96.2% 0.059 95.617)",
+      "sourceHex": "#fef3c6",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-amber-50",
+      "value": "lab(98.6252% -.635922 8.42309)",
+      "hex": "#fffbeb",
+      "definition": "oklch(98.7% 0.022 95.277)",
+      "sourceHex": "#fffbeb",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-amber-500",
+      "value": "lab(72.7183% 31.8672 97.9407)",
+      "hex": "#fe9a00",
+      "definition": "oklch(76.9% 0.188 70.08)",
+      "sourceHex": "#fe9a00",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-amber-600",
+      "value": "lab(60.3514% 40.5624 87.1228)",
+      "hex": "#e17100",
+      "definition": "oklch(66.6% 0.179 58.318)",
+      "sourceHex": "#e17100",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-amber-950",
+      "value": "lab(15.8111% 20.9107 23.3752)",
+      "hex": "#461901",
+      "definition": "oklch(27.9% 0.077 45.635)",
+      "sourceHex": "#461901",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-background",
+      "value": "#181818",
+      "hex": "#181818",
+      "definition": "var(--background)",
+      "sourceHex": "#181818",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-black",
+      "value": "#000",
+      "hex": "#000000",
+      "definition": "#000",
+      "sourceHex": "#000000",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue",
+      "value": "lab(44.0605% 29.0279 -86.0352)",
+      "hex": "#155dfc",
+      "definition": "var(--color-blue-600)",
+      "sourceHex": "#155dfc",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-100",
+      "value": "lab(92.0301% -2.24757 -11.6453)",
+      "hex": "#dbeafe",
+      "definition": "oklch(0.932 0.032 255.585)",
+      "sourceHex": "#dbeafe",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-200",
+      "value": "lab(86.15% -4.04379 -21.0797)",
+      "hex": "#bedbff",
+      "definition": "oklch(0.882 0.059 254.128)",
+      "sourceHex": "#bedbff",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-300",
+      "value": "lab(77.5052% -6.4629 -36.42)",
+      "hex": "#8ec5ff",
+      "definition": "oklch(0.809 0.105 251.813)",
+      "sourceHex": "#8ec5ff",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-400",
+      "value": "lab(65.0361% -1.42065 -56.9802)",
+      "hex": "#50a2ff",
+      "definition": "oklch(0.707 0.165 254.624)",
+      "sourceHex": "#51a2ff",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-50",
+      "value": "lab(96.492% -1.14644 -5.11479)",
+      "hex": "#eff6ff",
+      "definition": "oklch(0.97 0.014 254.604)",
+      "sourceHex": "#eff6ff",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-500",
+      "value": "lab(54.1736% 13.3369 -74.6839)",
+      "hex": "#2b7fff",
+      "definition": "oklch(0.623 0.214 259.815)",
+      "sourceHex": "#2b7fff",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-600",
+      "value": "lab(44.0605% 29.0279 -86.0352)",
+      "hex": "#155dfc",
+      "definition": "oklch(0.546 0.245 262.881)",
+      "sourceHex": "#155dfc",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-700",
+      "value": "lab(36.9089% 35.0961 -85.6872)",
+      "hex": "#1447e6",
+      "definition": "oklch(0.488 0.243 264.376)",
+      "sourceHex": "#1447e6",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-900",
+      "value": "lab(26.1542% 15.7545 -51.5504)",
+      "hex": "#1c398e",
+      "definition": "oklch(0.379 0.146 265.522)",
+      "sourceHex": "#1c398e",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-blue-950",
+      "value": "lab(15.6723% 8.86232 -32.2945)",
+      "hex": "#162556",
+      "definition": "oklch(0.282 0.091 267.935)",
+      "sourceHex": "#162456",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-border",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "var(--border)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-card",
+      "value": "#181818",
+      "hex": "#181818",
+      "definition": "var(--card)",
+      "sourceHex": "#181818",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-card-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--card-foreground)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-destructive",
+      "value": "lab(55.4814% 75.0732 48.8528)",
+      "hex": "#fb2c36",
+      "definition": "var(--destructive)",
+      "sourceHex": "#fb2c36",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-destructive-foreground",
+      "value": "lab(55.4814% 75.0732 48.8528)",
+      "hex": "#fb2c36",
+      "definition": "var(--destructive-foreground)",
+      "sourceHex": "#fb2c36",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-emerald-100",
+      "value": "lab(94.9004% -17.0769 5.63836)",
+      "hex": "#d0fae5",
+      "definition": "oklch(95% 0.052 163.051)",
+      "sourceHex": "#d0fae5",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-emerald-300",
+      "value": "lab(83.9203% -48.7124 13.8849)",
+      "hex": "#5ee9b5",
+      "definition": "oklch(84.5% 0.143 164.978)",
+      "sourceHex": "#5ee9b5",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-emerald-400",
+      "value": "lab(75.0771% -60.7313 19.4147)",
+      "hex": "#00d492",
+      "definition": "oklch(76.5% 0.177 163.223)",
+      "sourceHex": "#00d492",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-emerald-50",
+      "value": "lab(97.8462% -6.94966 1.85487)",
+      "hex": "#ecfdf5",
+      "definition": "oklch(97.9% 0.021 166.113)",
+      "sourceHex": "#ecfdf5",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-emerald-500",
+      "value": "lab(66.9756% -58.27 19.5419)",
+      "hex": "#00bc7d",
+      "definition": "oklch(69.6% 0.17 162.48)",
+      "sourceHex": "#00bc7d",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-emerald-600",
+      "value": "lab(55.0481% -49.9246 15.93)",
+      "hex": "#009966",
+      "definition": "oklch(59.6% 0.145 163.225)",
+      "sourceHex": "#009966",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-emerald-900",
+      "value": "lab(28.8637% -26.9249 5.45986)",
+      "hex": "#004f3b",
+      "definition": "oklch(37.8% 0.077 168.94)",
+      "sourceHex": "#004f3b",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-emerald-950",
+      "value": "lab(15.0582% -17.9507 2.38369)",
+      "hex": "#002c22",
+      "definition": "oklch(26.2% 0.051 172.552)",
+      "sourceHex": "#002c22",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-foreground",
+      "value": "#757575",
+      "hex": "#757575",
+      "definition": "var(--foreground)",
+      "sourceHex": "#757575",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-graphic-dim",
+      "value": "#3c3c3c",
+      "hex": "#3c3c3c",
+      "definition": "rgb(60, 60, 60)",
+      "sourceHex": "#3c3c3c",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-graphic-stroke",
+      "value": "#fff",
+      "hex": "#ffffff",
+      "definition": "#fff",
+      "sourceHex": "#ffffff",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-100",
+      "value": "lab(96.1596% -.0823438 -1.13575)",
+      "hex": "#f3f4f6",
+      "definition": "oklch(0.967 0.003 264.542)",
+      "sourceHex": "#f3f4f6",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-200",
+      "value": "lab(91.6229% -.159115 -2.26791)",
+      "hex": "#e5e7eb",
+      "definition": "oklch(0.928 0.006 264.531)",
+      "sourceHex": "#e5e7eb",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-300",
+      "value": "lab(85.1236% -.612259 -3.7138)",
+      "hex": "#d1d5dc",
+      "definition": "oklch(0.872 0.01 258.338)",
+      "sourceHex": "#d1d5dc",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-400",
+      "value": "lab(65.9269% -.832707 -8.17473)",
+      "hex": "#99a1af",
+      "definition": "oklch(0.707 0.022 261.325)",
+      "sourceHex": "#99a1af",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-50",
+      "value": "lab(98.2596% -.247031 -.706708)",
+      "hex": "#f9fafb",
+      "definition": "oklch(0.985 0.002 247.839)",
+      "sourceHex": "#f9fafb",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-500",
+      "value": "lab(47.7841% -.393182 -10.0268)",
+      "hex": "#6a7282",
+      "definition": "oklch(0.551 0.027 264.364)",
+      "sourceHex": "#6a7282",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-600",
+      "value": "lab(35.6337% -1.58697 -10.8425)",
+      "hex": "#4a5565",
+      "definition": "oklch(0.446 0.03 256.802)",
+      "sourceHex": "#4a5565",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-700",
+      "value": "lab(27.1134% -.956401 -12.3224)",
+      "hex": "#364153",
+      "definition": "oklch(0.373 0.034 259.733)",
+      "sourceHex": "#364153",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-800",
+      "value": "lab(16.1051% -1.18239 -11.7533)",
+      "hex": "#1e2939",
+      "definition": "oklch(0.278 0.033 256.848)",
+      "sourceHex": "#1e2939",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-900",
+      "value": "lab(8.11897% .811279 -12.254)",
+      "hex": "#101828",
+      "definition": "oklch(0.21 0.034 264.665)",
+      "sourceHex": "#101828",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-gray-950",
+      "value": "lab(1.90334% .278696 -5.48866)",
+      "hex": "#030712",
+      "definition": "oklch(0.13 0.028 261.692)",
+      "sourceHex": "#030712",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-100",
+      "value": "lab(94.9004% -17.0769 5.63836)",
+      "hex": "#d0fae5",
+      "definition": "oklch(0.95 0.052 163.051)",
+      "sourceHex": "#d0fae5",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-200",
+      "value": "lab(90.2247% -31.039 9.47084)",
+      "hex": "#a4f4cf",
+      "definition": "oklch(0.905 0.093 164.15)",
+      "sourceHex": "#a4f4cf",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-400",
+      "value": "lab(75.0771% -60.7313 19.4147)",
+      "hex": "#00d492",
+      "definition": "oklch(0.765 0.177 163.223)",
+      "sourceHex": "#00d492",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-50",
+      "value": "lab(97.8462% -6.94966 1.85487)",
+      "hex": "#ecfdf5",
+      "definition": "oklch(0.979 0.021 166.113)",
+      "sourceHex": "#ecfdf5",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-500",
+      "value": "lab(66.9756% -58.27 19.5419)",
+      "hex": "#00bc7d",
+      "definition": "oklch(0.696 0.17 162.48)",
+      "sourceHex": "#00bc7d",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-600",
+      "value": "lab(55.0481% -49.9246 15.93)",
+      "hex": "#009966",
+      "definition": "oklch(0.596 0.145 163.225)",
+      "sourceHex": "#009966",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-700",
+      "value": "lab(44.4871% -41.0396 11.0361)",
+      "hex": "#007a55",
+      "definition": "oklch(0.508 0.118 165.612)",
+      "sourceHex": "#007a55",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-800",
+      "value": "lab(35.3675% -33.1188 8.04002)",
+      "hex": "#006045",
+      "definition": "oklch(0.432 0.095 166.913)",
+      "sourceHex": "#006045",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-900",
+      "value": "lab(28.8637% -26.9249 5.45986)",
+      "hex": "#004f3b",
+      "definition": "oklch(0.378 0.077 168.94)",
+      "sourceHex": "#004f3b",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-green-950",
+      "value": "lab(15.0582% -17.9507 2.38369)",
+      "hex": "#002c22",
+      "definition": "oklch(0.262 0.051 172.552)",
+      "sourceHex": "#002c22",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-indigo-100",
+      "value": "lab(91.6577% 1.04591 -12.7199)",
+      "hex": "#e0e7ff",
+      "definition": "oklch(93% 0.034 272.788)",
+      "sourceHex": "#e0e7ff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-indigo-400",
+      "value": "lab(59.866% 22.4834 -64.4485)",
+      "hex": "#7c86ff",
+      "definition": "oklch(67.3% 0.182 276.935)",
+      "sourceHex": "#7c86ff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-indigo-50",
+      "value": "lab(95.4818% .411302 -6.78529)",
+      "hex": "#eef2ff",
+      "definition": "oklch(96.2% 0.018 272.314)",
+      "sourceHex": "#eef2ff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-indigo-500",
+      "value": "lab(48.295% 38.3129 -81.9673)",
+      "hex": "#615fff",
+      "definition": "oklch(58.5% 0.233 277.117)",
+      "sourceHex": "#615fff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-indigo-700",
+      "value": "lab(32.4486% 49.2217 -84.6695)",
+      "hex": "#432dd7",
+      "definition": "oklch(45.7% 0.24 277.023)",
+      "sourceHex": "#432dd7",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-indigo-950",
+      "value": "lab(12.4853% 14.9672 -31.3418)",
+      "hex": "#1e1a4d",
+      "definition": "oklch(25.7% 0.09 281.288)",
+      "sourceHex": "#1e1a4d",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-input",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "var(--input)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-muted",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "var(--muted)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-muted-foreground",
+      "value": "#757575",
+      "hex": "#757575",
+      "definition": "var(--muted-foreground)",
+      "sourceHex": "#757575",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-neutral-100",
+      "value": "lab(96.52% -.0000298023 .0000119209)",
+      "hex": "#f5f5f5",
+      "definition": "oklch(97% 0 none)",
+      "sourceHex": "#f5f5f5",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-neutral-800",
+      "value": "lab(15.204% 0 -.00000596046)",
+      "hex": "#262626",
+      "definition": "oklch(26.9% 0 none)",
+      "sourceHex": "#262626",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-orange-400",
+      "value": "lab(70.0429% 42.5156 75.8207)",
+      "hex": "#ff8904",
+      "definition": "oklch(75% 0.183 55.934)",
+      "sourceHex": "#ff8904",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-orange-600",
+      "value": "lab(57.1026% 64.2584 89.8886)",
+      "hex": "#f54a00",
+      "definition": "oklch(64.6% 0.222 41.116)",
+      "sourceHex": "#f54900",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-100",
+      "value": "#c9c9c9",
+      "hex": "#c9c9c9",
+      "definition": "hsl(0, 0%, 79%)",
+      "sourceHex": "#c9c9c9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-200",
+      "value": "#adadad",
+      "hex": "#adadad",
+      "definition": "hsl(0, 0%, 68%)",
+      "sourceHex": "#adadad",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-300",
+      "value": "#9e9e9e",
+      "hex": "#9e9e9e",
+      "definition": "hsl(0, 0%, 62%)",
+      "sourceHex": "#9e9e9e",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-400",
+      "value": "#858585",
+      "hex": "#858585",
+      "definition": "hsl(0, 0%, 52%)",
+      "sourceHex": "#858585",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-50",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "hsl(0, 0%, 85%)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-500",
+      "value": "#757575",
+      "hex": "#757575",
+      "definition": "hsl(0, 0%, 46%)",
+      "sourceHex": "#757575",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-600",
+      "value": "#292929",
+      "hex": "#292929",
+      "definition": "hsl(0, 0%, 16%)",
+      "sourceHex": "#292929",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-700",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "hsl(0, 0%, 13%)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-800",
+      "value": "#181818",
+      "hex": "#181818",
+      "definition": "hsl(0, 0%, 9.5%)",
+      "sourceHex": "#181818",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-900",
+      "value": "#111",
+      "hex": "#111111",
+      "definition": "hsl(0, 0%, 6.5%)",
+      "sourceHex": "#111111",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-polar-950",
+      "value": "#090909",
+      "hex": "#090909",
+      "definition": "hsl(0, 0%, 3.5%)",
+      "sourceHex": "#090909",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-popover",
+      "value": "#111",
+      "hex": "#111111",
+      "definition": "var(--popover)",
+      "sourceHex": "#111111",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-popover-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--popover-foreground)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-primary",
+      "value": "lab(44.0605% 29.0279 -86.0352)",
+      "hex": "#155dfc",
+      "definition": "var(--primary)",
+      "sourceHex": "#155dfc",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-primary-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--primary-foreground)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-purple-100",
+      "value": "lab(93.3333% 6.97437 -9.83434)",
+      "hex": "#f3e8ff",
+      "definition": "oklch(94.6% 0.033 307.174)",
+      "sourceHex": "#f3e8ff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-purple-300",
+      "value": "lab(78.3298% 26.2195 -34.9499)",
+      "hex": "#dab2ff",
+      "definition": "oklch(82.7% 0.119 306.383)",
+      "sourceHex": "#dab2ff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-purple-500",
+      "value": "lab(52.0183% 66.11 -78.2316)",
+      "hex": "#ad46ff",
+      "definition": "oklch(62.7% 0.265 303.9)",
+      "sourceHex": "#ad46ff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-purple-600",
+      "value": "lab(43.0295% 75.21 -86.5669)",
+      "hex": "#9810fa",
+      "definition": "oklch(55.8% 0.288 302.321)",
+      "sourceHex": "#9810fa",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-purple-700",
+      "value": "lab(36.1758% 69.8525 -80.0381)",
+      "hex": "#8200db",
+      "definition": "oklch(49.6% 0.265 301.924)",
+      "sourceHex": "#8200db",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-100",
+      "value": "lab(92.243% 10.2865 3.83865)",
+      "hex": "#ffe2e2",
+      "definition": "oklch(0.936 0.032 17.717)",
+      "sourceHex": "#ffe2e2",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-200",
+      "value": "lab(86.017% 19.8815 7.75869)",
+      "hex": "#ffc9c9",
+      "definition": "oklch(0.885 0.062 18.334)",
+      "sourceHex": "#ffc9c9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-300",
+      "value": "lab(76.5514% 36.422 15.5335)",
+      "hex": "#ffa2a2",
+      "definition": "oklch(0.808 0.114 19.571)",
+      "sourceHex": "#ffa2a2",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-400",
+      "value": "lab(63.7053% 60.745 31.3109)",
+      "hex": "#ff6467",
+      "definition": "oklch(0.704 0.191 22.216)",
+      "sourceHex": "#ff6467",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-50",
+      "value": "lab(96.5005% 4.18508 1.52328)",
+      "hex": "#fef2f2",
+      "definition": "oklch(0.971 0.013 17.38)",
+      "sourceHex": "#fef2f2",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-500",
+      "value": "lab(55.4814% 75.0732 48.8528)",
+      "hex": "#fb2c36",
+      "definition": "oklch(0.637 0.237 25.331)",
+      "sourceHex": "#fb2c36",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-600",
+      "value": "lab(48.4493% 77.4328 61.5452)",
+      "hex": "#e7000b",
+      "definition": "oklch(0.577 0.245 27.325)",
+      "sourceHex": "#e7000b",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-700",
+      "value": "lab(40.4273% 67.2623 53.7441)",
+      "hex": "#c10007",
+      "definition": "oklch(0.505 0.213 27.518)",
+      "sourceHex": "#c10007",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-800",
+      "value": "lab(33.7174% 55.8993 41.0293)",
+      "hex": "#9f0712",
+      "definition": "oklch(0.444 0.177 26.899)",
+      "sourceHex": "#9f0712",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-900",
+      "value": "lab(28.5139% 44.5539 29.0463)",
+      "hex": "#82181a",
+      "definition": "oklch(0.396 0.141 25.723)",
+      "sourceHex": "#82181a",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-red-950",
+      "value": "lab(13.003% 29.04 16.7519)",
+      "hex": "#460809",
+      "definition": "oklch(0.258 0.092 26.042)",
+      "sourceHex": "#460809",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-ring",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "var(--ring)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-secondary",
+      "value": "#111",
+      "hex": "#111111",
+      "definition": "var(--secondary)",
+      "sourceHex": "#111111",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-secondary-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--secondary-foreground)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-sidebar",
+      "value": "#090909",
+      "hex": "#090909",
+      "definition": "var(--sidebar-background)",
+      "sourceHex": "#090909",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-sidebar-border",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "var(--sidebar-border)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-sidebar-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--sidebar-foreground)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-violet-100",
+      "value": "lab(93.0838% 4.35197 -9.88284)",
+      "hex": "#ede9fe",
+      "definition": "oklch(94.3% 0.029 294.588)",
+      "sourceHex": "#ede9fe",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-violet-400",
+      "value": "lab(62.8239% 34.9159 -60.0512)",
+      "hex": "#a684ff",
+      "definition": "oklch(70.2% 0.183 293.541)",
+      "sourceHex": "#a684ff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-violet-50",
+      "value": "lab(96.2416% 2.28849 -5.51657)",
+      "hex": "#f5f3ff",
+      "definition": "oklch(96.9% 0.016 293.756)",
+      "sourceHex": "#f5f3ff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-violet-500",
+      "value": "lab(49.9355% 55.1776 -81.8963)",
+      "hex": "#8e51ff",
+      "definition": "oklch(60.6% 0.25 292.717)",
+      "sourceHex": "#8e51ff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-violet-600",
+      "value": "lab(41.088% 68.9966 -91.995)",
+      "hex": "#7f22fe",
+      "definition": "oklch(54.1% 0.281 293.009)",
+      "sourceHex": "#7f22fe",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-violet-950",
+      "value": "lab(14.0706% 33.3353 -46.7553)",
+      "hex": "#2f0d68",
+      "definition": "oklch(28.3% 0.141 291.089)",
+      "sourceHex": "#2f0d68",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-white",
+      "value": "#fff",
+      "hex": "#ffffff",
+      "definition": "#fff",
+      "sourceHex": "#ffffff",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-yellow-100",
+      "value": "lab(97.3564% -4.51407 27.344)",
+      "hex": "#fef9c2",
+      "definition": "oklch(97.3% 0.071 103.193)",
+      "sourceHex": "#fef9c2",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-yellow-400",
+      "value": "lab(83.2664% 8.65132 106.895)",
+      "hex": "#fdc700",
+      "definition": "oklch(85.2% 0.199 91.936)",
+      "sourceHex": "#fdc700",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-yellow-50",
+      "value": "lab(98.6846% -1.79055 9.7766)",
+      "hex": "#fefce8",
+      "definition": "oklch(98.7% 0.026 102.212)",
+      "sourceHex": "#fefce8",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-yellow-500",
+      "value": "lab(76.3898% 14.5258 98.4589)",
+      "hex": "#f0b100",
+      "definition": "oklch(79.5% 0.184 86.047)",
+      "sourceHex": "#f0b100",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-yellow-600",
+      "value": "lab(62.7799% 22.4197 86.1544)",
+      "hex": "#d08700",
+      "definition": "oklch(68.1% 0.162 75.834)",
+      "sourceHex": "#d08700",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-yellow-950",
+      "value": "lab(16.8146% 15.7422 23.1133)",
+      "hex": "#432004",
+      "definition": "oklch(28.6% 0.066 53.813)",
+      "sourceHex": "#432004",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-zinc-100",
+      "value": "lab(96.1634% .0993311 -.364041)",
+      "hex": "#f4f4f5",
+      "definition": "oklch(96.7% 0.001 286.375)",
+      "sourceHex": "#f4f4f5",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--color-zinc-900",
+      "value": "lab(8.30603% .618205 -2.16572)",
+      "hex": "#18181b",
+      "definition": "oklch(21% 0.006 285.885)",
+      "sourceHex": "#18181b",
+      "origin": "Tailwind 4.3.3 theme.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--destructive",
+      "value": "lab(55.4814% 75.0732 48.8528)",
+      "hex": "#fb2c36",
+      "definition": "var(--color-red-500)",
+      "sourceHex": "#fb2c36",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--destructive-foreground",
+      "value": "lab(55.4814% 75.0732 48.8528)",
+      "hex": "#fb2c36",
+      "definition": "var(--color-red-500)",
+      "sourceHex": "#fb2c36",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--foreground",
+      "value": "#757575",
+      "hex": "#757575",
+      "definition": "var(--color-polar-500)",
+      "sourceHex": "#757575",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--muted",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "var(--color-polar-700)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--muted-foreground",
+      "value": "#757575",
+      "hex": "#757575",
+      "definition": "var(--color-polar-500)",
+      "sourceHex": "#757575",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--orbit-bg",
+      "value": "#070808",
+      "hex": "#070808",
+      "definition": "hsl(233, 2%, 3%)",
+      "sourceHex": "#070808",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--orbit-bg-elevated",
+      "value": "#181819",
+      "hex": "#181819",
+      "definition": "hsl(233, 2%, 9.5%)",
+      "sourceHex": "#181819",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--orbit-bg-surface",
+      "value": "#101011",
+      "hex": "#101011",
+      "definition": "hsl(233, 2%, 6.5%)",
+      "sourceHex": "#101011",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--orbit-destructive",
+      "value": "lab(48.4493% 77.4328 61.5452)",
+      "hex": "#e7000b",
+      "definition": "var(--color-red-600)",
+      "sourceHex": "#e7000b",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--orbit-text",
+      "value": "#f0f0f0",
+      "hex": "#f0f0f0",
+      "definition": "#f0f0f0",
+      "sourceHex": "#f0f0f0",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--orbit-text-disabled",
+      "value": "#505053",
+      "hex": "#505053",
+      "definition": "hsl(233, 2%, 32%)",
+      "sourceHex": "#505053",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--orbit-text-subtle",
+      "value": "#828387",
+      "hex": "#828387",
+      "definition": "hsl(233, 2%, 52%)",
+      "sourceHex": "#828387",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--popover-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--color-polar-50)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--primary",
+      "value": "lab(44.0605% 29.0279 -86.0352)",
+      "hex": "#155dfc",
+      "definition": "var(--color-blue)",
+      "sourceHex": "#155dfc",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--primary-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--color-polar-50)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--ring",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "var(--color-polar-700)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--secondary",
+      "value": "#111",
+      "hex": "#111111",
+      "definition": "var(--color-polar-900)",
+      "sourceHex": "#111111",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--secondary-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--color-polar-50)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--sidebar-background",
+      "value": "#090909",
+      "hex": "#090909",
+      "definition": "var(--color-polar-950)",
+      "sourceHex": "#090909",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--sidebar-border",
+      "value": "#212121",
+      "hex": "#212121",
+      "definition": "var(--color-polar-700)",
+      "sourceHex": "#212121",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--sidebar-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--color-polar-50)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--sidebar-primary",
+      "value": "lab(44.0605% 29.0279 -86.0352)",
+      "hex": "#155dfc",
+      "definition": "var(--color-blue)",
+      "sourceHex": "#155dfc",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    },
+    {
+      "name": "--sidebar-primary-foreground",
+      "value": "#d9d9d9",
+      "hex": "#d9d9d9",
+      "definition": "var(--color-polar-50)",
+      "sourceHex": "#d9d9d9",
+      "origin": "Polar globals.css",
+      "result": "match (within 1 sRGB byte)"
+    }
+  ]
+}

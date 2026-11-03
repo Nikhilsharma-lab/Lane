@@ -4,15 +4,10 @@
  * Sizes use Supabase's 44px control token for compact rows and table-head height for group headers. */
 .records { container-type: inline-size; min-width: 0; }
 .list { list-style: none; margin: 0; padding: 0; }
-.row { display: flex; align-items: center; gap: 0; min-height: var(--request-row-height); padding: 0 var(--space-2); border-radius: var(--request-row-radius); }
+.row { cursor: pointer; display: flex; align-items: center; gap: var(--space-1); min-height: var(--request-row-height); padding: 0 var(--space-2); border-radius: var(--request-row-radius); }
 .rowContent { display: flex; align-items: center; gap: var(--space-4); flex: 1; min-width: 0; }
-.savedCode { display: grid; flex: none; min-width: calc(var(--spacing) * 28); max-width: 100%; }
-.savedCode .codeButton { min-height: var(--request-row-height); justify-content: flex-start; padding-inline: var(--space-2); font-variant-numeric: tabular-nums; }
-/* The row owns the hover fill; copying retains its glyph, tooltip and focus outline. */
-.row .savedCode .codeButton:is(:hover, :active):not(:disabled) { background-color: transparent; }
-.codeError { max-width: calc(var(--spacing) * 48); padding: 0 var(--space-2) var(--space-1); color: var(--danger); font-size: var(--text-xs); overflow-wrap: anywhere; }
-.row[data-selected] .codeButton { color: var(--selection-foreground); }
 .row:hover, .row[data-menu-open] { background: var(--interaction-hover); }
+.row[data-previewed] { background: var(--interaction-hover); }
 .row[data-selected] { background: var(--selection-background); }
 .row[data-selected]:hover { background: var(--selection-hover); }
 .row[data-selected]:active { background: var(--selection-pressed); }
@@ -84,13 +79,8 @@
   .row { padding-block: var(--space-1); align-items: flex-start; }
   .rowContent { flex-wrap: wrap; gap: 0; }
   .title { flex-basis: 100%; }
-  .savedCode + .title { flex-basis: calc(var(--spacing) * 40); }
   .properties { justify-content: flex-start; width: 100%; }
-  /* Narrow compact records tighten the code column: one width up to four digits
-     plus the copy glyph, which still appears for hover, focus and a copy result,
-     so the status glyphs stay in a line and copying keeps its confirmation. */
-  .row[data-compact-row] .savedCode { min-width: calc(var(--spacing) * 22); }
-  .row[data-compact-row] .savedCode .codeButton { padding-inline: var(--space-1); }
+
 }
 
 /* Opt-in compact list: available record width, not a second line, determines
@@ -112,15 +102,9 @@
 .row[data-compact-row] .propertyBadge { max-width: 100%; --badge-background: var(--request-property-background); --badge-hover-background: var(--request-property-background); --badge-border: var(--request-property-border); --badge-hover-border: var(--request-property-border); border-width: var(--border-width); }
 .row[data-compact-row] .propertyBadge > span { min-width: 0; max-width: 100%; }
 .identityControl { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 var(--icon-size-md); width: var(--icon-size-md); height: var(--size-inner-medium); border: 0; padding: 0; background: transparent; color: var(--text-muted); border-radius: var(--radius-sm); cursor: pointer; }
-.identitySlot { flex: 0 0 var(--icon-size-md); }
 .requestCode { flex: 0 0 calc(var(--spacing) * 13.5); color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .row[data-selected] .requestCode { color: var(--selection-foreground); }
 .submittedDate { white-space: nowrap; color: var(--request-property-foreground); font-size: var(--text-xs); }
-/* The copy glyph appears on hover, focus and copy feedback. */
-@media (hover: hover) {
-  .row[data-compact-row] .codeButton svg { opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard); }
-  .row:is(:hover, :focus-within, [data-menu-open]) .codeButton svg, .savedCode:not([data-state="idle"]) .codeButton svg { opacity: 1; }
-}
 /* After the compact rules above, so the narrower cap wins at equal specificity. */
 @container (max-width: 880px) {
   .row[data-compact-row] .properties { max-width: 40%; }
@@ -137,8 +121,7 @@
 @media (max-width: 640px) {
   /* Phones keep checkbox, priority, status, title, picker and the row menu. The
      code stays reachable through the menu's Copy code and on the Request detail. */
-  .row[data-compact-row] .requestCode,
-  .row[data-compact-row] .savedCode { display: none; }
+  .row[data-compact-row] .requestCode { display: none; }
 }
 
 /* The checkbox column uses Supabase's inner small control and spans the row height. */

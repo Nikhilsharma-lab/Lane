@@ -166,6 +166,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   };
 
   const handleSelect = (item: InboxItem) => {
+    if (peekAvailable && selectedId === item.id) { closePreview(); return; }
     // Opening an item reads it. The patch and the opening happen now; the action follows.
     const readAt = new Date().toISOString();
     const token = item.readAt === null ? beginRead(item, readAt) : null;
@@ -180,6 +181,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
 
   // A Needs-you item clears itself once the thing is done, so opening it changes nothing but the preview.
   const handleSelectNeedsYou = (item: NeedsYouInboxItem) => {
+    if (peekAvailable && selectedId === item.key) { closePreview(); return; }
     if (peekAvailable) {
       navigation.previewChanged(item.requestId);
       if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });

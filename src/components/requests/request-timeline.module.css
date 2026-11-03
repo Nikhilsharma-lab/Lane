@@ -89,6 +89,10 @@
   margin: 0;
   white-space: pre-wrap;
 }
+:global([data-detail-peek]) .timeline {
+  border-block-start: 0;
+  padding-block: 0;
+}
 .heading {
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
