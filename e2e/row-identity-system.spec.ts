@@ -141,6 +141,8 @@ test("rows and identities keep one contract on every surface", async ({
       }
       await notifications.click();
       await expect(page).toHaveURL(/\/inbox$/);
+      // On a phone, choosing Inbox puts the sidebar away, as every other sidebar destination does.
+      if (surface.viewport.width < 640) await expect(page.locator('button[aria-label="Expand sidebar"]').first()).toHaveAttribute("aria-expanded", "false");
       const notificationRow = page.getByRole("region", { name: "For your information" }).locator("[data-inbox-item]").first();
       await expect(notificationRow).toBeVisible();
       await expectNotificationLanes(notificationRow);
