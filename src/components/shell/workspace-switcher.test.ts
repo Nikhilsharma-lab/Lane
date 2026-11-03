@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OfflineError } from "@/lib/offline-error";
+import { ShownFailure } from "@/lib/failure-messages";
 import { createWorkspaceSwitch, type WorkspaceSwitchSnapshot } from "./workspace-switcher";
 import { assertWorkspaceCanSwitch, WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
 
@@ -60,7 +61,10 @@ describe("Clerk workspace switching boundary", () => {
   it.each([WORKSPACE_SWITCH_EVENT, "beforeunload"])("honors %s veto before Clerk can change the active workspace", async eventName => {
     const f = fixture();
     f.target.addEventListener(eventName, event => event.preventDefault());
-    await expect(f.select("org-b")).rejects.toThrow(/finish.*request|unsaved files/i);
+    const vetoed = f.select("org-b");
+    await expect(vetoed).rejects.toThrow(/finish.*request|unsaved files/i);
+    // #269: Lane's own reason is shown to the person as it is.
+    await expect(vetoed).rejects.toBeInstanceOf(ShownFailure);
     expect(f.events).toEqual(["pending:org-b", "pending:null"]);
   });
 
@@ -80,7 +84,10 @@ describe("Clerk workspace switching boundary", () => {
     const f = fixture();
     const original = f.snapshot().setActive;
     f.update({ setActive: async () => { throw new Error("private provider payload"); } });
-    await expect(f.select("org-b")).rejects.toThrow("Couldn't switch workspaces. Try again.");
+    const failed = f.select("org-b");
+    await expect(failed).rejects.toThrow("Couldn't switch workspaces. Try again.");
+    // #269: Clerk's failure is never shown as it is; the menu says it in Lane's words.
+    await expect(failed).rejects.not.toBeInstanceOf(ShownFailure);
     expect(f.events).toEqual(["pending:org-b", "pending:null"]);
     f.update({ setActive: original });
     await f.select("org-b");

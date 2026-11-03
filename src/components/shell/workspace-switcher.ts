@@ -1,5 +1,6 @@
 import type { useClerk } from "@clerk/nextjs";
 import { OfflineError } from "@/lib/offline-error";
+import { ShownFailure } from "@/lib/failure-messages";
 
 type SetActive = ReturnType<typeof useClerk>["setActive"];
 
@@ -27,20 +28,15 @@ type WorkspaceSwitchDependencies = {
   timeoutMs?: number;
 };
 
-/** The switch reached Clerk and didn't get through (refused, or no answer in time). Its words are the menu's own. */
-export class SwitchFailed extends Error {
-  constructor() { super("Couldn't switch workspaces. Try again."); }
-}
-
 /** #269 (A111): long enough for a slow connection, short enough that nobody waits on a switch that won't come. */
 export const SWITCH_TIMEOUT_MS = 15_000;
 
 function requireCurrentMembership(snapshot: WorkspaceSwitchSnapshot, id: string) {
   if (!snapshot.loaded || !snapshot.userId || !snapshot.setActive || snapshot.activeId !== snapshot.currentId) {
-    throw new Error("Your workspace is still loading. Reload the page and try again.");
+    throw new ShownFailure("Your workspace is still loading. Reload the page and try again.");
   }
   if (!snapshot.items.some(item => item.id === id)) {
-    throw new Error("This workspace is no longer available. Refresh the workspace list and try again.");
+    throw new ShownFailure("This workspace is no longer available. Refresh the workspace list and try again.");
   }
   return snapshot.setActive;
 }
@@ -62,7 +58,7 @@ export function createWorkspaceSwitch({ getSnapshot, beforeSwitch, onPendingChan
       await beforeSwitch();
       const latest = getSnapshot();
       if (latest.userId !== initial.userId || latest.currentId !== initial.currentId || latest.activeId !== initial.activeId) {
-        throw new Error("Your workspace changed. Reload the page and try again.");
+        throw new ShownFailure("Your workspace changed. Reload the page and try again.");
       }
       const setActive = requireCurrentMembership(latest, id);
       activationStarted = true;
@@ -91,15 +87,17 @@ export function createWorkspaceSwitch({ getSnapshot, beforeSwitch, onPendingChan
         abandoned = true;
         // Should Clerk finish that switch after all, its session goes back to the workspace still on screen.
         activation.then(() => setActive({ organization: initial.currentId }), () => {}).catch(() => {});
-        throw outcome === "offline" ? new OfflineError() : new SwitchFailed();
+        throw outcome === "offline" ? new OfflineError() : new Error("Couldn't switch workspaces. Try again.");
       }
       // Keep the old workspace blocked until document navigation completes.
     } catch (error) {
       pending = false;
       onPendingChange(null);
       if (error instanceof OfflineError) throw error;
-      if (activationStarted) throw new SwitchFailed();
-      throw error;
+      // #269 (A111): Clerk's own failure (refused, or no answer in time) is said by the menu in Lane's words;
+      // Lane's own reasons before it (a draft to finish, a workspace that's gone) are already words for people.
+      if (activationStarted) throw new Error("Couldn't switch workspaces. Try again.");
+      throw error instanceof Error ? new ShownFailure(error.message) : error;
     }
   };
 }
