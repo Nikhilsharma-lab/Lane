@@ -8,7 +8,7 @@ import { Check, ChevronLeft, ChevronRight, Copy, MoreHorizontal, Trash2 } from "
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./context-menu.module.css";
 import { KeyCap } from "@/components/keyboard/key-caps";
-import { swallowPress } from "@/lib/outside-press";
+import { onOutsidePress, swallowPress } from "@/lib/outside-press";
 
 export interface ContextMenuItem {
   id: string;
@@ -273,12 +273,12 @@ export function ContextMenu({ children, items, label = "Context menu", asChild =
       if (event.target instanceof Element && event.target.closest(`[data-context-tree="${CSS.escape(menuId)}"]`)) return;
       closeMenu(true);
     };
-    // Swallowing needs the press before the page sees it, so that menu listens as it travels down.
-    document.addEventListener("pointerdown", closeOnPointerDown, outsidePressOnlyCloses);
+    // Swallowing needs the press before anything on the page sees it (Lane's outside-press.ts).
+    const stopPresses = outsidePressOnlyCloses ? onOutsidePress(closeOnPointerDown) : (document.addEventListener("pointerdown", closeOnPointerDown), () => document.removeEventListener("pointerdown", closeOnPointerDown));
     window.addEventListener("scroll", closeOnViewportChange, true);
     window.addEventListener("resize", closeOnViewportChange);
     return () => {
-      document.removeEventListener("pointerdown", closeOnPointerDown, outsidePressOnlyCloses);
+      stopPresses();
       window.removeEventListener("scroll", closeOnViewportChange, true);
       window.removeEventListener("resize", closeOnViewportChange);
     };

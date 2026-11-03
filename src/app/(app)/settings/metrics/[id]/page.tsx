@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "@/components/link";
 import { notFound, redirect } from "next/navigation";
 import { timePage, timed } from "@/lib/request-timings";
@@ -13,6 +12,7 @@ import { MetricDefinitionHistory } from "@/components/metrics/metric-definition-
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { loadDefinitionUses } from "@/lib/data/impact";
+import { readMetricPage } from "@/lib/data/metric-page";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { metricUnitName } from "@/lib/metric-definition-rules";
 import { listMetricDefinitions, metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
@@ -21,9 +21,9 @@ import { ThemePreference } from "../../profile/theme-preference";
 import { sharedPanels } from "../../profile/shared-panels";
 import { ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
 import styles from "../metrics.module.css";
+import { settingsMetadata } from "../../settings-metadata";
 
-// #271 (A114): the tab reads "Settings · Lane".
-export const metadata: Metadata = { title: "Settings" };
+export const metadata = settingsMetadata;
 
 /**
  * One Metric definition under Settings → Metrics (#197): edit it, archive, restore or merge it (Admins, #202),
@@ -40,7 +40,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   const library = workspace;
   // #265: the shared Settings sections are read alongside the definition, not after it.
   const panelsRead = sharedPanels(workspace);
-  const [definition, history, unitLocked] = await Promise.all([timed("data", () => readMetricDefinition(library, id)), timed("data", () => readMetricDefinitionHistory(library, id)), timed("data", () => metricDefinitionUnitLocked(library, id))]);
+  const [definition, history, unitLocked] = await Promise.all([readMetricPage(library, id), timed("data", () => readMetricDefinitionHistory(library, id)), timed("data", () => metricDefinitionUnitLocked(library, id))]);
   if (!definition) notFound();
   const archived = !!definition.archivedAt;
   const merged = !!definition.mergedIntoId;

@@ -1,7 +1,6 @@
 import { headers } from "next/headers"
 import { notFound } from "next/navigation"
-import { getMember } from "@/lib/ensure-workspace"
-import { readRequestPage } from "@/lib/data/request-page"
+import { requestAtAddress } from "./request-at-address"
 
 /**
  * #271 (A117): an unknown Request address answers a real 404. The status can only change before the page starts
@@ -13,8 +12,8 @@ import { readRequestPage } from "@/lib/data/request-page"
  */
 export default async function RequestLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   if ((await headers()).get("rsc") !== "1") {
-    const [{ id }, member] = await Promise.all([params, getMember()])
-    if (member && !(await readRequestPage(member, id))) notFound()
+    const { member, selected } = await requestAtAddress(params)
+    if (member && !selected) notFound()
   }
   return children
 }

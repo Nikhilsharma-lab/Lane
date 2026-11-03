@@ -164,13 +164,15 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
     setCreating(true); onBusyChange(true); setCreateError(null);
     try {
       const result = await callAction(() => createProject({ name: choice.name }, { orgId }));
-      if (result.success) {
-        state.addProject(result.project);
-        onChange(result.project.id);
+      // A name that exists, in any capitals, quietly picks that Project here; only the sidebar's New Project refuses it.
+      const project = result.success ? result.project : result.existing;
+      if (project) {
+        state.addProject(project);
+        onChange(project.id);
         setProjectName(""); setOpen(false);
-      } else {
+      } else if (!result.success) {
         setCreateError(result.error.message);
-        if (result.error.code === "conflict" || result.error.code === "duplicate") void state.reload();
+        if (result.error.code === "conflict") void state.reload();
       }
     } catch (thrown) { setCreateError(thrownMessage(thrown, "Project couldn't be created. Try again; your Request is still here.")); }
     finally {

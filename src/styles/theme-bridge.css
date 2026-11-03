@@ -368,6 +368,7 @@
   --table-head-height: var(--lane-table-head-height);
   --popover-width: var(--lane-popover-width);
   --navigation-width: var(--lane-navigation-width);
+  --navigation-peek-width: var(--lane-navigation-peek-width);
   --checkbox-size: var(--lane-checkbox-size);
   --icon-size-xs: var(--lane-icon-size-xs);
   --icon-size-sm: var(--lane-icon-size-sm);

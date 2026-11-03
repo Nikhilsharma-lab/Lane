@@ -23,6 +23,8 @@ export type WorkspaceFrameProps = {
   orgId: string;
   userId: string;
   role: PaletteRole;
+  /** #269 (A113): the account menu's Members item, named by the server's role rules; none for a Viewer or a Guest. */
+  membersLabel?: string;
   workspaceName: string;
   fullName: string;
   email: string;
@@ -49,13 +51,14 @@ export const useInWorkspaceFrame = () => useContext(InWorkspaceFrame);
  * data and renders it around each page. #271: the root not-found renders the same frame around "Page not found"
  * for a signed-in person, through lazy-workspace-frame.tsx, so it never joins every route's first load.
  */
-export function WorkspaceFrame({ orgId, userId, role, workspaceName, fullName, email, needsYouCount, savedViews, projects, labels, canContribute, canAddReviewers, withoutPrediction, pageAddress, children }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceName, fullName, email, needsYouCount, savedViews, projects, labels, canContribute, canAddReviewers, withoutPrediction, pageAddress, children }: WorkspaceFrameProps) {
   const shell = (
     <Sidebar
       workspaceName={workspaceName}
       fullName={fullName}
       email={email}
       role={role}
+      membersLabel={membersLabel}
       orgId={orgId}
       userId={userId}
       needsYouCount={needsYouCount}

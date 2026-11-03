@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react"
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { usePopupCode } from "@/components/popup/lazy-popup"
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
+import { navigationStartedAt } from "@/lib/navigation-intent"
 import type { CommandPaletteWorkspace } from "./command-palette"
 import { paletteShortcut, typeaheadKey } from "./command-palette-shortcut"
 import { useShellOpener } from "./shell-openers"
@@ -22,9 +23,10 @@ import { shellSurfaces } from "./workspace-search-pane-lazy"
  * guards. Focus goes back to what had it when ⌘K was pressed.
  *
  * #268 (A12): from ⌘K until the palette's field has focus, keys are kept here
- * and handed to the field, and none reaches the page. #268 (A11): Back or
- * Forward after it opened closes it; a page that was already on its way when
- * ⌘K was pressed lands under it, and it stays open.
+ * and handed to the field, and none reaches the page. #268 (A11): a page
+ * change that starts after it opened closes it: Back or Forward at once, any
+ * other (a push, a redirect) as it lands. A page that was already on its way
+ * when ⌘K was pressed lands under it, and it stays open.
  */
 export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: string }) {
   const { pathname, ...workspace } = props
@@ -34,7 +36,14 @@ export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: 
   const typeahead = useRef<string | null>(null)
   const { toast } = useToastStack()
   const change = (next: boolean) => { if (!next) typeahead.current = null; setOpen(next) }
-  const show = (focusBack: HTMLElement | null) => { returnFocus.current = focusBack; typeahead.current = ""; setOpen(true) }
+  // When the last page landed; when it opened, and whether a page change was then on its way (it may land under it).
+  const landedAt = useRef(-Infinity)
+  const opened = useRef({ at: 0, awaiting: false })
+  const show = (focusBack: HTMLElement | null) => {
+    returnFocus.current = focusBack; typeahead.current = ""
+    opened.current = { at: performance.now(), awaiting: navigationStartedAt() > landedAt.current }
+    setOpen(true)
+  }
   const surfaces = usePopupCode(shellSurfaces, open, () => {
     change(false)
     toast({ type: "error", title: "Couldn't open the command palette", description: "Check your connection and try again." })
@@ -70,6 +79,12 @@ export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: 
     window.addEventListener("popstate", back)
     return () => window.removeEventListener("popstate", back)
   }, [open])
+  const landed = useEffectEvent(() => {
+    if (open && (navigationStartedAt() > opened.current.at || !opened.current.awaiting)) change(false)
+    opened.current.awaiting = false
+    landedAt.current = performance.now()
+  })
+  useEffect(() => landed(), [pathname])
   useShellOpener("palette", request => {
     if (!open) show(request.returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null))
   })

@@ -39,5 +39,9 @@ export const thrownMessage = (thrown: unknown, fallback: string) => isOfflineErr
  */
 export class ShownFailure extends Error {}
 
+/** Whether Try again can work: offline, no answer in time or a refusal may pass next time; a `ShownFailure` is
+ * Lane's own answer (a workspace that's gone, a page to reload), which trying again only repeats. */
+export const worthRetrying = (failure: unknown) => !(failure instanceof ShownFailure)
+
 /** The words to show for a failure: a `ShownFailure`'s own, else what `thrownMessage` says (never a raw error's text). */
 export const failureWords = (failure: unknown, fallback: string) => failure instanceof ShownFailure ? failure.message : thrownMessage(failure, fallback)
