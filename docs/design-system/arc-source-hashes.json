@@ -360,7 +360,7 @@
     "source": "https://uiarc.dev/r/user-menu.json",
     "file": "src/components/arc/user-menu/user-menu.tsx",
     "upstreamSha256": "077dd8457c238330e82e494af76623879d3393ef1bc7720b6205bcda06688295",
-    "localSha256": "372587b6895433996bbc88d074c993d4f84c263d3fe75919179265ca8b978071"
+    "localSha256": "bf6c11d8fc7ebbf324b395c5a013aba6235a979853197d5afe18b61910f83434"
   },
   {
     "id": "workspace-sidebar",
@@ -381,7 +381,7 @@
     "source": "https://uiarc.dev/r/context-menu.json",
     "file": "src/components/arc/context-menu/context-menu.tsx",
     "upstreamSha256": "84301492fadf8cfb3dfa1682381932c4b986404b2adc2ef4e868de1582eb367e",
-    "localSha256": "1db6d7acab2ebe174b65ddb475113a6456b7f1ba0c5ea53ed91a8f66f6fd39d5"
+    "localSha256": "99b29f032b41f006a8c18c5fe581b1074525fd90cf554cd82000b60d49203dee"
   },
   {
     "id": "context-menu",
