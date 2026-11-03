@@ -5,13 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { clerk } from "@clerk/testing/playwright";
 import { assertE2ETarget, safeClerkClient } from "./safety";
-import { waitForClerk } from "./test-user";
 
 /** Same normal Clerk test sign-in as test-user.ts; a native default context has no relative baseURL. */
 export async function signInNativeTestUser(page: Page, emailAddress: string, orgId: string) {
   await safeClerkClient();
   await page.goto(new URL("/login", assertE2ETarget().baseURL).href);
-  await waitForClerk(page);
   await clerk.signIn({ page, emailAddress });
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
 }
