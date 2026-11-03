@@ -199,11 +199,15 @@ test("⌘K stays open through a page change, keeps what is typed, finds Impact, 
       await page.keyboard.press("[");
       await expect(page.locator("#lane-sidebar")).toHaveAttribute("data-collapsed", "true");
       await expect(bar).toBeHidden();
-      await page.keyboard.press("Meta+k");
-      await expect(field(page)).toBeFocused();
-      await page.keyboard.press("Escape");
-      // [ waits while a dialog is on screen, the palette's exit included.
-      await expect(palette(page)).toHaveCount(0);
+      // The pointer still rests on the collapsed rail, so its tip may be showing behind the palette. Escape closes
+      // the palette all the same, every time (the tip was Radix's top layer and took the key, 18 times in 30).
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await page.keyboard.press("Meta+k");
+        await expect(field(page)).toBeFocused();
+        await page.keyboard.press("Escape");
+        // [ waits while a dialog is on screen, the palette's exit included.
+        await expect(palette(page)).toHaveCount(0, { timeout: 3_000 });
+      }
       await page.locator("#lane-main").focus();
       await page.keyboard.press("[");
       await expect(page.locator("#lane-sidebar")).not.toHaveAttribute("data-collapsed");

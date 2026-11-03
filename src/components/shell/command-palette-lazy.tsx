@@ -76,8 +76,12 @@ export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: 
   useEffect(() => {
     if (!open) return
     const back = () => change(false)
+    // Escape always closes it. A tip left showing behind it (the collapsed rail's, under a resting pointer) is Radix's
+    // top layer and would take the key; it closes too.
+    const escape = (event: KeyboardEvent) => { if (event.key == "Escape" && document.querySelector('[role="tooltip"]')) back() }
     window.addEventListener("popstate", back)
-    return () => window.removeEventListener("popstate", back)
+    window.addEventListener("keydown", escape, true)
+    return () => { window.removeEventListener("popstate", back); window.removeEventListener("keydown", escape, true) }
   }, [open])
   const landed = useEffectEvent(() => {
     if (open && (navigationStartedAt() > opened.current.at || !opened.current.awaiting)) change(false)
