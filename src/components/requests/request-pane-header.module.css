@@ -13,7 +13,7 @@
 @media (hover: hover) and (pointer: fine) { .tab:hover { color: var(--foreground); } }
 
 .tab[data-state="active"] { color: var(--foreground); }
-.tab:focus-visible { outline-offset: calc(-1 * var(--focus-outline-width)) !important; }
+.tab { --focus-outline-offset: calc(-1 * var(--focus-outline-width)); }
 @container request-peek (max-width: 480px) {
   .tabs { gap: var(--space-4); }
 }
