@@ -108,7 +108,14 @@ export async function verifyMoveCancellations(page: Page, orgId: string, fixture
     await row(page, fixture.c).focus(); await page.keyboard.press("Escape"); await expect(bar(page)).toBeHidden();
     await selectMoveRows(page, [fixture.a, fixture.b, fixture.c]);
     const history = await beginCoordinatedChange(page, orgId, "bulk-pickup", [fixture.a.id, fixture.b.id], recorder, () => bar(page).getByRole("button", { name: "Pick up", exact: true }).press("Enter"));
-    await expect(confirmation(page)).toBeVisible(); await page.goBack();
+    await expect(confirmation(page)).toBeVisible();
+    if (surface.width < 640) {
+      // #263: on a phone the confirmation is a bottom panel, and Back closes it first, staying on the list.
+      await page.goBack();
+      await expect(confirmation(page)).toBeHidden(); await expect(page).toHaveURL(url => url.pathname === "/");
+      await expect.poll(() => page.evaluate(() => (history.state as { lanePopup?: string } | null)?.lanePopup ?? null)).toBeNull();
+    }
+    await page.goBack();
     await expect(page).toHaveURL(url => url.pathname === `/requests/${fixture.a.id}`); await page.goForward();
     await expect(page).toHaveURL(url => url.pathname === "/");
     if (await confirmation(page).isVisible()) await confirmation(page).getByRole("button", { name: "Pick up anyway", exact: true }).press("Enter");
