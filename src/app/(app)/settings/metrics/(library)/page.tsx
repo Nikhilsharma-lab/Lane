@@ -14,8 +14,9 @@ import { ThemePreference } from "../../profile/theme-preference";
 import { sharedPanels } from "../../profile/shared-panels";
 import { AddMetricDialog, MetricLibraryFilter } from "../metric-controls";
 import styles from "../metrics.module.css";
+import { settingsMetadata } from "../../settings-metadata";
 
-export { metadata } from "../../settings-metadata";
+export const metadata = settingsMetadata;
 
 /**
  * Settings → Metrics (#196): the workspace's Metrics library. Members and Admins only. Members and

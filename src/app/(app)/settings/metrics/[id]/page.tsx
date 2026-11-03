@@ -21,8 +21,9 @@ import { ThemePreference } from "../../profile/theme-preference";
 import { sharedPanels } from "../../profile/shared-panels";
 import { ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
 import styles from "../metrics.module.css";
+import { settingsMetadata } from "../../settings-metadata";
 
-export { metadata } from "../../settings-metadata";
+export const metadata = settingsMetadata;
 
 /**
  * One Metric definition under Settings → Metrics (#197): edit it, archive, restore or merge it (Admins, #202),

@@ -8,8 +8,9 @@ import { getWorkspace } from "@/lib/ensure-workspace";
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
 import { sharedPanels } from "./shared-panels";
+import { settingsMetadata } from "../settings-metadata";
 
-export { metadata } from "../settings-metadata";
+export const metadata = settingsMetadata;
 
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string; slack?: string; checkout?: string }> }) {
   void timePage("Settings: Profile");

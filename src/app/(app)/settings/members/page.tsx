@@ -8,8 +8,9 @@ import { getWorkspace } from "@/lib/ensure-workspace";
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { membersPanel } from "./members-panel";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
+import { settingsMetadata } from "../settings-metadata";
 
-export { metadata } from "../settings-metadata";
+export const metadata = settingsMetadata;
 
 export default async function MembersPage() {
   void timePage("Settings: Members");
