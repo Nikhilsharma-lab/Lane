@@ -1,10 +1,8 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import {
-  METRIC_HOW_COUNTED_MAX, METRIC_LINK_MAX, METRIC_NAME_MAX, metricDefinitionFieldErrors, metricDefinitionInputSchema,
-  metricDefinitionProblems,
-} from "./metric-definition-rules";
+import { METRIC_HOW_COUNTED_MAX, METRIC_LINK_MAX, METRIC_NAME_MAX, metricDefinitionProblems } from "./metric-definition-rules";
+import { metricDefinitionFieldErrors, metricDefinitionInputSchema } from "./metric-definition-schema";
 
 // The metric forms check a definition in the browser without zod (zod alone was about 23 KB gzip of each Metrics
 // page's first load). The browser's answer must be the server schema's answer, field for field and word for word.
@@ -47,7 +45,7 @@ describe("checking a Metric definition in the browser", () => {
   });
 });
 
-// Only the server actions parse with the zod schemas; a form that did would bring zod back into its page's first load.
+// Only the server actions import the zod schemas; a form that did would bring zod back into its page's first load.
 describe("the zod schemas for Metric definitions", () => {
   const sources = (dir: string): string[] => readdirSync(dir).flatMap(name => {
     const path = join(dir, name);
@@ -55,11 +53,11 @@ describe("the zod schemas for Metric definitions", () => {
     return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) ? [path] : [];
   });
 
-  it("are used only by the server actions", () => {
+  it("are imported only by server code (the two actions, and the library for its input type)", () => {
     const root = join(process.cwd(), "src");
     const users = sources(root)
-      .filter(file => /\b(metricDefinitionInputSchema|inlineMetricInputSchema)\b/.test(readFileSync(file, "utf8")))
+      .filter(file => /metric-definition-schema["']/.test(readFileSync(file, "utf8")))
       .map(file => relative(root, file)).sort();
-    expect(users).toEqual(["app/(app)/intake/metric-actions.ts", "app/(app)/settings/metrics/actions.ts", "lib/metric-definition-rules.ts"]);
+    expect(users).toEqual(["app/(app)/intake/metric-actions.ts", "app/(app)/settings/metrics/actions.ts", "lib/metrics-library.ts"]);
   });
 });

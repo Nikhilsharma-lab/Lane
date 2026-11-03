@@ -1,5 +1,3 @@
-import * as z from "zod";
-
 /**
  * Client-safe facts about Metric definitions (#196). The Metrics library itself, which owns every read
  * and write of definitions, is src/lib/metrics-library.ts (server only).
@@ -27,7 +25,8 @@ export const METRIC_NAME_MAX = 120;
 export const METRIC_LINK_MAX = 2048;
 export const METRIC_HOW_COUNTED_MAX = 500;
 
-const MESSAGES = {
+/** What the forms and the server say about each field (metric-definition-schema.ts uses the same words). */
+export const METRIC_DEFINITION_MESSAGES = {
   nameMissing: "Give the metric a name.",
   nameTooLong: `Keep the name to ${METRIC_NAME_MAX} characters or fewer.`,
   unit: "Choose a unit.",
@@ -35,54 +34,24 @@ const MESSAGES = {
   linkNotWeb: "Enter a link that starts with https:// or http://.",
   howCountedTooLong: `Keep how it's counted to ${METRIC_HOW_COUNTED_MAX} characters or fewer.`,
 };
-const WEB_LINK = /^https?:\/\/\S+$/i;
+export const METRIC_WEB_LINK = /^https?:\/\/\S+$/i;
 
-/** Blank optional text is saved as nothing. */
-const optionalText = (max: number, tooLong: string) => z.string().nullish()
-  .transform(value => value?.trim() || null)
-  .refine(value => value === null || value.length <= max, tooLong);
-
-/**
- * What someone gives when adding or editing a Metric definition (#197). The server actions parse with it; the forms
- * check with `metricDefinitionProblems`, which gives the same answers without zod.
- */
-export const metricDefinitionInputSchema = z.object({
-  name: z.string({ error: MESSAGES.nameMissing }).trim().min(1, MESSAGES.nameMissing).max(METRIC_NAME_MAX, MESSAGES.nameTooLong),
-  unit: z.enum(METRIC_UNITS, { error: MESSAGES.unit }),
-  link: optionalText(METRIC_LINK_MAX, MESSAGES.linkTooLong)
-    .refine(value => value === null || WEB_LINK.test(value), MESSAGES.linkNotWeb),
-  howCounted: optionalText(METRIC_HOW_COUNTED_MAX, MESSAGES.howCountedTooLong),
-});
-export type MetricDefinitionInput = z.output<typeof metricDefinitionInputSchema>;
-
-/** What adding a metric from the prediction form asks for (#199): the name, unit and generated definition. */
-export const inlineMetricInputSchema = metricDefinitionInputSchema.pick({ name: true, unit: true, howCounted: true })
-  .transform(({ name, unit, howCounted }) => ({ name: name.replace(/\s+/g, " "), unit, howCounted }));
-export type MetricDefinitionField = keyof MetricDefinitionInput;
-
-/** The first problem with each field, for showing beside it. */
-export function metricDefinitionFieldErrors(error: z.ZodError): Partial<Record<MetricDefinitionField, string>> {
-  const errors: Partial<Record<MetricDefinitionField, string>> = {};
-  for (const issue of error.issues) {
-    const field = issue.path[0] as MetricDefinitionField;
-    errors[field] ??= issue.message;
-  }
-  return errors;
-}
+export type MetricDefinitionField = "name" | "unit" | "link" | "howCounted";
 
 /**
  * The forms' check of a definition as typed: the first problem with each field, the same as `metricDefinitionInputSchema`
- * gives (metric-definition-rules.test.ts holds them to it). Plain code, so the Metrics pages don't carry zod (#256).
+ * gives (metric-definition-rules.test.ts holds them to it). Plain code, so the Metrics pages don't carry zod (#256);
+ * the schema lives in metric-definition-schema.ts, which only the server actions import.
  */
 export function metricDefinitionProblems(values: { name: string; unit: string; link: string; howCounted: string }): Partial<Record<MetricDefinitionField, string>> {
   const problems: Partial<Record<MetricDefinitionField, string>> = {};
   const name = values.name.trim();
-  if (!name) problems.name = MESSAGES.nameMissing;
-  else if (name.length > METRIC_NAME_MAX) problems.name = MESSAGES.nameTooLong;
-  if (!(METRIC_UNITS as readonly string[]).includes(values.unit)) problems.unit = MESSAGES.unit;
+  if (!name) problems.name = METRIC_DEFINITION_MESSAGES.nameMissing;
+  else if (name.length > METRIC_NAME_MAX) problems.name = METRIC_DEFINITION_MESSAGES.nameTooLong;
+  if (!(METRIC_UNITS as readonly string[]).includes(values.unit)) problems.unit = METRIC_DEFINITION_MESSAGES.unit;
   const link = values.link.trim();
-  if (link.length > METRIC_LINK_MAX) problems.link = MESSAGES.linkTooLong;
-  else if (link && !WEB_LINK.test(link)) problems.link = MESSAGES.linkNotWeb;
-  if (values.howCounted.trim().length > METRIC_HOW_COUNTED_MAX) problems.howCounted = MESSAGES.howCountedTooLong;
+  if (link.length > METRIC_LINK_MAX) problems.link = METRIC_DEFINITION_MESSAGES.linkTooLong;
+  else if (link && !METRIC_WEB_LINK.test(link)) problems.link = METRIC_DEFINITION_MESSAGES.linkNotWeb;
+  if (values.howCounted.trim().length > METRIC_HOW_COUNTED_MAX) problems.howCounted = METRIC_DEFINITION_MESSAGES.howCountedTooLong;
   return problems;
 }
