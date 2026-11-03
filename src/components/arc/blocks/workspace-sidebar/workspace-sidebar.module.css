@@ -7,13 +7,20 @@
 /* The person's identity anchors account actions; search and compose retain their own accessible labels. */
 .header { display: grid; grid-template-columns: minmax(0, 1fr); gap: calc(var(--space-1) * 2); padding: calc(var(--space-1) * 2) calc(var(--space-1) * 3) var(--space-1); }
 .identityRow { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-1); }
-.identityActions { display: flex; gap: calc(var(--space-1) * 0.5); }
+.identityActions { display: flex; gap: 0; }
 .headerAction[aria-pressed="true"] { background: var(--selection-background, var(--row-active)); color: var(--selection-foreground, var(--foreground)); }
 .headerAction { display: grid; width: calc(var(--space-1) * 8); height: calc(var(--space-1) * 9); place-items: center; border: 0; border-radius: var(--radius-control); padding: 0; background: transparent; color: var(--text-secondary); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard); }
 .headerAction > svg { width: var(--sidebar-action-icon-size, var(--icon-size-md)); height: var(--sidebar-action-icon-size, var(--icon-size-md)); }
 .accountSlot { display: flex; min-width: 0; }
-.accountSlot > span { min-width: 0; max-width: 100%; }
+.accountSlot > span, .accountName > span { min-width: 0; max-width: 100%; }
+.accountName { display: flex; }
 .accountTrigger { width: 100%; min-width: 0; }
+/* Lane #269 (A112): the account row gives the name the room the icons don't need: the icons sit on narrower targets
+   where a mouse aims at them, and the name runs up to its chevron. */
+.accountSlot .accountTrigger[data-name] { padding-right: calc(var(--space-1) * 1.5); }
+@media (hover: hover) and (pointer: fine) and (min-width: 641px) {
+  .sidebar:not([data-rail]) .identityActions .headerAction { width: calc(var(--space-1) * 7); }
+}
 
 .mark { position: relative; display: grid; width: calc(var(--space-1) * 8); height: calc(var(--space-1) * 8); flex: none; }
 .markSmall { width: calc(var(--space-1) * 7); height: calc(var(--space-1) * 7); }
@@ -77,30 +84,39 @@
 .row > .railDot { position: absolute; top: calc(var(--row) / 2 - calc(var(--space-1) * 2.5)); left: calc(var(--space-1) * 6.25); z-index: 2; display: grid; width: calc(var(--space-1) * 1.5); height: calc(var(--space-1) * 1.5); pointer-events: none; }
 .railDotFace { display: block; border-radius: var(--radius-pill); background: var(--accent); }
 
-/* New project: one row that becomes a field and then the project itself. Its border offsets its padding so the text never moves. */
+/* New project: one row that becomes a field and then the project itself. The row's box is drawn by ::before, so the text never moves.
+   Lane #269 (A19, A110): Arc `input`'s error and counter open in their own rows under the field, outside that box. */
 .composerWrap { padding-top: calc(var(--space-1) * 0.5); }
-.composer { position: relative; display: grid; height: var(--row); grid-template-columns: calc(var(--space-1) * 4) minmax(0, 1fr) auto; align-items: center; gap: calc(var(--space-1) * 2.5); border: var(--border-width) solid transparent; border-radius: var(--row-radius); padding: 0 calc(var(--space-1) * 2.25) 0 calc(var(--space-1) * 2.75); color: var(--text-muted); transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-standard) var(--ease-standard), color var(--duration-fast) var(--ease-standard); }
-.composer[data-state="open"] { border-color: var(--border-strong); background: var(--surface); color: var(--foreground); }
-.composer[data-state="open"]:focus-within { border-color: var(--text-muted); }
-.composer[data-invalid] { border-color: var(--danger); }
-.composer[data-invalid]:focus-within { border-color: var(--danger); }
+.composer { position: relative; isolation: isolate; display: grid; grid-template-columns: calc(var(--space-1) * 4) minmax(0, 1fr) auto; grid-template-rows: var(--row); align-items: center; column-gap: calc(var(--space-1) * 2.5); padding: 0 calc(var(--space-1) * 2.5) 0 calc(var(--space-1) * 3); color: var(--text-muted); transition: color var(--duration-fast) var(--ease-standard); }
+.composer::before { position: absolute; top: 0; right: 0; left: 0; z-index: -1; height: var(--row); border: var(--border-width) solid transparent; border-radius: var(--row-radius); content: ""; transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
+.composer[data-state="open"] { color: var(--foreground); }
+.composer[data-state="open"]::before { border-color: var(--border-strong); background: var(--surface); }
+.composer[data-state="open"]:focus-within::before { border-color: var(--text-muted); }
+.composer[data-invalid]::before, .composer[data-invalid]:focus-within::before { border-color: var(--danger); }
 .composer[data-state="commit"] { color: var(--foreground); transition-duration: var(--duration-standard); }
-.composer .lead { position: relative; }
+.composer .lead { position: relative; grid-row: 1; }
 .plus { display: grid; place-items: center; }
-.composerField { position: relative; display: grid; min-width: 0; height: 100%; align-items: center; }
+.composerField { position: relative; display: grid; min-width: 0; height: 100%; grid-row: 1; align-items: center; }
+/* The field's own wrappers step aside, so its input sits in the row and its messages span the rows below, under the text. */
+.composer:not([data-state="idle"]) .composerField, .composer:not([data-state="idle"]) .composerField > * { display: contents; }
+.composerField > * > span { grid-column: 2 / -1; }
 .composerLabel { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.composerInput { width: 100%; min-width: 0; height: 100%; border: 0; padding: 0; background: transparent; color: var(--foreground); font: inherit; outline: 0; }
+.composerInput { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; height: 100%; border: 0; padding: 0; background: transparent; color: var(--foreground); font: inherit; outline: 0; }
 .composerInput:focus-visible { outline: 0; }
+/* While the field's code is still on its way, its error sits where Arc input's would. */
+.composerError { display: block; padding-top: var(--space-2); color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .composerInput::placeholder { color: var(--text-muted); }
 .message { margin: calc(var(--space-1) * 2) calc(var(--space-1) * 3); color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .message p { margin: 0 0 calc(var(--space-1) * 2); }
 .notificationSlot { min-width: 0; }
-.createButton { display: grid; width: calc(var(--space-1) * 7); height: calc(var(--space-1) * 7); place-items: center; border: 0; border-radius: var(--row-radius); padding: 0; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.createButton { display: grid; grid-row: 1; width: calc(var(--space-1) * 7); height: calc(var(--space-1) * 7); place-items: center; border: 0; border-radius: var(--row-radius); padding: 0; background: transparent; color: var(--text-secondary); cursor: pointer; }
 .createButton:disabled { cursor: wait; }
-.createError { margin: calc(var(--space-1) * 1.5) calc(var(--space-1) * 3); color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .row:focus-visible, .accountTrigger:focus-visible, .headerAction:focus-visible, .opener:focus-visible, .composerTrigger:focus-visible, .createButton:focus-visible { background: var(--interaction-focus, var(--row-active)); color: var(--foreground); }
+/* Lane #269 (A17): the trigger's own text stays invisible on focus (the label beside it is what shows), so "New Project" is drawn once. */
+.composerTrigger:focus-visible { color: transparent; }
+.composer:has(.composerTrigger:focus-visible) { color: var(--foreground); }
 .composerInput:read-only { cursor: default; }
-.composerTrigger { position: absolute; inset: calc(var(--space-1) * -0.25); z-index: 1; border: 0; border-radius: var(--row-radius); padding: 0; background: transparent; color: transparent; font: inherit; cursor: pointer; }
+.composerTrigger { position: absolute; inset: 0; z-index: 1; border: 0; border-radius: var(--row-radius); padding: 0; background: transparent; color: transparent; font: inherit; cursor: pointer; }
 .composerNote { position: relative; display: grid; color: var(--danger); font-size: var(--text-xs); white-space: nowrap; }
 .composerNote > span { grid-area: 1 / 1; }
 
@@ -169,7 +185,8 @@
   .projectFolder:hover { background: var(--row-hover); color: var(--foreground); }
   .row[aria-current="page"]:hover { background: transparent; }
   .row[aria-current="page"]:hover .lead { color: var(--selection-icon, var(--accent)); }
-  .composer[data-state="idle"]:hover { background: var(--row-hover); color: var(--text-secondary); }
+  .composer[data-state="idle"]:hover { color: var(--text-secondary); }
+  .composer[data-state="idle"]:hover::before { background: var(--row-hover); }
   .user:hover { background: var(--row-hover); }
   .user:hover .userHint { opacity: 1; }
 }
@@ -205,7 +222,7 @@
 .sidebar[data-placement="drawer"] { width: 100%; height: 100%; box-shadow: var(--shadow-floating); }
 @media (prefers-reduced-motion: reduce) {
   .projectFolder, .projectChevron { transition: none; }
-  .accountTrigger, .headerAction, .row, .lead, .name, .composer, .fill, .user, .userHint, .opener { transition: none; }
+  .accountTrigger, .headerAction, .row, .lead, .name, .composer, .composer::before, .fill, .user, .userHint, .opener { transition: none; }
   /* The rail keeps its fades but nothing travels, and the width changes at once. */
   .sectionText, .trail, .composerField, .composerNote, .storage, .userText, .emptyBody, .name, .divider, .row > .railDot,
   .sidebar[data-rail] :is(.sectionText, .name, .trail, .composerField, .composerNote, .storage, .userText, .emptyBody, .divider, .row > .railDot) { translate: none; scale: none; transition: opacity calc(var(--duration-standard) * 0.6) linear; }

@@ -7,7 +7,7 @@ import { accessibleProjectsWhere } from "@/lib/project-access";
 import { projectInputSchema, type ProjectOption } from "@/lib/request-properties";
 
 export type ProjectFailure = {
-  code: "session_expired" | "validation" | "conflict" | "load_failed" | "save_failed";
+  code: "session_expired" | "validation" | "duplicate" | "conflict" | "load_failed" | "save_failed";
   message: string;
   field?: "name" | "description";
 };
@@ -51,12 +51,12 @@ export async function createProject(
     }).onConflictDoNothing().returning(projectSelection);
     if (created) return { success: true, project: created };
 
-    // Concurrent creates and case-only duplicates resolve to the same visible
-    // Project. A guest must never learn a hidden Project's identity here.
+    // #269 (A19): the name is taken, in any capitals (the unique lower(name) index), including by a create that
+    // landed a moment earlier. The answer names the Project as it is stored. A guest must never learn a hidden Project's identity here.
     const [existing] = await db.select(projectSelection).from(projects)
       .where(and(accessibleProjectsWhere(auth), eq(sql`lower(${projects.name})`, sql`lower(${parsed.data.name})`)))
       .limit(1);
-    if (existing) return { success: true, project: existing };
+    if (existing) return { success: false, error: { code: "duplicate", field: "name", message: `A Project called ${existing.name} already exists` } };
     return { success: false, error: { code: "conflict", message: "This Project name is unavailable. Choose another name.", field: "name" } };
   } catch (error) {
     console.error("[projects] create failed:", error);

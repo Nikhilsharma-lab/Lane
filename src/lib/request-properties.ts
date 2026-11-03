@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { REQUEST_PRIORITIES, REQUEST_TYPES } from "@/lib/request-constants";
+import { PROJECT_NAME_MAX, REQUEST_PRIORITIES, REQUEST_TYPES } from "@/lib/request-constants";
 
 // Client-safe shared values; project permissions stay in guarded server code.
 // The constants and labels live in request-constants.ts (no Zod import, plan
@@ -13,6 +13,6 @@ export const requestPrioritySchema = z.enum(REQUEST_PRIORITIES, "Choose a valid 
 export const projectIdSchema = z.string().uuid("Choose a valid Project").nullable().default(null);
 export const requestTypeSchema = z.enum(REQUEST_TYPES, "Choose a valid Request type").nullable().default(null);
 export const projectInputSchema = z.object({
-  name: z.string().transform((name) => name.trim().replace(/\s+/g, " ")).pipe(z.string().min(1, "Project name is required").max(80, "Use at most 80 characters for the Project name")),
+  name: z.string().transform((name) => name.trim().replace(/\s+/g, " ")).pipe(z.string().min(1, "Project name is required").max(PROJECT_NAME_MAX, `Use at most ${PROJECT_NAME_MAX} characters for the Project name`)),
   description: z.string().trim().max(300, "Use at most 300 characters for the Project description").nullish().transform((description) => description || null),
 });
