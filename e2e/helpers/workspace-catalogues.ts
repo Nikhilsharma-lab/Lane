@@ -1,4 +1,4 @@
-import { expect, type Page, type Request, type Route } from "@playwright/test";
+import { expect, type APIResponse, type Page, type Request, type Route } from "@playwright/test";
 import type { ProjectOption } from "../../src/lib/request-properties";
 import type { RequestLabel } from "../../src/lib/request-labels";
 
@@ -57,6 +57,29 @@ async function abortCreate(page: Page, match: (request: Request) => boolean, sub
   return { outgoingCreates: count, abortedBeforeDispatch: true };
 }
 
+/**
+ * Submits and returns the real create's response with its body, taken as it passes through a route and delivered
+ * unchanged. The page's Flight reader can stop before a server action response's end, and Chromium then keeps no
+ * body to read back (Network.getResponseBody: "No data found").
+ */
+async function passingCreate(page: Page, match: (request: Request) => boolean, submit: () => Promise<void>) {
+  const seen = Promise.withResolvers<{ response: APIResponse; body: string }>();
+  const pattern = `${new URL(page.url()).origin}/**`;
+  const handler = async (route: Route) => {
+    if (!match(route.request())) return route.fallback();
+    try {
+      const response = await route.fetch();
+      seen.resolve({ response, body: await response.text() });
+      await route.fulfill({ response });
+    } catch (error) { seen.reject(error); }
+  };
+  await page.route(pattern, handler);
+  try {
+    await submit();
+    return await seen.promise;
+  } finally { await page.unroute(pattern, handler); }
+}
+
 export async function openCatalogueDraft(page: Page, orgId: string) {
   await page.goto("/intake");
   await expect.poll(() => page.evaluate(expectedOrg => {
@@ -96,11 +119,9 @@ export async function createCatalogueProject(page: Page, orgId: string, name: st
   await capture("project-create-failure-draft-kept");
 
   await recorder.pending("project", name, null);
-  const response = page.waitForResponse(value => matchesCreate(value.request(), orgId, name));
-  await submit();
-  const result = await response;
+  const { response: result, body } = await passingCreate(page, request => matchesCreate(request, orgId, name), submit);
   expect(result.ok()).toBe(true);
-  const project = savedEntry<ProjectOption>(await result.text(), "project");
+  const project = savedEntry<ProjectOption>(body, "project");
   await recorder.confirmed("project", project);
   expect(project.name).toBe(name);
   await expect(projects(page)).toBeHidden();
@@ -137,11 +158,9 @@ export async function createCatalogueLabel(page: Page, orgId: string, name: stri
     await capture("label-create-failure-draft-kept");
   }
   await recorder.pending(kind, name, projectId);
-  const response = page.waitForResponse(value => matchesCreate(value.request(), orgId, name, projectId));
-  await submit();
-  const result = await response;
+  const { response: result, body } = await passingCreate(page, request => matchesCreate(request, orgId, name, projectId), submit);
   expect(result.ok()).toBe(true);
-  const label = savedEntry<RequestLabel>(await result.text(), "label");
+  const label = savedEntry<RequestLabel>(body, "label");
   await recorder.confirmed(kind, label);
   expect(label.name).toBe(name);
   expect(label.projectId).toBe(projectId);
