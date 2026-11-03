@@ -1,7 +1,8 @@
 import { clerk } from "@clerk/testing/playwright";
 import type { Page } from "@playwright/test";
 
-import { safeClerkClient } from "./safety";
+import { assertE2ETarget, safeClerkClient } from "./safety";
+import { e2eDatabase } from "./cleanup";
 import {
   assertOwnedUser,
   BORROW_KEY,
@@ -99,6 +100,12 @@ async function borrowTestUser(client: ClerkClient, password: string, borrowFrom:
     if (marked.privateMetadata[BORROW_KEY] !== borrowMarker[BORROW_KEY]) continue;
     recordBorrowedUser(candidate.id, { firstName: candidate.firstName, lastName: candidate.lastName });
     await client.users.updateUser(candidate.id, FIXTURE_NAMES);
+    // On this machine's own database, an earlier run's kept rows can still give the borrowed user a role, which
+    // skips onboarding: a borrowed user starts as new, as a created one does. Lane Staging's rows are never touched.
+    if (!assertE2ETarget().ssl) {
+      const sql = e2eDatabase();
+      try { await sql`update profiles set role = null where id = ${candidate.id}`; } finally { await sql.end(); }
+    }
     return { id: candidate.id, email, password };
   }
   throw new Error("[e2e] Clerk is at its user cap and no free lane-e2e user is left to borrow.");
