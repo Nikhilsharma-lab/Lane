@@ -295,8 +295,13 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
           for (const spot of [() => target.getByText("Another frame Request"), () => target.getByRole("button", { name: /Assignee/ })]) {
             await touchPage.getByRole("button", { name: "Expand sidebar" }).first().tap();
             await expect(touchPage.locator("#lane-sidebar")).toHaveAttribute("data-peeking", "true");
+            // The tap lands beside the peek once it has slid fully in: on a phone it covers the start of each row.
+            const panel = touchPage.locator("[data-sidebar-panel]");
+            await expect.poll(async () => (await panel.boundingBox())?.x).toBe(0);
+            const edge = (await panel.boundingBox())!.width;
             const box = (await spot().boundingBox())!;
-            await touchPage.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+            const x = Math.max(box.x + box.width / 2, Math.min(edge + 12, box.x + box.width - 2));
+            await touchPage.touchscreen.tap(x, box.y + box.height / 2);
             await expect(touchPage.locator("#lane-sidebar")).not.toHaveAttribute("data-peeking", /.*/);
             await expectNothingOpened(touchPage, "/");
           }
