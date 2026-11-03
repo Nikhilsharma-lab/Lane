@@ -5,10 +5,11 @@ import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 
 // Nikhil, 2026-11-01: every popup opens exactly as fast as it did on main b6f7c20d, every time, including the very
-// first open right after a page loads. The popups the shell opens by key ship with the page, and the composer's form
-// starts loading the moment the page has loaded and is first idle (src/lib/after-page-load.ts: never before `load`,
-// where it held a slow phone's page back), so C and ? pressed then need no further download. To prove it, every
-// script the page asks for after that idle moment is held back (never answered) while the key is pressed.
+// first open right after a page loads. The popups the shell opens by key ship with the page; the composer's form, the
+// search pane with the palette, and on a phone the bottom panel's code load the moment the page has loaded and is first idle
+// (src/lib/after-page-load.ts: never before `load`, where they held a slow phone's page back), so a key pressed once
+// they are here needs no download. To prove it, every script the page asks for from then on is held back (never
+// answered) while the key is pressed.
 
 const SCRIPT = /\/_next\/static\/.+\.js$/;
 
@@ -22,12 +23,11 @@ async function watchFirstIdle(page: Page) {
   });
 }
 
-/** Loads `path` cold and returns once the page has loaded and been idle once. */
+/** Loads `path` cold and returns once the page has loaded, been idle once, and what it loads then has arrived. */
 async function loadAndIdle(page: Page, path: string) {
   await page.goto(path, { waitUntil: "load" });
   await expect.poll(() => page.evaluate(() => (window as unknown as { __firstIdle?: boolean }).__firstIdle === true), { timeout: 30_000 }).toBe(true);
-  // Idle callbacks run in order: this one runs after every one the page queued for that moment has started its loads.
-  await page.evaluate(() => new Promise<void>(resolve => (window.requestIdleCallback ?? setTimeout)(() => resolve())));
+  await page.waitForLoadState("networkidle");
 }
 
 /** Holds every script requested from now on, unanswered; the function it returns lets them through. */
@@ -94,13 +94,13 @@ test("on a cold first visit, C and ? pressed right after load open their popups 
 
 // Build 3: the shell's other shortcuts work the moment the page has loaded too. / opens search and ⌘K the command
 // palette, Escape closes either, J and K move along the list's rows, and Escape leaves a Request page for the list.
-// Every script the page asks for after its first idle moment after `load` is held back while the key is pressed. (J and K on a Request page follow
+// Every script the page asks for once its after-load loads are here is held back while the key is pressed. (J and K on a Request page follow
 // the list it was opened from, so they never apply right after that page's own load.)
 const SEARCH_INPUT = 'section[aria-label="Workspace search"] input[role="combobox"]';
 const palette = (page: Page) => page.getByRole("dialog").filter({ has: page.getByPlaceholder("Find an action or place") });
 const blur = (page: Page) => page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 
-/** Loads `path` cold, holds every script asked for after its first idle moment, runs `check`, then lets them through. */
+/** Loads `path` cold, holds every script asked for once its after-load loads are here, runs `check`, then lets them through. */
 async function rightAfterLoad(page: Page, path: string, check: () => Promise<void>) {
   await loadAndIdle(page, path);
   const release = await holdScripts(page);
