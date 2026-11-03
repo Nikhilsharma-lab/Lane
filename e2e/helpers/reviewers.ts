@@ -175,9 +175,7 @@ export async function createRequestThroughIntake(
       editedProblem: "",
     },
   };
-  // The tab's draft is written on a same-origin page outside the workspace (Privacy policy). On a workspace page,
-  // the composer's closed form, rendered ahead once its code is in (#296), saves its own empty draft over it.
-  await page.goto("/privacy");
+  await page.goto("/intake");
   await page.evaluate(
     ({ key, value }) => sessionStorage.setItem(key, JSON.stringify(value)),
     {
@@ -187,8 +185,8 @@ export async function createRequestThroughIntake(
       value: draft,
     },
   );
-  await page.goto("/intake");
-  // A new document starts a new Clerk client. Wait for the already signed-in fixture
+  await page.reload();
+  // Reload starts a new Clerk client. Wait for the already signed-in fixture
   // identity before submitting its restored review through the real action.
   await page.waitForFunction(
     ({ userId, orgId }) =>
@@ -205,7 +203,7 @@ export async function createRequestThroughIntake(
     await page.getByRole("button", { name: "Reviewers", exact: true }).click();
     const picker = page.getByRole("dialog", { name: "Reviewers", exact: true });
     await expect(picker).toContainText("Add people who should look at this before work starts. Optional.");
-    // #306: each person's option shows their email under their name, so it is found by the name it shows.
+    // Each option shows the person's name over their email (#306); match the name exactly.
     for (const name of reviewers)
       await picker.getByRole("option").filter({ has: page.getByText(name, { exact: true }) }).click();
     await page.keyboard.press("Escape");

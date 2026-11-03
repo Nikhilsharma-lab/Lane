@@ -4,26 +4,27 @@ import { createHash } from "node:crypto";
 import { expect } from "@playwright/test";
 import { assertE2ETarget } from "./safety";
 
+/**
+ * The server action manifest of the app this checkout's Playwright config launched: `next dev` in .next-e2e, or,
+ * with LANE_E2E_START=1, the production build in .next that `next start` serves (playwright.config.ts).
+ */
+export const runningActionManifestPath = () => resolve(process.cwd(), process.env.LANE_E2E_START === "1"
+  ? ".next/server/server-reference-manifest.json"
+  : ".next-e2e/dev/server/server-reference-manifest.json");
+
 /** These transport checks need the manifest of the local app launched by this checkout's Playwright config. */
 export function assertLocalUndoTarget() {
   const target = new URL(assertE2ETarget().baseURL);
   if (target.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(target.hostname)) {
-    throw new Error("Undo transport acceptance requires this checkout's local .next-e2e runtime. Hosted runs need their own matching build identities; another checkout's manifest is not valid.");
+    throw new Error("Undo transport acceptance requires the app this checkout's Playwright config launched locally. Hosted runs need their own matching build identities; another checkout's manifest is not valid.");
   }
-}
-
-/**
- * The running app's server action manifest. The Playwright config launches Next dev with .next-e2e in this same cwd,
- * or with LANE_E2E_START=1 serves the production build in .next (playwright.config.ts); it refuses an
- * already-running server either way, so the manifest is this checkout's.
- */
-export function serverReferenceManifestPath() {
-  return resolve(process.cwd(), process.env.LANE_E2E_START === "1" ? ".next/server/server-reference-manifest.json" : ".next-e2e/dev/server/server-reference-manifest.json");
 }
 
 async function compiledRequestAction(kind: "pick-up" | "done" | "undo" | "release" | "journey") {
   assertLocalUndoTarget();
-  const path = serverReferenceManifestPath();
+  // The Playwright config launches Next in this same cwd and refuses an already-running
+  // server; a dev server compiles the route before this is read.
+  const path = runningActionManifestPath();
   const source = await readFile(path, "utf8");
   const manifest: { node?: Record<string, { filename?: string; exportedName?: string }> } = JSON.parse(source);
   const exports = {

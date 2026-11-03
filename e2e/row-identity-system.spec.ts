@@ -125,9 +125,9 @@ test("rows and identities keep one contract on every surface", async ({
       await expect(commentGroup).toBeVisible();
       const comment = commentGroup.getByRole("listitem").first();
       await expect(comment).toContainText("Row Identity Test");
-      // #326: Arc's comment thread names the comment by its author and draws the initials as a decorative mark.
-      await expect(comment.getByRole("article", { name: "Comment by Row Identity Test" })).toBeVisible();
-      await expect(comment.getByText("RI", { exact: true })).toBeVisible();
+      // Since #326 Arc's comment thread names the author on the comment itself; its initials mark is decorative.
+      await expect(comment.getByRole("article", { name: "Comment by Row Identity Test", exact: true })).toBeVisible();
+      await expect(comment.locator('[aria-hidden="true"]').filter({ hasText: /^RI$/ })).toHaveCount(1);
       await expect(commentGroup).toHaveScreenshot(
         `comment-row-${surface.slug}.png`,
         { animations: "disabled" }
@@ -143,8 +143,8 @@ test("rows and identities keep one contract on every surface", async ({
       }
       await notifications.click();
       await expect(page).toHaveURL(/\/inbox$/);
-      // On a phone, following Inbox closes the sidebar drawer, as every other sidebar link does.
-      if (surface.viewport.width < 640) await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeHidden();
+      // On a phone, choosing Inbox puts the sidebar away, as every other sidebar destination does.
+      if (surface.viewport.width < 640) await expect(page.locator('button[aria-label="Expand sidebar"]').first()).toHaveAttribute("aria-expanded", "false");
       const notificationRow = page.getByRole("region", { name: "For your information" }).locator("[data-inbox-item]").first();
       await expect(notificationRow).toBeVisible();
       await expectNotificationLanes(notificationRow);
@@ -164,6 +164,7 @@ test("rows and identities keep one contract on every surface", async ({
         { animations: "disabled" }
       );
       await page.keyboard.press("Escape");
+      if (surface.viewport.width < 640) await page.keyboard.press("Escape");
     }
   } finally {
     await cleanupTestWorkspace(user.id);

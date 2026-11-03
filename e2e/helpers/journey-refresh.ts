@@ -1,6 +1,6 @@
 import { expect, type APIResponse, type Locator, type Page, type Request, type Route } from "@playwright/test";
+import { nextActionResponse } from "./action-response";
 import { journey } from "./journey";
-import { compiledJourneyRead } from "./server-action-identity";
 
 function hasJourneyArguments(request: Request, requestId: string, orgId: string) {
   if (request.method() !== "POST" || !request.headers()["next-action"]) return false;
@@ -11,37 +11,23 @@ function hasJourneyArguments(request: Request, requestId: string, orgId: string)
   } catch { return false; }
 }
 
-/** The running build's journey read (its manifest, never a checked-in action ID), checked on a real response. */
+/** Discover the compiled read from a real response, never a checked-in action ID. */
 export async function observeJourneyReads(page: Page, requestId: string, orgId: string) {
-  const { id: actionId } = await compiledJourneyRead();
   // Finish leaving the previous document before listening: a same-URL reload
   // can otherwise capture its in-flight read, whose CDP response body is gone.
   await page.goto("about:blank");
-  // The page's Flight reader can stop before the end of the response, and the browser then keeps no body to read
-  // back (Network.getResponseBody: "No data found"), so the first read's body is taken as it passes, then delivered.
-  const initial = Promise.withResolvers<{ response: APIResponse; body: string }>();
-  const capture = async (route: Route) => {
-    if (route.request().headers()["next-action"] !== actionId || !hasJourneyArguments(route.request(), requestId, orgId)) return route.continue();
-    try {
-      const fetched = await route.fetch();
-      initial.resolve({ response: fetched, body: await fetched.text() });
-      await route.fulfill({ response: fetched });
-    } catch (error) { initial.reject(error); }
-  };
-  await page.route("**/requests/**", capture);
-  let read: Awaited<typeof initial.promise>;
-  try {
-    await page.goto(`/requests/${requestId}`);
-    read = await initial.promise;
-  } finally { await page.unroute("**/requests/**", capture); }
-  const { response, body } = read;
-  expect(response.ok()).toBe(true);
+  const initial = await nextActionResponse(page, request => hasJourneyArguments(request, requestId, orgId));
+  await page.goto(`/requests/${requestId}`);
+  const response = await initial.delivered();
+  expect(response.ok).toBe(true);
+  const body = response.body;
   // The two standalone reads have the same arguments. Only the combined action
   // returns both projections and the shared roster state in one Flight response.
   expect(body).toContain('"release":');
   expect(body).toContain('"outcome":');
   expect(body).toContain('"rosterUnavailable":');
   await expect(journey(page).getByRole("button", { name: "Correct release", exact: true })).toBeVisible();
+  const actionId = response.request.headers()["next-action"];
   const matches = (request: Request) => request.headers()["next-action"] === actionId &&
     hasJourneyArguments(request, requestId, orgId);
   let count = 0;
@@ -53,10 +39,9 @@ export async function observeJourneyReads(page: Page, requestId: string, orgId: 
     stop: () => page.off("request", record),
     async focusRefresh() {
       const before = count;
-      const next = page.waitForResponse(response => matches(response.request()));
+      const next = await nextActionResponse(page, matches);
       await dispatchWindowReturn(page);
-      // Its status, not finished(): the page's Flight reader may stop before the response's end (see above).
-      expect((await next).ok()).toBe(true);
+      expect((await next.delivered()).ok).toBe(true);
       await page.waitForTimeout(300);
       expect(count).toBe(before + 1);
     },
@@ -110,12 +95,11 @@ export async function holdNextJourneyRead(page: Page, reads: JourneyReads) {
       return response.text();
     },
     async deliver() {
-      const arrived = page.waitForResponse(response => reads.matches(response.request()));
       delivery.resolve();
+      // Fulfilled means the page was handed the whole held response (nextActionResponse explains why the browser's
+      // own record of it isn't read).
       await expect.poll(() => finished, { timeout: 30_000 }).toBe(true);
       if (failure) throw failure;
-      // Its status, not finished(), which can wait forever on a read the page stopped reading (see above).
-      expect((await arrived).ok()).toBe(true);
       // Give React a turn to apply (or reject) the actual delivered response.
       await page.waitForTimeout(300);
     },

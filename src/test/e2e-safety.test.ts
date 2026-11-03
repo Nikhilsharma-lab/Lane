@@ -227,9 +227,18 @@ describe("E2E borrowed users at Clerk's user cap", () => {
   const wrongPassword = candidate("user_password", "lane-e2e-password-1+clerk_test@example.com");
   const free = candidate("user_free", "lane-e2e-free-1+clerk_test@example.com");
   const users = new Map([stranger, busy, borrowedElsewhere, wrongPassword, free].map((user) => [user.id, structuredClone(user)]));
+  // The e2e database's profiles: users whose Lane profile an earlier run had to keep.
+  const keptProfiles = new Set<string>();
+  const profileDatabase = () => Object.assign((first: unknown, ...values: unknown[]) => {
+    if (!(Array.isArray(first) && "raw" in first)) return first; // sql(ids): the list itself
+    const ids = values.find(Array.isArray) as string[];
+    return Promise.resolve(ids.filter((id) => keptProfiles.has(id)).map((id) => ({ id })));
+  }, { end: async () => {} });
 
   beforeEach(() => {
     vi.stubEnv("LANE_E2E_REUSE_USERS", "1");
+    keptProfiles.clear();
+    vi.mocked(postgres).mockImplementation(profileDatabase as unknown as typeof postgres);
     for (const user of [stranger, busy, borrowedElsewhere, wrongPassword, free]) users.set(user.id, structuredClone(user));
     provider.users.createUser.mockRejectedValue(quotaExceeded);
     provider.users.getUserList.mockResolvedValue({ data: [...users.values()], totalCount: users.size });
@@ -257,6 +266,17 @@ describe("E2E borrowed users at Clerk's user cap", () => {
     expect(users.get("user_free")!.privateMetadata).toHaveProperty("laneE2EBorrowedBy");
     for (const id of ["user_stranger", "user_busy", "user_elsewhere", "user_password"]) expect(users.get(id)).toEqual(candidate(id, users.get(id)!.emailAddresses[0].emailAddress, users.get(id)!.privateMetadata));
     expect(users.get("user_elsewhere")!.privateMetadata).toEqual({ laneE2EBorrowedBy: "another-run" });
+  });
+
+  it("prefers a free user without a kept Lane profile, so onboarding meets a new person", async () => {
+    const second = candidate("user_fresh", "lane-e2e-fresh-1+clerk_test@example.com");
+    users.set(second.id, structuredClone(second));
+    provider.users.getUserList.mockResolvedValue({ data: [...users.values()], totalCount: users.size });
+    keptProfiles.add("user_free");
+    const { createTestUser } = await import("../../e2e/helpers/test-user");
+    await expect(createTestUser("reuse")).resolves.toMatchObject({ id: "user_fresh" });
+    await expect(createTestUser("again")).resolves.toMatchObject({ id: "user_free" });
+    users.delete(second.id);
   });
 
   it("never borrows the same user twice in one run", async () => {

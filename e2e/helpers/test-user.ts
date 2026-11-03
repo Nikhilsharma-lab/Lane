@@ -1,8 +1,9 @@
 import { clerk } from "@clerk/testing/playwright";
 import type { Page } from "@playwright/test";
 
+import postgres from "postgres";
+
 import { assertE2ETarget, safeClerkClient } from "./safety";
-import { e2eDatabase } from "./cleanup";
 import {
   assertOwnedUser,
   BORROW_KEY,
@@ -80,23 +81,17 @@ export async function createTestUser(
  * marks it, and names it as a new fixture. deleteTestUser gives it back; a crashed run leaves the mark for
  * inspection, so that user isn't borrowed again until someone clears it.
  */
-/** Only on a local database (LANE_E2E_LOCAL_DATABASE=1); Lane Staging's profiles are never read here. */
-async function hasLocalProfile(userId: string): Promise<boolean> {
-  if (assertE2ETarget().ssl) return false;
-  const sql = e2eDatabase();
-  try { return (await sql`select 1 from profiles where id = ${userId}`).length > 0; } finally { await sql.end(); }
-}
-
 async function borrowTestUser(client: ClerkClient, password: string, borrowFrom: "first" | "last" = "first"): Promise<TestUser> {
   const { data } = await client.users.getUserList({ query: "lane-e2e-", limit: 100 });
-  for (const candidate of borrowFrom === "last" ? [...data].reverse() : data) {
+  const listed = borrowFrom === "last" ? [...data].reverse() : data;
+  // A borrowed user should arrive as a new person. A profile an earlier run had to keep (its rows hold release
+  // history, see cleanupTestWorkspace) makes Lane skip onboarding for them, so users without one go first.
+  const kept = await profilesKept(listed.map((candidate) => candidate.id));
+  for (const candidate of [...listed.filter((c) => !kept.has(c.id)), ...listed.filter((c) => kept.has(c.id))]) {
     const email = candidate.emailAddresses.map((e) => e.emailAddress).find((address) => BORROWABLE_EMAIL.test(address));
     if (!email || borrowedUserNames(candidate.id) || BORROW_KEY in candidate.privateMetadata) continue;
     const memberships = await client.users.getOrganizationMembershipList({ userId: candidate.id, limit: 1 });
     if (memberships.totalCount > 0) continue;
-    // On this machine's own database, an earlier run can have kept this user's profile (rows that name it, such as
-    // release history, can't be deleted), whose saved role would skip onboarding: borrow a user it has never seen.
-    if (await hasLocalProfile(candidate.id)) continue;
     try {
       await client.users.verifyPassword({ userId: candidate.id, password });
     } catch {
@@ -115,6 +110,17 @@ async function borrowTestUser(client: ClerkClient, password: string, borrowFrom:
   throw new Error("[e2e] Clerk is at its user cap and no free lane-e2e user is left to borrow.");
 }
 
+/** Which of these users still have a Lane profile in the e2e database. */
+async function profilesKept(ids: string[]): Promise<Set<string>> {
+  if (!ids.length) return new Set();
+  const { databaseUrl, ssl } = assertE2ETarget();
+  const sql = postgres(databaseUrl, { ssl, max: 1, idle_timeout: 5 });
+  try {
+    const rows = await sql<{ id: string }[]>`select id from profiles where id in ${sql(ids)}`;
+    return new Set(rows.map((row) => row.id));
+  } finally { await sql.end(); }
+}
+
 /** Deletes the user's organizations from this run, then the user; a borrowed user is given back instead. */
 export async function deleteTestUser(id: string): Promise<void> {
   const { client, orgIds } = await ownedUserScope(id);
@@ -131,18 +137,6 @@ export async function deleteTestUser(id: string): Promise<void> {
   }
   await client.users.deleteUser(id);
   forgetUser(id);
-}
-
-/**
- * After a server-side role change: the session token carries the workspace role and Lane reads it from there, so
- * an already signed-in page keeps its old role until Clerk renews the token (within a minute). Renew it now.
- */
-export async function renewSessionRole(page: Page, organizationId: string): Promise<void> {
-  await page.waitForFunction(() => window.Clerk?.loaded && window.Clerk.session?.status === "active", undefined, { timeout: 30_000 });
-  await page.evaluate(async (orgId) => {
-    await window.Clerk.setActive({ organization: orgId });
-    await window.Clerk.session?.getToken({ skipCache: true });
-  }, organizationId);
 }
 
 /**
@@ -168,4 +162,14 @@ export async function signInTestUser(
       await window.Clerk.setActive({ organization: orgId });
     }, organizationId);
   }
+}
+
+/**
+ * Clerk's session token carries the person's workspace role and is renewed about once a minute. After a test changes
+ * someone's membership through Clerk's API, their tab renews it at once, as Clerk would within that minute, so the
+ * next page Lane renders reads the new role.
+ */
+export async function renewSessionToken(page: Page): Promise<void> {
+  await page.waitForFunction(() => Boolean(window.Clerk?.loaded && window.Clerk.session), undefined, { timeout: 30_000 });
+  await page.evaluate(async () => { await window.Clerk!.session!.getToken({ skipCache: true }); });
 }

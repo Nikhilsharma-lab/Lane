@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
-import { renewSessionRole } from './helpers/test-user';
+import { renewSessionToken } from './helpers/test-user';
 import { answerIsItLive, journey, journeyStep, recordReleaseInPrompt } from './helpers/journey';
 import { dispatchWindowReturn, expectOpenFormSurvivesReturn, holdNextJourneyRead, observeJourneyReads, saveReleaseCorrection } from './helpers/journey-refresh';
 
@@ -71,8 +71,8 @@ test('Is it live? records the release; the timeline, due tag, correction and han
     const client = await assertOwnedOrganization(team.orgId);
     await client.organizations.updateOrganizationMembership({ organizationId: team.orgId, userId: team.users[1].id, role: 'org:admin' });
     await client.organizations.deleteOrganizationMembership({ organizationId: team.orgId, userId: team.users[0].id });
-    // Now an admin: its session token must say so before Lane offers the handover (journeyViewer).
-    const admin = team.pages[1]; await admin.goto(lastPath); await renewSessionRole(admin, team.orgId); await admin.reload();
+    // The new Admin's tab picks up the role change before it reads the Request.
+    const admin = team.pages[1]; await renewSessionToken(admin); await admin.goto(lastPath); await admin.reload();
     const panel = admin.getByRole('region', { name: 'Journey', exact: true });
     await panel.getByRole('button', { name: 'Hand over to a new Requester' }).click();
     await panel.getByRole('combobox', { name: 'New Requester' }).click();

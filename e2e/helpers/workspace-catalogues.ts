@@ -1,6 +1,7 @@
-import { expect, type APIResponse, type Page, type Request, type Route } from "@playwright/test";
+import { expect, type Page, type Request, type Route } from "@playwright/test";
 import type { ProjectOption } from "../../src/lib/request-properties";
 import type { RequestLabel } from "../../src/lib/request-labels";
+import { nextActionResponse } from "./action-response";
 
 export const catalogueSurfaces = [
   { width: 1440, colorScheme: "light" }, { width: 1440, colorScheme: "dark" },
@@ -57,29 +58,6 @@ async function abortCreate(page: Page, match: (request: Request) => boolean, sub
   return { outgoingCreates: count, abortedBeforeDispatch: true };
 }
 
-/**
- * Submits and returns the real create's response with its body, taken as it passes through a route and delivered
- * unchanged. The page's Flight reader can stop before a server action response's end, and Chromium then keeps no
- * body to read back (Network.getResponseBody: "No data found").
- */
-async function passingCreate(page: Page, match: (request: Request) => boolean, submit: () => Promise<void>) {
-  const seen = Promise.withResolvers<{ response: APIResponse; body: string }>();
-  const pattern = `${new URL(page.url()).origin}/**`;
-  const handler = async (route: Route) => {
-    if (!match(route.request())) return route.fallback();
-    try {
-      const response = await route.fetch();
-      seen.resolve({ response, body: await response.text() });
-      await route.fulfill({ response });
-    } catch (error) { seen.reject(error); }
-  };
-  await page.route(pattern, handler);
-  try {
-    await submit();
-    return await seen.promise;
-  } finally { await page.unroute(pattern, handler); }
-}
-
 export async function openCatalogueDraft(page: Page, orgId: string) {
   await page.goto("/intake");
   await expect.poll(() => page.evaluate(expectedOrg => {
@@ -119,9 +97,11 @@ export async function createCatalogueProject(page: Page, orgId: string, name: st
   await capture("project-create-failure-draft-kept");
 
   await recorder.pending("project", name, null);
-  const { response: result, body } = await passingCreate(page, request => matchesCreate(request, orgId, name), submit);
-  expect(result.ok()).toBe(true);
-  const project = savedEntry<ProjectOption>(body, "project");
+  const response = await nextActionResponse(page, request => matchesCreate(request, orgId, name));
+  await submit();
+  const result = await response.delivered();
+  expect(result.ok).toBe(true);
+  const project = savedEntry<ProjectOption>(result.body, "project");
   await recorder.confirmed("project", project);
   expect(project.name).toBe(name);
   await expect(projects(page)).toBeHidden();
@@ -135,6 +115,7 @@ export async function createCatalogueProject(page: Page, orgId: string, name: st
 
 async function labelColourStep(page: Page, name: string, scope: string) {
   await composer(page).locator("#intake-request-labels").press("Enter");
+  // An Arc SearchField since #306: a search input, so a searchbox rather than a textbox.
   const field = labels(page).getByRole("searchbox", { name: "Search labels", exact: true });
   await expect(field).toBeFocused();
   await field.fill(name);
@@ -158,9 +139,11 @@ export async function createCatalogueLabel(page: Page, orgId: string, name: stri
     await capture("label-create-failure-draft-kept");
   }
   await recorder.pending(kind, name, projectId);
-  const { response: result, body } = await passingCreate(page, request => matchesCreate(request, orgId, name, projectId), submit);
-  expect(result.ok()).toBe(true);
-  const label = savedEntry<RequestLabel>(body, "label");
+  const response = await nextActionResponse(page, request => matchesCreate(request, orgId, name, projectId));
+  await submit();
+  const result = await response.delivered();
+  expect(result.ok).toBe(true);
+  const label = savedEntry<RequestLabel>(result.body, "label");
   await recorder.confirmed(kind, label);
   expect(label.name).toBe(name);
   expect(label.projectId).toBe(projectId);
