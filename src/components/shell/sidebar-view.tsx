@@ -24,7 +24,9 @@ import { useSidebarResize } from "./use-sidebar-resize";
 import { useSidebarPeek } from "./use-sidebar-peek";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { JumpBar } from "./jump-bar";
-import { useShellOpener } from "./shell-openers";
+import { openShellSurface, useShellOpener } from "./shell-openers";
+import { swallowPress } from "@/lib/outside-press";
+import { holdsOffline } from "@/lib/offline-navigation";
 import styles from "./workspace-shell.module.css";
 
 export interface SidebarViewProps {
@@ -72,6 +74,21 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
       ?? triggers.find(button => button.getClientRects().length > 0 && !button.closest("[hidden],[inert]"));
     showPeek(trigger);
   }
+  // #269 (A15): a press on the page beside the peek only closes it; the row, picker or composer under it never reacts.
+  // It listens on the page itself, so a menu open above the peek takes that press first (and only closes, too).
+  // The expand control keeps its own press, which pins or reopens the peek.
+  const mainRef = useRef<HTMLElement>(null);
+  const pressBesidePeek = useEffectEvent((event: PointerEvent) => {
+    if (!(event.target instanceof Element && event.target.closest('button[aria-label="Expand sidebar"]'))) swallowPress(event);
+    dismissPeek();
+  });
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!peeking || !main) return;
+    const listener = (event: PointerEvent) => pressBesidePeek(event);
+    main.addEventListener("pointerdown", listener, true);
+    return () => main.removeEventListener("pointerdown", listener, true);
+  }, [peeking]);
   // Plan items 1.7 and 1.14: the list context comes from the layout's list
   // view state (the URL only mirrors it on "/"), and the sidebar subscribes to
   // that context and the setter only, so typing in the list filter does not
@@ -79,6 +96,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   const navigation = useRequestNavigation();
   const router = useRouter();
   const membersHref = role === "admin" || role === "member" ? "/settings/members" : undefined;
+  // #269 (A113): only Admins invite; a Member's Members page is read-only, so its item says just that.
+  const membersLabel = role === "admin" ? "Invite and manage members" : "Members";
   // #258: opening the account menu fully prefetches Settings (and Members, for people who see it), as Request
   // rows do (FULL_PREFETCH in use-intent-prefetch.ts), so choosing either answers at once. Spelled here so the shell carries no module for it.
   // #259: it starts as the pointer reaches the account button or focus lands on it, and loads once while what it
@@ -137,6 +156,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   }
   // Preview links and keyboard commands share one routing owner.
   function openFromSearch(href: string) {
+    // #269 (A127): offline, the search stays open where it was; the frame's offline line says why.
+    if (holdsOffline(href)) return;
     const moved = navigation.open(href);
     closeSearch(!moved);
   }
@@ -158,6 +179,8 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     openSearch();
   });
   useEffect(() => { const listener = (event: KeyboardEvent) => searchShortcut(event); window.addEventListener("keydown", listener); return () => window.removeEventListener("keydown", listener); }, []);
+  // #269 (A123): the account menu's Keyboard shortcuts opens the ? list through the shell's opener; focus goes back to the account button.
+  const showShortcuts = () => openShellSurface("shortcuts", { returnFocus: document.querySelector<HTMLElement>('#lane-sidebar button[aria-label^="Account menu,"]') });
   // Issue #102: the palette opens search as / does. Settings has no search pane, so no opener there.
   useShellOpener("search", () => openSearch(), !pathname.startsWith("/settings/"));
   const isRequests = pathname === "/" || pathname.startsWith("/requests/");
@@ -200,7 +223,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>
       <div className={styles.sidebarPanel} data-sidebar-panel="">
       <WorkspaceSidebar className={styles.sidebar} layoutManaged forceDesktopLayout projectTree workspace={{ id: "current", name: workspaceName, initial: workspaceName.trim().slice(0, 1).toUpperCase() || "L" }}
-        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={membersHref} onAccountMenuOpen={loadSettingsAhead} canCompose={role !== "viewer"} help={FIRST_RUN_HELP} accountAccessory={palette ? jumpBar : undefined} onSignOut={onSignOut}
+        user={{ name: fullName, email }} settingsHref="/settings/profile" membersHref={membersHref} membersLabel={membersLabel} onShowShortcuts={showShortcuts} onAccountMenuOpen={loadSettingsAhead} canCompose={role !== "viewer"} help={FIRST_RUN_HELP} accountAccessory={palette ? jumpBar : undefined} onSignOut={onSignOut}
         groups={groups} projects={[...projects.map(item => ({ ...item, href: requestListHref(filter, item.id) })), { id: "none", name: "No Project", href: requestListHref(filter, "none") }]}
         activeId={searchOpen ? "search" : active} currentPage={searchOpen ? "Search" : page ?? section} loading={projectsLoading} error={projectsError} onRetry={onRetryProjects}
         onSearch={openSearch} searchActive={searchOpen}
@@ -216,7 +239,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
       </div>
     </aside>
     <div {...separator} className={styles.resizeHandle} />
-    <main id="lane-main" tabIndex={-1} className={styles.main} inert={mobileOpen || switchingWorkspace} aria-busy={switchingWorkspace || undefined} onPointerDownCapture={() => { if (peeking) dismissPeek(); }}>
+    <main ref={mainRef} id="lane-main" tabIndex={-1} className={styles.main} inert={mobileOpen || switchingWorkspace} aria-busy={switchingWorkspace || undefined}>
       <PageStripProvider value={frame}><div className={styles.content} hidden={searchOpen}>{children}</div></PageStripProvider>
       {searchVisited && <WorkspaceSearchPane active={searchOpen && !mobileOpen} onSearch={onSearch} onClose={closeSearch} onOpen={openFromSearch} getLoaded={getLoaded} />}
     </main>

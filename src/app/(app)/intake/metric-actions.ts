@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { guardActiveMember, guardCanChange } from "@/lib/auth-guard";
-import { inlineMetricInputSchema, metricDefinitionFieldErrors, type MetricChoice } from "@/lib/metric-definition-rules";
+import type { MetricChoice } from "@/lib/metric-definition-rules";
+import { inlineMetricInputSchema, metricDefinitionFieldErrors } from "@/lib/metric-definition-schema";
 import { addOrOfferMetricDefinition, predictionMetricChoices } from "@/lib/metrics-library";
 import { canChangeThings, readsWholeWorkspace } from "@/lib/role-rules";
 

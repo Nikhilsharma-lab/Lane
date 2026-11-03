@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { holdsOffline } from "@/lib/offline-navigation"
 import { requestListContextFromHref, requestListHref, type RequestListContext } from "@/lib/request-workspace"
 import { planListUrlSync, withListContext, withSavedView, type DetailSessionPatch, type ListUrlSyncInput, type ListViewState, type SetListView } from "./list-view-state"
 import { settleSequence, type DetailSequence } from "./request-sequence"
@@ -129,6 +130,8 @@ export function createRequestNavigation(state: NavigationState) {
     open(href: string, browser: NavigationBrowser) {
       const list = requestListContextFromHref(href)
       if (list) { selectList(list, browser); return true }
+      // #269 (A127): offline, ⌘K and Search stay on this page with the offline line; nothing is prepared or moved.
+      if (holdsOffline(href)) return false
       const location = browser.location()
       if (href === location.pathname && !pendingPath) { invalidate(); return false }
       const request = /^\/requests\/([^/?#]+)(?:\?[^#]*)?$/.exec(href)

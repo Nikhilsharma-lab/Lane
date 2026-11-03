@@ -3,7 +3,8 @@ import "server-only";
 import { and, asc, eq, isNull, max, ne, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 
 import { db, metricDefinitionAliases, metricDefinitionHistory, metricDefinitions, profiles, requestExpectedImpactRevisions, requests, type MetricDefinitionHistoryKind } from "@/db";
-import { metricUnitName, STARTER_METRIC_KEYS, type MetricChoice, type MetricDefinitionInput, type MetricUnit, type StarterMetricKey } from "@/lib/metric-definition-rules";
+import { metricUnitName, STARTER_METRIC_KEYS, type MetricChoice, type MetricUnit, type StarterMetricKey } from "@/lib/metric-definition-rules";
+import type { MetricDefinitionInput } from "@/lib/metric-definition-schema";
 import { savedMetricsOf, type SavedMetric } from "@/lib/saved-metrics";
 import type { WorkspaceScope } from "@/lib/auth-guard";
 

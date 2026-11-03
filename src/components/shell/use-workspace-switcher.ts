@@ -3,7 +3,9 @@
 import { useAuth, useOrganizationList } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { assertWorkspaceCanSwitch } from "@/lib/workspace-switch-guard";
-import { createWorkspaceSwitch, type WorkspaceSwitchItem, type WorkspaceSwitchSnapshot } from "./workspace-switcher";
+import { isOffline } from "@/lib/connection-status";
+import { OfflineError } from "@/lib/offline-error";
+import type { WorkspaceSwitchItem, WorkspaceSwitchSnapshot } from "./workspace-switcher";
 
 export type WorkspaceSwitcher = {
   items: WorkspaceSwitchItem[];
@@ -38,9 +40,11 @@ export function useWorkspaceSwitcher(currentOrgId: string, options: { beforeSwit
   useEffect(() => {
     latest.current = { snapshot: { loaded, userId: auth.userId, currentId: currentOrgId, activeId: auth.orgId, items, setActive }, beforeSwitch: options.beforeSwitch };
   }, [loaded, auth.userId, currentOrgId, auth.orgId, items, setActive, options.beforeSwitch]);
-  const selectWorkspace = useRef<ReturnType<typeof createWorkspaceSwitch> | null>(null);
+  const selectWorkspace = useRef<((id: string) => Promise<void>) | null>(null);
   const onSelect = useCallback(async (id: string) => {
     setError(null);
+    // #269: the switch's own code loads when someone switches, not with every page. Offline it can't load, and says so.
+    const { createWorkspaceSwitch } = await import("./workspace-switcher").catch((cause: unknown) => { throw isOffline() ? new OfflineError() : cause; });
     selectWorkspace.current ??= createWorkspaceSwitch({
       getSnapshot: () => latest.current.snapshot,
       beforeSwitch: async () => {
@@ -52,13 +56,11 @@ export function useWorkspaceSwitcher(currentOrgId: string, options: { beforeSwit
       },
       onPendingChange: setPendingId,
       replace: href => window.location.replace(href),
+      isOffline,
+      watchOffline: onOffline => { addEventListener("offline", onOffline); return () => removeEventListener("offline", onOffline); },
     });
-    try { await selectWorkspace.current(id); }
-    catch (cause) {
-      const failure = cause instanceof Error ? cause : new Error("Couldn't switch workspaces. Try again.");
-      setError(failure.message);
-      throw failure;
-    }
+    // #269 (A111): what it throws is for the menu, which says the switch failed, with Try again for the same workspace.
+    await selectWorkspace.current(id);
   }, []);
   const onRetry = useCallback(async () => {
     if (!isLoaded || !userMemberships.revalidate || pendingId) return;

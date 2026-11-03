@@ -155,7 +155,7 @@ test("offline, Create Request says so in view and keeps the text; New Project sh
     await sidebar.getByRole("button", { name: "New Project" }).click();
     await sidebar.getByRole("textbox", { name: "Project name" }).fill("Offline Project");
     await sidebar.getByRole("textbox", { name: "Project name" }).press("Enter");
-    await expect(sidebar.getByText(OFFLINE_ANSWER)).toBeVisible();
+    await expect(sidebar.getByText(OFFLINE_ANSWER).first()).toBeVisible();
     await expect(page.getByText("Failed to fetch")).toHaveCount(0);
 
     // Back online, the same review creates the Request.
