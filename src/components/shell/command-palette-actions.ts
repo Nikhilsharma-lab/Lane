@@ -32,6 +32,8 @@ export type PaletteActionDeps = {
   go: (href: string) => void
   /** The canonical link the row menu copies. */
   link: (requestId: string) => string
+  /** #268 (A14): the visible "Link copied" / "Code copied" message, beside the copy's own announcement. */
+  copied: (message: string) => void
 }
 
 /** Runs an entry. "Change priority…" is a step inside the palette, not an action, so it is the palette's. */
@@ -49,9 +51,12 @@ export function runPaletteAction(action: Exclude<PaletteAction, { kind: "priorit
     case "set-priority":
       if (request && request.priority !== action.priority) void deps.moves.setPriority(request.id, action.priority)
       return
-    case "copy":
-      void (action.copy === "link" ? deps.moves.copy(deps.link(action.requestId), "Link") : deps.moves.copy(action.code, "Code"))
+    case "copy": {
+      const label = action.copy === "link" ? "Link" : "Code"
+      void (action.copy === "link" ? deps.moves.copy(deps.link(action.requestId), label) : deps.moves.copy(action.code, label))
+        .then(done => { if (done) deps.copied(`${label} copied`) })
       return
+    }
     case "view": deps.view(action.filter); return
     case "project": deps.project(action.projectId); return
     case "settings": deps.settings(action.section, action.href); return

@@ -69,7 +69,7 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
   const deps = (): PaletteActionDeps => ({
     request: current, viewer: { id: "u1", name: "Test Member" }, undo: undoStore.get(), moves,
     open: () => {}, view: () => {}, project: () => {}, settings: () => {}, go: () => {},
-    link: id => `https://app.example.test/requests/${id}`,
+    link: id => `https://app.example.test/requests/${id}`, copied: () => {},
   })
   /** Runs the entry the palette lists under this id, as Enter on it does. */
   const run = (id: string) => {

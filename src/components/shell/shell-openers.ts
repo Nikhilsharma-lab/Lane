@@ -13,9 +13,10 @@ import { useEffect, useEffectEvent } from "react";
  * out. On Settings that is search and the ? overlay, because the shell
  * renders only the page there (sidebar-view.tsx). The composer is mounted in
  * the (app) layout, so it opens everywhere. #204: the bell is a link to the
- * Inbox page, so it is a place the palette goes to, not a surface.
+ * Inbox page, so it is a place the palette goes to, not a surface. #268: the
+ * sidebar's Jump to… bar opens the palette itself the same way.
  */
-export const SHELL_SURFACES = ["search", "shortcuts", "composer"] as const;
+export const SHELL_SURFACES = ["search", "shortcuts", "composer", "palette"] as const;
 export type ShellSurface = (typeof SHELL_SURFACES)[number];
 
 export interface ShellOpenRequest {

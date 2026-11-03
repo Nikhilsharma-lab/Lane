@@ -12,7 +12,7 @@ describe("paletteEntries", () => {
       "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due", "view:waiting",
       "project:p1", "project:p2", "project:none",
       "settings:profile", "settings:preferences", "settings:inbox-delivery", "settings:account-security", "settings:workspace", "settings:members", "settings:metrics", "settings:coming-soon",
-      "inbox",
+      "inbox", "impact",
       "shortcuts",
     ])
   })
@@ -22,6 +22,16 @@ describe("paletteEntries", () => {
     expect(paletteEntries(base).find(entry => entry.id === "inbox")).toMatchObject({ label: "Inbox", group: "Go to", action: { kind: "go", href: "/inbox" } })
   })
 
+  // #268 (A13): Impact is one of the three main places the sidebar shows, so the palette reaches it too.
+  it("goes to the Impact page, next to the Inbox, for every role", () => {
+    for (const role of ["admin", "member", "viewer", "guest"] as const) {
+      const found = ids({ ...base, role })
+      expect(found.indexOf("impact")).toBe(found.indexOf("inbox") + 1)
+    }
+    expect(paletteEntries(base).find(entry => entry.id === "impact")).toMatchObject({ label: "Impact", group: "Go to", action: { kind: "go", href: "/impact" } })
+    expect(filterPaletteEntries(paletteEntries(base), "impact").entries.map(entry => entry.id)).toEqual(["impact"])
+  })
+
   // #210: a Viewer reads everything and changes nothing, so the palette offers no filing and no Members.
   it("gives a Viewer every place to read, no New Request, and no Members or Inbox delivery", () => {
     expect(ids({ ...base, role: "viewer" })).toEqual([
@@ -29,7 +39,7 @@ describe("paletteEntries", () => {
       "view:all", "view:open", "view:in_progress", "view:done", "view:measuring", "view:closed", "view:due", "view:waiting",
       "project:p1", "project:p2", "project:none",
       "settings:profile", "settings:preferences", "settings:account-security", "settings:workspace", "settings:metrics", "settings:coming-soon",
-      "inbox",
+      "inbox", "impact",
       "shortcuts",
     ])
     expect(paletteEntries({ ...base, role: "viewer" }).find(entry => entry.id === "view:all")?.label).toBe("All Requests")
@@ -37,7 +47,7 @@ describe("paletteEntries", () => {
 
   it("gives a Viewer no move, no Undo and no priority, even on a Request they filed", () => {
     const request: PaletteRequest = { id: "r1", code: "LAN-1", status: "open", priority: "none", canEdit: true }
-    expect(ids({ ...base, role: "viewer", request, undo: { requestId: "r1" } }).filter(id => !/^(view|project|settings):|^(search|inbox|shortcuts)$/.test(id))).toEqual(["copy-link", "copy-code"])
+    expect(ids({ ...base, role: "viewer", request, undo: { requestId: "r1" } }).filter(id => !/^(view|project|settings):|^(search|inbox|impact|shortcuts)$/.test(id))).toEqual(["copy-link", "copy-code"])
   })
 
   it("gives a guest My Requests and only the Settings sections a guest can open", () => {

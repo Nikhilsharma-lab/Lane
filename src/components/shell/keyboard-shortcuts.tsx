@@ -40,7 +40,7 @@ export function KeyboardShortcuts() {
   })
 
   return <Dialog open={open} onOpenChange={setOpen}>
-    <DialogContent title="Keyboard shortcuts" description="Shortcuts work when you’re not typing in a field." className={styles.dialog}
+    <DialogContent title="Keyboard shortcuts" description="Shortcuts work when you’re not typing in a field." className={styles.dialog} overlayClassName={styles.overlay}
       onCloseAutoFocus={event => {
         const target = returnFocus.current
         returnFocus.current = null
