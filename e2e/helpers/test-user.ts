@@ -127,6 +127,7 @@ export async function deleteTestUser(id: string): Promise<void> {
  * an already signed-in page keeps its old role until Clerk renews the token (within a minute). Renew it now.
  */
 export async function renewSessionRole(page: Page, organizationId: string): Promise<void> {
+  await page.waitForFunction(() => window.Clerk?.loaded && window.Clerk.session?.status === "active", undefined, { timeout: 30_000 });
   await page.evaluate(async (orgId) => {
     await window.Clerk.setActive({ organization: orgId });
     await window.Clerk.session?.getToken({ skipCache: true });
