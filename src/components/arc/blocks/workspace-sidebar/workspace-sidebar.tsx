@@ -109,23 +109,6 @@ function useMedia(media: string) {
 }
 const usePhone = () => useMedia(PHONE);
 
-/** Lane #269 (A112): whether the account button's name is cut to "…" at its current width. */
-function useNameCut(trigger: RefObject<HTMLButtonElement | null>, name: string, rail: boolean) {
-  const [cut, setCut] = useState(false);
-  useEffect(() => {
-    const button = trigger.current;
-    if (!button || rail || typeof ResizeObserver === "undefined") return;
-    // An observer reports once as it starts, then on every resize.
-    const observer = new ResizeObserver(() => {
-      const label = [...button.querySelectorAll("span")].find(span => span.textContent === name && !span.children.length);
-      setCut(!!label && label.scrollWidth > label.clientWidth);
-    });
-    observer.observe(button);
-    return () => observer.disconnect();
-  }, [trigger, name, rail]);
-  return cut && !rail;
-}
-
 /** Lane #269 (A123): a screen with a keyboard to press shortcuts on: wider than a phone, with a mouse or trackpad. */
 const useKeyboardScreen = () => useMedia("(min-width: 640px) and (pointer: fine)");
 
@@ -454,7 +437,8 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
   const width = useRailWidth(rail, reduce, () => {});
   const [announcement, setAnnouncement] = useState("");
   const accountTrigger = useRef<HTMLButtonElement>(null);
-  const nameCut = useNameCut(accountTrigger, user.name, rail);
+  // Lane #269 (A112): whether the account button's name is cut to "…", measured as the pointer arrives.
+  const [nameCut, setNameCut] = useState(false);
 
   usePageLock(phone && drawer);
   useEffect(() => { onMobileOpenChange?.(phone && drawer); return () => onMobileOpenChange?.(false); }, [phone, drawer, onMobileOpenChange]);
@@ -597,7 +581,8 @@ export function WorkspaceSidebar({ className, layoutManaged = false, forceDeskto
         <div className={styles.accountSlot} onPointerEnter={event => { if (event.pointerType !== "touch") onAccountMenuOpen?.(); }} onFocus={onAccountMenuOpen}>
           {/* Lane #269 (A112): the name takes the row's spare room; only a name that still doesn't fit gets "…" and its full text on hover. */}
           {/* Hover only: the button's own name already says the whole name, and focus arriving (the peek opening) shows no tip. */}
-          <RailTip enabled={nameCut && !rail && !accountOpen} label={user.name} side="bottom"><span className={styles.accountName} onFocus={event => event.preventDefault()}>
+          <RailTip enabled={nameCut && !rail && !accountOpen} label={user.name} side="bottom"><span className={styles.accountName} onFocus={event => event.preventDefault()}
+            onPointerEnter={event => { const name = event.currentTarget.querySelector("button > span:nth-child(2)"); setNameCut(!!name && name.scrollWidth > name.clientWidth); }}>
           <UserMenu ref={accountTrigger} user={user} showName={!rail} showTheme={false} align="start" onNavigate={push}
             className={styles.accountTrigger} open={accountOpen} onOpenChange={onAccountOpenChange}
             items={[

@@ -177,9 +177,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, pa
   });
   useEffect(() => { const listener = (event: KeyboardEvent) => searchShortcut(event); window.addEventListener("keydown", listener); return () => window.removeEventListener("keydown", listener); }, []);
   // #269 (A123): the account menu's Keyboard shortcuts opens the ? list through the shell's opener; focus goes back to the account button.
-  const showShortcuts = useCallback(() => {
-    openShellSurface("shortcuts", { returnFocus: document.querySelector<HTMLElement>('#lane-sidebar button[aria-label^="Account menu,"]') });
-  }, []);
+  const showShortcuts = () => openShellSurface("shortcuts", { returnFocus: document.querySelector<HTMLElement>('#lane-sidebar button[aria-label^="Account menu,"]') });
   // Issue #102: the palette opens search as / does. Settings has no search pane, so no opener there.
   useShellOpener("search", () => openSearch(), !pathname.startsWith("/settings/"));
   const isRequests = pathname === "/" || pathname.startsWith("/requests/");

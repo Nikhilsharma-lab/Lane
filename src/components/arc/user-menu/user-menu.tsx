@@ -186,8 +186,8 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
   const [sheetEntered, setSheetEntered] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
-  // Lane #269 (A111): the workspace a switch failed for, and what to say about it, so Try again switches to it again.
-  const [switchFailure, setSwitchFailure] = useState<{ id: string; words: string } | null>(null);
+  // Lane #269 (A111): the workspace a switch failed for, so Try again switches to it again.
+  const [retryId, setRetryId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<Highlight | null>(null);
   const open = openProp ?? innerOpen;
   const showStatus = statusProp !== undefined || onStatusChange !== undefined;
@@ -226,7 +226,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
     reason.current = next ? why : null;
     if (next) setSigningOut(pending.current);
     if (next) setSheetEntered(false);
-    if (next) setSwitchFailure(null);
+    if (next) setRetryId(null);
     setWorkspaceOpen(false);
     setHighlight(null);
     setInnerOpen(next);
@@ -391,13 +391,13 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
     workspacePending.current = true;
     setSwitchingId(workspaceId);
     setWorkspaceError(null);
-    setSwitchFailure(null);
+    setRetryId(null);
     try {
       await workspaces.onSelect(workspaceId);
       // Clerk may resolve setActive before the new workspace document replaces this one.
       if (mounted.current && session.current === started && !controlledPendingId.current) close(true, true);
     } catch (failure) {
-      if (mounted.current) setSwitchFailure({ id: workspaceId, words: failureWords(failure, CHECK_CONNECTION) });
+      if (mounted.current) { setWorkspaceError(`Couldn't switch workspace. ${failureWords(failure, CHECK_CONNECTION)}`); setRetryId(workspaceId); }
     } finally {
       workspacePending.current = false;
       if (mounted.current) setSwitchingId(null);
@@ -549,8 +549,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
     {workspaces.loading && <div className={styles.message}><Placeholder label="Loading workspaces" lines={2} /></div>}
     {!workspaces.loading && !workspaces.error && workspaces.items.length === 0 && <p className={styles.message}>No workspaces available.</p>}
     {(workspaceError || workspaces.error) && <p className={`${styles.message} ${styles.error}`} role="alert">{workspaces.error || workspaceError}</p>}
-    {switchFailure && <p className={`${styles.message} ${styles.error}`} role="alert">Couldn&apos;t switch workspace. {switchFailure.words}</p>}
-    {switchFailure && !workspaces.pendingId && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label={TRY_AGAIN} onPointerMove={onItemPointerMove} onClick={() => void selectWorkspace(switchFailure.id)}>{TRY_AGAIN}</button>}
+    {retryId && !workspaces.pendingId && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label={TRY_AGAIN} onPointerMove={onItemPointerMove} onClick={() => void selectWorkspace(retryId)}>{TRY_AGAIN}</button>}
     {workspaces.error && workspaces.onRetry && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Try again" onPointerMove={onItemPointerMove} onClick={() => void loadWorkspaces(workspaces.onRetry)}>Try again</button>}
     {workspaces.hasMore && workspaces.onLoadMore && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Load more workspaces"
       aria-busy={workspaces.loadingMore || undefined} onPointerMove={onItemPointerMove} onClick={() => { if (!workspaces.loadingMore) void loadWorkspaces(workspaces.onLoadMore); }}>
