@@ -42,11 +42,8 @@ export function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, r
   const pickupRequester = changes ? null : request.creatorName || "the Requester"
   const closure = closureLabel(request)
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin, readOnly }} peekStrip={peekStrip}
-    requestPanels={<>
-      <RequestTimeline key={request.id} request={request} orgId={orgId} isGuest={isGuest} readOnly={readOnly} reader={reader} />
-      {/* #218: Same problem links. Guests see none. */}
-      {!isGuest && <SameProblemSection key={`iterations-${request.id}`} requestId={request.id} requestNumber={request.requestNumber} orgId={orgId} canLink={!readOnly} />}
-    </>}
+    requestPanels={<RequestTimeline key={request.id} request={request} orgId={orgId} isGuest={isGuest} readOnly={readOnly} reader={reader} />}
+    relatedRequests={!isGuest && <SameProblemSection key={`iterations-${request.id}`} requestId={request.id} requestNumber={request.requestNumber} orgId={orgId} canLink={!readOnly} />}
     lifecycleActions={request.agreementBlocked ? <a href="#journey">{closure ?? "Closed"}</a> : <LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
     guestSubmission={guestSubmission}
     editRequest={request.status === "open" && changes ? <><EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} withoutPrediction={isGuest} /><DeleteRequest requestId={request.id} title={request.title} orgId={orgId} /></> : undefined}

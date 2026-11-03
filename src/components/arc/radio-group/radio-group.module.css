@@ -15,13 +15,13 @@
  * checked or not. It paints nothing else, and pointer focus still draws no ring. */
 .option input { position: absolute; inset: calc(var(--space-1) * -0.25); width: auto; height: auto; margin: 0; border: 0; border-radius: inherit; padding: 0; appearance: none; background: transparent; cursor: inherit; }
 /* Rows are not stacking contexts, so their mark and copy rise above the highlight while their border and fill stay below it. */
-.option > span { position: relative; z-index: 2; }
+.option > span { position: relative; z-index: var(--lane-layer-raised); }
 .mark { display: grid; width: calc(var(--space-1) * 4.25); height: calc(var(--space-1) * 4.25); flex: 0 0 auto; place-items: center; border: var(--border-width) solid var(--border-strong); border-radius: 50%; transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform var(--duration-spring) var(--ease-spring); }
 /* 7px keeps the dot on whole pixels inside the 15px interior of the mark. */
 .mark::after, .dot { grid-area: 1 / 1; width: calc(var(--space-1) * 1.75); height: calc(var(--space-1) * 1.75); border-radius: 50%; background: var(--foreground); }
 /* A faint dot previews the choice while the pointer is down, then the real dot springs in on release. */
 .mark::after { content: ""; opacity: 0; transition: opacity var(--duration-instant) var(--ease-standard); }
-.option:active:not(:has(input:checked)) .mark::after { opacity: .22; }
+.option:active:not(:has(input:checked)) .mark::after { opacity: var(--lane-opacity-faint); }
 /* The mark alone answers a press: a quick dip, then a spring back. */
 .option:active .mark { transform: scale(.88); transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), transform calc(var(--duration-standard) * 0.5) var(--ease-standard); }
 .option:has(input:checked) .mark { border-color: var(--control-on); background: var(--control-on); }
@@ -31,5 +31,5 @@
 .option:has(input:checked) strong { color: var(--foreground); }
 .option small { margin-top: calc(var(--space-1) * 0.5); color: var(--text-muted); font-size: var(--text-xs); }
 /* Lane adaptation (plan item 2.2): the row's key, at its end, above the highlight like the copy, on fine pointers only. */
-.shortcut { margin-inline-start: auto; position: relative; z-index: 2; }
+.shortcut { margin-inline-start: auto; position: relative; z-index: var(--lane-layer-raised); }
 @media (prefers-reduced-motion: reduce) { .option, .mark, .mark::after, .option strong { transition: none; } .option:active .mark { transform: none; } }

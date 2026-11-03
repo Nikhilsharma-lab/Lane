@@ -1,0 +1,4 @@
+.row { display: flex; align-items: center; min-width: calc(var(--space-1) * 0); }
+.row > a { flex: 1; min-width: calc(var(--space-1) * 0); }
+.more { flex: none; width: var(--size-inner-small); height: var(--size-inner-small); padding: calc(var(--space-1) * 0); margin-inline-end: var(--space-1); color: var(--muted-foreground); }
+.error { color: var(--destructive); font-size: var(--text-sm); }

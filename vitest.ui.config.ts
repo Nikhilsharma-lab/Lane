@@ -8,6 +8,7 @@ export default defineConfig({
     // Several sessions share this machine; a busy one must not fail a test on time alone.
     testTimeout: 20_000,
     include: [
+      "src/components/motion/motion-setup.test.ts",
       "src/components/settings/*.test.ts",
       "src/components/metrics/*.test.ts",
       "src/components/auth/clerk-appearance.test.ts",
@@ -20,6 +21,7 @@ export default defineConfig({
       "src/components/shell/project-tone.test.ts",
       "src/app/**/requests-welcome.test.ts",
       "src/app/**/intake/attachment-recovery.test.ts",
+      "src/app/**/intake/project-actions.test.ts",
       "src/app/**/intake/intake-session.test.ts",
       "src/app/**/intake/intake-owner.test.ts",
       "src/app/**/intake/intake-save.test.ts",
