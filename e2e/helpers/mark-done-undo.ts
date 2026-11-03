@@ -1,4 +1,4 @@
-import { expect, type APIResponse, type Page, type Request, type Route } from "@playwright/test";
+import { expect, type APIResponse, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { commandPalette, paletteOption, runPaletteCommand } from "./command-palette";
 import { isItLivePrompt, isItLiveRelease, journeyStep } from "./journey";
 import { observeJourneyReads } from "./journey-read-observer";
@@ -294,6 +294,14 @@ async function prepareReleaseForm(driver: UndoDriver) {
   const submit = () => form.getByRole("button", { name: "Mark as released", exact: true }).press("Enter");
   return { form, submit };
 }
+/** Escape closes the release prompt. #263: over typed evidence it first asks "Discard what you typed?"; Discard. */
+async function escapeReleaseForm(page: Page, form: Locator) {
+  const discard = page.getByRole("alertdialog", { name: "Discard what you typed?" }).or(page.getByRole("dialog", { name: "Discard what you typed?" }));
+  await page.keyboard.press("Escape");
+  await expect.poll(async () => await discard.isVisible() || !(await form.isVisible())).toBe(true);
+  if (await discard.isVisible()) await discard.getByRole("button", { name: "Discard", exact: true }).press("Enter");
+  await expect(discard).toBeHidden(); await expect(form).toBeHidden();
+}
 async function failedReleaseForm(driver: UndoDriver, capture: Capture) {
   const { page } = driver;
   const { form, submit } = await prepareReleaseForm(driver);
@@ -303,7 +311,7 @@ async function failedReleaseForm(driver: UndoDriver, capture: Capture) {
   await expect(form.getByRole("checkbox", { name: "The agreed audience received this work", exact: true })).toBeChecked();
   await expect(page.locator('[aria-label^="Messages"]')).not.toContainText("Release recorded");
   await capture("release-failure-preserves-prompt-and-input");
-  await page.keyboard.press("Escape"); await expect(form).toBeHidden();
+  await escapeReleaseForm(page, form);
   await expect(doneToast(page, driver.request).getByRole("button", { name: "Undo", exact: true })).toBeVisible();
   await undoFromToast(driver, capture);
   await capture("release-failure-restored-undo-saved-in-progress");
@@ -316,7 +324,7 @@ export async function verifyReleaseFailureThenNewerPrompt(driver: UndoDriver, or
   const release = await driver.begin("release", submit, "hold");
   expect((await release.received()).success).toBe(true); // Receipt and saved-state reconciliation precede newer mutations.
   await capture("old-release-saved-delivery-held", { operation: release.operation, savedResponseConfirmed: true, deliveryStillHeld: true });
-  await page.keyboard.press("Escape"); await expect(form).toBeHidden();
+  await escapeReleaseForm(page, form);
   await doneToast(page, request).hover();
   const second = await undoDriver(page, orgId, newer, recorder, async () => {
     await page.getByRole("link", { name: "All Requests", exact: true }).press("Enter");
@@ -342,7 +350,7 @@ export async function verifyPendingReleaseSkippedUndo(driver: UndoDriver, captur
   const { form, submit } = await prepareReleaseForm(driver);
   const release = await driver.begin("release", submit, "hold-abort");
   await release.intercepted();
-  await page.keyboard.press("Escape"); await expect(form).toBeHidden();
+  await escapeReleaseForm(page, form);
   await expect(doneToast(page, request).getByRole("button", { name: "Undo", exact: true })).toBeVisible();
   await driver.skippedUndo(() => doneToast(page, request).getByRole("button", { name: "Undo", exact: true }).press("Enter"), () => release.finish());
   await expect(toastRegion(page).getByRole("button", { name: "Undo", exact: true })).toHaveCount(0);
