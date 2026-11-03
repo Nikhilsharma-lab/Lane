@@ -125,7 +125,9 @@ test("rows and identities keep one contract on every surface", async ({
       await expect(commentGroup).toBeVisible();
       const comment = commentGroup.getByRole("listitem").first();
       await expect(comment).toContainText("Row Identity Test");
-      await expect(comment.getByRole("img", { name: "Row Identity Test", includeHidden: true })).toContainText("RI");
+      // #326: Arc's comment thread names the comment by its author and draws the initials as a decorative mark.
+      await expect(comment.getByRole("article", { name: "Comment by Row Identity Test" })).toBeVisible();
+      await expect(comment.getByText("RI", { exact: true })).toBeVisible();
       await expect(commentGroup).toHaveScreenshot(
         `comment-row-${surface.slug}.png`,
         { animations: "disabled" }
