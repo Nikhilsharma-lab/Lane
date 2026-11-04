@@ -139,6 +139,14 @@ export async function deleteTestUser(id: string): Promise<void> {
   forgetUser(id);
 }
 
+/**
+ * Clerk's testing sign-in waits only 15 s for Clerk to load, and the shared development instance sometimes answers
+ * slower than that. Wait for it here, longer, so a slow Clerk delays the sign-in instead of failing it.
+ */
+export async function waitForClerk(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.Clerk?.loaded === true, undefined, { timeout: 60_000 });
+}
+
 export async function signInTestUser(
   page: Page,
   user: Pick<TestUser, "email">,
@@ -146,6 +154,7 @@ export async function signInTestUser(
 ): Promise<void> {
   await safeClerkClient();
   await page.goto("/login");
+  await waitForClerk(page);
   await clerk.signIn({ page, emailAddress: user.email });
 
   if (organizationId) {

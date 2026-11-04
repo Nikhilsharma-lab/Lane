@@ -163,3 +163,40 @@ test("on a cold first visit to the Requests list drawn before Clerk's script arr
     await deleteTestUser(user.id);
   }
 });
+
+// Build 3 leftovers: the search pane with the ⌘K palette, and the New Request form, were loaded ahead on an idle
+// callback with a 3-4 s deadline. Idle comes early while a page waits on the network, and the deadline fires anyway,
+// so when Clerk's script was slow both came before `load`: about 160 KB on the phone's link, and the page usable about
+// 1 s later (5 of 8 live phone loads of Settings → Profile). They now wait for load and the first idle after it, as
+// every other lazy part does. Clerk's script is held past both deadlines here, so `load` comes late every time.
+const SHELL_LAZY_PARTS = {
+  "search pane and ⌘K palette": "Find an action or place",
+  "New Request form": "Your Request is ready to review.",
+} as const;
+
+test("on a cold first visit drawn long before Clerk's script arrives, search, the palette and the New Request form load ahead only after load and the first idle moment after it", async ({ page }) => {
+  test.setTimeout(300_000);
+  const user = await createTestUser("load-order-shell");
+  try {
+    await provisionAndSignIn(page, user, { name: "Load Order PM", workspaceName: "Lane E2E Load order shell", role: "pm" });
+    await seedTestRequest(user.id, "Load order shell Request");
+    const { bodies, done } = await watchColdVisits(page);
+    await page.route(CLERK_SCRIPT, async route => { await new Promise(resolve => setTimeout(resolve, 6_000)); await route.continue(); });
+
+    const early: string[] = [];
+    const seen = new Set<string>();
+    for (const path of ["/", "/settings/profile"]) {
+      const result = await lazyStarts(path, await coldVisit(page, path), bodies, SHELL_LAZY_PARTS);
+      result.seen.forEach(part => seen.add(`${path}: ${part}`));
+      early.push(...result.early);
+    }
+    await done();
+
+    // The check means something only if they were loaded ahead on these visits.
+    expect([...seen]).toEqual(expect.arrayContaining(["/: search pane and ⌘K palette", "/: New Request form", "/settings/profile: search pane and ⌘K palette"]));
+    expect(early).toEqual([]);
+  } finally {
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});
