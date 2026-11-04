@@ -275,9 +275,9 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await expect(workspaces.getByRole("alert")).toHaveText("Couldn’t switch workspace. You’re offline, this will work when you’re back.", { timeout: 5_000 });
       // Try again is drawn as a button (Arc's secondary button), not as one more plain menu row.
       const retry = workspaces.getByRole("menuitem", { name: "Try again" });
-      const look = await retry.evaluate(node => { const style = getComputedStyle(node); return { border: parseFloat(style.borderTopWidth), color: style.borderTopColor, width: node.getBoundingClientRect().width, menu: node.closest("[role=menu]")!.getBoundingClientRect().width }; });
-      expect(look.border, "Try again has a button's border").toBeGreaterThan(0);
-      expect(look.color).not.toBe("rgba(0, 0, 0, 0)");
+      const look = await retry.evaluate(node => { const style = getComputedStyle(node); return { edge: style.boxShadow, fill: style.backgroundColor, width: node.getBoundingClientRect().width, menu: node.closest("[role=menu]")!.getBoundingClientRect().width }; });
+      expect(look.edge, "Try again has a button's edge").not.toBe("none");
+      expect(look.fill, "and a button's fill").not.toBe("rgba(0, 0, 0, 0)");
       expect(look.width, "Try again is sized to its label, not a full-width row").toBeLessThan(look.menu / 2);
       await expect(workspaces.getByRole("menuitemradio", { name: WORKSPACE })).toHaveAttribute("aria-checked", "true");
       // Nothing waits on the switch: the page and sidebar take input again.

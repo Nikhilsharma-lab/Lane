@@ -1,7 +1,5 @@
 import "server-only";
 
-import { cache } from "react";
-
 import type { MemberAuth } from "@/lib/auth-guard";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { loadProjects } from "@/lib/data/projects";
@@ -15,12 +13,8 @@ import type { WorkspaceFrameProps } from "@/components/shell/workspace-frame";
 /**
  * The signed-in frame's reads (the (app) layout's, and since #271 the root not-found's for a signed-in person).
  * Null when the session has no workspace; `needsOnboarding` when the person has not finished onboarding.
- *
- * Once per request (fix round 3): Next renders the root not-found with every page, shown or not, so without this
- * every page read its frame twice, sent it twice, and with the database refusing connections the second set of reads
- * kept the root error screen's tab loading for up to two minutes. Both callers pass getMember()'s cached member.
  */
-export const loadWorkspaceFrame = cache(async function loadWorkspaceFrame(member: MemberAuth): Promise<
+export async function loadWorkspaceFrame(member: MemberAuth): Promise<
   | { needsOnboarding: true }
   | { needsOnboarding: false; orgId: string; frame: Omit<WorkspaceFrameProps, "children" | "pageAddress"> }
   | null
@@ -55,4 +49,4 @@ export const loadWorkspaceFrame = cache(async function loadWorkspaceFrame(member
       withoutPrediction: member.role === "guest",
     },
   };
-});
+}

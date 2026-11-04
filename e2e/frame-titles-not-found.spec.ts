@@ -136,7 +136,7 @@ test("signed in without a workspace, a missing page shows the Lane mark and Go t
 });
 
 // Fix round 3: with the database refusing connections (a paused database), the root error screen shows and the tab
-// finishes loading, as before Build 4. Build 4's root not-found read the frame a second time on every page, and those
+// finishes loading, as before Build 4. Build 4's root not-found, which Next draws with every page, read the frame, and those
 // reads kept the tab loading for 30 to 120 s. Local runs only: it stops this machine's test database for a moment.
 test("with the database refusing connections, the root error screen appears and the tab finishes loading", async ({ browser }) => {
   test.skip(process.env.LANE_E2E_LOCAL_DATABASE !== "1", "stops the database's connections: a local lane_test_* database only");

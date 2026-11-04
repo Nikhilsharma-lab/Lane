@@ -26,10 +26,18 @@ async function visitor() {
   }
 }
 
-// Root not-found (plan item 1.12): every address no page answers, and an unknown Request (requests/[id]/layout.tsx),
-// with status 404. #271 (A117, A118, A119): signed in with a workspace, it keeps the app frame and the sidebar;
-// anyone else sees the Lane mark, with Sign in, or Go to Lane for someone signed in who hasn't a workspace yet.
-export default async function NotFound() {
+// Root not-found (plan item 1.12): every address no page answers, with status 404. #271 (A118, A119): signed in
+// with a workspace, it keeps the app frame and the sidebar; anyone else sees the Lane mark, with Sign in, or Go to
+// Lane for someone signed in who hasn't a workspace yet. A 404 thrown under the (app) layout (an unknown Request or
+// Metric, A117) is (app)/not-found.tsx's, inside that layout's frame.
+//
+// Fix round 3: Next also draws this file with every page, shown or not, as the root's not-found boundary. Its reads
+// then ran on every page (the frame twice, and with the database refusing connections they kept the root error
+// screen's tab loading for up to two minutes), and its session check made /login, /privacy and /terms dynamic.
+// As the boundary Next passes it no props, so there it reads nothing; only the page for an address no route answers
+// (Next's /_not-found, which gets `params`) reads who is visiting. No page outside (app) throws a 404 today.
+export default async function NotFound(props: { params?: Promise<unknown> }) {
+  if (!("params" in props)) return <MissingPageNoWorkspace signedIn={false} />;
   const shown = await visitor();
   return shown && shown !== "signed-in"
     ? <LazyMissingInFrame {...shown} />

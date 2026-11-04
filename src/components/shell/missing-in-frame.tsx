@@ -16,6 +16,8 @@ const MISSING_PAGE = "/not-found";
 const REQUEST_ADDRESS = /^\/requests\/[^/]+\/?$/;
 const buttonLink = `${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.md}`;
 
+const isFrame = (props: Partial<Omit<WorkspaceFrameProps, "children" | "pageAddress">>): props is Omit<WorkspaceFrameProps, "children" | "pageAddress"> => props.orgId !== undefined;
+
 /** #271 (A118): a signed-in "Page not found". The strip names the place; the one heading says what happened. */
 export function MissingPage() {
   return <div className="flex min-h-full flex-col">
@@ -35,13 +37,14 @@ export function MissingPage() {
  * #271: the root not-found's screen for a signed-in person, inside the app frame with the sidebar. An unknown
  * Request (A117) keeps "This Request can't be opened"; any other address gets "Page not found" (A118). It is
  * loaded on demand (lazy-missing-in-frame.tsx), so the frame never joins every route's first load. A 404 thrown
- * under the (app) layout (an unknown Request, a missing Metric) lands inside that layout's frame, so it adds none.
+ * under the (app) layout (an unknown Request, a missing Metric: (app)/not-found.tsx) lands inside that layout's
+ * frame, so it passes no frame and adds none.
  */
-export function MissingInFrame(props: Omit<WorkspaceFrameProps, "children" | "pageAddress">) {
+export function MissingInFrame(props: Partial<Omit<WorkspaceFrameProps, "children" | "pageAddress">>) {
   const request = REQUEST_ADDRESS.test(usePathname());
   const content = request
     ? <div data-slot="requests-workspace" className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden"><RequestUnavailable returnHref={requestListHref("all")} /></div>
     : <MissingPage />;
-  if (useInWorkspaceFrame()) return content;
+  if (useInWorkspaceFrame() || !isFrame(props)) return content;
   return <WorkspaceFrame {...props} pageAddress={request ? undefined : MISSING_PAGE}>{content}</WorkspaceFrame>;
 }
