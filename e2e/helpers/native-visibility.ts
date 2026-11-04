@@ -23,7 +23,10 @@ export async function signInNativeTestUser(page: Page, emailAddress: string, org
 /** A dedicated browser with native tab visibility; Playwright's normal focus override keeps tabs visible. */
 export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
   const profile = await mkdtemp(join(tmpdir(), "lane-undo-visibility-"));
-  const child = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  // Only a tab switch hides the tab under test. Without the flag, macOS hides it whenever the window is covered or the
+  // display sleeps: requestAnimationFrame stops, so React's streamed content stays as a hidden second copy beside the
+  // hydrated page (two #request-title), and the tab is hidden before the test hides it.
+  const child = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--disable-backgrounding-occluded-windows", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
   let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
   try {
     const endpoint = await new Promise<string>((resolve, reject) => {
