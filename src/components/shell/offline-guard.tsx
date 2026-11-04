@@ -56,9 +56,11 @@ export function OfflineGuard({ children }: { children: ReactNode }) {
         event.stopPropagation()
       } else noteNavigation()
     }
+    // A load of a whole Lane page offline is the browser's "No internet" page, whatever the address, this one included:
+    // Next.js falls back to one when a move's page was still on its way as the connection dropped.
     const onNavigate = (event: Event) => {
       const move = event as Move
-      if (move.cancelable && !move.destination.sameDocument && /push|replace/.test(move.navigationType) && holds(move.destination.url)) move.preventDefault()
+      if (move.cancelable && !move.destination.sameDocument && /push|replace/.test(move.navigationType) && isOffline() && new URL(move.destination.url).origin === location.origin) move.preventDefault()
     }
     const navigation = (window as { navigation?: EventTarget }).navigation
     // A line that couldn't load (offline from the start) loads once the connection is back.
