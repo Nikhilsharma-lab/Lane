@@ -4,6 +4,8 @@ export type PopupEntryEnvironment = {
   onPopState(listener: () => void): () => void
   defer(task: () => void): void
   navigatedWithin(ms: number): boolean
+  /** The tab's current address. */
+  address(): string
 }
 
 /**
@@ -11,16 +13,29 @@ export type PopupEntryEnvironment = {
  * leaving the page; closing it any other way takes that entry back off. `hold` runs as the panel opens and returns
  * its release, for the close.
  */
-export function createPopupEntry(marker: string, { history, onPopState, defer, navigatedWithin }: PopupEntryEnvironment) {
+type Entry = { page: unknown; pushedAt: string | null; waiting: { kept: boolean } | null }
+// Per panel, by its mark (React's useId: the same for a panel remounted in the same place), so a remount finds the
+// entry the panel it replaces left.
+const entries = new Map<string, Entry>()
+
+export function createPopupEntry(marker: string, { history, onPopState, defer, navigatedWithin, address }: PopupEntryEnvironment) {
   const ours = () => (history.state as { lanePopup?: string } | null)?.lanePopup === marker
-  let runs = 0
-  let page: unknown = null
+  const entry = entries.get(marker) ?? { page: null, pushedAt: null, waiting: null }
+  entries.set(marker, entry)
+  // The entry is still on top: it carries the mark, or (Next.js rewrites the state of the entry a navigation commits
+  // to, dropping the mark) the tab is still at the address the entry was pushed at.
+  const onTop = () => ours() || address() === entry.pushedAt
+
   return function hold(onBack: () => void) {
-    const run = ++runs
-    // A hold straight after the last one's release (React's Strict Mode runs effects twice; a remount) finds that
-    // release's entry still on top, waiting to be taken off: it keeps it rather than pushing a second one.
-    if (!ours()) {
-      page = history.state
+    // A release still waiting to step back: a hold that comes first (React's Strict Mode runs effects twice; a
+    // remount) keeps the entry instead. A second entry left Back doing nothing once, and the late step back closed
+    // the open panel ("Is it live?" on a phone).
+    if (entry.waiting) {
+      entry.waiting.kept = true
+      entry.waiting = null
+    } else {
+      entry.page = history.state
+      entry.pushedAt = address()
       history.pushState({ lanePopup: marker }, "")
     }
     const stop = onPopState(() => {
@@ -34,9 +49,13 @@ export function createPopupEntry(marker: string, { history, onPopState, defer, n
       // A close that also moves to another page (Delete Request, a link) must not step back: that would undo the
       // move before Next.js records it. The entry becomes the page's own again, so Back from the new page returns
       // here as it would without the panel. Otherwise an entry still on top goes.
-      if (navigatedWithin(1000)) { if (ours()) history.replaceState(page, ""); return }
-      // Held again since (see above), the entry stays.
-      defer(() => { if (runs === run && ours() && !navigatedWithin(1000)) history.back() })
+      if (navigatedWithin(1000)) { if (onTop()) history.replaceState(entry.page, ""); return }
+      const release = { kept: false }
+      entry.waiting = release
+      defer(() => {
+        if (entry.waiting === release) entry.waiting = null
+        if (!release.kept && onTop() && !navigatedWithin(1000)) history.back()
+      })
     }
   }
 }

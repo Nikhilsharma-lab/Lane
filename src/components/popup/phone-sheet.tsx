@@ -32,4 +32,5 @@ const browserTab: PopupEntryEnvironment = {
   onPopState(listener) { window.addEventListener("popstate", listener); return () => window.removeEventListener("popstate", listener) },
   defer: task => { window.setTimeout(task, 0) },
   navigatedWithin,
+  address: () => window.location.href,
 }
