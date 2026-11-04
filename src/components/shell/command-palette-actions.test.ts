@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import type { CurrentRequest } from "@/components/requests/current-request"
 import { paletteEntries } from "./command-palette-entries"
-import { openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
+import { handsOffToPopup, openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 
 const current = (overrides: Partial<CurrentRequest> = {}): CurrentRequest => ({
   id: "r1", code: "LAN-12", name: "LAN-12", status: "open", priority: "none", source: "list", canEdit: true,
@@ -103,6 +103,15 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
     const d = deps()
     runPaletteAction(action, d)
     expect(d.open).toHaveBeenCalledExactlyOnceWith(surface)
+  })
+
+  // Fix round 3 (#256): a popup an entry opens must be the top layer from its first frame, so its Escape is its own;
+  // a palette still fading out above it took that Escape (390, motion on).
+  it("leaves at once only for an entry that opens another popup", () => {
+    for (const surface of ["composer", "search", "shortcuts"] as const) expect(handsOffToPopup({ kind: "open", surface })).toBe(true)
+    expect(handsOffToPopup({ kind: "go", href: "/inbox" })).toBe(false)
+    expect(handsOffToPopup({ kind: "view", filter: "done" })).toBe(false)
+    expect(handsOffToPopup({ kind: "copy", copy: "link", requestId: "r1" })).toBe(false)
   })
 
   it("goes to Requests views, Projects and Settings sections", () => {
