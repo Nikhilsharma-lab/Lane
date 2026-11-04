@@ -5,6 +5,16 @@
    Arc's Dialog lays out its header, then its body (the list) as the last child. */
 .dialog[role="dialog"] { display: flex; flex-direction: column; overflow: hidden; }
 .dialog[role="dialog"] > :last-child { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* Fix round 3: when the list is cut, its bottom edge fades so the cut reads as "more below"; the fade shrinks to
+   nothing as the list reaches its end. The scroll timeline is inactive when nothing scrolls, so a list that fits has
+   no fade. Browsers without scroll timelines show the plain cut. */
+@property --shortcuts-fade { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes shortcuts-fade { from { --shortcuts-fade: var(--space-8); } to { --shortcuts-fade: 0px; } }
+@supports (animation-timeline: scroll()) {
+  .dialog[role="dialog"] > :last-child { mask-image: linear-gradient(to bottom, #000 calc(100% - var(--shortcuts-fade)), transparent); animation: shortcuts-fade linear both; animation-timeline: scroll(self); }
+  /* It follows the scroll position, not the clock, so reduced motion (globals.css stops every animation) keeps it. */
+  @media (prefers-reduced-motion: reduce) { .dialog[role="dialog"] > :last-child { animation-duration: auto !important; } }
+}
 .groups { columns: 1; column-gap: var(--space-8); }
 .group { break-inside: avoid; padding-block-end: var(--space-5); }
 .heading { margin: 0 0 var(--space-2); color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); }
@@ -19,6 +29,9 @@
 @media (pointer: coarse) { .or { display: none; } }
 @media (min-width: 641px) {
   .groups { columns: 2; }
+  /* Fix round 3: a desktop row is 28px (4px above and below each label, on one line or two), so the whole list fits
+     a 900px-tall window again, as it did before A125 evened the spacing. Phones keep 32px rows for touch. */
+  .item { min-height: calc(var(--space-1) * 7); padding-block: var(--space-1); }
 }
 /* #268 (A122): under reduced motion the dialog appears and goes at once. Arc's Dialog still fades its layers there,
    so both are held at full opacity and hidden while Arc keeps them mounted for its exit, as the ⌘K palette does. */

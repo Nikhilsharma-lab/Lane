@@ -27,6 +27,15 @@ async function inViewport(page: Page, locator: Locator) {
   return Boolean(box && box.y >= 0 && box.x >= 0 && box.y + box.height <= viewport.height + 0.5 && box.x + box.width <= viewport.width + 0.5);
 }
 
+/** The shortcuts dialog's list: its scrolling body, how far it scrolls and the fade at its bottom edge, in px. */
+async function shortcutsBody(dialog: Locator) {
+  return dialog.evaluate(node => {
+    const body = node.lastElementChild as HTMLElement;
+    const fade = parseFloat(getComputedStyle(body).getPropertyValue("--shortcuts-fade")) || 0;
+    return { overflow: body.scrollHeight - body.clientHeight, fade, mask: getComputedStyle(body).maskImage };
+  });
+}
+
 /** Space between each label and the next one in the same list, in px: equal whether a label takes one line or two (A125). */
 async function rowGaps(dialog: Locator) {
   return dialog.locator("dl").evaluateAll(lists => lists.flatMap(list => {
@@ -287,11 +296,40 @@ test("⌘K stays open through a page change, keeps what is typed, finds Impact, 
         expect(await page.evaluate(() => (window as unknown as { __shortcutsFirstFrame: Promise<string[]> }).__shortcutsFirstFrame)).toEqual(["1", "1"]);
         const gaps = await rowGaps(dialog);
         expect(Math.max(...gaps) - Math.min(...gaps), `row gaps at ${width}px: ${gaps.join(", ")}`).toBeLessThanOrEqual(1);
+        // A 900px-tall desktop window holds the whole list, as before Build 4: nothing scrolls, nothing is cut.
+        const body = await shortcutsBody(dialog);
+        expect(body.overflow, `the list fits at ${width}x900`).toBeLessThanOrEqual(0);
+        expect(body.fade, "no fade when nothing is below").toBe(0);
+        expect(await inViewport(page, dialog.getByText("Request actions", { exact: true })), "the last row in view").toBe(true);
         await testInfo.attach(`shortcuts-${width}`, { body: await page.screenshot(), contentType: "image/png" });
         await page.keyboard.press("Escape");
         await expect(dialog).toBeHidden();
       }
       await page.emulateMedia({ reducedMotion: "no-preference" });
+    });
+
+    await test.step("A desktop window too short for the list scrolls it, and the cut edge fades until the end", async () => {
+      await page.setViewportSize({ width: 1440, height: 640 });
+      await page.goto("/");
+      await expect(page.getByText("Palette trust request").first()).toBeVisible();
+      await hydrated(page);
+      await page.locator("#lane-main").focus();
+      await page.keyboard.press("?");
+      const dialog = page.getByRole("dialog", { name: "Keyboard shortcuts", exact: true });
+      await expect(dialog).toBeVisible();
+      await page.waitForTimeout(500);
+      const top = await shortcutsBody(dialog);
+      expect(top.overflow, "the list scrolls at 640px tall").toBeGreaterThan(0);
+      expect(top.mask, "the bottom edge is masked").toContain("gradient");
+      expect(top.fade, "rows fade out at the cut edge").toBeGreaterThan(16);
+      await testInfo.attach("shortcuts-1440x640-top", { body: await page.screenshot(), contentType: "image/png" });
+      await dialog.evaluate(node => { const body = node.lastElementChild as HTMLElement; body.scrollTop = body.scrollHeight; });
+      await expect.poll(async () => (await shortcutsBody(dialog)).fade, { message: "the fade goes once the end is reached" }).toBe(0);
+      await expect(dialog.getByText("Request actions", { exact: true })).toBeInViewport({ ratio: 1 });
+      await testInfo.attach("shortcuts-1440x640-end", { body: await page.screenshot(), contentType: "image/png" });
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await page.setViewportSize({ width: 1440, height: 900 });
     });
 
     await test.step("A124: on a phone the shortcuts dialog's title and close stay in place while the list scrolls", async () => {
