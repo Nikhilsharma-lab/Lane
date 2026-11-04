@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { assertE2ETarget, safeClerkClient } from "./safety";
+import { waitForClerk } from "./test-user";
 
 /** Same normal Clerk test sign-in as test-user.ts; a native default context has no relative baseURL. */
 export async function signInNativeTestUser(page: Page, emailAddress: string, orgId: string) {
@@ -13,6 +14,8 @@ export async function signInNativeTestUser(page: Page, emailAddress: string, org
   // first Clerk request without the testing token can leave Clerk never loading.
   await setupClerkTestingToken({ page });
   await page.goto(new URL("/login", assertE2ETarget().baseURL).href);
+  // A fresh profile loads Clerk in 2-11 s here (measured), past @clerk/testing's own 15 s on a slow Clerk answer.
+  await waitForClerk(page);
   await clerk.signIn({ page, emailAddress });
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
 }
