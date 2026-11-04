@@ -21,15 +21,24 @@ const usePhone = () => useSyncExternalStore(subscribePhone, () => window.matchMe
 
 const sheetCode = popupCode(() => import("./phone-sheet"))
 
-/** The adaptive popup's form: `sheet` as the phone panel under 640px, else `desktop`. The form chosen when it opens holds until it closes. */
+// Build 4: on a phone the panel's code is fetched as soon as this module is here (load-behaviour.ts brings it once
+// the page has loaded and is idle, or at the first press), not at the first open, which waited for it with nothing on
+// screen. For the browser tests: from `ready` on, a popup on a phone opens as the panel.
+if (typeof window !== "undefined" && window.matchMedia(PHONE).matches) {
+  sheetCode.load().then(() => { document.documentElement.dataset.popupSheet = "ready" }, () => undefined)
+}
+
+/**
+ * The adaptive popup's form: `sheet` as the phone panel under 640px, else `desktop`. The form chosen when it opens
+ * holds until it closes. Until the panel's code is here (or if it can't load: offline, an old tab after a deploy) the
+ * centred dialog stands in, so an open never waits for it.
+ */
 export function AdaptiveForm({ open, desktop, sheet }: { open: boolean; desktop: ReactNode; sheet: PhoneSheetProps }) {
   const phoneNow = usePhone()
-  const [phone, setPhone] = useState(phoneNow)
-  if (!open && phone !== phoneNow) setPhone(phoneNow)
-  // A panel whose code can't load (offline, an old tab after a deploy) leaves the centred dialog in its place.
   const [failed, setFailed] = useState(false)
-  // Fetched as soon as this is a phone, so the first open never waits for it.
-  const phoneSheet = usePopupCode(sheetCode, phone && !failed, () => setFailed(true))
-  if (!phone || failed) return desktop
-  return phoneSheet && <phoneSheet.default {...sheet} />
+  const phoneSheet = usePopupCode(sheetCode, phoneNow && !failed, () => setFailed(true))
+  const sheetNow = phoneNow && !failed && phoneSheet !== null
+  const [asSheet, setAsSheet] = useState(sheetNow)
+  if (!open && asSheet !== sheetNow) setAsSheet(sheetNow)
+  return asSheet && phoneSheet ? <phoneSheet.default {...sheet} /> : desktop
 }

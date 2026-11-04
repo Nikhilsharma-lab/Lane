@@ -199,11 +199,15 @@ test("⌘K stays open through a page change, keeps what is typed, finds Impact, 
       await page.keyboard.press("[");
       await expect(page.locator("#lane-sidebar")).toHaveAttribute("data-collapsed", "true");
       await expect(bar).toBeHidden();
-      await page.keyboard.press("Meta+k");
-      await expect(field(page)).toBeFocused();
-      await page.keyboard.press("Escape");
-      // [ waits while a dialog is on screen, the palette's exit included.
-      await expect(palette(page)).toHaveCount(0);
+      // The pointer still rests on the collapsed rail, so its tip may be showing behind the palette. Escape closes
+      // the palette all the same, every time (the tip was Radix's top layer and took the key, 18 times in 30).
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await page.keyboard.press("Meta+k");
+        await expect(field(page)).toBeFocused();
+        await page.keyboard.press("Escape");
+        // [ waits while a dialog is on screen, the palette's exit included.
+        await expect(palette(page)).toHaveCount(0, { timeout: 3_000 });
+      }
       await page.locator("#lane-main").focus();
       await page.keyboard.press("[");
       await expect(page.locator("#lane-sidebar")).not.toHaveAttribute("data-collapsed");
@@ -214,6 +218,47 @@ test("⌘K stays open through a page change, keeps what is typed, finds Impact, 
         await expect(bar, `no bar at ${width}px`).toBeHidden();
       }
       await page.setViewportSize({ width: 1440, height: 900 });
+    });
+
+    await test.step("with a sidebar tip showing behind it, Escape goes to the popup on top: C, ?, and Change priority's step back", async () => {
+      // A tip under a resting pointer was Radix's top layer and took the popup's Escape; a popup taking focus closes it.
+      const tipShowing = async () => {
+        // From off the sidebar, so the pointer arrives on New Request afresh and its tip opens.
+        await page.mouse.move(900, 600);
+        await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "New Request" }).hover();
+        await expect(page.getByRole("tooltip")).toHaveCount(1);
+        await page.locator("#lane-main").focus();
+      };
+      await page.goto("/");
+      await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await tipShowing();
+        await page.keyboard.press("c");
+        const composer = page.getByRole("dialog", { name: "New Request", exact: true });
+        await expect(page.locator("#intake-title")).toBeFocused();
+        await expect(page.getByRole("tooltip")).toHaveCount(0);
+        await page.keyboard.press("Escape");
+        await expect(composer).toHaveCount(0, { timeout: 3_000 });
+        await tipShowing();
+        await page.keyboard.press("?");
+        const shortcuts = page.getByRole("dialog", { name: "Keyboard shortcuts", exact: true });
+        await expect(shortcuts).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(shortcuts).toHaveCount(0, { timeout: 3_000 });
+      }
+      await page.goto(`/requests/${request.id}`);
+      await hydrated(page);
+      await tipShowing();
+      await page.keyboard.press("Meta+k");
+      await field(page).fill("Change priority");
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("dialog", { name: "Change priority" })).toBeVisible();
+      await page.keyboard.press("Escape");
+      // Its Escape still steps back to the entries rather than closing.
+      await expect(palette(page)).toBeVisible({ timeout: 3_000 });
+      await page.keyboard.press("Escape");
+      await expect(palette(page)).toHaveCount(0);
+      await page.mouse.move(900, 600);
     });
 
     await test.step("A125 and A122: the shortcuts dialog spaces rows evenly and appears at once under reduced motion", async () => {

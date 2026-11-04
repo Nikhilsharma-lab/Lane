@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useMemo, useState, type ReactNode } from "re
 import firstRunStyles from "@/components/first-run/first-run.module.css"
 import { DataTable } from "@/components/requests/tasks/data-table"
 import { columns } from "@/components/requests/tasks/columns"
-import { Folder, Plus } from "lucide-react"
+import { Folder, Inbox, Plus } from "lucide-react"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { Button } from "@/components/arc/button/button"
@@ -86,6 +86,15 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
 }
 
 const noViews: SavedView[] = []
+
+/**
+ * The empty workspace's welcome renders on the server (requests-welcome.tsx); its icon and its New Request are drawn
+ * here, inside the list's own client code, so the server never refers to NewRequestLink or the icons for this page.
+ * The list's skeleton does, and referred to from both, they took the list's own files in the skeleton's needs: a move
+ * to the list (Escape from a Request page) then waited for all of the list's code before its skeleton showed (Build 4).
+ */
+export const WelcomeIcon = () => <Inbox data-icon-size="2xl" />
+export const WelcomeNewRequest = ({ className, children }: { className: string; children: ReactNode }) => <NewRequestLink className={className}>{children}</NewRequestLink>
 
 export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, welcome: workspaceWelcome, viewer, firstRun, savedViews = noViews }: {
   /** #219: the person's own saved views; the strip saves, updates, renames and deletes them. */
