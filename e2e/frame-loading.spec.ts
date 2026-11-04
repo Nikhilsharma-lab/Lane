@@ -148,3 +148,35 @@ test("on a phone, a Request opened from Inbox shows its skeleton at once on a sl
     await deleteTestUser(user.id);
   }
 });
+
+// React shows a streamed part of the page by moving it out of a hidden holder on the next frame, and a background tab
+// draws no frames. When something in the frame changes meanwhile (the composer's code arriving, say), React draws the
+// Request itself and the streamed copy waits, hidden, for a frame. Only one of the two may be the Request's title.
+test("a Request page loaded in a tab that isn't drawing has one #request-title", async ({ page }) => {
+  test.setTimeout(300_000);
+  const user = await createTestUser("frame-loading-one-title");
+  try {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await provisionAndSignIn(page, user, { name: "One Title PM", workspaceName: "Lane E2E One title", role: "pm" });
+    const request = await seedTestRequest(user.id, "One title at a time");
+    await page.addInitScript(() => {
+      // Like a tab behind other windows: no frames for the first 3 s.
+      const frame = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = callback => performance.now() < 3_000 ? window.setTimeout(() => frame(callback), 3_000 - performance.now()) : frame(callback);
+      const seen = { most: 0 };
+      (window as unknown as { titles: typeof seen }).titles = seen;
+      new MutationObserver(() => { seen.most = Math.max(seen.most, document.querySelectorAll('[id="request-title"]').length); })
+        .observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["id"] });
+    });
+    for (let load = 0; load < 3; load++) {
+      await page.goto(`/requests/${request.id}`);
+      await expect(page.getByRole("heading", { level: 1, name: "One title at a time", exact: true })).toBeVisible();
+      await page.waitForTimeout(3_500);
+      await expect(page.locator("#request-title")).toHaveText("One title at a time");
+      expect(await page.evaluate(() => (window as unknown as { titles: { most: number } }).titles.most)).toBe(1);
+    }
+  } finally {
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});
