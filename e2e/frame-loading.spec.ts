@@ -115,3 +115,36 @@ test("the Request preview draws its skeleton with Close from its first frame whi
     await deleteTestUser(user.id);
   }
 });
+
+test("on a phone, a Request opened from Inbox shows its skeleton at once on a slow connection (A115)", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const user = await createTestUser("frame-loading-inbox-phone");
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  try {
+    await provisionAndSignIn(page, user, { name: "Inbox Loading PM", workspaceName: "Lane E2E Inbox loading", role: "pm" });
+    const [id] = await seedPreviewFixtures(user.id, ["Opened from the phone Inbox"]);
+    await page.goto("/inbox", { waitUntil: "domcontentloaded" });
+    const open = page.locator(`[data-inbox-item] button[data-inbox-open]`).filter({ hasText: "Opened from the phone Inbox" });
+    await expect(open).toBeVisible({ timeout: 60_000 });
+    await settle(page);
+
+    // From here the connection is a slow phone's (400 ms each way), and the tap's own page request never answers in
+    // time: whatever the tap draws within a second comes from what the Inbox read ahead after it loaded.
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 400, downloadThroughput: 50_000, uploadThroughput: 50_000 });
+    const hold = holdUntilReleased();
+    await page.route(`**/requests/${id}**`, (route, req) => req.headers()["rsc"] === "1" && !req.headers()["next-router-prefetch"] ? hold.handler(route) : route.fallback());
+    await open.tap();
+    await expect(page.locator('[data-skeleton="detail"]')).toBeVisible({ timeout: 1_000 });
+    await page.screenshot({ path: test.info().outputPath("A115-inbox-phone-skeleton.png") });
+    await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    hold.release();
+    await expect(page.locator("#request-title")).toHaveText("Opened from the phone Inbox", { timeout: 30_000 });
+  } finally {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await context.close();
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});

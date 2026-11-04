@@ -21,7 +21,6 @@ import { preloadWorkspaceSearch, WorkspaceSearchPane } from "./workspace-search-
 import { SidebarControlsProvider, SidebarExpandButton } from "./sidebar-controls";
 import { PageStripProvider, type PageStripCrumb } from "./page-strip";
 import { useSidebarResize } from "./use-sidebar-resize";
-import { NAVIGATION_WIDTH } from "./sidebar-motion";
 import { useSidebarPeek } from "./use-sidebar-peek";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { JumpBar } from "./jump-bar";
@@ -217,7 +216,7 @@ export function SidebarView({ children, workspaceName, fullName, email, role, me
   // Pinning a visible peek keeps the panel where it already is, with no slide.
   // Plan item 2.7 (decision D6): the shell hosts the one polite region, so the bell, the list and detail all speak through it;
   // the page providers pass through. The region sits inside the shell element, as the page's did inside the page.
-  return <SidebarControlsProvider collapsed={collapsed || motion === "expanding"} peeking={peeking} expand={() => { const fromPeek = peeking; if (!autoCollapsed) dismissPeek(); expand(fromPeek); }} {...triggerEvents}><div ref={shellRef} className={styles.shell} style={{ "--sidebar-width": `${layoutWidth}px`, "--sidebar-slide-width": `${peekWidth}px`, "--sidebar-peek-width": peekWidth === NAVIGATION_WIDTH ? undefined : `${peekWidth}px`, "--sidebar-peek-top": `${peekTop}px` } as CSSProperties} data-workspace-shell data-resizing={resizing || undefined} data-linear-preview-auto-collapse="true"><ListAnnouncerProvider>
+  return <SidebarControlsProvider collapsed={collapsed || motion === "expanding"} peeking={peeking} expand={() => { const fromPeek = peeking; if (!autoCollapsed) dismissPeek(); expand(fromPeek); }} {...triggerEvents}><div ref={shellRef} className={styles.shell} style={{ "--sidebar-width": `${layoutWidth}px`, "--sidebar-slide-width": `${peekWidth}px`, "--sidebar-peek-width": `${peekWidth}px`, "--sidebar-peek-top": `${peekTop}px` } as CSSProperties} data-workspace-shell data-resizing={resizing || undefined} data-linear-preview-auto-collapse="true"><ListAnnouncerProvider>
     {switchingWorkspace && <span className="sr-only" role="status">Switching workspace…</span>}
     <a href="#lane-main" className={styles.skip}>Skip to content</a>
     <aside id="lane-sidebar" className={styles.navigation} aria-label="Workspace sidebar" inert={switchingWorkspace || (collapsed && !peeking)} data-collapsed={collapsed || undefined} data-peeking={peeking || undefined} data-motion={motion ?? undefined} {...panelEvents}>

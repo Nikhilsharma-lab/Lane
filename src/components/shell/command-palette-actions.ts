@@ -66,6 +66,13 @@ export function runPaletteAction(action: Exclude<PaletteAction, { kind: "priorit
 }
 
 /** Search and the ? overlay are not mounted on Settings, so their entries are left out there. */
+/**
+ * Fix round 3 (#256): an entry that opens another popup (New Request, Search, the ? list) hands over to it. The palette
+ * then leaves at once instead of fading out over it: a fading palette is still the top layer, and took that popup's
+ * first Escape.
+ */
+export const handsOffToPopup = (action: PaletteAction) => action.kind === "open"
+
 export function openableEntries<T extends PaletteEntry>(entries: T[], canOpen: (surface: ShellSurface) => boolean): T[] {
   return entries.filter(entry => entry.action.kind !== "open" || canOpen(entry.action.surface))
 }

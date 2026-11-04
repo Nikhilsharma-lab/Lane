@@ -8,10 +8,11 @@ import type { PanInfo, Transition, Variants } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, LoaderCircle, LogOut, Monitor, Moon, Sun, SunMoon } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./user-menu.module.css";
+import buttonStyles from "../button/button.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 import { KeyCap } from "@/components/keyboard/key-caps";
 import { onOutsidePress, swallowPress } from "@/lib/outside-press";
-import { CHECK_CONNECTION, failureWords, TRY_AGAIN, worthRetrying } from "@/lib/failure-messages";
+import { CHECK_CONNECTION, curlyApostrophes, failureWords, TRY_AGAIN, worthRetrying } from "@/lib/failure-messages";
 
 export type UserStatus = "available" | "busy" | "away";
 export type ThemePreference = "light" | "dark" | "system";
@@ -395,7 +396,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
       // Clerk may resolve setActive before the new workspace document replaces this one.
       if (mounted.current && session.current === started && !controlledPendingId.current) close(true, true);
     } catch (failure) {
-      if (mounted.current) { setWorkspaceError(`Couldn't switch workspace. ${failureWords(failure, CHECK_CONNECTION)}`); setRetryId(worthRetrying(failure) ? workspaceId : null); }
+      if (mounted.current) { setWorkspaceError(`Couldn’t switch workspace. ${failureWords(failure, CHECK_CONNECTION)}`); setRetryId(worthRetrying(failure) ? workspaceId : null); }
     } finally {
       workspacePending.current = false;
       if (mounted.current) setSwitchingId(null);
@@ -546,10 +547,11 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
     </div>
     {workspaces.loading && <div className={styles.message}><Placeholder label="Loading workspaces" lines={2} /></div>}
     {!workspaces.loading && !workspaces.error && workspaces.items.length === 0 && <p className={styles.message}>No workspaces available.</p>}
-    {(workspaceError || workspaces.error) && <p className={`${styles.message} ${styles.error}`} role="alert">{workspaces.error || workspaceError}</p>}
-    {/* One Try again: the list that didn't load is read again, else the switch that failed is tried again. */}
-    {((workspaces.error && workspaces.onRetry) || (retryId && !workspaces.pendingId)) && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label={TRY_AGAIN} onPointerMove={onItemPointerMove}
-      onClick={() => void (workspaces.error && workspaces.onRetry ? loadWorkspaces(workspaces.onRetry) : retryId && selectWorkspace(retryId))}>{TRY_AGAIN}</button>}
+    {(workspaceError || workspaces.error) && <p className={`${styles.message} ${styles.error}`} role="alert">{curlyApostrophes(workspaces.error || workspaceError || "")}</p>}
+    {/* One Try again: the list that didn't load is read again, else the switch that failed is tried again. Lane #256
+        (A111): drawn as Arc's small secondary button under the message, still a menu stop for the arrow keys. */}
+    {((workspaces.error && workspaces.onRetry) || (retryId && !workspaces.pendingId)) && <div className={styles.retry}><button type="button" role="menuitem" tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm}`} data-stop="item" data-label={TRY_AGAIN} onPointerMove={onItemPointerMove}
+      onClick={() => void (workspaces.error && workspaces.onRetry ? loadWorkspaces(workspaces.onRetry) : retryId && selectWorkspace(retryId))}>{TRY_AGAIN}</button></div>}
     {workspaces.hasMore && workspaces.onLoadMore && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Load more workspaces"
       aria-busy={workspaces.loadingMore || undefined} onPointerMove={onItemPointerMove} onClick={() => { if (!workspaces.loadingMore) void loadWorkspaces(workspaces.onLoadMore); }}>
       Load more workspaces

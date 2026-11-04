@@ -31,6 +31,8 @@ import { shellSurfaces } from "./workspace-search-pane-lazy"
 export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: string }) {
   const { pathname, ...workspace } = props
   const [open, setOpen] = useState(false)
+  // A new palette each time an entry hands over to another popup: the old one unmounts at once, with no fade above it.
+  const [generation, setGeneration] = useState(0)
   const returnFocus = useRef<HTMLElement | null>(null)
   // What was typed while it opens; null once the field has it, or while closed.
   const typeahead = useRef<string | null>(null)
@@ -89,6 +91,6 @@ export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: 
     if (!open) show(request.returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null))
   })
 
-  return surfaces ? <surfaces.CommandPalette {...workspace} open={open} onOpenChange={change} returnFocusRef={returnFocus} pathname={pathname}
+  return surfaces ? <surfaces.CommandPalette key={generation} {...workspace} open={open} onHandOff={() => setGeneration(next => next + 1)} onOpenChange={change} returnFocusRef={returnFocus} pathname={pathname}
     takeTypeahead={() => { const typed = typeahead.current ?? ""; typeahead.current = null; return typed }} /> : null
 }

@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type Browser, type BrowserContextOptions, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContextOptions, type Page, type TestInfo } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, finishFirstRuns, provisionTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { commandPalette, paletteOption } from "./helpers/command-palette";
 import { assertOwnedOrganization } from "./helpers/fixtures";
+import { NAVIGATION_WIDTH } from "../src/components/shell/sidebar-motion";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 
 // #269 (Build 4, walk findings A15, A16, A17, A19, A110, A111, A112, A113, A122, A123, A126, A127): the sidebar,
@@ -29,6 +30,35 @@ async function expectNothingOpened(page: Page, path: string) {
   await expect(page.getByRole("menu")).toHaveCount(0);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("listbox")).toHaveCount(0);
+}
+
+/**
+ * A112: the account row shows the whole name beside the arrow, Search and New Request, with no tip, at 1440 and
+ * 1024 and in the 768 hover peek, which opens at the expanded sidebar's width.
+ */
+async function expectWholeName(page: Page, fullName: string, testInfo: TestInfo, who: string) {
+  for (const width of [1440, 1024, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 768) {
+      await page.getByRole("button", { name: "Expand sidebar" }).filter({ visible: true }).first().hover();
+      await expect(page.locator("#lane-sidebar")).toHaveAttribute("data-peeking", "true");
+      const panel = page.locator("[data-sidebar-panel]");
+      await expect.poll(async () => (await panel.boundingBox())?.x).toBe(0);
+      expect((await panel.boundingBox())!.width, "the peek opens as wide as the expanded sidebar").toBe(NAVIGATION_WIDTH);
+    }
+    const name = accountButton(page).getByText(fullName, { exact: true });
+    await expect(name).toBeVisible();
+    expect(await name.evaluate(node => node.scrollWidth - node.clientWidth), `${fullName} at ${width}`).toBeLessThanOrEqual(0);
+    await expect(sidebar(page).getByRole("button", { name: "Search workspace", exact: true })).toBeVisible();
+    await expect(sidebar(page).getByRole("link", { name: "New Request", exact: true }).first()).toBeVisible();
+    await name.hover();
+    await page.waitForTimeout(600);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`A112-account-row-${who}-${width}.png`), clip: { x: 0, y: 0, width: 300, height: 80 } });
+    await page.mouse.move(width - 40, 600);
+    if (width === 768) await expect(page.locator("#lane-sidebar")).not.toHaveAttribute("data-peeking", /.*/);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
 }
 
 /** The composer's idle preload marks a hydrated page, so its buttons answer presses. */
@@ -112,21 +142,8 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await expectNothingOpened(page, "/");
     });
 
-    await test.step("A112: an everyday name fits whole beside the arrow, Search and New Request; a long one is cut, with a tip", async () => {
-      for (const width of [1440, 1024]) {
-        await page.setViewportSize({ width, height: 900 });
-        const name = accountButton(page).getByText("Priya Raman", { exact: true });
-        await expect(name).toBeVisible();
-        expect(await name.evaluate(node => node.scrollWidth - node.clientWidth), `${width}`).toBeLessThanOrEqual(0);
-        await expect(sidebar(page).getByRole("button", { name: "Search workspace", exact: true })).toBeVisible();
-        await expect(sidebar(page).getByRole("link", { name: "New Request", exact: true }).first()).toBeVisible();
-        await name.hover();
-        await page.waitForTimeout(600);
-        await expect(page.getByRole("tooltip")).toHaveCount(0);
-        await page.mouse.move(800, 600);
-        await page.screenshot({ path: testInfo.outputPath(`A112-account-row-${width}.png`), clip: { x: 0, y: 0, width: 280, height: 80 } });
-      }
-      await page.setViewportSize({ width: 1440, height: 900 });
+    await test.step("A112: an everyday name fits whole beside the arrow, Search and New Request, in the peek too; a long one is cut, with a tip", async () => {
+      await expectWholeName(page, "Priya Raman", testInfo, "admin");
       const sql = e2eDatabase();
       const long = "Priyanka Ramanathan-Venkataraman";
       try {
@@ -254,7 +271,14 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await page.getByRole("menuitem", { name: "Switch workspace" }).click();
       const workspaces = page.getByRole("menu", { name: "Workspaces" });
       await workspaces.getByRole("menuitemradio", { name: OTHER_WORKSPACE }).click();
-      await expect(workspaces.getByRole("alert")).toHaveText(/^Couldn.t switch workspace\. You.re offline, this will work when you.re back\.$/, { timeout: 5_000 });
+      // Curly apostrophes, as in the rest of the menu ("Couldn’t sign out").
+      await expect(workspaces.getByRole("alert")).toHaveText("Couldn’t switch workspace. You’re offline, this will work when you’re back.", { timeout: 5_000 });
+      // Try again is drawn as a button (Arc's secondary button), not as one more plain menu row.
+      const retry = workspaces.getByRole("menuitem", { name: "Try again" });
+      const look = await retry.evaluate(node => { const style = getComputedStyle(node); return { edge: style.boxShadow, fill: style.backgroundColor, width: node.getBoundingClientRect().width, menu: node.closest("[role=menu]")!.getBoundingClientRect().width }; });
+      expect(look.edge, "Try again has a button's edge").not.toBe("none");
+      expect(look.fill, "and a button's fill").not.toBe("rgba(0, 0, 0, 0)");
+      expect(look.width, "Try again is sized to its label, not a full-width row").toBeLessThan(look.menu / 2);
       await expect(workspaces.getByRole("menuitemradio", { name: WORKSPACE })).toHaveAttribute("aria-checked", "true");
       // Nothing waits on the switch: the page and sidebar take input again.
       await expect(page.locator("#lane-main")).not.toHaveAttribute("aria-busy", "true");
@@ -271,6 +295,7 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       const { context: memberContext, page: memberPage } = await signedIn(browser, member!, orgId, { viewport: { width: 1440, height: 900 } });
       try {
         await expect(accountButton(memberPage)).toBeVisible({ timeout: 60_000 });
+        await expectWholeName(memberPage, "Daniel Okafor", testInfo, "member");
         await accountButton(memberPage).click();
         const menu = memberPage.getByRole("menu");
         await expect(menu).toBeVisible();

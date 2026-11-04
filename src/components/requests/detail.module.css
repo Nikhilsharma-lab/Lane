@@ -112,10 +112,11 @@
 .skeletonStateLine { width: calc(var(--space-1) * 48); height: var(--control-height-sm); }
 .skeletonRow { display: grid; grid-template-columns: calc(var(--space-1) * 22) minmax(0, 1fr); min-height: calc(var(--space-1) * 8); align-items: center; gap: var(--space-2); }
 @media (pointer: coarse) { .skeletonRow { min-height: calc(var(--space-1) * 11); } }
-@container detail (min-width: 960px) { .skeletonStateLine { display: none; } }
+@container detail (min-width: 920px) { .skeletonStateLine { display: none; } }
 
-/* From 960px of content width the panel shows and the state line gives way. Last, so it wins over the base rules above. */
-@container detail (min-width: 960px) {
+/* From 920px of content width the panel shows and the state line gives way. Last, so it wins over the base rules above.
+   920, not 960, since Build 4's 16rem sidebar (A112): a 1280px window leaves the Request 934px, and keeps its panel. */
+@container detail (min-width: 920px) {
   .layout { grid-template-columns: minmax(0, calc(var(--space-1) * 180)) calc(var(--space-1) * 70); }
   /* Sticky offsets count from the scroll container's padding, which already holds the column's top space. */
   .panel { position: sticky; top: 0; display: block; min-width: 0; }

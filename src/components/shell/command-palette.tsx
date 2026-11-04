@@ -13,7 +13,7 @@ import { isShown } from "@/lib/keyboard-guards"
 import { useRequestNavigation } from "@/components/requests/request-navigation"
 import { useIntentPrefetch } from "@/components/requests/use-intent-prefetch"
 import { filterPaletteEntries, paletteEntries, priorityEntries, type PaletteEntry, type PaletteRole, type PriorityEntry } from "./command-palette-entries"
-import { openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
+import { handsOffToPopup, openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 import { PaletteOption } from "./command-palette-option"
 import { paletteListKey, type PaletteStep } from "./command-palette-keys"
 import { createPaletteFocus } from "./command-palette-focus"
@@ -38,6 +38,8 @@ export type CommandPaletteProps = CommandPaletteWorkspace & {
   pathname: string
   /** #268 (A12): what was typed between ⌘K and the field taking focus, taken once. */
   takeTypeahead: () => string
+  /** An entry is opening another popup: the palette goes at once, with no fade (handsOffToPopup). */
+  onHandOff: () => void
 }
 
 
@@ -51,7 +53,7 @@ export type CommandPaletteProps = CommandPaletteWorkspace & {
  * holds both at full opacity there and hides them once closed, so it opens
  * and closes with no animation.
  */
-export function CommandPalette({ open, onOpenChange, returnFocusRef, pathname, takeTypeahead, ...workspace }: CommandPaletteProps) {
+export function CommandPalette({ open, onOpenChange, returnFocusRef, pathname, takeTypeahead, onHandOff, ...workspace }: CommandPaletteProps) {
   const [step, setStep] = useState<PaletteStep>("entries")
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
@@ -88,7 +90,7 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, pathname, t
       onEscapeKeyDown={event => { if (step === "priority") { event.preventDefault(); setStep("entries"); setQuery(""); setActive(0) } }}
       onCloseAutoFocus={event => { if (focus.closed()) event.preventDefault() }}>
       {/* The entry acts in the same tick as its Enter, so the move's own acknowledgement shows on the next frame. */}
-      <PaletteBody {...workspace} pathname={pathname} input={input} step={step} query={query} active={active} onStep={setStep} onQuery={setQuery} onActive={setActive}
+      <PaletteBody {...workspace} onHandOff={onHandOff} pathname={pathname} input={input} step={step} query={query} active={active} onStep={setStep} onQuery={setQuery} onActive={setActive}
         onRun={() => focus.run(() => onOpenChange(false))} />
     </DialogContent>
   </Dialog>
@@ -103,6 +105,7 @@ function pageOf(action: PaletteEntry["action"], pathname: string): string | null
 
 type BodyProps = CommandPaletteWorkspace & {
   pathname: string
+  onHandOff: () => void
   input: RefObject<HTMLInputElement | null>
   step: PaletteStep; query: string; active: number
   onStep: (step: PaletteStep) => void; onQuery: (query: string) => void; onActive: (index: number) => void
@@ -111,7 +114,7 @@ type BodyProps = CommandPaletteWorkspace & {
 }
 
 /** Mounted only while the palette shows, so the current Request and the Undo pointer are read only then. */
-function PaletteBody({ orgId, role, viewer, projects, pathname, input, step, query, active, onStep, onQuery, onActive, onRun }: BodyProps) {
+function PaletteBody({ orgId, role, viewer, projects, pathname, onHandOff, input, step, query, active, onStep, onQuery, onActive, onRun }: BodyProps) {
   const uid = useId()
   const navigation = useRequestNavigation()
   const list = useRef<HTMLDivElement>(null)
@@ -166,6 +169,7 @@ function PaletteBody({ orgId, role, viewer, projects, pathname, input, step, que
       return
     }
     const action = entry.action
+    if (handsOffToPopup(action)) onHandOff()
     const returnTo = onRun()
     const deps: PaletteActionDeps = {
       request: current, viewer, undo, moves,

@@ -12,10 +12,39 @@ import { SESSION_CHANGED, SESSION_ENDED } from "@/lib/failure-messages";
 import { inboxNeedsYou } from "@/components/shell/inbox-count";
 import { begin, beginAllRead, confirm, initialReadState, isAllReadPending, isPending, pendingIds, receiveCount, receiveList, rollback, shownItems, shownUnread, type ReadState } from "@/components/shell/notification-read-state";
 import { requestDetailHref } from "@/lib/request-workspace";
+import { afterPageLoad } from "@/lib/after-page-load";
+import { useStableRouter } from "@/components/shell/stable-router";
 import { markAllNotificationsRead, markNotificationRead, markNotificationUnread } from "@/app/(app)/notifications/actions";
 import type { InboxItem, NeedsYouInboxItem } from "./inbox-item";
 import { refreshedItems } from "./inbox-list";
 import { InboxView, inboxRowButton } from "./inbox-view";
+
+/**
+ * A115 on phones (fix round 3): with no preview, an item opens its Request page, and its rows are buttons, not links,
+ * so Next never read that page's skeleton ahead and a tap on a slow connection kept the Inbox on screen until the
+ * page answered. As Lane's links do (src/components/link.tsx), once the page has loaded and is idle, each row on
+ * screen reads its Request's skeleton ahead, once, so a tap shows the Request skeleton at once.
+ */
+function useReadAheadOnScreen(active: boolean, rows: number) {
+  const router = useStableRouter();
+  const read = useRef(new Set<string>());
+  useEffect(() => {
+    if (!active) return;
+    let observer: IntersectionObserver | undefined;
+    const cancel = afterPageLoad(() => {
+      observer = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          const href = (entry.target as HTMLElement).dataset.requestHref;
+          if (!entry.isIntersecting || !href || read.current.has(href)) continue;
+          read.current.add(href);
+          router.prefetch(href);
+        }
+      });
+      for (const row of document.querySelectorAll<HTMLElement>("[data-request-href]")) observer.observe(row);
+    });
+    return () => { cancel(); observer?.disconnect(); };
+  }, [active, rows, router]);
+}
 
 const LOAD_FAILED = "Your Inbox couldn't be loaded. Try again.";
 
@@ -78,6 +107,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   useEffect(() => () => inboxNeedsYou.set(null), []);
   useEffect(() => () => { countRequest.current?.abort(); listRequest.current?.abort(); }, []);
   useEffect(() => { if (peekAvailable) preloadRequestPeek(); }, [peekAvailable]);
+  useReadAheadOnScreen(!peekAvailable, items.length + needsYou.length);
 
   const refreshCount = useCallback(async () => {
     const controller = replace(countRequest);
