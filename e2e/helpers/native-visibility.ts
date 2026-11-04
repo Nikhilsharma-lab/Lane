@@ -3,12 +3,15 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clerk } from "@clerk/testing/playwright";
+import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { assertE2ETarget, safeClerkClient } from "./safety";
 
 /** Same normal Clerk test sign-in as test-user.ts; a native default context has no relative baseURL. */
 export async function signInNativeTestUser(page: Page, emailAddress: string, orgId: string) {
   await safeClerkClient();
+  // Before the page asks Clerk for anything: this dedicated browser has no context set up by the test runner, and a
+  // first Clerk request without the testing token can leave Clerk never loading.
+  await setupClerkTestingToken({ page });
   await page.goto(new URL("/login", assertE2ETarget().baseURL).href);
   await clerk.signIn({ page, emailAddress });
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
