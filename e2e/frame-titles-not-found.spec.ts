@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import postgres from "postgres";
 
-import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
+import { cleanupTestWorkspace, getTestWorkspaceId, seedTestRequest } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
 
@@ -130,6 +131,49 @@ test("signed in without a workspace, a missing page shows the Lane mark and Go t
     await expect(page).not.toHaveURL(/\/nope|\/settings\/nope/);
     await expect(page.locator('input[name="identifier"]')).toHaveCount(0);
   } finally {
+    await deleteTestUser(user.id);
+  }
+});
+
+// Fix round 3: with the database refusing connections (a paused database), the root error screen shows and the tab
+// finishes loading, as before Build 4. Build 4's root not-found read the frame a second time on every page, and those
+// reads kept the tab loading for 30 to 120 s. Local runs only: it stops this machine's test database for a moment.
+test("with the database refusing connections, the root error screen appears and the tab finishes loading", async ({ browser }) => {
+  test.skip(process.env.LANE_E2E_LOCAL_DATABASE !== "1", "stops the database's connections: a local lane_test_* database only");
+  test.setTimeout(300_000);
+  const user = await createTestUser("root-error-load");
+  const database = new URL(process.env.DATABASE_URL!);
+  const name = database.pathname.slice(1);
+  expect(name).toMatch(/^lane_test_[a-z0-9_]+$/);
+  const admin = postgres(Object.assign(new URL(database), { pathname: "/postgres" }).toString(), { max: 1 });
+  // Fresh sessions, as a person arriving: four tabs, one after another.
+  const contexts = await Promise.all([0, 1, 2, 3].map(() => browser.newContext({ viewport: { width: 1440, height: 900 } })));
+  try {
+    const pages = [];
+    for (const context of contexts) {
+      const page = await context.newPage();
+      if (!pages.length) await provisionAndSignIn(page, user, { name: "Root Error PM", workspaceName: "Lane E2E Root error", role: "pm" });
+      else await signInTestUser(page, user, await getTestWorkspaceId(user.id));
+      pages.push(page);
+    }
+    await admin.unsafe(`ALTER DATABASE "${name}" WITH ALLOW_CONNECTIONS false`);
+    try {
+      await admin`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = ${name} AND pid <> pg_backend_pid()`;
+      for (const [index, page] of pages.entries()) {
+        const started = Date.now();
+        await page.goto("/", { waitUntil: "commit", timeout: 180_000 });
+        await expect(page.getByRole("alert").filter({ hasText: "Lane can’t load your workspace right now" })).toBeVisible({ timeout: 30_000 });
+        await page.waitForLoadState("load", { timeout: 180_000 });
+        const seconds = (Date.now() - started) / 1000;
+        expect(seconds, `tab ${index + 1} finished loading in ${seconds.toFixed(1)} s`).toBeLessThan(10);
+      }
+    } finally {
+      await admin.unsafe(`ALTER DATABASE "${name}" WITH ALLOW_CONNECTIONS true`);
+    }
+  } finally {
+    await admin.end();
+    for (const context of contexts) await context.close();
+    await cleanupTestWorkspace(user.id);
     await deleteTestUser(user.id);
   }
 });
