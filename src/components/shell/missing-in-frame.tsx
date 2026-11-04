@@ -1,11 +1,7 @@
 "use client";
 
-import Link from "@/components/link";
 import { usePathname } from "next/navigation";
-import { Compass } from "lucide-react";
-import { EmptyState } from "@/components/arc/empty-state/empty-state";
-import buttonStyles from "@/components/arc/button/button.module.css";
-import { PageStrip } from "@/components/shell/page-strip";
+import { MissingPage } from "./missing-page";
 import { RequestUnavailable } from "@/components/requests/request-unavailable";
 import { requestListHref } from "@/lib/request-workspace";
 import { WorkspaceFrame, useInWorkspaceFrame, type WorkspaceFrameProps } from "./workspace-frame";
@@ -14,33 +10,19 @@ import { WorkspaceFrame, useInWorkspaceFrame, type WorkspaceFrameProps } from ".
 const MISSING_PAGE = "/not-found";
 /** The one address shape whose 404 is a Request's: requests/[id]/layout.tsx answers an unknown Request with it. */
 const REQUEST_ADDRESS = /^\/requests\/[^/]+\/?$/;
-const buttonLink = `${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.md}`;
 
-const isFrame = (props: Partial<Omit<WorkspaceFrameProps, "children" | "pageAddress">>): props is Omit<WorkspaceFrameProps, "children" | "pageAddress"> => props.orgId !== undefined;
 
-/** #271 (A118): a signed-in "Page not found". The strip names the place; the one heading says what happened. */
-export function MissingPage() {
-  return <div className="flex min-h-full flex-col">
-    <PageStrip title="Page not found" />
-    <div className="flex flex-1 flex-col justify-center p-6">
-      <EmptyState
-        title="This page doesn’t exist"
-        description="Check the address, or go back to your Requests."
-        icon={<Compass aria-hidden="true" />}
-        action={<Link href="/" className={buttonLink}>Go to Requests</Link>}
-      />
-    </div>
-  </div>;
-}
+type FrameProps = Omit<WorkspaceFrameProps, "children" | "pageAddress">;
+const isFrame = (props: Partial<FrameProps>): props is FrameProps => props.orgId !== undefined;
 
 /**
  * #271: the root not-found's screen for a signed-in person, inside the app frame with the sidebar. An unknown
  * Request (A117) keeps "This Request can't be opened"; any other address gets "Page not found" (A118). It is
  * loaded on demand (lazy-missing-in-frame.tsx), so the frame never joins every route's first load. A 404 thrown
- * under the (app) layout (an unknown Request, a missing Metric: (app)/not-found.tsx) lands inside that layout's
- * frame, so it passes no frame and adds none.
+ * under the (app) layout (an unknown Request, a missing Metric) has its own not-found inside that layout's frame
+ * (requests/not-found.tsx, settings/metrics/not-found.tsx).
  */
-export function MissingInFrame(props: Partial<Omit<WorkspaceFrameProps, "children" | "pageAddress">>) {
+export function MissingInFrame(props: Partial<FrameProps>) {
   const request = REQUEST_ADDRESS.test(usePathname());
   const content = request
     ? <div data-slot="requests-workspace" className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden"><RequestUnavailable returnHref={requestListHref("all")} /></div>
