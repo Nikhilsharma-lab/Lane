@@ -43,7 +43,7 @@ export async function createReviewTeam(browser: Browser, ownerPage: Page) {
  * owner (users[0]) goes first, taking the workspace it owns with it; a borrowed teammate of a kept owner leaves the
  * workspace (`orgId`) before it goes back.
  */
-async function giveBackBorrowed(users: TestUser[], orgId?: string) {
+export async function giveBackBorrowed(users: TestUser[], orgId?: string) {
   const ownerBorrowed = Boolean(users[0] && borrowedUserNames(users[0].id));
   for (const user of ownerBorrowed ? users : users.slice(1)) {
     if (!borrowedUserNames(user.id)) continue;
@@ -176,6 +176,9 @@ export async function createRequestThroughIntake(
     },
   };
   await page.goto("/intake");
+  // The composer's form loads once the page is idle and saves the (empty) draft it starts with, which removes the
+  // draft key; injected before then, the review below was erased before the reload about half the time.
+  await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
   await page.evaluate(
     ({ key, value }) => sessionStorage.setItem(key, JSON.stringify(value)),
     {
