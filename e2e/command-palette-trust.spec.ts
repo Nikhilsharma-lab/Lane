@@ -223,6 +223,8 @@ test("⌘K stays open through a page change, keeps what is typed, finds Impact, 
     await test.step("with a sidebar tip showing behind it, Escape goes to the popup on top: C, ?, and Change priority's step back", async () => {
       // A tip under a resting pointer was Radix's top layer and took the popup's Escape; a popup taking focus closes it.
       const tipShowing = async () => {
+        // From off the sidebar, so the pointer arrives on New Request afresh and its tip opens.
+        await page.mouse.move(900, 600);
         await page.getByRole("navigation", { name: "Primary navigation" }).getByRole("link", { name: "New Request" }).hover();
         await expect(page.getByRole("tooltip")).toHaveCount(1);
         await page.locator("#lane-main").focus();
