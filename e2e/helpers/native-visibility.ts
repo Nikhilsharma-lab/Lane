@@ -3,13 +3,20 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clerk } from "@clerk/testing/playwright";
+import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { assertE2ETarget, safeClerkClient } from "./safety";
 
-/** Same normal Clerk test sign-in as test-user.ts; a native default context has no relative baseURL. */
+/**
+ * Same normal Clerk test sign-in as test-user.ts; a native default context has no relative baseURL.
+ * The testing token goes on before the first page loads, so Clerk's first Frontend API calls already carry it, and
+ * Clerk's load is awaited by interval polling: `clerk.signIn` polls on animation frames, which a headed window behind
+ * other windows doesn't paint, so it timed out at 15 s here on main and Build 4 alike.
+ */
 export async function signInNativeTestUser(page: Page, emailAddress: string, orgId: string) {
   await safeClerkClient();
+  await setupClerkTestingToken({ context: page.context() });
   await page.goto(new URL("/login", assertE2ETarget().baseURL).href);
+  await page.waitForFunction(() => window.Clerk?.loaded === true, undefined, { polling: 250, timeout: 60_000 });
   await clerk.signIn({ page, emailAddress });
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
 }
