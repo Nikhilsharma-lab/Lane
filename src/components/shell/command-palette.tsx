@@ -60,7 +60,11 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, ...workspac
     <DialogContent title={step === "priority" ? "Change priority" : "Command palette"} aria-describedby={undefined} className={styles.dialog} overlayClassName={styles.overlay}
       onOpenAutoFocus={event => { event.preventDefault(); focus.opened(input.current) }}
       onEscapeKeyDown={event => { if (step === "priority") { event.preventDefault(); setStep("entries"); setQuery(""); setActive(0) } }}
-      onCloseAutoFocus={event => { if (focus.closed()) event.preventDefault() }}>
+      onCloseAutoFocus={event => {
+        const active = document.activeElement
+        const moved = active instanceof HTMLElement && active !== document.body && !(event.currentTarget as Node).contains(active)
+        if (focus.closed(moved)) event.preventDefault()
+      }}>
       {/* The entry acts in the same tick as its Enter, so the move's own acknowledgement shows on the next frame. */}
       <PaletteBody {...workspace} input={input} step={step} query={query} active={active} onStep={setStep} onQuery={setQuery} onActive={setActive}
         onRun={() => focus.run(() => onOpenChange(false))} />
