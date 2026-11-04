@@ -18,7 +18,7 @@ async function chooseMoveProject(page: Page, name: string) {
     const opener = page.getByRole("button", { name: label, exact: true });
     if (!await opener.isVisible()) continue;
     await opener.press("Enter");
-    // Opened from the keyboard, the panel puts focus on its first control as it opens; take it from there.
+    // The peek puts focus on its first control on the next frame (use-sidebar-peek.ts); take it from there.
     await expect.poll(() => page.evaluate(() => Boolean(document.getElementById("lane-sidebar")?.contains(document.activeElement)))).toBe(true);
   }
   const link = page.getByRole("navigation", { name: "Primary navigation", exact: true }).getByRole("link", { name, exact: true });

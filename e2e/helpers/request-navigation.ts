@@ -27,7 +27,12 @@ export async function openNavigation(page: Page) {
   const open = page.getByRole("button", { name: "Open navigation", exact: true });
   if (await open.isVisible()) await open.click();
   const expand = page.getByRole("button", { name: "Expand sidebar", exact: true });
-  if (await expand.isVisible()) await expand.click();
+  if (await expand.isVisible()) {
+    await expand.click();
+    // The peek may put focus on its first control on the next frame (use-sidebar-peek.ts); let that frame pass before
+    // focusing a link in it, as a person's next key would.
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  }
   const navigation = page.getByRole("navigation", { name: "Primary navigation", exact: true });
   await expect(navigation).toBeVisible();
   return navigation;
