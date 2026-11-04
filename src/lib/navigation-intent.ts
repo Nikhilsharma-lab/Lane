@@ -9,8 +9,5 @@ let startedAt = -Infinity
 
 export const noteNavigation = () => { startedAt = performance.now() }
 
-/** True when a move to another page started in the last `ms` milliseconds. */
-export const navigatedWithin = (ms: number) => performance.now() - startedAt < ms
-
 /** When the last move started (performance.now() time). */
 export const navigationStartedAt = () => startedAt

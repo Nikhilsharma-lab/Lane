@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ComponentProps } from "react"
 import { BottomSheetContent } from "@/components/arc/bottom-sheet/bottom-sheet"
-import { navigatedWithin } from "@/lib/navigation-intent"
+import { navigationStartedAt } from "@/lib/navigation-intent"
 import { createPopupEntry, type PopupEntryEnvironment } from "./popup-history"
 
 export type PhoneSheetProps = ComponentProps<typeof BottomSheetContent>
@@ -31,6 +31,7 @@ const browserTab: PopupEntryEnvironment = {
   history: { get state() { return window.history.state }, pushState: (state, unused) => window.history.pushState(state, unused), replaceState: (state, unused) => window.history.replaceState(state, unused), back: () => window.history.back() },
   onPopState(listener) { window.addEventListener("popstate", listener); return () => window.removeEventListener("popstate", listener) },
   defer: task => { window.setTimeout(task, 0) },
-  navigatedWithin,
+  navigationStartedAt,
+  now: () => performance.now(),
   address: () => window.location.href,
 }

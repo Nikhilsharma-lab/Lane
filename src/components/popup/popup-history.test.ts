@@ -8,7 +8,9 @@ function tab() {
   let index = 0
   const listeners = new Set<() => void>()
   const tasks: (() => void)[] = []
-  let navigating = false
+  // Lane's own clock (performance.now()) and when the last move to another page started on it.
+  let clock = 0
+  let navigationStartedAt = -Infinity
   const environment: PopupEntryEnvironment = {
     history: {
       get state() { return entries[index] },
@@ -18,7 +20,8 @@ function tab() {
     },
     onPopState(listener) { listeners.add(listener); return () => listeners.delete(listener) },
     defer(task) { tasks.push(task) },
-    navigatedWithin: () => navigating,
+    navigationStartedAt: () => navigationStartedAt,
+    now: () => clock,
     address: () => addresses[index],
   }
   return {
@@ -29,7 +32,10 @@ function tab() {
     settle() { while (tasks.length) tasks.shift()!() },
     /** The person presses the browser's or phone's Back. */
     pressBack() { environment.history.back(); this.settle() },
-    navigate() { navigating = true },
+    /** A move to another page starts: a link, a router push. */
+    navigate() { clock += 1; navigationStartedAt = clock },
+    /** Time passes. */
+    wait(ms: number) { clock += ms },
     get entries() { return entries.slice() },
     get index() { return index },
   }
@@ -127,5 +133,29 @@ describe("a phone panel's history entry", () => {
     browser.settle()
     expect(browser.index).toBe(1)
     expect(browser.environment.history.state).toEqual({ page: "/requests/a" })
+  })
+
+  it("steps back when it closes soon after a move that came before it opened", () => {
+    const browser = tab()
+    // The sidebar's All Requests, then at once a Pick up whose confirmation is a phone panel, then Cancel.
+    browser.navigate()
+    browser.wait(300)
+    const release = createPopupEntry("panel", browser.environment)(() => {})
+    browser.wait(300)
+    release()
+    browser.settle()
+    // The panel's entry goes: a stray copy of the page there made Back stay on it once.
+    expect(browser.index).toBe(0)
+    expect(browser.environment.history.state).toEqual({ page: "/requests/a" })
+  })
+
+  it("steps back when it closes well after a move that started while it was open", () => {
+    const browser = tab()
+    const release = createPopupEntry("panel", browser.environment)(() => {})
+    browser.navigate()
+    browser.wait(5_000)
+    release()
+    browser.settle()
+    expect(browser.index).toBe(0)
   })
 })
