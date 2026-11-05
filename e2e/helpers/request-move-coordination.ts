@@ -16,7 +16,10 @@ async function chooseMoveProject(page: Page, name: string) {
   // genuine open peek correctly owns Escape before Request selection does.
   for (const label of ["Open navigation", "Expand sidebar"]) {
     const opener = page.getByRole("button", { name: label, exact: true });
-    if (await opener.isVisible()) await opener.press("Enter");
+    if (!await opener.isVisible()) continue;
+    await opener.press("Enter");
+    // The peek puts focus on its first control on the next frame (use-sidebar-peek.ts); take it from there.
+    await expect.poll(() => page.evaluate(() => Boolean(document.getElementById("lane-sidebar")?.contains(document.activeElement)))).toBe(true);
   }
   const link = page.getByRole("navigation", { name: "Primary navigation", exact: true }).getByRole("link", { name, exact: true });
   await link.focus(); await expect(link).toBeFocused(); await link.press("Enter");
@@ -94,6 +97,8 @@ export async function verifyMoveCancellations(page: Page, orgId: string, fixture
     // real detail route so native Back/Forward traverses genuine app entries.
     await page.goto(`/requests/${fixture.a.id}`);
     await expect(page.getByRole("region", { name: "Journey", exact: true })).toBeVisible();
+    // The composer's preload marks a hydrated page: before that, Expand sidebar is drawn but doesn't answer yet.
+    await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
     await sidebar(page, "All Requests");
     await selectMoveRows(page, [fixture.a, fixture.b, fixture.c]);
     const change = await beginCoordinatedChange(page, orgId, "bulk-pickup", [fixture.a.id, fixture.b.id], recorder, () => bar(page).getByRole("button", { name: "Pick up", exact: true }).press("Enter"));

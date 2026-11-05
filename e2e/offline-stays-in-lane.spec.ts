@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
@@ -128,6 +128,41 @@ async function openReviewedDraft(page: Page, user: TestUser, orgId: string, titl
   });
   await page.reload();
 }
+
+// A move whose page is still on its way when the connection drops: Next.js falls back to loading the address in full,
+// which offline is the browser's "No internet" page. The tab keeps Lane on screen instead, and the line says why.
+test("a page move still loading when the connection drops keeps Lane on screen", async ({ page, context }) => {
+  test.setTimeout(240_000);
+  const user = await createTestUser("offline-midway");
+  try {
+    await provisionAndSignIn(page, user, { name: "Offline PM", workspaceName: "Lane E2E Offline midway", role: "pm" });
+    const request = await seedTestRequest(user.id, "Offline midway Request");
+    await page.goto("/");
+    await expect(row(page, request.id)).toBeVisible();
+    await markDocument(page);
+
+    // Impact's page is held on its way, as on a slow link, until the connection has gone.
+    const held: Route[] = [];
+    const hold = (route: Route) => { held.push(route); };
+    const impactPage = (url: URL) => url.pathname === "/impact" && url.searchParams.has("_rsc");
+    await page.route(impactPage, hold);
+    await page.getByRole("link", { name: "Impact", exact: true }).click();
+    await expect.poll(() => held.length).toBeGreaterThan(0);
+    await context.setOffline(true);
+    await Promise.all(held.map(route => route.abort("internetdisconnected")));
+    await page.unroute(impactPage, hold);
+
+    await page.waitForTimeout(1_500);
+    expect(page.url()).toMatch(/^http:\/\/localhost:\d+\//);
+    expect(await page.evaluate(() => (window as unknown as { __laneStayed?: boolean }).__laneStayed === true)).toBe(true);
+    await expect(offlineLine(page)).toBeVisible();
+    await context.setOffline(false);
+  } finally {
+    await context.setOffline(false);
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});
 
 test("offline, Create Request says so in view and keeps the text; New Project shows Lane's own words", async ({ page, context }) => {
   test.setTimeout(360_000);

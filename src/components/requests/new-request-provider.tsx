@@ -20,6 +20,7 @@ import { parseRequestListContext, requestDetailHref, requestListHref, type Reque
 import { requestRowSelector } from "./list-focus";
 import { isRequestPopoverEvent } from "./request-popover-events";
 import { useShellOpener } from "@/components/shell/shell-openers";
+import { afterPageLoad } from "@/lib/after-page-load";
 import { Placeholder } from "@/components/loading/placeholder";
 import { useStableRouter } from "@/components/shell/stable-router";
 
@@ -27,7 +28,7 @@ export { NewRequestLink } from "./new-request-link";
 
 // Plan item 2.3: C focuses the title within 100 ms on the first open. The form
 // (react-hook-form, zod, the AI review) stays out of every route's first load:
-// it loads once, on idle after the provider mounts or when the pointer or
+// it loads once, once the page has loaded and is idle (after-page-load.ts), or when the pointer or
 // focus reaches New Request, and from then on renders synchronously, with no
 // Suspense boundary. The skeleton shows only if C beats the preload. Once it
 // has loaded, the form renders, closed, into its detached host (#296), so the
@@ -143,13 +144,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   useEffect(() => { reopen.current = () => openComposer(trigger.current ?? undefined); }, [openComposer]);
 
   useEffect(() => {
-    if (form) return;
-    if (typeof window.requestIdleCallback === "function") {
-      const idle = window.requestIdleCallback(preload, { timeout: 4000 });
-      return () => window.cancelIdleCallback(idle);
-    }
-    const timer = window.setTimeout(preload, 1500);
-    return () => window.clearTimeout(timer);
+    if (!form) return afterPageLoad(preload);
   }, [form, preload]);
 
   useEffect(() => {

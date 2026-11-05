@@ -27,6 +27,17 @@ describe("where focus goes as the palette opens and closes (#106)", () => {
     expect(returnFocus.current).toBeNull()
   })
 
+  // Its close focus comes as the leaving palette unmounts: a person who has already moved on (Tab, a click, a toast's
+  // Undo) keeps focus where they put it.
+  it("leaves focus where the person moved it while the palette was leaving", () => {
+    const row = element("row")
+    const { focus, field, returnFocus } = palette(row)
+    focus.opened(field)
+    expect(focus.closed(true)).toBe(true)
+    expect(row.focus).not.toHaveBeenCalled()
+    expect(returnFocus.current).toBeNull()
+  })
+
   it("leaves focus to the dialog when that element is gone or hidden", () => {
     const { focus, field } = palette(element("row", false))
     focus.opened(field)

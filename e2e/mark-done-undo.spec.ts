@@ -1,8 +1,8 @@
 import { expect, test, type TestInfo } from "@playwright/test";
 import postgres from "postgres";
-import { createTestUser, signInTestUser } from "./helpers/test-user";
+import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
-import { createRequestThroughIntake, giveBackBorrowed, type ReviewTeam } from "./helpers/reviewers";
+import { createRequestThroughIntake, type ReviewTeam } from "./helpers/reviewers";
 import { assertE2ETarget } from "./helpers/safety";
 import { signInNativeTestUser, withNativeVisibility } from "./helpers/native-visibility";
 import { assertLocalUndoTarget } from "./helpers/server-action-identity";
@@ -15,7 +15,8 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
   test.setTimeout(900_000);
   assertLocalUndoTarget();
   const user = await createTestUser("undo-lifetime");
-  // A borrowed user goes back with its workspace; a user this run created stays, with its history, for inspection.
+  // The Requests and their history stay in the database (release history is immutable); the Clerk workspace goes,
+  // and a borrowed user goes back, so runs don't use up the development instance's 50 workspaces.
   try {
     const setup = await browser.newContext();
     const page = await setup.newPage();
@@ -88,7 +89,9 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
         else { await driver.pickUp(); await verifyUndoFailure(driver, record); }
       } finally { await context.close(); }
     }
-  } finally { await giveBackBorrowed([user]); }
+  } finally {
+    await deleteTestUser(user.id);
+  }
 });
 
 function capture(testInfo: TestInfo, page: import("@playwright/test").Page, prefix: string) {

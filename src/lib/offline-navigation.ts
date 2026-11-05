@@ -18,3 +18,7 @@ function staysInPlace(href: string) {
  * navigation that ⌘K and Search open through (src/components/requests/request-navigation.ts). Browser-only.
  */
 export const holdsOffline = (href: string) => isOffline() && !staysInPlace(href)
+
+/** #329: offline, whether loading `href` as a whole new document would leave Lane for the browser's "No internet"
+ * page: any Lane address, this one included (src/components/shell/offline-guard.tsx cancels such loads). */
+export const loadsWholeLanePageOffline = (href: string) => isOffline() && new URL(href, location.href).origin === location.origin

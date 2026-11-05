@@ -88,7 +88,11 @@ export function CommandPalette({ open, onOpenChange, returnFocusRef, pathname, t
         setQuery(typed); setActive(0)
       }}
       onEscapeKeyDown={event => { if (step === "priority") { event.preventDefault(); setStep("entries"); setQuery(""); setActive(0) } }}
-      onCloseAutoFocus={event => { if (focus.closed()) event.preventDefault() }}>
+      onCloseAutoFocus={event => {
+        const active = document.activeElement
+        const moved = active instanceof HTMLElement && active !== document.body && !(event.currentTarget as Node).contains(active)
+        if (focus.closed(moved)) event.preventDefault()
+      }}>
       {/* The entry acts in the same tick as its Enter, so the move's own acknowledgement shows on the next frame. */}
       <PaletteBody {...workspace} onHandOff={onHandOff} pathname={pathname} input={input} step={step} query={query} active={active} onStep={setStep} onQuery={setQuery} onActive={setActive}
         onRun={() => focus.run(() => onOpenChange(false))} />
