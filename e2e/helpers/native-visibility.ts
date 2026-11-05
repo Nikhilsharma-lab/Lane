@@ -19,12 +19,26 @@ export async function signInNativeTestUser(page: Page, emailAddress: string, org
   await page.waitForFunction(() => window.Clerk?.loaded === true, undefined, { polling: 250, timeout: 60_000 });
   await clerk.signIn({ page, emailAddress });
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
+  // Signed in, Clerk's sign-in card moves the page on from /login. A page.goto racing that move was aborted
+  // (net::ERR_ABORTED), so the next step starts once it has landed.
+  await page.waitForURL(url => url.pathname !== "/login", { timeout: 30_000 });
+  await page.waitForLoadState("load");
+}
+
+/** Brings the dedicated browser's page to the front and waits until the browser reports it visible. */
+export async function showOnScreen(page: Page) {
+  await page.bringToFront();
+  await expect.poll(() => page.evaluate(() => document.visibilityState), { message: "The dedicated browser's page should be visible once in front" }).toBe("visible");
 }
 
 /** A dedicated browser with native tab visibility; Playwright's normal focus override keeps tabs visible. */
 export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
   const profile = await mkdtemp(join(tmpdir(), "lane-undo-visibility-"));
-  const child = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  const child = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check",
+    // macOS hides a window other windows cover: no frames, so a Pick up there never showed Mark Done and the run hung
+    // until its 15-minute timeout. Other windows (other runs) come and go on this machine; only a tab switch, which
+    // the checks make on purpose, should hide the page.
+    "--disable-backgrounding-occluded-windows", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
   let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
   try {
     const endpoint = await new Promise<string>((resolve, reject) => {
@@ -40,7 +54,7 @@ export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
     browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
     const context = browser.contexts()[0];
     const page = context.pages()[0] ?? await context.newPage();
-    await page.bringToFront();
+    await showOnScreen(page);
     return await run(page);
   } finally {
     if (browser) {
@@ -54,8 +68,7 @@ export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
 
 /** No property overrides, fake events or clock installation: this tab genuinely becomes hidden. */
 export async function pauseInNativeBackground(page: Page, durationMs: number) {
-  await page.bringToFront();
-  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
+  await showOnScreen(page);
   const initialState = await page.evaluate(() => {
     const events: { state: string; trusted: boolean; time: number }[] = [];
     const target = window as typeof window & { laneUndoVisibility?: typeof events };

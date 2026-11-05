@@ -13,6 +13,7 @@ import { DetailProperties, DetailStateLine } from "./detail-properties"
 import { DetailStrip } from "./detail-strip"
 import { RequestPaneTabs, RequestPanePanel } from "./request-pane-tabs"
 import { RequestPaneHeader } from "./request-pane-header"
+import { RequestTitle } from "./request-title"
 import detailStyles from "./detail.module.css"
 import styles from "./requests.module.css"
 
@@ -122,7 +123,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
         <div className={detailStyles.layout}>
           <div className={detailStyles.main} data-detail-main="">
             {!peekStrip && <header className={detailStyles.titleBlock} data-detail-title="">
-              <Title id="request-title" tabIndex={-1} className={detailStyles.title}>{request.title}</Title>
+              <RequestTitle as={Title} className={detailStyles.title}>{request.title}</RequestTitle>
               <DetailStateLine />
             </header>}
             <RequestPanePanel value="overview"><section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>

@@ -2,7 +2,7 @@ import { expect, type APIResponse, type Locator, type Page, type Request, type R
 import { commandPalette, paletteOption, runPaletteCommand } from "./command-palette";
 import { isItLivePrompt, isItLiveRelease, journeyStep } from "./journey";
 import { observeJourneyReads } from "./journey-read-observer";
-import { pauseInNativeBackground } from "./native-visibility";
+import { pauseInNativeBackground, showOnScreen } from "./native-visibility";
 import { compiledUndoAction, flightResultShape } from "./server-action-identity";
 
 export type UndoRequest = { id: string; code: string; title: string };
@@ -212,10 +212,7 @@ export async function verifyEarlyUndo(driver: UndoDriver, capture: Capture) {
 
 export async function verifyPause(driver: UndoDriver, kind: "hover" | "focus" | "touch" | "hidden", capture: Capture) {
   const { page, request } = driver;
-  if (kind === "hidden") {
-    await page.bringToFront();
-    await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
-  }
+  if (kind === "hidden") await showOnScreen(page);
   await markDone(driver);
   const stack = toastRegion(page).locator("ol");
   const startedAt = Date.now();

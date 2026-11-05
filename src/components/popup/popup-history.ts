@@ -3,7 +3,9 @@ export type PopupEntryEnvironment = {
   history: { readonly state: unknown; pushState(state: unknown, unused: string): void; replaceState(state: unknown, unused: string): void; back(): void }
   onPopState(listener: () => void): () => void
   defer(task: () => void): void
-  navigatedWithin(ms: number): boolean
+  /** When the last move to another page started (src/lib/navigation-intent.ts), on the `now` clock. */
+  navigationStartedAt(): number
+  now(): number
   /** The tab's current address. */
   address(): string
 }
@@ -13,18 +15,22 @@ export type PopupEntryEnvironment = {
  * leaving the page; closing it any other way takes that entry back off. `hold` runs as the panel opens and returns
  * its release, for the close.
  */
-type Entry = { page: unknown; pushedAt: string | null; waiting: { kept: boolean } | null }
+type Entry = { page: unknown; pushedAt: string | null; openedAfter: number; waiting: { kept: boolean } | null }
 // Per panel, by its mark (React's useId: the same for a panel remounted in the same place), so a remount finds the
 // entry the panel it replaces left.
 const entries = new Map<string, Entry>()
 
-export function createPopupEntry(marker: string, { history, onPopState, defer, navigatedWithin, address }: PopupEntryEnvironment) {
+export function createPopupEntry(marker: string, { history, onPopState, defer, navigationStartedAt, now, address }: PopupEntryEnvironment) {
   const ours = () => (history.state as { lanePopup?: string } | null)?.lanePopup === marker
-  const entry = entries.get(marker) ?? { page: null, pushedAt: null, waiting: null }
+  const entry = entries.get(marker) ?? { page: null, pushedAt: null, openedAfter: -Infinity, waiting: null }
   entries.set(marker, entry)
   // The entry is still on top: it carries the mark, or (Next.js rewrites the state of the entry a navigation commits
   // to, dropping the mark) the tab is still at the address the entry was pushed at.
   const onTop = () => ours() || address() === entry.pushedAt
+  // A move to another page started while the panel was open, a moment ago. One that came before it opened is not
+  // this close's: the sidebar's All Requests, then a Pick up confirmed on a phone panel and cancelled within a second,
+  // left the panel's entry behind as a second copy of the list, and Back stayed on the list once.
+  const movingAway = () => navigationStartedAt() > entry.openedAfter && now() - navigationStartedAt() < 1000
 
   return function hold(onBack: () => void) {
     // A release still waiting to step back: a hold that comes first (React's Strict Mode runs effects twice; a
@@ -36,6 +42,7 @@ export function createPopupEntry(marker: string, { history, onPopState, defer, n
     } else {
       entry.page = history.state
       entry.pushedAt = address()
+      entry.openedAfter = navigationStartedAt()
       history.pushState({ lanePopup: marker }, "")
     }
     const stop = onPopState(() => {
@@ -49,12 +56,12 @@ export function createPopupEntry(marker: string, { history, onPopState, defer, n
       // A close that also moves to another page (Delete Request, a link) must not step back: that would undo the
       // move before Next.js records it. The entry becomes the page's own again, so Back from the new page returns
       // here as it would without the panel. Otherwise an entry still on top goes.
-      if (navigatedWithin(1000)) { if (onTop()) history.replaceState(entry.page, ""); return }
+      if (movingAway()) { if (onTop()) history.replaceState(entry.page, ""); return }
       const release = { kept: false }
       entry.waiting = release
       defer(() => {
         if (entry.waiting === release) entry.waiting = null
-        if (!release.kept && onTop() && !navigatedWithin(1000)) history.back()
+        if (!release.kept && onTop() && !movingAway()) history.back()
       })
     }
   }
