@@ -4,7 +4,7 @@ import { createContext, useContext, useRef, useState, type ReactNode } from "rea
 import { Button } from "@/components/arc/button/button"
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup"
-import { createIsItLive, IS_IT_LIVE_COPY, type AskIsItLive, type IsItLiveView } from "./is-it-live"
+import { createIsItLive, IS_IT_LIVE_COPY, promptCloseFocus, type AskIsItLive, type IsItLiveView } from "./is-it-live"
 import { restoreRequestFocus } from "./list-focus"
 import detailStyles from "./detail.module.css"
 import styles from "./is-it-live.module.css"
@@ -46,10 +46,12 @@ export function IsItLiveProvider({ orgId, children }: { orgId: string; children:
     const from = opener.current
     opener.current = null
     const element = from?.element
-    if (element instanceof HTMLElement && element.isConnected && element !== document.body) { element.focus({ preventScroll: true }); return }
-    const title = document.getElementById("request-title")
-    if (title) { title.focus({ preventScroll: true }); return }
-    if (from) restoreRequestFocus(from.requestId, { force: true })
+    promptCloseFocus({
+      active: document.activeElement, body: document.body,
+      opener: element instanceof HTMLElement && element !== document.body ? element : null,
+      title: document.getElementById("request-title"),
+      restoreRow: from ? () => restoreRequestFocus(from.requestId, { force: true }) : null,
+    })
   }
 
   // A release form that can't load leaves the Request at Done with its Undo, as Not yet does.

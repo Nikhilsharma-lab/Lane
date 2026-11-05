@@ -104,12 +104,12 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       // #260: Try again sends the same Undo again; offline it says so instead.
       onError: (description, { offline }) => {
         const retry = () => undo(toastId, requestId, name, ended, originCurrent)
-        finishToast(toastId, { ...failureToast(description, { offline, retry }), ...(offline ? {} : { title: "Couldn't undo" }) }, current)
+        finishToast(toastId, { ...failureToast(description, { offline, retry }), ...(offline ? {} : { title: "Couldn’t undo" }) }, current)
       },
     })
     // A failed Done already replaced this toast. A later failed Release may only have had inline feedback.
     if (outcome.status === "skipped" && !ended()) {
-      finishToast(toastId, { type: "error", title: "Couldn't undo", description: EARLIER_CHANGE_FAILED, action: undefined }, current)
+      finishToast(toastId, { type: "error", title: "Couldn’t undo", description: EARLIER_CHANGE_FAILED, action: undefined }, current)
       refresh()
     }
     if (outcome.status !== "success") return
@@ -196,7 +196,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       }])
       if (failed.length) refresh()
       const result = failed.length
-        ? { type: "error" as const, title: `${failed.length} of ${targets.length} couldn't be undone`, description: failed.map(item => item.error).join(" "), action: undefined }
+        ? { type: "error" as const, title: `${failed.length} of ${targets.length} couldn’t be undone`, description: failed.map(item => item.error).join(" "), action: undefined }
         : { type: "success" as const, title: `${targets.length} ${noun} back to In progress`, description: undefined, action: undefined }
       // An explicitly invoked toast finishes even after navigation; a dismissed one does not reappear in a new view.
       finishToast(toastId, result, current)

@@ -16,7 +16,7 @@ export const TEXT_KEPT = "Your text is still here."
 export const OFFLINE_ANSWER_TITLE = "You’re offline, this will work when you’re back"
 export const OFFLINE_ANSWER = `${OFFLINE_ANSWER_TITLE}.`
 /** A change that didn't save: the toast title. */
-export const SAVE_FAILED_TITLE = "Couldn't save"
+export const SAVE_FAILED_TITLE = "Couldn’t save"
 /** What to do next when a call never got an answer. */
 export const CHECK_CONNECTION = "Check your connection and try again."
 /** A read or change refused because nobody is signed in any more (the server's SESSION_ENDED). */

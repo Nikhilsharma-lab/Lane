@@ -209,7 +209,7 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
     const button = bulkToast(page).getByRole("button", { name: "Undo", exact: true }); await button.focus(); await button.press("Enter"); await page.keyboard.press("Enter");
   });
   const outcomes = await undo.received(); await undo.finish(); expect(outcomes.filter(result => result.success === true)).toHaveLength(1); expect(outcomes.filter(result => typeof result.error === "string")).toHaveLength(1);
-  await expect.poll(() => item!.evaluate(node => node.isConnected && /1 of 2 couldn't be undone/.test(node.textContent ?? ""))).toBe(true);
+  await expect.poll(() => item!.evaluate(node => node.isConnected && /1 of 2 couldn’t be undone/.test(node.textContent ?? ""))).toBe(true);
   await expect(toastRegion(page)).toContainText(fixture.a.code);
   await expect(toastRegion(page)).toContainText(String(outcomes.find(result => typeof result.error === "string")!.error));
   await expect.poll(() => item!.evaluate(node => [...node.querySelectorAll("button")].some(button => button.textContent === "Undo"))).toBe(false);
