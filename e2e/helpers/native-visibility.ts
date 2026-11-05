@@ -19,6 +19,10 @@ export async function signInNativeTestUser(page: Page, emailAddress: string, org
   await page.waitForFunction(() => window.Clerk?.loaded === true, undefined, { polling: 250, timeout: 60_000 });
   await clerk.signIn({ page, emailAddress });
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
+  // Signed in, Clerk's sign-in card moves the page on from /login. A page.goto racing that move was aborted
+  // (net::ERR_ABORTED), so the next step starts once it has landed.
+  await page.waitForURL(url => url.pathname !== "/login", { timeout: 30_000 });
+  await page.waitForLoadState("load");
 }
 
 /** Brings the dedicated browser's page to the front and waits until the browser reports it visible. */
