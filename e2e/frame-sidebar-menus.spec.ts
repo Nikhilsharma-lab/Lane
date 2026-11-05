@@ -32,6 +32,53 @@ async function expectNothingOpened(page: Page, path: string) {
   await expect(page.getByRole("listbox")).toHaveCount(0);
 }
 
+type MenuFrame = { opacity: number; transform: string };
+type MenuFrames = { shown: MenuFrame[]; afterClose: number };
+type MenuWatch = { arm(): void; stop(): MenuFrames };
+const menuWatch = (page: Page) => ({
+  arm: () => page.evaluate(() => (window as unknown as { __laneMenuWatch: MenuWatch }).__laneMenuWatch.arm()),
+  stop: () => page.evaluate(() => (window as unknown as { __laneMenuWatch: MenuWatch }).__laneMenuWatch.stop()),
+});
+
+/**
+ * A122: records every frame the menu named `label` is painted on, from now until `stop()`: the lowest opacity of
+ * the menu and its items (each multiplied through its ancestors, so a fading layer counts) and the menu's own
+ * transform. `arm()` then counts the frames it stays painted after the next key or pointer press.
+ */
+async function watchMenuFrames(page: Page, label: string) {
+  await page.evaluate(label => {
+    const shown: MenuFrame[] = [];
+    let closing = false;
+    let afterClose = 0;
+    let running = true;
+    const look = () => {
+      if (!running) return;
+      const menu = document.querySelector<HTMLElement>(`[role="menu"][aria-label="${label}"]`);
+      if (menu) {
+        let lowest = 1;
+        for (const element of [menu, ...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]) {
+          let opacity = 1;
+          for (let node: HTMLElement | null = element; node; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity);
+          lowest = Math.min(lowest, opacity);
+        }
+        const transform = getComputedStyle(menu).transform;
+        shown.push({ opacity: lowest, transform: transform === "matrix(1, 0, 0, 1, 0, 0)" ? "none" : transform });
+        if (closing) afterClose += 1;
+      }
+      requestAnimationFrame(look);
+    };
+    requestAnimationFrame(look);
+    const press = () => { closing = true; };
+    (window as unknown as { __laneMenuWatch: MenuWatch }).__laneMenuWatch = {
+      arm: () => {
+        document.addEventListener("keydown", press, { capture: true, once: true });
+        document.addEventListener("pointerdown", press, { capture: true, once: true });
+      },
+      stop: () => { running = false; return { shown, afterClose }; },
+    };
+  }, label);
+}
+
 /**
  * A112: the account row shows the whole name beside the arrow, Search and New Request, with no tip, at 1440 and
  * 1024 and in the 768 hover peek, which opens at the expanded sidebar's width.
@@ -140,6 +187,29 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
       await expect(page.getByRole("menu", { name: "Checkout actions" })).toBeVisible();
       await title.click({ button: "right" });
       await expectNothingOpened(page, "/");
+    });
+
+    await test.step("A122: with motion turned off a Project's right-click menu appears and goes at once", async () => {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      const project = sidebar(page).getByRole("link", { name: "Checkout", exact: true });
+      const menu = page.getByRole("menu", { name: "Checkout actions" });
+      for (const [how, close] of [
+        ["Escape", () => page.keyboard.press("Escape")],
+        ["a click outside", () => title.click()],
+      ] as const) {
+        await watchMenuFrames(page, "Checkout actions");
+        await project.click({ button: "right" });
+        await expect(menu.getByRole("menuitem", { name: "Open", exact: true })).toBeVisible();
+        await menuWatch(page).arm();
+        await close();
+        await expect(menu).toHaveCount(0);
+        const frames = await menuWatch(page).stop();
+        expect(frames.shown.length, "the menu was painted").toBeGreaterThan(0);
+        expect(frames.shown[0], "its first frame is the whole menu, still").toEqual({ opacity: 1, transform: "none" });
+        expect(frames.shown.filter(frame => frame.opacity !== 1 || frame.transform !== "none"), `no frame fades or scales, closed by ${how}`).toEqual([]);
+        expect(frames.afterClose, `gone within two frames of ${how}`).toBeLessThanOrEqual(2);
+      }
+      await page.emulateMedia({ reducedMotion: "no-preference" });
     });
 
     await test.step("A112: an everyday name fits whole beside the arrow, Search and New Request, in the peek too; a long one is cut, with a tip", async () => {
