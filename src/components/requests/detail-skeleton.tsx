@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/arc/skeleton/skeleton"
+import { Placeholder } from "@/components/loading/placeholder"
 import { PageStrip } from "@/components/shell/page-strip"
 import { DetailBackLink } from "./detail-back-link"
 import detailStyles from "./detail.module.css"
@@ -28,4 +29,16 @@ export function RequestDetailSkeleton() {
       </div>
     </div>
   </section>
+}
+
+/**
+ * The Request page's loading frame (requests/[id]/loading.tsx), in the same wrapper as the loaded detail in
+ * requests-workspace.tsx, so the frame does not move when the page replaces the skeleton (plan item 2.0). Neither sets
+ * a background: detail sits on the pane's surface, like the strip and the list. Fix round 5: the phone Inbox draws it
+ * too, from the server's markup, the moment a Request is tapped (inbox-screen.tsx).
+ */
+export function RequestDetailLoading() {
+  return <div data-slot="requests-workspace" className="flex min-h-0 flex-1 sm:h-full sm:overflow-hidden">
+    <Placeholder><RequestDetailSkeleton /></Placeholder>
+  </div>
 }
