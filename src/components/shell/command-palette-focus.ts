@@ -25,11 +25,16 @@ export function createPaletteFocus<T extends Focusable>(returnFocus: { current: 
       if (isShown(target)) target.focus({ preventScroll: true })
       return target
     },
-    /** The Dialog's close focus. True when focus was placed here, so the caller stops the Dialog's own. */
-    closed(): boolean {
+    /**
+     * The Dialog's close focus. True when focus was placed here (or is to stay where it is), so the caller stops the
+     * Dialog's own. It comes as the leaving palette unmounts, after its exit: `moved` when the person has already put
+     * focus elsewhere meanwhile (Tab, a click, a toast's Undo), and then it stays there.
+     */
+    closed(moved = false): boolean {
       const target = returnFocus.current
       returnFocus.current = null
       if (handled) { handled = false; return true }
+      if (moved) return true
       if (!isShown(target)) return false
       target.focus({ preventScroll: true })
       return true

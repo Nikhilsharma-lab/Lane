@@ -20,6 +20,7 @@ import { useListAnnouncer } from "./list-announcer"
 import { useRequestMoves } from "./request-moves"
 import { useRequestNavigation } from "./request-navigation"
 import { PriorityGlyph } from "./row-presentation"
+import { afterPageLoad } from "@/lib/after-page-load"
 import styles from "./detail.module.css"
 
 // The Properties sheet stays out of the phone's first load. Its chunk is fetched
@@ -155,15 +156,9 @@ export function DetailStateLine() {
   const [open, setOpen] = useState(false)
   const line = useRef<HTMLButtonElement>(null)
   const drawer = usePopupCode(drawerCode, open, () => couldNotOpen("properties", setOpen))
-  // Only where the line shows (below 920px of content): fetch the sheet once the page is idle.
+  // Only where the line shows (below 920px of content): fetch the sheet once the page has loaded and is idle.
   useEffect(() => {
-    if (!line.current?.getClientRects().length) return
-    if (typeof window.requestIdleCallback === "function") {
-      const idle = window.requestIdleCallback(drawerCode.preload, { timeout: 4000 })
-      return () => window.cancelIdleCallback(idle)
-    }
-    const timer = window.setTimeout(drawerCode.preload, 1500)
-    return () => window.clearTimeout(timer)
+    if (line.current?.getClientRects().length) return afterPageLoad(drawerCode.preload)
   }, [])
   return <>
     <div className={styles.compactProperties} role="group" aria-label="Request properties">

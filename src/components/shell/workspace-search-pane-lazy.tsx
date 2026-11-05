@@ -10,7 +10,7 @@ import styles from "./workspace-search-pane.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
 
 // Plan item 2.8: the search pane (results, facets, preview, bottom sheets) stays out of every
-// route's first load. The shell preloads it once the page is idle, and again when search opens;
+// route's first load. The shell preloads it once the page has loaded and is idle, and again when search opens;
 // from then on it renders synchronously, with no fallback. The precedent is date-range-picker-lazy.tsx.
 /** The shell's on-demand surfaces (shell-lazy-surfaces.ts, #107): this pane and the ⌘K palette share one import. */
 export const shellSurfaces = popupCode(() => import("./shell-lazy-surfaces"))

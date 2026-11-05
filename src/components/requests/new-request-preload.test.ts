@@ -34,8 +34,10 @@ describe("New Request composer preload", () => {
     expect(provider).toContain("usePopupCode(composerForm, open,")
   })
 
-  it("preloads on idle and when the pointer or focus reaches New Request", () => {
-    expect(provider).toContain("requestIdleCallback(preload")
+  it("preloads once the page has loaded and is idle, and when the pointer or focus reaches New Request", () => {
+    // Never before `load` (after-page-load.ts): on a slow phone it held the page back.
+    expect(provider).toContain("afterPageLoad(preload)")
+    expect(provider).not.toContain("requestIdleCallback")
     expect(link).toMatch(/onPointerEnter=\{[^}]*composer\?\.preload\(\)/)
     expect(link).toMatch(/onFocus=\{[^}]*composer\?\.preload\(\)/)
   })

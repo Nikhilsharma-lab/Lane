@@ -28,6 +28,7 @@ import { openShellSurface, useShellOpener } from "./shell-openers";
 import { onOutsidePress, swallowPress } from "@/lib/outside-press";
 import { holdsOffline } from "@/lib/offline-navigation";
 import type { WorkspacePermission } from "@/lib/auth-guard";
+import { afterPageLoad } from "@/lib/after-page-load";
 import styles from "./workspace-shell.module.css";
 
 export interface SidebarViewProps {
@@ -133,12 +134,9 @@ export function SidebarView({ children, workspaceName, fullName, email, role, me
   const [previousLocation, setPreviousLocation] = useState(`${pathname}?${filter}&${projectFilter}`);
   const location = `${pathname}?${filter}&${projectFilter}`;
   if (location !== previousLocation) { setPreviousLocation(location); setSearchOpen(false); }
-  // Plan item 2.8: the pane loads on demand; fetch it once the page is idle, so the first / finds it ready.
-  useEffect(() => {
-    if (typeof window.requestIdleCallback !== "function") { const timer = window.setTimeout(preloadWorkspaceSearch, 1500); return () => window.clearTimeout(timer); }
-    const idle = window.requestIdleCallback(preloadWorkspaceSearch, { timeout: 3000 });
-    return () => window.cancelIdleCallback(idle);
-  }, []);
+  // Plan item 2.8: the pane (and the ⌘K palette with it) loads on demand; fetch it once the page has loaded and is
+  // idle, so the first / or ⌘K finds it ready. Never before `load`: on a slow phone it held the page back (after-page-load.ts).
+  useEffect(() => afterPageLoad(preloadWorkspaceSearch), []);
   function openSearch() {
     navigation.invalidate();
     preloadWorkspaceSearch();
