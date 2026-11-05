@@ -18,7 +18,7 @@ export async function updateDeliveryPreference(data: { channel: string }, contex
   if ("error" in auth) return auth;
   if (auth.role === "guest") return { error: "Guests get Lane email only about their own submissions, so there is nothing to choose here." };
   if (parsed.data.channel === "slack" && !(await slackConnected(auth.orgId)))
-    return { error: "Slack isn't connected to this workspace. Choose Email or Off, or ask an Admin to connect Slack." };
+    return { error: "Slack isn’t connected to this workspace. Choose Email or Off, or ask an Admin to connect Slack." };
 
   await saveDeliveryChoice(auth, parsed.data.channel);
   revalidatePath("/settings/profile");

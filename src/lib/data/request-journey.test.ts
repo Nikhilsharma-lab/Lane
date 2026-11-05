@@ -113,7 +113,7 @@ it("loads the union of historical people once and prefers live names", async () 
 
 it("does not turn a failed profile query into Former member facts", async () => {
   boundary.namesFailed = true;
-  expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn't load the journey. Try again." });
+  expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn’t load the journey. Try again." });
 });
 
 it("keeps a guest's Request and follow-up queries scoped to their own workspace and creator", async () => {
@@ -133,12 +133,12 @@ it("keeps a guest's Request and follow-up queries scoped to their own workspace 
   }
   expect(boundary.queries.find(q => q.sql.includes('from "request_agreement_events"'))!.params).toEqual(["org_journey", "follow_up_created", "child"]);
   boundary.visible = false;
-  expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn't load the journey. Try again." });
+  expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn’t load the journey. Try again." });
 });
 
 it("refuses foreign workspaces before loading facts and uses explicit expiry recovery", async () => {
   boundary.session.orgId = "foreign";
-  expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn't load the journey. Try again." });
+  expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn’t load the journey. Try again." });
   expect(boundary.queries).toHaveLength(0);
   boundary.session.userId = null;
   const result = await callAction(() => readRequestJourney(id, context), {

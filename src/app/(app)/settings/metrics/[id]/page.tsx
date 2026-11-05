@@ -61,7 +61,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   const panel = <>
     <Link href="/settings/metrics" className={styles.backLink}><ArrowLeft data-icon-size="sm" aria-hidden="true" />All metrics</Link>
     <SettingsCard title={definition.name}
-      description={merged ? undefined : archived ? "Archived. It isn't offered for new goals, and stays on the Requests that already use it." : undefined}>
+      description={merged ? undefined : archived ? "Archived. It isn’t offered for new goals, and stays on the Requests that already use it." : undefined}>
       {merged && <p className={styles.note}>
         Merged into {keptDefinition ? <Link href={`/settings/metrics/${keptDefinition.id}`} className={styles.keptLink}>{keptDefinition.name}</Link> : "another metric"}. Requests that used it now count under that one.
       </p>}
@@ -72,10 +72,10 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
       description={archived ? "Restoring offers it for new goals again." : "Archiving stops it being offered for new goals. Requests that already use it keep it, and their results still add up."}
       action={<ArchiveMetricControl orgId={workspace.orgId} id={definition.id} archived={archived} />} />}
     {isAdmin && !merged && <SettingsCard title="Merge"
-      description="If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can't be undone.">
+      description="If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can’t be undone.">
       {candidates.length
         ? <MergeMetricControl orgId={workspace.orgId} current={{ id: definition.id, name: definition.name }} candidates={candidates} />
-        : <p className={styles.note}>No other metric is counted in {metricUnitName(definition.unit).toLowerCase()}, so there&apos;s nothing to merge it with.</p>}
+        : <p className={styles.note}>No other metric is counted in {metricUnitName(definition.unit).toLowerCase()}, so there’s nothing to merge it with.</p>}
     </SettingsCard>}
     {uses && <SettingsCard title="Requests that used it"
       description="Grouped by Project, with each goal beside what happened. Uses as the main metric and as a guardrail are listed apart.">

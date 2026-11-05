@@ -65,14 +65,14 @@ describe("Adding a Metric definition", () => {
 
   it("refuses a Guest and saves nothing", async () => {
     actAs("guest");
-    expect(await (await actions()).addMetricDefinition(trialStarts, context())).toEqual({ error: "You can't change the Metrics library in this workspace." });
+    expect(await (await actions()).addMetricDefinition(trialStarts, context())).toEqual({ error: "You can’t change the Metrics library in this workspace." });
     expect((await all()).map(definition => definition.name)).not.toContain("Trial starts");
   });
 
   it("refuses someone signed out, or acting in another workspace, with the usual messages", async () => {
     const { addMetricDefinition } = await actions();
     session.orgId = `${PREFIX}elsewhere`;
-    expect(await addMetricDefinition(trialStarts, context())).toEqual({ error: "You can't change the Metrics library in this workspace." });
+    expect(await addMetricDefinition(trialStarts, context())).toEqual({ error: "You can’t change the Metrics library in this workspace." });
     session.userId = null;
     expect(await addMetricDefinition(trialStarts, context())).toEqual({ error: "Your session ended. Sign in again to continue.", sessionExpired: true });
     expect((await all()).map(definition => definition.name)).not.toContain("Trial starts");
@@ -94,7 +94,7 @@ describe("Adding a Metric definition", () => {
     const result = await (await actions()).addMetricDefinition({ name: " ", unit: "furlongs", link: "analytics.example.test", howCounted: "x".repeat(501) }, context());
     expect(result).toMatchObject({ fields: {
       name: "Give the metric a name.", unit: "Choose a unit.",
-      link: "Enter a link that starts with https:// or http://.", howCounted: "Keep how it's counted to 500 characters or fewer.",
+      link: "Enter a link that starts with https:// or http://.", howCounted: "Keep how it’s counted to 500 characters or fewer.",
     } });
   });
 });
@@ -150,13 +150,13 @@ describe("Editing a Metric definition", () => {
     const id = await add();
     const { editMetricDefinition } = await actions();
     actAs("guest");
-    expect(await editMetricDefinition({ ...trialStarts, id, name: "Guest edit" }, context())).toEqual({ error: "You can't change the Metrics library in this workspace." });
+    expect(await editMetricDefinition({ ...trialStarts, id, name: "Guest edit" }, context())).toEqual({ error: "You can’t change the Metrics library in this workspace." });
     const mine = orgId;
     orgId = `${PREFIX}${++workspaces}`;
     await connection`insert into organizations (id,name,slug) values (${orgId},'Other metrics',${orgId.replaceAll("_", "-")})`;
     actAs("admin");
-    expect(await editMetricDefinition({ ...trialStarts, id, name: "Their edit" }, context())).toEqual({ error: "That metric isn't in this workspace." });
-    expect(await editMetricDefinition({ ...trialStarts, id: "not-an-id", name: "Their edit" }, context())).toEqual({ error: "That metric isn't in this workspace." });
+    expect(await editMetricDefinition({ ...trialStarts, id, name: "Their edit" }, context())).toEqual({ error: "That metric isn’t in this workspace." });
+    expect(await editMetricDefinition({ ...trialStarts, id: "not-an-id", name: "Their edit" }, context())).toEqual({ error: "That metric isn’t in this workspace." });
     orgId = mine;
     expect((await named("Trial starts")).id).toBe(id);
     expect(await historyOf(id)).toHaveLength(1);
@@ -193,7 +193,7 @@ describe("Archiving and restoring a Metric definition", () => {
     const { archiveMetricDefinition, restoreMetricDefinition } = await actions();
     await archiveMetricDefinition({ id: other }, context());
     actAs(role);
-    const message = role === "member" ? "Only Admins can archive or restore metrics." : "You can't change the Metrics library in this workspace.";
+    const message = role === "member" ? "Only Admins can archive or restore metrics." : "You can’t change the Metrics library in this workspace.";
     expect(await archiveMetricDefinition({ id }, context())).toEqual({ error: message });
     expect(await restoreMetricDefinition({ id: other }, context())).toEqual({ error: message });
     expect((await named("Trial starts")).archivedAt).toBeNull();
@@ -243,7 +243,7 @@ describe("Archiving and restoring a Metric definition", () => {
     await connection`update metric_definitions set merged_into_id = ${kept} where id = ${id}`;
     actAs("admin");
     const { archiveMetricDefinition, editMetricDefinition, restoreMetricDefinition } = await actions();
-    const merged = { error: "This metric was merged into another one, so it can't be changed." };
+    const merged = { error: "This metric was merged into another one, so it can’t be changed." };
     expect(await editMetricDefinition({ ...trialStarts, id, name: "Renamed" }, context())).toEqual(merged);
     expect(await archiveMetricDefinition({ id }, context())).toEqual(merged);
     expect(await restoreMetricDefinition({ id }, context())).toEqual(merged);
@@ -256,7 +256,7 @@ describe("Archiving and restoring a Metric definition", () => {
     orgId = `${PREFIX}${++workspaces}`;
     await connection`insert into organizations (id,name,slug) values (${orgId},'Other metrics',${orgId.replaceAll("_", "-")})`;
     actAs("admin");
-    expect(await (await actions()).archiveMetricDefinition({ id }, context())).toEqual({ error: "That metric isn't in this workspace." });
+    expect(await (await actions()).archiveMetricDefinition({ id }, context())).toEqual({ error: "That metric isn’t in this workspace." });
     orgId = mine;
     expect((await named("Trial starts")).archivedAt).toBeNull();
   });
@@ -313,7 +313,7 @@ describe("Merging Metric definitions", () => {
     const merged = await add();
     actAs(role);
     expect(await (await actions()).mergeMetricDefinitions({ keptId: kept, mergedId: merged }, context())).toEqual({
-      error: role === "member" ? "Only Admins can merge metrics." : "You can't change the Metrics library in this workspace.",
+      error: role === "member" ? "Only Admins can merge metrics." : "You can’t change the Metrics library in this workspace.",
     });
     expect(await named("Trial starts")).toMatchObject({ mergedIntoId: null });
     expect(await historyOf(merged)).toHaveLength(1);
@@ -326,7 +326,7 @@ describe("Merging Metric definitions", () => {
     actAs("admin");
     const { mergeMetricDefinitions } = await actions();
     await mergeMetricDefinitions({ keptId: kept, mergedId: merged }, context());
-    const already = { error: "“Trial starts” was already merged into another metric. Merges can't be undone." };
+    const already = { error: "“Trial starts” was already merged into another metric. Merges can’t be undone." };
     expect(await mergeMetricDefinitions({ keptId: merged, mergedId: kept }, context())).toEqual(already);
     expect(await mergeMetricDefinitions({ keptId: third, mergedId: merged }, context())).toEqual(already);
     expect(await mergeMetricDefinitions({ keptId: third, mergedId: third }, context())).toEqual({ error: "Choose two different metrics to merge." });
@@ -369,7 +369,7 @@ describe("Merging Metric definitions", () => {
     actAs("admin");
     const ours = await add();
     const { mergeMetricDefinitions } = await actions();
-    const notHere = { error: "That metric isn't in this workspace." };
+    const notHere = { error: "That metric isn’t in this workspace." };
     expect(await mergeMetricDefinitions({ keptId: ours, mergedId: theirs }, context())).toEqual(notHere);
     expect(await mergeMetricDefinitions({ keptId: theirs, mergedId: ours }, context())).toEqual(notHere);
     expect(await mergeMetricDefinitions({ keptId: ours, mergedId: "not-an-id" }, context())).toEqual(notHere);

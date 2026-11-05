@@ -34,7 +34,7 @@ export function GuidedMetricForm({initialName = '', onSubmit, onSaved, onCancel,
     if(!result.ok){setFields(result.fields);focus(Object.keys(result.fields)[0]);return;}
     setPending(true);onPendingChange?.(true);setError('');
     try {const saved=await onSubmit(result.values);if('error' in saved){setError(saved.error);if(saved.fields?.name){setFields({name:saved.fields.name});focus('name');}}else onSaved?.();}
-    catch {setError("The metric couldn't be saved. Your answers are still here. Try again.");}
+    catch {setError("The metric couldn’t be saved. Your answers are still here. Try again.");}
     finally {setPending(false);onPendingChange?.(false);}
   }
   const groups=[{value:'people',label:'People (once each)'},{value:'attempts',label:'Attempts (once each)'},{value:'sessions',label:'Visits (once each)'}];

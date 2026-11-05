@@ -149,6 +149,52 @@ test("on a phone, a Request opened from Inbox shows its skeleton at once on a sl
   }
 });
 
+// Fix round 5: the test above passes because the Inbox reads its Requests ahead once it has loaded and is idle. On a
+// slow connection that read hasn't finished when the tap comes, and the tap still has to show the Request skeleton.
+test("on a phone, a Request opened from Inbox shows its skeleton at once even before the Inbox has read it ahead (A115)", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const user = await createTestUser("frame-loading-inbox-phone-cold");
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  try {
+    await provisionAndSignIn(page, user, { name: "Inbox Cold PM", workspaceName: "Lane E2E Inbox cold", role: "pm" });
+    const [id] = await seedPreviewFixtures(user.id, ["Opened before the read-ahead"]);
+    // Every read of the Request's page, the read-ahead and the tap's own, waits: nothing about it has arrived.
+    const hold = holdUntilReleased();
+    let readAhead = 0;
+    await page.route(`**/requests/${id}**`, (route, req) => {
+      if (req.headers()["rsc"] !== "1") return route.fallback();
+      if (req.headers()["next-router-prefetch"]) readAhead += 1;
+      return hold.handler(route);
+    });
+    await page.goto("/inbox", { waitUntil: "domcontentloaded" });
+    const open = page.locator(`[data-inbox-item] button[data-inbox-open]`).filter({ hasText: "Opened before the read-ahead" });
+    await expect(open).toBeVisible({ timeout: 60_000 });
+    await settle(page);
+    await open.tap();
+    await expect(page.locator('[data-skeleton="detail"]')).toBeVisible({ timeout: 1_000 });
+    await expect(page.locator("[data-inbox-item]")).toHaveCount(0);
+    // 0.7 s after the tap it is drawn, not still waiting out the placeholder's short delay and fade.
+    await page.waitForTimeout(700);
+    expect(await page.locator('[data-skeleton="detail"]').evaluate(node => getComputedStyle(node.closest("[data-placeholder]")!).opacity)).toBe("1");
+    await page.screenshot({ path: test.info().outputPath("A115-inbox-phone-cold-skeleton.png") });
+    test.info().annotations.push({ type: "read-ahead requests held", description: String(readAhead) });
+    hold.release();
+    await expect(page.locator("#request-title")).toHaveText("Opened before the read-ahead", { timeout: 30_000 });
+    await expect(page.locator('[data-skeleton="detail"]')).toHaveCount(0);
+
+    // Back to the Inbox: it is the Inbox again, not a skeleton left behind.
+    await page.goBack();
+    await expect(open).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[data-skeleton="detail"]')).toHaveCount(0);
+  } finally {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await context.close();
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});
+
 // React shows a streamed part of the page by moving it out of a hidden holder on the next frame, and a background tab
 // draws no frames. When something in the frame changes meanwhile (the composer's code arriving, say), React draws the
 // Request itself and the streamed copy waits, hidden, for a frame. Only one of the two may be the Request's title.

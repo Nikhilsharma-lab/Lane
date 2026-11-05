@@ -21,7 +21,7 @@ describe("checking a Metric definition in the browser", () => {
       name: "Give the metric a name.",
       unit: "Choose a unit.",
       link: "Enter a link that starts with https:// or http://.",
-      howCounted: "Keep how it's counted to 500 characters or fewer.",
+      howCounted: "Keep how it’s counted to 500 characters or fewer.",
     });
     expect(metricDefinitionProblems({ name: "x".repeat(METRIC_NAME_MAX + 1), unit: "percent", link: `https://${"a".repeat(METRIC_LINK_MAX)}`, howCounted: "" })).toEqual({
       name: "Keep the name to 120 characters or fewer.",

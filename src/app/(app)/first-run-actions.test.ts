@@ -79,9 +79,9 @@ describe("the workspace's first person", () => {
   });
 
   it("refuses a step from the other guide, and anything that isn't a step", async () => {
-    expect(await update({ change: "step", step: "inbox" })).toEqual({ error: "That step isn't part of your first run." });
-    expect(await update({ change: "step", step: "sample_data" })).toEqual({ error: "That step isn't part of your first run." });
-    expect(await update({ change: "demo" })).toEqual({ error: "That step isn't part of your first run." });
+    expect(await update({ change: "step", step: "inbox" })).toEqual({ error: "That step isn’t part of your first run." });
+    expect(await update({ change: "step", step: "sample_data" })).toEqual({ error: "That step isn’t part of your first run." });
+    expect(await update({ change: "demo" })).toEqual({ error: "That step isn’t part of your first run." });
     expect((await load())?.view).toMatchObject({ step: "reviewers" });
   });
 
@@ -145,7 +145,7 @@ describe("when the first run can't be worked out or changed", () => {
   });
 
   it("changes nothing for another workspace than the session's, or when signed out", async () => {
-    expect(await update({ change: "skip" }, OTHER)).toEqual({ error: "You can't change the first run in this workspace." });
+    expect(await update({ change: "skip" }, OTHER)).toEqual({ error: "You can’t change the first run in this workspace." });
     Object.assign(session, { userId: null, orgId: null, orgRole: null });
     expect(await update({ change: "skip" })).toMatchObject({ error: expect.any(String) });
     as(FOUNDER, "org:admin");
@@ -155,6 +155,6 @@ describe("when the first run can't be worked out or changed", () => {
   it("refuses to change a first run that hasn't started", async () => {
     as(TEAMMATE, "org:member", OTHER);
     await connection`delete from first_run_progress where org_id = ${OTHER} and user_id = ${TEAMMATE}`;
-    expect(await update({ change: "skip" }, OTHER)).toEqual({ error: "Your first run isn't ready yet. Reload the page and try again." });
+    expect(await update({ change: "skip" }, OTHER)).toEqual({ error: "Your first run isn’t ready yet. Reload the page and try again." });
   });
 });

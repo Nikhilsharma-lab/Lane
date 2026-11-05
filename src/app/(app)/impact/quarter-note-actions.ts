@@ -58,7 +58,7 @@ export async function saveQuarterNote(data: unknown, context: { orgId: string })
     });
   } catch (error) {
     if (error instanceof Stale) return { error: STALE };
-    return { error: `Couldn't save the Quarter note. ${TEXT_KEPT} Try again.` };
+    return { error: `Couldn’t save the Quarter note. ${TEXT_KEPT} Try again.` };
   }
 
   revalidatePath("/impact");

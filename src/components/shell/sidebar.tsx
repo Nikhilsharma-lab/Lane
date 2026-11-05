@@ -18,7 +18,7 @@ import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
 import type { SavedView } from "@/lib/saved-view-nav";
 
-const PROJECT_NOT_CREATED = `Couldn't create the Project. ${CHECK_CONNECTION}`;
+const PROJECT_NOT_CREATED = `Couldn’t create the Project. ${CHECK_CONNECTION}`;
 
 export function Sidebar({
   children,

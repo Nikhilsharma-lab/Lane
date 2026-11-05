@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { InboxScreen } from "@/components/inbox/inbox-screen";
+import { RequestDetailLoading } from "@/components/requests/detail-skeleton";
 import { toInboxItem, toNeedsYouItem } from "@/components/inbox/inbox-item";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { loadInbox } from "@/lib/data/inbox";
@@ -30,5 +31,6 @@ export default async function InboxPage() {
     initialUnread={Math.max(unread, items.length)}
     isGuest={member.role === "guest"}
     viewer={{ id: member.userId, name, isAdmin: member.role === "admin", readOnly: member.role === "viewer" }}
+    requestLoading={<RequestDetailLoading />}
   />;
 }

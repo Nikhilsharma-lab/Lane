@@ -36,7 +36,7 @@ export function RequestLabelsPicker({orgId,value,onChange,disabled,project}:{org
   try {const result=await callAction(() => createLabel({name:normalized,colour,projectId:scopeProjectId},{orgId}));
    if(result.success){catalogue.add(result.label);onChange([...new Set([...value,result.label.id])]);setStep("labels");setQuery("");toast({type:"success",title:"Label added"});}
    else setError(result.error);
-  } catch (thrown) {setError(thrownMessage(thrown, "The label couldn't be created. Try again."));}
+  } catch (thrown) {setError(thrownMessage(thrown, "The label couldn’t be created. Try again."));}
   finally {setBusy(false);setCreatingColour(null);}
  }
  return <Popover open={open} onOpenChange={next=>{if(!busy){setOpen(next);if(!next){setStep("labels");setQuery("");setError(null);}}}}>

@@ -371,7 +371,7 @@ function Composer({ reduce, rail, onExpand, onCreate }: { reduce: boolean; rail:
       await onCreate(name);
       if (mounted.current) { restoreTrigger.current = version; setState("idle"); setValue(""); }
     } catch (failure) {
-      if (mounted.current) { setState("open"); setError(failureWords(failure, "Project couldn't be created. Try again.")); focusInput(version); }
+      if (mounted.current) { setState("open"); setError(failureWords(failure, "Project couldn’t be created. Try again.")); focusInput(version); }
     } finally { inFlight.current = false; }
   }
   const idle = state === "idle";

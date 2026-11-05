@@ -99,7 +99,7 @@ describe("who can add inline", () => {
 
   it("refuses Guests and adds nothing", async () => {
     as("org:guest");
-    expect(await add({ name: "Guest metric", unit: "count" })).toEqual({ error: "Guests can't add metrics to the Metrics library. Pick one that's there, or ask a Member to add it." });
+    expect(await add({ name: "Guest metric", unit: "count" })).toEqual({ error: "Guests can’t add metrics to the Metrics library. Pick one that’s there, or ask a Member to add it." });
     expect(await definitionsNamed("Guest metric")).toHaveLength(0);
   });
 

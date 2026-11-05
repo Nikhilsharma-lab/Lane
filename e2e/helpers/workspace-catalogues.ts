@@ -89,7 +89,7 @@ export async function createCatalogueProject(page: Page, orgId: string, name: st
   const failure = await abortCreate(page, request => matchesCreate(request, orgId, name), submit);
   await recorder.aborted("project", name);
   await expect(projects(page).getByRole("alert")).toBeVisible();
-  await expect(field).toHaveAccessibleDescription("Project couldn't be created. Try again; your Request is still here.");
+  await expect(field).toHaveAccessibleDescription("Project couldn’t be created. Try again; your Request is still here.");
   await expect(field).toHaveAttribute("aria-invalid", "true");
   await expect(field).toHaveValue(name);
   await expect(field).toBeFocused();
@@ -133,7 +133,7 @@ export async function createCatalogueLabel(page: Page, orgId: string, name: stri
     await recorder.pending(kind, name, projectId);
     failure = await abortCreate(page, request => matchesCreate(request, orgId, name, projectId), submit);
     await recorder.aborted(kind, name);
-    await expect(colour.getByRole("alert")).toHaveText("The label couldn't be created. Try again.");
+    await expect(colour.getByRole("alert")).toHaveText("The label couldn’t be created. Try again.");
     await expect(colour.getByText(`Pick a colour for “${name}”`, { exact: true })).toBeVisible();
     await expect(composer(page).getByRole("textbox", { name: "Request title", exact: true })).toHaveValue(draftTitle);
     await capture("label-create-failure-draft-kept");

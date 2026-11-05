@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
 import { useRequestNavigation } from "@/components/requests/request-navigation";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
@@ -23,7 +23,8 @@ import { InboxView, inboxRowButton } from "./inbox-view";
  * A115 on phones (fix round 3): with no preview, an item opens its Request page, and its rows are buttons, not links,
  * so Next never read that page's skeleton ahead and a tap on a slow connection kept the Inbox on screen until the
  * page answered. As Lane's links do (src/components/link.tsx), once the page has loaded and is idle, each row on
- * screen reads its Request's skeleton ahead, once, so a tap shows the Request skeleton at once.
+ * screen reads its Request's skeleton ahead, once. A tap before that read has landed shows the skeleton the server
+ * drew with the Inbox (fix round 5, `requestLoading`).
  */
 function useReadAheadOnScreen(active: boolean, rows: number) {
   const router = useStableRouter();
@@ -46,7 +47,7 @@ function useReadAheadOnScreen(active: boolean, rows: number) {
   }, [active, rows, router]);
 }
 
-const LOAD_FAILED = "Your Inbox couldn't be loaded. Try again.";
+const LOAD_FAILED = "Your Inbox couldn’t be loaded. Try again.";
 
 function read(path: string, orgId: string, controller: AbortController) {
   return fetch(`${path}?${new URLSearchParams({ org: orgId })}`, { signal: controller.signal, headers: { accept: "application/json" }, credentials: "same-origin" });
@@ -70,6 +71,11 @@ export type InboxScreenProps = {
   initialUnread: number;
   isGuest: boolean;
   viewer: PeekViewer;
+  /**
+   * The Request page's loading frame, drawn on the server. Where there is no preview, a tapped item shows it at once,
+   * as a preview's skeleton does: a slow connection may not have read the Request's own loading frame ahead yet.
+   */
+  requestLoading: ReactNode;
 };
 
 /**
@@ -80,7 +86,7 @@ export type InboxScreenProps = {
  * available; elsewhere the Request's page opens). A window focus re-reads the list and the count; items read
  * on this visit stay in place until the next one (inbox-list.ts).
  */
-export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems, initialUnread, isGuest, viewer }: InboxScreenProps) {
+export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems, initialUnread, isGuest, viewer, requestLoading }: InboxScreenProps) {
   const navigation = useRequestNavigation();
   const [state, setState] = useState<ReadState<InboxItem>>(() => receiveList(initialReadState<InboxItem>(initialUnread), initialItems, 0));
   const [needsYou, setNeedsYou] = useState(initialNeedsYou);
@@ -88,6 +94,8 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   const [reading, setReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  // Fix round 5 (A115 on phones): a Request's page is on its way; the Inbox gives way to its skeleton until it lands.
+  const [openingRequest, setOpeningRequest] = useState(false);
   const latest = useRef(state);
   useLayoutEffect(() => { latest.current = state; });
   const tokens = useRef(0);
@@ -108,6 +116,14 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   useEffect(() => () => { countRequest.current?.abort(); listRequest.current?.abort(); }, []);
   useEffect(() => { if (peekAvailable) preloadRequestPeek(); }, [peekAvailable]);
   useReadAheadOnScreen(!peekAvailable, items.length + needsYou.length);
+  // Back or forward before the Request arrives cancels the move, and the Inbox is back.
+  useEffect(() => {
+    if (!openingRequest) return;
+    const back = () => setOpeningRequest(false);
+    window.addEventListener("popstate", back);
+    return () => window.removeEventListener("popstate", back);
+  }, [openingRequest]);
+  const openRequestPage = (requestId: string) => { if (navigation.open(requestDetailHref(requestId, "all"))) setOpeningRequest(true); };
 
   const refreshCount = useCallback(async () => {
     const controller = replace(countRequest);
@@ -205,7 +221,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
       navigation.previewChanged(item.requestId);
       if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });
       setSelectedId(item.id);
-    } else if (item.requestId) navigation.open(requestDetailHref(item.requestId, "all"));
+    } else if (item.requestId) openRequestPage(item.requestId);
     if (token !== null) runRead(item, readAt, token);
   };
 
@@ -216,7 +232,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
       navigation.previewChanged(item.requestId);
       if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });
       setSelectedId(item.key);
-    } else navigation.open(requestDetailHref(item.requestId, "all"));
+    } else openRequestPage(item.requestId);
   };
 
   const closePreview = () => {
@@ -258,6 +274,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   // the preview is open, as on the Requests list).
   const loadAhead = useListLoadAhead(orgId, viewer.id, { offered: peekAvailable, previewOpen: previewId !== null });
 
+  if (openingRequest) return requestLoading;
   return <RequestPeekLoadAhead value={loadAhead}><InboxView
     needsYou={needsYou}
     showNeedsYou={showNeedsYou}

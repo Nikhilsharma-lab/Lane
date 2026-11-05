@@ -606,3 +606,7 @@ The new Timeline and CommentThread use `m.*` under the existing strict LazyMotio
 ### Merge of main's palette and Request pane into Build 4 (2026-11-03)
 
 The local hashes for `workspace-sidebar.tsx` and `workspace-sidebar.module.css` now record the combined files: Build 4's `membersLabel`, `onShowShortcuts`, account-name room and New Project field sit alongside #326's `onDeleteProject` and Lane theme tokens. Lane's Project menu passes `outsidePressOnlyCloses` to both its right-click menu and its visible actions button, so the A16 swallowing covers the new Delete Project item too. The New Project composer's `::before` box sits on `--lane-layer-underlay` instead of a literal `-1`, as #326's theme contract requires. Because #326's focus wash is opaque, the New Project trigger's keyboard-focus fill moves from the trigger (which lies over the label) to that `::before` box beneath it, so A17's single "New Project" label stays visible. No component API, visual value or motion behaviour is added.
+
+### Build 4 fix round 5: typographic apostrophes (2026-11-05)
+
+The local hash for `workspace-sidebar.tsx` records one copy change: New Project's failure message reads "Project couldn’t be created. Try again." with a typographic apostrophe, as Lane's other copy now does.

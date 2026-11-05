@@ -9,7 +9,7 @@ import { createTestUser, deleteTestUser } from "./helpers/test-user";
 // never get it on an old tab after a deploy, or offline. Then Lane says so inside the app and keeps what was typed:
 // never a blank popup, never the page thrown out for an error screen. Try again opens it once the code can load.
 
-const COULDNT_OPEN = "Couldn't open this";
+const COULDNT_OPEN = "Couldn’t open this";
 const TEXT_KEPT = "Your text is still here.";
 
 const toasts = (page: Page) => page.getByRole("region", { name: /^Messages/ });

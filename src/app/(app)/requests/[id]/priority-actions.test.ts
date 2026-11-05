@@ -60,7 +60,7 @@ describe("setRequestPriority", () => {
     expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "Request not found" });
     actAs(FOREIGN, "org:member", FOREIGN_ORG);
     expect(await setRequestPriority(requestId, "urgent", { orgId: FOREIGN_ORG })).toEqual({ error: "Request not found" });
-    expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "You can't change Requests in this workspace." });
+    expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "You can’t change Requests in this workspace." });
     expect((await saved()).priority).toBe("none");
   });
 

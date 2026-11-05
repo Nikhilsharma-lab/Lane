@@ -24,8 +24,8 @@ import type { WorkspacePermission } from "@/lib/auth-guard";
 
 type Result = { success: true } | { error: string; sessionExpired?: true };
 
-const ROLES_UNAVAILABLE = "Guest and Viewer aren't available in this workspace yet. Invite them as a Member, or ask whoever runs Lane to turn these roles on.";
-const CHANGE_UNAVAILABLE = "Guest and Viewer aren't available in this workspace yet. Choose Admin or Member.";
+const ROLES_UNAVAILABLE = "Guest and Viewer aren’t available in this workspace yet. Invite them as a Member, or ask whoever runs Lane to turn these roles on.";
+const CHANGE_UNAVAILABLE = "Guest and Viewer aren’t available in this workspace yet. Choose Admin or Member.";
 
 const offered = (role: WorkspacePermission) => rolesOffered(customRoles()).includes(role);
 /** A paid seat added while billing is enforced needs the Admin's confirmation. */
@@ -57,7 +57,7 @@ export async function inviteToWorkspace(data: { email: string; role: string; con
     if (code === "duplicate_record" || code === "already_a_member_in_organization")
       return { error: `${email} already has an invitation or is already in this workspace.` };
     console.error("[members] invitation failed", { code });
-    return { error: "The invitation couldn't be sent. Try again." };
+    return { error: "The invitation couldn’t be sent. Try again." };
   }
   revalidatePath("/settings/members");
   return { success: true };
@@ -66,23 +66,23 @@ export async function inviteToWorkspace(data: { email: string; role: string; con
 export async function changeMemberRole(data: { userId: string; role: string; confirmedPaidSeat?: boolean }, context: { orgId: string }): Promise<Result> {
   const parsed = roleChangeInputSchema.safeParse(data);
   if (!parsed.success) return { error: firstIssue(parsed.error) };
-  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can change people's roles.");
+  const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can change people’s roles.");
   if ("error" in auth) return auth;
   const { userId, role, confirmedPaidSeat } = parsed.data;
   // An Admin can't demote themselves, so a workspace always keeps the Admin who could undo a change.
-  if (userId === auth.userId) return { error: "You can't change your own role. Ask another Admin to do it." };
+  if (userId === auth.userId) return { error: "You can’t change your own role. Ask another Admin to do it." };
   if (!offered(role)) return { error: CHANGE_UNAVAILABLE };
 
   try {
     const client = await clerkClient();
     const { data: memberships } = await client.organizations.getOrganizationMembershipList({ organizationId: auth.orgId, userId: [userId] });
     const membership = memberships.find((m) => m.organization.id === auth.orgId && m.publicUserData?.userId === userId);
-    if (!membership) return { error: "That person isn't in this workspace any more. Reload to see who is." };
+    if (!membership) return { error: "That person isn’t in this workspace any more. Reload to see who is." };
     if (unconfirmedSeat(clerkWorkspacePermission(membership.role), role, confirmedPaidSeat)) return { error: CONFIRM_PAID_SEAT };
     await client.organizations.updateOrganizationMembership({ organizationId: auth.orgId, userId, role: clerkRoleOf(role) });
   } catch (error) {
     console.error("[members] role change failed", { code: clerkCode(error) });
-    return { error: "The role couldn't be changed. Try again." };
+    return { error: "The role couldn’t be changed. Try again." };
   }
   // The role is changed in Clerk either way; a seat change the provider missed is made by the next check.
   await followSeatChanges(auth);
@@ -96,7 +96,7 @@ export async function revokeInvitation(data: { invitationId: string }, context: 
   const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can revoke invitations.");
   if ("error" in auth) return auth;
   const { invitationId } = parsed.data;
-  const gone = { error: "That invitation isn't pending any more. Reload to see the latest." };
+  const gone = { error: "That invitation isn’t pending any more. Reload to see the latest." };
 
   try {
     const client = await clerkClient();
@@ -105,7 +105,7 @@ export async function revokeInvitation(data: { invitationId: string }, context: 
     await client.organizations.revokeOrganizationInvitation({ organizationId: auth.orgId, invitationId, requestingUserId: auth.userId });
   } catch (error) {
     console.error("[members] revoke failed", { code: clerkCode(error) });
-    return { error: "The invitation couldn't be revoked. Try again." };
+    return { error: "The invitation couldn’t be revoked. Try again." };
   }
   revalidatePath("/settings/members");
   return { success: true };

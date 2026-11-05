@@ -22,3 +22,13 @@
   .dialog[role="dialog"], .overlay { opacity: 1 !important; }
   .dialog[role="dialog"][data-state="closed"], .overlay[data-state="closed"] { visibility: hidden; }
 }
+/* Fix round 5: as the shortcuts dialog's list does (keyboard-shortcuts.module.css), a cut list fades at its bottom edge
+   so the cut reads as "more below", and the fade shrinks to nothing as the list reaches its end. Inactive when the
+   list fits (a narrowed filter); browsers without scroll timelines show the plain cut. */
+@property --palette-fade { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes palette-fade { from { --palette-fade: var(--space-8); } to { --palette-fade: 0px; } }
+@supports (animation-timeline: scroll()) {
+  .list { mask-image: linear-gradient(to bottom, #000 calc(100% - var(--palette-fade)), transparent); animation: palette-fade linear both; animation-timeline: scroll(self); }
+  /* It follows the scroll position, not the clock, so reduced motion (globals.css stops every animation) keeps it. */
+  @media (prefers-reduced-motion: reduce) { .list { animation-duration: auto !important; } }
+}

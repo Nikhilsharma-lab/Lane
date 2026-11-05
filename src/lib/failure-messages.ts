@@ -8,12 +8,12 @@ import { OfflineError } from "./offline-error"
  */
 
 /** The app frame's quiet offline line, and the title wherever Lane says the browser is offline. */
-export const OFFLINE_LINE = "You're offline"
+export const OFFLINE_LINE = "You’re offline"
 /** What a failure message adds when the person's typing survived it. */
 export const TEXT_KEPT = "Your text is still here."
 /** What any saving action says while the browser is offline. Nothing is changed or queued. As a
  * toast or alert title it has no full stop; inline it reads as a sentence. */
-export const OFFLINE_ANSWER_TITLE = "You're offline, this will work when you're back"
+export const OFFLINE_ANSWER_TITLE = "You’re offline, this will work when you’re back"
 export const OFFLINE_ANSWER = `${OFFLINE_ANSWER_TITLE}.`
 /** A change that didn't save: the toast title. */
 export const SAVE_FAILED_TITLE = "Couldn't save"
@@ -24,7 +24,7 @@ export const SESSION_ENDED = "Your session ended. Sign in again to continue."
 /** A read or change refused because the session no longer matches this workspace. */
 export const SESSION_CHANGED = "Your workspace session changed. Refresh the page to continue."
 /** A popup whose code couldn't load (an old tab after a deploy): the toast title. Offline says OFFLINE_ANSWER_TITLE. */
-export const POPUP_UNAVAILABLE_TITLE = "Couldn't open this"
+export const POPUP_UNAVAILABLE_TITLE = "Couldn’t open this"
 /** Lane's own words with typographic apostrophes, for a message shown beside copy that already has them. */
 export const curlyApostrophes = (words: string) => words.replaceAll("'", "’")
 /** The label on every failure message's retry button. */

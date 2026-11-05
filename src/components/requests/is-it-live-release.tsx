@@ -23,7 +23,7 @@ export function IsItLiveRelease({ request, orgId, onSaved, onNotYet }: { request
     let active = true
     callAction(() => readRequestRelease(request.id, { orgId }))
       .then(next => { if (active) setRead(next) })
-      .catch(() => { if (active) setRead({ error: "Couldn't load release. Try again." }) })
+      .catch(() => { if (active) setRead({ error: "Couldn’t load release. Try again." }) })
     return () => { active = false }
   }, [request.id, orgId])
 

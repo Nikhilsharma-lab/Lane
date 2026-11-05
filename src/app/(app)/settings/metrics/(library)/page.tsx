@@ -36,7 +36,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   // #210: a Viewer reads the library and adds or edits nothing.
   const canEdit = canChangeThings(workspace.role);
   return <SettingsCommandAdapter page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
-    metrics={<SettingsCard title="Metric definitions" footer="Pass/fail checks are chosen on each Request and aren't part of the library.">
+    metrics={<SettingsCard title="Metric definitions" footer="Pass/fail checks are chosen on each Request and aren’t part of the library.">
       <div className={styles.toolbar}><MetricLibraryFilter show={view} />{canEdit && <AddMetricDialog orgId={workspace.orgId} />}</div>
       <MetricDefinitionList definitions={definitions} view={view} canEdit={canEdit} />
     </SettingsCard>}

@@ -12,7 +12,7 @@ export type WorkspaceScope = Pick<MemberAuth, "orgId">;
 export type WorkspacePerson = Pick<MemberAuth, "orgId" | "userId">;
 
 export const SESSION_ENDED = "Your session ended. Sign in again to continue.";
-export const VIEWER_REFUSAL = "You're a Viewer in this workspace, so you can read everything but can't change anything. Ask an Admin if you need to.";
+export const VIEWER_REFUSAL = "You’re a Viewer in this workspace, so you can read everything but can’t change anything. Ask an Admin if you need to.";
 
 /** One session snapshot decides identity, workspace and expiry before any change.
  * Wrong-workspace, role and validation refusals never permit a session replay. */

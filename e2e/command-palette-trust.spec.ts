@@ -36,6 +36,14 @@ async function shortcutsBody(dialog: Locator) {
   });
 }
 
+/** The ⌘K palette's list: how far it scrolls and the fade at its bottom edge, in px. */
+async function paletteList(page: Page) {
+  return palette(page).locator('[role="listbox"]').evaluate(node => {
+    const fade = parseFloat(getComputedStyle(node).getPropertyValue("--palette-fade")) || 0;
+    return { overflow: node.scrollHeight - node.clientHeight, fade, mask: getComputedStyle(node).maskImage };
+  });
+}
+
 /** Space between each label and the next one in the same list, in px: equal whether a label takes one line or two (A125). */
 async function rowGaps(dialog: Locator) {
   return dialog.locator("dl").evaluateAll(lists => lists.flatMap(list => {
@@ -330,6 +338,40 @@ test("⌘K stays open through a page change, keeps what is typed, finds Impact, 
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
       await page.setViewportSize({ width: 1440, height: 900 });
+    });
+
+    await test.step("Fix round 5: ⌘K's cut list fades at its bottom edge, light and dark, reduced motion too, and the highlight clears the fade", async () => {
+      for (const [colorScheme, reducedMotion] of [["light", "no-preference"], ["dark", "reduce"]] as const) {
+        await page.emulateMedia({ colorScheme, reducedMotion });
+        await page.goto("/");
+        await expect(page.getByText("Palette trust request").first()).toBeVisible();
+        await hydrated(page);
+        await page.locator("#lane-main").focus();
+        await page.keyboard.press("Meta+k");
+        await expect(field(page)).toBeFocused();
+        await page.waitForTimeout(500);
+        const top = await paletteList(page);
+        expect(top.overflow, "the full list scrolls at 1440x900").toBeGreaterThan(0);
+        expect(top.mask, "the bottom edge is masked").toContain("gradient");
+        expect(top.fade, `rows fade out at the cut edge (${colorScheme}, ${reducedMotion})`).toBeGreaterThan(16);
+        await page.screenshot({ path: testInfo.outputPath(`palette-fade-${colorScheme}.png`) });
+        // Walking down with the keys keeps the highlighted row clear of the fade.
+        const rows = await palette(page).getByRole("option").count();
+        for (let index = 0; index < Math.min(rows - 2, 12); index++) await field(page).press("ArrowDown");
+        const clear = await palette(page).evaluate(node => {
+          const list = node.querySelector<HTMLElement>('[role="listbox"]')!, row = list.querySelector<HTMLElement>('[aria-selected="true"]')!;
+          const fade = parseFloat(getComputedStyle(list).getPropertyValue("--palette-fade")) || 0;
+          return list.getBoundingClientRect().bottom - fade - row.getBoundingClientRect().bottom;
+        });
+        expect(clear, "the highlighted row sits above the fade").toBeGreaterThanOrEqual(-0.5);
+        await palette(page).locator('[role="listbox"]').evaluate(node => { node.scrollTop = node.scrollHeight; });
+        await expect.poll(async () => (await paletteList(page)).fade, { message: "the fade goes once the end is reached" }).toBe(0);
+        await field(page).fill("impact");
+        await expect.poll(async () => (await paletteList(page)).fade, { message: "a list that fits has no fade" }).toBe(0);
+        await page.keyboard.press("Escape");
+        await expect(palette(page)).toBeHidden();
+      }
+      await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
     });
 
     await test.step("A124: on a phone the shortcuts dialog's title and close stay in place while the list scrolls", async () => {

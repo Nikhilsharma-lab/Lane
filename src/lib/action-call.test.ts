@@ -42,7 +42,7 @@ describe("callAction", () => {
     await expect(callAction(run, s)).resolves.toBe(expired)
     expect(run).toHaveBeenCalledTimes(1)
   })
-  it.each(["Your session ended. Sign in again to continue.", "You can't change Requests in this workspace.", "Describe the problem"])("never replays ordinary refusal: %s", async error => {
+  it.each(["Your session ended. Sign in again to continue.", "You can’t change Requests in this workspace.", "Describe the problem"])("never replays ordinary refusal: %s", async error => {
     const s = session(); const refusal = { error }; const run = vi.fn(async () => refusal)
     await expect(callAction(run, s)).resolves.toBe(refusal)
     expect(run).toHaveBeenCalledTimes(1)
