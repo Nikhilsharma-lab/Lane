@@ -19,10 +19,16 @@ export async function signInNativeTestUser(page: Page, emailAddress: string, org
   await page.waitForFunction(() => window.Clerk?.loaded === true, undefined, { polling: 250, timeout: 60_000 });
   await clerk.signIn({ page, emailAddress });
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
-  // Signed in, Clerk's sign-in card moves the page on from /login. A page.goto racing that move was aborted
-  // (net::ERR_ABORTED), so the next step starts once it has landed.
-  await page.waitForURL(url => url.pathname !== "/login", { timeout: 30_000 });
-  await page.waitForLoadState("load");
+  // Signed in, Clerk's sign-in card sometimes moves the page on from /login and sometimes stays, blank. So the
+  // sign-in leaves /login itself; a goto that the card's own move interrupts (net::ERR_ABORTED) waits for that
+  // move to land and goes again, so the next step never races it.
+  for (let attempt = 1; ; attempt++) {
+    try { await page.goto(new URL("/", assertE2ETarget().baseURL).href); break; } catch (error) {
+      if (attempt === 3 || !String(error).includes("net::ERR_ABORTED")) throw error;
+      await page.waitForLoadState("load");
+    }
+  }
+  await expect(page).not.toHaveURL(/\/login(?:[?#]|$)/);
 }
 
 /** Brings the dedicated browser's page to the front and waits until the browser reports it visible. */
