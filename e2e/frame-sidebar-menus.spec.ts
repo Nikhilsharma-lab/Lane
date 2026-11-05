@@ -41,9 +41,9 @@ const menuWatch = (page: Page) => ({
 });
 
 /**
- * A122: records every frame the menu named `label` is painted on, from now until `stop()`: the lowest opacity of
- * the menu and its items (each multiplied through its ancestors, so a fading layer counts) and the menu's own
- * transform. `arm()` then counts the frames it stays painted after the next key or pointer press.
+ * A122: records every frame the next menu named `label` is painted on, until it leaves or `stop()`: the lowest
+ * opacity of the menu and its items (each multiplied through its ancestors, so a fading layer counts) and the
+ * menu's own transform. `arm()` then counts the frames it stays painted after the next key or pointer press.
  */
 async function watchMenuFrames(page: Page, label: string) {
   await page.evaluate(label => {
@@ -51,30 +51,35 @@ async function watchMenuFrames(page: Page, label: string) {
     let closing = false;
     let afterClose = 0;
     let running = true;
-    const look = () => {
-      if (!running) return;
-      const menu = document.querySelector<HTMLElement>(`[role="menu"][aria-label="${label}"]`);
-      if (menu) {
-        let lowest = 1;
-        for (const element of [menu, ...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]) {
-          let opacity = 1;
-          for (let node: HTMLElement | null = element; node; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity);
-          lowest = Math.min(lowest, opacity);
-        }
-        const transform = getComputedStyle(menu).transform;
-        shown.push({ opacity: lowest, transform: transform === "matrix(1, 0, 0, 1, 0, 0)" ? "none" : transform });
-        if (closing) afterClose += 1;
+    const look = (menu: HTMLElement) => {
+      if (!running || !menu.isConnected) return;
+      let lowest = 1;
+      for (const element of [menu, ...menu.querySelectorAll<HTMLElement>('[role="menuitem"]')]) {
+        let opacity = 1;
+        for (let node: HTMLElement | null = element; node; node = node.parentElement) opacity *= Number(getComputedStyle(node).opacity);
+        lowest = Math.min(lowest, opacity);
       }
-      requestAnimationFrame(look);
+      const transform = getComputedStyle(menu).transform;
+      shown.push({ opacity: lowest, transform: transform === "matrix(1, 0, 0, 1, 0, 0)" ? "none" : transform });
+      if (closing) afterClose += 1;
+      requestAnimationFrame(() => look(menu));
     };
-    requestAnimationFrame(look);
+    // The first frame callback is queued once the menu is added, so it runs after the frame work the app queued
+    // while opening it, as the browser does just before painting; each later one stays queued after the app's.
+    const observer = new MutationObserver(() => {
+      const menu = document.querySelector<HTMLElement>(`[role="menu"][aria-label="${label}"]`);
+      if (!menu) return;
+      observer.disconnect();
+      requestAnimationFrame(() => look(menu));
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
     const press = () => { closing = true; };
     (window as unknown as { __laneMenuWatch: MenuWatch }).__laneMenuWatch = {
       arm: () => {
         document.addEventListener("keydown", press, { capture: true, once: true });
         document.addEventListener("pointerdown", press, { capture: true, once: true });
       },
-      stop: () => { running = false; return { shown, afterClose }; },
+      stop: () => { running = false; observer.disconnect(); return { shown, afterClose }; },
     };
   }, label);
 }
