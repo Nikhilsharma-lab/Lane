@@ -50,7 +50,7 @@ export type OptimisticDeps = {
   refresh: () => void
   /** The session token every call refreshes first (`callAction`). */
   session: ActionSession
-  /** The default failure feedback: "Couldn't save" (or the offline answer) with Try again. */
+  /** The default failure feedback: "Couldn’t save" (or the offline answer) with Try again. */
   notifyError: (message: string, detail: FailureDetail) => void
   /** Whether the browser is offline (src/lib/connection-status.ts by default). */
   offline?: () => boolean
@@ -170,7 +170,7 @@ export function useServerRefresh() {
   return useCallback(() => { if (!isOffline()) router.refresh() }, [router])
 }
 
-/** #260: the one failure toast. Offline it is the shared answer; otherwise "Couldn't save" says what
+/** #260: the one failure toast. Offline it is the shared answer; otherwise "Couldn’t save" says what
  * happened. Both carry Try again, which sends the same change again only when pressed. */
 export function failureToast(message: string, { offline, retry }: Pick<FailureDetail, "offline" | "retry">): ToastOptions {
   const action = { label: TRY_AGAIN, onClick: () => { void retry() } }
