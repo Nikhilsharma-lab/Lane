@@ -21,29 +21,20 @@ export async function signInNativeTestUser(page: Page, emailAddress: string, org
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
 }
 
-/**
- * Puts the dedicated browser's window on screen and waits until its page draws. bringToFront only picks the tab: a
- * window macOS opened behind other windows stays hidden, draws no frames and runs no animation-frame callbacks, so
- * the run waited on a Pick up whose screen never updated until the test timed out. Minimising and restoring the
- * window brings it to the front.
- */
+/** Brings the dedicated browser's page to the front and waits until the browser reports it visible. */
 export async function showOnScreen(page: Page) {
   await page.bringToFront();
-  const visible = () => page.evaluate(() => document.visibilityState === "visible");
-  if (await visible()) return;
-  const cdp = await page.context().newCDPSession(page);
-  try {
-    const { windowId } = await cdp.send("Browser.getWindowForTarget");
-    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
-    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
-  } finally { await cdp.detach(); }
-  await expect.poll(visible, { message: "The dedicated browser's window stays hidden (another window covers it): native visibility can't be checked." }).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.visibilityState), { message: "The dedicated browser's page should be visible once in front" }).toBe("visible");
 }
 
 /** A dedicated browser with native tab visibility; Playwright's normal focus override keeps tabs visible. */
 export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
   const profile = await mkdtemp(join(tmpdir(), "lane-undo-visibility-"));
-  const child = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  const child = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check",
+    // macOS hides a window other windows cover: no frames, so a Pick up there never showed Mark Done and the run hung
+    // until its 15-minute timeout. Other windows (other runs) come and go on this machine; only a tab switch, which
+    // the checks make on purpose, should hide the page.
+    "--disable-backgrounding-occluded-windows", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
   let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
   try {
     const endpoint = await new Promise<string>((resolve, reject) => {
