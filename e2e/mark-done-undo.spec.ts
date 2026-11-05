@@ -4,7 +4,7 @@ import { createTestUser, signInTestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 import { createRequestThroughIntake, giveBackBorrowed, type ReviewTeam } from "./helpers/reviewers";
 import { assertE2ETarget } from "./helpers/safety";
-import { signInNativeTestUser, withNativeVisibility } from "./helpers/native-visibility";
+import { showOnScreen, signInNativeTestUser, withNativeVisibility } from "./helpers/native-visibility";
 import { assertLocalUndoTarget } from "./helpers/server-action-identity";
 import { markDone, restoreDoneDuringExit, undoDriver, undoFromToast, undoSurfaces, verifyDoneFailure, verifyEarlyUndo, verifyEnding, verifyLatestPair, verifyPause, verifySavedStatusSkippedUndo, verifyReleaseFailureThenNewerPrompt, verifyUndoFailure, type UndoRecorder, type UndoRequest } from "./helpers/mark-done-undo";
 
@@ -51,6 +51,8 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
     await withNativeVisibility(async native => {
       await native.setViewportSize({ width: 1440, height: 900 });
       await signInNativeTestUser(native, user.email, orgId);
+      // Signing in takes a while; a window opened meanwhile may now cover this one.
+      await showOnScreen(native);
       const driver = await undoDriver(native, orgId, fixtures[0], recorder); await driver.pickUp();
       await verifyPause(driver, "hidden", capture(testInfo, native, "native"));
     });

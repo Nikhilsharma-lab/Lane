@@ -21,6 +21,25 @@ export async function signInNativeTestUser(page: Page, emailAddress: string, org
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
 }
 
+/**
+ * Puts the dedicated browser's window on screen and waits until its page draws. bringToFront only picks the tab: a
+ * window macOS opened behind other windows stays hidden, draws no frames and runs no animation-frame callbacks, so
+ * the run waited on a Pick up whose screen never updated until the test timed out. Minimising and restoring the
+ * window brings it to the front.
+ */
+export async function showOnScreen(page: Page) {
+  await page.bringToFront();
+  const visible = () => page.evaluate(() => document.visibilityState === "visible");
+  if (await visible()) return;
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { windowId } = await cdp.send("Browser.getWindowForTarget");
+    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
+    await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
+  } finally { await cdp.detach(); }
+  await expect.poll(visible, { message: "The dedicated browser's window stays hidden (another window covers it): native visibility can't be checked." }).toBe(true);
+}
+
 /** A dedicated browser with native tab visibility; Playwright's normal focus override keeps tabs visible. */
 export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
   const profile = await mkdtemp(join(tmpdir(), "lane-undo-visibility-"));
@@ -40,7 +59,7 @@ export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
     browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
     const context = browser.contexts()[0];
     const page = context.pages()[0] ?? await context.newPage();
-    await page.bringToFront();
+    await showOnScreen(page);
     return await run(page);
   } finally {
     if (browser) {
@@ -54,8 +73,7 @@ export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
 
 /** No property overrides, fake events or clock installation: this tab genuinely becomes hidden. */
 export async function pauseInNativeBackground(page: Page, durationMs: number) {
-  await page.bringToFront();
-  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
+  await showOnScreen(page);
   const initialState = await page.evaluate(() => {
     const events: { state: string; trusted: boolean; time: number }[] = [];
     const target = window as typeof window & { laneUndoVisibility?: typeof events };
