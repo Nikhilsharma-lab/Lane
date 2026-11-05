@@ -184,6 +184,9 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
   // This option requires confirmed saved receipts from the retained continuation above.
   if (!cAlreadyRestoredAndPickedUp) {
     await setCurrentValue(page, orgId, fixture.c, recorder, "62");
+    // Pick up stays disabled until the saved value is back from the server. A press before that can't focus it, so
+    // its Enter went to the focused Edit Request and opened the editor again, and the Pick up never went.
+    await expect(page.getByRole("button", { name: "Pick up", exact: true })).toBeEnabled();
     const pickup = await beginCoordinatedChange(page, orgId, "pickup", [fixture.c.id], recorder, () => page.getByRole("button", { name: "Pick up", exact: true }).press("Enter")); await pickup.finish();
   }
   await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible();

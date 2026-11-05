@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { paletteListKey } from "./command-palette-keys"
-import { paletteShortcut, typeaheadKey } from "./command-palette-shortcut"
+import { paletteClosesOnHistoryStep, paletteShortcut, typeaheadKey } from "./command-palette-shortcut"
 
 const key = (overrides: Partial<Parameters<typeof paletteShortcut>[0]> = {}) => ({
   key: "k", metaKey: true, ctrlKey: false, altKey: false, shiftKey: false, repeat: false, isComposing: false, defaultPrevented: false, ...overrides,
@@ -113,5 +113,18 @@ describe("the palette's list by keyboard while the field keeps focus (#106)", ()
     expect(paletteListKey(press("a"), list)).toBeNull()
     expect(paletteListKey(press("Home", { shiftKey: true }), list)).toBeNull()
     expect(paletteListKey(press("Enter", { isComposing: true }), list)).toBeNull()
+  })
+})
+
+describe("Back or Forward while the palette is open (#268, A11)", () => {
+  it("closes it when the step lands on another address", () => {
+    expect(paletteClosesOnHistoryStep("/requests/1", "/")).toBe(true)
+    expect(paletteClosesOnHistoryStep("/?status=open", "/?status=done")).toBe(true)
+  })
+
+  // A phone panel that closed just before ⌘K steps its own history entry back a moment later (popup-history.ts).
+  // That step stays on this page, so the palette opened after it stays open.
+  it("keeps it open for a step that stays on the same address", () => {
+    expect(paletteClosesOnHistoryStep("/requests/1", "/requests/1")).toBe(false)
   })
 })

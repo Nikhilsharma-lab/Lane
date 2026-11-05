@@ -6,7 +6,7 @@ import { usePopupCode } from "@/components/popup/lazy-popup"
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { navigationStartedAt } from "@/lib/navigation-intent"
 import type { CommandPaletteWorkspace } from "./command-palette"
-import { paletteShortcut, typeaheadKey } from "./command-palette-shortcut"
+import { paletteClosesOnHistoryStep, paletteShortcut, typeaheadKey } from "./command-palette-shortcut"
 import { useShellOpener } from "./shell-openers"
 import { shellSurfaces } from "./workspace-search-pane-lazy"
 
@@ -28,6 +28,8 @@ import { shellSurfaces } from "./workspace-search-pane-lazy"
  * other (a push, a redirect) as it lands. A page that was already on its way
  * when ⌘K was pressed lands under it, and it stays open.
  */
+const currentAddress = () => location.pathname + location.search + location.hash
+
 export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: string }) {
   const { pathname, ...workspace } = props
   const [open, setOpen] = useState(false)
@@ -40,10 +42,10 @@ export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: 
   const change = (next: boolean) => { if (!next) typeahead.current = null; setOpen(next) }
   // When the last page landed; when it opened, and whether a page change was then on its way (it may land under it).
   const landedAt = useRef(-Infinity)
-  const opened = useRef({ at: 0, awaiting: false })
+  const opened = useRef({ at: 0, awaiting: false, address: "" })
   const show = (focusBack: HTMLElement | null) => {
     returnFocus.current = focusBack; typeahead.current = ""
-    opened.current = { at: performance.now(), awaiting: navigationStartedAt() > landedAt.current }
+    opened.current = { at: performance.now(), awaiting: navigationStartedAt() > landedAt.current, address: currentAddress() }
     setOpen(true)
   }
   const surfaces = usePopupCode(shellSurfaces, open, () => {
@@ -77,7 +79,7 @@ export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: 
   }, [])
   useEffect(() => {
     if (!open) return
-    const back = () => change(false)
+    const back = () => { if (paletteClosesOnHistoryStep(opened.current.address, currentAddress())) change(false) }
     window.addEventListener("popstate", back)
     return () => window.removeEventListener("popstate", back)
   }, [open])
