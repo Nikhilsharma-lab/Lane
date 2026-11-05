@@ -34,8 +34,9 @@ async function expectNothingOpened(page: Page, path: string) {
 
 type MenuFrame = { opacity: number; transform: string };
 type MenuFrames = { shown: MenuFrame[]; afterClose: number };
-type MenuWatch = { arm(): void; stop(): MenuFrames };
+type MenuWatch = { painted(): number; arm(): void; stop(): MenuFrames };
 const menuWatch = (page: Page) => ({
+  painted: () => page.evaluate(() => (window as unknown as { __laneMenuWatch: MenuWatch }).__laneMenuWatch.painted()),
   arm: () => page.evaluate(() => (window as unknown as { __laneMenuWatch: MenuWatch }).__laneMenuWatch.arm()),
   stop: () => page.evaluate(() => (window as unknown as { __laneMenuWatch: MenuWatch }).__laneMenuWatch.stop()),
 });
@@ -75,6 +76,7 @@ async function watchMenuFrames(page: Page, label: string) {
     observer.observe(document.body, { childList: true, subtree: true });
     const press = () => { closing = true; };
     (window as unknown as { __laneMenuWatch: MenuWatch }).__laneMenuWatch = {
+      painted: () => shown.length,
       arm: () => {
         document.addEventListener("keydown", press, { capture: true, once: true });
         document.addEventListener("pointerdown", press, { capture: true, once: true });
@@ -205,11 +207,12 @@ test("the sidebar, account menu and New Project: menus only close, names and lim
         await watchMenuFrames(page, "Checkout actions");
         await project.click({ button: "right" });
         await expect(menu.getByRole("menuitem", { name: "Open", exact: true })).toBeVisible();
+        // The browser paints the menu before it is closed; a close in the same frame would prove nothing.
+        await expect.poll(() => menuWatch(page).painted()).toBeGreaterThan(1);
         await menuWatch(page).arm();
         await close();
         await expect(menu).toHaveCount(0);
         const frames = await menuWatch(page).stop();
-        expect(frames.shown.length, "the menu was painted").toBeGreaterThan(0);
         expect(frames.shown[0], "its first frame is the whole menu, still").toEqual({ opacity: 1, transform: "none" });
         expect(frames.shown.filter(frame => frame.opacity !== 1 || frame.transform !== "none"), `no frame fades or scales, closed by ${how}`).toEqual([]);
         expect(frames.afterClose, `gone within two frames of ${how}`).toBeLessThanOrEqual(2);
