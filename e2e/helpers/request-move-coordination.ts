@@ -69,6 +69,9 @@ export async function setCurrentValue(page: Page, orgId: string, request: Naviga
     const change = await beginCoordinatedChange(page, orgId, "edit", [request.id], recorder, () => submit.press("Enter"));
     await Promise.race([change.received(), gate.blocked]); await change.finish();
     gate.assertUnused(); await expect(dialog).toBeHidden();
+    // The editor hands focus back to Edit Request a moment after it has left the page; a key pressed before that
+    // landed on Edit Request and opened the editor again, so the next step's Pick up never went (15-minute hangs).
+    await expect(page.getByRole("button", { name: "Edit Request", exact: true })).toBeFocused();
   } finally { await gate.close(); }
 }
 
