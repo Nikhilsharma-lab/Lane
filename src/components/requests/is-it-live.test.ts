@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { toastStack } from "@/test/toast-stack"
 import { requestNavigation } from "@/test/request-navigation"
-import { createIsItLive, IS_IT_LIVE_COPY, type IsItLiveView } from "./is-it-live"
+import { createIsItLive, IS_IT_LIVE_COPY, promptCloseFocus, type IsItLiveView } from "./is-it-live"
 import { createMarkDoneUndoStore } from "./mark-done-undo"
 import { createRequestMoves, type RequestMoveActions } from "./request-moves-controller"
 import { createPendingMutationsStore } from "./pending-mutations-provider"
@@ -226,5 +226,33 @@ describe("Is it live? after Mark Done (#135)", () => {
     saved()
     expect(a.view()).toBeNull()
     expect(a.undoStore.get()).toBeNull()
+  })
+})
+
+describe("where focus goes as the prompt closes", () => {
+  const element = (connected = true) => ({ isConnected: connected, focus: vi.fn<(options?: FocusOptions) => void>() })
+  const body = { focus: vi.fn() }
+
+  it("returns focus to where it was when the prompt opened", () => {
+    const opener = element(), title = element(), row = vi.fn()
+    promptCloseFocus({ active: body, body, opener, title, restoreRow: row })
+    expect(opener.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true })
+    expect(title.focus).not.toHaveBeenCalled(); expect(row).not.toHaveBeenCalled()
+  })
+
+  it("goes to the Request title when that element is gone, else to the Request's row", () => {
+    const title = element(), row = vi.fn()
+    promptCloseFocus({ active: body, body, opener: element(false), title, restoreRow: row })
+    expect(title.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true })
+    promptCloseFocus({ active: body, body, opener: null, title: null, restoreRow: row })
+    expect(row).toHaveBeenCalledOnce()
+  })
+
+  // The dialog hands focus back a moment after the prompt has left the page: a person who has already moved on
+  // (Alt+T into the Marked Done toast, a click) keeps focus where they put it, so the toast stays open and paused.
+  it("leaves focus where the person moved it while the prompt was leaving", () => {
+    const opener = element(), title = element(), row = vi.fn(), undo = element()
+    promptCloseFocus({ active: undo, body, opener, title, restoreRow: row })
+    expect(opener.focus).not.toHaveBeenCalled(); expect(title.focus).not.toHaveBeenCalled(); expect(row).not.toHaveBeenCalled()
   })
 })
