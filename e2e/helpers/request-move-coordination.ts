@@ -69,9 +69,6 @@ export async function setCurrentValue(page: Page, orgId: string, request: Naviga
     const change = await beginCoordinatedChange(page, orgId, "edit", [request.id], recorder, () => submit.press("Enter"));
     await Promise.race([change.received(), gate.blocked]); await change.finish();
     gate.assertUnused(); await expect(dialog).toBeHidden();
-    // The editor hands focus back to Edit Request a moment after it has left the page; a key pressed before that
-    // landed on Edit Request and opened the editor again, so the next step's Pick up never went (15-minute hangs).
-    await expect(page.getByRole("button", { name: "Edit Request", exact: true })).toBeFocused();
   } finally { await gate.close(); }
 }
 
@@ -187,6 +184,9 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
   // This option requires confirmed saved receipts from the retained continuation above.
   if (!cAlreadyRestoredAndPickedUp) {
     await setCurrentValue(page, orgId, fixture.c, recorder, "62");
+    // Pick up stays disabled until the saved value is back from the server. A press before that can't focus it, so
+    // its Enter went to the focused Edit Request and opened the editor again, and the Pick up never went.
+    await expect(page.getByRole("button", { name: "Pick up", exact: true })).toBeEnabled();
     const pickup = await beginCoordinatedChange(page, orgId, "pickup", [fixture.c.id], recorder, () => page.getByRole("button", { name: "Pick up", exact: true }).press("Enter")); await pickup.finish();
   }
   await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible();
