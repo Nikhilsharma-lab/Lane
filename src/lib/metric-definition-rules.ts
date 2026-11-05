@@ -32,7 +32,7 @@ export const METRIC_DEFINITION_MESSAGES = {
   unit: "Choose a unit.",
   linkTooLong: `Keep the link to ${METRIC_LINK_MAX} characters or fewer.`,
   linkNotWeb: "Enter a link that starts with https:// or http://.",
-  howCountedTooLong: `Keep how it's counted to ${METRIC_HOW_COUNTED_MAX} characters or fewer.`,
+  howCountedTooLong: `Keep how it’s counted to ${METRIC_HOW_COUNTED_MAX} characters or fewer.`,
 };
 export const METRIC_WEB_LINK = /^https?:\/\/\S+$/i;
 

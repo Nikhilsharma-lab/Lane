@@ -15,9 +15,9 @@ import { parseSavedViewName, readSavedViewFilters, savedViewFilters, type SavedV
  */
 export type SavedViewResult = { ok: true; view: SavedView } | { error: string; sessionExpired?: true };
 
-const GONE = "That view isn't saved any more.";
-const BAD_FILTERS = "Those filters can't be saved. Reload the page and try again.";
-const PROJECT_UNAVAILABLE = "That Project isn't available. Choose another and try again.";
+const GONE = "That view isn’t saved any more.";
+const BAD_FILTERS = "Those filters can’t be saved. Reload the page and try again.";
+const PROJECT_UNAVAILABLE = "That Project isn’t available. Choose another and try again.";
 const duplicate = (name: string) => `You already have a view called “${name}”. Choose another name.`;
 const selection = { id: savedViews.id, name: savedViews.name, filters: savedViews.filters };
 const shaped = (row: { id: string; name: string; filters: unknown }): SavedView => ({ id: row.id, name: row.name, filters: readSavedViewFilters(row.filters) });
@@ -41,7 +41,7 @@ function changed() {
 export async function saveView(data: { name: string; filters: SavedViewFilters }, context: { orgId: string }): Promise<SavedViewResult> {
   const name = parseSavedViewName(data?.name);
   if ("error" in name) return name;
-  const auth = await guardActiveMember(context.orgId, "You can't save views in this workspace.");
+  const auth = await guardActiveMember(context.orgId, "You can’t save views in this workspace.");
   if ("error" in auth) return auth;
   const filters = await allowedFilters(auth, data?.filters);
   if ("error" in filters) return filters;
@@ -58,7 +58,7 @@ export async function saveView(data: { name: string; filters: SavedViewFilters }
 export async function renameSavedView(data: { id: string; name: string }, context: { orgId: string }): Promise<SavedViewResult> {
   const name = parseSavedViewName(data?.name);
   if ("error" in name) return name;
-  const auth = await guardActiveMember(context.orgId, "You can't change views in this workspace.");
+  const auth = await guardActiveMember(context.orgId, "You can’t change views in this workspace.");
   if ("error" in auth) return auth;
   if (typeof data.id !== "string" || !UUID.test(data.id)) return { error: GONE };
   try {
@@ -74,7 +74,7 @@ export async function renameSavedView(data: { id: string; name: string }, contex
 
 /** Saves the list's current filters into a view the person already has. */
 export async function updateSavedView(data: { id: string; filters: SavedViewFilters }, context: { orgId: string }): Promise<SavedViewResult> {
-  const auth = await guardActiveMember(context.orgId, "You can't change views in this workspace.");
+  const auth = await guardActiveMember(context.orgId, "You can’t change views in this workspace.");
   if ("error" in auth) return auth;
   if (typeof data?.id !== "string" || !UUID.test(data.id)) return { error: GONE };
   const filters = await allowedFilters(auth, data.filters);
@@ -86,7 +86,7 @@ export async function updateSavedView(data: { id: string; filters: SavedViewFilt
 }
 
 export async function deleteSavedView(data: { id: string }, context: { orgId: string }): Promise<{ ok: true } | { error: string; sessionExpired?: true }> {
-  const auth = await guardActiveMember(context.orgId, "You can't change views in this workspace.");
+  const auth = await guardActiveMember(context.orgId, "You can’t change views in this workspace.");
   if ("error" in auth) return auth;
   if (typeof data?.id !== "string" || !UUID.test(data.id)) return { error: GONE };
   const [row] = await db.delete(savedViews).where(owned(auth, data.id)).returning({ id: savedViews.id });

@@ -29,7 +29,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     { keys: ["Home"], label: "First row on the page" },
     { keys: ["End"], label: "Last row on the page" },
     { keys: ["→"], label: "Expand a group, then go to its first Request" },
-    { keys: ["←"], label: "Collapse a group, or go to the Request's group" },
+    { keys: ["←"], label: "Collapse a group, or go to the Request’s group" },
     { keys: ["Enter"], label: "Open the Request, or show or hide the group" },
     { keys: ["Space"], label: "Preview the Request beside the list" },
     { keys: ["X"], label: "Select or deselect the Request" },

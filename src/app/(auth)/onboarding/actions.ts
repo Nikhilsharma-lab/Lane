@@ -24,7 +24,7 @@ export async function saveOnboardingRole(data: { role: string }) {
   }
 
   const user = await currentUser();
-  if (!user) return { error: "Couldn't load your profile. Refresh the page and try again." };
+  if (!user) return { error: "Couldn’t load your profile. Refresh the page and try again." };
 
   await db
     .insert(profiles)

@@ -105,7 +105,7 @@ function Totals({ report }: { report: OutcomeReport }) {
   return <section className={styles.block} aria-labelledby="report-totals-heading">
     <h2 id="report-totals-heading" className={styles.heading}>Totals</h2>
     {report.totals === null
-      ? <p className={styles.note}>Totals are shown for quarters and years, not months, so small samples don&apos;t mislead.</p>
+      ? <p className={styles.note}>Totals are shown for quarters and years, not months, so small samples don’t mislead.</p>
       : report.totals.length === 0
         ? <p className={styles.note}>{NOTHING_MEASURED}</p>
         : <>

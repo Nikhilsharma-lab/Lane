@@ -272,7 +272,7 @@ export function savedMetricNameMatches(workspace: MetricsWorkspace, query: strin
 /** A prediction the library refuses to save, with the sentence to show; or the prediction to save. */
 export type PredictionCheck = { impact: unknown } | MetricsLibraryRefusal;
 
-const NOT_PICKABLE = "A metric on this goal isn't in this workspace's Metrics library. Pick it again.";
+const NOT_PICKABLE = "A metric on this goal isn’t in this workspace’s Metrics library. Pick it again.";
 
 /**
  * Checks the metrics of a prediction about to be saved (#198). Every definition it names must be one of the workspace's,
@@ -303,8 +303,8 @@ export async function checkPredictionMetrics(workspace: MetricsWorkspace, impact
     const row = byId.get(ref.id);
     if (!row) return { error: NOT_PICKABLE };
     if (!isActive(row) && !savedNames.has(row.id)) return { error: row.mergedIntoId
-      ? `“${row.name}” was merged into another metric, so it can't be picked for a new goal. Pick that one instead.`
-      : `“${row.name}” is archived, so it can't be picked for a new goal. Pick another metric.` };
+      ? `“${row.name}” was merged into another metric, so it can’t be picked for a new goal. Pick that one instead.`
+      : `“${row.name}” is archived, so it can’t be picked for a new goal. Pick another metric.` };
     if (row.unit !== ref.unit) return { error: `“${row.name}” is counted in ${metricUnitName(row.unit).toLowerCase()} now. Pick it again and enter the numbers in that unit.` };
   }
   const copy = (metric: unknown) => {
@@ -464,10 +464,10 @@ export async function addOrOfferMetricDefinition(workspace: MetricsWorkspace, au
   throw new Error(added.error);
 }
 
-const NOT_HERE = "That metric isn't in this workspace.";
+const NOT_HERE = "That metric isn’t in this workspace.";
 /** Why a definition's unit can't change (#198). */
-export const UNIT_LOCKED = "The unit can't change because a Request uses this metric. A metric in another unit needs a new definition.";
-const MERGED = "This metric was merged into another one, so it can't be changed.";
+export const UNIT_LOCKED = "The unit can’t change because a Request uses this metric. A metric in another unit needs a new definition.";
+const MERGED = "This metric was merged into another one, so it can’t be changed.";
 
 /** The definition, locked for the rest of the transaction; refuses an id that isn't one of this workspace's. */
 async function lockedDefinition(tx: LibraryTx, orgId: string, id: string) {
@@ -533,7 +533,7 @@ export async function mergeMetricDefinitions(workspace: MetricsWorkspace, author
     const locked = new Map<string, DefinitionRow>();
     for (const id of [ids.keptId, ids.mergedId].sort()) locked.set(id, await lockedDefinition(tx, workspace.orgId, id));
     const kept = locked.get(ids.keptId)!, merged = locked.get(ids.mergedId)!;
-    for (const row of [merged, kept]) if (row.mergedIntoId) throw new Refused(`“${row.name}” was already merged into another metric. Merges can't be undone.`);
+    for (const row of [merged, kept]) if (row.mergedIntoId) throw new Refused(`“${row.name}” was already merged into another metric. Merges can’t be undone.`);
     if (kept.unit !== merged.unit) {
       const unit = (row: DefinitionRow) => metricUnitName(row.unit).toLowerCase();
       throw new Refused(`“${merged.name}” is counted in ${unit(merged)} and “${kept.name}” in ${unit(kept)}. Only metrics with the same unit can be merged.`);

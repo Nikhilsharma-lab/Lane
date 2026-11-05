@@ -31,7 +31,7 @@ export function ProjectContextMenu({ children, href, label, onNavigate, onOpenCh
     pending.current = true;
     setBusy(true); setError(null);
     try { await onDelete(); setConfirming(false); }
-    catch (thrown) { setError(thrownMessage(thrown, "The Project couldn't be deleted. Try again.")); }
+    catch (thrown) { setError(thrownMessage(thrown, "The Project couldn’t be deleted. Try again.")); }
     finally { pending.current = false; setBusy(false); }
   }
   const navigation = useRequestNavigation();
@@ -70,11 +70,11 @@ export function ProjectContextMenu({ children, href, label, onNavigate, onOpenCh
       </ContextMenu>}
     </div>
     <PermanentActionConfirmation open={confirming} onOpenChange={setConfirming} title={`Delete “${label}”?`}
-      description="Requests will be kept under No Project. This Project and its Project-only labels will be permanently deleted. Workspace labels will be kept. This can't be undone."
+      description="Requests will be kept under No Project. This Project and its Project-only labels will be permanently deleted. Workspace labels will be kept. This can’t be undone."
       confirmLabel="Delete Project" busy={busy} onConfirm={() => { void confirmDelete(); }}
       returnFocus={() => opener.current ?? document.querySelector<HTMLButtonElement>('#lane-sidebar button[aria-label="Projects"]')}>
       {error && <p role="alert" className={styles.error}>{error}</p>}
     </PermanentActionConfirmation>
-    <span className="sr-only" role="status" aria-live="polite">{copyState === "copied" ? `Link to ${label} copied.` : copyState === "error" ? "Couldn't copy the link. Try again." : ""}</span>
+    <span className="sr-only" role="status" aria-live="polite">{copyState === "copied" ? `Link to ${label} copied.` : copyState === "error" ? "Couldn’t copy the link. Try again." : ""}</span>
   </>;
 }

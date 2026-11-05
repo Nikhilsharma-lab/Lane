@@ -17,7 +17,7 @@ export default function DiscardPrompt({ open, onKeep, onDiscard, returnTo }: {
   const keep = useRef<HTMLButtonElement>(null)
   const discarded = useRef(false)
   return <Dialog open={open} onOpenChange={next => { if (!next) onKeep() }}>
-    <DialogContent title="Discard what you typed?" description="What you typed here hasn't been saved." data-discard-prompt=""
+    <DialogContent title="Discard what you typed?" description="What you typed here hasn’t been saved." data-discard-prompt=""
       onOpenAutoFocus={event => { event.preventDefault(); discarded.current = false; keep.current?.focus({ preventScroll: true }) }}
       onCloseAutoFocus={event => {
         event.preventDefault()

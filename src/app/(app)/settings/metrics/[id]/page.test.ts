@@ -96,8 +96,8 @@ describe("A Metric definition's page", () => {
 
   it("shows every change in history, newest first, with who made it and the before and after", async () => {
     const history = text(historyOf(await open(trials)));
-    expect(history).toMatch(/^Edited by Sam Ortiz .*Name changed from Trial starts to Trials started .*Dashboard link added: https:\/\/analytics.example.test\/trials .*Added by Pat Lee .*Name: Trial starts .*Unit: Count .*How it's counted: Trials started per week\.$/);
-    expect(history).not.toContain("How it's counted changed");
+    expect(history).toMatch(/^Edited by Sam Ortiz .*Name changed from Trial starts to Trials started .*Dashboard link added: https:\/\/analytics.example.test\/trials .*Added by Pat Lee .*Name: Trial starts .*Unit: Count .*How it’s counted: Trials started per week\.$/);
+    expect(history).not.toContain("How it’s counted changed");
     expect(historyOf(await open(trials))).toMatch(/<time dateTime="[^"]+"/);
   });
 
@@ -116,7 +116,7 @@ describe("A Metric definition's page", () => {
       const html = text(await open(trials));
       expect(html).toContain("Restore metric");
       expect(html).not.toContain("Archive metric");
-      expect(html).toContain("Archived. It isn't offered for new goals, and stays on the Requests that already use it.");
+      expect(html).toContain("Archived. It isn’t offered for new goals, and stays on the Requests that already use it.");
       expect(text(historyOf(await open(trials)))).toMatch(/^Archived by Pat Lee/);
     } finally {
       await restoreMetricDefinition({ orgId: ORG }, PAT, trials);
@@ -132,7 +132,7 @@ describe("A Metric definition's page", () => {
   it("offers an Admin a merge with any other metric in the same unit, and the choice of which is kept", async () => {
     session.workspace = as("admin");
     const html = await open(trials);
-    expect(text(html)).toContain("If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can't be undone.");
+    expect(text(html)).toContain("If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can’t be undone.");
     // The Select lists same-unit metrics only (a count starter, not a percentage one); its options render when it opens.
     expect(html).toMatch(/<label for="[^"]+">Merge with<\/label>/);
     expect(text(html)).toContain("Review merge");
@@ -144,7 +144,7 @@ describe("A Metric definition's page", () => {
     const added = await (await library()).addMetricDefinition({ orgId: ORG }, PAT, { name: "Time on task", unit: "minutes", link: null, howCounted: null });
     if (!("id" in added)) throw new Error(added.error);
     const html = text(await open(added.id));
-    expect(html).toContain("No other metric is counted in minutes, so there's nothing to merge it with.");
+    expect(html).toContain("No other metric is counted in minutes, so there’s nothing to merge it with.");
     expect(html).not.toContain("Review merge");
   });
 

@@ -772,7 +772,7 @@ export default function RequestEditor({
       failed: (failure, thrown) => {
         // #260 (C1): offline says so; nothing was sent and the text stays.
         const message = isOfflineError(thrown) ? `${OFFLINE_ANSWER} ${TEXT_KEPT}`
-          : editing ? `Your changes couldn't be saved. ${TEXT_KEPT} Try again.` : `Your Request couldn't be created. ${TEXT_KEPT} Try again.`;
+          : editing ? `Your changes couldn’t be saved. ${TEXT_KEPT} Try again.` : `Your Request couldn’t be created. ${TEXT_KEPT} Try again.`;
         const result = { error: failure ?? { code: "save_failed" as const, message, field: undefined } };
         if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
           const field = result.error.field;

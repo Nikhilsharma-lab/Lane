@@ -79,7 +79,7 @@ describe("Reliable Request lifecycle action contract", () => {
 
   it("tells a guest or an outsider apart from a missing Request", () => {
     expect(TRANSITION).toContain(
-      'export const CANNOT_CHANGE_REQUESTS = "You can\'t change Requests in this workspace."'
+      'export const CANNOT_CHANGE_REQUESTS = "You can’t change Requests in this workspace."'
     );
   });
 

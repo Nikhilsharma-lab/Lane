@@ -15,7 +15,7 @@ export type MetricFormResult = { ok: true } | { error: string; fields?: Partial<
 
 const UNIT_OPTIONS = METRIC_UNITS.map(unit => ({ value: unit, label: metricUnitName(unit) }));
 const FIELD_ORDER: MetricDefinitionField[] = ["name", "unit", "link", "howCounted"];
-export const UNIT_LOCKED_NOTE = "A Request uses this metric, so its unit can't change. A metric in another unit needs a new definition.";
+export const UNIT_LOCKED_NOTE = "A Request uses this metric, so its unit can’t change. A metric in another unit needs a new definition.";
 
 /** Edits keep saved calculation notes and historical source links intact. */
 export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onSaved, onCancel, onPendingChange, confirmSaved = false, unitLocked = false }: {
@@ -72,7 +72,7 @@ export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onS
       if (confirmSaved) setSaved(true);
       onSaved?.();
     } catch {
-      setError("We couldn't save this metric. Check your connection and try again.");
+      setError("We couldn’t save this metric. Check your connection and try again.");
     } finally {
       setPending(false);
       onPendingChange?.(false);

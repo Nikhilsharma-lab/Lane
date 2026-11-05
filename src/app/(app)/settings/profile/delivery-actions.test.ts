@@ -54,7 +54,7 @@ describe("choosing how Needs-you items reach you", () => {
   });
 
   it("does not offer Slack DM while Slack isn't connected, nor anything else", async () => {
-    expect(await choose("slack")).toEqual({ error: "Slack isn't connected to this workspace. Choose Email or Off, or ask an Admin to connect Slack." });
+    expect(await choose("slack")).toEqual({ error: "Slack isn’t connected to this workspace. Choose Email or Off, or ask an Admin to connect Slack." });
     expect(await choose("sms")).toEqual({ error: "Choose Email, Slack DM or Off." });
     expect(await choiceIn(ORG)).toBe("email");
   });

@@ -66,7 +66,7 @@ export function useWorkspaceSwitcher(currentOrgId: string, options: { beforeSwit
     if (!isLoaded || !userMemberships.revalidate || pendingId) return;
     setError(null);
     try { await userMemberships.revalidate(); }
-    catch { setError("Couldn't load workspaces. Try again."); }
+    catch { setError("Couldn’t load workspaces. Try again."); }
   }, [isLoaded, userMemberships, pendingId]);
   const onLoadMore = useCallback(() => {
     if (!isLoaded || !userMemberships.hasNextPage || userMemberships.isFetching || pendingId) return;
@@ -79,6 +79,6 @@ export function useWorkspaceSwitcher(currentOrgId: string, options: { beforeSwit
     loading: !loaded || Boolean(userMemberships.isLoading),
     loadingMore: Boolean(userMemberships.isFetching) && items.length > 0,
     hasMore: loaded && Boolean(userMemberships.hasNextPage),
-    error: error ?? (userMemberships.error ? "Couldn't load workspaces. Try again." : null),
+    error: error ?? (userMemberships.error ? "Couldn’t load workspaces. Try again." : null),
   };
 }

@@ -228,7 +228,7 @@ async function attachmentDownloadUrl(
     return { success: true, url: await time("data", () => signDownload(attachment.storagePath, attachment.fileName)) };
   } catch (error) {
     console.error("[request/attachments] download signing failed:", error);
-    return { error: "Lane couldn't prepare this download. Try again." };
+    return { error: "Lane couldn’t prepare this download. Try again." };
   }
 }
 

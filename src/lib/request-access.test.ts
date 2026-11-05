@@ -145,8 +145,8 @@ describe("changing a Request", () => {
   it("keeps pickup and Mark Done for members and admins", async () => {
     const api = await actions();
     as(GUEST);
-    expect(await api.pickUpRequest(guestRequest, { orgId: ORG })).toEqual({ error: "You can't change Requests in this workspace." });
-    expect(await api.markDone(guestRequest, { orgId: ORG })).toEqual({ error: "You can't change Requests in this workspace." });
+    expect(await api.pickUpRequest(guestRequest, { orgId: ORG })).toEqual({ error: "You can’t change Requests in this workspace." });
+    expect(await api.markDone(guestRequest, { orgId: ORG })).toEqual({ error: "You can’t change Requests in this workspace." });
     as(MEMBER);
     expect(await api.pickUpRequest(guestRequest, { orgId: ORG })).toMatchObject({ success: true });
   });

@@ -19,7 +19,7 @@ type FieldErrors = Partial<Record<MetricDefinitionField, string>>;
 export type MetricActionResult<T = object> = ({ ok: true } & T) | { error: string; sessionExpired?: true; fields?: FieldErrors };
 type DefinitionData = { name: string; unit: string; link?: string | null; howCounted?: string | null };
 
-const LIBRARY_REFUSAL = "You can't change the Metrics library in this workspace.";
+const LIBRARY_REFUSAL = "You can’t change the Metrics library in this workspace.";
 const CHECK_FIELDS = "Check the highlighted fields.";
 
 function revalidate(id: string) {

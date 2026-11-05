@@ -236,7 +236,7 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
             {metricPicker(primary, "primary", choice => { setNotice(""); onChange({ ...value, primary: choice === "check" ? createMeasurementPrimary("check") : pickDefinition(createMeasurementPrimary(), choice) }) })}
           </div>
         </div>
-        {unresolved.length > 0 && <p className={styles.hint} role="status">{`Pick ${unresolved.map(name => `“${name}”`).join(", ")} again from the Metrics library. ${unresolved.length === 1 ? "It isn't" : "They aren't"} in the library in the unit saved here.`}</p>}
+        {unresolved.length > 0 && <p className={styles.hint} role="status">{`Pick ${unresolved.map(name => `“${name}”`).join(", ")} again from the Metrics library. ${unresolved.length === 1 ? "It isn’t" : "They aren’t"} in the library in the unit saved here.`}</p>}
         {primary.key && (primary.key === "check" ? <>
           <p className={styles.hint}>Use this for a result you can confirm with a yes or no, rather than a number.</p>
           <CompactSelect id={`${prefix}-check`} label="Choose an example or describe your own" value={legacy && !primary.check && value.verificationResult !== undefined ? "saved" : primary.check} options={legacy ? [...(value.verificationResult !== undefined ? [{ value: "saved", label: "Saved verified result" }] : []), ...checkOptions] : [...checkOptions, { value: "custom", label: "Describe another result…" }]} placeholder="Choose a result to check"

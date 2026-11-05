@@ -58,12 +58,12 @@ export function useMetricLibrary(orgId: string | undefined, impact: unknown): Me
       if ("error" in result) setState(previous => ({ ...previous, status: "error", error: result.error }))
       else setState({ status: "ready", metrics: result.metrics, saved: result.saved, canOpenLibrary: result.canOpenLibrary, canAddMetrics: result.canAddMetrics, error: null })
     }, () => {
-      if (attempt === run.current) setState(previous => ({ ...previous, status: "error", error: "The Metrics library couldn't be loaded. Check your connection and try again." }))
+      if (attempt === run.current) setState(previous => ({ ...previous, status: "error", error: "The Metrics library couldn’t be loaded. Check your connection and try again." }))
     })
   }, [orgId])
 
   const add = useCallback(async (input: { name: string; unit: string; howCounted?: string | null }): Promise<InlineMetricResult> => {
-    if (!orgId) return { error: "The Metrics library isn't available here." }
+    if (!orgId) return { error: "The Metrics library isn’t available here." }
     const result = await callAction(() => addPredictionMetric(input, { orgId }))
     if ("ok" in result) setState(previous => ({ ...previous, metrics: withMetric(previous.metrics, result.metric) }))
     return result
