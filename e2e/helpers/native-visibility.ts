@@ -21,10 +21,15 @@ export async function signInNativeTestUser(page: Page, emailAddress: string, org
   await waitForClerk(page);
   await clerk.signIn({ page, emailAddress });
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
-  // Signed in, Clerk's sign-in card moves the page on from /login. A page.goto racing that move was aborted
-  // (net::ERR_ABORTED), so the next step starts once it has landed.
-  await page.waitForURL(url => url.pathname !== "/login", { timeout: 30_000 });
-  await page.waitForLoadState("load");
+  // Signed in, Clerk's sign-in card sometimes moves the page on from /login and sometimes stays. Go to the workspace
+  // either way, so no move of the card's is left to abort the next step's page.goto (net::ERR_ABORTED); a goto that
+  // races the card's move is aborted the same way, and goes again once that move has landed.
+  const workspace = new URL("/", assertE2ETarget().baseURL).href;
+  await page.goto(workspace).catch(async (error: Error) => {
+    if (!error.message.includes("ERR_ABORTED")) throw error;
+    await page.waitForLoadState("load");
+    await page.goto(workspace);
+  });
 }
 
 /** Brings the dedicated browser's page to the front and waits until the browser reports it visible. */
