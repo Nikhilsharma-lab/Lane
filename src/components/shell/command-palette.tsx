@@ -152,12 +152,13 @@ function PaletteBody({ orgId, role, viewer, projects, pathname, onHandOff, input
   }, [intent, pageHref, prefetch])
   const highlight = (index: number) => { setIntent(true); onActive(index) }
 
-  // Scroll only the list, so the field never leaves view.
+  // Scroll only the list, so the field never leaves view. Moving down keeps the highlight above the list's bottom fade.
   useEffect(() => {
     const node = list.current, item = node?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
     if (!node || !item) return
+    const fade = parseFloat(getComputedStyle(node).getPropertyValue("--palette-fade")) || 0
     if (item.offsetTop < node.scrollTop) node.scrollTop = item.offsetTop
-    else if (item.offsetTop + item.offsetHeight > node.scrollTop + node.clientHeight) node.scrollTop = item.offsetTop + item.offsetHeight - node.clientHeight
+    else if (item.offsetTop + item.offsetHeight > node.scrollTop + node.clientHeight - fade) node.scrollTop = item.offsetTop + item.offsetHeight - node.clientHeight + fade
   }, [activeIndex])
 
   function back() {
