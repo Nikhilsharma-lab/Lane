@@ -63,7 +63,7 @@ export function ImpactScreen({ dashboard, period, teammates, person, onPeriodCha
   const teammateLists = <>
     {teammates.length > 0 && <section className={styles.people} aria-labelledby="impact-teammates-heading">
       <h2 id="impact-teammates-heading" className={styles.heading}>Teammates</h2>
-      <p className={styles.note}>Open a teammate&apos;s Requests to see their results. Lists show results only, never totals or rankings.</p>
+      <p className={styles.note}>Open a teammate’s Requests to see their results. Lists show results only, never totals or rankings.</p>
       <ul className={styles.peopleList}>
         {teammates.map(teammate => <li key={teammate.id}>
           <Link href={impactHref({ period, person: teammate.id })} className={styles.person} aria-current={person?.id === teammate.id ? "true" : undefined}>{teammate.name}</Link>

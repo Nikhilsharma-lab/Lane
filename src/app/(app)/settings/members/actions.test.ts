@@ -81,7 +81,7 @@ describe("inviting someone", () => {
   it("offers Guest and Viewer only while the custom roles switch is on", async () => {
     const { inviteToWorkspace } = await api();
     for (const role of ["viewer", "guest"]) {
-      expect(await inviteToWorkspace({ email: "leader@example.test", role }, ctx)).toEqual({ error: "Guest and Viewer aren't available in this workspace yet. Invite them as a Member, or ask whoever runs Lane to turn these roles on." });
+      expect(await inviteToWorkspace({ email: "leader@example.test", role }, ctx)).toEqual({ error: "Guest and Viewer aren’t available in this workspace yet. Invite them as a Member, or ask whoever runs Lane to turn these roles on." });
     }
     expect(clerk.calls).toEqual([]);
     vi.stubEnv("LANE_CUSTOM_ROLES", "1");
@@ -103,7 +103,7 @@ describe("inviting someone", () => {
     clerk.failNext = { status: 400, code: "duplicate_record" };
     expect(await inviteToWorkspace({ email: "dup@example.test", role: "member" }, ctx)).toEqual({ error: "dup@example.test already has an invitation or is already in this workspace." });
     clerk.failNext = { status: 500, code: "internal_clerk_error" };
-    expect(await inviteToWorkspace({ email: "x@example.test", role: "member" }, ctx)).toEqual({ error: "The invitation couldn't be sent. Try again." });
+    expect(await inviteToWorkspace({ email: "x@example.test", role: "member" }, ctx)).toEqual({ error: "The invitation couldn’t be sent. Try again." });
   });
 });
 
@@ -124,10 +124,10 @@ describe("changing someone's role", () => {
 
   it("refuses an Admin's own role, someone outside the workspace, and a Member", async () => {
     const { changeMemberRole } = await api();
-    expect(await changeMemberRole({ userId: "user_members_admin", role: "member" }, ctx)).toEqual({ error: "You can't change your own role. Ask another Admin to do it." });
-    expect(await changeMemberRole({ userId: "user_elsewhere", role: "member" }, ctx)).toEqual({ error: "That person isn't in this workspace any more. Reload to see who is." });
+    expect(await changeMemberRole({ userId: "user_members_admin", role: "member" }, ctx)).toEqual({ error: "You can’t change your own role. Ask another Admin to do it." });
+    expect(await changeMemberRole({ userId: "user_elsewhere", role: "member" }, ctx)).toEqual({ error: "That person isn’t in this workspace any more. Reload to see who is." });
     as("user_members_member", "org:member");
-    expect(await changeMemberRole({ userId: "user_members_viewer", role: "member" }, ctx)).toEqual({ error: "Only Admins can change people's roles." });
+    expect(await changeMemberRole({ userId: "user_members_viewer", role: "member" }, ctx)).toEqual({ error: "Only Admins can change people’s roles." });
     expect(clerk.calls).toEqual([]);
   });
 });
@@ -135,7 +135,7 @@ describe("changing someone's role", () => {
 describe("revoking an invitation", () => {
   it("revokes a pending invitation to this workspace only", async () => {
     const { revokeInvitation } = await api();
-    expect(await revokeInvitation({ invitationId: "orginv_elsewhere" }, ctx)).toEqual({ error: "That invitation isn't pending any more. Reload to see the latest." });
+    expect(await revokeInvitation({ invitationId: "orginv_elsewhere" }, ctx)).toEqual({ error: "That invitation isn’t pending any more. Reload to see the latest." });
     expect(await revokeInvitation({ invitationId: "orginv_here" }, ctx)).toEqual({ success: true });
     expect(clerk.calls).toEqual([{ method: "revoke", params: { organizationId: ORG, invitationId: "orginv_here", requestingUserId: "user_members_admin" } }]);
   });

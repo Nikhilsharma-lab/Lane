@@ -18,7 +18,7 @@ export async function changeRequestRelease(context: RequestChangeContext, input:
     const fingerprint = { requestId: context.requestId, change };
     return changeRequest(context, {
         fingerprint,
-        messages: { invalid: 'Invalid release action.', forbidden: 'You cannot change release in this workspace.', failed: "Couldn't save release. Your input is preserved; try again." },
+        messages: { invalid: 'Invalid release action.', forbidden: 'You cannot change release in this workspace.', failed: "Couldn’t save release. Your input is preserved; try again." },
         // Release records each change in its own history, which is also how a retry replays.
         replayOf: (_tx, request) => {
             const previous = request.releaseState?.history.find(e => e.operationId === context.operationId);

@@ -17,7 +17,7 @@ export async function startSlackConnect(_data: Record<string, never>, context: {
   const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can connect Slack to this workspace.");
   if ("error" in auth) return auth;
   const slack = slackDelivery();
-  if (!slack.on) return { error: "Slack isn't available in Lane yet." };
+  if (!slack.on) return { error: "Slack isn’t available in Lane yet." };
 
   const state = signInstallState(auth, { secret: slack.clientSecret, now: new Date() });
   return { ok: true as const, url: slackAuthorizeUrl({ clientId: slack.clientId, redirectUri: `${appOrigin()}/api/slack/callback`, state }) };

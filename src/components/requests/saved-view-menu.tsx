@@ -16,7 +16,7 @@ import { useRequestListFilters } from "./list-filters"
 import styles from "./saved-view-menu.module.css"
 
 type DialogKind = Exclude<SavedViewChoice, "update">
-const OFFLINE = "We couldn't reach Lane. Check your connection and try again."
+const OFFLINE = "We couldn’t reach Lane. Check your connection and try again."
 
 const TITLES: Record<DialogKind, string> = { save: "Save view", save_as_new: "Save as new view", rename: "Rename view", delete: "Delete view" }
 const LABELS: Record<SavedViewChoice, string> = { save: "Save view", update: "Save changes to view", save_as_new: "Save as new view…", rename: "Rename view…", delete: "Delete view…" }

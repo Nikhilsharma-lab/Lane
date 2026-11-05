@@ -96,7 +96,7 @@ describe("Clerk workspace switching boundary", () => {
     const original = f.snapshot().setActive;
     f.update({ setActive: async () => { throw new Error("private provider payload"); } });
     const failed = f.select("org-b");
-    await expect(failed).rejects.toThrow("Couldn't switch workspace. Try again.");
+    await expect(failed).rejects.toThrow("Couldn’t switch workspace. Try again.");
     // #269: Clerk's failure is never shown as it is; the menu says it in Lane's words.
     await expect(failed).rejects.not.toBeInstanceOf(ShownFailure);
     expect(f.events).toEqual(["pending:org-b", "pending:null"]);
@@ -172,7 +172,7 @@ describe("Clerk workspace switching boundary", () => {
       vi.useFakeTimers();
       const f = failing({ timeoutMs: 10_000 });
       const pending = f.select("org-b");
-      const outcome = expect(pending).rejects.toThrow("Couldn't switch workspace. Try again.");
+      const outcome = expect(pending).rejects.toThrow("Couldn’t switch workspace. Try again.");
       await vi.advanceTimersByTimeAsync(10_000);
       await outcome;
       expect(f.events).toEqual(["pending:org-b", "pending:null"]);

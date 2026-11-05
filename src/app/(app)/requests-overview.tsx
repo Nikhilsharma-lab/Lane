@@ -28,7 +28,7 @@ import { failureWords, ShownFailure } from "@/lib/failure-messages"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-const OLDER_ERROR = "Older Requests couldn't be loaded. Try again."
+const OLDER_ERROR = "Older Requests couldn’t be loaded. Try again."
 
 
 /** Reads older finished Requests through the GET route (plan items 1.7 and 1.16), never a server action.

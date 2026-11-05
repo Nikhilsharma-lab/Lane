@@ -84,7 +84,7 @@ export function RequestReviews({
 
   const applyView = useCallback((result: Awaited<ReturnType<typeof actions.readReviews>>) => {
     if ("error" in result) {
-      setError(result.error || "Couldn't load reviews.");
+      setError(result.error || "Couldn’t load reviews.");
       return;
     }
     setError("");
@@ -94,7 +94,7 @@ export function RequestReviews({
     try {
       applyView(await callAction(() => actions.readReviews(requestId, { orgId })));
     } catch {
-      setError("Couldn't load reviews. Try again.");
+      setError("Couldn’t load reviews. Try again.");
     }
   }, [applyView, requestId, orgId]);
   useEffect(() => {
@@ -102,7 +102,7 @@ export function RequestReviews({
     let active = true;
     void callAction(() => actions.readReviews(requestId, { orgId }))
       .then((result) => { if (active) applyView(result); })
-      .catch(() => { if (active) setError("Couldn't load reviews. Try again."); });
+      .catch(() => { if (active) setError("Couldn’t load reviews. Try again."); });
     return () => { active = false; };
   }, [applyView, requestId, orgId, revision, deferred]);
   useEffect(() => {

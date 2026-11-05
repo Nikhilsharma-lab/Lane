@@ -48,7 +48,7 @@ export function CommandPaletteHost(props: CommandPaletteWorkspace & { pathname: 
   }
   const surfaces = usePopupCode(shellSurfaces, open, () => {
     change(false)
-    toast({ type: "error", title: "Couldn't open the command palette", description: "Check your connection and try again." })
+    toast({ type: "error", title: "Couldn’t open the command palette", description: "Check your connection and try again." })
   })
 
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {

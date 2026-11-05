@@ -66,7 +66,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     return entry.recordOwner !== null && entry.recordOwner !== identity && entry.bindings.has(entry.recordOwner) && record.read() !== null;
   };
   const retainedOwnerError = "Another open form still has this Request’s unfinished files. Return to that form to retry or skip them.";
-  const storageError = "Your Request is saved, but this browser couldn't keep upload recovery information. Keep this tab open and try again.";
+  const storageError = "Your Request is saved, but this browser couldn’t keep upload recovery information. Keep this tab open and try again.";
   const record = {
     read() {
       if (scope().unpersisted) return scope().unpersisted;
@@ -130,7 +130,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
     } catch {
       // Keep the reservation ID until the server confirms cleanup. Retrying
       // must not reserve another slot or hide a file that still needs attention.
-      updateAttachment(attachment.key, { status: "failed", error: "Lane couldn't clear this upload. Your Request is saved. Try again." });
+      updateAttachment(attachment.key, { status: "failed", error: "Lane couldn’t clear this upload. Your Request is saved. Try again." });
       return "failed";
     }
   }
@@ -150,7 +150,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
       if (!updateAttachment(attachment.key, { attachmentId: reserved })) {
         const cleanup = await discardFailed({ ...attachment, attachmentId: reserved }, requestId);
         if (cleanup === "uploaded") return true;
-        if (cleanup !== "failed") updateAttachment(attachment.key, { status: "failed", error: "This browser couldn't keep upload recovery information. Keep this tab open and try again." });
+        if (cleanup !== "failed") updateAttachment(attachment.key, { status: "failed", error: "This browser couldn’t keep upload recovery information. Keep this tab open and try again." });
         return false;
       }
       const file = attachment.file.type === prepared.mimeType
@@ -356,7 +356,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
           return;
         }
         state.set({ ...state.get(), phase: files.length ? "lost" : "complete", lost: files.length ? retained : null,
-          error: files.some(file => file.attachmentId) ? "Some files couldn't be checked. Retry cleanup before dismissing this notice." : null });
+          error: files.some(file => file.attachmentId) ? "Some files couldn’t be checked. Retry cleanup before dismissing this notice." : null });
         if (!files.length && current()) presentation?.finish(lost.requestId);
       });
     },
@@ -371,7 +371,7 @@ export function createIntakeSession(deps: IntakeSessionDeps) {
       const lost = state.get().lost;
       if (operation || scope().operation || !lost) return;
       if (lost.files.some(file => file.attachmentId)) {
-        state.set({ ...state.get(), error: "Some files couldn't be checked. Retry cleanup before dismissing this notice." });
+        state.set({ ...state.get(), error: "Some files couldn’t be checked. Retry cleanup before dismissing this notice." });
         return;
       }
       if (record.clear()) state.set({ ...state.get(), phase: "idle", lost: null, error: null });
