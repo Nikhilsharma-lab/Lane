@@ -174,6 +174,9 @@ test("on a phone, a Request opened from Inbox shows its skeleton at once even be
     await open.tap();
     await expect(page.locator('[data-skeleton="detail"]')).toBeVisible({ timeout: 1_000 });
     await expect(page.locator("[data-inbox-item]")).toHaveCount(0);
+    // 0.7 s after the tap it is drawn, not still waiting out the placeholder's short delay and fade.
+    await page.waitForTimeout(700);
+    expect(await page.locator('[data-skeleton="detail"]').evaluate(node => getComputedStyle(node.closest("[data-placeholder]")!).opacity)).toBe("1");
     await page.screenshot({ path: test.info().outputPath("A115-inbox-phone-cold-skeleton.png") });
     test.info().annotations.push({ type: "read-ahead requests held", description: String(readAhead) });
     hold.release();

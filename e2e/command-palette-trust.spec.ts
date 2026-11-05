@@ -354,7 +354,7 @@ test("⌘K stays open through a page change, keeps what is typed, finds Impact, 
         expect(top.overflow, "the full list scrolls at 1440x900").toBeGreaterThan(0);
         expect(top.mask, "the bottom edge is masked").toContain("gradient");
         expect(top.fade, `rows fade out at the cut edge (${colorScheme}, ${reducedMotion})`).toBeGreaterThan(16);
-        await testInfo.attach(`palette-fade-${colorScheme}`, { body: await page.screenshot(), contentType: "image/png" });
+        await page.screenshot({ path: testInfo.outputPath(`palette-fade-${colorScheme}.png`) });
         // Walking down with the keys keeps the highlighted row clear of the fade.
         const rows = await palette(page).getByRole("option").count();
         for (let index = 0; index < Math.min(rows - 2, 12); index++) await field(page).press("ArrowDown");
