@@ -80,6 +80,10 @@ Someone has picked the Request up and is working on it.
 **Done**:
 The work is finished but has not reached its audience yet.
 
+**Reopen**:
+Taking a Done Request back to In progress, allowed for 15 minutes after it was marked Done. A Closed Request never reopens.
+_Avoid_: Undo Done
+
 **Release**:
 The recorded moment the work reached its agreed audience. A release starts Measuring.
 _Avoid_: Launch, ship, deploy
