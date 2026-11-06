@@ -8,8 +8,11 @@ import type { PanInfo, Transition, Variants } from "motion/react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Layers, LoaderCircle, LogOut, Monitor, Moon, Sun, SunMoon } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./user-menu.module.css";
+import buttonStyles from "../button/button.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 import { KeyCap } from "@/components/keyboard/key-caps";
+import { onOutsidePress, swallowPress } from "@/lib/outside-press";
+import { CHECK_CONNECTION, curlyApostrophes, failureWords, TRY_AGAIN, worthRetrying } from "@/lib/failure-messages";
 
 export type UserStatus = "available" | "busy" | "away";
 export type ThemePreference = "light" | "dark" | "system";
@@ -184,6 +187,8 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
   const [sheetEntered, setSheetEntered] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+  // Lane #269 (A111): the workspace a switch failed for, so Try again switches to it again; null when trying again can't work.
+  const [retryId, setRetryId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<Highlight | null>(null);
   const open = openProp ?? innerOpen;
   const showStatus = statusProp !== undefined || onStatusChange !== undefined;
@@ -222,6 +227,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
     reason.current = next ? why : null;
     if (next) setSigningOut(pending.current);
     if (next) setSheetEntered(false);
+    if (next) setRetryId(null);
     setWorkspaceOpen(false);
     setHighlight(null);
     setInnerOpen(next);
@@ -332,21 +338,21 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
   }, [open, sheet, inline, align]);
 
   // Outside presses close the panel. The sheet has its own scrim.
+  // Lane #269 (A16): the press only closes it, as a dialog's does; nothing underneath reacts to it.
   useEffect(() => {
     if (!open || sheet) return;
-    const onPointerDown = (event: globalThis.PointerEvent) => {
+    return onOutsidePress(event => {
       if (workspacePending.current || workspaces?.pendingId) return;
       const target = event.target as Node;
       if (surfaceRef.current?.contains(target) || workspaceSurfaceRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
+      swallowPress(event);
       session.current += 1;
       setWorkspaceOpen(false);
       reason.current = null;
       setHighlight(null);
       setInnerOpen(false);
       onOpenChange?.(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+    });
   }, [open, sheet, onOpenChange, workspaces?.pendingId]);
 
   // The page behind the sheet stays put.
@@ -384,12 +390,13 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
     workspacePending.current = true;
     setSwitchingId(workspaceId);
     setWorkspaceError(null);
+    setRetryId(null);
     try {
       await workspaces.onSelect(workspaceId);
       // Clerk may resolve setActive before the new workspace document replaces this one.
       if (mounted.current && session.current === started && !controlledPendingId.current) close(true, true);
-    } catch {
-      if (mounted.current) setWorkspaceError("Couldn’t switch workspace. Try again.");
+    } catch (failure) {
+      if (mounted.current) { setWorkspaceError(`Couldn’t switch workspace. ${failureWords(failure, CHECK_CONNECTION)}`); setRetryId(worthRetrying(failure) ? workspaceId : null); }
     } finally {
       workspacePending.current = false;
       if (mounted.current) setSwitchingId(null);
@@ -540,8 +547,11 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
     </div>
     {workspaces.loading && <div className={styles.message}><Placeholder label="Loading workspaces" lines={2} /></div>}
     {!workspaces.loading && !workspaces.error && workspaces.items.length === 0 && <p className={styles.message}>No workspaces available.</p>}
-    {(workspaceError || workspaces.error) && <p className={`${styles.message} ${styles.error}`} role="alert">{workspaces.error || workspaceError}</p>}
-    {workspaces.error && workspaces.onRetry && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Try again" onPointerMove={onItemPointerMove} onClick={() => void loadWorkspaces(workspaces.onRetry)}>Try again</button>}
+    {(workspaceError || workspaces.error) && <p className={`${styles.message} ${styles.error}`} role="alert">{curlyApostrophes(workspaces.error || workspaceError || "")}</p>}
+    {/* One Try again: the list that didn't load is read again, else the switch that failed is tried again. Lane #256
+        (A111): drawn as Arc's small secondary button under the message, still a menu stop for the arrow keys. */}
+    {((workspaces.error && workspaces.onRetry) || (retryId && !workspaces.pendingId)) && <div className={styles.retry}><button type="button" role="menuitem" tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm}`} data-stop="item" data-label={TRY_AGAIN} onPointerMove={onItemPointerMove}
+      onClick={() => void (workspaces.error && workspaces.onRetry ? loadWorkspaces(workspaces.onRetry) : retryId && selectWorkspace(retryId))}>{TRY_AGAIN}</button></div>}
     {workspaces.hasMore && workspaces.onLoadMore && <button type="button" role="menuitem" tabIndex={-1} className={`${styles.item} ${styles.workspaceItem}`} data-stop="item" data-label="Load more workspaces"
       aria-busy={workspaces.loadingMore || undefined} onPointerMove={onItemPointerMove} onClick={() => { if (!workspaces.loadingMore) void loadWorkspaces(workspaces.onLoadMore); }}>
       Load more workspaces
@@ -629,11 +639,11 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
   </AnimatePresence>;
 
   return <span ref={rootRef} className={styles.root}>
-    <button ref={setTriggerRef} id={triggerId} type="button" className={[styles.trigger, className].filter(Boolean).join(" ")} data-state={open ? "open" : "closed"} data-name={showName || undefined}
+    <button ref={setTriggerRef} id={triggerId} type="button" className={[styles.trigger, className].filter(Boolean).join(" ")} data-account="" data-state={open ? "open" : "closed"} data-name={showName || undefined}
       aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} aria-label={`Account menu, ${user.name}${showStatus ? `, ${statusLabel(status)}` : ""}`}
       onClick={onTriggerClick} onKeyDown={onTriggerKeyDown}>
       <Face user={user} status={showStatus ? status : undefined} size="sm" />
-      {showName && <><span className={styles.triggerName}>{user.name}</span><ChevronDown className={styles.chevron} strokeWidth={1.75} aria-hidden="true" /></>}
+      {showName && <><span className={styles.triggerName} data-account-name="">{user.name}</span><ChevronDown className={styles.chevron} strokeWidth={1.75} aria-hidden="true" /></>}
     </button>
     {sheet ? createPortal(bottomSheet, document.body) : inline ? panel : hydrated ? createPortal(panel, document.body) : null}
   </span>;

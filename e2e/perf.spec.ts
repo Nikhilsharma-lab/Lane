@@ -300,10 +300,13 @@ test("sidebar Project, No Project, Group by and title typing make zero network r
       for (const option of ["No grouping", "Status"]) {
         await page.getByRole("combobox", { name: "Group by" }).click()
         await measure(() => page.getByRole("option", { name: option }).click())
+        // The chosen option closes under the pointer, leaving it on a Request title: a person resting there starts that
+        // Request's load-ahead, which is the row's doing, not the view change's. The pointer moves off the list.
+        await page.mouse.move(page.viewportSize()!.width - 1, 1)
       }
       await page.keyboard.press("Escape")
-      await page.getByRole("button", { name: "Filter Requests by title" }).click()
-      const title = page.getByRole("searchbox", { name: "Filter Requests by title" })
+      await page.getByRole("button", { name: "Filter by title" }).click()
+      const title = page.getByRole("searchbox", { name: "Filter by title" })
       for (const key of ["e", "Backspace"]) await measure(() => title.press(key))
       await page.keyboard.press("Escape")
     }

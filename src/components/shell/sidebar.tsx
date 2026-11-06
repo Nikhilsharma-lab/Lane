@@ -18,7 +18,7 @@ import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
 import type { SavedView } from "@/lib/saved-view-nav";
 
-const PROJECT_NOT_CREATED = `Couldn't create the Project. ${CHECK_CONNECTION}`;
+const PROJECT_NOT_CREATED = `Couldn’t create the Project. ${CHECK_CONNECTION}`;
 
 export function Sidebar({
   children,
@@ -26,16 +26,19 @@ export function Sidebar({
   fullName,
   email,
   role,
+  membersLabel,
   orgId,
   userId,
   needsYouCount,
   savedViews,
+  pageAddress,
 }: {
   children?: React.ReactNode;
   workspaceName: string;
   fullName: string;
   email: string;
   role: PaletteRole;
+  membersLabel?: string;
   orgId: string;
   /** The signed-in user: a Pick up from the palette on Request detail names them as Assignee (#106). */
   userId: string;
@@ -43,8 +46,12 @@ export function Sidebar({
   needsYouCount?: Promise<number>;
   /** #219: the person's own saved views, for the navigation. */
   savedViews?: SavedView[];
+  /** #271: the address the frame treats as current, in place of the browser's. "Page not found" passes its own, so
+   * a missing /settings/… or /requests/…/… address still draws the sidebar and marks no item as current. */
+  pageAddress?: string;
 }) {
-  const pathname = usePathname();
+  const browserPathname = usePathname();
+  const pathname = pageAddress ?? browserPathname;
   const getView = useListViewSnapshot();
   const labels = useWorkspaceLabels();
   const navigation = useRequestNavigation();
@@ -69,6 +76,7 @@ export function Sidebar({
       fullName={fullName}
       email={email}
       role={role}
+      membersLabel={membersLabel}
       pathname={pathname}
       projects={projectState.projects}
       projectsLoading={projectState.loading}

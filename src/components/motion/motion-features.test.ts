@@ -10,6 +10,9 @@ import { describe, expect, it } from "vitest";
 const root = resolve(__dirname, "../../..");
 const app = join(root, "src/app");
 const LAYOUT_OR_DRAG = /^(layout|layoutId|layoutScroll|layoutRoot|layoutDependency|drag|dragControls|dragListener|onPan|onPanStart|onPanEnd|onPanSessionStart|onDrag|onDragStart|onDragEnd)$/;
+// #271: the signed-in frame brings layout and drag with it (AppMotionFeatures), so the root not-found, which draws
+// that frame for a signed-in person, reaches its components through it without the jump; the walk stops there.
+const SIGNED_IN_FRAME = join(root, "src/components/shell/workspace-frame.tsx");
 const ROUTE_FILE = /^(page|layout|template|loading|error|not-found|global-error|default)\.tsx?$/;
 
 /** The props of every `<m.x …>` opening tag in a file, read at the tag's own level (not inside `{…}`). */
@@ -54,11 +57,12 @@ function routeFilesOutsideApp(directory: string): string[] {
   });
 }
 /** Every file reachable from `entries`, with the chain that first reached it. */
-function reach(entries: string[]) {
+function reach(entries: string[], stopAt: string[] = []) {
   const via = new Map<string, string[]>(entries.map(entry => [entry, [entry]]));
   const queue = [...entries];
   while (queue.length) {
     const file = queue.shift()!;
+    if (stopAt.includes(file)) continue;
     for (const next of imports(file)) {
       if (via.has(next)) continue;
       via.set(next, [...via.get(file)!, next]);
@@ -83,7 +87,8 @@ describe("Motion's layout and drag", () => {
   });
 
   it("are used nowhere outside the signed-in app, where the page carries only animations and gestures", () => {
-    const outside = reach(routeFilesOutsideApp(app));
+    expect(readFileSync(SIGNED_IN_FRAME, "utf8")).toMatch(/return \([\s\S]*?<InWorkspaceFrame value>\s*<AppMotionFeatures>/);
+    const outside = reach(routeFilesOutsideApp(app), [SIGNED_IN_FRAME]);
     expect(outside.size).toBeGreaterThan(20);
     const users = [...outside.entries()].filter(([file]) => usesLayoutOrDrag(file)).map(([, chain]) => chain.map(name).join(" -> "));
     expect(users).toEqual([]);

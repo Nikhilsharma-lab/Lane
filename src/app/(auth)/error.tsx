@@ -5,11 +5,13 @@ import { DatabaseZap } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { reportClientError } from "@/lib/report-client-error";
 import { SupportContact } from "../support-contact";
 
 // Same pattern as src/app/error.tsx for the auth group (plan item 1.12): onboarding and
 // the sign-in tasks read the database, which can be paused on the free tier. The auth
-// shell keeps the Lane mark and the link back to sign in.
+// shell keeps the Lane mark and the link back to sign in. #271 (A120): it reports what went wrong; its wording
+// waits for Build 8.
 export default function AuthError({
   error,
   reset,
@@ -19,6 +21,7 @@ export default function AuthError({
 }) {
   useEffect(() => {
     console.error("Lane could not render the sign-in flow", { digest: error.digest, message: error.message });
+    void reportClientError(error, { boundary: "sign-in", digest: error.digest });
   }, [error]);
 
   return (

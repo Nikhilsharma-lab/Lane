@@ -6,7 +6,7 @@ import { buildBrandAssets, cssColourToHex, themeColours } from './brand-assets.m
 
 const root = resolve(import.meta.dirname, '../..')
 const read = path => readFileSync(join(root, path), 'utf8')
-const repoSources = { theme: read('src/styles/theme.css'), mark: read('src/components/auth/auth-shell.tsx'), layout: read('src/app/layout.tsx') }
+const repoSources = { theme: read('src/styles/theme.css'), mark: read('src/components/brand/lane-glyph.tsx'), layout: read('src/app/layout.tsx') }
 
 // Replaces a slot's value inside the first :root or .dark block only (tweakcn's half).
 function withSlot(theme, selector, name, value) {

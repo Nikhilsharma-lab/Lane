@@ -4,6 +4,7 @@ import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createProject } from "@/app/(app)/intake/project-actions";
+import { PROJECT_NAME_MAX } from "@/lib/request-constants";
 import { Check, Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
@@ -163,15 +164,17 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
     setCreating(true); onBusyChange(true); setCreateError(null);
     try {
       const result = await callAction(() => createProject({ name: choice.name }, { orgId }));
-      if (result.success) {
-        state.addProject(result.project);
-        onChange(result.project.id);
+      // A name that exists, in any capitals, quietly picks that Project here; only the sidebar's New Project refuses it.
+      const project = result.success ? result.project : result.existing;
+      if (project) {
+        state.addProject(project);
+        onChange(project.id);
         setProjectName(""); setOpen(false);
-      } else {
+      } else if (!result.success) {
         setCreateError(result.error.message);
         if (result.error.code === "conflict") void state.reload();
       }
-    } catch (thrown) { setCreateError(thrownMessage(thrown, "Project couldn't be created. Try again; your Request is still here.")); }
+    } catch (thrown) { setCreateError(thrownMessage(thrown, "Project couldn’t be created. Try again; your Request is still here.")); }
     finally {
       setCreating(false); onBusyChange(false);
     }
@@ -189,7 +192,7 @@ export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyC
     <PopoverContent {...pickerPopoverProps} inert={open ? undefined : true} aria-label="Choose a Project"
       onOpenAutoFocus={(event) => focusOnOpen(event, searchRef)} className={naming ? styles.formPanel : styles.panel}>
       {naming ? <div className={styles.projectName}>
-        <Input ref={nameRef} label="Project name" value={projectName} maxLength={80} disabled={creating} error={createError ?? undefined}
+        <Input ref={nameRef} label="Project name" value={projectName} maxLength={PROJECT_NAME_MAX} disabled={creating} error={createError ?? undefined}
           onChange={(event) => { setProjectName(event.target.value); setCreateError(null); }}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.nativeEvent.isComposing) {

@@ -2,13 +2,13 @@
 
 import Link from "@/components/link"
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react"
-import { Hash, Inbox, Link2, Maximize2, MoreHorizontal, X } from "lucide-react"
+import { Hash, Inbox, Link2, Maximize2, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
 import buttonStyles from "@/components/arc/button/button.module.css"
-import { PageStrip, PageStripProvider } from "@/components/shell/page-strip"
+import { PageStrip } from "@/components/shell/page-strip"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { CopyButton } from "./copy-button"
 import { useCopy } from "./use-copy"
@@ -21,22 +21,7 @@ import { peekEntry, peekKey, readForPreview, subscribePeek } from "./request-pee
 import type { RequestPeekProps } from "./request-peek"
 import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
-import { RequestPeekSkeleton } from "./request-peek-skeleton";
-import { KeyCap } from "@/components/keyboard/key-caps";
-
-/** The shell's trail and sidebar control belong to the page's strip, not the preview's. */
-const PREVIEW_FRAME = { trail: [], expand: null, link: "a" as const }
-function PreviewFrame({ children }: { children: React.ReactNode }) {
-  return <PageStripProvider value={PREVIEW_FRAME}>{children}</PageStripProvider>
-}
-
-function PreviewClose({ onClose }: { onClose: () => void }) {
-  return <Tooltip morph="plain" side="bottom" content={<>Close preview<KeyCap className={styles.kbd}>Esc</KeyCap></>}>
-    <Button type="button" variant="ghost" size="sm" morph="plain" className={detailStyles.iconButton} aria-label="Close preview" onClick={onClose} data-request-peek-close="">
-      <X strokeWidth={1.75} aria-hidden="true" />
-    </Button>
-  </Tooltip>
-}
+import { PreviewClose, PreviewFrame, RequestPeekSkeleton } from "./request-peek-skeleton"
 
 /** The preview's strip: its code, copy, Open full page, Edit Request and the one lifecycle action. */
 function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: ReactNode; editAction?: ReactNode; onClose: () => void; onOpenFullPage: RequestPeekProps["onOpenFullPage"] }) {
@@ -117,7 +102,7 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
       <div className={styles.state}>{unavailable
         // The page's own words: a missing Request and one this person may not see read the same.
         ? <EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It couldn’t be found or is not available in this workspace." />
-        : <EmptyState icon={<Inbox />} title="This Request couldn't be loaded" description={entry.status === "error" ? entry.message : "Try again."} action={<Button variant="secondary" size="sm" onClick={() => setRetry(count => count + 1)}>Try again</Button>} />}</div>
+        : <EmptyState icon={<Inbox />} title="This Request couldn’t be loaded" description={entry.status === "error" ? entry.message : "Try again."} action={<Button variant="secondary" size="sm" onClick={() => setRetry(count => count + 1)}>Try again</Button>} />}</div>
     </section>
   }
 

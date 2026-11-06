@@ -165,7 +165,7 @@ export async function runTriage(
       if (!owned) return { success: false, error: { code: "validation", message: "Only the Requester or a workspace admin can edit an Open Request." } };
       storedImpact = owned.expectedImpact;
     } catch {
-      return { success: false, error: { code: "network", message: `Couldn't check this Request. ${TEXT_KEPT}` } };
+      return { success: false, error: { code: "network", message: `Couldn’t check this Request. ${TEXT_KEPT}` } };
     }
   }
   // A Guest files without a prediction (#212); a Member who takes it on writes it.
@@ -191,7 +191,7 @@ export async function runTriage(
     }
   } catch (error) {
     console.error("[intake] Project validation failed:", error);
-    return { success: false, error: { code: "network", field: "projectId", message: "Lane couldn't check this Project. Try again." } };
+    return { success: false, error: { code: "network", field: "projectId", message: "Lane couldn’t check this Project. Try again." } };
   }
   // Every metric comes from this workspace's Metrics library, checked before any review is spent (#198).
   // A Guest's Request has no prediction to check (#212).
@@ -203,7 +203,7 @@ export async function runTriage(
       reviewed = { ...reviewed, expectedImpact: checked.impact as typeof reviewed.expectedImpact };
     } catch (error) {
       console.error("[intake] Metrics library check failed:", error);
-      return { success: false, error: { code: "network", field: "expectedImpact", message: "Lane couldn't check the metrics. Try again." } };
+      return { success: false, error: { code: "network", field: "expectedImpact", message: "Lane couldn’t check the metrics. Try again." } };
     }
   }
 
@@ -276,7 +276,7 @@ async function reviewersForNewRequest(
   } catch (error) {
     if (error instanceof RequestChangeError) return failure(error.message);
     console.error("[intake] reviewer check failed:", error);
-    return { code: "network", field: "reviewers", message: "Lane couldn't check the reviewers. Try again." };
+    return { code: "network", field: "reviewers", message: "Lane couldn’t check the reviewers. Try again." };
   }
 }
 
@@ -416,7 +416,7 @@ export async function saveRequest(
       error: {
         code: "save_failed",
         message:
-          `Your Request couldn't be created. ${TEXT_KEPT} Try again.`,
+          `Your Request couldn’t be created. ${TEXT_KEPT} Try again.`,
       },
     };
   } catch (error) {
@@ -426,7 +426,7 @@ export async function saveRequest(
       error: {
         code: "save_failed",
         message:
-          `Your Request couldn't be created. ${TEXT_KEPT} Try again.`,
+          `Your Request couldn’t be created. ${TEXT_KEPT} Try again.`,
       },
     };
   }

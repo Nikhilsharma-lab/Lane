@@ -104,7 +104,7 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       await expect(detail).toBeVisible();
       // Plan item 2.5: the lifecycle slot sits in the page strip at every width
       // and reports through toasts; the status reads from the panel row from
-      // 960px of content width, and from the state line below it.
+      // 920px of content width, and from the state line below it.
       const toasts = page.getByRole("region", { name: /^Messages/ });
       await expect(
         detail.locator('[data-slot="page-strip"]').locator(lifecycle),

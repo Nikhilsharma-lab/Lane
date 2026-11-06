@@ -4,13 +4,14 @@ import { useEffect, useEffectEvent, useMemo, useState, type ReactNode } from "re
 import firstRunStyles from "@/components/first-run/first-run.module.css"
 import { DataTable } from "@/components/requests/tasks/data-table"
 import { columns } from "@/components/requests/tasks/columns"
-import { Folder, Plus } from "lucide-react"
+import { Folder, Inbox, Plus } from "lucide-react"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { Button } from "@/components/arc/button/button"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { NewRequestLink } from "@/components/requests/new-request-link"
-import { usePublishLoadedRequests, useRequestListContext, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { usePublishLoadedRequests, useSetRequestListView, withListContext } from "@/components/requests/list-view-state"
+import { useRequestListFilters } from "@/components/requests/list-filters"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
@@ -19,7 +20,6 @@ import styles from "./requests-overview.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
-import { RequestsWelcome } from "./requests-welcome"
 import type { PeekViewer } from "@/components/requests/request-peek"
 import { SavedViewMenu } from "@/components/requests/saved-view-menu"
 import { openSavedView, savedViewChanged, type SavedView } from "@/lib/saved-view-rules"
@@ -28,7 +28,7 @@ import { failureWords, ShownFailure } from "@/lib/failure-messages"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-const OLDER_ERROR = "Older Requests couldn't be loaded. Try again."
+const OLDER_ERROR = "Older Requests couldn’t be loaded. Try again."
 
 
 /** Reads older finished Requests through the GET route (plan items 1.7 and 1.16), never a server action.
@@ -87,7 +87,16 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
 
 const noViews: SavedView[] = []
 
-export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, canInvite = false, viewer, firstRun, savedViews = noViews }: {
+/**
+ * The empty workspace's welcome renders on the server (requests-welcome.tsx); its icon and its New Request are drawn
+ * here, inside the list's own client code, so the server never refers to NewRequestLink or the icons for this page.
+ * The list's skeleton does, and referred to from both, they took the list's own files in the skeleton's needs: a move
+ * to the list (Escape from a Request page) then waited for all of the list's code before its skeleton showed (Build 4).
+ */
+export const WelcomeIcon = () => <Inbox data-icon-size="2xl" />
+export const WelcomeNewRequest = ({ className, children }: { className: string; children: ReactNode }) => <NewRequestLink className={className}>{children}</NewRequestLink>
+
+export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, welcome: workspaceWelcome, viewer, firstRun, savedViews = noViews }: {
   /** #219: the person's own saved views; the strip saves, updates, renames and deletes them. */
   savedViews?: SavedView[]
   /** #217: the person's first run, rendered by the server. The first Request guide is an empty workspace's welcome. */
@@ -96,8 +105,8 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   isGuest: boolean
   /** A Viewer (#210): the whole workspace's list, with no New Request and no moves. */
   readOnly?: boolean
-  /** The empty workspace's welcome offers Invite teammates (admins only). */
-  canInvite?: boolean
+  /** The empty workspace's welcome (requests-welcome.tsx), rendered by the server so its code never ships to the browser. */
+  welcome?: ReactNode
   context?: { orgId: string }
   /** More Open and In progress Requests exist than the list loads. */
   activeCapped?: boolean
@@ -106,7 +115,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   /** Plan item 2.12: who is reading, for the Request preview (read with the page; no extra query). */
   viewer?: PeekViewer
 }) {
-  const listContext = useRequestListContext()
+  const listContext = useRequestListFilters()
   const status = listContext?.status ?? "all", project = listContext?.project ?? "all"
   const sharedProjects = useSharedWorkspaceProjects()
   const pendingMutations = usePendingMutations()
@@ -131,7 +140,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
 
   const openView = openSavedView(savedViews, listContext?.savedView)
   const heading = openView?.name ?? projectName ?? (project === "none" ? "No Project" : isGuest ? "My Requests" : "Requests")
-  const viewNote = openView && savedViewChanged(openView.filters, { status, project }) ? "Filters changed since you saved this view." : undefined
+  const viewNote = openView && savedViewChanged(openView.filters, listContext) ? "Filters changed since you saved this view." : undefined
   const showOlder = older.showMore
   const footer = (activeCapped || showOlder || older.error) ? <div className={`${styles.limitNote} flex flex-wrap items-center gap-3 pt-4`}>
     {activeCapped && <p className="m-0">Showing the latest 200 Requests.</p>}
@@ -145,7 +154,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   const guideIsWelcome = Boolean(firstRun?.replacesWelcome && workspaceEmpty)
   const welcome = firstRun?.replacesWelcome
     ? <div data-requests-welcome className={firstRunStyles.welcomeSlot}>{firstRun.node}</div>
-    : <RequestsWelcome canInvite={canInvite} isGuest={isGuest} readOnly={readOnly} />
+    : workspaceWelcome
 
   return (
     <div data-slot="requests-workspace" className={styles.overview}>

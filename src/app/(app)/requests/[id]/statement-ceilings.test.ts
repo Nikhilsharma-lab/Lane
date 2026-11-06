@@ -174,7 +174,7 @@ describe("statement ceilings per bulk Request mutation", () => {
     session.orgRole = "org:guest";
     try {
     const { result, statements } = await measure(() => pickUpRequests(ids, { orgId: ORG }));
-      expect(result.error).toBe("You can't change Requests in this workspace.");
+      expect(result.error).toBe("You can’t change Requests in this workspace.");
       expect(result.moved).toEqual([]);
       expect(statements).toBe(0);
     } finally {

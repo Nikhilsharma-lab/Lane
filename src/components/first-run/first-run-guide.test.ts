@@ -98,7 +98,7 @@ describe("the first Request guide (#217)", () => {
   })
 
   it("says in place when skipping or finishing didn't save, and keeps the guide", () => {
-    const html = render({ error: "Your first run isn't ready yet. Reload the page and try again." })
+    const html = render({ error: "Your first run isn’t ready yet. Reload the page and try again." })
     expect(html).toMatch(/role="alert"[\s\S]*Reload the page and try again\./)
     expect(html).toContain(">Skip the guide<")
   })

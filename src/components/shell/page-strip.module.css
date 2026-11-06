@@ -13,6 +13,10 @@
 /* The ancestors give up their width, so the trail ends in something specific (LAN-12) rather than "LAN-…".
  * The current crumb never shrinks below its text, and truncates only past the whole trail's width. */
 .crumbs li[aria-current] { flex-shrink: 0; max-width: 100%; }
+/* #269 (A126): the workspace name says where you are, so the crumbs after it (Request detail's Project) give up
+ * their width first, down to a few letters and "…", before the workspace name is cut. */
+.crumbs li:first-child:nth-last-child(n + 3) { flex-shrink: 0; max-width: 50%; }
+.crumbs li:not(:first-child, [aria-current]) { min-width: calc(var(--space-1) * 16); }
 .crumbs li + li::before { content: "/"; margin: 0 calc(var(--space-1) * 2.5); color: var(--text-muted); }
 .crumbs a { overflow: hidden; text-overflow: ellipsis; border-radius: var(--radius-control); }
 .crumbs [aria-current] { color: var(--foreground); }

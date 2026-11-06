@@ -29,7 +29,11 @@ async function withWorkspace(page: Page, label: string, run: (user: TestUser, re
 }
 
 /** Popups and in-page forms take on Lane's behaviour once the page is idle (src/components/popup/load-behaviour.ts). */
-const behaviourReady = (page: Page) => expect(page.locator("html[data-popup-behaviour=ready]")).toHaveCount(1, { timeout: 30_000 });
+// On a phone the panel's own code follows the behaviour (popup-behaviour.tsx); until then a popup is the centred dialog.
+const behaviourReady = async (page: Page) => {
+  await expect(page.locator("html[data-popup-behaviour=ready]")).toHaveCount(1, { timeout: 30_000 });
+  if (page.viewportSize()!.width < 640) await expect(page.locator("html[data-popup-sheet=ready]")).toHaveCount(1, { timeout: 30_000 });
+};
 
 /**
  * Holds back the popup behaviour's script (the only one that carries its phone breakpoint) until `release`, so a

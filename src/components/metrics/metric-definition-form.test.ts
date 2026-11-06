@@ -18,7 +18,7 @@ describe("The definition form's unit", () => {
     const html = render(true);
     expect(html).not.toContain('role="combobox"');
     expect(html).toContain("Count");
-    expect(html).toContain("A Request uses this metric, so its unit can&#x27;t change.");
+    expect(html).toContain("A Request uses this metric, so its unit can’t change.");
   });
 });
 

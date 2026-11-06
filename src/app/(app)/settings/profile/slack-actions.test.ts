@@ -150,7 +150,7 @@ describe("connecting Slack", () => {
 
   it("degrades cleanly while Slack is switched off: no install link, no callback, no Slack traffic", async () => {
     vi.unstubAllEnvs();
-    expect(await start()).toEqual({ error: "Slack isn't available in Lane yet." });
+    expect(await start()).toEqual({ error: "Slack isn’t available in Lane yet." });
     expect(landing(await callback({ code: "c0de", state: "anything.at-all" }))).toBe("/settings/profile?section=slack&slack=unavailable");
     expect(await connected()).toBeNull();
     expect(slack.calls).toEqual([]);
@@ -194,7 +194,7 @@ describe("the Slack DM choice", () => {
 
   it("is not offered, and can't be chosen, while Slack is not connected", async () => {
     expect(await state()).toEqual({ choice: "email", slackOffered: false, choseSlack: false });
-    expect(await choose("slack")).toEqual({ error: "Slack isn't connected to this workspace. Choose Email or Off, or ask an Admin to connect Slack." });
+    expect(await choose("slack")).toEqual({ error: "Slack isn’t connected to this workspace. Choose Email or Off, or ask an Admin to connect Slack." });
     expect(await connection`select 1 from delivery_preferences where org_id = ${ORG}`).toEqual([]);
   });
 
@@ -217,6 +217,6 @@ describe("the Slack DM choice", () => {
     await connectAsAdmin();
     vi.unstubAllEnvs();
     expect(await state()).toMatchObject({ choice: "email", slackOffered: false });
-    expect(await choose("slack")).toMatchObject({ error: expect.stringContaining("Slack isn't connected") });
+    expect(await choose("slack")).toMatchObject({ error: expect.stringContaining("Slack isn’t connected") });
   });
 });

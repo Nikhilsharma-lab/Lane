@@ -141,8 +141,8 @@ async function setDisplay(page: Page) {
 
 async function expectKeptControls(page: Page, fixture: NavigationFixture) {
   await expect(page.getByRole("combobox", { name: "Requests per page", exact: true })).toContainText("10");
-  await page.getByRole("button", { name: "Filter Requests by title", exact: true }).click();
-  await expect(page.getByRole("searchbox", { name: "Filter Requests by title", exact: true })).toHaveValue(fixture.filter);
+  await page.getByRole("button", { name: "Filter by title", exact: true }).click();
+  await expect(page.getByRole("searchbox", { name: "Filter by title", exact: true })).toHaveValue(fixture.filter);
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Display", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Group by", exact: true })).toContainText("No grouping");
@@ -157,8 +157,8 @@ export async function prepareNavigationList(page: Page, fixture: NavigationFixtu
   expect(fixture.requests.length).toBeGreaterThan(25);
   await page.goto("/?project=none");
   await expect(rows(page).first()).toBeVisible();
-  await page.getByRole("button", { name: "Filter Requests by title", exact: true }).click();
-  await page.getByRole("searchbox", { name: "Filter Requests by title", exact: true }).fill(fixture.filter);
+  await page.getByRole("button", { name: "Filter by title", exact: true }).click();
+  await page.getByRole("searchbox", { name: "Filter by title", exact: true }).fill(fixture.filter);
   await page.keyboard.press("Escape");
   await setDisplay(page);
   await page.getByRole("combobox", { name: "Requests per page", exact: true }).click();

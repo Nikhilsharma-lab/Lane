@@ -42,6 +42,40 @@ describe("a saved view's filters", () => {
   });
 });
 
+describe("a saved view's title filter (A214)", () => {
+  it("is kept with the status view and Project, trimmed, and left out when empty", () => {
+    expect(savedViewFilters({ status: "open", project: WEBSITE, title: "  checkout " })).toEqual({ status: "open", project: WEBSITE, title: "checkout" });
+    expect(savedViewFilters({ status: "open", project: "all", title: "" })).toEqual({ status: "open", project: "all" });
+    expect(savedViewFilters({ status: "open", project: "all", title: "   " })).toEqual({ status: "open", project: "all" });
+  });
+
+  it("is limited to the longest Request title when saving", () => {
+    expect(savedViewFilters({ status: "all", project: "all", title: "a".repeat(200) })).toEqual({ status: "all", project: "all", title: "a".repeat(200) });
+    expect(savedViewFilters({ status: "all", project: "all", title: "a".repeat(201) })).toBeNull();
+    expect(savedViewFilters({ status: "all", project: "all", title: 42 })).toBeNull();
+  });
+
+  it("reads back what was saved, and an older view without one opens as it did", () => {
+    expect(readSavedViewFilters({ status: "open", project: "all", title: "checkout" })).toEqual({ status: "open", project: "all", title: "checkout" });
+    expect(readSavedViewFilters({ status: "open", project: WEBSITE })).toEqual({ status: "open", project: WEBSITE });
+  });
+
+  it("drops a damaged title but keeps the rest of the view", () => {
+    expect(readSavedViewFilters({ status: "open", project: "all", title: ["checkout"] })).toEqual({ status: "open", project: "all" });
+  });
+
+  it("opens the list with it", () => {
+    expect(savedViewHref({ status: "open", project: "all", title: "checkout button" })).toBe("/?status=open&title=checkout+button");
+  });
+
+  it("counts as a change when the list's title differs, and an empty title equals none", () => {
+    expect(savedViewChanged({ status: "open", project: "all", title: "checkout" }, { status: "open", project: "all", title: "checkout" })).toBe(false);
+    expect(savedViewChanged({ status: "open", project: "all", title: "checkout" }, { status: "open", project: "all", title: "check" })).toBe(true);
+    expect(savedViewChanged({ status: "open", project: "all" }, { status: "open", project: "all", title: "" })).toBe(false);
+    expect(savedViewChanged({ status: "open", project: "all" }, { status: "open", project: "all", title: "x" })).toBe(true);
+  });
+});
+
 describe("a saved view's name", () => {
   it("is trimmed", () => {
     expect(parseSavedViewName("  Design in progress ")).toEqual({ name: "Design in progress" });

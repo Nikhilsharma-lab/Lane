@@ -250,7 +250,7 @@ it("never retries a real role denial containing the former matched phrase", asyn
   const run = vi.fn(() => markDone(REQUEST_ID, { orgId: WORKSPACE_ID }));
   const renew = vi.fn(async () => "renewed");
   const observed = await queryCounter.measure(() => callAction(run, { current: async () => "old", renew }));
-  expect(observed.result).toEqual({ error: "You can't change Requests in this workspace." });
+  expect(observed.result).toEqual({ error: "You can’t change Requests in this workspace." });
   expect(run).toHaveBeenCalledTimes(1);
   expect(renew).not.toHaveBeenCalled();
   expect(observed.statements).toBe(0);

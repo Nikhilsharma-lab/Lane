@@ -23,6 +23,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return timings.respond(json(detail));
   } catch (error) {
     console.error("[api/requests/id] detail failed", { kind: error instanceof Error ? error.name : "UnknownError" });
-    return timings.respond(json({ error: "This Request couldn't be loaded. Try again." }, { status: 500 }));
+    return timings.respond(json({ error: "This Request couldn’t be loaded. Try again." }, { status: 500 }));
   }
 }

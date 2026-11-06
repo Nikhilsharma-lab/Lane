@@ -5,8 +5,7 @@ import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { Select } from "@/components/arc/select/select";
 import {
-  METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionFieldErrors, metricDefinitionInputSchema,
-  metricUnitName, type MetricDefinitionField,
+  METRIC_NAME_MAX, METRIC_UNITS, metricDefinitionProblems, metricUnitName, type MetricDefinitionField,
 } from "@/lib/metric-definition-rules";
 import styles from "./metric-definition-form.module.css";
 import { FieldError } from "@/components/forms/field-error";
@@ -16,7 +15,7 @@ export type MetricFormResult = { ok: true } | { error: string; fields?: Partial<
 
 const UNIT_OPTIONS = METRIC_UNITS.map(unit => ({ value: unit, label: metricUnitName(unit) }));
 const FIELD_ORDER: MetricDefinitionField[] = ["name", "unit", "link", "howCounted"];
-export const UNIT_LOCKED_NOTE = "A Request uses this metric, so its unit can't change. A metric in another unit needs a new definition.";
+export const UNIT_LOCKED_NOTE = "A Request uses this metric, so its unit can’t change. A metric in another unit needs a new definition.";
 
 /** Edits keep saved calculation notes and historical source links intact. */
 export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onSaved, onCancel, onPendingChange, confirmSaved = false, unitLocked = false }: {
@@ -55,9 +54,8 @@ export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onS
     event.preventDefault();
     if (pending) return;
     setError(null); setSaved(false);
-    const parsed = metricDefinitionInputSchema.safeParse(values);
-    if (!parsed.success) {
-      const problems = metricDefinitionFieldErrors(parsed.error);
+    const problems = metricDefinitionProblems(values);
+    if (Object.keys(problems).length) {
       setFields(problems); focusFirst(problems);
       return;
     }
@@ -74,7 +72,7 @@ export function MetricDefinitionForm({ initial, submitLabel, note, onSubmit, onS
       if (confirmSaved) setSaved(true);
       onSaved?.();
     } catch {
-      setError("We couldn't save this metric. Check your connection and try again.");
+      setError("We couldn’t save this metric. Check your connection and try again.");
     } finally {
       setPending(false);
       onPendingChange?.(false);

@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: 
 afterEach(() => vi.unstubAllGlobals())
 
 function workspace(pathname = "/") {
-  let view: ListViewState = {
+  let view: ListViewState = { title: "",
     status: "open", project: "none", pagination: { pageIndex: 3, pageSize: 50 },
     columnVisibility: { submittedBy: true }, localFilters: [{ id: "title", value: "checkout" }, { id: "requestType", value: "bug" }],
     ordering: "oldest", grouping: "project", collapsedGroups: ["project:none"],
@@ -108,7 +108,7 @@ describe("workspace Requests navigation", () => {
     const input = { search: "project=named", seen: "", written: null, pathname: "/", locationSearch: "?project=named", hold: false }
     expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named" })
     events.dispatchEvent(new Event("popstate"))
-    expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named" } })
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named", title: "" } })
     cleanup()
   })
 
@@ -134,12 +134,12 @@ describe("workspace Requests navigation", () => {
     app.sidebar.selectList({ project: "all" })
     expect(app.controller.planListUrl(input)).toEqual({ seen: "status=open" })
     const external = { ...input, search: "project=named", locationSearch: "?project=named" }
-    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named" } })
+    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named", title: "" } })
     app.sidebar.selectList({ project: "none" })
     const events = new EventTarget()
     const cleanup = app.controller.listenForHistory(events)
     events.dispatchEvent(new Event("popstate"))
-    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named" } })
+    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named", title: "" } })
     cleanup()
   })
 

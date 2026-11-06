@@ -1,9 +1,5 @@
 import type { ReactNode } from "react"
-import Link from "@/components/link"
-import { ExternalLink, FileText, Image as ImageIcon, Inbox, Link as LinkIcon } from "lucide-react"
-import { EmptyState } from "@/components/arc/empty-state/empty-state"
-import buttonStyles from "@/components/arc/button/button.module.css"
-import { PageStrip } from "@/components/shell/page-strip"
+import { ExternalLink, FileText, Image as ImageIcon, Link as LinkIcon } from "lucide-react"
 import type { RequestPriority, RequestType } from "@/lib/request-constants"
 import type { ExpectedImpact, IncompleteMeasurement } from "@/lib/request-impact"
 import type { SavedDesignReview } from "@/lib/request-design-link"
@@ -12,12 +8,12 @@ import { ExpectedImpactSummary } from "./expected-impact-summary"
 import { formatAttachmentSize } from "@/lib/request-attachments"
 import { DetailConversation } from "./detail-conversation"
 import { LocalTime } from "./local-time"
-import { DetailArrivalReset, DetailRequestProvider, type DetailViewer } from "./detail-context"
+import { DetailRequestProvider, type DetailViewer } from "./detail-context"
 import { DetailProperties, DetailStateLine } from "./detail-properties"
-import { DetailBackLink } from "./detail-back-link"
 import { DetailStrip } from "./detail-strip"
 import { RequestPaneTabs, RequestPanePanel } from "./request-pane-tabs"
 import { RequestPaneHeader } from "./request-pane-header"
+import { RequestTitle } from "./request-title"
 import detailStyles from "./detail.module.css"
 import styles from "./requests.module.css"
 
@@ -94,16 +90,6 @@ export type RequestAttachment = {
   uploadedAt: Date | null
 }
 
-
-const secondaryLink = `${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm}`
-
-/** The strip names the state as the page h1; the body says what happened, as the error frames do.
- * Plan item 2.5: a missing Request and one this person may not see read the same, with no existence leak.
- * Reached with J or K, its heading takes the focus the title would have had. */
-export function RequestUnavailable({ returnHref, requestId }: { returnHref: string; requestId?: string }) {
-  return <section className="flex min-w-0 flex-1 flex-col"><DetailArrivalReset requestId={requestId} /><PageStrip leading={<DetailBackLink href={returnHref} always />} title="Request unavailable" heading /><div className="flex flex-1 items-center justify-center p-5"><EmptyState icon={<Inbox />} title="This Request can’t be opened" description="It couldn’t be found or is not available in this workspace." action={<Link className={secondaryLink} href={returnHref}>Back to Requests</Link>} /></div></section>
-}
-
 /**
  * Plan item 2.5: Request detail. One 44px strip, a reading column and a
  * property panel. The column holds labelled regions with stable ids, in
@@ -137,7 +123,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
         <div className={detailStyles.layout}>
           <div className={detailStyles.main} data-detail-main="">
             {!peekStrip && <header className={detailStyles.titleBlock} data-detail-title="">
-              <Title id="request-title" tabIndex={-1} className={detailStyles.title}>{request.title}</Title>
+              <RequestTitle as={Title} className={detailStyles.title}>{request.title}</RequestTitle>
               <DetailStateLine />
             </header>}
             <RequestPanePanel value="overview"><section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>

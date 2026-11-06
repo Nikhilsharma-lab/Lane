@@ -3,7 +3,7 @@ import type { ListViewState } from "@/components/requests/list-view-state"
 
 /** The production workspace navigation owner with an in-memory browser boundary. */
 export function requestNavigation() {
-  let view: ListViewState = {
+  let view: ListViewState = { title: "",
     status: "all", project: "all", columnVisibility: {}, localFilters: [], ordering: "newest",
     grouping: "status", collapsedGroups: [], pagination: { pageIndex: 0, pageSize: 25 },
   }

@@ -1,4 +1,4 @@
-import { isRequestStatusFilter, type RequestListContext } from "./request-workspace";
+import { isRequestStatusFilter, REQUEST_TITLE_FILTER_MAX, type RequestListContext } from "./request-workspace";
 import type { SavedView, SavedViewFilters } from "./saved-view-nav";
 
 /**
@@ -8,22 +8,34 @@ import type { SavedView, SavedViewFilters } from "./saved-view-nav";
 export { openSavedView, savedViewHref, viewInNavigation, type SavedView, type SavedViewFilters } from "./saved-view-nav";
 
 export const SAVED_VIEW_NAME_MAX = 60;
+export { REQUEST_TITLE_FILTER_MAX };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isProjectFilter = (value: unknown): value is string =>
   value === "all" || value === "none" || (typeof value === "string" && UUID.test(value));
 
+type FilterInput = { status?: unknown; project?: unknown; title?: unknown };
+const isTitleFilter = (value: unknown): value is string | undefined | null =>
+  value === undefined || value === null || (typeof value === "string" && value.trim().length <= REQUEST_TITLE_FILTER_MAX);
+/** A214: a title is kept trimmed, and only when there is one, so views without a title keep their old shape. */
+const withTitle = (filters: SavedViewFilters, title: string | undefined | null): SavedViewFilters =>
+  title?.trim() ? { ...filters, title: title.trim() } : filters;
+
 /** The filters to save from the list, or null when they aren't filters the list has. */
-export function savedViewFilters(input: { status?: unknown; project?: unknown }): SavedViewFilters | null {
-  const { status, project } = input ?? {};
-  if (typeof status !== "string" || !isRequestStatusFilter(status) || !isProjectFilter(project)) return null;
-  return { status, project: project.toLowerCase() };
+export function savedViewFilters(input: FilterInput): SavedViewFilters | null {
+  const { status, project, title } = input ?? {};
+  if (typeof status !== "string" || !isRequestStatusFilter(status) || !isProjectFilter(project) || !isTitleFilter(title)) return null;
+  return withTitle({ status, project: project.toLowerCase() }, title);
 }
 
-/** Saved filters as the list reads them. Anything unknown reads as every Request, never as an empty list. */
+/**
+ * Saved filters as the list reads them. Anything unknown reads as every Request, never as an empty list. A damaged
+ * title is dropped without losing the view's status and Project; views saved before A214 have no title.
+ */
 export function readSavedViewFilters(stored: unknown): SavedViewFilters {
-  const value = stored && typeof stored === "object" ? stored as { status?: unknown; project?: unknown } : {};
-  return savedViewFilters(value) ?? { status: "all", project: "all" };
+  const value = stored && typeof stored === "object" ? stored as FilterInput : {};
+  const filters = savedViewFilters({ status: value.status, project: value.project }) ?? { status: "all", project: "all" };
+  return isTitleFilter(value.title) ? withTitle(filters, value.title) : filters;
 }
 
 export function parseSavedViewName(input: unknown): { name: string } | { error: string } {
@@ -35,7 +47,7 @@ export function parseSavedViewName(input: unknown): { name: string } | { error: 
 
 /** Whether the list now shows other filters than the view saved. */
 export const savedViewChanged = (saved: SavedViewFilters, current: RequestListContext) =>
-  saved.status !== current.status || saved.project !== current.project;
+  saved.status !== current.status || saved.project !== current.project || (saved.title ?? "").trim() !== (current.title ?? "").trim();
 
 export type SavedViewChoice = "save" | "update" | "save_as_new" | "rename" | "delete";
 

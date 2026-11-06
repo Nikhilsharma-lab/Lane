@@ -8,6 +8,7 @@ import { Check, ChevronLeft, ChevronRight, Copy, MoreHorizontal, Trash2 } from "
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./context-menu.module.css";
 import { KeyCap } from "@/components/keyboard/key-caps";
+import { onOutsidePress, swallowPress } from "@/lib/outside-press";
 
 export interface ContextMenuItem {
   id: string;
@@ -37,6 +38,8 @@ export interface ContextMenuProps {
   asChild?: boolean;
   openOnClick?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Lane #269 (A16): a press outside only closes the menu, so nothing underneath reacts and no other menu opens. */
+  outsidePressOnlyCloses?: boolean;
 }
 
 type Highlight = { index: number; top: number; height: number; danger: boolean; glide: boolean };
@@ -213,7 +216,7 @@ function MenuPanel({ id, treeId, label, items, point, panelRef, reduced, isLive,
   </>;
 }
 
-export function ContextMenu({ children, items, label = "Context menu", asChild = false, openOnClick = true, onOpenChange }: ContextMenuProps) {
+export function ContextMenu({ children, items, label = "Context menu", asChild = false, openOnClick = true, onOpenChange, outsidePressOnlyCloses = false }: ContextMenuProps) {
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
   // The portal mounts on first open (client only) and stays so the menu can animate out.
@@ -257,6 +260,7 @@ export function ContextMenu({ children, items, label = "Context menu", asChild =
     const closeOnPointerDown = (event: PointerEvent) => {
       const menu = menuRef.current;
       if (event.target instanceof Element && event.target.closest(`[data-context-tree="${CSS.escape(menuId)}"]`)) return;
+      if (outsidePressOnlyCloses) swallowPress(event);
       closeMenu();
       // Let the outside press focus its own link/button first. A non-focusable
       // backdrop leaves focus on the exiting menu or body, so restore its link.
@@ -269,15 +273,16 @@ export function ContextMenu({ children, items, label = "Context menu", asChild =
       if (event.target instanceof Element && event.target.closest(`[data-context-tree="${CSS.escape(menuId)}"]`)) return;
       closeMenu(true);
     };
-    document.addEventListener("pointerdown", closeOnPointerDown);
+    // Swallowing needs the press before anything on the page sees it (Lane's outside-press.ts).
+    const stopPresses = outsidePressOnlyCloses ? onOutsidePress(closeOnPointerDown) : (document.addEventListener("pointerdown", closeOnPointerDown), () => document.removeEventListener("pointerdown", closeOnPointerDown));
     window.addEventListener("scroll", closeOnViewportChange, true);
     window.addEventListener("resize", closeOnViewportChange);
     return () => {
-      document.removeEventListener("pointerdown", closeOnPointerDown);
+      stopPresses();
       window.removeEventListener("scroll", closeOnViewportChange, true);
       window.removeEventListener("resize", closeOnViewportChange);
     };
-  }, [open, point.key, closeMenu, menuId]);
+  }, [open, point.key, closeMenu, menuId, outsidePressOnlyCloses]);
 
   function showMenu(x: number, y: number) {
     anchor.current = { x, y };

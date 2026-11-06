@@ -144,7 +144,8 @@ export async function deleteTestUser(id: string): Promise<void> {
  * slower than that. Wait for it here, longer, so a slow Clerk delays the sign-in instead of failing it.
  */
 export async function waitForClerk(page: Page): Promise<void> {
-  await page.waitForFunction(() => window.Clerk?.loaded === true, undefined, { timeout: 60_000 });
+  // On an interval, not animation frames: a window other windows cover paints none.
+  await page.waitForFunction(() => window.Clerk?.loaded === true, undefined, { polling: 250, timeout: 60_000 });
 }
 
 export async function signInTestUser(

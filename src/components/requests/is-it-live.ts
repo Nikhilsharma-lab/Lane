@@ -13,7 +13,7 @@ export type AskIsItLive = (request: IsItLiveRequest, undo: IsItLiveUndo) => void
 export const IS_IT_LIVE_COPY = {
   title: "Is it live?",
   question: (name: string) => `${name} is Done. Has the agreed audience received it?`,
-  endsUndo: "Once you record the release, you can't undo Done.",
+  endsUndo: "Once you record the release, you can’t undo Done.",
   yes: "Yes, record release",
   notYet: "Not yet",
   releaseTitle: "Record release",
@@ -57,4 +57,25 @@ export function createIsItLive(show: (view: IsItLiveView | null) => void) {
       }
     },
   }
+}
+
+type Focusable = { focus(options?: FocusOptions): void }
+
+/**
+ * Where focus goes as the prompt closes: back to where it was when the prompt opened, else the Request title, else
+ * the Request's row. The dialog hands focus back a moment after the prompt has left the page; a person who has
+ * already moved focus on by then (Alt+T into the Marked Done toast, a click) keeps it there, so that toast stays
+ * open and paused instead of losing focus and running out.
+ */
+export function promptCloseFocus({ active, body, opener, title, restoreRow }: {
+  active: unknown
+  body: unknown
+  opener: (Focusable & { isConnected: boolean }) | null
+  title: Focusable | null
+  restoreRow: (() => void) | null
+}) {
+  if (active && active !== body) return
+  if (opener?.isConnected) { opener.focus({ preventScroll: true }); return }
+  if (title) { title.focus({ preventScroll: true }); return }
+  restoreRow?.()
 }

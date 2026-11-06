@@ -7,6 +7,7 @@ import { DetailStateLine } from "./detail-properties"
 import { LocalTime } from "./local-time"
 import type { RequestComment } from "./detail-view"
 import { useDetailRequest } from "./detail-context"
+import { RequestTitle } from "./request-title"
 import { usePendingMutations } from "./pending-mutations-provider"
 import styles from "./request-pane-header.module.css"
 
@@ -18,7 +19,7 @@ export function RequestPaneHeader({ comments }: { comments: RequestComment[] }) 
   return <header className={styles.header} data-detail-title="">
     <div className={styles.introInner}>
       <div className={styles.titleRow}>
-        <h2 id="request-title" tabIndex={-1} className={styles.title}>{request.title}</h2>
+        <RequestTitle as="h2" className={styles.title}>{request.title}</RequestTitle>
       </div>
       <DetailStateLine />
       <div className={styles.meta}>

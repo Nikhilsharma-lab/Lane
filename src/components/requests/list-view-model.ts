@@ -1,10 +1,10 @@
 import { groupRequestRows, matchesListFilters, paginateRequests, sortRequestRows, type ListFilters, type OverviewRequest } from "@/lib/request-overview"
 import type { ListViewState } from "./list-view-state"
 
-/** The list's filters as the view holds them: status and Project, plus the title and label filters. */
-export function listFiltersOf(view: Pick<ListViewState, "status" | "project" | "localFilters">): ListFilters {
+/** The list's filters as the view holds them: status, Project and title (the list context, A214), plus the label filter. */
+export function listFiltersOf(view: Pick<ListViewState, "status" | "project" | "title" | "localFilters">): ListFilters {
   const local = (id: string) => String(view.localFilters.find(item => item.id === id)?.value ?? "")
-  return { status: view.status, project: view.project, title: local("title"), requestType: local("requestType") }
+  return { status: view.status, project: view.project, title: view.title, requestType: local("requestType") }
 }
 
 /**
@@ -36,10 +36,10 @@ export function listViewModel(view: ListViewState, rows: OverviewRequest[]) {
 export const viewResets = {
   /** The selection drops when what the list shows, or how, changes, or the workspace or role does. */
   selection: (view: ListViewState, scope: { orgId?: string; isGuest: boolean; readOnly?: boolean }) =>
-    JSON.stringify([scope.orgId, scope.isGuest, scope.readOnly ?? false, view.status, view.project, view.localFilters, view.ordering, view.grouping, view.collapsedGroups, view.pagination]),
+    JSON.stringify([scope.orgId, scope.isGuest, scope.readOnly ?? false, view.status, view.project, view.title, view.localFilters, view.ordering, view.grouping, view.collapsedGroups, view.pagination]),
   /** The preview closes when a filter, order, grouping or page change leaves its Request off the page. */
   preview: (view: ListViewState) =>
-    JSON.stringify([view.status, view.project, view.localFilters, view.ordering, view.grouping, view.pagination]),
+    JSON.stringify([view.status, view.project, view.title, view.localFilters, view.ordering, view.grouping, view.pagination]),
   /** The match count is announced after a filter change, not after a data change. */
   announcement: (view: ListViewState) => {
     const { status, project, title, requestType } = listFiltersOf(view)

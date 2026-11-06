@@ -40,7 +40,7 @@ function renderConsumer(children: ReactNode) {
 
 it("the actual palette status callback edits the named view, while Project/search/list choices depart and another saved view swaps identity", () => {
   const closed = vi.fn()
-  const app = renderConsumer(createElement(CommandPalette, { open: true, onOpenChange: closed, returnFocusRef: { current: null }, orgId: "org", role: "member", viewer: { id: "person", name: "Alex" }, projects: [{ id: "project", name: "Project" }] }))
+  const app = renderConsumer(createElement(CommandPalette, { open: true, onOpenChange: closed, returnFocusRef: { current: null }, pathname: "/", takeTypeahead: () => "", onHandOff: () => {}, orgId: "org", role: "member", viewer: { id: "person", name: "Alex" }, projects: [{ id: "project", name: "Project" }] }))
   const saved = { id: "saved", name: "My saved view", filters: { status: "open" as const, project: "none" } }
   app.navigation.selectList({ ...saved.filters, savedView: saved.id })
   const option = captured.options.get("view:done")
@@ -66,7 +66,7 @@ it("the actual palette status callback edits the named view, while Project/searc
 
 it.each(["comment_added", "invite_accepted"] as const)("the actual Inbox %s mobile callback invalidates pending presentation before routing", type => {
   const item: InboxItem = { id: "notification", type, requestId: type === "invite_accepted" ? null : "request", readAt: "2026-10-25T10:00:00Z", createdAt: "2026-10-25T09:00:00Z", actorName: "Alex", requestTitle: "Request", requestNumber: 1, reframedProblem: "Problem", detail: null }
-  const app = renderConsumer(createElement(InboxScreen, { orgId: "org", initialNeedsYou: [], showNeedsYou: false, initialItems: [item], initialUnread: 0, isGuest: false, viewer: { id: "person", name: "Alex", isAdmin: false } }))
+  const app = renderConsumer(createElement(InboxScreen, { orgId: "org", initialNeedsYou: [], showNeedsYou: false, initialItems: [item], initialUnread: 0, isGuest: false, viewer: { id: "person", name: "Alex", isAdmin: false }, requestLoading: null }))
   const current = app.navigation.continuation()
   if (!captured.inbox) throw new Error("Production Inbox did not render")
   captured.inbox.onSelect(item)

@@ -69,7 +69,7 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
   const deps = (): PaletteActionDeps => ({
     request: current, viewer: { id: "u1", name: "Test Member" }, undo: undoStore.get(), moves,
     open: () => {}, view: () => {}, project: () => {}, settings: () => {}, go: () => {},
-    link: id => `https://app.example.test/requests/${id}`,
+    link: id => `https://app.example.test/requests/${id}`, copied: () => {},
   })
   /** Runs the entry the palette lists under this id, as Enter on it does. */
   const run = (id: string) => {
@@ -154,7 +154,7 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     await vi.waitFor(() => expect(a.shown()).toMatchObject({ status: "in_progress" }))
     expect(a.toasts).toHaveLength(1)
     // #260: the failure replaces Undo with Try again.
-    expect(a.toasts[0]).toMatchObject({ type: "error", title: "Couldn't save", action: { label: "Try again" } })
+    expect(a.toasts[0]).toMatchObject({ type: "error", title: "Couldn’t save", action: { label: "Try again" } })
     expect(a.undoStore.get()).toBeNull()
   })
 
@@ -194,7 +194,7 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     // The successful Done action's revalidation supplies the saved row while Undo is pending.
     a.receiveRow({ status: "done" })
     undo.resolve({ error: "Release already recorded." })
-    await vi.waitFor(() => expect(a.toasts[0].title).toBe("Couldn't undo"))
+    await vi.waitFor(() => expect(a.toasts[0].title).toBe("Couldn’t undo"))
     retainedPalette()
     toast.action!.onClick(toast.id)
     await a.flush()
@@ -210,7 +210,7 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     const done = await a.sent(0)
     a.run("undo-mark-done")
     done.resolve({ error: "This Request changed." })
-    await vi.waitFor(() => expect(a.toasts[0].title).toBe("Couldn't save"))
+    await vi.waitFor(() => expect(a.toasts[0].title).toBe("Couldn’t save"))
     await a.flush()
     expect(a.calls).toHaveLength(1)
     expect(a.isItLive).not.toHaveBeenCalled()
@@ -228,7 +228,7 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     earlier.resolve({ error: "This Request changed." })
     await a.flush()
     expect(a.undoStore.get()).toBeNull()
-    expect(a.toasts.find(toast => toast.id === toastId)).toMatchObject({ title: "Couldn't save", description: "An earlier change failed. Check this Request and try again.", action: undefined })
+    expect(a.toasts.find(toast => toast.id === toastId)).toMatchObject({ title: "Couldn’t save", description: "An earlier change failed. Check this Request and try again.", action: undefined })
     retained()
     await a.flush()
     expect(a.calls).toHaveLength(1)
@@ -273,6 +273,6 @@ describe("each palette mutation is acknowledged as from its button (#106)", () =
     a.run(id)
     await a.flush()
     expect(a.said).toEqual([])
-    expect(a.toasts).toMatchObject([{ type: "error", title: "Couldn't copy" }])
+    expect(a.toasts).toMatchObject([{ type: "error", title: "Couldn’t copy" }])
   })
 })

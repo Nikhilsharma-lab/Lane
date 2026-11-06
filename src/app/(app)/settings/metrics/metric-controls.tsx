@@ -64,7 +64,7 @@ export function ArchiveMetricControl({ orgId, id, archived }: { orgId: string; i
         : await callAction(() => archiveMetricDefinition({ id }, { orgId }));
       if ("error" in result) setError(result.error);
     } catch (thrown) {
-      setError(thrownMessage(thrown, `We couldn't ${archived ? "restore" : "archive"} this metric. Check your connection and try again.`));
+      setError(thrownMessage(thrown, `We couldn’t ${archived ? "restore" : "archive"} this metric. Check your connection and try again.`));
     } finally {
       setPending(false);
     }
@@ -108,7 +108,7 @@ export function MergeMetricControl({ orgId, current, candidates }: { orgId: stri
       setOtherId(""); setKeep("this");
       toast({ type: "success", title: `Merged ${merged.name} into ${kept.name}` });
     } catch (thrown) {
-      setError(thrownMessage(thrown, "We couldn't merge these metrics. Check your connection and try again."));
+      setError(thrownMessage(thrown, "We couldn’t merge these metrics. Check your connection and try again."));
     } finally {
       setPending(false);
     }
@@ -129,7 +129,7 @@ export function MergeMetricControl({ orgId, current, candidates }: { orgId: stri
     <Dialog open={open} onOpenChange={review}>
       <DialogTrigger asChild><Button variant="secondary" className={styles.mergeButton}>Review merge</Button></DialogTrigger>
       {merged && <DialogContent title={`Merge ${merged.name} into ${kept.name}?`}
-        description={`${merged.name} will leave the picker and the metric list. Requests that used it will count under ${kept.name} from now on, and their results add up together. No Request is changed. This can't be undone.`}>
+        description={`${merged.name} will leave the picker and the metric list. Requests that used it will count under ${kept.name} from now on, and their results add up together. No Request is changed. This can’t be undone.`}>
         {error && <p className={styles.error} role="alert">{error}</p>}
         <div className={styles.dialogActions}>
           <DialogClose asChild><Button variant="ghost" disabled={pending}>Cancel</Button></DialogClose>

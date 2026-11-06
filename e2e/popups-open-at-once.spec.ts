@@ -10,6 +10,8 @@ import { createTestUser, deleteTestUser } from "./helpers/test-user";
 // (src/lib/after-page-load.ts: never before `load`, where they held a slow phone's page back), so a key pressed once
 // they are here needs no download. To prove it, every script the page asks for from then on is held back (never
 // answered) while the key is pressed.
+// #268 (Nikhil, 2026-11-03, kept until Build 9, #291): a press in the moment between `load` and that code arriving may
+// wait for it, so each check first waits for the page's after-load loads to arrive (loadAndIdle), then presses.
 
 const SCRIPT = /\/_next\/static\/.+\.js$/;
 

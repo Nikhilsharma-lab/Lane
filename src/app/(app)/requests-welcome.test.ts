@@ -63,7 +63,7 @@ describe("Requests first-use landing", () => {
     expect(html).toContain('data-slot="requests-toolbar"')
     expect(html).toContain("data-empty-workspace")
     // The 2026-09-29 rule stands: nothing to filter in a truly empty workspace.
-    expect(html).not.toContain("Filter Requests by title")
+    expect(html).not.toContain("Filter by title")
     expect(html).not.toContain("Active filters")
     expect(html).not.toContain("Select a Request")
     // Exactly one Intake link (docs/superpowers/plans/2026-09-29-requests-welcome.md):
@@ -193,7 +193,7 @@ describe("Requests first-use landing", () => {
     const html = await render()
     expect(html).toContain('href="/requests/request-1"')
     expect(html).toContain("Existing problem")
-    expect(html).toContain('aria-label="Filter Requests by title"')
+    expect(html).toContain('aria-label="Filter by title"')
     expect(html).toContain("Add filter")
     expect(html).not.toContain("data-requests-welcome")
     expect(html).not.toContain("data-empty-workspace")

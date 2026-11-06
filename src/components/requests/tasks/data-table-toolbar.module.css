@@ -69,6 +69,8 @@
 }
 @media (pointer: coarse) {
   :global(:root[data-visual-system="lane"]) .status, .summaryDimensions { --control-height-sm: var(--size-inner-xlarge); }
+  /* A27: every toolbar icon button is a 44px touch target, as Add filter already is. */
+  .iconButton { width: var(--size-inner-xlarge); min-width: var(--size-inner-xlarge); min-height: var(--size-inner-xlarge); }
   .summaryClose { top: 100%; width: var(--size-inner-xlarge); min-height: var(--size-inner-xlarge); }
   .summaryTotal { min-height: var(--size-inner-xlarge); display: flex; align-items: center; margin-block: 0; padding-inline-end: var(--size-inner-xlarge); }
 }

@@ -60,7 +60,9 @@ export function useSidebarPeek(collapsed: boolean, disabled: boolean) {
         focused.current = false;
         return;
       }
-      const first = panel?.querySelector<HTMLButtonElement>('button[aria-label^="Account menu,"]');
+      // Focus already inside the panel (a link someone reached before this frame) stays where it is.
+      if (panel.contains(document.activeElement)) return;
+      const first = panel?.querySelector<HTMLButtonElement>("[data-account]");
       first?.focus({ preventScroll: true });
       if (document.activeElement !== first) focused.current = false;
     });

@@ -6,23 +6,9 @@ import { useContext, useEffect, useMemo, useState, type ComponentType, type Reac
 // check that this path still exists and that push/replace offline are still held (e2e/offline-stays-in-lane.spec.ts).
 import { AppRouterContext, type AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
 import { afterPageLoad } from "@/lib/after-page-load"
-import { isOffline } from "@/lib/connection-status"
 import { noteNavigation } from "@/lib/navigation-intent"
 import { plainLinkClick } from "@/lib/plain-link-click"
-import { changesListInPlace } from "@/lib/request-workspace"
-import { showsSettingsInPlace } from "@/components/settings/settings-in-place"
-
-/** Whether moving to `href` keeps this page: another site, the same address, or a change the page makes
- * itself (a Requests list view on "/", a Settings section on a Settings page, as showsSettingsInPlace says). */
-function staysInPlace(href: string) {
-  const here = location, url = new URL(href, here.href)
-  return url.origin != here.origin || (url.pathname == here.pathname && url.search == here.search)
-    || changesListInPlace(here.pathname, url.pathname + url.search + url.hash)
-    || showsSettingsInPlace(url.pathname, here.pathname)
-}
-
-/** Offline, a move to another page would fail and Next.js would fall back to a full page load onto the browser's "No internet" page. */
-const holds = (href: string) => isOffline() && !staysInPlace(href)
+import { holdsOffline, loadsWholeLanePageOffline } from "@/lib/offline-navigation"
 
 type Move = Event & { navigationType: string; destination: { url: string; sameDocument: boolean } }
 
@@ -42,8 +28,8 @@ export function OfflineGuard({ children }: { children: ReactNode }) {
   const router = useContext(AppRouterContext)
   const guarded = useMemo<AppRouterInstance | null>(() => router && {
     ...router,
-    push: (href, options) => { if (!holds(href)) { noteNavigation(); router.push(href, options) } },
-    replace: (href, options) => { if (!holds(href)) { noteNavigation(); router.replace(href, options) } },
+    push: (href, options) => { if (!holdsOffline(href)) { noteNavigation(); router.push(href, options) } },
+    replace: (href, options) => { if (!holdsOffline(href)) { noteNavigation(); router.replace(href, options) } },
   }, [router])
   const [Line, setLine] = useState<ComponentType | null>(null)
 
@@ -51,7 +37,7 @@ export function OfflineGuard({ children }: { children: ReactNode }) {
     const onClick = (event: MouseEvent) => {
       const link = plainLinkClick(event)
       if (!link || event.defaultPrevented) return
-      if (holds(link.href)) {
+      if (holdsOffline(link.href)) {
         event.preventDefault()
         event.stopPropagation()
       } else noteNavigation()
@@ -60,7 +46,7 @@ export function OfflineGuard({ children }: { children: ReactNode }) {
     // Next.js falls back to one when a move's page was still on its way as the connection dropped.
     const onNavigate = (event: Event) => {
       const move = event as Move
-      if (move.cancelable && !move.destination.sameDocument && /push|replace/.test(move.navigationType) && isOffline() && new URL(move.destination.url).origin === location.origin) move.preventDefault()
+      if (move.cancelable && !move.destination.sameDocument && /push|replace/.test(move.navigationType) && loadsWholeLanePageOffline(move.destination.url)) move.preventDefault()
     }
     const navigation = (window as { navigation?: EventTarget }).navigation
     // A line that couldn't load (offline from the start) loads once the connection is back.

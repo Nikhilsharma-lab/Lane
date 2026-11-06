@@ -145,7 +145,7 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
 }
 
 /**
- * Below 960px of content width the panel gives way to property pills under the
+ * Below 920px of content width the panel gives way to property pills under the
  * title. Properties opens the same information in a bottom sheet; priority stays
  * editable on a phone; Esc or Close returns focus to the line.
  */
@@ -156,7 +156,7 @@ export function DetailStateLine() {
   const [open, setOpen] = useState(false)
   const line = useRef<HTMLButtonElement>(null)
   const drawer = usePopupCode(drawerCode, open, () => couldNotOpen("properties", setOpen))
-  // Only where the line shows (below 960px of content): fetch the sheet once the page has loaded and is idle.
+  // Only where the line shows (below 920px of content): fetch the sheet once the page has loaded and is idle.
   useEffect(() => {
     if (line.current?.getClientRects().length) return afterPageLoad(drawerCode.preload)
   }, [])

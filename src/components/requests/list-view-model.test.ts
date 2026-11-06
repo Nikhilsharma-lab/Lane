@@ -3,7 +3,7 @@ import type { OverviewRequest } from "@/lib/request-overview"
 import type { ListViewState } from "./list-view-state"
 import { listViewModel, viewResets } from "./list-view-model"
 
-const view: ListViewState = {
+const view: ListViewState = { title: "",
   columnVisibility: {}, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
   pagination: { pageIndex: 0, pageSize: 2 }, status: "all", project: "all",
 }
@@ -13,7 +13,7 @@ const rows = [row("a", "open", "2026-10-01"), row("b", "in_progress", "2026-10-0
 
 describe("listViewModel", () => {
   it("filters, sorts, groups and pages the rows in one place", () => {
-    const model = listViewModel({ ...view, localFilters: [{ id: "title", value: "check" }] }, rows)
+    const model = listViewModel({ ...view, title: "check" }, rows)
     expect(model.filters).toEqual({ status: "all", project: "all", title: "check", requestType: "" })
     expect(model.matching.map(r => r.id)).toEqual(["c"])
   })

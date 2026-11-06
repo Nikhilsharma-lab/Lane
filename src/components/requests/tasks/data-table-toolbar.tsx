@@ -9,11 +9,12 @@ import { Select } from "@/components/arc/select/select"
 import { Button } from "@/components/arc/button/button"
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
-import { CalendarClock, Hourglass, ListFilter, PanelRight, Search, SlidersHorizontal } from "lucide-react"
+import { CalendarClock, Funnel, Hourglass, ListFilter, PanelRight, SlidersHorizontal } from "lucide-react"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { useWorkspaceLabels } from "../workspace-labels"
 import { LabelDot } from "../request-labels"
 import { REQUEST_STATUS_FILTER_LABELS, isRequestStatusFilter } from "@/lib/request-workspace"
+import { REQUEST_TITLE_FILTER_MAX } from "@/lib/saved-view-rules"
 import { matchesStatusView, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
 import type { RequestColumn } from "./columns"
@@ -22,6 +23,9 @@ import rowStyles from "../request-rows.module.css"
 import styles from "./data-table-toolbar.module.css"
 import { StatusPills, statusViewsFor } from "./status-pills"
 import { matchCountText } from "../request-row-label"
+
+// A214: a funnel, as a magnifier means workspace search. list-focus.ts finds the button by this name.
+const TITLE_FILTER_LABEL = "Filter by title"
 
 export function DataTableToolbar({ controls = true, data, filter, title, project, projectName, requestType, matchCount, columns, columnVisibility, ordering, grouping, onOrderingChange, onGroupingChange, onFilterChange, onStatusChange, onVisibilityChange, onClear, summaryOpen, onSummaryChange, summaryTrigger }: {
   /** False in an empty workspace (plan item 2.1): the row keeps its height with nothing to filter, so the first Request's controls fill it without moving the list. */
@@ -76,9 +80,9 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
       }} />}
       <div className={styles.actions}>
         <Popover>
-          <PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} data-active={title ? "" : undefined} aria-label="Filter Requests by title" title="Filter Requests by title"><Search aria-hidden="true" /></Button></PopoverTrigger>
-          <PopoverContent align="end" aria-label="Filter Requests by title" className={styles.searchPanel} onOpenAutoFocus={event => { event.preventDefault(); titleInput.current?.focus() }}>
-            <SearchField ref={titleInput} label="Search Requests" aria-label="Filter Requests by title" placeholder="Filter by title…" value={title} onValueChange={value => onFilterChange("title", value)} />
+          <PopoverTrigger asChild><Button variant="secondary" size="sm" className={styles.iconButton} data-active={title ? "" : undefined} data-title-filter="" aria-label={TITLE_FILTER_LABEL} title={TITLE_FILTER_LABEL}><Funnel aria-hidden="true" /></Button></PopoverTrigger>
+          <PopoverContent align="end" aria-label={TITLE_FILTER_LABEL} className={styles.searchPanel} onOpenAutoFocus={event => { event.preventDefault(); titleInput.current?.focus() }}>
+            <SearchField ref={titleInput} label={TITLE_FILTER_LABEL} icon={<Funnel data-icon-size="lg" aria-hidden="true" />} placeholder="Filter by title…" value={title} maxLength={REQUEST_TITLE_FILTER_MAX} onValueChange={value => onFilterChange("title", value)} />
           </PopoverContent>
         </Popover>
         <FilterMenu presentation="popover" fields={fields} active={chips} onSelect={addFilter} triggerIcon={<ListFilter aria-hidden="true" />} />

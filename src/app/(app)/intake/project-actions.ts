@@ -9,12 +9,14 @@ import { accessibleProjectsWhere } from "@/lib/project-access";
 import { projectInputSchema, type ProjectOption } from "@/lib/request-properties";
 
 export type ProjectFailure = {
-  code: "session_expired" | "validation" | "conflict" | "load_failed" | "save_failed";
+  code: "session_expired" | "validation" | "duplicate" | "conflict" | "load_failed" | "save_failed";
   message: string;
   field?: "name" | "description";
 };
 export type ListProjectsResponse = { success: true; projects: ProjectOption[] } | { success: false; error: ProjectFailure };
-export type CreateProjectResponse = { success: true; project: ProjectOption } | { success: false; error: ProjectFailure };
+/** A `duplicate` refusal carries the `existing` Project: the sidebar's New Project says the name is taken, and the
+ * New Request composer's picker quietly picks that Project instead. */
+export type CreateProjectResponse = { success: true; project: ProjectOption } | { success: false; error: ProjectFailure; existing?: ProjectOption };
 export type DeleteProjectResponse = { success: true } | { success: false; error: ProjectFailure };
 
 const projectSelection = { id: projects.id, name: projects.name, description: projects.description };
@@ -42,7 +44,7 @@ export async function deleteProject(id: string, context: { orgId: string }): Pro
     });
   } catch (error) {
     console.error("[projects] delete failed:", error);
-    return { success: false, error: { code: "save_failed", message: "The Project couldn't be deleted. Try again." } };
+    return { success: false, error: { code: "save_failed", message: "The Project couldn’t be deleted. Try again." } };
   }
   revalidatePath("/", "layout");
   return { success: true };
@@ -57,7 +59,7 @@ export async function listProjects(context: { orgId: string }): Promise<ListProj
     return { success: true, projects: rows };
   } catch (error) {
     console.error("[projects] list failed:", error);
-    return { success: false, error: { code: "load_failed", message: "Projects couldn't be loaded. Try again." } };
+    return { success: false, error: { code: "load_failed", message: "Projects couldn’t be loaded. Try again." } };
   }
 }
 
@@ -82,15 +84,15 @@ export async function createProject(
     }).onConflictDoNothing().returning(projectSelection);
     if (created) return { success: true, project: created };
 
-    // Concurrent creates and case-only duplicates resolve to the same visible
-    // Project. A guest must never learn a hidden Project's identity here.
+    // #269 (A19): the name is taken, in any capitals (the unique lower(name) index), including by a create that
+    // landed a moment earlier. The answer names the Project as it is stored. A guest must never learn a hidden Project's identity here.
     const [existing] = await db.select(projectSelection).from(projects)
       .where(and(accessibleProjectsWhere(auth), eq(sql`lower(${projects.name})`, sql`lower(${parsed.data.name})`)))
       .limit(1);
-    if (existing) return { success: true, project: existing };
+    if (existing) return { success: false, error: { code: "duplicate", field: "name", message: `A Project called ${existing.name} already exists. Choose another name.` }, existing };
     return { success: false, error: { code: "conflict", message: "This Project name is unavailable. Choose another name.", field: "name" } };
   } catch (error) {
     console.error("[projects] create failed:", error);
-    return { success: false, error: { code: "save_failed", message: "The Project couldn't be created. Try again." } };
+    return { success: false, error: { code: "save_failed", message: "The Project couldn’t be created. Try again." } };
   }
 }

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "@/components/link";
-import { LaneMark } from "@/components/auth/auth-shell";
+import { LaneMark } from "@/components/brand/lane-mark";
 import styles from "./privacy.module.css";
 
 export const metadata: Metadata = {
-  title: "Privacy policy | Lane",
+  title: "Privacy policy",
   description: "How Lane handles account information, Google sign-in and workspace content.",
 };
 

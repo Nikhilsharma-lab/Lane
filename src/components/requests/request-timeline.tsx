@@ -33,7 +33,7 @@ import { Placeholder } from "@/components/loading/placeholder";
 type Views = Exclude<Awaited<ReturnType<typeof readRequestJourney>>, { error: string }>
 
 const NO_OUTLINE: JourneyOutline = { steps: [], history: false }
-const LOAD_FAILED = "Couldn't load the journey. Try again."
+const LOAD_FAILED = "Couldn’t load the journey. Try again."
 /** #263: a step's action button, where focus goes back when its form closes. */
 const actionButton = (action: JourneyAction) => document.querySelector<HTMLElement>(`#journey [data-journey-action="${action}"]`)
 const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished", current: "current step", upcoming: "not reached yet", skipped: "skipped" }

@@ -184,6 +184,9 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
   // This option requires confirmed saved receipts from the retained continuation above.
   if (!cAlreadyRestoredAndPickedUp) {
     await setCurrentValue(page, orgId, fixture.c, recorder, "62");
+    // Pick up stays disabled until the saved value is back from the server. A press before that can't focus it, so
+    // its Enter went to the focused Edit Request and opened the editor again, and the Pick up never went.
+    await expect(page.getByRole("button", { name: "Pick up", exact: true })).toBeEnabled();
     const pickup = await beginCoordinatedChange(page, orgId, "pickup", [fixture.c.id], recorder, () => page.getByRole("button", { name: "Pick up", exact: true }).press("Enter")); await pickup.finish();
   }
   await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible();
@@ -209,7 +212,7 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
     const button = bulkToast(page).getByRole("button", { name: "Undo", exact: true }); await button.focus(); await button.press("Enter"); await page.keyboard.press("Enter");
   });
   const outcomes = await undo.received(); await undo.finish(); expect(outcomes.filter(result => result.success === true)).toHaveLength(1); expect(outcomes.filter(result => typeof result.error === "string")).toHaveLength(1);
-  await expect.poll(() => item!.evaluate(node => node.isConnected && /1 of 2 couldn't be undone/.test(node.textContent ?? ""))).toBe(true);
+  await expect.poll(() => item!.evaluate(node => node.isConnected && /1 of 2 couldn’t be undone/.test(node.textContent ?? ""))).toBe(true);
   await expect(toastRegion(page)).toContainText(fixture.a.code);
   await expect(toastRegion(page)).toContainText(String(outcomes.find(result => typeof result.error === "string")!.error));
   await expect.poll(() => item!.evaluate(node => [...node.querySelectorAll("button")].some(button => button.textContent === "Undo"))).toBe(false);

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { guardActiveMember, guardCanChange } from "@/lib/auth-guard";
-import { inlineMetricInputSchema, metricDefinitionFieldErrors, type MetricChoice } from "@/lib/metric-definition-rules";
+import type { MetricChoice } from "@/lib/metric-definition-rules";
+import { inlineMetricInputSchema, metricDefinitionFieldErrors } from "@/lib/metric-definition-schema";
 import { addOrOfferMetricDefinition, predictionMetricChoices } from "@/lib/metrics-library";
 import { canChangeThings, readsWholeWorkspace } from "@/lib/role-rules";
 
@@ -21,7 +22,7 @@ export type PredictionMetricsResult =
  * starter metrics a library is filled with the first time it is read.
  */
 export async function listPredictionMetrics(input: { impact: unknown }, context: { orgId: string }): Promise<PredictionMetricsResult> {
-  const auth = await guardActiveMember(context.orgId, "You can't use the Metrics library in this workspace.");
+  const auth = await guardActiveMember(context.orgId, "You can’t use the Metrics library in this workspace.");
   if ("error" in auth) return auth;
   try {
     return {
@@ -31,7 +32,7 @@ export async function listPredictionMetrics(input: { impact: unknown }, context:
     };
   } catch (error) {
     console.error("[intake] Metrics library read failed:", error);
-    return { error: "The Metrics library couldn't be loaded. Try again." };
+    return { error: "The Metrics library couldn’t be loaded. Try again." };
   }
 }
 
@@ -48,7 +49,7 @@ export type InlineMetricResult =
 export async function addPredictionMetric(data: { name: string; unit: string; howCounted?: string | null }, context: { orgId: string }): Promise<InlineMetricResult> {
   const parsed = inlineMetricInputSchema.safeParse(data);
   if (!parsed.success) return { error: "Check the highlighted fields.", fields: metricDefinitionFieldErrors(parsed.error) };
-  const auth = await guardCanChange(context.orgId, "Guests can't add metrics to the Metrics library. Pick one that's there, or ask a Member to add it.");
+  const auth = await guardCanChange(context.orgId, "Guests can’t add metrics to the Metrics library. Pick one that’s there, or ask a Member to add it.");
   if ("error" in auth) return auth;
   try {
     const result = await addOrOfferMetricDefinition(auth, auth.userId, parsed.data);
@@ -59,6 +60,6 @@ export async function addPredictionMetric(data: { name: string; unit: string; ho
     return { ok: true, ...result };
   } catch (error) {
     console.error("[intake] Inline metric add failed:", error);
-    return { error: "The metric couldn't be added. Try again; your Request is still here." };
+    return { error: "The metric couldn’t be added. Try again; your Request is still here." };
   }
 }

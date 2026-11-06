@@ -2,11 +2,8 @@ import Link from "@/components/link";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { clsx } from "clsx";
+import { LaneMark } from "@/components/brand/lane-mark";
 import styles from "./auth.module.css";
-
-export function LaneMark() {
-  return <span className={styles.mark}><svg aria-hidden="true" viewBox="0 0 100 100"><path d="M0 100V0H93.2753L0 100Z" /><path d="M0 100H100V6.7247L0 100Z" /></svg><span>Lane</span></span>;
-}
 
 export function AuthHeaderLink({ prompt, href, label }: { prompt: string; href: string; label: string }) {
   return <div className={styles.headerLink}><span>{prompt}</span><Link href={href} className={styles.link}>{label}</Link></div>;

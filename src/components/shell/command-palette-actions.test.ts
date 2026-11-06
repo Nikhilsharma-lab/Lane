@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import type { CurrentRequest } from "@/components/requests/current-request"
 import { paletteEntries } from "./command-palette-entries"
-import { openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
+import { handsOffToPopup, openableEntries, runPaletteAction, type PaletteActionDeps } from "./command-palette-actions"
 
 const current = (overrides: Partial<CurrentRequest> = {}): CurrentRequest => ({
   id: "r1", code: "LAN-12", name: "LAN-12", status: "open", priority: "none", source: "list", canEdit: true,
@@ -18,6 +18,7 @@ function deps(overrides: Partial<Omit<PaletteActionDeps, "moves">> = {}, moves =
   const value = {
     request: current() as CurrentRequest | null, viewer: { id: "u1", name: "Test Member" }, undo: null as PaletteActionDeps["undo"], moves,
     open: vi.fn<PaletteActionDeps["open"]>(), view: vi.fn<PaletteActionDeps["view"]>(), project: vi.fn<PaletteActionDeps["project"]>(), settings: vi.fn<PaletteActionDeps["settings"]>(), go: vi.fn<PaletteActionDeps["go"]>(),
+    copied: vi.fn<PaletteActionDeps["copied"]>(),
     link: (id: string) => `https://app.example.test/requests/${id}`,
     ...overrides,
   } satisfies PaletteActionDeps
@@ -69,6 +70,25 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
     expect(d.moves.copy.mock.calls).toEqual([["https://app.example.test/requests/r1", "Link"], ["LAN-12", "Code"]])
   })
 
+  // #268 (A14): the screen-reader announcement stays (the copy's own), and sighted people see a message too.
+  it("shows Link copied or Code copied once the copy lands", async () => {
+    const copied = vi.fn<PaletteActionDeps["copied"]>()
+    const d = deps({ copied })
+    runPaletteAction({ kind: "copy", copy: "link", requestId: "r1" }, d)
+    runPaletteAction({ kind: "copy", copy: "code", requestId: "r1", code: "LAN-12" }, d)
+    await vi.waitFor(() => expect(copied.mock.calls).toEqual([["Link copied"], ["Code copied"]]))
+  })
+
+  it("shows no copied message when the copy failed (the copy raises its own failure)", async () => {
+    const copy = vi.fn<Moves["copy"]>(async () => false)
+    const copied = vi.fn<PaletteActionDeps["copied"]>()
+    const d = deps({ copied }, { move: vi.fn(), setPriority: vi.fn(), copy })
+    runPaletteAction({ kind: "copy", copy: "link", requestId: "r1" }, d)
+    await Promise.resolve(); await Promise.resolve()
+    expect(copy).toHaveBeenCalledOnce()
+    expect(copied).not.toHaveBeenCalled()
+  })
+
   it("does nothing to a Request that is no longer the current one", () => {
     const d = deps({ request: current({ id: "other" }) })
     runPaletteAction({ kind: "move", move: "pick-up", requestId: "r1" }, d)
@@ -83,6 +103,15 @@ describe("the palette's actions run the buttons' own handlers (#106)", () => {
     const d = deps()
     runPaletteAction(action, d)
     expect(d.open).toHaveBeenCalledExactlyOnceWith(surface)
+  })
+
+  // Fix round 3 (#256): a popup an entry opens must be the top layer from its first frame, so its Escape is its own;
+  // a palette still fading out above it took that Escape (390, motion on).
+  it("leaves at once only for an entry that opens another popup", () => {
+    for (const surface of ["composer", "search", "shortcuts"] as const) expect(handsOffToPopup({ kind: "open", surface })).toBe(true)
+    expect(handsOffToPopup({ kind: "go", href: "/inbox" })).toBe(false)
+    expect(handsOffToPopup({ kind: "view", filter: "done" })).toBe(false)
+    expect(handsOffToPopup({ kind: "copy", copy: "link", requestId: "r1" })).toBe(false)
   })
 
   it("goes to Requests views, Projects and Settings sections", () => {

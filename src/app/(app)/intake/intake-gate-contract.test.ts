@@ -7,7 +7,10 @@ function source(path: string) {
 }
 
 const PAGE = source("src/app/(app)/intake/page.tsx");
+// #271: the (app) layout hands its session-derived workspace to WorkspaceFrame, which mounts the composer.
 const LAYOUT = source("src/app/(app)/layout.tsx");
+const FRAME = source("src/components/shell/workspace-frame.tsx");
+const FRAME_DATA = source("src/lib/data/workspace-frame.ts");
 const FORM = source("src/app/(app)/intake/intake-form.tsx");
 const SAVE = source("src/app/(app)/intake/intake-save.ts");
 const ACTIONS = source("src/app/(app)/intake/actions.ts");
@@ -37,7 +40,9 @@ describe("Intake Gate contract", () => {
   });
 
   it("derives identity from the session and binds review state to context", () => {
-    expect(LAYOUT).toContain('context={{ orgId: result.orgId }}');
+    expect(LAYOUT).toContain("<WorkspaceFrame {...workspace.frame}>");
+    expect(FRAME_DATA).toContain("orgId: result.orgId,");
+    expect(FRAME).toContain("context={{ orgId }}");
     expect(PAGE).not.toContain("userId:");
     expect(ACTIONS).toContain("guardCanContribute(context.orgId,");
     expect(ACTIONS).toContain("userId: auth.userId");
@@ -80,8 +85,9 @@ describe("Intake Gate contract", () => {
   });
 
   it("restores session-scoped drafts without trusting them as identity", () => {
-    expect(LAYOUT).toContain("draftOwnerId={result.userId}");
-    expect(LAYOUT).toContain("context={{ orgId: result.orgId }}");
+    expect(FRAME_DATA).toContain("userId: result.userId,");
+    expect(FRAME).toContain("draftOwnerId={userId}");
+    expect(FRAME).toContain("context={{ orgId }}");
     expect(FORM).toContain("window.sessionStorage");
     expect(FORM).toContain("readIntakeDraft");
     expect(FORM).toContain("writeIntakeDraft");

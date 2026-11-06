@@ -1,3 +1,4 @@
+import type { SavedViewFilters } from "@/lib/saved-view-rules";
 /**
  * #219: saved views. Anyone in the workspace, Viewers and Guests included, saves the Requests list's current filters
  * under a name, then renames, updates or deletes it. Views are personal: nobody else sees or changes them. Opening one
@@ -68,16 +69,39 @@ describe("saving the list's filters", () => {
   });
 
   it("refuses filters the list doesn't have, and a Project from another workspace", async () => {
-    expect(await (await actions()).saveView({ name: "Shipped", filters: { status: "shipped", project: "all" } }, ctx)).toEqual({ error: "Those filters can't be saved. Reload the page and try again." });
-    expect(await (await actions()).saveView({ name: "Elsewhere", filters: { status: "all", project: otherWorkspaceProject } }, ctx)).toEqual({ error: "That Project isn't available. Choose another and try again." });
+    expect(await (await actions()).saveView({ name: "Shipped", filters: { status: "shipped", project: "all" } as unknown as SavedViewFilters }, ctx)).toEqual({ error: "Those filters can’t be saved. Reload the page and try again." });
+    expect(await (await actions()).saveView({ name: "Elsewhere", filters: { status: "all", project: otherWorkspaceProject } }, ctx)).toEqual({ error: "That Project isn’t available. Choose another and try again." });
   });
 
   it("keeps the workspace from the page and the owner from the session", async () => {
     as(MEMBER, "org:member", OTHER);
-    expect(await (await actions()).saveView({ name: "Mine", filters: { status: "all", project: "all" } }, ctx)).toEqual({ error: "You can't save views in this workspace." });
+    expect(await (await actions()).saveView({ name: "Mine", filters: { status: "all", project: "all" } }, ctx)).toEqual({ error: "You can’t save views in this workspace." });
     as(null);
     expect(await (await actions()).saveView({ name: "Mine", filters: { status: "all", project: "all" } }, ctx)).toEqual({ error: "Your session ended. Sign in again to continue.", sessionExpired: true });
     expect(await stored(OTHER)).toEqual([]);
+  });
+});
+
+describe("the title filter in a view (A214)", () => {
+  it("is saved and updated with the status view and Project, as JSON, with no new column", async () => {
+    const { saveView, updateSavedView } = await actions();
+    const saved = await saveView({ name: "Checkout", filters: { status: "open", project: "all", title: " checkout " } }, ctx);
+    expect(saved).toMatchObject({ ok: true, view: { name: "Checkout", filters: { status: "open", project: "all", title: "checkout" } } });
+    const id = (saved as { view: { id: string } }).view.id;
+    expect(await updateSavedView({ id, filters: { status: "open", project: "all", title: "pay" } }, ctx)).toMatchObject({ ok: true, view: { filters: { title: "pay" } } });
+    expect((await stored()).find(row => row.name === "Checkout")?.filters).toEqual({ status: "open", project: "all", title: "pay" });
+    // Clearing the title saves the older shape again.
+    expect(await updateSavedView({ id, filters: { status: "open", project: "all", title: "" } }, ctx)).toMatchObject({ ok: true, view: { filters: { status: "open", project: "all" } } });
+    expect((await stored()).find(row => row.name === "Checkout")?.filters).toEqual({ status: "open", project: "all" });
+  });
+
+  it("is limited to the longest Request title", async () => {
+    expect(await (await actions()).saveView({ name: "Too long", filters: { status: "all", project: "all", title: "x".repeat(201) } }, ctx)).toEqual({ error: "Those filters can’t be saved. Reload the page and try again." });
+  });
+
+  it("is absent from a view saved before it, which still opens", async () => {
+    await connection`insert into saved_views(org_id, owner_id, name, filters) values (${ORG}, ${MEMBER}, 'Older view', ${connection.json({ status: "done", project: "all" })})`;
+    expect((await myViews()).find(view => view.name === "Older view")?.filters).toEqual({ status: "done", project: "all" });
   });
 });
 
@@ -105,9 +129,9 @@ describe("a view is its owner's alone", () => {
     for (const role of ["org:member", "org:admin"]) {
       as(TEAMMATE, role);
       expect(await myViews()).toEqual([]);
-      expect(await renameSavedView({ id: kept, name: "Taken" }, ctx)).toEqual({ error: "That view isn't saved any more." });
-      expect(await updateSavedView({ id: kept, filters: { status: "all", project: "all" } }, ctx)).toEqual({ error: "That view isn't saved any more." });
-      expect(await deleteSavedView({ id: kept }, ctx)).toEqual({ error: "That view isn't saved any more." });
+      expect(await renameSavedView({ id: kept, name: "Taken" }, ctx)).toEqual({ error: "That view isn’t saved any more." });
+      expect(await updateSavedView({ id: kept, filters: { status: "all", project: "all" } }, ctx)).toEqual({ error: "That view isn’t saved any more." });
+      expect(await deleteSavedView({ id: kept }, ctx)).toEqual({ error: "That view isn’t saved any more." });
     }
     expect(await stored()).toEqual(before);
     // The teammate's own view of the same name is theirs, beside the owner's.
@@ -118,7 +142,7 @@ describe("a view is its owner's alone", () => {
     as(MEMBER, "org:member", OTHER);
     expect(await myViews()).toEqual([]);
     const [{ id }] = await connection`select id from saved_views where org_id = ${ORG} and owner_id = ${MEMBER} limit 1`;
-    expect(await (await actions()).deleteSavedView({ id }, { orgId: OTHER })).toEqual({ error: "That view isn't saved any more." });
+    expect(await (await actions()).deleteSavedView({ id }, { orgId: OTHER })).toEqual({ error: "That view isn’t saved any more." });
   });
 });
 
@@ -139,7 +163,7 @@ describe("Viewers and Guests", () => {
     as(GUEST, "org:guest");
     const { saveView } = await actions();
     expect(await saveView({ name: "Website", filters: { status: "all", project: website } }, ctx)).toMatchObject({ ok: true });
-    expect(await saveView({ name: "Billing", filters: { status: "all", project: hiddenFromGuest } }, ctx)).toEqual({ error: "That Project isn't available. Choose another and try again." });
+    expect(await saveView({ name: "Billing", filters: { status: "all", project: hiddenFromGuest } }, ctx)).toEqual({ error: "That Project isn’t available. Choose another and try again." });
   });
 
   it("opens a Guest's view through the normal list, so it shows only their own Requests", async () => {

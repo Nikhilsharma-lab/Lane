@@ -2,7 +2,7 @@
 
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
 import { useReducedMotion } from "motion/react";
-import { layoutWidthFor, planToggle, slideFor, type SidebarMotion } from "./sidebar-motion";
+import { layoutWidthFor, NAVIGATION_WIDTH, planToggle, slideFor, type SidebarMotion } from "./sidebar-motion";
 
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 400;
@@ -32,8 +32,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
   const previewCompact = useSyncExternalStore(subscribeLinearPreviewCompact, () => window.matchMedia(LINEAR_PREVIEW_COMPACT).matches, () => false);
   const autoCollapsed = linearPreviewAutoCollapse && previewCompact;
   const reduced = useReducedMotion();
-  // The theme's navigation width (--navigation-width, 13rem).
-  const initialWidth = 208;
+  const initialWidth = NAVIGATION_WIDTH;
   const [width, setWidth] = useState(initialWidth);
   const [resizing, setResizing] = useState(false);
   const [lastExpanded, setLastExpanded] = useState(initialWidth);
@@ -117,7 +116,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
     if (disabled || phone) return;
     if (autoCollapsed) { onAutoExpand?.(); return; }
     toggleWidth(lastExpanded, fromPeek);
-    focusVisible('button[aria-label^="Account menu,"]');
+    focusVisible("[data-account]");
   }
   function focusVisible(selector: string) {
     requestAnimationFrame(() => [...(shellRef.current?.querySelectorAll<HTMLButtonElement>(selector) ?? [])]
@@ -127,7 +126,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
     if (disabled || phone) return;
     if (collapsed) { expand(); return; }
     toggleWidth(0);
-    focusVisible('button[aria-label="Expand sidebar"]');
+    focusVisible("[data-sidebar-expand]");
   }
   function finish(cancel: boolean) {
     const current = drag.current;
@@ -185,7 +184,7 @@ export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = 
   useEffect(() => () => { slide.current?.cancel(); }, []);
   useEffect(() => {
     if (autoCollapsed && (shellRef.current?.querySelector("#lane-sidebar")?.contains(document.activeElement) || document.activeElement === handleRef.current)) {
-      focusVisible('button[aria-label="Expand sidebar"]');
+      focusVisible("[data-sidebar-expand]");
     }
   }, [autoCollapsed]);
 

@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation"
 import { getMember, getWorkspace } from "@/lib/ensure-workspace"
-import { loadRequestDetail } from "@/lib/data/requests"
+import { readRequestPage } from "@/lib/data/request-page"
 import { requestListHref } from "@/lib/request-workspace"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
-import { RequestUnavailable } from "@/components/requests/detail-view"
+import { RequestUnavailable } from "@/components/requests/request-unavailable"
 import { RequestDetailPane } from "@/components/requests/request-detail-pane"
 import { RequestWorkspaceKeyboard } from "@/components/requests/request-workspace-keyboard"
-import { timePage, timed } from "@/lib/request-timings"
+import { timePage } from "@/lib/request-timings"
 
 /**
  * Canonical /requests/[id] (plan items 1.7 and 2.5). Its own module, apart
@@ -26,7 +26,7 @@ export async function RequestDetailWorkspace({ selectedRequestId }: { selectedRe
   // the workspace and guest guards (src/lib/data/requests.ts).
   const [workspace, selected] = await Promise.all([
     getWorkspace(),
-    timed("data", () => loadRequestDetail(member, selectedRequestId)),
+    readRequestPage(member, selectedRequestId),
   ])
   if (!workspace) redirect("/login")
   if (workspace.needsOnboarding) redirect("/onboarding")

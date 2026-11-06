@@ -94,7 +94,8 @@ export function RequestPeek(props: RequestPeekProps) {
 
   return <div className={styles.viewport} inert={!present} aria-hidden={!present || undefined}>
     <section ref={panel} className={styles.panel} role="region" aria-label="Request preview" data-request-peek="" data-request-id={requestId}>
-      {/* Until the chunk arrives the panel shows the skeleton, never an empty frame. */}
+      {/* Until the chunk arrives (it is fetched once a row takes focus, so rarely) the pane shows the content's own
+          skeleton, with Close, from its first frame: never an empty frame or a bare button (#271, A116). */}
       <Suspense fallback={<RequestPeekSkeleton onClose={onClose} />}><Content key={requestId} {...props} /></Suspense>
     </section>
   </div>

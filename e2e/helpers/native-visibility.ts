@@ -7,25 +7,44 @@ import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { assertE2ETarget, safeClerkClient } from "./safety";
 import { waitForClerk } from "./test-user";
 
-/** Same normal Clerk test sign-in as test-user.ts; a native default context has no relative baseURL. */
+/**
+ * Same normal Clerk test sign-in as test-user.ts; a native default context has no relative baseURL.
+ * Clerk's load is awaited first (waitForClerk, polling on an interval): `clerk.signIn` waits only 15 s, polling on
+ * animation frames, which a headed window behind other windows doesn't paint.
+ */
 export async function signInNativeTestUser(page: Page, emailAddress: string, orgId: string) {
   await safeClerkClient();
   // Before the page asks Clerk for anything: this dedicated browser has no context set up by the test runner, and a
   // first Clerk request without the testing token can leave Clerk never loading.
-  await setupClerkTestingToken({ page });
+  await setupClerkTestingToken({ context: page.context() });
   await page.goto(new URL("/login", assertE2ETarget().baseURL).href);
-  // A fresh profile loads Clerk in 2-11 s here (measured), past @clerk/testing's own 15 s on a slow Clerk answer.
   await waitForClerk(page);
   await clerk.signIn({ page, emailAddress });
   await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
+  // Signed in, Clerk's sign-in card sometimes moves the page on from /login and sometimes stays. Go to the workspace
+  // either way, so no move of the card's is left to abort the next step's page.goto (net::ERR_ABORTED); a goto that
+  // races the card's move is aborted the same way, and goes again once that move has landed.
+  const workspace = new URL("/", assertE2ETarget().baseURL).href;
+  await page.goto(workspace).catch(async (error: Error) => {
+    if (!error.message.includes("ERR_ABORTED")) throw error;
+    await page.waitForLoadState("load");
+    await page.goto(workspace);
+  });
+}
+
+/** Brings the dedicated browser's page to the front and waits until the browser reports it visible. */
+export async function showOnScreen(page: Page) {
+  await page.bringToFront();
+  await expect.poll(() => page.evaluate(() => document.visibilityState), { message: "The dedicated browser's page should be visible once in front" }).toBe("visible");
 }
 
 /** A dedicated browser with native tab visibility; Playwright's normal focus override keeps tabs visible. */
 export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
   const profile = await mkdtemp(join(tmpdir(), "lane-undo-visibility-"));
-  // Only a tab switch hides the tab under test. Without the flag, macOS hides it whenever the window is covered or the
-  // display sleeps: requestAnimationFrame stops, so React's streamed content stays as a hidden second copy beside the
-  // hydrated page (two #request-title), and the tab is hidden before the test hides it.
+  // Only a tab switch, which the checks make on purpose, should hide the page. Without the flag, macOS hides it whenever
+  // the window is covered (other runs' windows come and go on this machine) or the display sleeps: no frames, so a
+  // Pick up there never showed Mark Done, and React's streamed content stayed as a hidden second copy beside the
+  // hydrated page (two #request-title).
   const child = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--disable-backgrounding-occluded-windows", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
   let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
   try {
@@ -42,7 +61,7 @@ export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
     browser = await chromium.connectOverCDP(endpoint, { noDefaults: true });
     const context = browser.contexts()[0];
     const page = context.pages()[0] ?? await context.newPage();
-    await page.bringToFront();
+    await showOnScreen(page);
     return await run(page);
   } finally {
     if (browser) {
@@ -56,8 +75,7 @@ export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
 
 /** No property overrides, fake events or clock installation: this tab genuinely becomes hidden. */
 export async function pauseInNativeBackground(page: Page, durationMs: number) {
-  await page.bringToFront();
-  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
+  await showOnScreen(page);
   const initialState = await page.evaluate(() => {
     const events: { state: string; trusted: boolean; time: number }[] = [];
     const target = window as typeof window & { laneUndoVisibility?: typeof events };

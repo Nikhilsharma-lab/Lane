@@ -12,6 +12,7 @@ import { MetricDefinitionHistory } from "@/components/metrics/metric-definition-
 import { SettingsCard } from "@/components/settings/settings-card";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { loadDefinitionUses } from "@/lib/data/impact";
+import { readMetricPage } from "@/lib/data/metric-page";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { metricUnitName } from "@/lib/metric-definition-rules";
 import { listMetricDefinitions, metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
@@ -20,6 +21,9 @@ import { ThemePreference } from "../../profile/theme-preference";
 import { sharedPanels } from "../../profile/shared-panels";
 import { ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
 import styles from "../metrics.module.css";
+import { settingsMetadata } from "../../settings-metadata";
+
+export const metadata = settingsMetadata;
 
 /**
  * One Metric definition under Settings → Metrics (#197): edit it, archive, restore or merge it (Admins, #202),
@@ -36,7 +40,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   const library = workspace;
   // #265: the shared Settings sections are read alongside the definition, not after it.
   const panelsRead = sharedPanels(workspace);
-  const [definition, history, unitLocked] = await Promise.all([timed("data", () => readMetricDefinition(library, id)), timed("data", () => readMetricDefinitionHistory(library, id)), timed("data", () => metricDefinitionUnitLocked(library, id))]);
+  const [definition, history, unitLocked] = await Promise.all([readMetricPage(library, id), timed("data", () => readMetricDefinitionHistory(library, id)), timed("data", () => metricDefinitionUnitLocked(library, id))]);
   if (!definition) notFound();
   const archived = !!definition.archivedAt;
   const merged = !!definition.mergedIntoId;
@@ -57,7 +61,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   const panel = <>
     <Link href="/settings/metrics" className={styles.backLink}><ArrowLeft data-icon-size="sm" aria-hidden="true" />All metrics</Link>
     <SettingsCard title={definition.name}
-      description={merged ? undefined : archived ? "Archived. It isn't offered for new goals, and stays on the Requests that already use it." : undefined}>
+      description={merged ? undefined : archived ? "Archived. It isn’t offered for new goals, and stays on the Requests that already use it." : undefined}>
       {merged && <p className={styles.note}>
         Merged into {keptDefinition ? <Link href={`/settings/metrics/${keptDefinition.id}`} className={styles.keptLink}>{keptDefinition.name}</Link> : "another metric"}. Requests that used it now count under that one.
       </p>}
@@ -68,10 +72,10 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
       description={archived ? "Restoring offers it for new goals again." : "Archiving stops it being offered for new goals. Requests that already use it keep it, and their results still add up."}
       action={<ArchiveMetricControl orgId={workspace.orgId} id={definition.id} archived={archived} />} />}
     {isAdmin && !merged && <SettingsCard title="Merge"
-      description="If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can't be undone.">
+      description="If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can’t be undone.">
       {candidates.length
         ? <MergeMetricControl orgId={workspace.orgId} current={{ id: definition.id, name: definition.name }} candidates={candidates} />
-        : <p className={styles.note}>No other metric is counted in {metricUnitName(definition.unit).toLowerCase()}, so there&apos;s nothing to merge it with.</p>}
+        : <p className={styles.note}>No other metric is counted in {metricUnitName(definition.unit).toLowerCase()}, so there’s nothing to merge it with.</p>}
     </SettingsCard>}
     {uses && <SettingsCard title="Requests that used it"
       description="Grouped by Project, with each goal beside what happened. Uses as the main metric and as a guardrail are listed apart.">

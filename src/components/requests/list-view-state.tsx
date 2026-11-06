@@ -12,7 +12,7 @@ import { usePendingMutations } from "./pending-mutations-provider"
 import type { DetailSequence } from "./request-sequence"
 import { createRequestNavigation, RequestNavigationContext } from "./request-navigation"
 
-export type ListViewState = RequestListContext & {
+export type ListViewState = Required<RequestListContext> & {
   columnVisibility: ColumnVisibilityState
   localFilters: ColumnFiltersState
   ordering: RequestOrdering
@@ -24,8 +24,8 @@ export type ListViewState = RequestListContext & {
   /** #219: the saved view the person opened, kept while they change its filters so the change can be saved into it. */
   savedView?: string
 }
-/** The list context plus the open saved view (#219). */
-export type OpenListContext = RequestListContext & { savedView?: string }
+/** The status view and Project plus the open saved view (#219). The title filter (A214) changes on each keystroke, so it stays out: the sidebar reads this. */
+export type OpenListContext = Omit<RequestListContext, "title"> & { savedView?: string }
 export type SetListView = Dispatch<SetStateAction<ListViewState>>
 
 const initialView: ListViewState = {
@@ -33,7 +33,7 @@ const initialView: ListViewState = {
   // fields remain available in the Display control when a team needs them.
   columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
   pagination: { pageIndex: 0, pageSize: 25 },
-  status: "all", project: "all",
+  status: "all", project: "all", title: "",
 }
 
 // Plan item 1.14: state and setter live in separate contexts, so a component
@@ -86,10 +86,11 @@ CurrentRequestContext.displayName = "CurrentRequest"
 DetailSessionContext.displayName = "RequestDetailSession"
 DetailSessionSetterContext.displayName = "RequestDetailSessionSetter"
 
-// Lives in the authenticated layout, keyed by workspace and user. Search text
-// stays in memory; it is never persisted across sign-out or workspace changes.
+// Lives in the authenticated layout, keyed by workspace and user; nothing here
+// is persisted across sign-out or workspace changes.
 // Plan item 1.7: the status view and Project filter live here too, so they
 // survive a visit to a Request and the list URL is only a mirror of them.
+// A214: so does the title filter (`?title=`).
 export function RequestListViewProvider({ children, initialColumnVisibility, initialDetailSession }: { children: ReactNode; initialColumnVisibility?: ColumnVisibilityState
   /** Fixtures only: a detail session as if a Request had been opened from the list. */
   initialDetailSession?: DetailSessionPatch }) {
@@ -204,6 +205,7 @@ export function revealRequest(view: ListViewState, row: OverviewRequest): ListVi
   const moved = withListContext(view, {
     status: hiding.has("status") ? row.status : view.status,
     project: hiding.has("project") ? row.projectId ?? "none" : view.project,
+    title: hiding.has("title") ? "" : view.title,
   })
   const localFilters = view.localFilters.filter(item => !hiding.has(item.id as keyof ListFilters))
   const narrowed = localFilters.length !== view.localFilters.length
@@ -220,16 +222,16 @@ export function useSetDetailSession(): SetDetailSession {
   return required(useContext(DetailSessionSetterContext), "useSetDetailSession")
 }
 
-/** The status view, Project filter and open saved view. Re-renders only when one of them changes. */
+/** The status view, Project filter, title filter and open saved view. Re-renders only when one of them changes. */
 export function useRequestListContext(): OpenListContext {
   return required(useContext(ListContextContext), "useRequestListContext")
 }
 
-/** Moves the list to another status view or Project and returns to the first page. */
+/** Moves the list to another status view, Project or title filter and returns to the first page. A missing part stays as it is. */
 export function withListContext(view: ListViewState, next: Partial<RequestListContext>): ListViewState {
-  const status = next.status ?? view.status, project = next.project ?? view.project
-  if (status === view.status && project === view.project) return view
-  return { ...view, status, project, pagination: { ...view.pagination, pageIndex: 0 } }
+  const status = next.status ?? view.status, project = next.project ?? view.project, title = next.title ?? view.title
+  if (status === view.status && project === view.project && title === view.title) return view
+  return { ...view, status, project, title, pagination: { ...view.pagination, pageIndex: 0 } }
 }
 
 /** #219: opens a saved view (its filters, on the first page), or with null closes the open one and keeps the filters. */
@@ -275,11 +277,11 @@ export function planListUrlSync({ search, seen, written, current, localSelection
     const params = new URLSearchParams(search)
     if (hasRequestListContext(params)) {
       const next = parseRequestListContext(params)
-      if (next.status !== current.status || next.project !== current.project) return { seen: search, adopt: next }
+      if (next.status !== current.status || next.project !== current.project || next.title !== (current.title ?? "")) return { seen: search, adopt: next }
     }
   }
   if (hold || pathname !== "/") return { seen: search }
-  const href = requestListHref(current.status, current.project)
+  const href = requestListHref(current.status, current.project, current.title)
   return `${pathname}${locationSearch}` === href ? { seen: search } : { seen: search, write: href }
 }
 
@@ -289,7 +291,7 @@ export function planListUrlSync({ search, seen, written, current, localSelection
  * true: in Next 16.2 a patched replaceState while a server action is pending
  * discards that action's revalidated payload (plan item 1.5).
  */
-export function useRequestListUrlSync({ status, project }: RequestListContext, setView: SetListView, hold: boolean) {
+export function useRequestListUrlSync({ status, project, title }: RequestListContext, setView: SetListView, hold: boolean) {
   const searchParams = useSearchParams()
   const search = searchParams?.toString() ?? ""
   const navigation = required(useContext(RequestNavigationContext), "useRequestListUrlSync")
@@ -305,5 +307,5 @@ export function useRequestListUrlSync({ status, project }: RequestListContext, s
       written.current = new URL(plan.write, window.location.origin).searchParams.toString()
       window.history.replaceState(null, "", plan.write)
     }
-  }, [search, status, project, hold, setView, navigation])
+  }, [search, status, project, title, hold, setView, navigation])
 }

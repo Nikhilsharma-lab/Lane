@@ -8,15 +8,15 @@ import { OfflineError } from "./offline-error"
  */
 
 /** The app frame's quiet offline line, and the title wherever Lane says the browser is offline. */
-export const OFFLINE_LINE = "You're offline"
+export const OFFLINE_LINE = "You’re offline"
 /** What a failure message adds when the person's typing survived it. */
 export const TEXT_KEPT = "Your text is still here."
 /** What any saving action says while the browser is offline. Nothing is changed or queued. As a
  * toast or alert title it has no full stop; inline it reads as a sentence. */
-export const OFFLINE_ANSWER_TITLE = "You're offline, this will work when you're back"
+export const OFFLINE_ANSWER_TITLE = "You’re offline, this will work when you’re back"
 export const OFFLINE_ANSWER = `${OFFLINE_ANSWER_TITLE}.`
 /** A change that didn't save: the toast title. */
-export const SAVE_FAILED_TITLE = "Couldn't save"
+export const SAVE_FAILED_TITLE = "Couldn’t save"
 /** What to do next when a call never got an answer. */
 export const CHECK_CONNECTION = "Check your connection and try again."
 /** A read or change refused because nobody is signed in any more (the server's SESSION_ENDED). */
@@ -24,7 +24,9 @@ export const SESSION_ENDED = "Your session ended. Sign in again to continue."
 /** A read or change refused because the session no longer matches this workspace. */
 export const SESSION_CHANGED = "Your workspace session changed. Refresh the page to continue."
 /** A popup whose code couldn't load (an old tab after a deploy): the toast title. Offline says OFFLINE_ANSWER_TITLE. */
-export const POPUP_UNAVAILABLE_TITLE = "Couldn't open this"
+export const POPUP_UNAVAILABLE_TITLE = "Couldn’t open this"
+/** Lane's own words with typographic apostrophes, for a message shown beside copy that already has them. */
+export const curlyApostrophes = (words: string) => words.replaceAll("'", "’")
 /** The label on every failure message's retry button. */
 export const TRY_AGAIN = "Try again"
 
@@ -38,6 +40,10 @@ export const thrownMessage = (thrown: unknown, fallback: string) => isOfflineErr
  * where a caller passes a failure on as an error. `failureWords` shows its message as it is.
  */
 export class ShownFailure extends Error {}
+
+/** Whether Try again can work: offline, no answer in time or a refusal may pass next time; a `ShownFailure` is
+ * Lane's own answer (a workspace that's gone, a page to reload), which trying again only repeats. */
+export const worthRetrying = (failure: unknown) => !(failure instanceof ShownFailure)
 
 /** The words to show for a failure: a `ShownFailure`'s own, else what `thrownMessage` says (never a raw error's text). */
 export const failureWords = (failure: unknown, fallback: string) => failure instanceof ShownFailure ? failure.message : thrownMessage(failure, fallback)

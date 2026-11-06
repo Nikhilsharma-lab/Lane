@@ -51,15 +51,21 @@ export function parseRequestProjectFilter(
   return candidate ?? "all"
 }
 
-function requestQuery(filter: RequestStatusFilter, projectFilter: RequestProjectFilter) {
+/** A214: the list's title filter (URL `?title=`, and a saved view's) is cut to the longest Request title,
+ * request-schema.ts TITLE_MAX. Not imported from there, which would bring zod into the list's first load;
+ * request-workspace.test.ts holds the two equal. */
+export const REQUEST_TITLE_FILTER_MAX = 200
+
+function requestQuery(filter: RequestStatusFilter, projectFilter: RequestProjectFilter, title = "") {
   const query = new URLSearchParams()
   if (filter !== "all") query.set("status", filter)
   if (projectFilter !== "all") query.set("project", projectFilter)
+  if (title.trim()) query.set("title", title)
   return query.size ? `?${query}` : ""
 }
 
-export function requestListHref(filter: RequestStatusFilter, projectFilter: RequestProjectFilter = "all") {
-  return `/${requestQuery(filter, projectFilter)}`
+export function requestListHref(filter: RequestStatusFilter, projectFilter: RequestProjectFilter = "all", title = "") {
+  return `/${requestQuery(filter, projectFilter, title)}`
 }
 
 export function requestDetailHref(
@@ -71,30 +77,39 @@ export function requestDetailHref(
   return `${path}${requestQuery(filter, projectFilter)}`
 }
 
-/** The list context a page holds in layout state: the status view and the Project filter. */
-export type RequestListContext = { status: RequestStatusFilter; project: RequestProjectFilter }
+/**
+ * The list context a page holds in layout state: the status view, the Project filter and (A214) the title filter.
+ * A missing title means "keep the title as it is" where a context is applied, and no title where one is read.
+ */
+export type RequestListContext = { status: RequestStatusFilter; project: RequestProjectFilter; title?: string }
 
 type SearchParamsLike = { get(name: string): string | null; has(name: string): boolean }
 
-/** Reads the list context of a URL query. Absent values mean "all". */
-export function parseRequestListContext(params: SearchParamsLike | null | undefined): RequestListContext {
+/** Reads the list context of a URL query. Absent values mean "all", and no title; a title is kept as typed, cut to REQUEST_TITLE_FILTER_MAX. */
+export function parseRequestListContext(params: SearchParamsLike | null | undefined): Required<RequestListContext> {
   return {
     status: parseRequestStatusFilter(params?.get("status") ?? undefined),
     project: parseRequestProjectFilter(params?.get("project")),
+    title: (params?.get("title") ?? "").slice(0, REQUEST_TITLE_FILTER_MAX),
   }
 }
 
-/** True when a URL query names a status view or a Project filter. */
+/** True when a URL query names a status view, a Project filter or a title filter. */
 export function hasRequestListContext(params: SearchParamsLike | null | undefined) {
-  return Boolean(params?.has("status") || params?.has("project"))
+  return Boolean(params?.has("status") || params?.has("project") || params?.has("title"))
 }
 
-/** The list context of an in-app Requests list link ("/" with an optional query), or null for any other link. */
+/**
+ * The list context of an in-app Requests list link ("/" with an optional query), or null for any other link.
+ * The title is named only when the link has one, so a status or Project link keeps the title being filtered by.
+ */
 export function requestListContextFromHref(href: string): RequestListContext | null {
   if (!href.startsWith("/") || href.startsWith("//")) return null
   const url = new URL(href, "https://lane.invalid")
   if (url.pathname !== "/" || url.hash) return null
-  return parseRequestListContext(url.searchParams)
+  const context: RequestListContext = parseRequestListContext(url.searchParams)
+  if (!url.searchParams.has("title")) delete context.title
+  return context
 }
 
 /** Already on "/", a Requests list link (a view, a Project, No Project) changes the list in place with no request; elsewhere it navigates. */

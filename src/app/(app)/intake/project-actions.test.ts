@@ -77,12 +77,35 @@ describe("Project actions", () => {
     expect(await createProject({ name: "  " }, { orgId: "org_a" })).toMatchObject({ success: false, error: { code: "validation", field: "name" } });
     expect(boundary.queries).toHaveLength(0);
   });
-  it("returns an accessible duplicate without creating another row", async () => {
+  // #269 (A19): an existing name is a refusal that names the Project as stored, never the old Project as a success.
+  it("refuses a name that exists in other capitals, naming the Project as it is stored", async () => {
     const { createProject } = await import("./project-actions");
     boundary.responses = [[], [PROJECT]];
-    expect(await createProject({ name: "website" }, { orgId: "org_a" })).toMatchObject({ success: true, project: { name: "Website" } });
+    // The answer carries the Project it found, so the New Request composer can pick it quietly (as before Build 4).
+    expect(await createProject({ name: "website" }, { orgId: "org_a" })).toEqual({
+      success: false, error: { code: "duplicate", field: "name", message: "A Project called Website already exists. Choose another name." },
+      existing: { id: PROJECT[0], name: "Website", description: null },
+    });
     expect(boundary.queries[0].sql).toContain("on conflict do nothing");
     expect(boundary.queries[1].sql).toContain("lower(");
+    expect(boundary.queries).toHaveLength(2);
+  });
+  it("gives two people creating the same name at once one Project and one duplicate answer", async () => {
+    const { createProject } = await import("./project-actions");
+    // The database's unique name index lets the first insert through and returns nothing for the second.
+    boundary.responses = [[PROJECT], [], [PROJECT]];
+    const [first, second] = await Promise.all([
+      createProject({ name: "Website" }, { orgId: "org_a" }),
+      createProject({ name: "WEBSITE" }, { orgId: "org_a" }),
+    ]);
+    expect(first).toEqual({ success: true, project: { id: PROJECT[0], name: "Website", description: null } });
+    expect(second).toEqual({ success: false, error: { code: "duplicate", field: "name", message: "A Project called Website already exists. Choose another name." }, existing: { id: PROJECT[0], name: "Website", description: null } });
+  });
+  it("keeps the 80-character limit before any database work", async () => {
+    const { createProject } = await import("./project-actions");
+    expect(await createProject({ name: "a".repeat(81) }, { orgId: "org_a" })).toMatchObject({ success: false, error: { code: "validation", field: "name" } });
+    expect(await createProject({ name: "a".repeat(80) }, { orgId: "org_a" })).toMatchObject({ success: false });
+    expect(boundary.queries.filter(query => query.sql.startsWith("insert"))).toHaveLength(1);
   });
   it("does not disclose a hidden project on a guest duplicate", async () => {
     const { createProject } = await import("./project-actions");

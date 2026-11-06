@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "@/components/link";
-import { LaneMark } from "@/components/auth/auth-shell";
+import { LaneMark } from "@/components/brand/lane-mark";
 import { SUPPORT_EMAIL } from "@/app/support-contact";
 // One stylesheet for both legal pages, so Terms reads exactly like the Privacy policy.
 import styles from "../privacy/privacy.module.css";
 
 export const metadata: Metadata = {
-  title: "Terms of service | Lane",
+  title: "Terms of service",
   description: "The terms that apply when you use Lane, a free pilot for teams that plan and track design work.",
 };
 
