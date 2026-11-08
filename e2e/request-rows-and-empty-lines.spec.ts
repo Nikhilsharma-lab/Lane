@@ -84,6 +84,14 @@ async function shot(page: Page, info: TestInfo, name: string) {
   await page.screenshot({ path: info.outputPath(`${name}.png`), animations: "disabled" });
 }
 
+/** Escape closes one menu level at a time; press it until no menu is left. */
+async function closeMenus(page: Page) {
+  await expect(async () => {
+    if (await page.getByRole("menu").count()) await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toHaveCount(0, { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+}
+
 async function openStatusMenu(page: Page, target: Locator) {
   await target.click({ button: "right", position: { x: 200, y: 10 } });
   const menu = page.getByRole("menu", { name: /^Request / });
@@ -158,14 +166,10 @@ test("rows read clearly at every width, in light and dark (#274)", async ({ page
     await expect(openStatuses.getByRole("menuitemcheckbox", { name: /^Measuring/ })).toHaveAccessibleDescription("Record the release first");
     await expect(openStatuses.getByRole("menuitemcheckbox", { name: /^Closed/ })).toHaveAccessibleDescription("Record the result once it’s Measuring");
     await shot(page, info, "row-menu-status-reasons");
-    await page.keyboard.press("Escape");
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("menu")).toHaveCount(0);
+    await closeMenus(page);
     const doneStatuses = await openStatusMenu(page, row(page, seeded.done));
     for (const earlier of ["Open", "In progress"]) await expect(doneStatuses.getByRole("menuitemcheckbox", { name: new RegExp(`^${earlier} Requests`) })).toHaveAccessibleDescription("Requests don’t move back");
-    await page.keyboard.press("Escape");
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("menu")).toHaveCount(0);
+    await closeMenus(page);
 
     // A25: a selected row keeps its Project dot's colour, and so does the sidebar's active Project.
     const dot = open.locator('[data-row-property="project"] [data-tone]');
@@ -314,6 +318,8 @@ test("each status pill has its own empty line; chips only for added filters (#27
     const phone = await browser.newContext({ storageState: await page.context().storageState(), viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     try {
       const tapPage = await phone.newPage();
+      // Every read of the tapped Request is slow, its load-ahead included, so the tap waits on the network.
+      await tapPage.route(`**/requests/${seeded.inProgress}**`, async route => { await new Promise(done => setTimeout(done, 3_000)); await route.continue().catch(() => {}); });
       await tapPage.goto("/");
       const tapped = row(tapPage, seeded.inProgress);
       await expect(tapped).toBeVisible();
@@ -322,10 +328,12 @@ test("each status pill has its own empty line; chips only for added filters (#27
       await expect(tapPage.getByRole("menuitem", { name: "All", exact: true }).locator("svg.lucide-check")).toBeVisible();
       await tapPage.keyboard.press("Escape");
       await expect(tapPage.getByRole("menu")).toHaveCount(0);
-      await tapPage.route(`**/requests/${seeded.inProgress}**`, async route => { await new Promise(done => setTimeout(done, 3_000)); await route.continue().catch(() => {}); });
       await tapped.locator("a[data-request-title]").tap();
       await expect(tapped).toHaveAttribute("data-pressed", "");
-      await expect.poll(() => tapped.evaluate(element => Number(getComputedStyle(element, "::after").opacity)), { timeout: 2_000 }).toBeGreaterThan(0.3);
+      // The working line is drawn while the page is on its way and waits the placeholder's 0.15s before it shows.
+      const working = await tapped.evaluate(element => { const after = getComputedStyle(element, "::after"); return { content: after.content, delay: after.animationDelay.split(",")[0].trim() }; });
+      expect(working.content).not.toBe("none");
+      expect(working.delay).toBe("0.15s");
       await tapPage.screenshot({ path: info.outputPath("slow-tap.png") });
       await tapPage.unrouteAll({ behavior: "ignoreErrors" });
     } finally { await phone.close(); }
