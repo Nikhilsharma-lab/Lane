@@ -28,7 +28,7 @@ function ProjectRequestsLink({ projectId }: { projectId?: string | null }) {
   const setListView = useSetRequestListView()
   return <Link href={requestListHref(status, projectId ?? "none")} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm}`} onClick={event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    setListView(current => ({ ...current, pagination: { ...current.pagination, pageIndex: 0 } }))
+    setListView(current => Object.keys(current.shownCounts).length ? { ...current, shownCounts: {} } : current)
   }}>{projectId ? "View Project Requests" : "View Requests without a Project"}</Link>
 }
 

@@ -49,19 +49,11 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   // selection it drops is announced, so a J past the page edge or a collapse
   // from the keyboard never clears it silently (plan item 2.4).
   const held = useRef({ scope, count: 0 })
-  const dropNoted = useRef(false)
   useLayoutEffect(() => {
     const previous = held.current
     held.current = { scope, count: selected.length }
-    if (previous.scope !== scope && previous.count > 0 && !dropNoted.current) announce("Selection cleared.", { key: "selection" })
-    dropNoted.current = false
+    if (previous.scope !== scope && previous.count > 0) announce("Selection cleared.", { key: "selection" })
   })
-  /** For a view change the list announces itself (a page crossing): the dropped selection joins that message, said once. */
-  function withDropNotice(text: string) {
-    if (!held.current.count) return text
-    dropNoted.current = true
-    return `${text} Selection cleared.`
-  }
   useLayoutEffect(() => {
     activeScope.current = scope
     running.current = null
@@ -183,7 +175,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     copyLinks: () => run.current.copyLinks(),
     refresh,
   }), [refresh])
-  return { selected, busy, count: current.pending?.count ?? selected.length, error, message: current.message, action, toggle, withDropNotice, actions, allSelected: selected.length === rows.length }
+  return { selected, busy, count: current.pending?.count ?? selected.length, error, message: current.message, action, toggle, actions, allSelected: selected.length === rows.length }
 }
 
 export type RequestSelectionActions = ReturnType<typeof useRequestSelection>["actions"]

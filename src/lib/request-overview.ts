@@ -49,13 +49,15 @@ export function rowDue(row: OverviewRequest, now: Date): DueSignal {
 export type RequestSort = "newest" | "oldest" | "title"
 export type RequestOrdering = RequestSort | "title_desc" | "status"
 export type RequestGrouping = "none" | "status" | "project" | "assignee"
+/** How many Done, Measuring and Closed Requests the reader can see in the workspace: the list read's grouped count (requests.ts). */
+export type FinishedCounts = { done: number; measuring: number; closed: number }
 export type RequestRowGroup = { key: string; label: string; rows: OverviewRequest[] }
 
 /** Journey order: a row's place along Open → In progress → Done → Measuring → Closed. */
 const journeyOrder = (row: OverviewRequest) => JOURNEY_STATUSES.findIndex(step => step.status === rowJourney(row).status)
 const compareText = (a: string, b: string) => a.localeCompare(b, "en", { numeric: true })
 
-/** Stable order keeps page boundaries predictable when names or dates match. */
+/** Stable order keeps each group's first rows predictable when names or dates match. */
 export function sortRequestRows(rows: OverviewRequest[], order: RequestOrdering) {
   return [...rows].sort((a, b) => {
     let difference: number
@@ -67,8 +69,8 @@ export function sortRequestRows(rows: OverviewRequest[], order: RequestOrdering)
 }
 
 /** Group identity comes from IDs, never a person's or Project's display name.
- * Grouped by status, the list is the board: one column per journey status, in journey order,
- * empty ones included (#127 story 6). */
+ * Grouped by status: one column per journey status, in journey order, empty ones included, so a finished status
+ * with Requests only on the server keeps its group; the list view model leaves the empty ones out (A221). */
 export function groupRequestRows(rows: OverviewRequest[], grouping: RequestGrouping): RequestRowGroup[] {
   if (grouping === "none") return [{ key: "all", label: "Requests", rows }]
   if (grouping === "status") {
@@ -98,8 +100,8 @@ export function groupRequestRows(rows: OverviewRequest[], grouping: RequestGroup
 export type ListFilters = { status: RequestStatusFilter; project: RequestProjectFilter; title: string; requestType: string }
 export type ListFilterKey = keyof ListFilters
 
-/** Which of the list's filters leave this row out. Collapsed groups and later
- * pages are not filters. One function for the list and the composer's
+/** Which of the list's filters leave this row out. Collapsed groups and rows past
+ * a group's Show more are not filters. One function for the list and the composer's
  * hidden-by-filters toast (plan item 2.3), so they cannot disagree.
  * The status view reads the journey module, as its database twin
  * (request-journey-sql.ts) does for the rows the list pages in (#133). */
@@ -123,10 +125,4 @@ export function matchesStatusView(row: OverviewRequest, view: RequestStatusFilte
   if (view === "due") return rowDue(row, now).kind !== "none"
   if (view === "waiting") return row.guestSubmission === "waiting"
   return rowJourney(row).status === view
-}
-
-export function paginateRequests<T>(items: T[], requestedPage: number, pageSize: number) {
-  const pageCount = Math.max(1, Math.ceil(items.length / pageSize))
-  const pageIndex = Math.max(0, Math.min(requestedPage, pageCount - 1))
-  return { rows: items.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize), pageIndex, pageCount }
 }

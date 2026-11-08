@@ -60,8 +60,8 @@ export function createRequestNavigation(state: NavigationState) {
     listSelectionPending = true
     const filtered = withListContext(state.getView(), next)
     const selected = withSavedView(filtered, next.savedView ? { id: next.savedView, filters: filtered } : null)
-    state.setView(next.project !== undefined && selected.pagination.pageIndex !== 0
-      ? { ...selected, pagination: { ...selected.pagination, pageIndex: 0 } } : selected)
+    state.setView(next.project !== undefined && Object.keys(selected.shownCounts).length
+      ? { ...selected, shownCounts: {} } : selected)
     if (location.pathname !== "/") {
       pendingPath = "/"
       browser.push(requestListHref(selected.status, selected.project, selected.title))

@@ -17,13 +17,15 @@
 .activeFilters { container: request-filters / inline-size; padding: var(--space-2) var(--space-6) 0; }
 .matchCount { flex: none; color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .recordRegion { min-width: 0; margin-top: var(--space-2); padding-inline: var(--space-6); }
-.tableFooter { margin-top: var(--space-5); padding: 0 var(--space-6) var(--space-6); }
+/* A212: each group's Show more, a row of the grid under its last shown Request. */
+.showMoreRow { display: flex; align-items: center; min-height: var(--request-row-height); border-radius: var(--request-row-radius); }
+.showMoreCell { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-width: 0; }
+.showMoreError { margin: 0; color: var(--text-secondary); font-size: var(--text-xs); }
 /* Narrow widths only tighten the gutters. */
 @media (max-width: 640px) {
   .toolbar { padding: var(--space-1) var(--space-4); }
   .activeFilters { padding-inline: var(--space-4); }
   .recordRegion { padding-inline: var(--space-4); }
-  .tableFooter { padding-inline: var(--space-4); }
 }
 @media (max-width: 640px) and (pointer: fine) {
   /* Arc's filter trigger grows at this width on its own; keep it level with the
