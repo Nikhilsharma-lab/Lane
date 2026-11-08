@@ -150,7 +150,7 @@
     "source": "https://uiarc.dev/r/filter-toolbar.json",
     "file": "src/components/arc/filter-toolbar/filter-toolbar.module.css",
     "upstreamSha256": "b24254c41e9113d0765773381a17c7eca246ed533bcb0c6e711d25e34746b250",
-    "localSha256": "c659134f0884a8cfb21df58624d60009a4aecf1c35d5ed9bacd4d0c59c07e8d6"
+    "localSha256": "0fa4b73788f9245b4cf90fc2febbc5d3362c4b00022f83a5aa1253f944d69fa0"
   },
   {
     "id": "filter-toolbar",
@@ -374,7 +374,7 @@
     "source": "https://uiarc.dev/r/pro/workspace-sidebar.json",
     "file": "src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css",
     "upstreamSha256": "0c80f65cc602adf3e78890d1045edd62201e279b78a104d63416a5594a702235",
-    "localSha256": "2f21e5ad3e7a9b657d6b9d2d24cf09a7bb95fdb415ec9e03d0b6ad0fafc93f2a"
+    "localSha256": "d0e3d38b92df1c8992b928aa9482fff966e76b9f920b7f26c549b7dabfbdc45a"
   },
   {
     "id": "context-menu",
