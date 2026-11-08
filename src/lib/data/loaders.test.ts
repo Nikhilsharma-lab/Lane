@@ -227,6 +227,17 @@ describe("loadRequestList", () => {
     expect(rows.map(row => row.projectId)).toEqual(expect.arrayContaining([memberProject, null]));
   });
 
+  it("counts every finished Request the reader can see by status, in the same one statement (A212)", async () => {
+    const { result, statements } = await queryCounter.measure(() => loadRequestList(journeyMember));
+    expect(statements).toBeLessThanOrEqual(1);
+    expect(result.finishedCounts).toEqual({ done: 2, measuring: 3, closed: 1 });
+    // More than the latest page: the headers count the Done Requests still on the server.
+    expect((await loadRequestList(member)).finishedCounts.done).toBeGreaterThanOrEqual(doneRequests.length + guestDone.length);
+    // A guest counts only their own, and another workspace counts nothing of this one.
+    expect((await loadRequestList(guest)).finishedCounts).toEqual({ done: guestDone.length, measuring: 0, closed: 0 });
+    expect((await loadRequestList({ userId: "user_nobody", orgId: "org_loaders_empty", role: "member" })).finishedCounts).toEqual({ done: 0, measuring: 0, closed: 0 });
+  });
+
   it("pages older Done Requests from the oldest one shown, in one statement and inside the workspace", async () => {
     const { result, statements } = await queryCounter.measure(() => loadOlderFinishedRequests(member, doneRequests[2]));
     expect(statements).toBeLessThanOrEqual(1);

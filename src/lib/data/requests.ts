@@ -16,6 +16,7 @@ import type { OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
 import { journeyOutline } from "@/components/requests/request-timeline-model"
 import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
 import type { FinishedView } from "@/lib/request-workspace"
+import type { FinishedCounts } from "@/lib/request-overview"
 import { guestPickupRefusal, type GuestSubmissionState } from "@/lib/guest-submission"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
@@ -50,7 +51,7 @@ const isActive = (row: Parameters<typeof journeyStatus>[0]) => ["open", "in_prog
 type ListRowRecord = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>[number]
 /** A list row carries why it can't be picked up yet and what its reviews leave
  * outstanding, never its measurement plan or its reviewers. */
-export type RequestListRow = Omit<ListRowRecord, "expectedImpact" | "reviewers" | "noMeasurableImpactReason"> & { pickupBlockedReason: string | null; reviewState: ReviewState | null }
+export type RequestListRow = Omit<ListRowRecord, "expectedImpact" | "reviewers" | "noMeasurableImpactReason" | "finishedCounts"> & { pickupBlockedReason: string | null; reviewState: ReviewState | null }
 
 /** Each saved reviewer's shape, at any status, so the Request page holds their rows while they load (#295): whether
  * they were asked with a note, raised a concern (each a line under the row) and are the reader (who answers on the row). */
@@ -98,7 +99,10 @@ function outlineFor(auth: MemberAuth, request: Parameters<typeof journeyActions>
  * the workspace (reviewStatesOf), the same rule as the reviewers panel. */
 async function toListRows(auth: MemberAuth, rows: ListRowRecord[]): Promise<RequestListRow[]> {
   const states = await reviewStatesOf(auth.orgId, rows)
-  return rows.map(({ expectedImpact, noMeasurableImpactReason, ...row }) => ({ ...withoutReviewers(row), pickupBlockedReason: pickupBlockedReason({ ...row, expectedImpact, noMeasurableImpactReason }), reviewState: states.get(row.id) ?? null }))
+  return rows.map(({ expectedImpact, noMeasurableImpactReason, finishedCounts, ...row }) => {
+    void finishedCounts
+    return { ...withoutReviewers(row), pickupBlockedReason: pickupBlockedReason({ ...row, expectedImpact, noMeasurableImpactReason }), reviewState: states.get(row.id) ?? null }
+  })
 }
 
 export type RequestList = {
@@ -107,6 +111,8 @@ export type RequestList = {
   activeCapped: boolean
   /** Finished Requests (Done, Measuring, Closed) older than the loaded ones exist. */
   hasOlderFinished: boolean
+  /** A212: every Done, Measuring and Closed Request the reader can see, by status, for the list's group headers. */
+  finishedCounts: FinishedCounts
 }
 
 export type RequestDetailData = {
@@ -115,8 +121,19 @@ export type RequestDetailData = {
   attachments: RequestAttachment[]
 }
 
-/** The list select, scoped to the workspace and (for a guest) to Requests they created. */
-function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
+/**
+ * A212: each finished status's count of the Requests `auth` can see, under the same `seeable` rule as the rows. An
+ * uncorrelated subquery, so Postgres reads it once for the statement; the inner `requests` is the one the journey
+ * conditions name.
+ */
+function finishedCountsOf(auth: MemberAuth) {
+  const count = (status: "done" | "measuring" | "closed") => sql`count(*) filter (where ${journeyStatusCondition(status)})`
+  return sql<FinishedCounts>`(select jsonb_build_object('done', ${count("done")}, 'measuring', ${count("measuring")}, 'closed', ${count("closed")}) from ${requests} where ${seeable(auth)})`
+}
+
+/** The list select, scoped to the workspace and (for a guest) to Requests they created. With `counts`, each row also
+ * carries the finished counts (finishedCountsOf); without, null. */
+function listRows(auth: MemberAuth, statusWhere: SQL, limit: number, counts = false) {
   const assignee = alias(profiles, "request_list_assignee")
   return db
     .select({
@@ -145,6 +162,7 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
       expectedImpact: requests.expectedImpact,
       noMeasurableImpactReason: requests.noMeasurableImpactReason,
       guestSubmission: guestSubmissionState,
+      finishedCounts: counts ? finishedCountsOf(auth) : sql<FinishedCounts | null>`null::jsonb`,
     })
     .from(requests)
     .leftJoin(profiles, eq(requests.createdBy, profiles.id))
@@ -160,17 +178,22 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number) {
 /**
  * The list a member sees: one statement (UNION ALL of two capped selects).
  * Each half reads one row past its cap, so the caller learns whether the cap
- * note or "Show older Done" applies without a count query.
+ * note or a finished group's Show more applies. The finished half's rows also
+ * carry each finished status's full count (A212); with no finished row to carry
+ * them, the reader can see no finished Request, so each count is 0.
  */
 export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
-  const rows = await toListRows(auth, await listRows(auth, active, MAX_REQUESTS_QUERY + 1)
-    .unionAll(listRows(auth, finished, DONE_PAGE_SIZE + 1)))
+  const records = await listRows(auth, active, MAX_REQUESTS_QUERY + 1)
+    .unionAll(listRows(auth, finished, DONE_PAGE_SIZE + 1, true))
+  const finishedCounts = records.find(record => record.finishedCounts)?.finishedCounts ?? { done: 0, measuring: 0, closed: 0 }
+  const rows = await toListRows(auth, records)
   const working = rows.filter(isActive)
   const done = rows.filter(row => !isActive(row))
   return {
     rows: [...working.slice(0, MAX_REQUESTS_QUERY), ...done.slice(0, DONE_PAGE_SIZE)],
     activeCapped: working.length > MAX_REQUESTS_QUERY,
     hasOlderFinished: done.length > DONE_PAGE_SIZE,
+    finishedCounts,
   }
 }
 
