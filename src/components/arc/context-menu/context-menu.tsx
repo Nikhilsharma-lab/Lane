@@ -329,7 +329,8 @@ export function ContextMenu({ children, items, label = "Context menu", asChild =
     onClick: openOnClick ? onTargetClick : undefined,
     onContextMenu: event => { event.preventDefault(); event.stopPropagation(); rememberTarget(event.currentTarget, event.target); showMenu(event.clientX, event.clientY); },
     onKeyDown: onTargetKeyDown,
-    "aria-haspopup": "menu", "aria-expanded": exposesExpanded ? open : undefined, "aria-controls": open ? menuId : undefined,
+    // Lane adaptation (#273): a target that already controls something (a previewed Request row and its preview) keeps it.
+    "aria-haspopup": "menu", "aria-expanded": exposesExpanded ? open : undefined, "aria-controls": [child?.props["aria-controls"], open ? menuId : undefined].filter(Boolean).join(" ") || undefined,
   };
   // cloneElement attaches these handlers; targetRef is accessed only when an event runs.
   // eslint-disable-next-line react-hooks/refs

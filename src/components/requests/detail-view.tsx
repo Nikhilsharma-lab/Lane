@@ -16,6 +16,7 @@ import { RequestPaneHeader } from "./request-pane-header"
 import { RequestTitle } from "./request-title"
 import detailStyles from "./detail.module.css"
 import styles from "./requests.module.css"
+import { SectionHeading } from "./section-heading"
 
 export type RequestStatus = "open" | "in_progress" | "done"
 
@@ -127,15 +128,15 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
               <DetailStateLine />
             </header>}
             <RequestPanePanel value="overview"><section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>
-              <h2 id="problem-heading" className="sr-only">Problem</h2>
+              <SectionHeading level={2} id="problem-heading" className="sr-only">Problem</SectionHeading>
               <p className={detailStyles.description}>{problem}</p>
               {supportingLink && <a href={supportingLink} target="_blank" rel="noopener noreferrer" className={styles.fileRow}><LinkIcon aria-hidden="true" /><span className="min-w-0 flex-1 break-all text-sm">{supportingLink}<span className="sr-only"> (opens in a new tab)</span></span><ExternalLink aria-hidden="true" /></a>}
               {request.reframedProblem && <details className={detailStyles.disclosure}>
-                <summary><h3>Original Request</h3></summary>
+                <summary><SectionHeading level={3}>Original Request</SectionHeading></summary>
                 <div className={detailStyles.disclosureBody}><p className={detailStyles.secondaryText}>{request.description}</p></div>
               </details>}
               {request.extractedSolution && <div className={detailStyles.block}>
-                <h3 className={detailStyles.blockHeading}>Suggested change</h3>
+                <SectionHeading level={3} className={detailStyles.blockHeading}>Suggested change</SectionHeading>
                 <p className={detailStyles.secondaryText}>{request.extractedSolution}</p>
               </div>}
               {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
@@ -144,14 +145,14 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
             {guestSubmission}
             {(request.expectedImpact ?? request.measurementDraft) && <ExpectedImpactSummary id="expected-impact" impact={(request.expectedImpact ?? request.measurementDraft)!} metricNames={request.metricNames} />}
             {request.noMeasurableImpactReason && <section id="no-measurable-impact" aria-labelledby="no-measurable-impact-heading" className={detailStyles.section}>
-              <h2 id="no-measurable-impact-heading">No measurable impact</h2>
+              <SectionHeading level={2} id="no-measurable-impact-heading">No measurable impact</SectionHeading>
               <p className="whitespace-pre-wrap break-words">{request.noMeasurableImpactReason}</p>
             </section>}
             {currentValues}
             {!peekStrip && requestPanels}
             {!peekStrip && relatedRequests}
             {attachments.length > 0 && <section id="files" aria-labelledby="files-heading" className={detailStyles.section}>
-              <div className={detailStyles.sectionHeader}><h2 id="files-heading" className={detailStyles.sectionHeading}>Files</h2><span className={detailStyles.sectionCount}>{attachments.length}</span></div>
+              <div className={detailStyles.sectionHeader}><SectionHeading level={2} id="files-heading" className={detailStyles.sectionHeading}>Files</SectionHeading><span className={detailStyles.sectionCount}>{attachments.length}</span></div>
               <ul aria-label="Request files" className={detailStyles.files}>{attachments.map(attachment => <li key={attachment.id} className={styles.fileRow}>{attachment.mimeType.startsWith("image/") ? <ImageIcon aria-hidden="true" /> : <FileText aria-hidden="true" />}<div className="min-w-0 flex-1"><p className={detailStyles.fileName}>{attachment.fileName}</p><p className={detailStyles.fileMeta}>{formatAttachmentSize(attachment.sizeBytes)} · Added {attachment.uploadedAt ? <LocalTime iso={new Date(attachment.uploadedAt).toISOString()} /> : "just now"}</p></div>{attachmentAction(attachment)}</li>)}</ul>
             </section>}
             <RequestDesignLink relatedLink={request.usefulLink} reviews={request.designReviews} />

@@ -1,8 +1,9 @@
 "use client"
 
 import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type ComponentType, type MouseEvent } from "react"
-import { useIsPresent } from "motion/react"
+import { m, useIsPresent, useReducedMotion, type Transition } from "motion/react"
 import { Button } from "@/components/arc/button/button"
+import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { dismissOpenForm } from "@/components/popup/dismiss-form"
 import type { OverviewRequest } from "@/lib/request-overview"
@@ -23,8 +24,9 @@ export const preloadRequestPeek = () => { void loadContent().catch(() => undefin
 let loadedContent: ComponentType<RequestPeekProps> | undefined
 const loadContent = () => import("./request-peek-content").then(module => { module.preloadSameProblemView(); return { default: loadedContent = module.RequestPeekContent } })
 
-/** Phones keep full-page navigation; the preview needs a fine pointer and room beside the list. */
-const AVAILABLE = "(min-width: 768px) and (pointer: fine)"
+/** #240 decision 2: the preview is offered at 1280px and wider with a mouse. Narrower windows, phones and touch
+ * screens open the Request's own page. The list and the Inbox read the same rule. */
+const AVAILABLE = "(min-width: 1280px) and (pointer: fine)"
 function subscribeAvailable(listener: () => void) {
   const query = window.matchMedia(AVAILABLE)
   query.addEventListener("change", listener)
@@ -37,6 +39,8 @@ export function usePeekAvailable() {
 /** The row menu's Preview: opens the preview on that Request. Null where the preview is not available. */
 export const RequestPeekOpener = createContext<((id: string) => void) | null>(null)
 export const useRequestPeekOpener = () => useContext(RequestPeekOpener)
+/** Page-quality 2.12: the previewed row's `aria-controls`. One preview per page (the list's or the Inbox's). */
+export const REQUEST_PREVIEW_ID = "request-preview"
 
 export type RequestPeekProps = {
   requestId: string
@@ -53,6 +57,11 @@ export type RequestPeekProps = {
 
 // A chunk that fails to load (an old tab after a deploy, or offline) says so in the panel, never in place of the list.
 const LazyContent = lazy(() => loadContent().catch(() => ({ default: PreviewFailed })))
+
+// #240: the polish bar's panel motion, 0.2s in and 0.15s out, on transform only. Under reduced motion it neither
+// moves nor fades. Replacing the Request (J and K) keeps the panel, so only opening and closing move.
+const enter: Transition = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] as [number, number, number, number] }
+const leave: Transition = { duration: motionTokens.duration.exit, ease: [...motionTokens.ease.exit] as [number, number, number, number] }
 
 function PreviewFailed({ onClose }: { onClose: () => void }) {
   return <div className={styles.state} role="alert">
@@ -71,6 +80,7 @@ function PreviewFailed({ onClose }: { onClose: () => void }) {
 export function RequestPeek(props: RequestPeekProps) {
   const { requestId, onClose } = props
   const present = useIsPresent()
+  const reduced = !!useReducedMotion()
   const panel = useRef<HTMLElement>(null)
   // Chosen once for this panel, so the content never remounts when its code arrives.
   const [Content] = useState(() => loadedContent ?? LazyContent)
@@ -92,11 +102,13 @@ export function RequestPeek(props: RequestPeekProps) {
     return () => window.removeEventListener("keydown", listener, true)
   }, [present])
 
-  return <div className={styles.viewport} inert={!present} aria-hidden={!present || undefined}>
-    <section ref={panel} className={styles.panel} role="region" aria-label="Request preview" data-request-peek="" data-request-id={requestId}>
+  // Leaving, the panel gives its column back at once and slides out over the list's edge (request-peek.module.css).
+  return <div className={styles.viewport} inert={!present} aria-hidden={!present || undefined} data-leaving={!present || undefined}>
+    <m.section ref={panel} id={REQUEST_PREVIEW_ID} className={styles.panel} role="region" aria-label="Request preview" data-request-peek="" data-request-id={requestId}
+      initial={reduced ? false : { x: "100%" }} animate={{ x: "0%" }} exit={reduced ? undefined : { x: "100%", transition: leave }} transition={enter}>
       {/* Until the chunk arrives (it is fetched once a row takes focus, so rarely) the pane shows the content's own
           skeleton, with Close, from its first frame: never an empty frame or a bare button (#271, A116). */}
       <Suspense fallback={<RequestPeekSkeleton onClose={onClose} />}><Content key={requestId} {...props} /></Suspense>
-    </section>
+    </m.section>
   </div>
 }

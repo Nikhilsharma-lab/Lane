@@ -2,6 +2,7 @@ import { ExternalLink, Link as LinkIcon } from "lucide-react"
 import type { SavedDesignReview } from "@/lib/request-design-link"
 import detailStyles from "./detail.module.css"
 import styles from "./requests.module.css"
+import { SectionHeading } from "./section-heading"
 
 function safeDesignUrl(value: string | null | undefined): URL | null {
   if (!value) return null
@@ -22,7 +23,7 @@ export function RequestDesignLink({ relatedLink, reviews = [] }: { relatedLink?:
   if (!designUrl) return null
   const figma = isFigmaLink(designUrl)
   return <section id="design" aria-labelledby="design-heading" className={detailStyles.section}>
-    <h2 id="design-heading" className={detailStyles.sectionHeading}>Design</h2>
+    <SectionHeading level={2} id="design-heading" className={detailStyles.sectionHeading}>Design</SectionHeading>
     <a href={designUrl} target="_blank" rel="noopener noreferrer" className={styles.fileRow}>
       <LinkIcon aria-hidden="true" />
       <span className="min-w-0 flex-1 text-sm">{figma ? "Open in Figma" : "Open design"}<span className="sr-only"> (opens in a new tab)</span></span>

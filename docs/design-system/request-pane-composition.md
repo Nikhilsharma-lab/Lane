@@ -87,15 +87,29 @@ instance when changing tabs, and retain the existing per-Request draft store.
 
 ## Motion and responsive behavior
 
-Opening, replacing and switching Request tabs are immediate. These are repeated
-reading actions; do not animate width, scroll position, content height or slide
-the pane over the list. Arc's existing disclosures retain their motion and
-reduced-motion handling. Existing history and static comments render immediately.
+The preview is one of two panels beside the list (#240 decisions 3 and 4, Build 5 of #256): the list and either
+the preview or the list summary, never both. Each panel takes its own column, so the list narrows and no row is
+covered. The preview takes 55% of the list area, or 50% where that area is 1100px or less (a 1280px window), so
+the list keeps its rows' date; the summary takes 350px.
 
-The preview is available at 768px and wider with a fine pointer. Narrow/touch
-navigation uses the full Request page. At constrained desktop widths, the tab
-strip may scroll horizontally; the page and pane body must not. The composer
+Opening and closing the panel slide it inside its own column on transform only: 0.2s in on the enter curve and
+0.15s out on the exit curve (#240's motion scale). Leaving, the panel gives its column back at once and slides out
+over the list's edge. Under reduced motion it neither moves nor fades. Replacing the Request (J and K, another
+row) and switching Request tabs are immediate: do not animate width, scroll position or content height. Arc's
+existing disclosures retain their motion and reduced-motion handling. Existing history and static comments render
+immediately.
+
+The preview is available at 1280px and wider with a fine pointer. Narrower windows, phones and touch screens use
+the full Request page; a window narrowed below 1280px closes the preview and returns focus to its row. Inbox reads
+the same rule. On phones the list summary opens as the bottom panel (`PhoneSheet` through the adaptive dialog).
+At constrained desktop widths, the tab strip may scroll horizontally; the page and pane body must not. The composer
 stacks within its own narrow container. Touch inputs use the existing base size.
+
+Beside a panel the list's rows drop properties by the list's own width: Labels, then Submitted by and the Project,
+then the Assignee, then the date (`request-rows.module.css`). The code, status, priority and title stay; the title
+ends in "…" with its full text on hover. The keyboard ring is drawn inside the row. The previewed row's
+`aria-controls` names the preview; inside the preview the title is the h2 and section headings are one level
+below (h3), through `SectionHeading` and `PreviewHeadings`.
 
 The dock is the `request-peek` size container. Edit/Delete become labelled icon
 controls below 640px of **pane** width; below 480px, copy actions use the installed

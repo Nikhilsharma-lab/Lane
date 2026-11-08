@@ -176,8 +176,8 @@
   gap: var(--space-3);
   min-width: 0;
 }
-.reviews h4,
-.facts h4 {
+.reviews :is(h4, h5),
+.facts :is(h4, h5) {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
 }

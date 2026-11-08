@@ -7,6 +7,7 @@ import { useDetailRequest } from "./detail-context"
 import type { RequestComment } from "./detail-view"
 import { usePendingComments } from "./pending-mutations-provider"
 import styles from "./detail.module.css"
+import { SectionHeading } from "./section-heading"
 
 /** A server comment; its time is phrased in the browser by LocalTime, so hydration never disagrees about "3h ago". */
 export type ConversationComment = RequestComment
@@ -29,7 +30,7 @@ export function DetailConversation({ comments, children }: { comments: Conversat
     createdAt: "pending" in comment && comment.pending === "sending" ? "Sending…" : comment.createdAt.toISOString(),
   })), [shown])
   return <section id="conversation" aria-labelledby="conversation-heading" className={styles.section}>
-    <h2 id="conversation-heading" tabIndex={-1} className={styles.sectionHeading}>Conversation</h2>
+    <SectionHeading level={2} id="conversation-heading" tabIndex={-1} className={styles.sectionHeading}>Conversation</SectionHeading>
     <CommentThread
       comments={threadComments}
       currentUser={viewer}

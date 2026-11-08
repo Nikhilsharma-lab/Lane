@@ -109,7 +109,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const selection = useRequestSelection(selectionScope, visibleRows, context, isGuest, readOnly)
   const announce = useListAnnouncer()
   // Plan item 2.12: the Request preview beside the list. Space or the row menu opens it; it follows
-  // the list's active row (J and K), and phones keep full-page navigation.
+  // the list's active row (J and K). Below 1280px, phones and touch screens open the full page (#240 decision 2).
   const peekAvailable = usePeekAvailable() && Boolean(presentation && context && viewer)
   const [peekId, setPeekId] = useState<string | null>(null)
   const shownPeek = peekAvailable ? peekId : null
@@ -164,21 +164,30 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     setPeekView(viewSignature)
     if (nextPeekId && !gridKeys.includes(`r:${nextPeekId}`)) nextPeekId = null
   }
-  // Phones keep full-page navigation: a window narrowed past the breakpoint closes the preview, and
+  // #240 decision 2: a window narrowed below 1280px closes the preview and focus goes back to its row (below);
   // widening it again does not bring one back unasked.
-  if (!peekAvailable && nextPeekId) nextPeekId = null
+  const [lostPeek, setLostPeek] = useState<{ id: string } | null>(null)
+  if (!peekAvailable && nextPeekId) { setLostPeek({ id: nextPeekId }); nextPeekId = null }
   if (nextPeekId !== peekId) setPeekId(nextPeekId)
   // A211 (#275): Preview from the row menu leaves focus on the row itself, as Escape from the menu does.
   const peekFromMenu = useMemo(() => peekAvailable ? (id: string) => { focusGridKey(`r:${id}`); openPeek(id) } : null, [peekAvailable, focusGridKey, openPeek])
-  const closePeek = useCallback(() => {
-    const id = peekId
-    setPeekId(null)
-    if (!id) return
+  const leavePeek = useCallback((id: string) => {
     announce("Preview closed.", { key: "preview" })
     // Back to the previewed Request's row, else the row that took its place.
     if (gridKeys.includes(`r:${id}`)) focusGridKey(`r:${id}`)
     else restoreRequestFocus(id, { force: true })
-  }, [peekId, gridKeys, focusGridKey, announce])
+  }, [gridKeys, focusGridKey, announce])
+  const closePeek = useCallback(() => {
+    const id = peekId
+    setPeekId(null)
+    if (id) leavePeek(id)
+  }, [peekId, leavePeek])
+  const returnFromLostPeek = useEffectEvent((id: string) => {
+    // Only focus that was in the preview, or went with it, comes back: a person typing in the toolbar keeps their place.
+    const focused = document.activeElement
+    if (!focused || focused === document.body || focused.closest("[data-request-peek]")) leavePeek(id)
+  })
+  useEffect(() => { if (lostPeek) returnFromLostPeek(lostPeek.id) }, [lostPeek])
   const peekRow = useMemo(() => shownPeek ? serverRows.find(row => row.id === shownPeek) ?? null : null, [serverRows, shownPeek])
   // Plan item 2.5: opening a Request from the list records the order it shows,
   // shown or not, so detail can offer previous and next. The row menu's
@@ -345,9 +354,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     </div>
     </div>
     </div>
-    <AnimatePresence initial={false}>
-    {presentation && summaryOpen && <RequestListSummary rows={matching} filter={filter} project={project} requestType={requestType} onFilter={filterFromSummary} onClose={closeSummary} />}
-    </AnimatePresence>
+    {/* A231: the summary is the second panel beside the list on desktop and the bottom panel on a phone. */}
+    {presentation && <RequestListSummary open={summaryOpen} rows={matching} filter={filter} project={project} requestType={requestType} onFilter={filterFromSummary} onClose={closeSummary} />}
     <AnimatePresence initial={false}>
     {/* One panel for the preview's life: J and K swap its content, not the panel. */}
     {shownPeek && context && viewer && <RequestPeek key="request-peek" requestId={shownPeek} serverRow={peekRow} orgId={context.orgId} isGuest={isGuest} viewer={viewer} onClose={closePeek} onOpenFullPage={openPeekFullPage} />}
