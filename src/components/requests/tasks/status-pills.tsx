@@ -3,6 +3,8 @@
 import { memo, useDeferredValue, useLayoutEffect, useRef, useState } from "react"
 import { ChipGroup } from "@/components/arc/chip-group/chip-group"
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
+import { CalendarClock, Check, Hourglass, Rows3 } from "lucide-react"
+import { StatusGlyph } from "../status-glyph"
 import { REQUEST_STATUS_FILTERS, REQUEST_STATUS_FILTER_LABELS, isRequestStatusFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./data-table-toolbar.module.css"
 
@@ -14,6 +16,8 @@ export const statusViews: StatusView[] = REQUEST_STATUS_FILTERS.filter(value => 
 
 /** The status row for the chosen view: Waiting to be taken on joins it only while it is the one chosen. */
 export const statusViewsFor = (filter: RequestStatusFilter): StatusView[] => filter === "waiting" ? [...statusViews, viewOf("waiting")] : statusViews
+
+const viewIcon = (value: RequestStatusFilter) => value === "all" ? <Rows3 /> : value === "due" ? <CalendarClock /> : value === "waiting" ? <Hourglass /> : <StatusGlyph status={value} />
 
 const GAP = 8 // the chip group's --space-2 gap
 const noop = () => {}
@@ -77,11 +81,12 @@ export function StatusPills({ filter, onStatusChange }: { filter: RequestStatusF
   }, [views.length])
 
   const choose = (value: string) => { if (isRequestStatusFilter(value) && value !== filter) onStatusChange(value) }
-  const menu = (items: StatusView[]) => items.map(view => ({ label: view.label, onSelect: () => choose(view.value) }))
+  // A29: each view keeps its glyph, as in Add filter, and the current one is checked.
+  const menu = (items: StatusView[]) => items.map(view => ({ label: view.label, icon: viewIcon(view.value), trailingIcon: view.value === filter ? <Check /> : undefined, onSelect: () => choose(view.value) }))
 
   return <div ref={frame} className={styles.statusRow} data-measured={measured || undefined} role="group" aria-label="Request status">
     {fit === 0
-      ? <span data-status-more className={styles.statusMore}><DropdownMenu label={current.label} items={menu(views.filter(view => view !== current))} /></span>
+      ? <span data-status-more className={styles.statusMore}><DropdownMenu label={current.label} items={menu(views)} /></span>
       : <>
         <ChipGroup label="Status views" className={styles.statusChips} options={visible} value={[filter]} multiple={false} onValueChange={values => choose(values[0] ?? "all")} />
         {hidden.length > 0 && <span data-status-more className={styles.statusMore}><DropdownMenu label={`${hidden.length} more`} items={menu(hidden)} /></span>}

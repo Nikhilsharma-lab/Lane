@@ -25,7 +25,8 @@
    Opening springs that same surface to the panel size, so the button itself becomes the menu. */
 .menu { position: relative; display: inline-flex; flex: none; isolation: isolate; }
 .popoverTrigger { width: var(--toolbar-icon-size, calc(var(--space-1) * 10)); min-width: var(--toolbar-icon-size, calc(var(--space-1) * 10)); min-height: var(--toolbar-icon-size, calc(var(--space-1) * 10)); border-radius: var(--radius-control); padding: 0; }
-.filterPopover { width: calc(var(--space-1) * 64); padding: var(--menu-padding); }
+/* Lane adaptation (#274, A227): the panel fits its longest option ("Waiting to be taken on" with its count), never narrower than Arc's width. */
+.filterPopover { width: max-content; min-width: calc(var(--space-1) * 64); max-width: calc(100vw - var(--space-8)); padding: var(--menu-padding); }
 @media (pointer: coarse), (max-width: 640px) { .popoverTrigger { width: calc(var(--space-1) * 11); min-width: calc(var(--space-1) * 11); min-height: calc(var(--space-1) * 11); } }
 .menu[data-icon-only] { --filter-trigger-size: var(--toolbar-icon-size, calc(var(--space-1) * 10)); }
 .menu:not([data-state="closed"]) { z-index: var(--lane-layer-filter); }

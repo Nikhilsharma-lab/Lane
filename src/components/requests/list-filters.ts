@@ -26,3 +26,11 @@ export function withListFilter(view: ListViewState, id: string, value: string): 
 export function withoutListFilters(view: ListViewState): ListViewState {
   return { ...withListContext(view, { status: "all", project: "all", title: "" }), localFilters: [], pagination: { ...view.pagination, pageIndex: 0 } }
 }
+
+/**
+ * A215: Clear all and Clear filters clear only the filters added from the toolbar (title and labels). The status pill
+ * shows itself in the pill row and a Project page's Project is the page, so both stay.
+ */
+export function withoutAddedFilters(view: ListViewState): ListViewState {
+  return withListFilter(withListFilter(view, "title", ""), "requestType", "")
+}

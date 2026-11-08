@@ -23,21 +23,14 @@
 .row[data-selected] + .row[data-selected] { border-top-left-radius: 0; border-top-right-radius: 0; }
 .title { flex: 1 1 calc(var(--spacing) * 80); min-width: 0; display: flex; align-items: center; min-height: var(--request-row-height); padding-block: var(--space-1); color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--request-title-line-height); text-decoration: none; overflow-wrap: anywhere; }
 .row[data-selected] .title { color: var(--selection-foreground); }
-/* Selected metadata shares the row's colour pair, including labels, glyphs and initials. */
+/* Selected metadata shares the row's colour pair; Project and label colours stay their own (A25). */
 :global(:root[data-ui-state-contract="semantic"]) .row[data-selected] {
   --request-property-background: var(--selection-background);
   --request-property-foreground: var(--selection-foreground);
   --request-property-border: var(--selection-property-border);
-  --project-blue: var(--selection-foreground);
-  --project-green: var(--selection-foreground);
-  --project-violet: var(--selection-foreground);
-  --project-amber: var(--selection-foreground);
-  --project-coral: var(--selection-foreground);
-  --project-slate: var(--selection-foreground);
   color: var(--selection-foreground);
 }
 :global(:root[data-ui-state-contract="semantic"]) .row[data-selected] :is(.propertyBadge, [data-label-tag]) {
-  --badge-color: var(--selection-foreground);
   --badge-foreground: var(--selection-foreground);
   --badge-background: var(--selection-background);
   --badge-hover-background: var(--selection-background);
@@ -63,6 +56,8 @@
 /* A group's header row (plan item 2.4: a treegrid row at level 1) and its rows below. */
 .groupRow { display: flex; align-items: center; border-radius: var(--request-row-radius); }
 .groupCell { flex: 1; min-width: 0; }
+/* The Open group's New Request tip shows its C key in Lane's key cap (#274). */
+.tipKey { margin-inline-start: var(--space-3); }
 .groupAddCell { display: flex; flex: none; align-items: center; justify-content: center; width: var(--table-head-height); }
 .groupRow + div:not([hidden]) { padding-block-start: var(--request-group-gap); }
 .groupButton { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--table-head-height); padding: var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); text-align: left; cursor: pointer; }
@@ -71,7 +66,8 @@
 .groupButton:hover { background: var(--interaction-hover); }
 .groupCount { flex-shrink: 0; margin-inline-start: auto; color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--weight-normal); font-variant-numeric: tabular-nums; }
 .displayPanel { display: grid; gap: var(--space-4); min-width: min(calc(var(--spacing) * 72), 100%); }
-.displayLabel { margin-bottom: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); }
+/* A226: the Properties heading reads as the Group by and Order by labels beside it (Arc Select's field label). */
+.displayLabel { margin-bottom: var(--space-2); color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .footer { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--space-4); }
 .pageInfo { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-4); }
 .count { padding-bottom: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
@@ -105,6 +101,28 @@
 .requestCode { flex: 0 0 calc(var(--spacing) * 13.5); color: var(--text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .row[data-selected] .requestCode { color: var(--selection-foreground); }
 .submittedDate { white-space: nowrap; color: var(--request-property-foreground); font-size: var(--text-xs); }
+/* Warning words on a row's chips (Waiting to be taken on, concerns, due) pass contrast on their wash in light and dark. */
+.properties { --state-warning-text: var(--request-warning-ink); }
+/* A22: a chip that runs out of room ends in an ellipsis inside its own box, so the labels "+N", the Project and the
+   avatar never overlap. Arc's badge sizes its content to max-content; in a row it may shrink instead. */
+.row[data-compact-row] .properties :is(.propertyTrigger, .propertyTrigger > *, .propertyBadge > span, .propertyBadge > span > span, [data-label-tag], [data-label-tag] > span, [data-label-tag] > span > span) { min-width: 0; max-width: 100%; }
+.row[data-compact-row] .properties :is(.propertyBadge, [data-label-tag]) > span > span { width: auto; }
+/* #240 decision 6: a priority this person can't change is the glyph alone, with no button behind it. */
+.identityControl[data-readonly] { cursor: inherit; }
+/* Touch (#256 story 41): the row shows it's pressed as the finger lands. While its page is on the way
+   ([data-pressed], loading-feel-listeners.ts), a working line rises along its foot after 0.15s. */
+.row { position: relative; }
+@media (pointer: coarse) {
+  .row:active { background: var(--interaction-pressed); }
+}
+.row[data-pressed]::after { content: ""; position: absolute; inset-inline: var(--space-2); bottom: 0; height: calc(var(--border-width) * 2); border-radius: var(--radius-pill); background: var(--accent); pointer-events: none; animation: row-working-in var(--duration-standard) var(--ease-enter) var(--duration-fast) both, row-working calc(var(--duration-standard) * 4) var(--ease-in-out) calc(var(--duration-fast) + var(--duration-standard)) infinite alternate; }
+@keyframes row-working-in { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes row-working { to { opacity: var(--lane-opacity-subtle); } }
+@media (max-width: 640px) {
+  /* #240 decision 7: phone titles wrap to two lines, then end in "…"; the row grows to hold them. */
+  .row[data-compact-row] { height: auto; padding-block: var(--space-1); }
+  .row[data-compact-row] .title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; white-space: normal; line-height: var(--request-title-line-height); }
+}
 /* After the compact rules above, so the narrower cap wins at equal specificity. */
 @container (max-width: 880px) {
   .row[data-compact-row] .properties { max-width: 40%; }
