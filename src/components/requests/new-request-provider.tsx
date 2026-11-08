@@ -9,14 +9,14 @@ import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog";
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import type { IntakeCloseAttempt, RegisterIntakeCloseAttempt } from "./intake-navigation-guard";
 import { NewRequestContext } from "./new-request-context";
-import { listFiltersOf, revealRequest, useListViewSnapshot, useRequestListContext, useSetDetailSession, useSetRequestListView } from "./list-view-state";
+import { listFiltersOf, listViewHref, revealRequest, useListViewSnapshot, useRequestListContext, useSetDetailSession, useSetRequestListView } from "./list-view-state";
 import { requestCreatedToast } from "./request-created-toast";
 import { matchesListFilters, type OverviewRequest } from "@/lib/request-overview";
 import { projectIdOrNull } from "@/lib/request-constants";
 import { readLostUploads, unfinishedUploadsScope } from "@/lib/unfinished-uploads";
 import { hasIntakeDraft, intakeDraftScope } from "@/lib/intake-draft-key";
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards";
-import { parseRequestListContext, requestDetailHref, requestListHref, type RequestListContext } from "@/lib/request-workspace";
+import { parseRequestListContext, requestDetailHref, type RequestListContext } from "@/lib/request-workspace";
 import { requestRowSelector } from "./list-focus";
 import { isRequestPopoverEvent } from "./request-popover-events";
 import { useShellOpener } from "@/components/shell/shell-openers";
@@ -216,7 +216,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
         // it, in the view that holds the new Request, and the list consumes the reveal there.
         if (onList.current) return;
         const revealed = revealRequest(listSnapshot?.() ?? view, created);
-        router.push(requestListHref(revealed.status, revealed.project, revealed.title));
+        router.push(listViewHref(revealed));
       } : undefined,
     }));
   }, [listSnapshot, pathname, router, setDetailSession, setListView, toast]);

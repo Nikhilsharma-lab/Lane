@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState } from "@tanstack/react-table"
 import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
-import { hasRequestListContext, parseRequestListContext, requestListHref, type RequestListContext } from "@/lib/request-workspace"
+import { hasRequestListContext, parseListDisplay, parseRequestListContext, requestListHref, type ListDisplay, type RequestListContext } from "@/lib/request-workspace"
 import { createCurrentRequestStore, resolveCurrentRequest, type CurrentRequest } from "./current-request"
 import { createExternalStore } from "@/lib/external-store"
 import { usePendingMutations } from "./pending-mutations-provider"
@@ -99,6 +99,8 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
   const [state, setState] = useState<ListViewState>(() => ({
     ...initialView,
     ...parseRequestListContext(searchParams),
+    // #275: a reload or a shared link shows the same list.
+    ...(searchParams ? parseListDisplay(searchParams) : {}),
     columnVisibility: { ...initialView.columnVisibility, ...initialColumnVisibility },
   }))
   const listContext = useMemo<OpenListContext>(() => ({ status: state.status, project: state.project, savedView: state.savedView }), [state.status, state.project, state.savedView])
@@ -251,6 +253,20 @@ export function withEmptyWorkspaceStatus(view: ListViewState, workspaceEmpty: bo
   return workspaceEmpty ? withListContext(view, { status: "all" }) : view
 }
 
+/** #275: the whole list's address, how it shows included. */
+export type ListAddress = Required<RequestListContext> & ListDisplay
+type AddressOf = RequestListContext & Partial<ListDisplay>
+/** The "/" address of a list context and its display (defaults left out). */
+export const listViewHref = (view: AddressOf) => requestListHref(view.status, view.project, view.title, view)
+
+/** #275: an address that arrived is the whole list: its context, order, grouping, folded groups and shown counts. */
+export function withListAddress(view: ListViewState, next: ListAddress): ListViewState {
+  const moved = withListContext(view, next)
+  if (listViewHref(moved) === listViewHref(next)) return moved
+  const { ordering, grouping, collapsedGroups, shownCounts } = next
+  return { ...moved, ordering, grouping, collapsedGroups, shownCounts }
+}
+
 export type ListUrlSyncInput = {
   /** The URL query as useSearchParams reports it now. */
   search: string
@@ -258,7 +274,7 @@ export type ListUrlSyncInput = {
   seen: string | null
   /** The query this page last wrote, or null. */
   written: string | null
-  current: RequestListContext
+  current: AddressOf
   /** A newer explicit selection has not reached the router and address bar yet. */
   localSelectionPending?: boolean
   hold: boolean
@@ -273,16 +289,16 @@ export type ListUrlSyncInput = {
  * "/" URL. A bare "/" keeps the current context, so returning from a Request
  * keeps the Project filter. Nothing is written while `hold` is true.
  */
-export function planListUrlSync({ search, seen, written, current, localSelectionPending = false, hold, pathname, locationSearch }: ListUrlSyncInput): { seen: string; adopt?: RequestListContext; write?: string } {
+export function planListUrlSync({ search, seen, written, current, localSelectionPending = false, hold, pathname, locationSearch }: ListUrlSyncInput): { seen: string; adopt?: ListAddress; write?: string } {
   if (!localSelectionPending && search !== seen && search !== written) {
     const params = new URLSearchParams(search)
     if (hasRequestListContext(params)) {
-      const next = parseRequestListContext(params)
-      if (next.status !== current.status || next.project !== current.project || next.title !== (current.title ?? "")) return { seen: search, adopt: next }
+      const next = { ...parseRequestListContext(params), ...parseListDisplay(params) }
+      if (listViewHref(next) !== listViewHref(current)) return { seen: search, adopt: next }
     }
   }
   if (hold || pathname !== "/") return { seen: search }
-  const href = requestListHref(current.status, current.project, current.title)
+  const href = listViewHref(current)
   return `${pathname}${locationSearch}` === href ? { seen: search } : { seen: search, write: href }
 }
 
@@ -292,7 +308,7 @@ export function planListUrlSync({ search, seen, written, current, localSelection
  * true: in Next 16.2 a patched replaceState while a server action is pending
  * discards that action's revalidated payload (plan item 1.5).
  */
-export function useRequestListUrlSync({ status, project, title }: RequestListContext, setView: SetListView, hold: boolean) {
+export function useRequestListUrlSync({ status, project, title, ordering, grouping, collapsedGroups, shownCounts }: AddressOf, setView: SetListView, hold: boolean) {
   const searchParams = useSearchParams()
   const search = searchParams?.toString() ?? ""
   const navigation = required(useContext(RequestNavigationContext), "useRequestListUrlSync")
@@ -303,10 +319,10 @@ export function useRequestListUrlSync({ status, project, title }: RequestListCon
     seen.current = plan.seen
     if (plan.adopt) {
       const next = plan.adopt
-      setView(view => withListContext(view, next))
+      setView(view => withListAddress(view, next))
     } else if (plan.write) {
       written.current = new URL(plan.write, window.location.origin).searchParams.toString()
       window.history.replaceState(null, "", plan.write)
     }
-  }, [search, status, project, title, hold, setView, navigation])
+  }, [search, status, project, title, ordering, grouping, collapsedGroups, shownCounts, hold, setView, navigation])
 }

@@ -6,6 +6,9 @@ import { RequestListViewProvider, planListUrlSync, useListViewSnapshot, useSetRe
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
 afterEach(() => vi.unstubAllGlobals())
+/** #275: the fixture's order, grouping and folded group, as every list address it writes carries them. */
+const DISPLAY = "order=oldest&group=project&folded=none"
+const DEFAULTS = { ordering: "newest", grouping: "status", collapsedGroups: [], shownCounts: {} }
 
 function workspace(pathname = "/") {
   let view: ListViewState = { title: "",
@@ -53,7 +56,7 @@ describe("workspace Requests navigation", () => {
     app.palette.selectList({ status: "done" })
     const input = { search: "", seen: "", written: null, current: app.view(), pathname: "/", locationSearch: "" }
     expect(planListUrlSync({ ...input, hold: true })).toEqual({ seen: "" })
-    expect(planListUrlSync({ ...input, hold: false })).toEqual({ seen: "", write: "/?status=done&project=none" })
+    expect(planListUrlSync({ ...input, hold: false })).toEqual({ seen: "", write: `/?status=done&project=none&${DISPLAY}` })
     expect(app.push).not.toHaveBeenCalled()
     expect(app.replace).not.toHaveBeenCalled()
   })
@@ -66,10 +69,11 @@ describe("workspace Requests navigation", () => {
     })
     list.selectList({ project: "none" })
     const input = { search: "project=named", seen: null, written: null, hold: false, pathname: "/", locationSearch: "?project=named" }
-    expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named", write: "/?project=none" })
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named", write: `/?project=none&${DISPLAY}` })
     expect(app.view()).toMatchObject({ status: "all", project: "none" })
     expect(app.view().shownCounts).toEqual({})
-    expect(app.push).toHaveBeenCalledExactlyOnceWith("/?project=named")
+    // A list link off the list keeps the list's display (#275).
+    expect(app.push).toHaveBeenCalledExactlyOnceWith(`/?project=named&${DISPLAY}`)
     expect(app.replace).not.toHaveBeenCalled()
   })
 
@@ -98,7 +102,7 @@ describe("workspace Requests navigation", () => {
     expect(app.controller.planListUrl(input)).toEqual({ seen: "" })
     app.palette.selectList({ project: "none" })
     expect(app.replace).toHaveBeenCalledExactlyOnceWith("/")
-    expect(app.controller.planListUrl(input)).toEqual({ seen: "", write: "/?status=open&project=none" })
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "", write: `/?status=open&project=none&${DISPLAY}` })
   })
 
   it("resumes external list restoration after native history supersedes a pending route", () => {
@@ -109,7 +113,7 @@ describe("workspace Requests navigation", () => {
     const input = { search: "project=named", seen: "", written: null, pathname: "/", locationSearch: "?project=named", hold: false }
     expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named" })
     events.dispatchEvent(new Event("popstate"))
-    expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named", title: "" } })
+    expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named", title: "", ...DEFAULTS } })
     cleanup()
   })
 
@@ -122,8 +126,8 @@ describe("workspace Requests navigation", () => {
     // The router can deliver the older query after the newer choice, and
     // acknowledge the eventual mirror write after the address bar does.
     expect(app.controller.planListUrl({ ...input, search: "project=named" })).toEqual({ seen: "project=named" })
-    expect(app.controller.planListUrl({ ...input, search: "project=named", hold: false })).toEqual({ seen: "project=named", write: "/" })
-    expect(app.controller.planListUrl({ ...input, search: "project=named", locationSearch: "", hold: false })).toEqual({ seen: "project=named" })
+    expect(app.controller.planListUrl({ ...input, search: "project=named", hold: false })).toEqual({ seen: "project=named", write: `/?${DISPLAY}` })
+    expect(app.controller.planListUrl({ ...input, search: "project=named", locationSearch: `?${DISPLAY}`, hold: false })).toEqual({ seen: "project=named" })
     expect(app.view().project).toBe("all")
     expect(app.push).not.toHaveBeenCalled()
     expect(app.replace).not.toHaveBeenCalled()
@@ -131,23 +135,30 @@ describe("workspace Requests navigation", () => {
 
   it("accepts external list context after acknowledgement and browser history", () => {
     const app = workspace()
-    const input = { seen: null, written: null, pathname: "/", hold: false, search: "status=open", locationSearch: "?status=open" }
+    const input = { seen: null, written: null, pathname: "/", hold: false, search: `status=open&${DISPLAY}`, locationSearch: `?status=open&${DISPLAY}` }
     app.sidebar.selectList({ project: "all" })
-    expect(app.controller.planListUrl(input)).toEqual({ seen: "status=open" })
+    expect(app.controller.planListUrl(input)).toEqual({ seen: `status=open&${DISPLAY}` })
     const external = { ...input, search: "project=named", locationSearch: "?project=named" }
-    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named", title: "" } })
+    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named", title: "", ...DEFAULTS } })
     app.sidebar.selectList({ project: "none" })
     const events = new EventTarget()
     const cleanup = app.controller.listenForHistory(events)
     events.dispatchEvent(new Event("popstate"))
-    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named", title: "" } })
+    expect(app.controller.planListUrl(external)).toEqual({ seen: "project=named", adopt: { status: "all", project: "named", title: "", ...DEFAULTS } })
     cleanup()
   })
 
-  it("pushes off-list selection once with the retained context", () => {
+  it("reopens the same list from another page with each group's expansion from memory (#275)", () => {
+    const app = workspace("/inbox")
+    app.sidebar.selectList({ status: "open", project: "none" })
+    expect(app.view().shownCounts).toEqual({ "project:none": 75 })
+    expect(app.push).toHaveBeenCalledExactlyOnceWith(`/?status=open&project=none&${DISPLAY}&shown=none.75`)
+  })
+
+  it("pushes off-list selection once with the retained context and display (#275)", () => {
     const app = workspace("/requests/a")
     app.palette.selectList({ project: "all" })
-    expect(app.push).toHaveBeenCalledExactlyOnceWith("/?status=open")
+    expect(app.push).toHaveBeenCalledExactlyOnceWith("/?status=open&order=oldest&group=project&folded=none")
     expect(app.replace).not.toHaveBeenCalled()
   })
 
@@ -332,7 +343,7 @@ it("opens a saved view through navigation and clears its association on an ordin
   expect(app.view()).toMatchObject({ status: "done", project: "named", savedView: "personal-view" })
   expect(app.view().shownCounts).toEqual({})
   expect(app.view().localFilters).toBe(app.original.localFilters)
-  expect(app.push).toHaveBeenCalledExactlyOnceWith("/?status=done&project=named")
+  expect(app.push).toHaveBeenCalledExactlyOnceWith(`/?status=done&project=named&${DISPLAY}`)
   app.palette.selectList({ project: "named" })
   expect(app.view().savedView).toBeUndefined()
 })

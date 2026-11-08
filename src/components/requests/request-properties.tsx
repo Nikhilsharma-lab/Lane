@@ -14,7 +14,8 @@ import styles from "./request-rows.module.css"
 import avatarStyles from "./request-picker-avatar.module.css"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import { requestListHref } from "@/lib/request-workspace"
-import { useRequestListContext, useSetRequestListView } from "./list-view-state"
+import { useRequestListContext } from "./list-view-state"
+import { isSameTabRequestLink, useRequestNavigation } from "./request-navigation"
 import { useRequestRowPresentation } from "./row-presentation"
 import { momentLabel, zoneFreeDay } from "@/lib/dates"
 import { LocalTime, useInBrowser } from "./local-time"
@@ -25,10 +26,12 @@ export type RequestPropertyKey = "status" | "project" | "pickedUpBy" | "createdA
  * never re-renders the rows (#296). */
 function ProjectRequestsLink({ projectId }: { projectId?: string | null }) {
   const { status } = useRequestListContext()
-  const setListView = useSetRequestListView()
+  const navigation = useRequestNavigation()
+  // #275: through the list's navigation, so the list keeps its order, grouping and folds (each group back at its first 25).
   return <Link href={requestListHref(status, projectId ?? "none")} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm}`} onClick={event => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    setListView(current => Object.keys(current.shownCounts).length ? { ...current, shownCounts: {} } : current)
+    if (!isSameTabRequestLink(event)) return
+    event.preventDefault()
+    navigation.filterList({ project: projectId ?? "none" })
   }}>{projectId ? "View Project Requests" : "View Requests without a Project"}</Link>
 }
 

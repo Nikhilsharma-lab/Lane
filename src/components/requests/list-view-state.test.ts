@@ -10,9 +10,11 @@ vi.mock("react", async importOriginal => {
 })
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(reads.search) }))
 
-import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListContext, withSavedView, type ListViewState } from "./list-view-state"
+import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListAddress, withListContext, withSavedView, type ListViewState } from "./list-view-state"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { withListFilter, withoutListFilters } from "./list-filters"
+import { LIST_DISPLAY_DEFAULTS } from "@/lib/request-workspace"
+import { SHOWN_STEP } from "./list-view-model"
 
 beforeEach(() => { reads.names = []; reads.search = "" })
 
@@ -69,7 +71,7 @@ describe("Request list context (plan item 1.7)", () => {
   const base = { seen: "", written: null, current: { status: "all", project: "all" } as const, hold: false, pathname: "/", locationSearch: "" }
 
   it("adopts a status view or Project that arrives in the URL", () => {
-    expect(planListUrlSync({ ...base, search: "project=none", seen: null, locationSearch: "?project=none" })).toEqual({ seen: "project=none", adopt: { status: "all", project: "none", title: "" } })
+    expect(planListUrlSync({ ...base, search: "project=none", seen: null, locationSearch: "?project=none" })).toEqual({ seen: "project=none", adopt: { status: "all", project: "none", title: "", ...LIST_DISPLAY_DEFAULTS } })
   })
 
   it("keeps the current context on a bare return to the list and writes it to the URL", () => {
@@ -113,8 +115,8 @@ describe("The title filter in the list context (A214)", () => {
   })
 
   it("is adopted from an address that arrives (Back, Forward, a link), and cleared by one without it", () => {
-    expect(planListUrlSync({ ...base, search: "title=checkout", seen: null, current: { status: "all", project: "all", title: "" }, locationSearch: "?title=checkout" })).toEqual({ seen: "title=checkout", adopt: { status: "all", project: "all", title: "checkout" } })
-    expect(planListUrlSync({ ...base, search: "status=open", seen: "status=open&title=checkout", current: { status: "open", project: "all", title: "checkout" }, locationSearch: "?status=open" })).toEqual({ seen: "status=open", adopt: { status: "open", project: "all", title: "" } })
+    expect(planListUrlSync({ ...base, search: "title=checkout", seen: null, current: { status: "all", project: "all", title: "" }, locationSearch: "?title=checkout" })).toEqual({ seen: "title=checkout", adopt: { status: "all", project: "all", title: "checkout", ...LIST_DISPLAY_DEFAULTS } })
+    expect(planListUrlSync({ ...base, search: "status=open", seen: "status=open&title=checkout", current: { status: "open", project: "all", title: "checkout" }, locationSearch: "?status=open" })).toEqual({ seen: "status=open", adopt: { status: "open", project: "all", title: "", ...LIST_DISPLAY_DEFAULTS } })
   })
 
   it("is changed and cleared with the other list filters, each group back at its first 25", () => {
@@ -190,3 +192,47 @@ describe("Showing a Request the filters hide (plan item 2.3)", () => {
     expect(reads.names).toEqual(["RequestListViewSnapshot"])
   })
 })
+
+describe("The list's display in its address (#275)", () => {
+  const base = { written: null, hold: false, pathname: "/" }
+  const display = { ordering: "oldest", grouping: "status", collapsedGroups: ["status:done"], shownCounts: { "status:open": 50 } } as const
+  const shown = { ...display, collapsedGroups: [...display.collapsedGroups] }
+
+  it("starts from the address on a reload or a shared link", () => {
+    reads.search = "status=open&order=oldest&folded=done&shown=open.50"
+    expect(renderInProvider(() => { const [view] = useRequestListView(); return [view.status, view.ordering, view.grouping, view.collapsedGroups, Object.entries(view.shownCounts)].join(" ") }))
+      .toBe("open oldest status status:done status:open,50")
+  })
+
+  it("is written to the address with the list context, defaults left out", () => {
+    expect(planListUrlSync({ ...base, search: "", seen: "", current: { status: "open", project: "all", ...shown }, locationSearch: "" }))
+      .toEqual({ seen: "", write: "/?status=open&order=oldest&folded=done&shown=open.50" })
+    expect(planListUrlSync({ ...base, search: "", seen: "", current: { status: "all", project: "all", ...LIST_DISPLAY_DEFAULTS, shownCounts: { "status:open": SHOWN_STEP } }, locationSearch: "" }))
+      .toEqual({ seen: "" })
+  })
+
+  it("is adopted from an address that arrives (Back, Forward, a link), and a key it leaves out goes back to its default", () => {
+    expect(planListUrlSync({ ...base, search: "order=oldest&folded=done&shown=open.50", seen: null, current: { status: "all", project: "all", title: "" }, locationSearch: "?order=oldest&folded=done&shown=open.50" }))
+      .toEqual({ seen: "order=oldest&folded=done&shown=open.50", adopt: { status: "all", project: "all", title: "", ...display } })
+    expect(planListUrlSync({ ...base, search: "status=open", seen: "status=open&order=oldest", current: { status: "open", project: "all", ...shown }, locationSearch: "?status=open" }))
+      .toEqual({ seen: "status=open", adopt: { status: "open", project: "all", title: "", ...LIST_DISPLAY_DEFAULTS } })
+  })
+
+  it("keeps the display on a bare return to the list, and adopts nothing that already matches", () => {
+    expect(planListUrlSync({ ...base, search: "", seen: null, current: { status: "all", project: "all", ...shown }, locationSearch: "" }))
+      .toEqual({ seen: "", write: "/?order=oldest&folded=done&shown=open.50" })
+    expect(planListUrlSync({ ...base, search: "folded=done&order=oldest&shown=open.50", seen: null, current: { status: "all", project: "all", ...shown }, locationSearch: "?folded=done&order=oldest&shown=open.50" }))
+      .toEqual({ seen: "folded=done&order=oldest&shown=open.50", write: "/?order=oldest&folded=done&shown=open.50" })
+  })
+
+  it("applies an adopted address as the whole list, and keeps the same view when nothing changes", () => {
+    const view = { ...initialLike(), status: "open", shownCounts: { "status:open": 75 } } as ListViewState
+    const moved = withListAddress(view, { status: "open", project: "all", title: "", ...display, collapsedGroups: ["status:done"], shownCounts: { "status:open": 50 } })
+    expect(moved).toMatchObject({ status: "open", ordering: "oldest", collapsedGroups: ["status:done"], shownCounts: { "status:open": 50 } })
+    expect(withListAddress(moved, { status: "open", project: "all", title: "", ...display, collapsedGroups: ["status:done"], shownCounts: { "status:open": 50 } })).toBe(moved)
+  })
+})
+
+function initialLike(): ListViewState {
+  return { status: "all", project: "all", title: "", columnVisibility: {}, localFilters: [], ...LIST_DISPLAY_DEFAULTS, collapsedGroups: [], shownCounts: {} }
+}

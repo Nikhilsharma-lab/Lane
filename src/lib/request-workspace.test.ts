@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { REQUEST_STATUS_FILTER_LABELS, changesListInPlace, hasRequestListContext, parseRequestListContext, parseRequestProjectFilter, parseRequestStatusFilter, requestDetailHref, requestListContextFromHref, requestListHref } from "./request-workspace"
+import { LIST_DISPLAY_DEFAULTS, REQUEST_STATUS_FILTER_LABELS, changesListInPlace, hasRequestListContext, parseListDisplay, parseRequestListContext, parseRequestProjectFilter, parseRequestStatusFilter, requestDetailHref, requestListContextFromHref, requestListHref } from "./request-workspace"
 import { JOURNEY_STATUSES } from "./request-journey"
 import { TITLE_MAX } from "./request-schema"
 import { REQUEST_TITLE_FILTER_MAX } from "./saved-view-rules"
@@ -78,5 +78,54 @@ describe("the title filter in the list address (A214)", () => {
   it("names a title from a link only when the link has one, so a Project link keeps the title being typed", () => {
     expect(requestListContextFromHref("/?title=checkout")).toEqual({ status: "all", project: "all", title: "checkout" })
     expect(requestListContextFromHref(`/?project=${projectId}`)).toEqual({ status: "all", project: projectId })
+  })
+})
+
+describe("the list's display in its address (#275)", () => {
+  const params = (query: string) => new URLSearchParams(query)
+
+  it("leaves the defaults out, so a plain list keeps its plain link", () => {
+    expect(requestListHref("all", "all", "", LIST_DISPLAY_DEFAULTS)).toBe("/")
+    expect(requestListHref("open", "all", "", { ordering: "newest", grouping: "status", collapsedGroups: [], shownCounts: { "status:open": 25 } })).toBe("/?status=open")
+  })
+
+  it("carries ordering, grouping, folded groups and shown counts after status, Project and title", () => {
+    expect(requestListHref("all", "none", "pricing", { ordering: "oldest", grouping: "status", collapsedGroups: ["status:done", "status:closed"], shownCounts: { "status:open": 50, "status:in_progress": 25 } }))
+      .toBe("/?project=none&title=pricing&order=oldest&folded=closed&folded=done&shown=open.50")
+    expect(requestListHref("all", "all", "", { grouping: "project", collapsedGroups: [`project:${projectId}`, "project:none"], shownCounts: { "project:none": 75 } }))
+      .toBe(`/?group=project&folded=${projectId}&folded=none&shown=none.75`)
+    expect(requestListHref("all", "all", "", { grouping: "none", collapsedGroups: [], shownCounts: { all: 50 } })).toBe("/?group=none&shown=all.50")
+  })
+
+  it("drops folded groups and counts that belong to another grouping", () => {
+    expect(requestListHref("all", "all", "", { grouping: "assignee", collapsedGroups: ["status:done", "assignee:user_2abc"], shownCounts: { "status:open": 50 } }))
+      .toBe("/?group=assignee&folded=user_2abc")
+    expect(requestListHref("all", "all", "", { grouping: "none", collapsedGroups: ["status:done"], shownCounts: {} })).toBe("/?group=none")
+  })
+
+  it("reads each key back, and reads what is missing or unknown as the default", () => {
+    expect(parseListDisplay(params("order=title_desc&group=project&folded=none&shown=none.75&shown=" + projectId + ".50")))
+      .toEqual({ ordering: "title_desc", grouping: "project", collapsedGroups: ["project:none"], shownCounts: { "project:none": 75, [`project:${projectId}`]: 50 } })
+    expect(parseListDisplay(params(""))).toEqual(LIST_DISPLAY_DEFAULTS)
+    expect(parseListDisplay(params("order=random&group=colour&folded=&folded=a%20b&shown=open&shown=open.-5&shown=open.0&shown=done.x"))).toEqual(LIST_DISPLAY_DEFAULTS)
+    expect(parseListDisplay(params("group=none&folded=done")).collapsedGroups).toEqual([])
+  })
+
+  it("keeps a shared link from asking for more rows than any list holds", () => {
+    expect(parseListDisplay(params("shown=open.100000")).shownCounts).toEqual({ "status:open": 1000 })
+  })
+
+  it("round-trips, so reload, Back and a shared link show the same list", () => {
+    const display = { ordering: "status", grouping: "assignee", collapsedGroups: ["assignee:none", "assignee:user_2abc"], shownCounts: { "assignee:user_2abc": 50 } } as const
+    const href = requestListHref("in_progress", projectId, "", { ...display, collapsedGroups: [...display.collapsedGroups] })
+    const url = new URL(href, "https://lane.invalid")
+    expect(parseListDisplay(url.searchParams)).toEqual(display)
+    expect(parseRequestListContext(url.searchParams)).toEqual({ status: "in_progress", project: projectId, title: "" })
+  })
+
+  it("counts as a list address on its own", () => {
+    expect(hasRequestListContext(params("group=none"))).toBe(true)
+    expect(hasRequestListContext(params("shown=open.50"))).toBe(true)
+    expect(hasRequestListContext(params("q=x"))).toBe(false)
   })
 })
