@@ -423,7 +423,7 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
     });
   });
 
-  test("the first-run guide keeps focus on Next step from step to step (A210)", async ({ page }) => {
+  test("the first-run guide puts focus on each new step's heading (A210)", async ({ page }) => {
     test.setTimeout(240_000);
     await page.setViewportSize({ width: 1440, height: 900 });
     const user = await createTestUser("first-run-focus");
@@ -434,15 +434,19 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
       const guide = page.locator("[data-first-run='first_request']");
       const next = guide.getByRole("button", { name: "Next step", exact: true });
+      // #276 (#240): every step behaves the same, Next and Back alike: the new step's heading takes focus, so a
+      // screen reader reads the step from its name; Tab carries on to the step's own links and buttons.
+      const heading = guide.locator("[data-first-run-step] h3");
       for (const step of [2, 3, 4, 5]) {
-        if (step === 2) await next.click(); else await page.keyboard.press("Enter");
+        await next.click();
         await expect(guide.getByRole("progressbar")).toHaveAccessibleName(new RegExp(`^Step ${step} of 5`));
-        // The last step has no Next step; its heading takes focus instead.
-        if (step < 5) await expect(next).toBeFocused();
-        else await expect(guide.locator("[data-first-run-step] h3")).toBeFocused();
+        await expect(heading).toBeFocused();
         await page.waitForTimeout(500);
-        if (step < 5) await expect(next).toBeFocused();
+        await expect(heading).toBeFocused();
       }
+      await guide.getByRole("button", { name: "Back", exact: true }).click();
+      await expect(guide.getByRole("progressbar")).toHaveAccessibleName(/^Step 4 of 5/);
+      await expect(heading).toBeFocused();
     } finally {
       await cleanupTestWorkspace(user.id);
       await deleteTestUser(user.id);

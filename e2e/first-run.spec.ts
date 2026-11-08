@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
+import { cleanupTestWorkspace, e2eDatabase, provisionTestWorkspace } from "./helpers/cleanup";
+import { nextActionResponse } from "./helpers/action-response";
 import { assertOwnedOrganization, registerBrowserTestOrganization } from "./helpers/fixtures";
 import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
 
@@ -81,7 +82,7 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     const invite = guide.getByRole("form", { name: "Invite teammates" });
     await invite.getByLabel("Email address").fill(`lane-e2e-first-run-invitee-${Date.now()}+clerk_test@example.com`);
     await invite.getByRole("button", { name: "Send invitation" }).click();
-    await expect(invite.getByRole("status")).toContainText("as a Reviewer.");
+    await expect(invite.getByRole("status")).toContainText("as a Member.");
 
     // Free Requests belong to the creator's company domain (#213). Every e2e user is at example.com, so on a
     // shared database another fixture workspace may already have used some or all of them; the guide says so.
@@ -145,5 +146,73 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     await cleanupTestWorkspace(founder.id);
     await deleteTestUser(founder.id);
     await deleteTestUser(teammate.id);
+  }
+});
+
+// Build 5.5 of #256 (#276): the first Request guide's steps, as a keyboard and pointer user meets them. A210: every
+// step change puts focus on the new step's heading. A217: the card is anchored to the top, so it doesn't jump between
+// steps. A218 and A219: Lane's own words for the invitation and the goal. A220: Back then reload reopens at the step
+// left on. A234: the invite form's code loads on the live build.
+test("the first Request guide reopens at the step left on, even after Back, and focuses each step's heading (A210, A217–A220, A234)", async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const user = await createTestUser("first-run-resume");
+  const missing: string[] = [];
+  page.on("response", response => { if (response.status() === 404 && new URL(response.url()).pathname.startsWith("/_next/")) missing.push(response.url()); });
+  try {
+    const orgId = await provisionTestWorkspace({ userId: user.id, email: user.email, name: "Resume Tester", workspaceName: "#276 first-run resume", freshFirstRun: true });
+    await signInTestUser(page, user, orgId);
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const hydrated = () => expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
+    await hydrated();
+    const guide = page.locator("[data-first-run='first_request']");
+    const stepHeading = guide.locator("[data-first-run-step] h3");
+    const progress = guide.getByRole("progressbar");
+    const next = guide.getByRole("button", { name: "Next step", exact: true });
+    const back = guide.getByRole("button", { name: "Back", exact: true });
+    const top = async () => (await guide.boundingBox())!.y;
+    await expect(progress).toHaveAccessibleName("Step 1 of 5: Start with the problem");
+    const firstTop = await top();
+
+    await next.click();
+    await expect(progress).toHaveAccessibleName("Step 2 of 5: Set the goal");
+    await expect(stepHeading).toHaveText("Set the goal");
+    await expect(stepHeading).toBeFocused();
+    await expect(guide.locator("[data-first-run-step] p").first()).toHaveText("Set the goal: pick the metric you expect to move, where it is now and where you expect it to go. Not in the list? Add it from the picker. If the work has nothing to measure, say why instead.");
+    expect(await top()).toBe(firstTop);
+
+    await next.click();
+    await expect(stepHeading).toHaveText("Ask Reviewers");
+    await expect(stepHeading).toBeFocused();
+    const invite = guide.getByRole("form", { name: "Invite teammates" });
+    await expect(invite).toContainText("Lane emails them an invitation to this workspace. Once they join, you can pick them as Reviewers.");
+    await expect(invite).toContainText("Member · Paid seat");
+    await expect(invite).not.toContainText("Clerk");
+    await expect(invite).not.toContainText("Reviewer:");
+    expect(await top()).toBe(firstTop);
+
+    // Back saves the step on screen, so a reload reopens there, not at the furthest step.
+    const saving = await nextActionResponse(page, request => request.method() === "POST" && Boolean(request.headers()["next-action"]) && (request.postData() ?? "").includes("back"));
+    await back.click();
+    await expect(stepHeading).toHaveText("Set the goal");
+    await expect(stepHeading).toBeFocused();
+    expect(await top()).toBe(firstTop);
+    expect((await saving.delivered()).ok).toBe(true);
+    await page.reload();
+    await expect(progress).toHaveAccessibleName("Step 2 of 5: Set the goal");
+    await hydrated();
+
+    // Moving on still saves: a reload after Next reopens at the next step.
+    const savedNext = await nextActionResponse(page, request => request.method() === "POST" && Boolean(request.headers()["next-action"]));
+    await next.click();
+    await expect(stepHeading).toBeFocused();
+    expect((await savedNext.delivered()).ok).toBe(true);
+    await page.reload();
+    await expect(progress).toHaveAccessibleName("Step 3 of 5: Ask Reviewers");
+    await expect(guide.getByRole("form", { name: "Invite teammates" })).toBeVisible();
+    expect(missing).toEqual([]);
+  } finally {
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
   }
 });

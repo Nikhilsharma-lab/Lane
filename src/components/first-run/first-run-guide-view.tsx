@@ -54,7 +54,7 @@ function StepBody({ step, free, inviteForm }: { step: FirstRequestStep; free: Wo
       <p>When you review the Request, Lane checks the framing. If it reads like a solution, Lane suggests the problem behind it for you to confirm or change.</p>
     </>;
     case "prediction": return <>
-      <p>Pick the metric you want to move from the Metrics library, with where it is now and where you want it to go. If it isn’t there yet, add it from the picker. Work with nothing to measure can say why instead.</p>
+      <p>Set the goal: pick the metric you expect to move, where it is now and where you expect it to go. Not in the list? Add it from the picker. If the work has nothing to measure, say why instead.</p>
       <p><Link href="/settings/metrics" className={styles.link}>Open the Metrics library</Link></p>
     </>;
     case "reviewers": return <>

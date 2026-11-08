@@ -33,7 +33,8 @@ export type FirstRunGuideProps = {
 };
 
 /**
- * #217: the first run's adapter. It keeps the step on screen, saves each step read (so a reload resumes there),
+ * #217: the first run's adapter. It keeps the step on screen, saves each step read and each step gone back to (so a
+ * reload resumes at the step on screen),
  * and saves skip and finish, after which the page renders without it and the shell's polite region says where to
  * find it again. Help's "First-run guide" link brings focus back to it.
  */
@@ -76,20 +77,27 @@ export function FirstRunGuide({ orgId, view, workspaceName, free, invite, readsN
     document.getElementById("lane-main")?.focus({ preventScroll: true });
   };
 
+  // Step saves go one after another, so a quick Next then Back is stored in the order it happened.
+  const saved = useRef<Promise<unknown>>(Promise.resolve());
+  const saveInOrder = (change: FirstRunChange) => {
+    const saving = saved.current.then(() => save(change));
+    saved.current = saving;
+    inBackground(saving);
+  };
   const moved = useRef(false);
   const move = (to: FirstRequestStep) => {
-    // Moving on means this step was read; going back saves nothing.
-    if (FIRST_REQUEST_STEPS.indexOf(to) > FIRST_REQUEST_STEPS.indexOf(step)) inBackground(save({ change: "step", step }));
+    // Moving on means this step was read. A220: going Back saves the step gone back to, so a reload reopens there.
+    saveInOrder(FIRST_REQUEST_STEPS.indexOf(to) > FIRST_REQUEST_STEPS.indexOf(step) ? { change: "step", step } : { change: "back", step: to });
     moved.current = true;
     setStep(to);
     announce(`Step ${FIRST_REQUEST_STEPS.indexOf(to) + 1} of ${FIRST_REQUEST_STEPS.length}: ${STEP_TITLES[to]}`);
   };
-  // Focus stays on the control that moved; when that control is gone (Next on the last step, Back on the first),
-  // the new step's heading takes it, so focus never drops to the page.
+  // A210 (#240): every step change puts focus on the new step's heading, Next and Back alike, so each step is read
+  // from its name and focus never drops to the page.
   useEffect(() => {
     if (!moved.current) return;
     moved.current = false;
-    if (!root.current?.contains(document.activeElement)) root.current?.querySelector<HTMLElement>("[data-first-run-step] h3")?.focus({ preventScroll: true });
+    root.current?.querySelector<HTMLElement>("[data-first-run-step] h3")?.focus({ preventScroll: true });
   }, [step, showSteps]);
   const showAgain = () => { moved.current = true; setStep(FIRST_REQUEST_STEPS[0]); setShowSteps(true); };
 
