@@ -152,6 +152,7 @@
   --workspace-header-height: var(--lane-header-height);
   --request-row-height: var(--lane-size-inner-xlarge);
   --request-avatar-size: var(--lane-badge-sm-height);
+  --request-warning-ink: var(--lane-warning-ink);
   --request-group-gap: var(--lane-space-2);
   --badge-sm-padding: var(--lane-space-2);
   --badge-icon-padding-start: var(--lane-space-2);
