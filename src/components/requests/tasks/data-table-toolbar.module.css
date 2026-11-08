@@ -51,28 +51,28 @@
 .listPane[data-empty-workspace] { display: flex; flex-direction: column; }
 .listPane[data-empty-workspace] > .listScroll { display: flex; flex-direction: column; }
 .listPane[data-empty-workspace] .recordRegion { display: flex; flex: 1; flex-direction: column; justify-content: center; }
-/* Plan item 2.4: the summary overlays the list's trailing edge instead of taking width from it, so opening it
-   never reflows the rows. The viewport clips the sliding panel and lets the pointer through around it. */
-.summaryViewport { position: absolute; z-index: var(--lane-layer-raised); inset-block: 0; inset-inline-end: 0; width: min(calc(var(--spacing) * 87.5), 100%); overflow: hidden; pointer-events: none; }
-.summary { position: absolute; inset: 0 var(--space-2) var(--space-2) auto; width: calc(var(--spacing) * 85.5); max-width: calc(100cqw - var(--space-2)); overflow-y: auto; pointer-events: auto; overscroll-behavior: contain; padding: var(--space-3); border: var(--border-width) solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface-raised); }
-.summaryHeading { position: relative; margin-bottom: var(--space-2); }
-.summaryDimensions { --control-height-sm: var(--size-inner-small); --text-sm: var(--text-xs); gap: var(--space-1); }
-.summaryClose { position: absolute; top: calc(var(--spacing) * 9); right: 0; min-height: var(--size-inner-tiny); width: var(--size-inner-tiny); padding: 0; }
+/* A216, A231 (#240 decisions 3 and 4): the list and one panel, the preview or the summary, side by side. Each panel
+   takes its own column, so the list narrows and no row is covered; the panel slides in inside its column. Leaving, it
+   gives the column back at once and slides out over the list's edge. */
+.listAndSummary { --request-preview-width: 55%; --request-summary-width: min(calc(var(--spacing) * 87.5), 100%); }
+/* At 1280px the list keeps half, so its rows keep the date beside the preview (request-rows.module.css). */
+@container main (max-width: 1100px) { .listAndSummary { --request-preview-width: 50%; } }
+.listAndSummary > [data-leaving] { position: absolute; z-index: var(--lane-layer-raised); inset-block: 0; inset-inline-end: 0; }
+.summaryViewport { position: relative; display: flex; flex: 0 0 var(--request-summary-width); width: var(--request-summary-width); min-width: 0; min-height: 0; overflow: clip; }
+.summary { flex: 1; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-3); border-inline-start: var(--border-width) solid var(--border-subtle); background: var(--surface); }
+/* A231: the × sits in the header's top corner, beside the dimensions, never on the count line. */
+.summaryHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2); }
+.summaryDimensions { --control-height-sm: var(--size-inner-small); --text-sm: var(--text-xs); gap: var(--space-1); min-width: 0; }
+.summaryClose { flex: none; min-height: var(--size-inner-tiny); width: var(--size-inner-tiny); padding: 0; }
 .summaryCount { margin-block: var(--space-3); color: var(--text-secondary); font-size: var(--text-xs); }
-.summaryTotal { padding-inline-end: calc(var(--spacing) * 7); }
 .summaryRows { display: grid; gap: var(--space-1); }
 .summaryRow { justify-content: space-between; width: 100%; text-align: left; }
 .summaryRow > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .summaryRow > span:last-child { font-variant-numeric: tabular-nums; }
 .summaryRow[aria-pressed="true"] { background: var(--selection-background); color: var(--selection-foreground); }
-@container main (max-width: 760px) {
-  /* Too narrow to read both: the list hides behind the open summary. */
-  .tableLayout[data-preview-table] .listAndSummary[data-summary-open] .listPane { visibility: hidden; }
-}
 @media (pointer: coarse) {
   :global(:root[data-visual-system="lane"]) .status, .summaryDimensions { --control-height-sm: var(--size-inner-xlarge); }
   /* A27: every toolbar icon button is a 44px touch target, as Add filter already is. */
   .iconButton { width: var(--size-inner-xlarge); min-width: var(--size-inner-xlarge); min-height: var(--size-inner-xlarge); }
-  .summaryClose { top: 100%; width: var(--size-inner-xlarge); min-height: var(--size-inner-xlarge); }
-  .summaryTotal { min-height: var(--size-inner-xlarge); display: flex; align-items: center; margin-block: 0; padding-inline-end: var(--size-inner-xlarge); }
+  .summaryClose { width: var(--size-inner-xlarge); min-height: var(--size-inner-xlarge); }
 }

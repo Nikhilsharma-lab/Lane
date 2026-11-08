@@ -28,13 +28,16 @@
   .row:hover { background: var(--interaction-hover); }
   .toggle:hover { color: var(--foreground); }
 }
-/* Where the preview opens (request-peek.tsx: 768px wide and a fine pointer), the list keeps the leading column
+/* Where the preview opens (request-peek.tsx: 1280px wide and a fine pointer), the list keeps the leading column
    and scrolls on its own; the preview's column holds the note until an item is opened. */
-@media (min-width: 768px) and (pointer: fine) {
+@media (min-width: 1280px) and (pointer: fine) {
   .body { flex: 1; grid-template-columns: minmax(0, 45fr) minmax(0, 55fr); height: calc(100% - var(--workspace-header-height)); }
   .list { overflow-y: auto; overscroll-behavior: contain; }
   .preview { display: grid; place-items: center; padding: var(--space-5); border-inline-start: var(--border-width) solid var(--border-subtle); }
   .preview[data-preview-open] { display: flex; align-items: stretch; min-width: 0; min-height: 0; padding: 0; border: 0; }
   .preview[data-preview-open] > div { flex: 1; }
+  /* A closing preview slides out over the note (#240 motion). */
+  .preview { position: relative; }
+  .preview[data-inbox-preview] > [data-leaving] { position: absolute; inset: 0; width: auto; }
 }
 @media (max-width: 640px) { .list { padding-inline: var(--space-4); } }

@@ -22,6 +22,7 @@ import type { RequestPeekProps } from "./request-peek"
 import detailStyles from "./detail.module.css"
 import styles from "./request-peek.module.css"
 import { PreviewClose, PreviewFrame, RequestPeekSkeleton } from "./request-peek-skeleton"
+import { PreviewHeadings } from "./section-heading"
 
 /** The preview's strip: its code, copy, Open full page, Edit Request and the one lifecycle action. */
 function PeekStrip({ action, editAction, onClose, onOpenFullPage }: { action?: ReactNode; editAction?: ReactNode; onClose: () => void; onOpenFullPage: RequestPeekProps["onOpenFullPage"] }) {
@@ -106,9 +107,10 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
     </section>
   }
 
-  return <PreviewFrame>
+  // The title is the panel's h2, so its sections are h3 (page-quality 2.12).
+  return <PreviewFrame><PreviewHeadings>
     <RequestDetailPane request={request} comments={detail.comments} attachments={detail.attachments} returnHref="/" orgId={orgId} isGuest={isGuest}
       currentUserId={viewer.id} viewerName={viewer.name} isAdmin={viewer.isAdmin} readOnly={viewer.readOnly}
       peekStrip={slots => <PeekStrip {...slots} onClose={onClose} onOpenFullPage={onOpenFullPage} />} />
-  </PreviewFrame>
+  </PreviewHeadings></PreviewFrame>
 }

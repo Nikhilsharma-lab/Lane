@@ -6,6 +6,7 @@ import { takeOnGuestSubmission } from "@/app/(app)/requests/[id]/take-on-actions
 import { guestSubmissionNotice, WAITING_TO_BE_TAKEN_ON, type GuestNoticeReader, type GuestSubmissionView } from "@/lib/guest-submission"
 import { useJourneyChange } from "./use-journey-change"
 import detailStyles from "./detail.module.css"
+import { SectionHeading } from "./section-heading"
 
 /**
  * #212: a Guest submission on Request detail. It says who filed it and who took it on; an Admin or Member takes a
@@ -22,7 +23,7 @@ export function GuestSubmissionNotice({ requestId, orgId, revision, view, reader
   const notice = guestSubmissionNotice(view, reader, hasPrediction)
   return <section id="guest-submission" aria-labelledby="guest-submission-heading" className={detailStyles.section} data-guest-submission={view.state}>
     <div className={detailStyles.sectionHeader}>
-      <h2 id="guest-submission-heading" className={detailStyles.sectionHeading}>Guest submission</h2>
+      <SectionHeading level={2} id="guest-submission-heading" className={detailStyles.sectionHeading}>Guest submission</SectionHeading>
       {view.state === "waiting" && <Badge size="sm" tone="warning">{WAITING_TO_BE_TAKEN_ON}</Badge>}
     </div>
     <p className={detailStyles.secondaryText}>{notice.text}</p>

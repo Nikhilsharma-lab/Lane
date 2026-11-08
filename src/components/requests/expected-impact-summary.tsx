@@ -3,6 +3,7 @@ import { formatGuardrail, type ExpectedImpact, type IncompleteMeasurement } from
 import { goalText } from "@/lib/impact-presenter"
 import { MeasurementPlanSummary } from "./measurement-plan-summary"
 import { measurementAudienceLabel, measurementPlatformLabel } from "@/lib/request-measurement"
+import { SectionHeading } from "./section-heading"
 
 /** A Request's Goal section (#261). Plan item 2.5: Request detail passes id="expected-impact", a stable region its strip and stories address; the heading takes `${id}-heading`. */
 export function ExpectedImpactSummary({ impact, id, metricNames }: { impact: ExpectedImpact | IncompleteMeasurement; id?: string; metricNames?: Record<string, string> }) {
@@ -16,7 +17,7 @@ export function ExpectedImpactSummary({ impact, id, metricNames }: { impact: Exp
     : [{ label: "Goal", value: impact.result }]
 
   return <section id={id} aria-label={id ? undefined : "Goal"} aria-labelledby={id ? `${id}-heading` : undefined} className="space-y-3">
-    <h2 id={id ? `${id}-heading` : undefined} className="text-base font-medium">Goal</h2>
+    <SectionHeading level={2} id={id ? `${id}-heading` : undefined} className="text-base font-medium">Goal</SectionHeading>
     <dl className="grid gap-4 sm:grid-cols-2">
       {[...values,
         ...[...(impact.guardrail ? [impact.guardrail] : []), ...(impact.additionalGuardrails ?? [])].flatMap((guardrail, index) => [

@@ -22,7 +22,7 @@ import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { PriorityGlyph, StatusGlyph, useRequestRowPresentation } from "./row-presentation"
 import { statusOfJourney } from "./tasks/statuses"
 import { DueTag, useDueNow } from "./due-tag"
-import { useRequestPeekOpener } from "./request-peek"
+import { REQUEST_PREVIEW_ID, useRequestPeekOpener } from "./request-peek"
 import { useRowLoadAhead } from "./request-peek-load-ahead"
 
 type RequestRowProps = {
@@ -75,7 +75,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   // #258: that rest, by keyboard or pointer, also reads the Request into its preview, where the list offers one.
   const rest = useRowLoadAhead(requestDetailHref(request.id, "all"), request.id)
   const actionItems = presentation?.menuItems(request) ?? []
-  // Plan item 2.12: Preview, where the list offers it (not on phones).
+  // Plan item 2.12: Preview, where the list offers it (1280px and wider with a mouse).
   const peek = useRequestPeekOpener()
   // The row menu names the keys it can stand in for; nothing else carries a hint. A28: each item has its own icon.
   const menuItems: ContextMenuItem[] = presentation ? [...actionItems,
@@ -97,8 +97,8 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   const unset = (key: string) => key === "requestType" ? !requestLabelKeys(request).length : key === "project" ? !request.projectId : false
   // Plan item 2.4 (decision 8.24): an APG grid row. The row is the one tab
   // stop and carries every value in its name; each control inside it is
-  // tabIndex -1 and stays reachable through the row menu or a key.
-  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-current={previewed || undefined} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
+  // tabIndex -1 and stays reachable through the row menu or a key. The previewed row names the preview it controls.
+  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-current={previewed || undefined} aria-controls={previewed ? REQUEST_PREVIEW_ID : undefined} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
     id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
     className={styles.row} data-pressable="" data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-previewed={previewed || undefined} data-menu-open={menuOpen || undefined}
     {...rest.focus} {...rest.pointer}>

@@ -29,6 +29,7 @@ import { createJourneyRefresh, watchJourneyDate } from "./journey-refresh"
 import styles from "./request-timeline.module.css"
 import { RequestPanePanel } from "./request-pane-tabs"
 import { Placeholder } from "@/components/loading/placeholder";
+import { SectionHeading } from "./section-heading";
 
 type Views = Exclude<Awaited<ReturnType<typeof readRequestJourney>>, { error: string }>
 
@@ -67,7 +68,7 @@ function stepItem(step: Pick<TimelineStep, "status" | "label" | "state">, parts:
   return <li key={step.status} className={styles.step} data-state={step.state} aria-current={step.state === "current" ? "step" : undefined}>
     <span className={styles.marker} aria-hidden="true" />
     <div className={styles.stepBody}>
-      <h3 id={`journey-${step.status}`} className={styles.stepHeading}>{step.label}<span className="sr-only"> ({STATE_WORDS[step.state]})</span></h3>
+      <SectionHeading level={3} id={`journey-${step.status}`} className={styles.stepHeading}>{step.label}<span className="sr-only"> ({STATE_WORDS[step.state]})</span></SectionHeading>
       {step.state === "skipped" && <p className={styles.muted}>Skipped</p>}
       {parts.happened}
       {parts.details}
@@ -128,7 +129,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
   }
 
   if (!views && error) return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
-    <h2 id="journey-heading" className={styles.heading}>Journey</h2>
+    <SectionHeading level={2} id="journey-heading" className={styles.heading}>Journey</SectionHeading>
     <p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></div>
   </section></RequestPanePanel>{peek && <RequestPanePanel value="activity"><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></RequestPanePanel>}</>
   const open = request.status === "open"
@@ -141,7 +142,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
     const outline = request.journeyOutline ?? NO_OUTLINE
     return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
       <div className={styles.header}>
-        <h2 id="journey-heading" tabIndex={-1} ref={heading} className={styles.heading}>Journey</h2>
+        <SectionHeading level={2} id="journey-heading" tabIndex={-1} ref={heading} className={styles.heading}>Journey</SectionHeading>
         <p className={`${styles.end} ${styles.muted}`}>Requester: <span className={styles.heldName} data-pending="" /></p>
       </div>
       {/* The "Follow-up of" line's place; its code and title arrive with the reads. */}
@@ -215,7 +216,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
       {closure.kind === "exception" && closure.reason && <p>{closure.reason}</p>}
       {/* #209: the line as given at closing; a Correction below shows any new wording beside it. */}
       {closure.learned && <p>{learnedLine(closure.learned)}</p>}
-      {!!outcome.corrections.length && <div className={styles.facts}><h4>Corrections</h4><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
+      {!!outcome.corrections.length && <div className={styles.facts}><SectionHeading level={4}>Corrections</SectionHeading><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
         <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
         <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on <LocalTime iso={c.at} day />.</p>
       </li>)}</ol></div>}
@@ -224,7 +225,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
 
   return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <div className={styles.header}>
-      <h2 id="journey-heading" tabIndex={-1} ref={heading} className={styles.heading}>Journey</h2>
+      <SectionHeading level={2} id="journey-heading" tabIndex={-1} ref={heading} className={styles.heading}>Journey</SectionHeading>
       <p className={`${styles.end} ${styles.muted}`}>Requester: {release.requesterName}</p>
     </div>
     {outcome.followUpOf && <p>Follow-up of <Link href={`/requests/${outcome.followUpOf.id}`}>{formatRequestCode(outcome.followUpOf.requestNumber)} {outcome.followUpOf.title}</Link></p>}
@@ -259,7 +260,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
       </li>)}</ol>
     </details>}
     {!!outcome.followUps.length && <div className={styles.facts}>
-      <h3 className={styles.stepHeading}>Follow-ups</h3>
+      <SectionHeading level={3} className={styles.stepHeading}>Follow-ups</SectionHeading>
       <ul className={styles.list}>{outcome.followUps.map(f => <li key={f.id}>
         <Link href={`/requests/${f.id}`}>{formatRequestCode(f.requestNumber)} {f.title}</Link>
         <p className={styles.muted}>{f.reason}</p>
@@ -292,7 +293,7 @@ function RequestActivity({ request, views: { release, outcome } }: { request: Re
     ...(outcome.closure ? [{ id: "closed", at: outcome.closure.closedAt, title: "Request closed", icon: <Check data-icon-size="sm" /> }] : []),
   ]
   return <section id="request-activity" aria-labelledby="request-activity-heading" className={styles.timeline}>
-    <h2 id="request-activity-heading" tabIndex={-1} className={styles.heading}>Activity</h2>
+    <SectionHeading level={2} id="request-activity-heading" tabIndex={-1} className={styles.heading}>Activity</SectionHeading>
     <Timeline events={events} now={now} label="Recorded Request activity" timeZone={inBrowser ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC"} scrollToNew={false} />
   </section>
 }

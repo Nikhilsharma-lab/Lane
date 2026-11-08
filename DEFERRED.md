@@ -380,7 +380,8 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   (ungated, needed Nikhil's explicit written decision; Plane's issue peek-overview as reference; trigger: a real
   need to view a Request without losing list place) was cleared by Nikhil in chat on 2026-10-21 ("build all"
   leftover items, `docs/superpowers/plans/2026-10-21-leftover-build-plan.md`, PR #63). Built as a non-modal
-  preview on the Requests list (Space, J/K follow, Esc back to the row; phones keep full-page navigation),
+  preview on the Requests list (Space, J/K follow, Esc back to the row; below 1280px, phones and touch screens keep
+  full-page navigation, #240 decision 2, Build 5 of #256),
   reusing the Request page's detail pane through a read-only `GET /api/requests/[id]`. Spec:
   `docs/superpowers/plans/2026-10-21-request-peek.md`. The inbox-pane notification form it was a prerequisite
   for stays deferred under NOTIFICATION AT-SCALE, whose primary trigger this fires (noted there).
