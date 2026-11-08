@@ -20,7 +20,8 @@ export const useRequestRowPresentation = () => useContext(RequestRowPresentation
 
 export function PriorityGlyph({ priority }: { priority: RequestPriority }) {
   if (priority === "urgent") return <svg className={styles.priority} data-priority={priority} data-ui-icon viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="3" fill="currentColor" /><path d="M8 4v5m0 2v1" stroke="var(--surface)" strokeWidth="1.6" /></svg>
-  if (priority === "none") return <svg className={styles.priority} data-priority={priority} data-ui-icon viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h2m3 0h2m3 0h2" stroke="currentColor" strokeWidth="1.5" /></svg>
+  // #240 decision 6 (A213): a faint dashed line, the same at every status, so it never reads as a "more" button.
+  if (priority === "none") return <svg className={styles.priority} data-priority={priority} data-ui-icon viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h12" stroke="currentColor" strokeWidth="1.25" strokeDasharray="2 2" /></svg>
   const level = { low: 1, medium: 2, high: 3 }[priority]
   return <svg className={styles.priority} data-priority={priority} data-ui-icon viewBox="0 0 16 16" aria-hidden="true">{[0, 1, 2].map(index => <rect key={index} x={1.5 + index * 5} y={8 - index * 3} width="3" height={6 + index * 3} rx="1" fill="currentColor" opacity={index < level ? 1 : .4} />)}</svg>
 }
