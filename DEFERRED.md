@@ -71,11 +71,14 @@ not authorize implementing these unrelated deferrals.
   Merge 879b484 (branch feat/detail-nplus1). — Day 3 #3.
 - **Board pagination — OPEN, DEFERRED POST-GTM (trigger below → exempt from the hard GTM gate).**
   Re-scoped 2026-07-12; the original text ("only a `.limit(100)` safety cap") was stale. Current state
-  on main: query capped at 200 (`MAX_REQUESTS_QUERY`, `src/app/(app)/page.tsx:13`), Done group capped
-  at 25 with a count affordance ("Showing the latest 25 of N completed." — `page.tsx:14,52,181-184`) —
-  partial mitigation already shipped. What's absent: cursor/offset "load more" pagination (grep: no
-  pagination code in the board path). Decision: DEFER — Lane launches invite-only to early design
-  teams whose active boards are dozens, not hundreds; the failure mode at the cap is graceful (oldest
+  (re-checked with #272, Build 5.1 of #256): `loadRequestList` (`src/lib/data/requests.ts`) reads every
+  Open and In progress Request up to `MAX_REQUESTS_QUERY = 200`, with the note "Showing the latest 200
+  Requests." past it, plus the latest `DONE_PAGE_SIZE = 50` finished ones (Done, Measuring, Closed) and
+  each finished status's full count. The list shows 25 per group with a Show more per group; a finished
+  group's Show more pages older finished Requests through `/api/requests/done` (cursor), so finished work
+  is no longer capped. What's absent: a cursor for *active* Requests past the 200 cap (they stop
+  displaying, and the Open and In progress counts stop at what's loaded). Decision: DEFER — Lane
+  launches invite-only to early design teams whose active boards are dozens, not hundreds; the failure mode at the cap is graceful (oldest
   items stop displaying, no crash) on a board where stale requests get closed; building cursor
   pagination now solves a scale problem that only appears at customer volume launch won't have (YAGNI).
   Trigger: any workspace exceeds ~120 active (Open + In-Progress) requests, OR the first
