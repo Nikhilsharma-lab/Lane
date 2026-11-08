@@ -165,7 +165,7 @@ test("the first Request guide reopens at the step left on, even after Back, and 
     await page.goto("/", { waitUntil: "domcontentloaded" });
     const hydrated = () => expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
     await hydrated();
-    const guide = page.locator("[data-first-run='first_request']");
+    const guide = page.getByRole("region", { name: "File your first Request", exact: true });
     const stepHeading = guide.locator("[data-first-run-step] h3");
     const progress = guide.getByRole("progressbar");
     const next = guide.getByRole("button", { name: "Next step", exact: true });

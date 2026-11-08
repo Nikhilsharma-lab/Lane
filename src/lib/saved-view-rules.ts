@@ -45,6 +45,9 @@ export function parseSavedViewName(input: unknown): { name: string } | { error: 
   return { name };
 }
 
+/** Names are unique per person, whatever their case (the database's unique index on lower(name)). */
+export const savedViewNameTaken = (name: string) => `You already have a view called “${name}”. Choose another name.`;
+
 /** Whether the list now shows other filters than the view saved. */
 export const savedViewChanged = (saved: SavedViewFilters, current: RequestListContext) =>
   saved.status !== current.status || saved.project !== current.project || (saved.title ?? "").trim() !== (current.title ?? "").trim();
