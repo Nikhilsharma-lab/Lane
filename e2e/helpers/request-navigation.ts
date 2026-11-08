@@ -13,7 +13,9 @@ export type NavigationFixture = {
 type Capture = (name: string) => Promise<void>;
 const rows = (page: Page) => page.locator('[role="row"][data-request-id]:visible');
 const requestRow = (page: Page, id: string) => rows(page).filter({ has: page.locator(`a[href^="/requests/${id}"]`) });
-const pages = (page: Page) => page.getByRole("navigation", { name: "Request pages", exact: true });
+const showMore = (page: Page) => page.locator("[data-request-grid]").getByRole("button", { name: "Show more", exact: true });
+/** Every list row, shown or behind a phone drawer that makes the page inert. */
+const listRows = (page: Page) => page.locator('[data-request-grid] [role="row"][data-request-id]');
 const search = (page: Page) => page.getByRole("combobox", { name: "Search workspace", exact: true });
 function isProjectCreate(request: Request, name: string, orgId: string) {
   if (request.method() !== "POST" || !request.headers()["next-action"]) return false;
@@ -140,7 +142,6 @@ async function setDisplay(page: Page) {
 }
 
 async function expectKeptControls(page: Page, fixture: NavigationFixture) {
-  await expect(page.getByRole("combobox", { name: "Requests per page", exact: true })).toContainText("10");
   await page.getByRole("button", { name: "Filter by title", exact: true }).click();
   await expect(page.getByRole("searchbox", { name: "Filter by title", exact: true })).toHaveValue(fixture.filter);
   await page.keyboard.press("Escape");
@@ -152,7 +153,7 @@ async function expectKeptControls(page: Page, fixture: NavigationFixture) {
   await expect(page.getByRole("dialog", { name: "Display Requests", exact: true })).toBeHidden();
 }
 
-/** Requires at least 26 actual saved Requests; no private state or pagination injection. */
+/** Requires at least 26 actual saved Requests; no private state injection. Ungrouped, the list shows its first 25 and one Show more (A212). */
 export async function prepareNavigationList(page: Page, fixture: NavigationFixture) {
   expect(fixture.requests.length).toBeGreaterThan(25);
   await page.goto("/?project=none");
@@ -161,22 +162,28 @@ export async function prepareNavigationList(page: Page, fixture: NavigationFixtu
   await page.getByRole("searchbox", { name: "Filter by title", exact: true }).fill(fixture.filter);
   await page.keyboard.press("Escape");
   await setDisplay(page);
-  await page.getByRole("combobox", { name: "Requests per page", exact: true }).click();
-  await page.getByRole("option", { name: "10", exact: true }).click();
-  await expect(rows(page)).toHaveCount(10);
-  await expect(pages(page).getByRole("button", { name: "Page 1", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(rows(page)).toHaveCount(25);
+  await expect(showMore(page)).toHaveCount(1);
   return rows(page).evaluateAll(elements => elements.map(element => element.getAttribute("data-request-id")));
+}
+
+/** Show more under the ungrouped list brings in the 26th Request and has nothing more to show. */
+async function showMoreRequests(page: Page, fixture: NavigationFixture, press = false) {
+  if (press) await showMore(page).press("Enter");
+  else await showMore(page).click();
+  await expect(rows(page)).toHaveCount(fixture.requests.length);
+  await expect(showMore(page)).toHaveCount(0);
 }
 
 export async function verifyProjectReselection(page: Page, fixture: NavigationFixture, capture: Capture) {
   const firstPage = await prepareNavigationList(page, fixture);
   const historyLength = await page.evaluate(() => history.length);
   for (const source of ["sidebar", "palette"] as const) {
-    await pages(page).getByRole("button", { name: "Page 2", exact: true }).press("Enter");
-    await expect(pages(page).getByRole("button", { name: "Page 2", exact: true })).toHaveAttribute("aria-current", "page");
+    await showMoreRequests(page, fixture, true);
     if (source === "sidebar") await chooseSidebarProject(page, "No Project");
     else await runPaletteCommand(page, "No Project", "Project", "Control+k");
-    await expect(pages(page).getByRole("button", { name: "Page 1", exact: true })).toHaveAttribute("aria-current", "page");
+    // Reselecting the Project puts the list back to its first 25.
+    await expect(showMore(page)).toHaveCount(1);
     await expect.poll(() => rows(page).evaluateAll(elements => elements.map(element => element.getAttribute("data-request-id")))).toEqual(firstPage);
     await expectKeptControls(page, fixture);
     await expect(page).toHaveURL(url => url.pathname === "/" && url.searchParams.get("project") === "none");
@@ -187,8 +194,9 @@ export async function verifyProjectReselection(page: Page, fixture: NavigationFi
 
 export async function verifyDetailHistoryAndSearch(page: Page, fixture: NavigationFixture, capture: Capture) {
   await prepareNavigationList(page, fixture);
-  await pages(page).getByRole("button", { name: "Page 2", exact: true }).click();
-  const row = rows(page).first();
+  await showMoreRequests(page, fixture);
+  // The Request Show more brought in.
+  const row = rows(page).nth(25);
   const id = (await row.getAttribute("data-request-id"))!;
   const listUrl = page.url();
   const historyLength = await page.evaluate(() => history.length);
@@ -211,7 +219,8 @@ export async function verifyDetailHistoryAndSearch(page: Page, fixture: Navigati
   await page.goBack();
   await expect(page).toHaveURL(listUrl);
   await expect(requestRow(page, id)).toBeFocused();
-  await expect(pages(page).getByRole("button", { name: "Page 2", exact: true })).toHaveAttribute("aria-current", "page");
+  // Back keeps how far the list was shown.
+  await expect(rows(page)).toHaveCount(fixture.requests.length);
   await expectKeptControls(page, fixture);
   await page.goForward();
   await expect(page).toHaveURL(url => url.pathname === `/requests/${id}`);
@@ -256,13 +265,13 @@ async function nativeClicks(page: Page, link: Locator, target: (url: URL) => boo
 
 export async function verifyNativeNavigation(page: Page, fixture: NavigationFixture, capture: Capture) {
   await prepareNavigationList(page, fixture);
-  await pages(page).getByRole("button", { name: "Page 2", exact: true }).click();
+  await showMoreRequests(page, fixture);
   const navigation = await openNavigation(page);
   const project = navigation.getByRole("link", { name: fixture.project.name, exact: true });
   await nativeClicks(page, project, url => url.pathname === "/" && url.searchParams.get("project") === fixture.project.id, async () => {
     await expect(navigation).toBeVisible();
-    // The page beneath a phone drawer is inert, but its saved pagination stays intact.
-    await expect(page.locator('[aria-label="Request pages"] [aria-label="Page 2"]')).toHaveAttribute("aria-current", "page");
+    // The page beneath a phone drawer is inert, but how far its list was shown stays intact.
+    await expect(listRows(page)).toHaveCount(fixture.requests.length);
   });
   const close = page.getByRole("button", { name: "Close sidebar", exact: true });
   if (await close.isVisible()) await close.click();

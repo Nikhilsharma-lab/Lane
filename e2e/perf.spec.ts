@@ -162,17 +162,14 @@ const statusChip = (page: Page, label: string) =>
   page.getByRole("group", { name: "Status views" }).getByRole("button", { name: label, exact: true })
 
 /**
- * A Request marked Done regroups into its new group, which on a list longer than one page can be on the next page:
- * the row leaves the view ("… left this view") and no frame shows it Done. Shows the whole list on one page, with the
- * list's largest page size if the default doesn't hold it (the page footer shows only while there are pages), and
- * fails naming the setup if even that can't.
+ * A Request marked Done regroups into its new group, which shows its first 25 (A212): in a long Done group the row
+ * could land past them, leave the view ("… left this view"), and no frame would show it Done. Shows every loaded row
+ * with each group's Show more, and fails naming the setup if the list keeps offering more.
  */
 async function showWholeList(page: Page) {
-  const footer = page.getByRole("combobox", { name: "Requests per page" })
-  if (!(await footer.isVisible())) return
-  await footer.click()
-  await page.getByRole("option", { name: "50", exact: true }).click()
-  await expect(footer, "The measuring workspace has more Requests than one page of the list holds (50)").toBeHidden()
+  const more = page.locator("[data-request-grid]").getByRole("button", { name: "Show more", exact: true })
+  for (let presses = 0; presses < 8 && await more.count(); presses++) await more.first().click()
+  await expect(more, "The measuring workspace has more Requests than eight Show mores bring in").toHaveCount(0)
 }
 
 /** Action requests (server actions) the page has sent and not yet seen answered. */
