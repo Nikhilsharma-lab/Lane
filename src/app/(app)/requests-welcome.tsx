@@ -9,18 +9,19 @@ import { KeyCap } from "@/components/keyboard/key-caps";
  * strip above it supplies the title, the guest note and the expand control, so
  * the first Request replaces only this content and nothing around it moves.
  * The C hint is CSS-gated to fine pointers, so server and client markup match;
- * on touch, `aria-keyshortcuts` on the links still exposes the shortcut. */
+ * on touch, `aria-keyshortcuts` on the links still exposes the shortcut. Page-quality 2.1: the region is named
+ * for what it is, so a screen reader doesn't read "No Requests yet" twice. */
 export function RequestsWelcome({ canInvite, isGuest, readOnly = false }: { canInvite: boolean; isGuest: boolean; readOnly?: boolean }) {
   // A Viewer (#210) files nothing, so the welcome only says where the team's Requests will appear.
   if (readOnly) return (
     <div data-requests-welcome className={styles.welcome}>
-      <EmptyState label="No Requests yet" title="No Requests yet" description="Requests your team files appear here, with their goals and results." icon={<WelcomeIcon />} />
+      <EmptyState label="Welcome" title="No Requests yet" description="Requests your team files appear here, with their goals and results." icon={<WelcomeIcon />} />
     </div>
   )
   return (
     <div data-requests-welcome className={styles.welcome}>
       <EmptyState
-        label="No Requests yet"
+        label="Welcome"
         title="No Requests yet"
         // Guests: the strip's note says whose Requests show here, so this line does not repeat it,
         // and it still reads on its own at 640px and below, where that note is hidden.

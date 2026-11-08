@@ -60,6 +60,9 @@ describe("Requests first-use landing", () => {
     expect(html.match(/data-slot="page-strip"/g)).toHaveLength(1)
     expect(html).toMatch(new RegExp(`<h1[^>]*>${role === "guest" ? "My Requests" : "Requests"}</h1>`))
     expect(html).toContain("data-requests-welcome")
+    // Page-quality 2.1: the welcome is a region named for what it is, so its heading isn't read twice.
+    expect(html).toMatch(/<section[^>]*aria-label="Welcome"[\s\S]*<h2>[\s\S]*No Requests yet[\s\S]*<\/h2>/)
+    expect(html).not.toContain('aria-label="No Requests yet"')
     expect(html).toContain('data-slot="requests-toolbar"')
     expect(html).toContain("data-empty-workspace")
     // The 2026-09-29 rule stands: nothing to filter in a truly empty workspace.
@@ -95,6 +98,8 @@ describe("Requests first-use landing", () => {
     const empty = await render()
     expect(empty).toMatch(/<h1[^>]*>Requests<\/h1>/)
     expect(empty).toContain("Requests your team files appear here, with their goals and results.")
+    expect(empty).toContain('aria-label="Welcome"')
+    expect(empty).not.toContain('aria-label="No Requests yet"')
     expect(intakeLinksOf(empty)).toEqual([])
     expect(empty).not.toContain("to create a Request.")
     expect(empty).not.toContain('href="/settings/members"')
