@@ -179,19 +179,16 @@ test("rows slide into their new group, never under reduced motion; the tab's ret
     await expect(row(page, seeded.open[5])).toContainText("Renamed while away", { timeout: 15_000 });
     expect(await page.evaluate(() => (window as unknown as { __laneStayed?: boolean }).__laneStayed)).toBe(true);
 
-    // A225: the placeholder has the page's title, pills, toolbar, Save view and rows, where the page puts them.
-    await page.goto("/inbox");
-    await expect(page.locator("#lane-main")).toBeVisible({ timeout: 30_000 });
-    let release!: () => void;
-    const held = new Promise<void>(resolve => { release = resolve; });
+    // A225: the placeholder has the page's title, pills, toolbar, Save view and rows, where the page puts them. The
+    // page's first response streams the placeholder first; cut after it, the browser shows only the placeholder.
     await page.route(url => url.pathname === "/", async route => {
-      const headers = route.request().headers();
-      // Reads ahead never answer (as frame-loading.spec.ts holds them), so the click itself waits for the page.
-      if (headers["next-router-prefetch"]) return;
-      if (headers.rsc) await held;
-      await route.continue().catch(() => undefined);
+      if (route.request().resourceType() !== "document") return route.fallback();
+      const response = await route.fetch();
+      const body = await response.text();
+      const cut = body.indexOf('<div hidden id="S:');
+      await route.fulfill({ response, body: cut > 0 ? body.slice(0, cut) : body });
     });
-    await page.getByRole("complementary", { name: "Workspace sidebar" }).getByRole("link", { name: "All Requests", exact: true }).click();
+    await page.goto("/", { waitUntil: "commit" });
     const placeholder = page.locator('[data-skeleton="list"]');
     await expect(placeholder).toBeVisible({ timeout: 15_000 });
     // Where each part starts, and how tall the rows are: what the eye sees move.
@@ -203,9 +200,8 @@ test("rows slide into their new group, never under reduced motion; the tab's ret
       header: await shape('[data-skeleton="list"] [data-skeleton-part="group-header"]'),
       row: await shape('[data-skeleton="list"] [data-skeleton-part="row"]'),
     };
-    release();
-    await expect(grid(page)).toBeVisible({ timeout: 30_000 });
-    await page.unroute(url => url.pathname === "/");
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await openList(page);
     const after = {
       strip: await shape('[data-slot="requests-workspace"] [data-slot="page-strip"]'),
       tools: await shape('[data-slot="requests-workspace"] [data-slot="page-strip"] button[aria-label="Save view"]'),
