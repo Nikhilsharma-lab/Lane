@@ -52,6 +52,18 @@ export function withStepRead(guide: FirstRunGuide, steps: string[], step: string
   return own.filter((candidate) => candidate === step || steps.includes(candidate));
 }
 
+/**
+ * A220 (decided 2026-11-08): going Back to `step` marks it and every step after it unread, so the "first unread step"
+ * rule above reopens the guide at the step the person went back to. The steps before it stay as they were. Null
+ * when the step isn't one of the first Request guide's.
+ */
+export function backTo(guide: FirstRunGuide, steps: string[], step: string): FirstRequestStep[] | null {
+  if (guide !== "first_request") return null;
+  const at = FIRST_REQUEST_STEPS.indexOf(step as FirstRequestStep);
+  if (at < 0) return null;
+  return FIRST_REQUEST_STEPS.slice(0, at).filter((candidate) => steps.includes(candidate));
+}
+
 /** The Free Requests in one line, as the first run shows them. */
 export function freeRequestsNote(planState: PlanState, free: FreeRequests): string {
   if (planState === "paying") return "This workspace pays for Lane, so creating Requests has no limit.";
@@ -59,8 +71,8 @@ export function freeRequestsNote(planState: PlanState, free: FreeRequests): stri
   return `${free.left} of ${FREE_REQUESTS} Free Requests left.`;
 }
 
-/** What the first run's one action accepts: a step read, skip, finish, or reopen from help. */
-export type FirstRunChange = { change: "step"; step: FirstRunStep } | { change: "skip" | "finish" | "reopen" };
+/** What the first run's one action accepts: a step read, going Back to a step, skip, finish, or reopen from help. */
+export type FirstRunChange = { change: "step"; step: FirstRunStep } | { change: "back"; step: FirstRequestStep } | { change: "skip" | "finish" | "reopen" };
 
 const ALL_STEPS: readonly string[] = [...FIRST_REQUEST_STEPS, ...JOINED_STEPS];
 
@@ -74,6 +86,8 @@ export function parseFirstRunChange(data: unknown): FirstRunChange | null {
   const keys = Object.keys(input);
   if (input.change === "step")
     return keys.length === 2 && typeof input.step === "string" && ALL_STEPS.includes(input.step) ? { change: "step", step: input.step as FirstRunStep } : null;
+  if (input.change === "back")
+    return keys.length === 2 && typeof input.step === "string" && (FIRST_REQUEST_STEPS as readonly string[]).includes(input.step) ? { change: "back", step: input.step as FirstRequestStep } : null;
   if ((input.change === "skip" || input.change === "finish" || input.change === "reopen") && keys.length === 1) return { change: input.change };
   return null;
 }

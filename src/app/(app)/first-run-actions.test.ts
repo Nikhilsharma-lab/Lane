@@ -78,6 +78,15 @@ describe("the workspace's first person", () => {
     expect((await load())?.view).toMatchObject({ step: "reviewers", read: ["framing", "prediction"] });
   });
 
+  it("reopens at the step gone back to, so Back then reload resumes where the person left (A220)", async () => {
+    expect(await update({ change: "step", step: "reviewers" })).toEqual({ success: true });
+    expect(await update({ change: "back", step: "prediction" })).toEqual({ success: true });
+    expect((await load())?.view).toMatchObject({ step: "prediction", read: ["framing"] });
+    expect(await update({ change: "step", step: "prediction" })).toEqual({ success: true });
+    expect((await load())?.view).toMatchObject({ step: "reviewers", read: ["framing", "prediction"] });
+    expect(await update({ change: "back", step: "inbox" })).toEqual({ error: "That step isn’t part of your first run." });
+  });
+
   it("refuses a step from the other guide, and anything that isn't a step", async () => {
     expect(await update({ change: "step", step: "inbox" })).toEqual({ error: "That step isn’t part of your first run." });
     expect(await update({ change: "step", step: "sample_data" })).toEqual({ error: "That step isn’t part of your first run." });
