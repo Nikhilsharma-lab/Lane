@@ -7,7 +7,7 @@ import { ChevronDown, ChevronRight, Plus } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { KeyCap } from "@/components/keyboard/key-caps"
-import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext } from "@/components/requests/list-view-state"
+import { listViewHref, usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext } from "@/components/requests/list-view-state"
 import { withListFilter, withoutAddedFilters } from "@/components/requests/list-filters"
 import { listEmptyLine } from "../list-empty-state"
 import { ListEmptyState } from "../list-empty-state-view"
@@ -31,6 +31,7 @@ import { RequestPeek, RequestPeekOpener, preloadRequestPeek, usePeekAvailable, t
 import { isSameTabRequestLink, useRequestNavigation } from "../request-navigation"
 import { RequestPeekLoadAhead, useListLoadAhead } from "../request-peek-load-ahead"
 import { captureSequence } from "../request-sequence"
+import { useListFeel } from "../list-feel"
 import type { RequestColumn } from "./columns"
 import styles from "../request-rows.module.css"
 import layoutStyles from "./data-table-toolbar.module.css"
@@ -71,6 +72,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   const presentation = useRequestRowPresentation()
   const layoutRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const summaryTrigger = useRef<HTMLButtonElement>(null)
   const groupId = useId()
@@ -154,6 +156,9 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // preview. A change made in the preview that moves its Request out of the view does not: that
   // is no view change.
   const viewSignature = viewResets.preview(view)
+  // #275: rows slide into place when the same list changes (a new filter, order, grouping or Show more shows at once),
+  // Back finds the list where it was scrolled (A232) and coming back to the tab reads fresh rows.
+  useListFeel(gridRef, scrollRef, { rows: gridKeys, still: viewSignature, href: listViewHref(view), scope: `${context?.orgId}:${viewer?.id}`, hold: (pendingMutations?.unconfirmed ?? 0) > 0 })
   const [peekView, setPeekView] = useState(viewSignature)
   if (peekView !== viewSignature) {
     setPeekView(viewSignature)
@@ -163,7 +168,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // widening it again does not bring one back unasked.
   if (!peekAvailable && nextPeekId) nextPeekId = null
   if (nextPeekId !== peekId) setPeekId(nextPeekId)
-  const peekFromMenu = useMemo(() => peekAvailable ? (id: string) => { setGridActive(`r:${id}`); openPeek(id) } : null, [peekAvailable, setGridActive, openPeek])
+  // A211 (#275): Preview from the row menu leaves focus on the row itself, as Escape from the menu does.
+  const peekFromMenu = useMemo(() => peekAvailable ? (id: string) => { focusGridKey(`r:${id}`); openPeek(id) } : null, [peekAvailable, focusGridKey, openPeek])
   const closePeek = useCallback(() => {
     const id = peekId
     setPeekId(null)
@@ -308,7 +314,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={changeSummary} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter} onStatusChange={setStatus} onVisibilityChange={setVisibility} onOrderingChange={setOrdering} onGroupingChange={setGrouping} onClear={clearFilters} />
-    <div className={layoutStyles.listScroll}>
+    <div ref={scrollRef} className={layoutStyles.listScroll}>
     <div className={`${styles.records} ${layoutStyles.recordRegion}`}>
       {emptyLine.kind === "welcome" ? welcome : !matching.length ? <ListEmptyState line={emptyLine} status={filter} onClear={clearFilters} />
         : <div ref={gridRef} role={grouped ? "treegrid" : "grid"} aria-label={gridLabel} aria-multiselectable="true" className={styles.list} data-request-grid="" {...grid.gridProps} onClickCapture={captureOpen}

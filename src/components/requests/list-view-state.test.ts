@@ -225,11 +225,10 @@ describe("The list's display in its address (#275)", () => {
       .toEqual({ seen: "folded=done&order=oldest&shown=open.50", write: "/?order=oldest&folded=done&shown=open.50" })
   })
 
-  it("applies an adopted address as the whole list, and keeps the same view when nothing changes", () => {
-    const view = { ...initialLike(), status: "open", shownCounts: { "status:open": 75 } } as ListViewState
-    const moved = withListAddress(view, { status: "open", project: "all", title: "", ...display, collapsedGroups: ["status:done"], shownCounts: { "status:open": 50 } })
-    expect(moved).toMatchObject({ status: "open", ordering: "oldest", collapsedGroups: ["status:done"], shownCounts: { "status:open": 50 } })
-    expect(withListAddress(moved, { status: "open", project: "all", title: "", ...display, collapsedGroups: ["status:done"], shownCounts: { "status:open": 50 } })).toBe(moved)
+  it("applies an adopted address as the whole list", () => {
+    const view = { ...initialLike(), status: "open", shownCounts: { "status:open": 75 }, savedView: "v1" } as ListViewState
+    const moved = withListAddress(view, { status: "done", project: "all", title: "", ...display, collapsedGroups: ["status:done"], shownCounts: { "status:open": 50 } })
+    expect(moved).toMatchObject({ status: "done", ordering: "oldest", collapsedGroups: ["status:done"], shownCounts: { "status:open": 50 }, savedView: "v1" })
   })
 })
 

@@ -260,11 +260,8 @@ type AddressOf = RequestListContext & Partial<ListDisplay>
 export const listViewHref = (view: AddressOf) => requestListHref(view.status, view.project, view.title, view)
 
 /** #275: an address that arrived is the whole list: its context, order, grouping, folded groups and shown counts. */
-export function withListAddress(view: ListViewState, next: ListAddress): ListViewState {
-  const moved = withListContext(view, next)
-  if (listViewHref(moved) === listViewHref(next)) return moved
-  const { ordering, grouping, collapsedGroups, shownCounts } = next
-  return { ...moved, ordering, grouping, collapsedGroups, shownCounts }
+export function withListAddress(view: ListViewState, { ordering, grouping, collapsedGroups, shownCounts, ...context }: ListAddress): ListViewState {
+  return { ...withListContext(view, context), ordering, grouping, collapsedGroups, shownCounts }
 }
 
 export type ListUrlSyncInput = {
