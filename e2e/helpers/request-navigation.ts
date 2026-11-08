@@ -137,14 +137,19 @@ async function setDisplay(page: Page) {
   for (const [label, value] of [["Group by", "No grouping"], ["Order by", "Title A–Z"]]) {
     await page.getByRole("combobox", { name: label, exact: true }).click();
     await page.getByRole("option", { name: value, exact: true }).click();
+    // A closing option list still owns Escape until it has gone, as a person's next key would find.
+    await expect(page.getByRole("listbox")).toHaveCount(0);
   }
   await page.keyboard.press("Escape");
+  // Nothing after this clicks outside the popover any more (the page-size picker went with #272), so it must close here.
+  await expect(page.getByRole("dialog", { name: "Display Requests", exact: true })).toBeHidden();
 }
 
 async function expectKeptControls(page: Page, fixture: NavigationFixture) {
   await page.getByRole("button", { name: "Filter by title", exact: true }).click();
   await expect(page.getByRole("searchbox", { name: "Filter by title", exact: true })).toHaveValue(fixture.filter);
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("searchbox", { name: "Filter by title", exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Display", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Group by", exact: true })).toContainText("No grouping");
   await expect(page.getByRole("combobox", { name: "Order by", exact: true })).toContainText("Title A–Z");
@@ -161,6 +166,7 @@ export async function prepareNavigationList(page: Page, fixture: NavigationFixtu
   await page.getByRole("button", { name: "Filter by title", exact: true }).click();
   await page.getByRole("searchbox", { name: "Filter by title", exact: true }).fill(fixture.filter);
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("searchbox", { name: "Filter by title", exact: true })).toBeHidden();
   await setDisplay(page);
   await expect(rows(page)).toHaveCount(25);
   await expect(showMore(page)).toHaveCount(1);
@@ -195,8 +201,8 @@ export async function verifyProjectReselection(page: Page, fixture: NavigationFi
 export async function verifyDetailHistoryAndSearch(page: Page, fixture: NavigationFixture, capture: Capture) {
   await prepareNavigationList(page, fixture);
   await showMoreRequests(page, fixture);
-  // The Request Show more brought in.
-  const row = rows(page).nth(25);
+  // The last of the first 25: detail's next Request is the one Show more brought in.
+  const row = rows(page).nth(24);
   const id = (await row.getAttribute("data-request-id"))!;
   const listUrl = page.url();
   const historyLength = await page.evaluate(() => history.length);
