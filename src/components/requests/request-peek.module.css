@@ -1,5 +1,7 @@
 /* In-flow dock adapted from Arc's ai-side-panel: the list and detail own separate columns. */
-.viewport { position: relative; display: flex; flex: 0 0 55%; min-width: 0; min-height: 0; overflow: clip; container: request-peek / inline-size; }
+.viewport { position: relative; display: flex; flex: 0 0 var(--request-preview-width, 55%); min-width: 0; min-height: 0; overflow: clip; container: request-peek / inline-size; }
+/* Leaving (#240 motion), out of the list's flow at its own width: data-table-toolbar.module.css places it. */
+.viewport[data-leaving] { width: var(--request-preview-width, 55%); }
 .panel { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: clip; border-inline-start: var(--border-width) solid var(--border-subtle); background: var(--surface); }
 /* Each column keeps its own scroll position. */
 .panel :global([data-detail]) { min-height: 0; }

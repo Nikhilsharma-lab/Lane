@@ -6,6 +6,8 @@
 .list { list-style: none; margin: 0; padding: 0; }
 .row { cursor: pointer; display: flex; align-items: center; gap: var(--space-1); min-height: var(--request-row-height); padding: 0 var(--space-2); border-radius: var(--request-row-radius); }
 .rowContent { display: flex; align-items: center; gap: var(--space-4); flex: 1; min-width: 0; }
+/* #273: the keyboard ring is drawn inside the row, so the list's edge and the panel beside it never clip it. */
+.row { --focus-outline-offset: calc(-1 * var(--focus-outline-width)); }
 .row:hover, .row[data-menu-open] { background: var(--interaction-hover); }
 .row[data-previewed] { background: var(--interaction-hover); }
 .row[data-selected] { background: var(--selection-background); }
@@ -124,10 +126,25 @@
 @container (max-width: 880px) {
   .row[data-compact-row] .properties { max-width: 40%; }
 }
-@container (max-width: 700px) {
-  .row[data-compact-row] .properties > [data-row-property="createdAt"] { display: none; }
+/* #273 (A216): beside the preview or the summary the list narrows, and its rows drop properties by the list's own
+   width, in order: Labels, then Submitted by and the Project, then the Assignee, then the date. The code, status,
+   priority and title (ending in "…", in full on hover) always stay. Beside the preview at 1280 and 1440 the list is
+   about 450 and 470px wide, so both keep the Assignee and the date. Phones keep their own set (below). */
+@media (min-width: 641px) {
+  @container (max-width: 600px) {
+    .row[data-compact-row] .properties > [data-row-property="requestType"] { display: none; }
+  }
+  @container (max-width: 520px) {
+    .row[data-compact-row] .properties > :is([data-row-property="submittedBy"], [data-row-property="project"]) { display: none; }
+  }
+  @container (max-width: 380px) {
+    .row[data-compact-row] .properties > [data-row-property="pickedUpBy"] { display: none; }
+  }
+  @container (max-width: 300px) {
+    .row[data-compact-row] .properties > [data-row-property="createdAt"] { display: none; }
+  }
 }
-@container (max-width: 640px) {
+@media (max-width: 640px) {
   /* Phones keep the assignee, the due tag (#133) and a Guest submission's
      "Waiting to be taken on" tag (review of #195: none are forgotten); every other property is hidden. */
   .row[data-compact-row] .properties > span:not([data-row-property="pickedUpBy"], [data-row-property="due"], [data-row-property="waiting"]) { display: none; }
