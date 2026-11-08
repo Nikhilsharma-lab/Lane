@@ -2,7 +2,11 @@
  * inside the real layout classes of its page, so only the bars are new. Tokens
  * only and no animation here: Arc's pulse already honours reduced motion. */
 .titleSkeleton { display: block; width: calc(var(--space-1) * 40); max-width: 100%; }
-.toolbarStatus { display: block; width: calc(var(--space-1) * 60); max-width: 60%; }
+/* #275 (A225): the toolbar's status pills and icon buttons, as outlines at their loaded size. */
+.pill { flex: none; height: var(--control-height-sm); border: var(--border-width) solid var(--border); border-radius: var(--radius-pill); }
+.pillShort { width: calc(var(--space-1) * 18); }
+.pillLong { width: calc(var(--space-1) * 28); }
+.tool { display: block; height: var(--toolbar-icon-size); border: var(--border-width) solid var(--border); }
 /* The group header matches the loaded table header, independently of record row height. */
 .groupHeader { min-height: var(--table-head-height); }
 .groupLabel { display: block; width: calc(var(--space-1) * 35); max-width: 50%; padding-inline: var(--space-2); }

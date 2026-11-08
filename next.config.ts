@@ -33,7 +33,10 @@ const nextConfig: NextConfig = {
     // button, the page strip) were still copied into three or four of every page's files, and a few more lines in a
     // page could tip its own code into two files (the list did, after #270). At 400 KB every page's first load is
     // 0.9-3.6 KB (gzip) lighter in up to 3 fewer files; moving between pages and opening a popup fetch the same or less.
-    turbopackChunking: { minChunkSize: 400_000 },
+    // Build 5 (#275): merged files up to 250 KB (the default is 200 KB). The list's own code had reached the 200 KB
+    // cap, so a few lines more cut it into two files and its first load grew 0.8 KB (gzip) for 0.3 KB of code. At
+    // 250 KB every page's first load is 0.1-3.4 KB (gzip) lighter than at 200 KB, and none is heavier.
+    turbopackChunking: { minChunkSize: 400_000, maxMergeChunkSize: 250_000 },
   },
   // #266: Motion's split needs `motion/react` resolved to framer-motion (src/components/motion/motion-alias.ts).
   turbopack: { resolveAlias: MOTION_ALIAS },

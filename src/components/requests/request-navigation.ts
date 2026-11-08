@@ -3,8 +3,8 @@
 import { createContext, useContext, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { holdsOffline } from "@/lib/offline-navigation"
-import { requestListContextFromHref, requestListHref, type RequestListContext } from "@/lib/request-workspace"
-import { planListUrlSync, withListContext, withSavedView, type DetailSessionPatch, type ListUrlSyncInput, type ListViewState, type SetListView } from "./list-view-state"
+import { requestListContextFromHref, type RequestListContext } from "@/lib/request-workspace"
+import { listViewHref, planListUrlSync, withListContext, withSavedView, type DetailSessionPatch, type ListUrlSyncInput, type ListViewState, type SetListView } from "./list-view-state"
 import { settleSequence, type DetailSequence } from "./request-sequence"
 
 type ListSelection = Partial<RequestListContext> & { savedView?: string }
@@ -60,11 +60,13 @@ export function createRequestNavigation(state: NavigationState) {
     listSelectionPending = true
     const filtered = withListContext(state.getView(), next)
     const selected = withSavedView(filtered, next.savedView ? { id: next.savedView, filters: filtered } : null)
-    state.setView(next.project !== undefined && Object.keys(selected.shownCounts).length
+    // Choosing the open list again starts each group at its first 25; reopening it from another page keeps them (#275).
+    state.setView(next.project !== undefined && location.pathname === "/" && Object.keys(selected.shownCounts).length
       ? { ...selected, shownCounts: {} } : selected)
     if (location.pathname !== "/") {
       pendingPath = "/"
-      browser.push(requestListHref(selected.status, selected.project, selected.title))
+      // #275: the list's order, grouping, folds and shown counts travel with it.
+      browser.push(listViewHref(state.getView()))
     } else if (supersedesRoute) {
       // A detail transition may not have committed yet. Cancel it at the current URL;
       // the mirror still holds the selected context until pending mutations settle.
@@ -91,7 +93,7 @@ export function createRequestNavigation(state: NavigationState) {
         return { seen: input.search }
       }
       const current = state.getView()
-      const href = requestListHref(current.status, current.project, current.title)
+      const href = listViewHref(current)
       // Both router state and the address bar must acknowledge the selection:
       // either can still show the previous route while its list is loading.
       if (input.pathname === "/" && href === `/${input.search ? `?${input.search}` : ""}`
