@@ -234,14 +234,7 @@
 
 /* Persistent navigation selection uses the shared preview fill; transient hover remains neutral. */
 :global(:root[data-ui-state-contract="semantic"]) .headerAction[aria-pressed="true"]:is(:hover, :focus-visible, :active) { background: var(--selection-background); color: var(--selection-foreground); }
-:global(:root[data-ui-state-contract="semantic"]) .row[aria-current="page"] {
-  --project-blue: var(--selection-icon, var(--selection-foreground));
-  --project-green: var(--selection-icon, var(--selection-foreground));
-  --project-violet: var(--selection-icon, var(--selection-foreground));
-  --project-amber: var(--selection-icon, var(--selection-foreground));
-  --project-coral: var(--selection-icon, var(--selection-foreground));
-  --project-slate: var(--selection-icon, var(--selection-foreground));
-}
+/* The active Project keeps its own colour dot (#274, A25). */
 :global(:root[data-ui-state-contract="semantic"]) .row[aria-current="page"]:is(:hover, :focus-visible, :active) { color: var(--selection-foreground); }
 :global(:root[data-ui-state-contract="semantic"]) .row[aria-current="page"] :is(.name, .name mark) { color: var(--selection-foreground); }
 :global(:root[data-ui-state-contract="semantic"]) .row[aria-current="page"] :is(.unread, .railDotFace) { background: var(--selection-icon, var(--selection-foreground)); }

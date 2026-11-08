@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useMemo, type ReactNode } from "react"
-import { Copy } from "lucide-react"
+import { Copy, Hash, Link2, Type } from "lucide-react"
 import type { ContextMenuItem } from "@/components/arc/context-menu/context-menu"
 import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { formatRequestCode } from "@/lib/request-code"
@@ -15,6 +15,7 @@ import { useRequestNavigation } from "./request-navigation"
 import { priorityOptions } from "./priority-options"
 import { PriorityGlyph, RequestRowPresentation, StatusGlyph, type RequestIdentity } from "./row-presentation"
 import { statuses } from "./tasks/statuses"
+import { statusStepReason } from "./status-step-reason"
 
 type Move = LifecycleMove
 
@@ -75,7 +76,7 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
   // memoised rows call it only when they re-render (plan item 1.14).
   const menuItems = useMemo(() => {
 
-    // The five journey statuses (#133); only the lifecycle's next move is ever selectable.
+    // The five journey statuses (#133); only the lifecycle's next move is ever selectable. A greyed one says why (A228).
     function statusItems(request: OverviewRequest, next: AvailableMove | null, reason: string | undefined): ContextMenuItem[] {
       const journey = rowJourney(request)
       return statuses.map(status => {
@@ -87,7 +88,7 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
           icon: <StatusGlyph status={status.value} />,
           checked: current,
           disabled: !transition || Boolean(reason),
-          description: transition ? reason : undefined,
+          description: transition ? reason : statusStepReason(journey.status, status.value),
           onSelect: transition && !reason ? () => move(request, transition.move) : undefined,
         }
       })
@@ -99,9 +100,7 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
         label,
         icon,
         checked: current === priority,
-        // canEdit is the access rule for an Open Request, a guest's own included.
-        disabled: !request.canEdit,
-        onSelect: !request.canEdit || current === priority ? undefined : () => setPriority(request, priority),
+        onSelect: current === priority ? undefined : () => setPriority(request, priority),
       }))
     }
 
@@ -110,9 +109,9 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
       // The one shared rule (plan item 2.4): the row, the bulk bar and detail offer the same move,
       // and a pickup that isn't ready shows why instead of failing on the server.
       const copyItem: ContextMenuItem = { id: "copy", label: "Copy", separatorBefore: !readOnly, icon: <Copy />, children: [
-        ...(identity.code ? [{ id: "code", label: "Copy code", onSelect: () => void copy(identity.code, "Code") }] : []),
-        { id: "title", label: "Copy title", onSelect: () => void copy(request.reframedProblem ?? request.title, "Title") },
-        { id: "link", label: "Copy link", onSelect: () => void copy(new URL(`/requests/${request.id}`, window.location.origin).href, "Link") },
+        ...(identity.code ? [{ id: "code", label: "Copy code", icon: <Hash />, onSelect: () => void copy(identity.code, "Code") }] : []),
+        { id: "title", label: "Copy title", icon: <Type />, onSelect: () => void copy(request.reframedProblem ?? request.title, "Title") },
+        { id: "link", label: "Copy link", icon: <Link2 />, onSelect: () => void copy(new URL(`/requests/${request.id}`, window.location.origin).href, "Link") },
       ] }
       if (readOnly) return [copyItem]
       const next = availableMove(request, { isGuest })
@@ -121,7 +120,8 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
         // The lifecycle verb sits at the top; the Status submenu keeps the full picture.
         ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, disabled: Boolean(reason), description: reason, onSelect: reason ? undefined : () => move(request, next.move) }] : []),
         { id: "status", label: "Status", separatorBefore: Boolean(next), icon: <StatusGlyph status={rowJourney(request).status} />, children: statusItems(request, next, reason) },
-        ...(request.status !== "done" ? [{ id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) }] : []),
+        // As the row's glyph: priority changes only while the Request is Open and this person can change it (A213).
+        ...(request.canEdit ? [{ id: "priority", label: "Priority", icon: <PriorityGlyph priority={identity.priority} />, children: priorityItems(request, identity.priority) }] : []),
         copyItem,
       ]
     }

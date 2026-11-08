@@ -1,0 +1,2 @@
+/* A status line of one sentence (#240 decision 8) has no second line to show. */
+.oneLine p { display: none; }

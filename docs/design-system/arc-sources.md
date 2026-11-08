@@ -610,3 +610,10 @@ The local hashes for `workspace-sidebar.tsx` and `workspace-sidebar.module.css` 
 ### Build 4 fix round 5: typographic apostrophes (2026-11-05)
 
 The local hash for `workspace-sidebar.tsx` records one copy change: New Project's failure message reads "Project couldn’t be created. Try again." with a typographic apostrophe, as Lane's other copy now does.
+
+### Build 5.3: rows, status pills and toolbar menus (#274, 2026-11-08)
+
+- `src/components/arc/blocks/workspace-sidebar/workspace-sidebar.module.css`: the active Project row no longer points the six Project-tone tokens at the selection icon colour, so its dot keeps its own colour (A25). The row's selected fill, text and unread dot are unchanged. This replaces the earlier note that selected Project dots take the selected foreground.
+- `src/components/arc/filter-toolbar/filter-toolbar.module.css`: the `presentation="popover"` panel sizes to its content, never narrower than Arc's 64-step width and never wider than the viewport less its margin, so "Waiting to be taken on" and its count fit (A227). The morph presentation is unchanged.
+- The status pills' "N more" overflow stays Arc `dropdown-menu`, now with each view's glyph as the item icon (Arc's standard icon inset) and Arc's `trailingIcon` check on the current view (A29). Arc source is unchanged.
+- The Request row menu passes icons for Select, Open Request, Preview and the Copy items, so Arc `context-menu` never falls back to its "···" glyph there (A28). Arc source is unchanged.

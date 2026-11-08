@@ -47,6 +47,9 @@
 .badge.badge { padding-inline: var(--badge-sm-padding); max-width: 100%; --badge-background: var(--request-property-background); --badge-hover-background: var(--request-property-background); --badge-border: var(--request-property-border); --badge-hover-border: var(--request-property-border); }
 .compactLabels { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; max-width: 100%; }
 .count { flex: none; font-variant-numeric: tabular-nums; }
+/* A22: in a row the first label gives way to "+N": its name ends in an ellipsis rather than pushing past its chip. */
+.compactLabels > :first-child:not(.count) { flex: 0 1 auto; min-width: 0; }
+.compactLabels .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .create, .colourOption { height: auto; min-height: var(--menu-row-height); padding-block: var(--space-2); text-align: start; }
 .create > span, .colourOption > span { width: 100% !important; }

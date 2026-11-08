@@ -32,6 +32,8 @@ export default defineConfig({
       "src/lib/request-overview.test.ts",
       "src/components/requests/list-view-model.test.ts",
       "src/components/requests/list-view-state.test.ts",
+      "src/components/requests/list-empty-state.test.ts",
+      "src/components/requests/status-step-reason.test.ts",
       "src/components/requests/request-navigation.test.ts",
       "src/lib/request-code.test.ts",
       "src/lib/workspace-search.test.ts",

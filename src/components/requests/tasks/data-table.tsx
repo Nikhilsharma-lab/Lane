@@ -4,11 +4,13 @@ import { listViewModel, showMore, viewResets, withRowShown, type ListGroup } fro
 import { Fragment, memo, useCallback, useEffect, useEffectEvent, useId, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 import { AnimatePresence } from "motion/react"
 import { ChevronDown, ChevronRight, Plus } from "lucide-react"
-import { EmptyState } from "@/components/arc/empty-state/empty-state"
 import { Button } from "@/components/arc/button/button"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
+import { KeyCap } from "@/components/keyboard/key-caps"
 import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext } from "@/components/requests/list-view-state"
-import { withListFilter, withoutListFilters } from "@/components/requests/list-filters"
+import { withListFilter, withoutAddedFilters } from "@/components/requests/list-filters"
+import { listEmptyLine } from "../list-empty-state"
+import { ListEmptyState } from "../list-empty-state-view"
 import { usePendingMutations, usePendingRows } from "@/components/requests/pending-mutations-provider"
 import { RequestWorkspaceKeyboard } from "../request-workspace-keyboard"
 import type { FinishedCounts, OverviewRequest } from "@/lib/request-overview"
@@ -208,7 +210,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     navigation.prepareDetail(openedId, { sequence: captureSequence(matching.map(row => row.id), openedId) })
   }, [matching, navigation, peekAvailable, focusGridKey, openPeek, closePeek])
   const setFilter = useCallback((id: string, value: string) => setView(previous => withListFilter(previous, id, value)), [setView])
-  const clearFilters = useCallback(() => setView(withoutListFilters), [setView])
+  // A215: Clear all and Clear filters clear what was added, never the status pill or the page's Project.
+  const clearFilters = useCallback(() => setView(withoutAddedFilters), [setView])
   const setStatus = useCallback((next: RequestStatusFilter) => setView(previous => withListContext(previous, { status: next })), [setView])
   const setVisibility = useCallback((next: Record<string, boolean>) => setView(previous => ({ ...previous, columnVisibility: { ...previous.columnVisibility, ...Object.fromEntries(Object.entries(next).filter(([key, value]) => value !== (columnVisibility[key] !== false))) } })), [setView, columnVisibility])
   const setOrdering = useCallback((next: typeof ordering) => setView(previous => ({ ...previous, ordering: next, shownCounts: {} })), [setView])
@@ -280,8 +283,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     if (filter !== "all" || projectFilter !== "all" || title || requestType) announce(`${matchCountText(matchCount)}.`, { key: "count", delay: 600 })
     else announce("Filters cleared.", { key: "count" })
   }, [announce, filter, filterSignature, matchCount, projectFilter, requestType, title, workspaceEmpty])
-  const hasFilter = filter !== "all" || !!title || !!requestType
-  const emptyTitle = hasFilter ? "No matching Requests" : projectFilter === "none" ? "No Requests without a Project" : projectFilter !== "all" ? "No Requests in this Project yet" : "No Requests yet"
+  const emptyLine = listEmptyLine(view, { workspaceEmpty, readOnly })
   const gridLabel = projectName ? `${projectName} Requests` : projectFilter === "none" ? "Requests without a Project" : isGuest ? "My Requests" : "Requests"
   const olderError = older?.error ?? null
   // A failed read says so under its group's Show more, or below the list when no shown group continues that read.
@@ -303,12 +305,12 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
     <div className={layoutStyles.listAndSummary} data-summary-open={summaryOpen || undefined} data-preview-open={shownPeek ? "" : undefined}>
     <div className={layoutStyles.listPane} data-empty-workspace={workspaceEmpty || undefined}>
-    <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} project={project} projectName={projectName} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
+    <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={changeSummary} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter} onStatusChange={setStatus} onVisibilityChange={setVisibility} onOrderingChange={setOrdering} onGroupingChange={setGrouping} onClear={clearFilters} />
     <div className={layoutStyles.listScroll}>
     <div className={`${styles.records} ${layoutStyles.recordRegion}`}>
-      {workspaceEmpty ? welcome : !matching.length ? <EmptyState title={emptyTitle} description={hasFilter ? "Change or clear your filters." : "Create a Request to get started."} action={hasFilter ? <Button variant="secondary" onClick={clearFilters}>Clear filters</Button> : undefined} />
+      {emptyLine.kind === "welcome" ? welcome : !matching.length ? <ListEmptyState line={emptyLine} status={filter} onClear={clearFilters} />
         : <div ref={gridRef} role={grouped ? "treegrid" : "grid"} aria-label={gridLabel} aria-multiselectable="true" className={styles.list} data-request-grid="" {...grid.gridProps} onClickCapture={captureOpen}
           // A keyboard user on a row may press Space next: fetch the preview's code ahead of it.
           onFocus={event => { grid.gridProps.onFocus(event); if (peekAvailable) preloadRequestPeek() }}>
@@ -326,7 +328,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
                   {collapsed ? <ChevronRight aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}<span>{group.label}</span>
                   <span className={styles.groupCount}>{count}</span>
                 </button></h2></div>
-                {presentation && !readOnly && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content="New Request"><NewRequestLink tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
+                {presentation && !readOnly && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content={<>New Request<KeyCap className={styles.tipKey}>C</KeyCap></>}><NewRequestLink tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
               </div>
               <div id={id} hidden={collapsed}>{group.shown.map(request => renderRow(request, 2))}{renderMore(group, 2)}</div>
             </div>

@@ -116,17 +116,43 @@ describe("Requests first-use landing", () => {
     expect(html).not.toContain("Active filters")
   })
 
+  // #240 decisions 8 and 10 (A224, A215): a status pill with nothing in it says so in its own words, with no chip,
+  // no match bar and no Clear filters; Open's line offers New Request to whoever can file.
   it("does not mistake a status with no matches for a new workspace", async () => {
     state.role = "member"
     state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "done", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]
     const html = await render("status=open")
+    expect(html).toMatch(/<h2[^>]*>(<[^>]+>)*Nothing is Open</)
+    expect(html).toContain("New Requests start here.")
+    expect(html).toMatch(/<section[\s\S]*Nothing is Open[\s\S]*<a [^>]*href="\/intake"[^>]*>New Request<\/a>/)
+    expect(html).not.toContain('aria-label="Active filters"')
+    expect(html).not.toContain("Remove Status")
+    expect(html).not.toContain("Clear all")
+    expect(html).not.toContain("Clear filters")
+    expect(html).not.toContain("No matching Requests")
+    expect(html).not.toContain("No Requests yet")
+    expect(html).not.toContain("data-requests-welcome")
+  })
+
+  it("gives a Viewer the Open pill's line without New Request", async () => {
+    state.role = "viewer"
+    state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "done", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]
+    const html = await render("status=open")
+    expect(html).toContain("Nothing is Open")
+    expect(intakeLinksOf(html)).toEqual([])
+  })
+
+  it("keeps the generic line and Clear filters for a filter the person added", async () => {
+    state.role = "member"
+    state.rows = [{ id: "request-1", title: "Existing problem", reframedProblem: null, status: "done", createdAt: new Date(), creatorName: "Alex", assigneeName: null }]
+    const html = await render("status=done&title=checkout")
     expect(html).toContain('aria-label="Active filters"')
-    expect(html).toContain('aria-label="Remove Status: Open"')
+    expect(html).toContain('aria-label="Remove Title: checkout"')
+    expect(html).not.toContain("Remove Status")
     expect(html).toContain("Clear all")
     expect(html).toContain("No matching Requests")
     expect(html).toContain("Change or clear your filters.")
-    expect(html).not.toContain("No Requests yet")
-    expect(html).not.toContain("data-requests-welcome")
+    expect(html).toContain("Clear filters")
   })
 
   it("keeps an unavailable deep link recoverable instead of replacing it with onboarding", async () => {
