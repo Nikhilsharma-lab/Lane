@@ -14,17 +14,17 @@ export function useRequestListFilters(): OpenListContext & { title: string } {
 
 /**
  * One list filter changed from the toolbar or the summary: the Project and (A214) the title are list context, so the
- * address and saved views keep them; the label filter stays in the view. Either way the list returns to its first page.
+ * address and saved views keep them; the label filter stays in the view. Either way each group goes back to its first 25.
  */
 export function withListFilter(view: ListViewState, id: string, value: string): ListViewState {
   if (id === "project") return withListContext(view, { project: value || "all" })
   if (id === "title") return withListContext(view, { title: value })
-  return { ...view, pagination: { ...view.pagination, pageIndex: 0 }, localFilters: [...view.localFilters.filter(item => item.id !== id), ...(value ? [{ id, value }] : [])] }
+  return { ...view, shownCounts: {}, localFilters: [...view.localFilters.filter(item => item.id !== id), ...(value ? [{ id, value }] : [])] }
 }
 
-/** Clear filters: every status, every Project, no title and no label filter, on the first page. */
+/** Clear filters: every status, every Project, no title and no label filter, each group at its first 25. */
 export function withoutListFilters(view: ListViewState): ListViewState {
-  return { ...withListContext(view, { status: "all", project: "all", title: "" }), localFilters: [], pagination: { ...view.pagination, pageIndex: 0 } }
+  return { ...withListContext(view, { status: "all", project: "all", title: "" }), localFilters: [], shownCounts: {} }
 }
 
 /**

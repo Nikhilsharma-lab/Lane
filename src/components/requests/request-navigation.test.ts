@@ -9,7 +9,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 function workspace(pathname = "/") {
   let view: ListViewState = { title: "",
-    status: "open", project: "none", pagination: { pageIndex: 3, pageSize: 50 },
+    status: "open", project: "none", shownCounts: { "project:none": 75 },
     columnVisibility: { submittedBy: true }, localFilters: [{ id: "title", value: "checkout" }, { id: "requestType", value: "bug" }],
     ordering: "oldest", grouping: "project", collapsedGroups: ["project:none"],
   }
@@ -22,11 +22,11 @@ function workspace(pathname = "/") {
 }
 
 describe("workspace Requests navigation", () => {
-  it("reselects the current Project from either caller by resetting only the page", () => {
+  it("reselects the current Project from either caller by resetting only how many each group shows", () => {
     for (const source of ["sidebar", "palette"] as const) {
       const app = workspace()
       app[source].selectList({ project: "none" })
-      expect(app.view()).toEqual({ ...app.original, pagination: { pageIndex: 0, pageSize: 50 } })
+      expect(app.view()).toEqual({ ...app.original, shownCounts: {} })
       expect(app.push).not.toHaveBeenCalled()
       expect(app.replace).not.toHaveBeenCalled()
     }
@@ -67,7 +67,8 @@ describe("workspace Requests navigation", () => {
     list.selectList({ project: "none" })
     const input = { search: "project=named", seen: null, written: null, hold: false, pathname: "/", locationSearch: "?project=named" }
     expect(app.controller.planListUrl(input)).toEqual({ seen: "project=named", write: "/?project=none" })
-    expect(app.view()).toMatchObject({ status: "all", project: "none", pagination: { pageIndex: 0, pageSize: 50 } })
+    expect(app.view()).toMatchObject({ status: "all", project: "none" })
+    expect(app.view().shownCounts).toEqual({})
     expect(app.push).toHaveBeenCalledExactlyOnceWith("/?project=named")
     expect(app.replace).not.toHaveBeenCalled()
   })
@@ -171,11 +172,12 @@ describe("workspace Requests navigation", () => {
     }
     renderToStaticMarkup(createElement(RequestListViewProvider, null, createElement(Caller), createElement(Caller)))
     vi.stubGlobal("window", { location: { pathname: "/", search: "" } })
-    set!(current => ({ ...current, pagination: { pageIndex: 4, pageSize: 10 } }))
+    set!(current => ({ ...current, shownCounts: { "status:open": 100 } }))
     const staleSearch = callers[0].continuation()
     callers[1].selectList({ project: "none" })
     callers[0].selectList({ status: "done" })
-    expect(read!()).toMatchObject({ project: "none", status: "done", pagination: { pageIndex: 0, pageSize: 10 } })
+    expect(read!()).toMatchObject({ project: "none", status: "done" })
+    expect(read!().shownCounts).toEqual({})
     expect(staleSearch()).toBe(false)
   })
 
@@ -327,7 +329,8 @@ it("opens a saved view through navigation and clears its association on an ordin
   const current = app.sidebar.continuation()
   app.sidebar.selectList({ status: "done", project: "named", savedView: "personal-view" })
   expect(current()).toBe(false)
-  expect(app.view()).toMatchObject({ status: "done", project: "named", savedView: "personal-view", pagination: { pageIndex: 0 } })
+  expect(app.view()).toMatchObject({ status: "done", project: "named", savedView: "personal-view" })
+  expect(app.view().shownCounts).toEqual({})
   expect(app.view().localFilters).toBe(app.original.localFilters)
   expect(app.push).toHaveBeenCalledExactlyOnceWith("/?status=done&project=named")
   app.palette.selectList({ project: "named" })

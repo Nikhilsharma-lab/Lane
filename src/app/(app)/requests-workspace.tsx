@@ -40,6 +40,7 @@ export async function RequestsWorkspace() {
     requests={list.rows.map(request => ({ ...request, createdAt: request.createdAt.toISOString() }))}
     activeCapped={list.activeCapped}
     hasOlderFinished={list.hasOlderFinished}
+    finishedCounts={list.finishedCounts}
     isGuest={member.role === "guest"}
     readOnly={member.role === "viewer"}
     // The welcome is about the workspace, never about the current filter. It renders here, on the server, so the

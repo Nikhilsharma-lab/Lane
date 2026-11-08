@@ -35,11 +35,12 @@ describe("Request list view contexts (plan item 1.14)", () => {
 })
 
 describe("an open saved view (#219)", () => {
-  const view = { status: "done", project: "none", pagination: { pageIndex: 2, pageSize: 25 } } as ListViewState
+  const view = { status: "done", project: "none", shownCounts: { "status:done": 50 } as ListViewState["shownCounts"] } as ListViewState
   const saved = { id: "view-1", name: "Open work", filters: { status: "open" as const, project: "11111111-1111-4111-8111-111111111111" } }
 
-  it("applies its filters on the first page and remembers which view is open", () => {
-    expect(withSavedView(view, saved)).toMatchObject({ status: "open", project: saved.filters.project, savedView: "view-1", pagination: { pageIndex: 0, pageSize: 25 } })
+  it("applies its filters with each group at its first 25 and remembers which view is open", () => {
+    expect(withSavedView(view, saved)).toMatchObject({ status: "open", project: saved.filters.project, savedView: "view-1" })
+    expect(withSavedView(view, saved).shownCounts).toEqual({})
   })
 
   it("stays open while the person changes the filters, so the change can be saved into it", () => {
@@ -57,10 +58,11 @@ describe("an open saved view (#219)", () => {
 })
 
 describe("Request list context (plan item 1.7)", () => {
-  const view = { status: "all", project: "all", pagination: { pageIndex: 3, pageSize: 25 } } as ListViewState
+  const view = { status: "all", project: "all", shownCounts: { "status:open": 75 } as ListViewState["shownCounts"] } as ListViewState
 
-  it("returns to the first page on a new status view or Project and keeps the view otherwise", () => {
-    expect(withListContext(view, { project: "none" })).toMatchObject({ status: "all", project: "none", pagination: { pageIndex: 0, pageSize: 25 } })
+  it("puts each group back to its first 25 on a new status view or Project and keeps the view otherwise", () => {
+    expect(withListContext(view, { project: "none" })).toMatchObject({ status: "all", project: "none" })
+    expect(withListContext(view, { project: "none" }).shownCounts).toEqual({})
     expect(withListContext(view, { status: "all", project: "all" })).toBe(view)
   })
 
@@ -87,7 +89,7 @@ describe("Request list context (plan item 1.7)", () => {
 })
 
 describe("The title filter in the list context (A214)", () => {
-  const view = { status: "open", project: "all", title: "", localFilters: [] as ListViewState["localFilters"], pagination: { pageIndex: 3, pageSize: 25 } } as ListViewState
+  const view = { status: "open", project: "all", title: "", localFilters: [] as ListViewState["localFilters"], shownCounts: { "status:open": 50 } as ListViewState["shownCounts"] } as ListViewState
   const base = { written: null, hold: false, pathname: "/" }
 
   it("starts from the address, as status and Project do", () => {
@@ -98,9 +100,10 @@ describe("The title filter in the list context (A214)", () => {
     expect(renderInProvider(() => { const [state] = useRequestListView(); return listFiltersOf(state).title })).toBe("checkout")
   })
 
-  it("returns to the first page when it changes, and a context without a title keeps it", () => {
+  it("puts each group back to its first 25 when it changes, and a context without a title keeps it", () => {
     const filtered = withListContext(view, { title: "checkout" })
-    expect(filtered).toMatchObject({ title: "checkout", pagination: { pageIndex: 0, pageSize: 25 } })
+    expect(filtered).toMatchObject({ title: "checkout" })
+    expect(filtered.shownCounts).toEqual({})
     expect(withListContext(filtered, { project: "none" })).toMatchObject({ project: "none", title: "checkout" })
     expect(withListContext(filtered, { title: "checkout" })).toBe(filtered)
   })
@@ -114,11 +117,14 @@ describe("The title filter in the list context (A214)", () => {
     expect(planListUrlSync({ ...base, search: "status=open", seen: "status=open&title=checkout", current: { status: "open", project: "all", title: "checkout" }, locationSearch: "?status=open" })).toEqual({ seen: "status=open", adopt: { status: "open", project: "all", title: "" } })
   })
 
-  it("is changed and cleared with the other list filters, each on the first page", () => {
+  it("is changed and cleared with the other list filters, each group back at its first 25", () => {
     const filtered = withListFilter(withListFilter(view, "title", "checkout"), "requestType", "bug")
-    expect(filtered).toMatchObject({ title: "checkout", localFilters: [{ id: "requestType", value: "bug" }], pagination: { pageIndex: 0 } })
+    expect(filtered).toMatchObject({ title: "checkout", localFilters: [{ id: "requestType", value: "bug" }] })
+    expect(withListFilter({ ...filtered, shownCounts: { "status:open": 50 } }, "requestType", "").shownCounts).toEqual({})
     expect(withListFilter(filtered, "project", "")).toMatchObject({ project: "all", title: "checkout" })
-    expect(withoutListFilters({ ...filtered, pagination: { pageIndex: 2, pageSize: 25 } })).toMatchObject({ status: "all", project: "all", title: "", localFilters: [], pagination: { pageIndex: 0 } })
+    const cleared = withoutListFilters({ ...filtered, shownCounts: { "status:open": 50 } })
+    expect(cleared).toMatchObject({ status: "all", project: "all", title: "", localFilters: [] })
+    expect(cleared.shownCounts).toEqual({})
   })
 
   it("comes back with a saved view", () => {
@@ -130,10 +136,11 @@ describe("The title filter in the list context (A214)", () => {
 })
 
 describe("An empty workspace's status view (plan item 2.1)", () => {
-  const view = { status: "done", project: "none", pagination: { pageIndex: 2, pageSize: 25 } } as ListViewState
+  const view = { status: "done", project: "none", shownCounts: { "status:done": 50 } as ListViewState["shownCounts"] } as ListViewState
 
   it("drops a status view while the workspace has no Requests, keeping the Project", () => {
-    expect(withEmptyWorkspaceStatus(view, true)).toMatchObject({ status: "all", project: "none", pagination: { pageIndex: 0, pageSize: 25 } })
+    expect(withEmptyWorkspaceStatus(view, true)).toMatchObject({ status: "all", project: "none" })
+    expect(withEmptyWorkspaceStatus(view, true).shownCounts).toEqual({})
     expect(withEmptyWorkspaceStatus(view, false)).toBe(view)
     const all = { ...view, status: "all" } as ListViewState
     expect(withEmptyWorkspaceStatus(all, true)).toBe(all)
@@ -154,7 +161,7 @@ describe("An empty workspace's status view (plan item 2.1)", () => {
 describe("Showing a Request the filters hide (plan item 2.3)", () => {
   const view = {
     status: "done", project: "p2", title: "pricing", localFilters: [{ id: "requestType", value: "bug" }],
-    pagination: { pageIndex: 2, pageSize: 25 }, collapsedGroups: ["status:open"], ordering: "newest", grouping: "status", columnVisibility: {},
+    shownCounts: { "status:done": 50 }, collapsedGroups: ["status:open"], ordering: "newest", grouping: "status", columnVisibility: {},
   } as ListViewState
   const created: OverviewRequest = { id: "new", title: "Checkout drops at the phone step", reframedProblem: null, status: "open", createdAt: "2026-10-11T10:00:00Z", creatorName: null, assigneeName: null, projectId: "p1", requestType: "bug" }
 
@@ -164,7 +171,8 @@ describe("Showing a Request the filters hide (plan item 2.3)", () => {
 
   it("moves to the smallest view that holds the Request, keeps filters that include it, and asks the list to reveal it", () => {
     const next = revealRequest(view, created)
-    expect(next).toMatchObject({ status: "open", project: "p1", title: "", localFilters: [{ id: "requestType", value: "bug" }], pagination: { pageIndex: 0, pageSize: 25 }, reveal: "new" })
+    expect(next).toMatchObject({ status: "open", project: "p1", title: "", localFilters: [{ id: "requestType", value: "bug" }], reveal: "new" })
+    expect(next.shownCounts).toEqual({})
     // A collapsed group is not a filter; the list expands it when it reveals the row.
     expect(next.collapsedGroups).toEqual(["status:open"])
   })
@@ -173,7 +181,7 @@ describe("Showing a Request the filters hide (plan item 2.3)", () => {
     expect(revealRequest(view, { ...created, projectId: null }).project).toBe("none")
     const holding = { ...view, status: "all", project: "all", title: "", localFilters: [] } as ListViewState
     const next = revealRequest(holding, created)
-    expect(next).toMatchObject({ status: "all", project: "all", localFilters: [], pagination: holding.pagination, reveal: "new" })
+    expect(next).toMatchObject({ status: "all", project: "all", localFilters: [], shownCounts: holding.shownCounts, reveal: "new" })
   })
 
   it("gives the composer a getter for the view that reads no context on render", () => {

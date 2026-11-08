@@ -1,8 +1,8 @@
 "use client"
 // Lane Request rows composed from official Arc properties, filters and controls.
-import { useEffect, useEffectEvent, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import firstRunStyles from "@/components/first-run/first-run.module.css"
-import { DataTable } from "@/components/requests/tasks/data-table"
+import { DataTable, type OlderReads } from "@/components/requests/tasks/data-table"
 import { columns } from "@/components/requests/tasks/columns"
 import { Folder, Inbox, Plus } from "lucide-react"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
@@ -14,8 +14,8 @@ import { usePublishLoadedRequests, useSetRequestListView, withListContext } from
 import { useRequestListFilters } from "@/components/requests/list-filters"
 import { usePendingMutations } from "@/components/requests/pending-mutations-provider"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
-import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
-import { finishedViewOf, type FinishedView, type RequestStatusFilter } from "@/lib/request-workspace"
+import { rowJourney, type FinishedCounts, type OverviewRequest } from "@/lib/request-overview"
+import { FINISHED_VIEWS, finishedViewOf, type FinishedView, type RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./requests-overview.module.css"
 import { PageStrip } from "@/components/shell/page-strip"
 import { RequestRowActions } from "@/components/requests/request-row-actions"
@@ -43,18 +43,20 @@ async function fetchOlder(orgId: string, beforeId: string, view: FinishedView): 
 
 const oldestFirst = (a: OverviewRequest, b: OverviewRequest) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
 
-type OlderPages = { pages: Partial<Record<FinishedView, OverviewRequest[]>>; more: Partial<Record<FinishedView, boolean>>; pending: FinishedView | null; error: string | null }
+type OlderPages = { pages: Partial<Record<FinishedView, OverviewRequest[]>>; more: Partial<Record<FinishedView, boolean>>; pending: FinishedView | null; error: OlderReads["error"] }
 
 /**
- * The list's finished Requests past the first load, paged per status view (#133).
+ * The list's finished Requests past the first load, paged per status view (#133): the data source behind each
+ * finished group's Show more (A212).
  *
  * The first load holds every finished Request newer than its oldest finished row, and each "all"
  * page extends that run. So a view has loaded every one of its Requests newer than the oldest of
  * that run and its own pages: that oldest row is the view's cursor, and each page continues it
  * with no gap. A finished view fetches its first page as soon as it is chosen, so Measuring,
- * Closed and Due soon or overdue are never limited to the newest page of finished work.
+ * Closed and Due soon or overdue are never limited to the newest page of finished work, unless
+ * the full counts say every one of that status is already loaded.
  */
-function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilter, context: { orgId: string } | undefined, hasOlderFinished: boolean) {
+function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilter, context: { orgId: string } | undefined, hasOlderFinished: boolean, finishedCounts: FinishedCounts | undefined) {
   const [older, setOlder] = useState<OlderPages>({ pages: {}, more: {}, pending: null, error: null })
   // Server rows win over older pages, so a revalidated row is never shown twice.
   const rows = useMemo(() => {
@@ -74,15 +76,23 @@ function useOlderRequests(requests: OverviewRequest[], status: RequestStatusFilt
       const page = await fetchOlder(context.orgId, cursor.id, item)
       setOlder(current => ({ pages: { ...current.pages, [item]: [...current.pages[item] ?? [], ...page.rows] }, more: { ...current.more, [item]: page.hasOlderFinished }, pending: null, error: null }))
     } catch (error) {
-      // A failed first page counts as fetched; "Show older" retries it.
-      setOlder(current => ({ ...current, pages: { ...current.pages, [item]: current.pages[item] ?? [] }, pending: null, error: failureWords(error, OLDER_ERROR) }))
+      // A failed first page counts as fetched; the group's Show more retries it.
+      setOlder(current => ({ ...current, pages: { ...current.pages, [item]: current.pages[item] ?? [] }, pending: null, error: { read: item, message: failureWords(error, OLDER_ERROR) } }))
     }
   }
   const loadFirstPage = useEffectEvent((item: FinishedView) => { void load(item) })
-  const firstPageNeeded = view !== null && view !== "all" && hasMore(view) && older.pages[view] === undefined
+  const allLoaded = view === "done" || view === "measuring" || view === "closed"
+    ? finishedCounts !== undefined && rows.filter(row => rowJourney(row).status === view).length >= finishedCounts[view] : false
+  const firstPageNeeded = view !== null && view !== "all" && hasMore(view) && !allLoaded && older.pages[view] === undefined
   useEffect(() => { if (firstPageNeeded && view) loadFirstPage(view) }, [firstPageNeeded, view])
 
-  return { rows, view, showMore: Boolean(context && view && hasMore(view)), pending: older.pending !== null, error: older.error, loadMore: () => { if (view) void load(view) } }
+  const more = useMemo(() => Object.fromEntries(FINISHED_VIEWS.map(item => [item, Boolean(context) && hasOlderFinished && older.more.all !== false && older.more[item] !== false])) as OlderReads["more"],
+    [context, hasOlderFinished, older.more])
+  // Each Show more calls the latest load, so a click never reads with a stale cursor.
+  const latestLoad = useRef(load)
+  useLayoutEffect(() => { latestLoad.current = load })
+  const reads = useMemo<OlderReads>(() => ({ more, pending: older.pending, error: older.error, load: item => { void latestLoad.current(item) } }), [more, older.pending, older.error])
+  return { rows, reads }
 }
 
 const noViews: SavedView[] = []
@@ -96,7 +106,7 @@ const noViews: SavedView[] = []
 export const WelcomeIcon = () => <Inbox data-icon-size="2xl" />
 export const WelcomeNewRequest = ({ className, children }: { className: string; children: ReactNode }) => <NewRequestLink className={className}>{children}</NewRequestLink>
 
-export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, welcome: workspaceWelcome, viewer, firstRun, savedViews = noViews }: {
+export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, finishedCounts, welcome: workspaceWelcome, viewer, firstRun, savedViews = noViews }: {
   /** #219: the person's own saved views; the strip saves, updates, renames and deletes them. */
   savedViews?: SavedView[]
   /** #217: the person's first run, rendered by the server. The first Request guide is an empty workspace's welcome. */
@@ -112,6 +122,8 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   activeCapped?: boolean
   /** Finished Requests (Done, Measuring, Closed) older than the loaded ones exist on the server. */
   hasOlderFinished?: boolean
+  /** A212: every finished Request the reader can see, by status, for the group headers. */
+  finishedCounts?: FinishedCounts
   /** Plan item 2.12: who is reading, for the Request preview (read with the page; no extra query). */
   viewer?: PeekViewer
 }) {
@@ -119,7 +131,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   const status = listContext?.status ?? "all", project = listContext?.project ?? "all"
   const sharedProjects = useSharedWorkspaceProjects()
   const pendingMutations = usePendingMutations()
-  const older = useOlderRequests(requests, status, context, hasOlderFinished)
+  const older = useOlderRequests(requests, status, context, hasOlderFinished, finishedCounts)
   const rows = older.rows
   // Plan item 2.8: workspace search matches these rows the moment a person types.
   usePublishLoadedRequests(rows)
@@ -141,11 +153,9 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   const openView = openSavedView(savedViews, listContext?.savedView)
   const heading = openView?.name ?? projectName ?? (project === "none" ? "No Project" : isGuest ? "My Requests" : "Requests")
   const viewNote = openView && savedViewChanged(openView.filters, listContext) ? "Filters changed since you saved this view." : undefined
-  const showOlder = older.showMore
-  const footer = (activeCapped || showOlder || older.error) ? <div className={`${styles.limitNote} flex flex-wrap items-center gap-3 pt-4`}>
-    {activeCapped && <p className="m-0">Showing the latest 200 Requests.</p>}
-    {showOlder && <Button variant="secondary" size="sm" loading={older.pending} onClick={older.loadMore}>{older.view === "done" ? "Show older Done" : "Show older Requests"}</Button>}
-    {older.error && <p role="alert" className="m-0">{older.error}</p>}
+  // A212: finished groups' Show more reads older Requests; only the active cap's note stays below the list.
+  const footer = activeCapped ? <div className={`${styles.limitNote} flex flex-wrap items-center gap-3 pt-4`}>
+    <p className="m-0">Showing the latest 200 Requests.</p>
   </div> : null
 
   // Plan item 2.1: the table shows this only while the whole workspace, with
@@ -171,8 +181,8 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
       {/* Plan item 2.4: the list's one polite region, mounted empty so its first message is heard. */}
       <ListAnnouncerProvider>
         {context
-          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest} readOnly={readOnly}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} viewer={viewer} /></RequestRowActions>
-          : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} />}
+          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest} readOnly={readOnly}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} viewer={viewer} finishedCounts={finishedCounts} older={older.reads} /></RequestRowActions>
+          : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} finishedCounts={finishedCounts} />}
       </ListAnnouncerProvider>
     </div>
   )

@@ -3,7 +3,7 @@
 import { listFiltersOf } from "./list-view-model"
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react"
 import { useSearchParams } from "next/navigation"
-import type { ColumnFiltersState, ColumnVisibilityState, PaginationState } from "@tanstack/react-table"
+import type { ColumnFiltersState, ColumnVisibilityState } from "@tanstack/react-table"
 import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import { hasRequestListContext, parseRequestListContext, requestListHref, type RequestListContext } from "@/lib/request-workspace"
 import { createCurrentRequestStore, resolveCurrentRequest, type CurrentRequest } from "./current-request"
@@ -18,7 +18,8 @@ export type ListViewState = Required<RequestListContext> & {
   ordering: RequestOrdering
   grouping: RequestGrouping
   collapsedGroups: string[]
-  pagination: PaginationState
+  /** A212: how many Requests each group shows, by group key; a group not listed shows its first 25 (list-view-model.ts). */
+  shownCounts: Record<string, number>
   /** Plan item 2.3: a Request the list should bring into view and focus once, then clear. */
   reveal?: string
   /** #219: the saved view the person opened, kept while they change its filters so the change can be saved into it. */
@@ -32,7 +33,7 @@ const initialView: ListViewState = {
   // Keep the first scan about the Request and its current assignee. The other
   // fields remain available in the Display control when a team needs them.
   columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
-  pagination: { pageIndex: 0, pageSize: 25 },
+  shownCounts: {},
   status: "all", project: "all", title: "",
 }
 
@@ -209,7 +210,7 @@ export function revealRequest(view: ListViewState, row: OverviewRequest): ListVi
   })
   const localFilters = view.localFilters.filter(item => !hiding.has(item.id as keyof ListFilters))
   const narrowed = localFilters.length !== view.localFilters.length
-  return { ...moved, localFilters, pagination: narrowed ? { ...moved.pagination, pageIndex: 0 } : moved.pagination, reveal: row.id }
+  return { ...moved, localFilters, shownCounts: narrowed ? {} : moved.shownCounts, reveal: row.id }
 }
 
 /** Plan item 2.5: Request detail's session. */
@@ -227,18 +228,18 @@ export function useRequestListContext(): OpenListContext {
   return required(useContext(ListContextContext), "useRequestListContext")
 }
 
-/** Moves the list to another status view, Project or title filter and returns to the first page. A missing part stays as it is. */
+/** Moves the list to another status view, Project or title filter, with each group back to its first 25. A missing part stays as it is. */
 export function withListContext(view: ListViewState, next: Partial<RequestListContext>): ListViewState {
   const status = next.status ?? view.status, project = next.project ?? view.project, title = next.title ?? view.title
   if (status === view.status && project === view.project && title === view.title) return view
-  return { ...view, status, project, title, pagination: { ...view.pagination, pageIndex: 0 } }
+  return { ...view, status, project, title, shownCounts: {} }
 }
 
-/** #219: opens a saved view (its filters, on the first page), or with null closes the open one and keeps the filters. */
+/** #219: opens a saved view (its filters, each group at its first 25), or with null closes the open one and keeps the filters. */
 export function withSavedView(view: ListViewState, saved: { id: string; filters: RequestListContext } | null): ListViewState {
   if (!saved) return view.savedView === undefined ? view : { ...view, savedView: undefined }
   const moved = withListContext(view, saved.filters)
-  return { ...moved, savedView: saved.id, pagination: { ...moved.pagination, pageIndex: 0 } }
+  return { ...moved, savedView: saved.id, shownCounts: {} }
 }
 
 /**
