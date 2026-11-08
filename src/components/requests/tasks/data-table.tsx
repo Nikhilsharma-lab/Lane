@@ -7,6 +7,7 @@ import { ChevronDown, ChevronRight, Plus } from "lucide-react"
 import { Pagination } from "@/components/arc/pagination/pagination"
 import { Select } from "@/components/arc/select/select"
 import { Tooltip } from "@/components/arc/tooltip/tooltip"
+import { KeyCap } from "@/components/keyboard/key-caps"
 import { usePublishHighlightedRequest, useRequestListUrlSync, useRequestListView, withEmptyWorkspaceStatus, withListContext, type SetListView } from "@/components/requests/list-view-state"
 import { withListFilter, withoutAddedFilters } from "@/components/requests/list-filters"
 import { listEmptyLine } from "../list-empty-state"
@@ -299,7 +300,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
                   {collapsed ? <ChevronRight aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}<span>{group.label}</span>
                   <span className={styles.groupCount}>{count}</span>
                 </button></h2></div>
-                {presentation && !readOnly && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content="New Request"><NewRequestLink tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
+                {presentation && !readOnly && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content={<>New Request<KeyCap className={styles.tipKey}>C</KeyCap></>}><NewRequestLink tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
               </div>
               <div id={id} hidden={collapsed}>{rows.map(request => renderRow(request, 2))}</div>
             </div>

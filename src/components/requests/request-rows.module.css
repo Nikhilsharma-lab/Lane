@@ -56,6 +56,8 @@
 /* A group's header row (plan item 2.4: a treegrid row at level 1) and its rows below. */
 .groupRow { display: flex; align-items: center; border-radius: var(--request-row-radius); }
 .groupCell { flex: 1; min-width: 0; }
+/* The Open group's New Request tip shows its C key in Lane's key cap (#274). */
+.tipKey { margin-inline-start: var(--space-3); }
 .groupAddCell { display: flex; flex: none; align-items: center; justify-content: center; width: var(--table-head-height); }
 .groupRow + div:not([hidden]) { padding-block-start: var(--request-group-gap); }
 .groupButton { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--table-head-height); padding: var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); text-align: left; cursor: pointer; }
