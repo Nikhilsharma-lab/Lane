@@ -184,7 +184,11 @@ Clerk cutover record still requires hosted invitation-return and production veri
    filter, saved `LAN-n` codes, saved priority, and the workspace search pane (`/`): Requests and Projects
    by saved code, title, description and Goal text; status, type and created-date filters (the
    viewer's local days); recent searches; a result preview (a bottom sheet on narrow screens); Enter on an
-   exact saved code opens that Request (scope approved 2026-10-20).
+   exact saved code opens that Request (scope approved 2026-10-20). The Request preview (Space, the row menu's
+   Preview or a click on the row) sits beside the list in windows 1280px and wider with a mouse; narrower windows,
+   phones and touch screens open the Request's own page, and a window narrowed below 1280px closes the preview.
+   The list summary also sits beside the list on desktop and opens as a bottom panel on phones; the two never
+   show at once (#240 decisions 2 to 4, Build 5 of #256).
 5. Request detail: problem, supporting context, saved Goal, assignment, lifecycle actions,
    attachments, coordination comments and saved design links. Design review discussion and decisions stay
    in Figma (2026-10-18); the earlier Ask for review workflow is retired. The Goal summary is
@@ -874,7 +878,7 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - In-app notifications support the shipped Request loop without a subscriber/watch-all-activity system.
 - **Inbox (#195 item 2, #204, 2026-10-25, on the integration branch):** "Inbox" replaces "Notifications" in all copy.
   The bell's popover is replaced by the `/inbox` page: the list on the left and the existing Request preview beside it
-  (phones and touch open the Request's page instead). One read model (`src/lib/inbox-read-model.ts`) decides what it
+  (below 1280px, on phones and on touch screens the Request's page opens instead). One read model (`src/lib/inbox-read-model.ts`) decides what it
   holds. For-your-information items are the stored notifications for picked up, Done, comments, Looks good and invite
   accepted; they clear when read (opening one reads it), and Mark all read clears everything. An item read during a
   visit stays in place, read, until the next visit. Guests see only items about their own submissions. The bell stays
