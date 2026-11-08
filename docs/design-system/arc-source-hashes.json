@@ -381,7 +381,7 @@
     "source": "https://uiarc.dev/r/context-menu.json",
     "file": "src/components/arc/context-menu/context-menu.tsx",
     "upstreamSha256": "84301492fadf8cfb3dfa1682381932c4b986404b2adc2ef4e868de1582eb367e",
-    "localSha256": "99b29f032b41f006a8c18c5fe581b1074525fd90cf554cd82000b60d49203dee"
+    "localSha256": "9b756ddf75ef09fce8d11c89c6b2b4fdecdd4214a270a1e2eb05eb8175dcdbc8"
   },
   {
     "id": "context-menu",

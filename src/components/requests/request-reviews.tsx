@@ -15,6 +15,7 @@ import { ReviewerInviteHint } from "./reviewer-invite-hint";
 import { InPageForm } from "@/components/popup/in-page-form";
 import styles from "./request-timeline.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
+import { SectionHeading } from "./section-heading";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
   { error: string }
@@ -141,7 +142,7 @@ export function RequestReviews({
   if (!view && error)
     return (
       <section id="reviewers" aria-label="Reviewers" className={styles.reviews}>
-        <h4>Reviewers</h4>
+        <SectionHeading level={4}>Reviewers</SectionHeading>
         <p role="alert">{error}</p><Button variant="secondary" onClick={() => { void load(); }}>Try again</Button>
       </section>
     );
@@ -151,7 +152,7 @@ export function RequestReviews({
     return (
       <section id="reviewers" aria-label="Reviewers" className={styles.reviews}>
         <div className={expected?.canAdd ? `${styles.header} ${styles.holdsButton}` : styles.header} data-holds-button={expected?.canAdd ? "" : undefined}>
-          <h4>Reviewers</h4>
+          <SectionHeading level={4}>Reviewers</SectionHeading>
         </div>
         {expected?.open && <p className={styles.muted}>{OPTIONAL_LINE}</p>}
         {expected?.reviewers.length
@@ -183,7 +184,7 @@ export function RequestReviews({
   return (
     <section id="reviewers" aria-labelledby="reviewers-heading" className={styles.reviews} aria-busy={busy}>
       <div className={styles.header}>
-        <h4 id="reviewers-heading">Reviewers</h4>
+        <SectionHeading level={4} id="reviewers-heading">Reviewers</SectionHeading>
         {view.canAdd && !adding && (
           <Button ref={addButton} variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
         )}
