@@ -2,9 +2,11 @@ import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { prefersReducedMotion } from "@/components/motion/reduced-motion"
 
 /**
- * #275: the list's feel, loaded after the page (list-feel.ts), so none of it is in the list's first load. Rows slide
- * into place (#230 idea 8), the list keeps its scroll position (A232) and coming back to the tab reads fresh rows
- * (#230 idea 9).
+ * #275: the list's feel. Rows slide into place (#230 idea 8), the list keeps its scroll position (A232) and coming
+ * back to the tab reads fresh rows (#230 idea 9). list-feel.ts, the hook DataTable calls, loads this file once the
+ * page has loaded and is idle (after-page-load.ts) and runs it through `commit` and `mount`; until then the list works
+ * as before. The hook passes the grid's rows, `still` (changes when the list itself does, so nothing slides), the
+ * list's address, its workspace and person (`scope`), and whether a change is unconfirmed (no refresh then).
  */
 
 const timing = (ease: readonly number[]) => ({ duration: motionTokens.duration.standard * 1000, easing: `cubic-bezier(${ease.join(", ")})` })
@@ -88,4 +90,21 @@ export function refreshOnReturn(refresh: () => void) {
   window.addEventListener("focus", read)
   document.addEventListener("visibilitychange", read)
   return () => { window.removeEventListener("focus", read); document.removeEventListener("visibilitychange", read) }
+}
+
+/** What list-feel.ts keeps for the list between commits. */
+export type Feel = RowMoves & { href: string; hold?: boolean; reread?: () => void; place?: ReturnType<typeof keepPlace> }
+
+/** After each commit: rows slide into place, and a new address keeps the position the list has now. */
+export function commit(feel: Feel, grid: HTMLElement | null, still: string, href: string, hold: boolean, reread: () => void) {
+  Object.assign(feel, { hold, reread })
+  moveRows(grid, still, feel)
+  if (feel.href !== href) { feel.href = href; feel.place?.moved() }
+}
+
+/** While the list is shown: its place, and fresh rows on the tab's return unless a change is unconfirmed. */
+export function mount(feel: Feel, scroller: HTMLElement | null, scope: string) {
+  const place = feel.place = scroller ? keepPlace(scroller, scope, () => feel.href) : undefined
+  const stop = refreshOnReturn(() => { if (!feel.hold) feel.reread?.() })
+  return () => { place?.stop(); stop() }
 }

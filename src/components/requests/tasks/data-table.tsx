@@ -156,9 +156,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // preview. A change made in the preview that moves its Request out of the view does not: that
   // is no view change.
   const viewSignature = viewResets.preview(view)
-  // #275: rows slide into place when the same list changes (a new filter, order, grouping or Show more shows at once),
-  // Back finds the list where it was scrolled (A232) and coming back to the tab reads fresh rows.
-  useListFeel(gridRef, scrollRef, { rows: gridKeys, still: viewSignature, href: listViewHref(view), scope: `${context?.orgId}:${viewer?.id}`, hold: (pendingMutations?.unconfirmed ?? 0) > 0 })
+  // #275: rows slide into place, Back finds the list where it was (A232), the tab's return reads fresh rows.
+  useListFeel(gridRef, scrollRef, gridKeys, viewSignature, listViewHref(view), `${context?.orgId}:${viewer?.id}`, (pendingMutations?.unconfirmed ?? 0) > 0)
   const [peekView, setPeekView] = useState(viewSignature)
   if (peekView !== viewSignature) {
     setPeekView(viewSignature)
