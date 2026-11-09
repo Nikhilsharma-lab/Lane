@@ -623,3 +623,14 @@ The local hash for `workspace-sidebar.tsx` records one copy change: New Project'
 - `src/components/arc/filter-toolbar/filter-toolbar.module.css`: the `presentation="popover"` panel sizes to its content, never narrower than Arc's 64-step width and never wider than the viewport less its margin, so "Waiting to be taken on" and its count fit (A227). The morph presentation is unchanged.
 - The status pills' "N more" overflow stays Arc `dropdown-menu`, now with each view's glyph as the item icon (Arc's standard icon inset) and Arc's `trailingIcon` check on the current view (A29). Arc source is unchanged.
 - The Request row menu passes icons for Select, Open Request, Preview and the Copy items, so Arc `context-menu` never falls back to its "···" glyph there (A28). Arc source is unchanged.
+
+### Build 6.1: the release date picker (#277, 2026-11-09)
+
+The Journey's release form and "Is it live?" pick the release date with the official free [Arc Date Picker](https://uiarc.dev/components/date-picker), read through Arc MCP and installed with the shadcn CLI from `https://uiarc.dev/r/date-picker.json` (ticket #277 and spec #256 name the install). It brings back the official [Arc Calendar](https://uiarc.dev/components/calendar) from `https://uiarc.dev/r/calendar.json`, deleted on 2026-10-21 while nothing used it. The installer's offers to overwrite `motion-tokens.ts`, `lib/motion-tokens.ts` and `lib/use-today.ts` were declined, so Lane's motion scale and the unchanged `use-today.ts` stay as they are; Motion and Lucide were already installed and no dependency was added. Upstream hashes were taken from the files as written, before adapting them. Both load only inside the Journey popups' and "Is it live?" release step's code, never in a page's first load.
+
+The adaptation is the one `date-range-picker` had, with each component's API, behaviour, keyboard operation and reduced-motion branches unchanged:
+
+- `src/components/arc/date-picker/date-picker.tsx` and `src/components/arc/calendar/calendar.tsx`: `motion.*` becomes `m.*` (Build 3, `LazyMotion`); the 0.14s exits use `motionTokens.duration.exit`; the calendar's month-strip spring (`visualDuration: 0.36`) uses the no-bounce `spring.smooth`; numeric Lucide sizes become `data-icon-size="md"`.
+- `src/components/arc/date-picker/date-picker.module.css` and `src/components/arc/calendar/calendar.module.css`: pixel gaps, paddings and sizes become the theme's `--space-*` steps (or `calc` multiples of `--space-1`), `1px` borders `--border-width`, weights `--weight-medium`/`--weight-normal`, opacities the nearest `--lane-opacity-*` step, `100ms` the instant duration and the popover's `z-index: 20` `--lane-layer-popover`.
+
+Lane, not Arc, handles Escape inside a popup: Radix hears Escape on the document before the picker's own handler, so the popups that hold a picker pass `src/components/requests/picker-escape.ts` as `onEscapeKeyDown`, and Escape with the calendar open closes only the calendar.

@@ -507,5 +507,33 @@
     "file": "src/components/arc/comment-thread/comment-thread.module.css",
     "upstreamSha256": "5bdcb52d70d94d701d77d20fcb020020007061888277c604abcfbc8c334d0829",
     "localSha256": "1de7aba58b7f5679b2c95a44287c0ba33ebde7599854be70ba30a7dca31f5007"
+  },
+  {
+    "id": "calendar",
+    "source": "https://uiarc.dev/r/calendar.json",
+    "file": "src/components/arc/calendar/calendar.tsx",
+    "upstreamSha256": "cf09873e5d895e46129159e62f7e494f448cfd247aaddd6c9a54de45a5d6c108",
+    "localSha256": "bae797e280c757d44e80b23d3784d136378802960f62eb2b851b0f42dfed8695"
+  },
+  {
+    "id": "calendar",
+    "source": "https://uiarc.dev/r/calendar.json",
+    "file": "src/components/arc/calendar/calendar.module.css",
+    "upstreamSha256": "2e019a6ca658f124c7ea0303aac46aa615a4e6bb3bc485c57d3b85acb0d26adc",
+    "localSha256": "d168bd64f994c8a5e190887753614bde275def3bbf9eb2a475beda8b43278367"
+  },
+  {
+    "id": "date-picker",
+    "source": "https://uiarc.dev/r/date-picker.json",
+    "file": "src/components/arc/date-picker/date-picker.tsx",
+    "upstreamSha256": "996d6b6703f7478c9ce286a3bbcd49a10aac0cb489b0d8915dfd89dad9c4efb8",
+    "localSha256": "6d44b6ed93f6ee3a62493136e0684cd93975f133b967904616e019f492c09310"
+  },
+  {
+    "id": "date-picker",
+    "source": "https://uiarc.dev/r/date-picker.json",
+    "file": "src/components/arc/date-picker/date-picker.module.css",
+    "upstreamSha256": "fc3907dc484832ef441b367dd16135bf081ec77894ea1ae7c9c59508a2abe95a",
+    "localSha256": "502fe250e56057c02fece3438244d6dca4d97e18a13733a9ffe79fc985dc3882"
   }
 ]
