@@ -60,6 +60,12 @@ describe("full counts and Show more (A212)", () => {
     const measuring = many("m", 3, "done").map(r => ({ ...r, releaseState: { version: 1, ownerId: "u", release: { exposureDate: "2026-10-01", audience: "All", evidence: "Log", dueDate: "2026-10-02", startDate: "2026-10-01", windowKind: "relative" }, history: [] } as unknown as OverviewRequest["releaseState"] }))
     expect(summary(listViewModel({ ...view, status: "due" }, measuring, { finishedCounts: { done: 0, measuring: 9, closed: 0 }, olderMore: { due: true } }))).toEqual([["status:measuring", 3, true, "due"]])
   })
+  it("offers Show more under an Assignee group only where it can add rows: finished Requests were all picked up, so Unassigned never gains older ones", () => {
+    const unassigned = many("u", 3, "open", 3)
+    const assigned = many("a", 3, "done").map(r => ({ ...r, assignedTo: "user-1", assigneeName: "Ada" }))
+    const model = listViewModel({ ...view, grouping: "assignee" }, [...unassigned, ...assigned], { finishedCounts: counts, olderMore: { all: true } })
+    expect(summary(model)).toEqual([["assignee:user-1", 3, true, "all"], ["assignee:none", 3, false, null]])
+  })
   it("lets Project, Assignee and ungrouped lists count what is loaded and fetch older finished Requests for the status view", () => {
     const projects = listViewModel({ ...view, grouping: "project" }, loaded, { finishedCounts: counts, olderMore: { all: true } })
     expect(summary(projects)).toEqual([["project:none", 80, true, "all"]])
@@ -83,6 +89,11 @@ describe("Show more", () => {
     expect(showMore(expanded, groupOf(expanded, "status:done"))).toEqual({ view: { ...view, shownCounts: { "status:done": 75 } }, read: "done" })
     // An active group has nothing older to read.
     expect(showMore(view, groupOf(view, "status:open"))).toEqual({ view: { ...view, shownCounts: { "status:open": 50 } }, read: null })
+  })
+  it("never lowers the count an address asked for while its rows are still being read", () => {
+    // A reload of ?shown=done.100: 50 Done are loaded, the address asks for 100.
+    const reloaded = { ...view, shownCounts: { "status:done": 100 } }
+    expect(showMore(reloaded, groupOf(reloaded, "status:done"))).toEqual({ view: reloaded, read: "done" })
   })
   it("grows from what the group shows, so a group with nothing loaded yet reads its first rows", () => {
     const closed = listViewModel(view, loaded, { finishedCounts: { done: 50, measuring: 0, closed: 4 }, olderMore: { all: true, closed: true } }).groups.find(item => item.key === "status:closed")!

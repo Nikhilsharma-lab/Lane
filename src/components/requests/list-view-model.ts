@@ -41,8 +41,9 @@ export function listViewModel(view: ListViewState, rows: OverviewRequest[], serv
     const finished = view.grouping === "status" ? FINISHED_GROUPS[group.key] : undefined
     const known = finished && countsApply && server.finishedCounts && (filters.status === "all" || filters.status === finished) ? server.finishedCounts[finished] : undefined
     const count = Math.max(known ?? 0, group.rows.length)
-    // The older-finished read this group continues: its own status, or the status view it is part of.
-    const read = view.grouping !== "status" ? finishedViewOf(filters.status) : finished ? filters.status === "due" ? "due" : finished : null
+    // The older-finished read this group continues: its own status, or the status view it is part of. Finished
+    // Requests were all picked up, so Unassigned never gains one.
+    const read = view.grouping !== "status" ? group.key === "assignee:none" ? null : finishedViewOf(filters.status) : finished ? filters.status === "due" ? "due" : finished : null
     const older = read && server.olderMore?.[read] && (known === undefined || group.rows.length < known) ? read : null
     const shown = group.rows.slice(0, view.shownCounts[group.key] ?? SHOWN_STEP)
     return { ...group, shown, count, older, more: shown.length < group.rows.length || older !== null }
@@ -54,10 +55,11 @@ export function listViewModel(view: ListViewState, rows: OverviewRequest[], serv
 
 /**
  * A212: Show more under a group. It shows 25 more of that group's loaded rows, and once they run out, names the
- * older-finished read to call (the read's rows then fill the shown count). Other groups never move.
+ * older-finished read to call (the read's rows then fill the shown count). Other groups never move. A count the
+ * address asked for that the rows have not reached yet (a reload) is never lowered: Show more then only reads.
  */
 export function showMore(view: ListViewState, group: ListGroup): { view: ListViewState; read: FinishedView | null } {
-  const next = group.shown.length + SHOWN_STEP
+  const next = Math.max(view.shownCounts[group.key] ?? SHOWN_STEP, group.shown.length + SHOWN_STEP)
   return { view: { ...view, shownCounts: { ...view.shownCounts, [group.key]: next } }, read: next > group.rows.length ? group.older : null }
 }
 
