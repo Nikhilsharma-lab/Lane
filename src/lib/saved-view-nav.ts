@@ -11,6 +11,13 @@ export type SavedView = { id: string; name: string; filters: SavedViewFilters };
 /** The Requests list link that opens a view. */
 export const savedViewHref = (filters: SavedViewFilters) => requestListHref(filters.status, filters.project, filters.title);
 
+/** Names are unique per person, whatever their case (the database's unique index on lower(name)). */
+export const sameViewName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** The server's order (saved-views.ts: lower(name), then id), so a view saved or renamed in this tab takes its place at once. */
+export const inViewOrder = (views: SavedView[]) =>
+  [...views].sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
 /** The view the person opened, while it is still saved. */
 export function openSavedView<T extends SavedView>(views: readonly T[], openId: string | undefined): T | null {
   return (openId && views.find(view => view.id === openId)) || null;

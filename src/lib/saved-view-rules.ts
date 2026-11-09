@@ -5,7 +5,7 @@ import type { SavedView, SavedViewFilters } from "./saved-view-nav";
  * #219: saved views, client-safe rules. Opening a view applies its filters through the normal list, so it never
  * shows more than the person may see. The navigation's part lives in saved-view-nav.ts.
  */
-export { openSavedView, savedViewHref, viewInNavigation, type SavedView, type SavedViewFilters } from "./saved-view-nav";
+export { inViewOrder, openSavedView, sameViewName, savedViewHref, viewInNavigation, type SavedView, type SavedViewFilters } from "./saved-view-nav";
 
 export const SAVED_VIEW_NAME_MAX = 60;
 export { REQUEST_TITLE_FILTER_MAX };
