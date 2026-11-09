@@ -81,8 +81,8 @@ export function StatusPills({ filter, onStatusChange }: { filter: RequestStatusF
   }, [views.length])
 
   const choose = (value: string) => { if (isRequestStatusFilter(value) && value !== filter) onStatusChange(value) }
-  // A29: each view keeps its glyph, as in Add filter, and the current one is checked.
-  const menu = (items: StatusView[]) => items.map(view => ({ label: view.label, icon: viewIcon(view.value), trailingIcon: view.value === filter ? <Check /> : undefined, onSelect: () => choose(view.value) }))
+  // A29: each view keeps its glyph, as in Add filter, and the current one is checked, for assistive technology too.
+  const menu = (items: StatusView[]) => items.map(view => ({ label: view.label, icon: viewIcon(view.value), checked: view.value === filter, trailingIcon: view.value === filter ? <Check /> : undefined, onSelect: () => choose(view.value) }))
 
   return <div ref={frame} className={styles.statusRow} data-measured={measured || undefined} role="group" aria-label="Request status">
     {fit === 0
