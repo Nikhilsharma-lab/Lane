@@ -335,7 +335,7 @@ describe("review state (#77)", () => {
     // The moment stays a moment (#261), so the page shows it in the viewer's zone with LocalTime.
     expect(outline?.steps[0].happened[0]).toEqual(["Requested by Test Member on ", { at: expect.any(String) }, "."]);
     // In progress, filed by the Member: they may close it without a result; someone else is told who can.
-    expect(outline?.steps[1].actions).toEqual([{ action: "closeWithoutResult", label: "Close without a result…", available: true }]);
+    expect(outline?.steps[1].actions).toEqual([{ action: "closeWithoutResult", label: "Close without a result", available: true, emphasis: "secondary" }]);
     const other = (await loadRequestDetail({ ...member, userId: OTHER_ADMIN }, memberRequest))?.request.journeyOutline;
     expect(other?.steps[1].actions[0]).toMatchObject({ available: false, reason: "Only the Requester, Test Member, can close this." });
     // A Viewer is offered nothing, so nothing is held.

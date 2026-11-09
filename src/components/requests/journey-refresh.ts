@@ -46,11 +46,28 @@ export function createJourneyRefresh<T>({ read, show }: { read: () => Promise<T>
   }
 }
 
-/** One timer for the observed server day; a same-day response doesn't poll.
- * Keep watching while a form is open: the coordinator defers until it closes. */
+/** The viewer's calendar day ("2026-10-25"), in their own zone: the day the Journey's countdown counts from. */
+export function viewerToday(now = new Date()) {
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
+/** The next midnight in the viewer's own zone, as an instant. */
+function nextLocalMidnight(now: number) {
+  const midnight = new Date(now)
+  midnight.setHours(24, 0, 0, 0)
+  return midnight.getTime()
+}
+
+/**
+ * Refresh when the viewer's day turns (their local midnight, so the countdown counts their day) and when the server's
+ * does (the next UTC day after `today`, when the server may open Close Request). Each fires once for this server day:
+ * a same-day response doesn't poll. Keep watching while a form is open: the coordinator defers until it closes.
+ */
 export function watchJourneyDate(today: string, refresh: () => void, browser: EventTarget = window) {
-  const midnight = (dayNumber(today) + 1) * DAY_MS
-  const timer = setTimeout(refresh, Math.max(1000, midnight - Date.now()))
+  const now = Date.now()
+  const moments = new Set([nextLocalMidnight(now), (dayNumber(today) + 1) * DAY_MS])
+  const timers = [...moments].map(at => setTimeout(refresh, Math.max(1000, at - now)))
   browser.addEventListener("focus", refresh)
-  return () => { clearTimeout(timer); browser.removeEventListener("focus", refresh) }
+  return () => { timers.forEach(clearTimeout); browser.removeEventListener("focus", refresh) }
 }
