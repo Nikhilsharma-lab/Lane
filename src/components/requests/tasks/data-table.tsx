@@ -82,7 +82,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // and sorting, so an optimistic change regroups the row in the next frame.
   const pendingMutations = usePendingMutations()
   const data = usePendingRows(serverRows)
-  useRequestListUrlSync(view, setView, (pendingMutations?.unconfirmed ?? 0) > 0)
+  const hold = (pendingMutations?.unconfirmed ?? 0) > 0
+  useRequestListUrlSync(view, setView, hold)
   // Plan item 2.1: `data` already carries composer inserts, so the first Request
   // ends the empty state in the same frame. It is read before any filter, so a
   // status, Project or title filter never shows the welcome. Both states render
@@ -157,7 +158,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // is no view change.
   const viewSignature = viewResets.preview(view)
   // #275: rows slide into place, Back finds the list where it was (A232), the tab's return reads fresh rows.
-  useListFeel(gridRef, scrollRef, gridKeys, viewSignature, listViewHref(view), `${context?.orgId}:${viewer?.id}`, (pendingMutations?.unconfirmed ?? 0) > 0)
+  // A212: and a group reads the older Requests it should show (a reload, or a Show more whose read added none of its own).
+  useListFeel({ grid: gridRef, scroller: scrollRef, rows: gridKeys, still: viewSignature, href: listViewHref(view), scope: context && viewer ? `${context.orgId}:${viewer.id}` : null, hold, groups, shownCounts: view.shownCounts, older })
   const [peekView, setPeekView] = useState(viewSignature)
   if (peekView !== viewSignature) {
     setPeekView(viewSignature)
