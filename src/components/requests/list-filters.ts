@@ -1,6 +1,6 @@
 "use client"
 
-import { addedFilters } from "./list-empty-state"
+import { addedFilters } from "./added-filters"
 import { listFiltersOf } from "./list-view-model"
 import { useRequestListContext, useRequestListView, withListContext, type ListViewState, type OpenListContext } from "./list-view-state"
 
@@ -30,7 +30,7 @@ export function withoutListFilters(view: ListViewState): ListViewState {
   return { ...withListContext(view, { status: "all", project: "all", title: "" }), localFilters: [], shownCounts: {} }
 }
 
-/** A215: Clear all and Clear filters clear only the filters added from the toolbar (list-empty-state.ts); the status pill and a Project page's Project stay. */
+/** A215: Clear all and Clear filters clear only the filters added from the toolbar (added-filters.ts); the status pill and a Project page's Project stay. */
 export function withoutAddedFilters(view: ListViewState): ListViewState {
   return addedFilters(listFiltersOf(view)).reduce((next, id) => withListFilter(next, id, ""), view)
 }

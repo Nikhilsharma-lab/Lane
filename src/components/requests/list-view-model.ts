@@ -1,10 +1,10 @@
 import { groupRequestRows, matchesListFilters, sortRequestRows, type FinishedCounts, type ListFilters, type OverviewRequest, type RequestRowGroup } from "@/lib/request-overview"
 import { finishedViewOf, SHOWN_STEP, type FinishedView } from "@/lib/request-workspace"
-import { hasAddedFilters } from "./list-empty-state"
+import { hasAddedFilters } from "./added-filters"
 import type { ListViewState } from "./list-view-state"
 
 /** The list's filters as the view holds them: status, Project and title (the list context, A214), plus the label
- * filter, and whether the Project was added from Add filter (list-empty-state.ts). */
+ * filter, and whether the Project was added from Add filter (added-filters.ts). */
 export function listFiltersOf(view: Pick<ListViewState, "status" | "project" | "title" | "localFilters" | "projectAdded">): ListFilters & Pick<ListViewState, "projectAdded"> {
   const local = (id: string) => String(view.localFilters.find(item => item.id === id)?.value ?? "")
   return { status: view.status, project: view.project, title: view.title, requestType: local("requestType"), projectAdded: view.projectAdded }

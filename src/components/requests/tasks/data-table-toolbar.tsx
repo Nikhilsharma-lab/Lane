@@ -11,7 +11,7 @@ import { Funnel, ListFilter, PanelRight, SlidersHorizontal } from "lucide-react"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { useWorkspaceLabels } from "../workspace-labels"
-import { addedFilters } from "../list-empty-state"
+import { addedFilters } from "../added-filters"
 import { LabelDot } from "../request-labels"
 import { REQUEST_STATUS_FILTERS, REQUEST_STATUS_FILTER_LABELS } from "@/lib/request-workspace"
 import { REQUEST_TITLE_FILTER_MAX } from "@/lib/saved-view-rules"
@@ -57,7 +57,7 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
   const chipOf = (id: string): FilterChip => { const field = fields.find(item => item.id === id); return { id, label: field?.label ?? "Title", value: field?.options.find(option => option.value === values[id])?.label ?? values[id] } }
   // The Add filter menu marks each field's current value, the status pill's included.
   const active = fields.filter(field => values[field.id]).map(field => chipOf(field.id))
-  // #240 decision 10 (A215): chips, and the match bar, only for filters the person added (list-empty-state.ts).
+  // #240 decision 10 (A215): chips, and the match bar, only for filters the person added (added-filters.ts).
   const displayedChips = addedFilters({ title, project, projectAdded, requestType }).map(chipOf)
   const addFilter = (chip: FilterChip) => {
     const field = fields.find(item => item.id === chip.id)
