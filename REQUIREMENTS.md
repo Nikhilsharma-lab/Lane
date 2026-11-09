@@ -848,7 +848,9 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   Members action (Clerk still sends and owns every invitation; this supersedes the "no post-create invite step" line
   above for the first run only). People who join later get a short first run that shows their Inbox. Anyone can
   skip it and find it again under "First-run guide" in the account menu. Progress (steps read, skipped, finished) is
-  kept per person per workspace (`first_run_progress`, migration 0050). No demo workspace or sample data is created.
+  kept per person per workspace (`first_run_progress`, migration 0050) and the guide reopens at the step the person
+  left on: going Back marks that step and the ones after it unread (#276, A220, decided 2026-11-08; no migration).
+  No demo workspace or sample data is created.
   A creator who had already filed a Request before this shipped starts with the guide finished.
 
 ### Requests and Intake
@@ -860,14 +862,15 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - Request detail provides Open, In Progress, Done, loading, forbidden, and not-found states.
 - Comments expose empty, posting, posted, and failed states without duplicate feedback.
 - **Saved views (#195 item 8, #219, 2026-10-25, on the integration branch):** anyone in the workspace, Viewers and
-  Guests included, saves the Requests list's current filters (status view and Project today; later list filters join
-  them) under a name from the list's page strip ("Save view"). Their views are listed under "Your views" in the
+  Guests included, saves the Requests list's current filters (status view, Project and title filter; the title filter
+  joined in Build 4, #270, per #240 decision 11) under a name from the list's page strip ("Save view"). Their views are listed under "Your views" in the
   sidebar; opening one applies its filters through the normal list, so it never shows more than the person may see
   (a Guest's view still shows only their own Requests, and a saved Project must be one they can see). While a view
   is open the list is titled with its name and offers "Save changes to view" once its filters change, "Save as new
   view", "Rename view" and "Delete view". Views are personal (migration 0052, `saved_views`: owner, workspace, name,
   filters): only the owner sees or changes them, names are unique per person ignoring case, and nothing is shared
-  or published. Search text, ordering, grouping and columns are not saved.
+  or published. Workspace search text, ordering, grouping and columns are not saved. Saving, renaming and deleting
+  a view show at once, in the list and in "Your views", and go back with a message if the server refuses (#276).
 
 ### Membership and notifications
 

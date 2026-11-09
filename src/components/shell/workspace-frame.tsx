@@ -7,6 +7,7 @@ import { RequestListViewProvider } from "@/components/requests/list-view-state";
 import { StableRouterProvider } from "@/components/shell/stable-router";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
+import { SavedViewsProvider } from "@/components/requests/saved-views-store";
 import { PickupConfirmationProvider } from "@/components/requests/pickup-confirmation";
 import { MarkDoneUndoWatcher } from "@/components/requests/mark-done-undo";
 import { IsItLiveProvider } from "@/components/requests/is-it-live-prompt";
@@ -91,9 +92,12 @@ export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceNam
       <IsItLiveProvider orgId={orgId}>
       <WorkspaceProjectsProvider key={`${orgId}:${userId}`} orgId={orgId} initialProjects={projects}>
         <WorkspaceLabelsProvider orgId={orgId} initial={labels}>
+      {/* #276: the sidebar's "Your views" and the list show a saved-view change in the same moment. */}
+      <SavedViewsProvider key={`${orgId}:${userId}`} views={savedViews}>
         {canContribute
           ? <NewRequestProvider context={{ orgId }} draftOwnerId={userId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction}>{shell}</NewRequestProvider>
           : shell}
+      </SavedViewsProvider>
         </WorkspaceLabelsProvider>
       </WorkspaceProjectsProvider>
       </IsItLiveProvider>

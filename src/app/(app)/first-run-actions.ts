@@ -6,7 +6,7 @@ import { changeFirstRun } from "@/lib/first-run";
 import { parseFirstRunChange } from "@/lib/first-run-rules";
 
 /**
- * #217: the signed-in person's own first run in this workspace: a step read, skip, finish, or reopen from help.
+ * #217: the signed-in person's own first run in this workspace: a step read, going Back (A220), skip, finish, or reopen from help.
  * It is personal state, like the profile label, so every role may change their own, Viewers included. The
  * workspace comes from the page; the person only from the session.
  */
@@ -19,7 +19,7 @@ export async function updateFirstRun(data: { change: string; step?: string }, co
   const result = await changeFirstRun(auth, change);
   if ("refused" in result)
     return { error: result.refused === "not_a_step" ? "That step isn’t part of your first run." : "Your first run isn’t ready yet. Reload the page and try again." };
-  // Only skip, finish and reopen change what the pages show; a step read is already on screen.
-  if (change.change !== "step") { revalidatePath("/"); revalidatePath("/intake"); }
+  // Only skip, finish and reopen change what the pages show; a step read or a step gone back to is already on screen.
+  if (change.change !== "step" && change.change !== "back") { revalidatePath("/"); revalidatePath("/intake"); }
   return { success: true };
 }

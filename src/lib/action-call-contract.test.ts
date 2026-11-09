@@ -12,6 +12,7 @@ const PASSED_ON: Record<string, string> = {
   "app/(app)/settings/profile/billing-form.tsx": "BillingPlanCard starts checkout through callAction",
   "components/settings/workspace-members.tsx": "WorkspaceMembersView sends each invite, role change and revoke through callAction",
   "components/requests/request-moves.ts": "createRequestMoves (request-moves-controller.ts) runs each action through the optimistic runner",
+  "components/requests/saved-view-menu.tsx": "Each saved-view change goes to send(), which runs it through the optimistic runner (#276)",
   "components/requests/request-timeline-forms.tsx": "Each journey form saves through useJourneyChange (use-journey-change.ts), which runs it through the optimistic runner",
 }
 

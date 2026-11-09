@@ -22,6 +22,7 @@ import { RequestRowActions } from "@/components/requests/request-row-actions"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
 import type { PeekViewer } from "@/components/requests/request-peek"
 import { SavedViewMenu } from "@/components/requests/saved-view-menu"
+import { useShownSavedViews } from "@/components/requests/saved-views-store"
 import { openSavedView, savedViewChanged, type SavedView } from "@/lib/saved-view-rules"
 import { KeyCap } from "@/components/keyboard/key-caps";
 import { failureWords, ShownFailure } from "@/lib/failure-messages"
@@ -106,7 +107,7 @@ const noViews: SavedView[] = []
 export const WelcomeIcon = () => <Inbox data-icon-size="2xl" />
 export const WelcomeNewRequest = ({ className, children }: { className: string; children: ReactNode }) => <NewRequestLink className={className}>{children}</NewRequestLink>
 
-export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, finishedCounts, welcome: workspaceWelcome, viewer, firstRun, savedViews = noViews }: {
+export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, finishedCounts, welcome: workspaceWelcome, viewer, firstRun, savedViews: pageViews = noViews }: {
   /** #219: the person's own saved views; the strip saves, updates, renames and deletes them. */
   savedViews?: SavedView[]
   /** #217: the person's first run, rendered by the server. The first Request guide is an empty workspace's welcome. */
@@ -128,6 +129,8 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
   viewer?: PeekViewer
 }) {
   const listContext = useRequestListFilters()
+  // #276: as the sidebar shows them, this tab's unanswered changes included.
+  const savedViews = useShownSavedViews(pageViews)
   const status = listContext?.status ?? "all", project = listContext?.project ?? "all"
   const sharedProjects = useSharedWorkspaceProjects()
   const pendingMutations = usePendingMutations()

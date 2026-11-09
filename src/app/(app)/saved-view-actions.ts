@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db, savedViews } from "@/db";
 import { guardActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { canUseProject } from "@/lib/project-access";
-import { parseSavedViewName, readSavedViewFilters, savedViewFilters, type SavedView, type SavedViewFilters } from "@/lib/saved-view-rules";
+import { parseSavedViewName, readSavedViewFilters, savedViewFilters, savedViewNameTaken, type SavedView, type SavedViewFilters } from "@/lib/saved-view-rules";
 
 /**
  * #219: a person's own saved views of the Requests list. Saving one is personal state, like the profile label and
@@ -18,7 +18,6 @@ export type SavedViewResult = { ok: true; view: SavedView } | { error: string; s
 const GONE = "That view isn’t saved any more.";
 const BAD_FILTERS = "Those filters can’t be saved. Reload the page and try again.";
 const PROJECT_UNAVAILABLE = "That Project isn’t available. Choose another and try again.";
-const duplicate = (name: string) => `You already have a view called “${name}”. Choose another name.`;
 const selection = { id: savedViews.id, name: savedViews.name, filters: savedViews.filters };
 const shaped = (row: { id: string; name: string; filters: unknown }): SavedView => ({ id: row.id, name: row.name, filters: readSavedViewFilters(row.filters) });
 const isDuplicate = (error: unknown) => (error as { code?: string; cause?: { code?: string } })?.code === "23505" || (error as { cause?: { code?: string } })?.cause?.code === "23505";
@@ -50,7 +49,7 @@ export async function saveView(data: { name: string; filters: SavedViewFilters }
     changed();
     return { ok: true, view: shaped(row) };
   } catch (error) {
-    if (isDuplicate(error)) return { error: duplicate(name.name) };
+    if (isDuplicate(error)) return { error: savedViewNameTaken(name.name) };
     throw error;
   }
 }
@@ -67,7 +66,7 @@ export async function renameSavedView(data: { id: string; name: string }, contex
     changed();
     return { ok: true, view: shaped(row) };
   } catch (error) {
-    if (isDuplicate(error)) return { error: duplicate(name.name) };
+    if (isDuplicate(error)) return { error: savedViewNameTaken(name.name) };
     throw error;
   }
 }

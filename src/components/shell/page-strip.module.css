@@ -1,4 +1,4 @@
-/* Plan item 2.0: one fixed 44px strip per page. No wrapping, so skeletons and pages share its height. */
+/* Plan item 2.0: one 44px strip per page. No wrapping, so skeletons and pages share its height (a phone wraps only a long page name, A235). */
 .strip { position: sticky; top: 0; z-index: var(--lane-layer-raised); display: flex; flex: none; min-width: 0; min-height: var(--workspace-header-height, calc(var(--space-1) * 11)); align-items: center; gap: var(--space-3); padding-inline: var(--space-6); background: var(--surface); }
 /* The rule is drawn over the strip's last pixel, not as a border: a border would leave 43px for content,
  * so a 44px touch control would grow the strip to 45px. Drawn last, it stays unbroken across controls. */
@@ -27,6 +27,9 @@
 .action { display: contents; }
 @media (max-width: 640px) {
   .strip { padding-inline: var(--space-4); }
+  /* A235: on a phone a long page name (a saved view's, a Project's) wraps rather than being cut; the strip grows
+   * for it, and the tools stay beside it. */
+  .title { padding-block: var(--space-2); overflow: visible; overflow-wrap: anywhere; text-overflow: clip; white-space: normal; }
   .note { display: none; }
   /* Phones keep the parent crumb, so Intake and Settings still link back in one tap. */
   .crumbs li:nth-last-child(n + 3) { display: none; }
