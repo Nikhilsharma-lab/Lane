@@ -4,14 +4,7 @@
  * beside the change schemas the server validates with.
  */
 import type { ReleaseChange, ReleaseFact, ReleaseState } from './request-release';
-import { planAudience } from './measurement-audience';
 import { daysUntil } from './utc-day';
-
-/**
- * The audience a release must reach: the agreed goal's, in the plan's own words ("All users"), as Impact names it
- * (#278). New release records save this label; older ones keep the words they were saved with.
- */
-export const agreedAudience = (request: { expectedImpact: unknown }) => planAudience(request.expectedImpact);
 
 /**
  * The current Requester: the release record's, after any handover; else the Member who took a Guest submission on
