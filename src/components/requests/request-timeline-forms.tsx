@@ -14,8 +14,9 @@ import type { ReleaseFact } from "@/lib/request-release"
 import { utcDay } from "@/lib/utc-day"
 import { useJourneyChange } from "./use-journey-change"
 import styles from "./request-timeline.module.css"
+import popupStyles from "@/components/popup/popup.module.css"
 
-/** The timeline's step forms. Fields and validation are the ones the release and outcome panels had (#134). */
+/** The Journey popups' forms (#277). Fields and validation are the ones the release and outcome panels had (#134). */
 export type FormProps = { requestId: string; orgId: string; revision: number; onSaved: () => void; onCancel: () => void }
 type AgreedResult = ReturnType<typeof agreedResult>
 
@@ -30,12 +31,13 @@ function LearnedField({ value, onChange, disabled }: { value: string; onChange: 
     description="One line for the Outcome report. After closing, only a Correction can change it." />
 }
 
+/** #277: a Journey popup's buttons: Cancel, then the form's own named button, last. */
 function Controls({ busy, error, submit, disabled, onCancel }: { busy: boolean; error: string; submit: string; disabled?: boolean; onCancel: () => void }) {
   return <>
     {error && <p role="alert">{error}</p>}
-    <div className={styles.controls}>
-      <Button type="submit" loading={busy} disabled={!busy && disabled}>{submit}</Button>
+    <div className={popupStyles.actions}>
       <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>Cancel</Button>
+      <Button type="submit" loading={busy} disabled={!busy && disabled}>{submit}</Button>
     </div>
   </>
 }

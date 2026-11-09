@@ -13,7 +13,7 @@ export type AskIsItLive = (request: IsItLiveRequest, undo: IsItLiveUndo) => void
 export const IS_IT_LIVE_COPY = {
   title: "Is it live?",
   question: (name: string) => `${name} is Done. Has the agreed audience received it?`,
-  endsUndo: "Once you record the release, you can’t undo Done.",
+  endsUndo: "Once you record the release, you can’t reopen this Request.",
   yes: "Yes, record release",
   notYet: "Not yet",
   releaseTitle: "Record release",
@@ -25,12 +25,19 @@ export const IS_IT_LIVE_COPY = {
  * at Done and brings back its Marked Done toast, so Undo Done keeps working as before; a saved release ends
  * Undo Done, as the server already refuses it then. A newer Mark Done replaces an unanswered prompt; the older
  * Request keeps its own toast.
+ *
+ * C2-12: while the prompt is open its Request's Marked Done toast is dismissed (IsItLiveProvider; on a phone it sat
+ * over the prompt). Not yet brings it back with its Undo, as does a newer prompt replacing this one; a saved release
+ * replaces it with "Release recorded".
  */
 export function createIsItLive(show: (view: IsItLiveView | null) => void) {
   let current: { view: IsItLiveView; undo: IsItLiveUndo } | null = null
   const set = (next: typeof current) => { current = next; show(next && next.view) }
 
-  const ask: AskIsItLive = (request, undo) => set({ view: { step: "ask", request }, undo })
+  const ask: AskIsItLive = (request, undo) => {
+    current?.undo.reshow()
+    set({ view: { step: "ask", request }, undo })
+  }
   return {
     ask,
     get record() {

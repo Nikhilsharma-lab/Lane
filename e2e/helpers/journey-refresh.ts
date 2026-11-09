@@ -1,6 +1,6 @@
 import { expect, type APIResponse, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { nextActionResponse } from "./action-response";
-import { journey } from "./journey";
+import { journey, journeyPopup } from "./journey";
 
 function hasJourneyArguments(request: Request, requestId: string, orgId: string) {
   if (request.method() !== "POST" || !request.headers()["next-action"]) return false;
@@ -113,10 +113,12 @@ export async function holdNextJourneyRead(page: Page, reads: JourneyReads) {
 export async function saveReleaseCorrection(page: Page, evidence: string) {
   const panel = journey(page);
   await panel.getByRole("button", { name: "Correct release", exact: true }).click();
-  await panel.getByLabel("Release evidence", { exact: true }).fill(evidence);
-  await panel.getByLabel("Correction reason").fill("Acceptance: corrected exposure evidence in another tab");
-  await panel.getByRole("checkbox", { name: "The agreed audience received this work" }).check();
-  await panel.getByRole("button", { name: "Save correction", exact: true }).press("Enter");
+  // #277: the form opens in its Journey popup.
+  const form = journeyPopup(page, "Correct release");
+  await form.getByLabel("Release evidence", { exact: true }).fill(evidence);
+  await form.getByLabel("Correction reason").fill("Acceptance: corrected exposure evidence in another tab");
+  await form.getByRole("checkbox", { name: "The agreed audience received this work" }).check();
+  await form.getByRole("button", { name: "Save correction", exact: true }).press("Enter");
   await expect(panel.getByText(`Evidence: ${evidence}`, { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(panel.getByRole("heading", { name: "Journey", exact: true })).toBeFocused();
 }

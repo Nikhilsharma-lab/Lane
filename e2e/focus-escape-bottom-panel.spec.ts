@@ -113,7 +113,7 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await expect(add).toBeFocused();
       await expect(page).toHaveURL(new RegExp(`/requests/${id}$`));
 
-      // C2-1 and C2-3: a Journey step form. Opening moves focus into it, Cancel hands it back to its button.
+      // C2-1 and C2-3: a Journey action's popup (#277). Opening moves focus into it, Cancel hands it back to its button.
       const lifecycle = page.locator('[data-slot="request-lifecycle-actions"]:visible');
       await lifecycle.getByRole("button", { name: "Pick up", exact: true }).click();
       // Wait for the saved pickup before reloading, as request-release.spec.ts does.
@@ -122,8 +122,8 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       const journey = page.getByRole("region", { name: "Journey", exact: true });
       const closeWithout = journey.getByRole("button", { name: /^Close without a result/ });
       await closeWithout.click({ timeout: 20_000 });
-      const form = journey.locator("[data-detail-form]");
-      await expect.poll(() => form.evaluate(element => element.contains(document.activeElement))).toBe(true);
+      const form = page.getByRole("dialog", { name: "Close without a result", exact: true });
+      await expect.poll(() => form.evaluate(element => element.contains(document.activeElement) && document.activeElement?.getAttribute("aria-label") !== "Close dialog")).toBe(true);
       await form.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(form).toHaveCount(0);
       await expect(closeWithout).toBeFocused();

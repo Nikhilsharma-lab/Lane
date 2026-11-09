@@ -1,11 +1,14 @@
 "use client"
 
-import { createContext, useContext, useRef, useState, type ReactNode } from "react"
+import { createContext, useContext, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/arc/button/button"
+import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup"
 import { createIsItLive, IS_IT_LIVE_COPY, promptCloseFocus, type AskIsItLive, type IsItLiveView } from "./is-it-live"
 import { restoreRequestFocus } from "./list-focus"
+import { useUndoableMarkDone } from "./mark-done-undo"
+import { keepOpenWhilePickerOpen } from "./picker-escape"
 import detailStyles from "./detail.module.css"
 import styles from "./is-it-live.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
@@ -24,12 +27,18 @@ export function useIsItLive(): AskIsItLive | undefined {
 /**
  * #135: the one "Is it live?" prompt, asked after a successful Mark Done from the Request page's button, its
  * Status control, a row's menu or the palette (every single-Request Done runs useRequestMoves). "Yes, record
- * release" opens the release form with today as the exposure date; "Not yet", Escape or Close leave the Request
- * at Done and bring back its Marked Done toast, so Undo Done works as before. Both the question and the form say
- * that recording the release ends Undo Done. Focus returns to where it was, else the page title or the row.
+ * release" opens the one release form (#277), as the Journey's Record release does; "Not yet", Escape or Close leave
+ * the Request at Done and bring back its Marked Done toast, hidden while the prompt is open (C2-12), so Undo works as
+ * before. Both the question and the form say a recorded release can't be reopened. Focus returns to where it was,
+ * else the page title or the row.
  */
 export function IsItLiveProvider({ orgId, children }: { orgId: string; children: ReactNode }) {
   const [view, setView] = useState<IsItLiveView | null>(null)
+  const { dismiss } = useToastStack()
+  // C2-12: the Request's Marked Done toast steps aside while its prompt is open; Not yet brings it back with its Undo.
+  const markedDone = useRef<ReturnType<typeof useUndoableMarkDone>>(null)
+  const latest = useUndoableMarkDone()
+  useLayoutEffect(() => { markedDone.current = latest })
   const [prompt] = useState(() => createIsItLive(setView))
   // Where focus was when the prompt opened, to hand it back on close.
   const opener = useRef<{ element: Element | null; requestId: string } | null>(null)
@@ -37,6 +46,8 @@ export function IsItLiveProvider({ orgId, children }: { orgId: string; children:
     const open: AskIsItLive = (request, undo) => {
       opener.current = { element: document.activeElement, requestId: request.id }
       prompt.ask(request, undo)
+      const pointer = markedDone.current
+      if (pointer?.requestId === request.id) dismiss(pointer.toastId)
     }
     return open
   })
@@ -60,7 +71,7 @@ export function IsItLiveProvider({ orgId, children }: { orgId: string; children:
   return <IsItLiveContext.Provider value={ask}>
     {children}
     <Dialog guardTypedText open={view !== null} onOpenChange={open => { if (!open) prompt.notYet() }}>
-      {view && <DialogContent data-is-it-live="" onCloseAutoFocus={returnFocus}
+      {view && <DialogContent data-is-it-live="" onCloseAutoFocus={returnFocus} onEscapeKeyDown={keepOpenWhilePickerOpen}
         title={view.step === "ask" ? IS_IT_LIVE_COPY.title : IS_IT_LIVE_COPY.releaseTitle}
         description={view.step === "ask" ? IS_IT_LIVE_COPY.question(view.request.name) : view.request.name}>
         {view.step === "ask" ? <>

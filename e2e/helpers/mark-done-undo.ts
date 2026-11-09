@@ -139,40 +139,22 @@ export async function markDone(driver: UndoDriver, answer = true) {
     await expect(doneToast(page, request).getByRole("button", { name: "Undo", exact: true })).toBeVisible();
   }
 }
-/** Restore the real same-operation toast while its actual exit is in flight. */
+/**
+ * C2-12 (#277): the Done toast steps aside while "Is it live?" is open, so it never covers the prompt on a phone; Not
+ * yet brings back the same operation's toast, with its Undo. (Its restore during an exit in flight is unit-tested in
+ * is-it-live.test.ts and the toast stack's same-id restore.)
+ */
 export async function restoreDoneDuringExit(page: Page, request: UndoRequest, capture: Capture) {
   const prompt = isItLivePrompt(page);
   await expect(prompt).toBeVisible();
-  const item = await doneToast(page, request).elementHandle(); expect(item).not.toBeNull();
-  const answer = prompt.getByRole("button", { name: "Not yet", exact: true }); await answer.focus();
-  const activation = await item!.evaluateHandle(node => {
-    const state: { value: null | { at: number; trusted: boolean; connected: boolean; inert: boolean } } = { value: null };
-    const observe = (event: MouseEvent) => {
-      const button = event.composedPath().find(target => target instanceof HTMLButtonElement);
-      if (!(button instanceof HTMLButtonElement) || button.textContent?.trim() !== "Not yet") return;
-      state.value = { at: performance.now(), trusted: event.isTrusted, connected: node.isConnected, inert: node.hasAttribute("inert") };
-    };
-    document.addEventListener("click", observe, true);
-    return { state, dispose: () => document.removeEventListener("click", observe, true) };
-  });
-  try {
-    const exit = await item!.evaluate(node => new Promise<{ at: number; inert: boolean }>((resolve, reject) => {
-      // Observe the public inert transition rather than polling past the short exit.
-      const finish = () => { if (!node.hasAttribute("inert")) return; observer.disconnect(); clearTimeout(timeout); resolve({ at: performance.now(), inert: true }); };
-      const observer = new MutationObserver(finish);
-      const timeout = setTimeout(() => { observer.disconnect(); reject(new Error("The actual Done toast did not enter its exit interval.")); }, 15_000);
-      observer.observe(node, { attributes: true, attributeFilter: ["inert"] }); finish();
-    }));
-    await answer.press("Enter"); await expect(prompt).toBeHidden();
-    const activated = await activation.evaluate(({ state }) => state.value);
-    await capture("same-done-toast-exit-activation", { exit, activated });
-    expect(activated).toMatchObject({ trusted: true, connected: true, inert: true });
-    await expect(doneToast(page, request)).toHaveCount(1);
-    await expect(doneToast(page, request)).not.toHaveAttribute("inert", "");
-    const undo = doneToast(page, request).getByRole("button", { name: "Undo", exact: true });
-    await expect(undo).toBeVisible(); await undo.focus(); await expect(undo).toBeFocused();
-    await capture("same-done-toast-restored-during-exit", { exit, sameElement: await item!.evaluate(node => node.isConnected) });
-  } finally { await activation.evaluate(({ dispose }) => dispose()); await activation.dispose(); }
+  await expect(doneToast(page, request)).toHaveCount(0);
+  await capture("done-toast-hidden-while-prompt-open");
+  await prompt.getByRole("button", { name: "Not yet", exact: true }).press("Enter"); await expect(prompt).toBeHidden();
+  await expect(doneToast(page, request)).toHaveCount(1);
+  await expect(doneToast(page, request)).not.toHaveAttribute("inert", "");
+  const undo = doneToast(page, request).getByRole("button", { name: "Undo", exact: true });
+  await expect(undo).toBeVisible(); await undo.focus(); await expect(undo).toBeFocused();
+  await capture("same-done-toast-restored-after-prompt");
 }
 
 export async function undoFromToast(driver: UndoDriver, capture: Capture) {
