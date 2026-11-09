@@ -1,5 +1,5 @@
 import { groupRequestRows, matchesListFilters, sortRequestRows, type FinishedCounts, type ListFilters, type OverviewRequest, type RequestRowGroup } from "@/lib/request-overview"
-import { finishedViewOf, type FinishedView } from "@/lib/request-workspace"
+import { finishedViewOf, SHOWN_STEP, type FinishedView } from "@/lib/request-workspace"
 import { hasAddedFilters } from "./list-empty-state"
 import type { ListViewState } from "./list-view-state"
 
@@ -24,8 +24,7 @@ export type ListServerFacts = { finishedCounts?: FinishedCounts; olderMore?: Par
 export type ListGroup = RequestRowGroup & { shown: OverviewRequest[]; count: number; more: boolean; older: FinishedView | null }
 export type ListModel = { filters: ListFilters; groups: ListGroup[]; matching: OverviewRequest[]; visibleRows: OverviewRequest[] }
 
-/** A212: each group shows this many Requests at first, and each Show more adds as many again. */
-export const SHOWN_STEP = 25
+export { SHOWN_STEP }
 
 /**
  * What the list shows for a view and its rows (the overlay already applied): the matching rows sorted and grouped,

@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState } from "@tanstack/react-table"
 import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
-import { hasRequestListContext, parseListDisplay, parseRequestListContext, requestListHref, type ListDisplay, type RequestListContext } from "@/lib/request-workspace"
+import { hasRequestListContext, LIST_DISPLAY_DEFAULTS, parseListDisplay, parseRequestListContext, requestListHref, type ListDisplay, type RequestListContext } from "@/lib/request-workspace"
 import { createCurrentRequestStore, resolveCurrentRequest, type CurrentRequest } from "./current-request"
 import { createExternalStore } from "@/lib/external-store"
 import { usePendingMutations } from "./pending-mutations-provider"
@@ -35,8 +35,7 @@ export type SetListView = Dispatch<SetStateAction<ListViewState>>
 const initialView: ListViewState = {
   // Keep the first scan about the Request and its current assignee. The other
   // fields remain available in the Display control when a team needs them.
-  columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
-  shownCounts: {},
+  columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ...LIST_DISPLAY_DEFAULTS,
   status: "all", project: "all", title: "",
 }
 
