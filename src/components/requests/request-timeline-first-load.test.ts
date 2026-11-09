@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8")
 
 // Build 3: the Request page's journey module is in its first load, and its forms check nothing in the browser, so it
 // names the outcome's choices and reads the release without the modules that carry zod's change schemas.
-const TIMELINE = ["request-timeline.tsx", "request-timeline-model.ts", "request-timeline-forms.tsx"]
+const TIMELINE = ["request-timeline.tsx", "journey-step-actions.tsx", "journey-step-form.tsx", "journey-step-details.tsx", "request-timeline-model.ts", "request-timeline-forms.tsx"]
 const SCHEMA_MODULES = /^import (?!type\b)[^\n]*from "@\/lib\/(request-outcome|request-release|request-measurement)"/m
 
 describe("the Request page's timeline", () => {

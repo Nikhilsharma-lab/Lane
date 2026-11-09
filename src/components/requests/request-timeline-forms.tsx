@@ -16,7 +16,7 @@ import { useJourneyChange } from "./use-journey-change"
 import styles from "./request-timeline.module.css"
 
 /** The timeline's step forms. Fields and validation are the ones the release and outcome panels had (#134). */
-type FormProps = { requestId: string; orgId: string; revision: number; onSaved: () => void; onCancel: () => void }
+export type FormProps = { requestId: string; orgId: string; revision: number; onSaved: () => void; onCancel: () => void }
 type AgreedResult = ReturnType<typeof agreedResult>
 
 /** "50%", "12 ms" or "No baseline". */

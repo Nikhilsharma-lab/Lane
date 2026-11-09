@@ -2,7 +2,6 @@
 import { callAction } from "@/lib/action-call"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "@/components/link"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/arc/button/button"
 import { Timeline, type TimelineEvent } from "@/components/arc/timeline/timeline"
 import { Check, CirclePlus, Play, History } from "lucide-react"
@@ -10,19 +9,17 @@ import { useOptionalDetailRequest } from "./detail-context"
 import { useInBrowser } from "./local-time"
 import { readRequestJourney } from "@/app/(app)/requests/[id]/journey-actions"
 import { formatRequestCode } from "@/lib/request-code"
-import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import { plannedDay } from "@/lib/dates"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { canChange } from "@/lib/request-access-rules"
 import { FORMER_MEMBER, type JourneyAction } from "@/lib/request-journey"
-import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome-options"
 import type { ReleaseEvent } from "@/lib/request-release"
 import type { RequestDetail } from "./detail-view"
-import { ReleaseForm } from "./release-form"
-import { InPageForm } from "@/components/popup/in-page-form"
 import { RequestReviews } from "./request-reviews"
-import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverForm, MeasuredCloseForm, resultValue, VoidReleaseForm } from "./request-timeline-forms"
-import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, learnedLine, observedLine, timelineSteps, type JourneyOutline, type OutlineLine, type TimelineStep } from "./request-timeline-model"
+import { JourneyStepActions } from "./journey-step-actions"
+import { JourneyStepForm } from "./journey-step-form"
+import { journeyStepDetails } from "./journey-step-details"
+import { timelineSteps, type JourneyOutline, type OutlineLine, type TimelineStep } from "./request-timeline-model"
 import { JourneyLine } from "./journey-line"
 import { LocalTime } from "./local-time"
 import { createJourneyRefresh, watchJourneyDate } from "./journey-refresh"
@@ -31,12 +28,10 @@ import { RequestPanePanel } from "./request-pane-tabs"
 import { Placeholder } from "@/components/loading/placeholder";
 import { SectionHeading } from "./section-heading";
 
-type Views = Exclude<Awaited<ReturnType<typeof readRequestJourney>>, { error: string }>
+export type Views = Exclude<Awaited<ReturnType<typeof readRequestJourney>>, { error: string }>
 
 const NO_OUTLINE: JourneyOutline = { steps: [], history: false }
 const LOAD_FAILED = "Couldn’t load the journey. Try again."
-/** #263: a step's action button, where focus goes back when its form closes. */
-const actionButton = (action: JourneyAction) => document.querySelector<HTMLElement>(`#journey [data-journey-action="${action}"]`)
 const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished", current: "current step", upcoming: "not reached yet", skipped: "skipped" }
 
 /** One shared projection through the explicit session-recovery path. */
@@ -93,7 +88,6 @@ export function RequestTimeline(props: Props) {
 
 function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: Props) {
   const peek = useOptionalDetailRequest()?.peek
-  const router = useRouter()
   const requestId = request.id
   const revision = request.agreementRevision ?? 0
   const [views, setViews] = useState<Views | null>(null)
@@ -126,6 +120,10 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
   function cancel() {
     setMode(null)
     void refresh.closeForm()
+  }
+  function openForm(action: JourneyAction) {
+    refresh.openForm()
+    setMode(action)
   }
 
   if (!views && error) return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
@@ -173,55 +171,6 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
     actions: release.actions, now: new Date(`${release.today}T00:00:00Z`),
   })
   const form = { requestId, orgId, revision: release.revision, onSaved: () => { void saved() }, onCancel: cancel }
-  const closure = outcome.closure
-  const agreed = outcome.agreed
-
-  function stepForm(action: JourneyAction) {
-    switch (action) {
-      case "release": return <ReleaseForm {...form} audience={release.audience} earliestExposure={release.earliestExposure} today={release.today} valueBefore={release.valueBefore} />
-      case "correctRelease": return release.release && <ReleaseForm {...form} audience={release.audience} earliestExposure={release.earliestExposure} today={release.today} valueBefore={release.valueBefore} correcting={{ ...release.release, valueBefore: release.recordedValueBefore }} />
-      case "voidRelease": return <VoidReleaseForm {...form} />
-      case "close": return agreed && <MeasuredCloseForm {...form} agreed={agreed} release={release.release} />
-      case "closeWithoutResult": return <CloseWithoutResultForm {...form} />
-      case "correctClosure": return closure && <ClosureCorrectionForm {...form} closureKind={closure.kind} result={closure.kind === "measured" ? closure.primary.kind === "numeric" ? { kind: "numeric", unit: closure.primary.unit } : { kind: "pass_fail" } : null} />
-      case "followUp": return <FollowUpForm {...form} onCreated={id => router.push(`/requests/${id}`)} />
-      case "handover": return <HandoverForm {...form} people={release.people} />
-    }
-  }
-
-  function details(step: TimelineStep) {
-    if (step.state !== "finished" && step.state !== "current") return null
-    if (step.status === "open") return reviews
-    if (step.status === "measuring") {
-      const fact = release.release ?? closure?.release
-      if (!fact) return null
-      return <div className={styles.facts}>
-        <p className={styles.muted}>{evidenceLine(fact.evidence)}</p>
-        {release.recordedValueBefore && <p className={styles.muted}>Value before release: {resultValue(release.recordedValueBefore.value, release.recordedValueBefore.unit)}.</p>}
-        {fact.windowKind === "fixed" && <p className={styles.muted}>{fixedWindowLine(fact)}</p>}
-        {step.state === "current" && <p className={styles.muted}>{DUE_DATE_LINE}</p>}
-      </div>
-    }
-    if (step.status !== "closed" || !closure) return null
-    return <div className={styles.facts}>
-      {agreed && closure.kind === "measured" && <dl className={styles.facts}>
-        <div><dt>Expected {agreed.form === "numeric" ? "metric" : "check"}</dt><dd>{agreed.label}{agreed.form === "numeric" && `: ${resultValue(agreed.baseline, agreed.unit)} → ${resultValue(agreed.target, agreed.unit)}`}</dd></div>
-        <div><dt>Actual</dt><dd>{closure.primary.kind === "numeric" ? resultValue(closure.primary.actual, closure.primary.unit) : closure.primary.passed ? "Passed" : "Did not pass"}</dd></div>
-        {closure.guardrails.map((g, i) => <div key={i}><dt>Guardrail: {g.metric}</dt><dd>Stays {guardrailComparisonPhrase[g.operator]} {resultValue(g.limit, g.unit)} · Actual {resultValue(g.actual, g.unit)} · {g.held ? "Held" : "Breached"}</dd></div>)}
-      </dl>}
-      {closure.kind === "measured" && <>
-        <p>{evidenceLine(closure.evidence)}</p>
-        <p className={styles.muted}>{observedLine(closure)}</p>
-      </>}
-      {closure.kind === "exception" && closure.reason && <p>{closure.reason}</p>}
-      {/* #209: the line as given at closing; a Correction below shows any new wording beside it. */}
-      {closure.learned && <p>{learnedLine(closure.learned)}</p>}
-      {!!outcome.corrections.length && <div className={styles.facts}><SectionHeading level={4}>Corrections</SectionHeading><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
-        <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
-        <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on <LocalTime iso={c.at} day />.</p>
-      </li>)}</ol></div>}
-    </div>
-  }
 
   return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <div className={styles.header}>
@@ -236,17 +185,11 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
         const headingId = `journey-${step.status}`
         return stepItem(step, {
           happened: step.happened.map((line, index) => <JourneyLine key={index} line={line} />),
-          details: details(step),
+          details: journeyStepDetails(step, { views, reviews, name }),
           countdown: step.countdown && <p role="status" className={styles.countdown}>{step.countdown}</p>,
           next: step.next && <p className={styles.muted}>{step.next}</p>,
-          actions: !!step.actions.length && mode === null && <ul className={styles.actions} aria-label={`${step.label} actions`}>
-            {step.actions.map((action, index) => <li key={action.action} className={styles.action}>
-              {action.available
-                ? <Button variant={index === 0 ? "primary" : "secondary"} data-journey-action={action.action} onClick={() => { refresh.openForm(); setMode(action.action) }}>{action.label}</Button>
-                : <><Button variant="secondary" disabled aria-describedby={`${headingId}-${action.action}`}>{action.label}</Button><span id={`${headingId}-${action.action}`} className={styles.muted}>{action.reason}</span></>}
-            </li>)}
-          </ul>,
-          form: mode && step.actions.some(a => a.action === mode && a.available) && <InPageForm onDismiss={cancel} returnFocus={() => actionButton(mode)}>{stepForm(mode)}</InPageForm>,
+          actions: mode === null && <JourneyStepActions step={step} headingId={headingId} onOpen={openForm} />,
+          form: mode && step.actions.some(a => a.action === mode && a.available) && <JourneyStepForm mode={mode} views={views} form={form} />,
         })
       })}
     </ol>
