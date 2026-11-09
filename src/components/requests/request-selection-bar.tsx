@@ -1,26 +1,20 @@
 "use client"
 
-import { memo, useSyncExternalStore } from "react"
+import { memo } from "react"
 import { CheckCheck, Link, RefreshCw, X } from "lucide-react"
 import { FloatingButtonGroup, type FloatingButtonGroupItem } from "@/components/arc/floating-button-group/floating-button-group"
+import { useMediaQuery } from "@/lib/use-media-query"
 import { StatusGlyph } from "./row-presentation"
 import type { LifecycleMove } from "@/lib/request-lifecycle"
 import type { RequestSelectionActions } from "./use-request-selection"
 import styles from "./request-selection.module.css"
-
-const PHONE = "(max-width: 640px)"
-const subscribePhone = (change: () => void) => {
-  const query = window.matchMedia(PHONE)
-  query.addEventListener("change", change)
-  return () => query.removeEventListener("change", change)
-}
 
 type RequestSelectionBarProps = { busy: boolean; count: number; action: LifecycleMove | null; allSelected: boolean; error: string; message: string; actions: RequestSelectionActions }
 
 /** Memoised on what it shows: a J or a pointer focus on a row re-renders the list, not the bar (plan item 2.4). */
 export const RequestSelectionBar = memo(function RequestSelectionBar({ busy, count, action, allSelected, error, message, actions: selection }: RequestSelectionBarProps) {
   // A phone-width tray keeps only the lifecycle verb as words; the rest keep their glyphs and tooltips.
-  const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
+  const phone = useMediaQuery("(max-width: 640px)")
   const items: FloatingButtonGroupItem[] = [
     ...(count ? [{ id: "all", label: "Select all on page", icon: <CheckCheck />, iconOnly: true, disabled: busy || allSelected, onSelect: selection.selectPage }] : []),
     ...(action ? [{ id: action, label: action === "pick-up" ? "Pick up" : "Mark Done", icon: <StatusGlyph status={action === "pick-up" ? "in_progress" : "done"} />, disabled: busy, onSelect: () => { void selection.update() } }] : []),

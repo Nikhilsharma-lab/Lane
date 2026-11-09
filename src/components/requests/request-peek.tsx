@@ -1,11 +1,12 @@
 "use client"
 
-import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type ComponentType, type MouseEvent } from "react"
+import { Suspense, createContext, lazy, useContext, useEffect, useEffectEvent, useRef, useState, type ComponentType, type MouseEvent } from "react"
 import { m, useIsPresent, useReducedMotion, type Transition } from "motion/react"
 import { Button } from "@/components/arc/button/button"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { isShown, isTypingTarget, overlayOpen } from "@/lib/keyboard-guards"
 import { dismissOpenForm } from "@/components/popup/dismiss-form"
+import { useMediaQuery } from "@/lib/use-media-query"
 import type { OverviewRequest } from "@/lib/request-overview"
 import styles from "./request-peek.module.css"
 import { RequestPeekSkeleton } from "./request-peek-skeleton"
@@ -26,15 +27,7 @@ const loadContent = () => import("./request-peek-content").then(module => { modu
 
 /** #240 decision 2: the preview is offered at 1280px and wider with a mouse. Narrower windows, phones and touch
  * screens open the Request's own page. The list and the Inbox read the same rule. */
-const AVAILABLE = "(min-width: 1280px) and (pointer: fine)"
-function subscribeAvailable(listener: () => void) {
-  const query = window.matchMedia(AVAILABLE)
-  query.addEventListener("change", listener)
-  return () => query.removeEventListener("change", listener)
-}
-export function usePeekAvailable() {
-  return useSyncExternalStore(subscribeAvailable, () => window.matchMedia(AVAILABLE).matches, () => false)
-}
+export const usePeekAvailable = () => useMediaQuery("(min-width: 1280px) and (pointer: fine)")
 
 /** The row menu's Preview: opens the preview on that Request. Null where the preview is not available. */
 export const RequestPeekOpener = createContext<((id: string) => void) | null>(null)
@@ -62,6 +55,8 @@ const LazyContent = lazy(() => loadContent().catch(() => ({ default: PreviewFail
 // moves nor fades. Replacing the Request (J and K) keeps the panel, so only opening and closing move.
 const enter: Transition = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] as [number, number, number, number] }
 const leave: Transition = { duration: motionTokens.duration.exit, ease: [...motionTokens.ease.exit] as [number, number, number, number] }
+/** The slide of a panel beside the list: the preview's, and the summary's (request-list-summary.tsx). */
+export const panelSlide = (reduced: boolean) => ({ initial: reduced ? false as const : { x: "100%" }, animate: { x: "0%" }, exit: reduced ? undefined : { x: "100%", transition: leave }, transition: enter })
 
 function PreviewFailed({ onClose }: { onClose: () => void }) {
   return <div className={styles.state} role="alert">
@@ -105,7 +100,7 @@ export function RequestPeek(props: RequestPeekProps) {
   // Leaving, the panel gives its column back at once and slides out over the list's edge (request-peek.module.css).
   return <div className={styles.viewport} inert={!present} aria-hidden={!present || undefined} data-leaving={!present || undefined}>
     <m.section ref={panel} id={REQUEST_PREVIEW_ID} className={styles.panel} role="region" aria-label="Request preview" data-request-peek="" data-request-id={requestId}
-      initial={reduced ? false : { x: "100%" }} animate={{ x: "0%" }} exit={reduced ? undefined : { x: "100%", transition: leave }} transition={enter}>
+      {...panelSlide(reduced)}>
       {/* Until the chunk arrives (it is fetched once a row takes focus, so rarely) the pane shows the content's own
           skeleton, with Close, from its first frame: never an empty frame or a bare button (#271, A116). */}
       <Suspense fallback={<RequestPeekSkeleton onClose={onClose} />}><Content key={requestId} {...props} /></Suspense>
