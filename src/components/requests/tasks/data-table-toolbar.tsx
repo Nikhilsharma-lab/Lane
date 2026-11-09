@@ -7,18 +7,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popove
 import { ChipGroup } from "@/components/arc/chip-group/chip-group"
 import { Select } from "@/components/arc/select/select"
 import { Button } from "@/components/arc/button/button"
-import { CalendarClock, Funnel, Hourglass, ListFilter, PanelRight, SlidersHorizontal } from "lucide-react"
+import { Funnel, ListFilter, PanelRight, SlidersHorizontal } from "lucide-react"
 import { useSharedWorkspaceProjects } from "@/components/projects/workspace-projects-provider"
 import { ProjectMarker } from "@/components/projects/project-marker"
 import { useWorkspaceLabels } from "../workspace-labels"
 import { addedFilters } from "../list-empty-state"
 import { LabelDot } from "../request-labels"
-import { REQUEST_STATUS_FILTER_LABELS } from "@/lib/request-workspace"
+import { REQUEST_STATUS_FILTERS, REQUEST_STATUS_FILTER_LABELS } from "@/lib/request-workspace"
 import { REQUEST_TITLE_FILTER_MAX } from "@/lib/saved-view-rules"
 import { matchesStatusView, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
 import type { RequestColumn } from "./columns"
-import { statuses } from "./statuses"
+import { StatusViewIcon } from "./status-view-icon"
 import rowStyles from "../request-rows.module.css"
 import styles from "./data-table-toolbar.module.css"
 import { StatusPills } from "./status-pills"
@@ -47,12 +47,8 @@ export function DataTableToolbar({ controls = true, data, filter, title, project
   const now = new Date()
   const statusHint = (view: RequestStatusFilter) => summaryOpen !== undefined ? data.filter(row => matchesStatusView(row, view, now)).length : undefined
   const fields = [
-    { id: "status", label: "Status", options: [
-      ...statuses.map(item => ({ value: item.value, label: item.label, hint: statusHint(item.value), icon: <item.icon aria-hidden="true" /> })),
-      { value: "due", label: REQUEST_STATUS_FILTER_LABELS.due, hint: statusHint("due"), icon: <CalendarClock aria-hidden="true" /> },
-      // Review of #195: Guest submissions waiting to be taken on, so none are forgotten (a saved view keeps it).
-      { value: "waiting", label: REQUEST_STATUS_FILTER_LABELS.waiting, hint: statusHint("waiting"), icon: <Hourglass aria-hidden="true" /> },
-    ] },
+    // Review of #195: Waiting to be taken on is here too, so no Guest submission is forgotten (a saved view keeps it).
+    { id: "status", label: "Status", options: REQUEST_STATUS_FILTERS.filter(value => value !== "all").map(value => ({ value, label: REQUEST_STATUS_FILTER_LABELS[value], hint: statusHint(value), icon: <StatusViewIcon view={value} aria-hidden="true" /> })) },
     ...project === "all" || projectAdded ? [{ id: "project", label: "Project", options: [{ value: "none", label: noProject, icon: <ProjectMarker projectId={null} /> },
       ...projects.map(item => ({ value: item.id, label: item.name, icon: <ProjectMarker projectId={item.id} />, hint: summaryOpen !== undefined ? data.filter(row => row.projectId === item.id).length : undefined }))] }] : [],
     { id: "requestType", label: "Labels", options: requestTypeOptions },

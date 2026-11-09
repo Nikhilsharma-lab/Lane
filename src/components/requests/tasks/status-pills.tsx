@@ -3,8 +3,8 @@
 import { memo, useDeferredValue, useLayoutEffect, useRef, useState } from "react"
 import { ChipGroup } from "@/components/arc/chip-group/chip-group"
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu"
-import { CalendarClock, Check, Hourglass, Rows3 } from "lucide-react"
-import { StatusGlyph } from "../status-glyph"
+import { Check } from "lucide-react"
+import { StatusViewIcon } from "./status-view-icon"
 import { REQUEST_STATUS_FILTERS, REQUEST_STATUS_FILTER_LABELS, isRequestStatusFilter, type RequestStatusFilter } from "@/lib/request-workspace"
 import styles from "./data-table-toolbar.module.css"
 
@@ -16,8 +16,6 @@ export const statusViews: StatusView[] = REQUEST_STATUS_FILTERS.filter(value => 
 
 /** The status row for the chosen view: Waiting to be taken on joins it only while it is the one chosen. */
 export const statusViewsFor = (filter: RequestStatusFilter): StatusView[] => filter === "waiting" ? [...statusViews, viewOf("waiting")] : statusViews
-
-const viewIcon = (value: RequestStatusFilter) => value === "all" ? <Rows3 /> : value === "due" ? <CalendarClock /> : value === "waiting" ? <Hourglass /> : <StatusGlyph status={value} />
 
 const GAP = 8 // the chip group's --space-2 gap
 const noop = () => {}
@@ -82,7 +80,7 @@ export function StatusPills({ filter, onStatusChange }: { filter: RequestStatusF
 
   const choose = (value: string) => { if (isRequestStatusFilter(value) && value !== filter) onStatusChange(value) }
   // A29: each view keeps its glyph, as in Add filter, and the current one is checked, for assistive technology too.
-  const menu = (items: StatusView[]) => items.map(view => ({ label: view.label, icon: viewIcon(view.value), checked: view.value === filter, trailingIcon: view.value === filter ? <Check /> : undefined, onSelect: () => choose(view.value) }))
+  const menu = (items: StatusView[]) => items.map(view => ({ label: view.label, icon: <StatusViewIcon view={view.value} />, checked: view.value === filter, trailingIcon: view.value === filter ? <Check /> : undefined, onSelect: () => choose(view.value) }))
 
   return <div ref={frame} className={styles.statusRow} data-measured={measured || undefined} role="group" aria-label="Request status">
     {fit === 0
