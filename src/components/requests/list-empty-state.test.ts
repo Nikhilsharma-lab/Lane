@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { hasAddedFilters, listEmptyLine } from "./list-empty-state"
+import { addedFilters, hasAddedFilters, listEmptyLine } from "./list-empty-state"
 
-const view = (patch: Partial<Parameters<typeof listEmptyLine>[0]> = {}) => ({ status: "all" as const, project: "all", title: "", localFilters: [], ...patch })
+const view = (patch: Partial<Parameters<typeof listEmptyLine>[0]> = {}) => ({ status: "all" as const, project: "all", title: "", requestType: "", ...patch })
 const person = { workspaceEmpty: false, readOnly: false }
 
 describe("the list's empty line (#240 decision 8)", () => {
@@ -37,7 +37,8 @@ describe("the list's empty line (#240 decision 8)", () => {
   it("says no Requests match, with Clear filters, once a filter was added", () => {
     const filtered = { kind: "filtered", title: "No matching Requests", description: "Change or clear your filters.", clearFilters: true, newRequest: false }
     expect(listEmptyLine(view({ title: "checkout" }), person)).toEqual(filtered)
-    expect(listEmptyLine(view({ localFilters: [{ id: "requestType", value: "label-1" }] }), person)).toEqual(filtered)
+    expect(listEmptyLine(view({ requestType: "label-1" }), person)).toEqual(filtered)
+    expect(listEmptyLine(view({ project: "project-1", projectAdded: true }), person)).toEqual(filtered)
     expect(listEmptyLine(view({ status: "open", title: "checkout", project: "project-1" }), person)).toEqual(filtered)
   })
 
@@ -53,6 +54,10 @@ describe("added filters (A215)", () => {
     expect(hasAddedFilters(view({ status: "done", project: "project-1" }))).toBe(false)
     expect(hasAddedFilters(view({ title: "  " }))).toBe(false)
     expect(hasAddedFilters(view({ title: "checkout" }))).toBe(true)
-    expect(hasAddedFilters(view({ localFilters: [{ id: "requestType", value: "none" }] }))).toBe(true)
+    expect(hasAddedFilters(view({ requestType: "none" }))).toBe(true)
+  })
+  it("counts a Project added from Add filter on the whole list, in the chips' order", () => {
+    expect(addedFilters(view({ project: "project-1" }))).toEqual([])
+    expect(addedFilters(view({ project: "project-1", projectAdded: true, title: "checkout", requestType: "none" }))).toEqual(["title", "project", "requestType"])
   })
 })

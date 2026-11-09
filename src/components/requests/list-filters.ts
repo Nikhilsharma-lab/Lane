@@ -1,5 +1,7 @@
 "use client"
 
+import { addedFilters } from "./list-empty-state"
+import { listFiltersOf } from "./list-view-model"
 import { useRequestListContext, useRequestListView, withListContext, type ListViewState, type OpenListContext } from "./list-view-state"
 
 /*
@@ -15,9 +17,10 @@ export function useRequestListFilters(): OpenListContext & { title: string } {
 /**
  * One list filter changed from the toolbar or the summary: the Project and (A214) the title are list context, so the
  * address and saved views keep them; the label filter stays in the view. Either way each group goes back to its first 25.
+ * A Project chosen here is an added filter (A215): a chip, and Clear all clears it.
  */
 export function withListFilter(view: ListViewState, id: string, value: string): ListViewState {
-  if (id === "project") return withListContext(view, { project: value || "all" })
+  if (id === "project") return { ...withListContext(view, { project: value || "all" }), projectAdded: value ? true : undefined }
   if (id === "title") return withListContext(view, { title: value })
   return { ...view, shownCounts: {}, localFilters: [...view.localFilters.filter(item => item.id !== id), ...(value ? [{ id, value }] : [])] }
 }
@@ -27,10 +30,7 @@ export function withoutListFilters(view: ListViewState): ListViewState {
   return { ...withListContext(view, { status: "all", project: "all", title: "" }), localFilters: [], shownCounts: {} }
 }
 
-/**
- * A215: Clear all and Clear filters clear only the filters added from the toolbar (title and labels). The status pill
- * shows itself in the pill row and a Project page's Project is the page, so both stay.
- */
+/** A215: Clear all and Clear filters clear only the filters added from the toolbar (list-empty-state.ts); the status pill and a Project page's Project stay. */
 export function withoutAddedFilters(view: ListViewState): ListViewState {
-  return withListFilter(withListFilter(view, "title", ""), "requestType", "")
+  return addedFilters(listFiltersOf(view)).reduce((next, id) => withListFilter(next, id, ""), view)
 }

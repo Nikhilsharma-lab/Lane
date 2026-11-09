@@ -1,11 +1,13 @@
 import { groupRequestRows, matchesListFilters, sortRequestRows, type FinishedCounts, type ListFilters, type OverviewRequest, type RequestRowGroup } from "@/lib/request-overview"
 import { finishedViewOf, type FinishedView } from "@/lib/request-workspace"
+import { hasAddedFilters } from "./list-empty-state"
 import type { ListViewState } from "./list-view-state"
 
-/** The list's filters as the view holds them: status, Project and title (the list context, A214), plus the label filter. */
-export function listFiltersOf(view: Pick<ListViewState, "status" | "project" | "title" | "localFilters">): ListFilters {
+/** The list's filters as the view holds them: status, Project and title (the list context, A214), plus the label
+ * filter, and whether the Project was added from Add filter (list-empty-state.ts). */
+export function listFiltersOf(view: Pick<ListViewState, "status" | "project" | "title" | "localFilters" | "projectAdded">): ListFilters & Pick<ListViewState, "projectAdded"> {
   const local = (id: string) => String(view.localFilters.find(item => item.id === id)?.value ?? "")
-  return { status: view.status, project: view.project, title: view.title, requestType: local("requestType") }
+  return { status: view.status, project: view.project, title: view.title, requestType: local("requestType"), projectAdded: view.projectAdded }
 }
 
 /** The finished statuses whose full counts the list read returns (requests.ts), by their status group's key. */
@@ -35,8 +37,8 @@ export const SHOWN_STEP = 25
 export function listViewModel(view: ListViewState, rows: OverviewRequest[], server: ListServerFacts = {}): ListModel {
   const filters = listFiltersOf(view)
   const grouped = groupRequestRows(sortRequestRows(rows.filter(row => matchesListFilters(row, filters)), view.ordering), view.grouping)
-  // Only the status view narrows the server's counts; a Project, title or label filter leaves the loaded rows to count.
-  const countsApply = filters.project === "all" && !filters.title.trim() && !filters.requestType
+  // Only the status view narrows the server's counts; a Project page or an added filter leaves the loaded rows to count.
+  const countsApply = filters.project === "all" && !hasAddedFilters(filters)
   const groups = grouped.map((group): ListGroup => {
     const finished = view.grouping === "status" ? FINISHED_GROUPS[group.key] : undefined
     const known = finished && countsApply && server.finishedCounts && (filters.status === "all" || filters.status === finished) ? server.finishedCounts[finished] : undefined

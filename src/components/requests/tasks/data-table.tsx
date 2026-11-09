@@ -299,7 +299,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     if (filter !== "all" || projectFilter !== "all" || title || requestType) announce(`${matchCountText(matchCount)}.`, { key: "count", delay: 600 })
     else announce("Filters cleared.", { key: "count" })
   }, [announce, filter, filterSignature, matchCount, projectFilter, requestType, title, workspaceEmpty])
-  const emptyLine = listEmptyLine(view, { workspaceEmpty, readOnly })
+  const emptyLine = listEmptyLine(model.filters, { workspaceEmpty, readOnly })
   const gridLabel = projectName ? `${projectName} Requests` : projectFilter === "none" ? "Requests without a Project" : isGuest ? "My Requests" : "Requests"
   const olderError = older?.error ?? null
   // A failed read says so under its group's Show more, or below the list when no shown group continues that read.
@@ -321,7 +321,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
     <div className={layoutStyles.listAndSummary} data-summary-open={summaryOpen || undefined} data-preview-open={shownPeek ? "" : undefined}>
     <div className={layoutStyles.listPane} data-empty-workspace={workspaceEmpty || undefined}>
-    <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
+    <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} project={projectFilter} projectAdded={view.projectAdded} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={changeSummary} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter} onStatusChange={setStatus} onVisibilityChange={setVisibility} onOrderingChange={setOrdering} onGroupingChange={setGrouping} onClear={clearFilters} />
     <div ref={scrollRef} className={layoutStyles.listScroll}>

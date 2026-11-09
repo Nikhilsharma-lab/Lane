@@ -5,7 +5,9 @@ import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-wo
  * and which filters the person added themselves. Pure, so the list and its tests read the same rules.
  */
 
-type ListView = { status: RequestStatusFilter; project: RequestProjectFilter; title: string; localFilters: { id: string; value: unknown }[] }
+/** The list's filters (list-view-model.ts listFiltersOf), and whether its Project was added from Add filter. */
+type ListView = { status: RequestStatusFilter; project: RequestProjectFilter; title: string; requestType: string; projectAdded?: boolean }
+export type AddedFilter = "title" | "project" | "requestType"
 
 export type ListEmptyLine =
   | { kind: "welcome" }
@@ -23,12 +25,19 @@ const PILL_LINES: Record<Exclude<RequestStatusFilter, "all">, [string, string]> 
 }
 
 /**
- * Filters the person added from the toolbar: the title filter and the label filter. A status pill shows itself in
- * the pill row and a Project page's Project is the page's title, so neither counts, makes a chip or is cleared.
+ * The one rule for the filters the person added from the toolbar, in their chips' order: the title filter, a Project
+ * added from Add filter (or the summary) on the whole list, and the label filter. Only these make a chip, the match
+ * bar and the generic empty line, and only these does Clear all clear. A status pill shows itself in the pill row and
+ * a Project page's Project is the page's title, so neither counts.
  */
-export function hasAddedFilters(view: Pick<ListView, "title" | "localFilters">) {
-  return view.title.trim() !== "" || view.localFilters.some(filter => filter.id === "requestType" && filter.value !== "" && filter.value != null)
+export function addedFilters(view: Omit<ListView, "status">): AddedFilter[] {
+  return [
+    ...view.title.trim() ? ["title" as const] : [],
+    ...view.projectAdded && view.project !== "all" ? ["project" as const] : [],
+    ...view.requestType ? ["requestType" as const] : [],
+  ]
 }
+export const hasAddedFilters = (view: Omit<ListView, "status">) => addedFilters(view).length > 0
 
 /**
  * In this order: the empty workspace's welcome; a status pill's own line when only a pill narrows the list (on a

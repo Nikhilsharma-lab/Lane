@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(r
 
 import { RequestListViewProvider, listFiltersOf, planListUrlSync, revealRequest, useListViewSnapshot, useRequestListContext, useRequestListView, useSetRequestListView, withEmptyWorkspaceStatus, withListAddress, withListContext, withSavedView, type ListViewState } from "./list-view-state"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { withListFilter, withoutListFilters } from "./list-filters"
+import { withListFilter, withoutAddedFilters, withoutListFilters } from "./list-filters"
 import { LIST_DISPLAY_DEFAULTS } from "@/lib/request-workspace"
 import { SHOWN_STEP } from "./list-view-model"
 
@@ -127,6 +127,17 @@ describe("The title filter in the list context (A214)", () => {
     const cleared = withoutListFilters({ ...filtered, shownCounts: { "status:open": 50 } })
     expect(cleared).toMatchObject({ status: "all", project: "all", title: "", localFilters: [] })
     expect(cleared.shownCounts).toEqual({})
+  })
+
+  it("A215: Clear all clears a Project added from Add filter, never a Project page's own Project", () => {
+    const added = withListFilter(withListFilter(view, "project", "p1"), "title", "checkout")
+    expect(added).toMatchObject({ project: "p1", projectAdded: true })
+    expect(withoutAddedFilters(added)).toMatchObject({ project: "all", title: "" })
+    const page = withListFilter(withListContext(view, { project: "p1" }), "title", "checkout")
+    expect(page.projectAdded).toBeFalsy()
+    expect(withoutAddedFilters(page)).toMatchObject({ project: "p1", title: "" })
+    // Moving to another Project (the sidebar, a saved view) makes it the page's own.
+    expect(withListContext(added, { project: "p2" }).projectAdded).toBeFalsy()
   })
 
   it("comes back with a saved view", () => {
