@@ -67,7 +67,17 @@ test("a taken-on Guest submission can't be picked up before its goal is set (Z2)
         RETURNING id`;
     } finally { await sql.end(); }
 
-    await page.goto(`/requests/${requestId}`);
+    // The list's preview reads the Request first, so a stale copy would be in its memory after the take-on.
+    await page.goto("/");
+    const row = page.locator(`[data-request-grid] [role="row"][data-request-id="${requestId}"]`);
+    const preview = page.getByRole("region", { name: "Request preview" });
+    const previewSlot = preview.locator('[data-slot="request-lifecycle-actions"]');
+    await row.locator("[data-request-code]").click();
+    await expect(previewSlot.getByText("Take this Guest submission on before picking it up.", { exact: true })).toBeVisible({ timeout: 20_000 });
+
+    // In-app navigation keeps the preview's memory of it.
+    await preview.getByRole("link", { name: "Open full page" }).click();
+    await expect(page).toHaveURL(new RegExp(`/requests/${requestId}`));
     await expect(page.locator("#request-title")).toHaveText("Invoices need a PDF download");
     await expectVisibleReason(page, "Take this Guest submission on before picking it up.");
 
@@ -75,13 +85,23 @@ test("a taken-on Guest submission can't be picked up before its goal is set (Z2)
     await page.getByRole("region", { name: "Guest submission" }).getByRole("button", { name: "Take this on", exact: true }).click();
     const editor = page.getByRole("dialog", { name: "Set the goal" });
     await expect(editor).toBeVisible({ timeout: 20_000 });
+    // Z3: one name for the goal dialog: "Set the goal", its "Goal" section and Save goal.
     await expect(editor.getByRole("heading", { name: "Goal", exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(editor.getByRole("button", { name: "Save goal", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(editor).toBeHidden();
 
     // The strip has no enabled Pick up, and says why.
     await expectVisibleReason(page, "Set the goal before picking up this Request.");
+    // Back in the list within the preview's 30 seconds of memory, the preview says the same, not what it read first.
+    await page.goBack();
+    await expect(row).toBeVisible();
+    if (!await preview.isVisible()) await row.locator("[data-request-code]").click();
+    await expect(previewSlot.getByText("Set the goal before picking up this Request.", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(previewSlot.getByRole("button", { name: "Pick up", exact: true })).toBeDisabled();
+
     // The server refuses the move with the same words.
+    await page.goto(`/requests/${requestId}`);
     expect(await callPickUp(page, requestId, orgId)).toEqual({ error: "Set the goal before picking up this Request." });
     await page.reload();
     await expectVisibleReason(page, "Set the goal before picking up this Request.");

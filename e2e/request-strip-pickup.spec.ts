@@ -74,7 +74,7 @@ async function pressAndWatch(page: Page, from: string) {
   }), from);
 }
 
-test("a greyed Pick up says why in the strip, not only on hover (B19)", async ({ page }) => {
+test("a greyed Pick up says why in the strip, not only on hover (B19)", async ({ page }, info) => {
   test.setTimeout(180_000);
   let user: TestUser | undefined;
   try {
@@ -88,6 +88,10 @@ test("a greyed Pick up says why in the strip, not only on hover (B19)", async ({
       await expect(reason).toBeVisible();
       expect((await reason.boundingBox())?.width ?? 0, `the reason is laid out as text at ${width}px`).toBeGreaterThan(40);
       await expect(strip(page).getByRole("button", { name: "Pick up", exact: true })).toBeDisabled();
+      // Nothing in the strip is pushed past the screen's edge.
+      const edge = await page.locator('[data-slot="page-strip"]').first().evaluate(element => ({ scroll: element.scrollWidth, client: element.clientWidth }));
+      expect(edge.scroll, `the strip fits at ${width}px`).toBeLessThanOrEqual(edge.client + 1);
+      await page.screenshot({ path: info.outputPath(`strip-reason-${width}.png`) });
     }
   } finally {
     if (user) try { await cleanupTestWorkspace(user.id); } finally { await deleteTestUser(user.id); }
