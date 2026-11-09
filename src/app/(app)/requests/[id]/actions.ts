@@ -11,6 +11,7 @@ import { guardActiveMember, guardCanContribute, guardCanChange } from "@/lib/aut
 import { requestPrioritySchema } from "@/lib/request-properties";
 import { removeObjects, signDownload } from "@/lib/attachment-storage";
 import { callTimings } from "@/lib/request-timings";
+import { REOPEN_WINDOW_MS } from "@/lib/reopen-window";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,18 +54,12 @@ const commentSchema = z.object({
     .max(5000, "Comment must be 5,000 characters or fewer"),
 });
 
-/** How long after a Done move its Undo stays valid. The list's toast offers it
- * for seconds; the window only has to outlast a slow network.
- *
- * Decision 8.18: the window is measured from updated_at (stamped by the 0002
- * trigger on every update), so a priority edit on a Done Request restarts it.
- * requests.done_at (0034, kept by the stamp_done_at trigger) now holds the Done
- * time itself; it is cleared when this undo moves the Request back. */
-const UNDO_DONE_WINDOW_MS = 15 * 60 * 1000;
-
 /** Returns a Request that was just marked Done to In progress: the undo for
- * markDone, not a reverse lifecycle move. It only applies while the Done move
- * is recent (updated_at, see UNDO_DONE_WINDOW_MS), the status row and its Done
+ * markDone (the toast's Undo and the Done step's Reopen), not a reverse
+ * lifecycle move. It only applies for REOPEN_WINDOW_MS after the saved Done
+ * time (requests.done_at, kept by the 0034 stamp_done_at trigger and cleared
+ * when this moves the Request back; #278: no longer updated_at, so an
+ * unrelated edit can't restart the window), the status row and its Done
  * notification change together in one statement, and Closed outcomes are a
  * later lifecycle state that never reopens this way. */
 export async function undoMarkDone(
@@ -77,7 +72,7 @@ export async function undoMarkDone(
 
   // One CTE: the conditional UPDATE and the DELETE of the Done notification
   // commit or fail together, and the DELETE only runs when the UPDATE matched.
-  const windowStart = new Date(Date.now() - UNDO_DONE_WINDOW_MS);
+  const windowStart = new Date(Date.now() - REOPEN_WINDOW_MS);
   const rows = await db.execute<{ status: "in_progress" }>(sql`
     with u as (
       update ${requests}
@@ -88,7 +83,7 @@ export async function undoMarkDone(
         and ${requests.outcomeClosure} is null
         and (${requests.releaseState} is null or ${requests.releaseState}->'release'='null'::jsonb)
         and ${requests.status} = ${"done"}::request_status
-        and ${requests.updatedAt} > ${windowStart.toISOString()}::timestamptz
+        and ${requests.doneAt} > ${windowStart.toISOString()}::timestamptz
       returning ${requests.id}, ${requests.status}
     ), d as (
       delete from ${notifications}
@@ -104,7 +99,7 @@ export async function undoMarkDone(
 
   if (!updated) {
     const [req] = await db
-      .select({ status: requests.status, updatedAt: requests.updatedAt })
+      .select({ status: requests.status, doneAt: requests.doneAt })
       .from(requests)
       .where(and(eq(requests.id, requestId), eq(requests.orgId, auth.orgId)));
 
@@ -112,7 +107,7 @@ export async function undoMarkDone(
     if (req.status !== "done") {
       return { error: "This Request is not Done. Refresh to see its current state." };
     }
-    if (req.updatedAt.getTime() <= windowStart.getTime()) {
+    if (!req.doneAt || req.doneAt.getTime() <= windowStart.getTime()) {
       return { error: "Undo is only offered right after a Request is marked Done. Further work needs a new Request." };
     }
     return {
