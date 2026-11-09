@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react"
-import type { SavedView } from "@/lib/saved-view-nav"
+import { inViewOrder, sameViewName, type SavedView } from "@/lib/saved-view-nav"
 
 /**
  * #276: a person's saved views as the sidebar's "Your views" and the Requests list both show them: the server's views
@@ -29,7 +29,14 @@ export const unsavedViewId = () => `pending-view-${++unsaved}`
 /** Adds a view in place of any with its id or (names are unique per person) its name: a save the server's views already
  * show keeps the id the list holds until the save is answered. */
 export const withView = (view: SavedView): SavedViewsChange => views =>
-  [...views.filter(item => item.id !== view.id && item.name.toLowerCase() !== view.name.toLowerCase()), view]
+  [...views.filter(item => item.id !== view.id && !sameViewName(item.name, view.name)), view]
+
+/** A view's new name. */
+export const renamedView = (id: string, name: string): SavedViewsChange => views => views.map(item => item.id === id ? { ...item, name } : item)
+
+/** The server's views with this tab's changes on top, in the server's order (by name), so a new or renamed view never jumps when the server's arrive. */
+export const shownViews = (server: SavedView[], changes: SavedViewsChange[]) =>
+  changes.length ? inViewOrder(changes.reduce((shown, change) => change(shown), server)) : server
 
 const SavedViewsContext = createContext<SavedViewsStore | null>(null)
 SavedViewsContext.displayName = "SavedViews"
@@ -53,8 +60,7 @@ export function SavedViewsProvider({ views: server, children }: { views: SavedVi
     setPending(current => current.map(item => item.token === token ? { token, change: change ?? item.change, accepted: true } : item)), [])
   const rollback = useCallback((token: number) => setPending(current => current.filter(item => item.token !== token)), [])
 
-  // A new or renamed view takes its place in the server's order (by name) when the server's views arrive.
-  const views = useMemo(() => pending.reduce((shown, item) => item.change(shown), server), [server, pending])
+  const views = useMemo(() => shownViews(server, pending.map(item => item.change)), [server, pending])
   const store = useMemo(() => ({ views, begin, accept, rollback }), [views, begin, accept, rollback])
   return <SavedViewsContext.Provider value={store}>{children}</SavedViewsContext.Provider>
 }

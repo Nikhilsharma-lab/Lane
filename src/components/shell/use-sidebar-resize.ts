@@ -1,24 +1,13 @@
 "use client";
 
-import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useReducedMotion } from "motion/react";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { layoutWidthFor, NAVIGATION_WIDTH, planToggle, slideFor, type SidebarMotion } from "./sidebar-motion";
 
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 400;
 const COLLAPSE_AT = 160;
-const PHONE = "(max-width: 640px)";
-const LINEAR_PREVIEW_COMPACT = "(max-width: 880px)";
-const subscribePhone = (change: () => void) => {
-  const query = window.matchMedia(PHONE);
-  query.addEventListener("change", change);
-  return () => query.removeEventListener("change", change);
-};
-const subscribeLinearPreviewCompact = (change: () => void) => {
-  const query = window.matchMedia(LINEAR_PREVIEW_COMPACT);
-  query.addEventListener("change", change);
-  return () => query.removeEventListener("change", change);
-};
 
 /**
  * Lane's edge-resize adaptation of Arc's desktop sidebar. Plan item 2.4 (plan
@@ -28,8 +17,8 @@ const subscribeLinearPreviewCompact = (change: () => void) => {
  * collapse and pinning a visible peek change the width in one jump.
  */
 export function useSidebarResize(disabled: boolean, linearPreviewAutoCollapse = false, onAutoExpand?: () => void) {
-  const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false) && !linearPreviewAutoCollapse;
-  const previewCompact = useSyncExternalStore(subscribeLinearPreviewCompact, () => window.matchMedia(LINEAR_PREVIEW_COMPACT).matches, () => false);
+  const phone = useMediaQuery("(max-width: 640px)") && !linearPreviewAutoCollapse;
+  const previewCompact = useMediaQuery("(max-width: 880px)");
   const autoCollapsed = linearPreviewAutoCollapse && previewCompact;
   const reduced = useReducedMotion();
   const initialWidth = NAVIGATION_WIDTH;

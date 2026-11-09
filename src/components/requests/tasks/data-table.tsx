@@ -82,7 +82,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // and sorting, so an optimistic change regroups the row in the next frame.
   const pendingMutations = usePendingMutations()
   const data = usePendingRows(serverRows)
-  useRequestListUrlSync(view, setView, (pendingMutations?.unconfirmed ?? 0) > 0)
+  const hold = (pendingMutations?.unconfirmed ?? 0) > 0
+  useRequestListUrlSync(view, setView, hold)
   // Plan item 2.1: `data` already carries composer inserts, so the first Request
   // ends the empty state in the same frame. It is read before any filter, so a
   // status, Project or title filter never shows the welcome. Both states render
@@ -157,7 +158,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // is no view change.
   const viewSignature = viewResets.preview(view)
   // #275: rows slide into place, Back finds the list where it was (A232), the tab's return reads fresh rows.
-  useListFeel(gridRef, scrollRef, gridKeys, viewSignature, listViewHref(view), `${context?.orgId}:${viewer?.id}`, (pendingMutations?.unconfirmed ?? 0) > 0)
+  // A212: and a group reads the older Requests it should show (a reload, or a Show more whose read added none of its own).
+  useListFeel({ grid: gridRef, scroller: scrollRef, rows: gridKeys, still: viewSignature, href: listViewHref(view), scope: context && viewer ? `${context.orgId}:${viewer.id}` : null, hold, groups, shownCounts: view.shownCounts, older })
   const [peekView, setPeekView] = useState(viewSignature)
   if (peekView !== viewSignature) {
     setPeekView(viewSignature)
@@ -297,7 +299,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     if (filter !== "all" || projectFilter !== "all" || title || requestType) announce(`${matchCountText(matchCount)}.`, { key: "count", delay: 600 })
     else announce("Filters cleared.", { key: "count" })
   }, [announce, filter, filterSignature, matchCount, projectFilter, requestType, title, workspaceEmpty])
-  const emptyLine = listEmptyLine(view, { workspaceEmpty, readOnly })
+  const emptyLine = listEmptyLine(model.filters, { workspaceEmpty, readOnly })
   const gridLabel = projectName ? `${projectName} Requests` : projectFilter === "none" ? "Requests without a Project" : isGuest ? "My Requests" : "Requests"
   const olderError = older?.error ?? null
   // A failed read says so under its group's Show more, or below the list when no shown group continues that read.
@@ -319,7 +321,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     <RequestWorkspaceKeyboard returnHref={requestListHref(filter, projectFilter)} onRestoreRequest={restoreRequest} />
     <div className={layoutStyles.listAndSummary} data-summary-open={summaryOpen || undefined} data-preview-open={shownPeek ? "" : undefined}>
     <div className={layoutStyles.listPane} data-empty-workspace={workspaceEmpty || undefined}>
-    <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
+    <DataTableToolbar controls={!workspaceEmpty} data={data} filter={filter} title={title} project={projectFilter} projectAdded={view.projectAdded} requestType={requestType} matchCount={matching.length} columns={columns} columnVisibility={columnVisibility} ordering={ordering} grouping={grouping}
       summaryOpen={presentation ? summaryOpen : undefined} onSummaryChange={changeSummary} summaryTrigger={summaryTrigger}
       onFilterChange={setFilter} onStatusChange={setStatus} onVisibilityChange={setVisibility} onOrderingChange={setOrdering} onGroupingChange={setGrouping} onClear={clearFilters} />
     <div ref={scrollRef} className={layoutStyles.listScroll}>

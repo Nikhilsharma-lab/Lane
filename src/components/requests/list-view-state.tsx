@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { useSearchParams } from "next/navigation"
 import type { ColumnFiltersState, ColumnVisibilityState } from "@tanstack/react-table"
 import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
-import { hasRequestListContext, parseListDisplay, parseRequestListContext, requestListHref, type ListDisplay, type RequestListContext } from "@/lib/request-workspace"
+import { hasRequestListContext, LIST_DISPLAY_DEFAULTS, parseListDisplay, parseRequestListContext, requestListHref, type ListDisplay, type RequestListContext } from "@/lib/request-workspace"
 import { createCurrentRequestStore, resolveCurrentRequest, type CurrentRequest } from "./current-request"
 import { createExternalStore } from "@/lib/external-store"
 import { usePendingMutations } from "./pending-mutations-provider"
@@ -24,6 +24,9 @@ export type ListViewState = Required<RequestListContext> & {
   reveal?: string
   /** #219: the saved view the person opened, kept while they change its filters so the change can be saved into it. */
   savedView?: string
+  /** A215: the Project came from Add filter (or the summary) on the whole list, so it is a chip and Clear all clears
+   * it. Any other way to a Project (the sidebar, a saved view, an address) makes it the page's own. Memory only. */
+  projectAdded?: true
 }
 /** The status view and Project plus the open saved view (#219). The title filter (A214) changes on each keystroke, so it stays out: the sidebar reads this. */
 export type OpenListContext = Omit<RequestListContext, "title"> & { savedView?: string }
@@ -32,8 +35,7 @@ export type SetListView = Dispatch<SetStateAction<ListViewState>>
 const initialView: ListViewState = {
   // Keep the first scan about the Request and its current assignee. The other
   // fields remain available in the Display control when a team needs them.
-  columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
-  shownCounts: {},
+  columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ...LIST_DISPLAY_DEFAULTS,
   status: "all", project: "all", title: "",
 }
 
@@ -234,7 +236,7 @@ export function useRequestListContext(): OpenListContext {
 export function withListContext(view: ListViewState, next: Partial<RequestListContext>): ListViewState {
   const status = next.status ?? view.status, project = next.project ?? view.project, title = next.title ?? view.title
   if (status === view.status && project === view.project && title === view.title) return view
-  return { ...view, status, project, title, shownCounts: {} }
+  return { ...view, status, project, title, shownCounts: {}, projectAdded: project === view.project ? view.projectAdded : undefined }
 }
 
 /** #219: opens a saved view (its filters, each group at its first 25), or with null closes the open one and keeps the filters. */

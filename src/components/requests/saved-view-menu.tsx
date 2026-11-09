@@ -11,14 +11,14 @@ import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
 import { charactersLeftNote } from "@/lib/character-count"
 import { isOffline } from "@/lib/connection-status"
 import {
-  openSavedView, parseSavedViewName, SAVED_VIEW_NAME_MAX, savedViewChoices, savedViewNameTaken,
+  openSavedView, parseSavedViewName, SAVED_VIEW_NAME_MAX, sameViewName, savedViewChoices, savedViewNameTaken,
   type SavedView, type SavedViewChoice, type SavedViewFilters,
 } from "@/lib/saved-view-rules"
 import { deleteSavedView, renameSavedView, saveView, updateSavedView } from "@/app/(app)/saved-view-actions"
 import { useListAnnouncer } from "./list-announcer"
 import { useSetRequestListView, withSavedView } from "./list-view-state"
 import { useRequestListFilters } from "./list-filters"
-import { unsavedViewId, useSavedViewsStore, withView, type SavedViewsChange } from "./saved-views-store"
+import { renamedView, unsavedViewId, useSavedViewsStore, withView, type SavedViewsChange } from "./saved-views-store"
 import { failureToast, useOptimisticAction } from "./use-optimistic-action"
 import styles from "./saved-view-menu.module.css"
 
@@ -108,7 +108,7 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
   }
 
   function rename(view: SavedView, next: string): boolean {
-    const shows = send(views => views.map(item => item.id === view.id ? { ...item, name: next } : item), () => renameSavedView({ id: view.id, name: next }, { orgId }), { retry: () => { rename(view, next) } })
+    const shows = send(renamedView(view.id, next), () => renameSavedView({ id: view.id, name: next }, { orgId }), { retry: () => { rename(view, next) } })
     if (shows) announce(`Renamed the view to “${next}”.`)
     return shows
   }
@@ -146,7 +146,7 @@ export function SavedViewMenu({ views, orgId }: { views: SavedView[]; orgId: str
     if ("error" in parsed) { setError(parsed.error); return }
     const renaming = kind === "rename" ? open : null
     if (kind === "rename" && !renaming) return
-    if (views.some(view => view.id !== renaming?.id && view.name.toLowerCase() === parsed.name.toLowerCase())) { setError(savedViewNameTaken(parsed.name)); return }
+    if (views.some(view => view.id !== renaming?.id && sameViewName(view.name, parsed.name))) { setError(savedViewNameTaken(parsed.name)); return }
     const shows = renaming
       ? parsed.name === renaming.name || rename(renaming, parsed.name)
       : saveAs(parsed.name, filters, context.savedView)

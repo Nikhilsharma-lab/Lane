@@ -13,7 +13,10 @@ export function PreviewHeadings({ children }: { children: ReactNode }) {
   return <Shift value={1}>{children}</Shift>
 }
 
+type Level = 2 | 3 | 4 | 5 | 6
+
 export function SectionHeading({ level, ...props }: { level: 2 | 3 | 4 } & ComponentProps<"h2">) {
-  const Heading = `h${level + useContext(Shift)}` as "h2"
+  // HTML stops at h6.
+  const Heading: `h${Level}` = `h${Math.min(level + useContext(Shift), 6) as Level}`
   return <Heading {...props} />
 }
