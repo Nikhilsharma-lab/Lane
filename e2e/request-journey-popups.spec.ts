@@ -52,8 +52,11 @@ async function withWorkspace(page: Page, label: string, run: (user: TestUser) =>
     await provisionAndSignIn(page, user, { name: "Popup Tester", workspaceName: `#277 ${label}` });
     await run(user);
   } finally {
-    await cleanupTestWorkspace(user.id);
-    await deleteTestUser(user.id);
+    // A recorded release can never be deleted (its history is immutable), so that workspace's rows stay in the test
+    // database; the Clerk organization goes and a borrowed user is given back either way.
+    await cleanupTestWorkspace(user.id).catch((error: unknown) => {
+      if (!String((error as { message?: string }).message).includes("Release history is immutable")) throw error;
+    }).finally(() => deleteTestUser(user.id));
   }
 }
 
@@ -83,6 +86,8 @@ async function pickerBounds(page: Page, dialog: Locator) {
   await expect(calendar).toBeVisible();
   const focusedDay = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.date ?? null);
   await expect.poll(focusedDay).not.toBeNull();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: test.info().outputPath(`release-calendar-${page.viewportSize()!.width}.png`) });
   for (let i = 0; i < 12; i++) await page.keyboard.press("ArrowLeft");
   const earliest = await focusedDay();
   for (let i = 0; i < 20; i++) await page.keyboard.press("ArrowRight");
