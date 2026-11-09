@@ -80,8 +80,7 @@ import { RequestReviewSupportingDetails } from "@/components/requests/request-re
 import type { RequestDetail } from "@/components/requests/detail-view";
 import { editChangesContent, requestEditValues, requestEditSnapshot, requestEditSourceSchema } from "@/lib/request-edit";
 import { framingChanges } from "@/lib/request-framing";
-import { reviewResetWarning } from "@/lib/request-reviewer-rules";
-import { sourceRequestType } from "@/lib/request-labels";
+import { reviewResetWarning } from "@/lib/review-reset";
 import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
 import { saveNewIntake, saveEditedIntake } from "./intake-save";
 import { useOptimisticAction, useServerRefresh } from "@/components/requests/use-optimistic-action";
@@ -801,9 +800,9 @@ export default function RequestEditor({
       const input = { requestId: editing.request.id, source: savingSource, original,
         initialImpact: initialValues.expectedImpact, noMeasurableImpactReason: editing.request.noMeasurableImpactReason ?? null,
         unchanged: compose, savedProblem, savedSolution, snapshot, token, triage, editedProblem };
-      const patch = { kind: "edit" as const, title: savingSource.title, priority: savingSource.priority ?? "none",
+      const patch = { kind: "edit" as const, title: savingSource.title,
         projectId: savingSource.projectId ?? null, projectName: projects.projects.find(project => project.id === savingSource.projectId)?.name ?? null,
-        labelKeys: requestLabelKeys(savingSource), requestType: sourceRequestType(savingSource) };
+        labelKeys: requestLabelKeys(savingSource) };
       session.persistDraft(() => writeIntakeDraft(window.sessionStorage, draftScope, currentDraft()));
       editing.saveInBackground({ compose, run: () => saveEditedIntake(input, context, optimistic, patch), clearDraft: () => clearIntakeDraft(window.sessionStorage, draftScope) });
       return;

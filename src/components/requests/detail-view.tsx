@@ -28,7 +28,7 @@ export type RequestDetail = {
   /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
   /** #280 (B9): the review answers an edit would clear (concerns by name), or null. Optional only for older fixtures. */
-  answeredReviews?: import("@/lib/request-reviewer-rules").AnsweredReviews | null
+  answeredReviews?: import("@/lib/review-reset").AnsweredReviews | null
   /** Each saved reviewer's shape, so the reviewers' loading state holds their rows (#295). Optional only for older fixtures. */
   reviewerOutline?: import("@/lib/request-reviewer-rules").ReviewerOutline[]
   /** The journey as the saved Request and its reader draw it, decided on the server: shown until the journey's reads arrive (#295). */

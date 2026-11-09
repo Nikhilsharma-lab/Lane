@@ -453,11 +453,11 @@ describe("useOptimisticBatch core", () => {
 
 // #280: a saved Edit Request shows its title, Project and labels at once, until the server row shows them.
 describe("pending-mutation overlay: an edit", () => {
-  const edit = { kind: "edit" as const, title: "Delivery costs show at payment", projectId: "p2", projectName: "Checkout", labelKeys: ["b", "a"], requestType: null, priority: "high" as const }
+  const edit = { kind: "edit" as const, title: "Delivery costs show at payment", projectId: "p2", projectName: "Checkout", labelKeys: ["b", "a"] }
   it("shows the edited fields over the server row and keeps the rest", () => {
     const { view, commitOne } = setup()
     const token = view().begin("a", edit)
-    expect(commitOne(row("a", { projectId: "p1", projectName: "Billing", labelKeys: ["a"] }))).toMatchObject({ title: edit.title, projectId: "p2", projectName: "Checkout", labelKeys: ["b", "a"], priority: "high", status: "in_progress" })
+    expect(commitOne(row("a", { projectId: "p1", projectName: "Billing", labelKeys: ["a"] }))).toMatchObject({ title: edit.title, projectId: "p2", projectName: "Checkout", labelKeys: ["b", "a"], status: "in_progress" })
     view().rollback("a", token)
     expect(commitOne(row("a", { projectId: "p1" }))).toMatchObject({ title: "Request a", projectId: "p1" })
   })
@@ -465,9 +465,9 @@ describe("pending-mutation overlay: an edit", () => {
     const { view, commitOne } = setup()
     const token = view().begin("a", edit)
     view().confirm("a", token)
-    const stale = row("a", { priority: "high", projectId: "p1" })
+    const stale = row("a", { title: edit.title, projectId: "p1" })
     expect(commitOne(stale).projectId).toBe("p2")
-    const saved = row("a", { title: edit.title, projectId: "p2", projectName: "Checkout", labelKeys: ["b", "a"], requestType: null, priority: "high" })
+    const saved = row("a", { title: edit.title, projectId: "p2", projectName: "Checkout", labelKeys: ["b", "a"] })
     expect(commitOne(saved)).toBe(saved)
     expect(view().patches).toEqual({})
   })

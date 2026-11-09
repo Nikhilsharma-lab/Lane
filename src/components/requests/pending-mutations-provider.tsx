@@ -4,8 +4,8 @@ import { createContext, useContext, useEffect, useMemo, useState, useSyncExterna
 import type { OverviewRequest } from "@/lib/request-overview"
 
 /** The fields a pending lifecycle or priority move can change on a row. */
-export type RequestPatch = Partial<Pick<OverviewRequest, "status" | "priority" | "assignedTo" | "assigneeName" | "assigneeAvatarUrl" | "title" | "projectId" | "projectName" | "labelKeys" | "requestType">> & {
-  /** #280: "edit" is a saved Edit Request: its title, Project, labels and priority show while the save runs. */
+export type RequestPatch = Partial<Pick<OverviewRequest, "status" | "priority" | "assignedTo" | "assigneeName" | "assigneeAvatarUrl" | "title" | "projectId" | "projectName" | "labelKeys">> & {
+  /** #280: "edit" is a saved Edit Request: its title, Project and labels show while the save runs. */
   kind: "pick-up" | "done" | "undo" | "priority" | "edit"
   /** performance.now() when the patch was applied; the no-revert gate reads it. */
   since: number
@@ -76,8 +76,8 @@ export type PendingMutations = {
   settleComments(requestId: string, serverComments: { id: string }[]): void
 }
 
-type Field = "status" | "priority" | "assignedTo" | "assigneeName" | "assigneeAvatarUrl" | "title" | "projectId" | "projectName" | "labelKeys" | "requestType"
-const FIELDS: Field[] = ["status", "priority", "assignedTo", "assigneeName", "assigneeAvatarUrl", "title", "projectId", "projectName", "labelKeys", "requestType"]
+type Field = "status" | "priority" | "assignedTo" | "assigneeName" | "assigneeAvatarUrl" | "title" | "projectId" | "projectName" | "labelKeys"
+const FIELDS: Field[] = ["status", "priority", "assignedTo", "assigneeName", "assigneeAvatarUrl", "title", "projectId", "projectName", "labelKeys"]
 
 /** One action's change to one Request. Later layers win; a layer clears on its own. */
 type Layer = { token: number; patch: RequestPatch; confirmed: boolean }
@@ -91,11 +91,9 @@ const INSERT_TTL_MS = 2 * 60 * 1000
 const fieldsOf = (patch: RequestPatch) => FIELDS.filter(field => patch[field] !== undefined)
 const valueOf = (row: object, field: Field) => {
   const value = (row as Partial<Record<Field, unknown>>)[field] ?? null
-  // No labels reads the same as an empty list.
-  return Array.isArray(value) && !value.length ? null : value
+  // Labels compare as their keys in order; no labels reads the same as none.
+  return Array.isArray(value) ? value.join() || null : value
 }
-/** Labels are a list: the same keys in the same order are the same value. */
-const same = (a: unknown, b: unknown) => a === b || (Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, index) => item === b[index]))
 /**
  * The plan's rule: a patch is reflected once the server row shows its status
  * or priority (an edit: every field it changed). A row that does not carry one of those fields (a partial row,
@@ -103,11 +101,11 @@ const same = (a: unknown, b: unknown) => a === b || (Array.isArray(a) && Array.i
  * would clear a confirmed "No priority" before the server row shows it.
  */
 function reflected(row: object, patch: RequestPatch) {
-  // An edit is reflected only once every field it changed shows.
-  const decisive = patch.kind === "edit" ? [] : fieldsOf(patch).filter(field => field === "status" || field === "priority")
+  // An edit carries neither, so it is reflected only once every field it changed shows.
+  const decisive = fieldsOf(patch).filter(field => field === "status" || field === "priority")
   if (decisive.some(field => (row as Partial<Record<Field, unknown>>)[field] === undefined)) return false
   const fields = decisive.length ? decisive : fieldsOf(patch)
-  return fields.every(field => same(valueOf(row, field), valueOf(patch, field)))
+  return fields.every(field => valueOf(row, field) === valueOf(patch, field))
 }
 
 /**

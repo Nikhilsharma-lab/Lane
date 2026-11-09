@@ -30,7 +30,7 @@ export async function saveEditedIntake(input: Review & {
   savedSolution: string | null;
   snapshot: string;
 }, context: { orgId: string }, optimistic: ReturnType<typeof useOptimisticAction>,
-  /** #280: what the page shows of the edit while it saves (title, Project, labels, priority). */
+  /** #280: what the page shows of the edit while it saves (title, Project, labels). */
   patch?: Omit<RequestPatch, "since">): Promise<SaveResponse> {
   const changes = { ...input.source,
     expectedImpact: input.original.expectedImpact === null && !input.noMeasurableImpactReason && JSON.stringify(input.source.expectedImpact) === JSON.stringify(input.initialImpact) ? null : input.source.expectedImpact,
