@@ -6,6 +6,7 @@ vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams()
 
 import { FirstRunGuideView, type FirstRunGuideViewProps } from "./first-run-guide-view"
 import { FirstRunInviteForm } from "./first-run-invite-form"
+import { ROLE_DESCRIPTIONS } from "@/lib/member-role-rules"
 
 const noop = () => {}
 const free = { planState: "free" as const, free: { total: 4, used: 0, left: 4, usedElsewhere: null } }
@@ -137,6 +138,8 @@ describe("inviting teammates from the first run", () => {
     expect(html).toContain(">Email address<")
     expect(text(html)).toContain("Lane emails them an invitation to this workspace. Once they join, you can pick them as Reviewers.")
     expect(html).toContain(">Member · Paid seat<")
+    // Only the role's label is the guide's own; its note is the one Settings → Members shows.
+    expect(text(html)).toContain(ROLE_DESCRIPTIONS.member)
     expect(text(html)).not.toContain("Clerk")
     expect(html).not.toContain(">Reviewer<")
     expect(text(html)).not.toContain("Joins as a Member")

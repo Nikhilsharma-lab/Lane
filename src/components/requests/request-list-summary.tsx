@@ -1,36 +1,23 @@
 "use client"
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
-import { AnimatePresence, m, useIsPresent, useReducedMotion, type Transition } from "motion/react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import { AnimatePresence, m, useIsPresent, useReducedMotion } from "motion/react"
 import { X } from "lucide-react"
 import { Button } from "@/components/arc/button/button"
 import { ChipGroup } from "@/components/arc/chip-group/chip-group"
-import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
+import { usePhonePanel } from "@/lib/use-media-query"
 import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import type { RequestStatusFilter } from "@/lib/request-workspace"
 import { requestLabelKeys } from "@/lib/request-labels"
 import { useWorkspaceLabels } from "./workspace-labels"
 import { statusOf } from "./tasks/statuses"
+import { panelSlide } from "./request-peek"
 import buttonStyles from "@/components/arc/button/button.module.css"
 import styles from "./tasks/data-table-toolbar.module.css"
 
 const dimensions = [{ value: "status", label: "Status" }, { value: "project", label: "Project" }, { value: "requestType", label: "Labels" }]
 type Dimension = "status" | "project" | "requestType"
-// The summary's panel slides in its own column on transform only, as the preview does: 0.2s on the enter curve and
-// 0.15s on the exit curve. Under reduced motion it neither moves nor fades.
-const enter: Transition = { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] as [number, number, number, number] }
-const leave: Transition = { duration: motionTokens.duration.exit, ease: [...motionTokens.ease.exit] as [number, number, number, number] }
-
-/** The popup's own switch (popup-behaviour.tsx): under 640px a panel is the phone's bottom panel. */
-const PHONE = "(max-width: 639.98px)"
-function subscribePhone(change: () => void) {
-  const query = window.matchMedia(PHONE)
-  query.addEventListener("change", change)
-  return () => query.removeEventListener("change", change)
-}
-const usePhone = () => useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
-
 type SummaryProps = {
   rows: OverviewRequest[]; filter: RequestStatusFilter; project: string; requestType: string;
   onFilter: (field: Dimension, value: string) => void; onClose: () => void;
@@ -41,7 +28,8 @@ type SummaryProps = {
  * place (the two replace each other), and narrows the list; on a phone it is the Build 2 bottom panel.
  */
 export function RequestListSummary({ open, ...props }: SummaryProps & { open: boolean }) {
-  const phone = usePhone()
+  // The popups' own switch (popup-behaviour.tsx): under 640px the summary is the phone's bottom panel.
+  const phone = usePhonePanel()
   if (phone) return <Dialog open={open} onOpenChange={next => { if (!next) props.onClose() }}>
     <DialogContent title="List summary"><SummaryBody {...props} /></DialogContent>
   </Dialog>
@@ -54,17 +42,17 @@ function SummaryPanel(props: SummaryProps) {
   const reduced = !!useReducedMotion()
   const present = useIsPresent()
   useEffect(() => { if (present) panel.current?.focus({ preventScroll: true }) }, [present])
-  // Leaving, the panel gives its column back at once and slides out over the list's edge.
+  // Leaving, the panel gives its column back at once and slides out over the list's edge, as the preview does.
   return <div className={styles.summaryViewport} inert={!present} aria-hidden={!present || undefined} data-leaving={!present || undefined}>
     <m.section ref={panel} tabIndex={-1} className={styles.summary} role="region" aria-label="List summary"
-      initial={reduced ? false : { x: "100%" }} animate={{ x: "0%" }} exit={reduced ? undefined : { x: "100%", transition: leave }} transition={enter} onKeyDown={event => {
+      {...panelSlide(reduced)} onKeyDown={event => {
     if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); onClose() }
   }}>
     <SummaryBody {...props} close={<Button className={styles.summaryClose} variant="ghost" size="sm" aria-label="Close list summary" onClick={onClose}><X data-icon-size="sm" aria-hidden="true" /></Button>} />
   </m.section></div>
 }
 
-/** A breakdown of the currently matching list, before pagination. No new record data. */
+/** A breakdown of every Request the list matches, shown or not. No new record data. */
 function SummaryBody({ rows, filter, project, requestType, onFilter, close }: SummaryProps & { close?: ReactNode }) {
   const { labels } = useWorkspaceLabels()
   const [dimension, setDimension] = useState<Dimension>("status")

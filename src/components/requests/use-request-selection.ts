@@ -32,7 +32,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   const moves = useRequestMoves({ orgId: context?.orgId ?? "", announce })
   const { continuation } = useRequestNavigation()
   const [state, setState] = useState(() => emptySelection(scope))
-  // Changing a filter/page/workspace starts a fresh selection, including when returning to an old view.
+  // Changing a filter, the order, the grouping or the workspace starts a fresh selection, including when returning to an old view (list-view-model.ts viewResets).
   if (state.scope !== scope) setState(emptySelection(scope))
   const current = state.scope === scope ? state : emptySelection(scope)
   const selected = rows.filter(row => current.ids.includes(row.id))
@@ -45,9 +45,9 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   // them, so toggle reads the latest selection here instead of from its closure.
   const latest = useRef({ selected, busy })
   useLayoutEffect(() => { latest.current = { selected, busy } })
-  // A view change (filter, page, group collapse) starts a fresh selection. A
-  // selection it drops is announced, so a J past the page edge or a collapse
-  // from the keyboard never clears it silently (plan item 2.4).
+  // A view change (a filter, a group folding) starts a fresh selection. A
+  // selection it drops is announced, so a fold from the keyboard never
+  // clears it silently (plan item 2.4). Show more only adds rows, so it keeps it.
   const held = useRef({ scope, count: 0 })
   useLayoutEffect(() => {
     const previous = held.current

@@ -129,7 +129,7 @@
     "source": "https://uiarc.dev/r/dropdown-menu.json",
     "file": "src/components/arc/dropdown-menu/dropdown-menu.tsx",
     "upstreamSha256": "555391c3bd2a0a3ba9818240a34a53ce51be40d2b9f290a23569bf6cf2328704",
-    "localSha256": "f17f4177a52b640ec1391a858e6290f32ba78aa7026ccc7dfd5d0c036e6c9a46"
+    "localSha256": "9f480698cb6055f3bfe7a44fa22ea1899b1c0d96b3981e28eedca052c3e939b7"
   },
   {
     "id": "empty-state",

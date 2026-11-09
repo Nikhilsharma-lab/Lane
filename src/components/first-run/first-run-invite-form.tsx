@@ -17,12 +17,8 @@ export type FirstRunInviteRole = "member" | "viewer";
 type Answer = { success?: true; error?: string };
 
 /** Reviewers are Members: only paid seats review (#211). A Viewer reads and changes nothing (#210). A218: the role is
- * named as Lane names it, with its seat, so the label already says "Paid seat". */
+ * named as Lane names it, with its seat; each role's note is the one Settings → Members shows (ROLE_DESCRIPTIONS). */
 const ROLE_LABELS: Record<FirstRunInviteRole, string> = { member: "Member · Paid seat", viewer: "Viewer" };
-const ROLE_NOTES: Record<FirstRunInviteRole, string> = {
-  member: "Files, reviews, picks up, releases and closes Requests.",
-  viewer: ROLE_DESCRIPTIONS.viewer,
-};
 const ROLE_NAMES: Record<FirstRunInviteRole, string> = { member: "a Member", viewer: "a Viewer" };
 const FAILED = "Couldn’t reach Lane. Try again.";
 
@@ -78,8 +74,8 @@ export function FirstRunInviteForm({ roles, confirmPaidSeats = false, onInvite }
     <Input label="Email address" type="email" name="email" autoComplete="off" spellCheck={false} value={email} onChange={event => setEmail(event.target.value)} disabled={busy} />
     {roles.length > 1
       ? <RadioGroup label="Invite as" name="first-run-invite-role" value={role} onValueChange={value => setRole(value as FirstRunInviteRole)}
-          options={roles.map(option => ({ value: option, label: ROLE_LABELS[option], description: ROLE_NOTES[option] }))} />
-      : <div className={styles.role}><p><strong>{ROLE_LABELS.member}</strong></p><p>{ROLE_NOTES.member}</p></div>}
+          options={roles.map(option => ({ value: option, label: ROLE_LABELS[option], description: ROLE_DESCRIPTIONS[option] }))} />
+      : <div className={styles.role}><p><strong>{ROLE_LABELS.member}</strong></p><p>{ROLE_DESCRIPTIONS.member}</p></div>}
     {result?.error && <Alert role="alert" tone="danger" title={result.error} />}
     <p role="status" className={styles.status}>{result?.status ?? ""}</p>
     <Button type="submit" variant="secondary" loading={busy} data-seat-return="first-run-invite">Send invitation</Button>

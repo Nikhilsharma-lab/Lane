@@ -58,7 +58,9 @@ export function createRequestNavigation(state: NavigationState) {
     invalidate()
     pendingPath = null
     listSelectionPending = true
-    const filtered = withListContext(state.getView(), next)
+    // A Project chosen here (the sidebar, a Request's Project) is the page's own, never an added filter (A215).
+    const context = withListContext(state.getView(), next)
+    const filtered = next.project !== undefined && context.projectAdded ? { ...context, projectAdded: undefined } : context
     const selected = withSavedView(filtered, next.savedView ? { id: next.savedView, filters: filtered } : null)
     // Choosing the open list again starts each group at its first 25; reopening it from another page keeps them (#275).
     state.setView(next.project !== undefined && location.pathname === "/" && Object.keys(selected.shownCounts).length

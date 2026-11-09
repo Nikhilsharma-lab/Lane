@@ -1,11 +1,12 @@
-import type { RequestProjectFilter, RequestStatusFilter } from "@/lib/request-workspace"
+import type { RequestStatusFilter } from "@/lib/request-workspace"
+import { hasAddedFilters, type FilterView } from "./added-filters"
 
 /*
- * #240 decision 8 (A224) and decision 10 (A215): what the Requests list says when it has nothing to show,
- * and which filters the person added themselves. Pure, so the list and its tests read the same rules.
+ * #240 decision 8 (A224): what the Requests list says when it has nothing to show. Pure, so the list and its tests
+ * read the same rules. Which filters were added (A215) is added-filters.ts.
  */
 
-type ListView = { status: RequestStatusFilter; project: RequestProjectFilter; title: string; localFilters: { id: string; value: unknown }[] }
+type ListView = FilterView & { status: RequestStatusFilter }
 
 export type ListEmptyLine =
   | { kind: "welcome" }
@@ -20,14 +21,6 @@ const PILL_LINES: Record<Exclude<RequestStatusFilter, "all">, [string, string]> 
   closed: ["Nothing is Closed yet", "Requests close when the result is recorded."],
   due: ["No results are due soon", ""],
   waiting: ["No Guest submissions are waiting", ""],
-}
-
-/**
- * Filters the person added from the toolbar: the title filter and the label filter. A status pill shows itself in
- * the pill row and a Project page's Project is the page's title, so neither counts, makes a chip or is cleared.
- */
-export function hasAddedFilters(view: Pick<ListView, "title" | "localFilters">) {
-  return view.title.trim() !== "" || view.localFilters.some(filter => filter.id === "requestType" && filter.value !== "" && filter.value != null)
 }
 
 /**

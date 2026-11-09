@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useSyncExternalStore, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
+import { PHONE_PANEL, usePhonePanel } from "@/lib/use-media-query"
 import { popupCode, usePopupCode } from "./lazy-popup"
 import type { PhoneSheetProps } from "./phone-sheet"
 
@@ -10,21 +11,12 @@ import type { PhoneSheetProps } from "./phone-sheet"
  * page.
  */
 
-/** Under 640px Lane's dialogs become bottom panels (polish bar §1). */
-const PHONE = "(max-width: 639.98px)"
-function subscribePhone(change: () => void) {
-  const query = window.matchMedia(PHONE)
-  query.addEventListener("change", change)
-  return () => query.removeEventListener("change", change)
-}
-const usePhone = () => useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
-
 const sheetCode = popupCode(() => import("./phone-sheet"))
 
 // Build 4: on a phone the panel's code is fetched as soon as this module is here (load-behaviour.ts brings it once
 // the page has loaded and is idle, or at the first press), not at the first open, which waited for it with nothing on
 // screen. For the browser tests: from `ready` on, a popup on a phone opens as the panel.
-if (typeof window !== "undefined" && window.matchMedia(PHONE).matches) {
+if (typeof window !== "undefined" && window.matchMedia(PHONE_PANEL).matches) {
   sheetCode.load().then(() => { document.documentElement.dataset.popupSheet = "ready" }, () => undefined)
 }
 
@@ -34,7 +26,7 @@ if (typeof window !== "undefined" && window.matchMedia(PHONE).matches) {
  * centred dialog stands in, so an open never waits for it.
  */
 export function AdaptiveForm({ open, desktop, sheet }: { open: boolean; desktop: ReactNode; sheet: PhoneSheetProps }) {
-  const phoneNow = usePhone()
+  const phoneNow = usePhonePanel()
   const [failed, setFailed] = useState(false)
   const phoneSheet = usePopupCode(sheetCode, phoneNow && !failed, () => setFailed(true))
   const sheetNow = phoneNow && !failed && phoneSheet !== null

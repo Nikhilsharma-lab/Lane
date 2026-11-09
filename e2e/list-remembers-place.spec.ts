@@ -133,21 +133,26 @@ test("reload, Back and the row menu keep the list's place (address, A232, A211)"
   });
 });
 
-test("rows slide into their new group, never under reduced motion; the tab's return reads fresh rows; the placeholder is the page's shape", async ({ page }) => {
+test("rows slide into their new group, rows that leave fade out and groups fold and unfold in motion, never under reduced motion; the tab's return reads fresh rows; the placeholder is the page's shape", async ({ page }) => {
   test.setTimeout(480_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   // Counts each animation started on the list's rows, by any means.
   await page.addInitScript(() => {
-    const counted = window as unknown as { __rowMoves: number };
+    const counted = window as unknown as { __rowMoves: number; __rowLeaves: number };
     counted.__rowMoves = 0;
+    counted.__rowLeaves = 0;
     const animate = Element.prototype.animate;
     Element.prototype.animate = function (...args: Parameters<Element["animate"]>) {
       // A row, a group's header or Show more, or a group: what moves when the list does.
       if (this.matches("[data-request-grid] [data-grid-row], [data-request-grid] [role=rowgroup]")) counted.__rowMoves += 1;
+      // What stands in for a row that left (removed, or folded away) while it fades out where it was.
+      if (this.matches("[data-request-grid] [data-row-leaving]")) counted.__rowLeaves += 1;
       return animate.apply(this, args);
     };
   });
   const moves = () => page.evaluate(() => (window as unknown as { __rowMoves: number }).__rowMoves);
+  const leaves = () => page.evaluate(() => (window as unknown as { __rowLeaves: number }).__rowLeaves);
+  const fold = (label: string, folded: boolean) => page.getByRole("button", { name: `${folded ? "Collapse" : "Expand"} ${label} group`, exact: true }).click();
   const pickUp = async (id: string) => {
     // A menu open while the last move's saved rows arrive can close under the pointer; open it again then.
     await expect(async () => {
@@ -162,21 +167,41 @@ test("rows slide into their new group, never under reduced motion; the tab's ret
     await openList(page);
     await page.evaluate(() => { (window as unknown as { __rowMoves: number }).__rowMoves = 0; });
     await pickUp(seeded.open[0]);
+    await fold("Done", true);
+    await page.waitForTimeout(400);
+    await fold("Done", false);
     await page.waitForTimeout(400);
     expect(await moves()).toBe(0);
+    expect(await leaves()).toBe(0);
 
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await pickUp(seeded.open[1]);
     expect(await moves()).toBeGreaterThan(0);
     // Each move lasts the standard 0.2s and leaves nothing behind.
     await expect.poll(() => grid(page).evaluate(element => element.getAnimations({ subtree: true }).length)).toBe(0);
+    // #256 user story 44: a group folding fades its rows out where they were, and unfolding fades them in.
+    await fold("Done", true);
+    await expect.poll(leaves).toBeGreaterThan(0);
+    await expect(grid(page).locator("[data-row-leaving]")).toHaveCount(0);
+    const unfolding = await moves();
+    await fold("Done", false);
+    await expect.poll(moves).toBeGreaterThan(unfolding);
+    await expect.poll(() => grid(page).evaluate(element => element.getAnimations({ subtree: true }).length)).toBe(0);
+    const removing = await leaves();
 
     // Coming back to the tab reads fresh rows in place: no page load.
     await page.evaluate(() => { (window as unknown as { __laneStayed: boolean }).__laneStayed = true; });
     const sql = e2eDatabase();
-    try { await sql`UPDATE requests SET title = 'Renamed while away' WHERE id = ${seeded.open[5]}`; } finally { await sql.end(); }
+    try {
+      await sql`UPDATE requests SET title = 'Renamed while away' WHERE id = ${seeded.open[5]}`;
+      await sql`DELETE FROM requests WHERE id = ${seeded.open[6]}`;
+    } finally { await sql.end(); }
     await page.evaluate(() => { document.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("focus")); });
     await expect(row(page, seeded.open[5])).toContainText("Renamed while away", { timeout: 15_000 });
+    // A Request that left the list fades out where it was, and its stand-in goes with the fade.
+    await expect(row(page, seeded.open[6])).toHaveCount(0);
+    await expect.poll(leaves).toBeGreaterThan(removing);
+    await expect(grid(page).locator("[data-row-leaving]")).toHaveCount(0);
     expect(await page.evaluate(() => (window as unknown as { __laneStayed?: boolean }).__laneStayed)).toBe(true);
 
     // A225: the placeholder has the page's title, pills, toolbar, Save view and rows, where the page puts them. The

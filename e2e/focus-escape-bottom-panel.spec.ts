@@ -36,8 +36,9 @@ const behaviourReady = async (page: Page) => {
 };
 
 /**
- * Holds back the popup behaviour's script (the only one that carries its phone breakpoint) until `release`, so a
- * test can press Escape or open a popup in the moment right after the page loads, before the behaviour is there.
+ * Holds back the popup behaviour's script until `release`, so a test can press Escape or open a popup in the moment
+ * right after the page loads, before the behaviour is there. The phone breakpoint is shared with the list's summary,
+ * which loads with the page, so the script is found by the name only it exports.
  */
 async function holdPopupBehaviour(page: Page) {
   let release!: () => void;
@@ -47,7 +48,8 @@ async function holdPopupBehaviour(page: Page) {
     // A fetch the server cut short is simply made again by the page, unheld.
     if (!response) return route.continue().catch(() => undefined);
     const body = await response.text();
-    if (body.includes("639.98px")) await held;
+    // As first-visit-load-order.spec.ts finds it.
+    if (body.includes('"AdaptiveForm"')) await held;
     await route.fulfill({ response, body }).catch(() => undefined);
   });
   return release;
@@ -436,9 +438,13 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       const next = guide.getByRole("button", { name: "Next step", exact: true });
       // #276 (#240): every step behaves the same, Next and Back alike: the new step's heading takes focus, so a
       // screen reader reads the step from its name; Tab carries on to the step's own links and buttons.
-      const heading = guide.locator("[data-first-run-step] h3");
+      // By role, so only the shown guide's step heading counts: after a key press a second, hidden guide (at step 1)
+      // can be in the page too.
+      const heading = guide.getByRole("heading", { level: 3 });
       for (const step of [2, 3, 4, 5]) {
-        await next.click();
+        // Pointer and keyboard alike: Enter on Next step moves on as a click does.
+        if (step % 2) await next.click();
+        else { await next.focus(); await page.keyboard.press("Enter"); }
         await expect(guide.getByRole("progressbar")).toHaveAccessibleName(new RegExp(`^Step ${step} of 5`));
         await expect(heading).toBeFocused();
         await page.waitForTimeout(500);

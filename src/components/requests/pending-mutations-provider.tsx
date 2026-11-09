@@ -36,7 +36,7 @@ export type PendingMutations = {
   /** Patches keyed by Request id, applied on top of whatever the server rendered. */
   patches: Record<string, RequestPatch>
   /** Changes whose action has not answered yet. URL sync waits for these only: a confirmed
-   * change on a row the server list never re-sends ("Show older Done") stays shown but holds nothing. */
+   * change on a row the server list never re-sends (an older finished Request a Show more read) stays shown but holds nothing. */
   unconfirmed: number
   /** Returns the rows with every pending patch applied; identity is preserved for untouched rows. Changes nothing. */
   apply<T extends { id: string }>(rows: T[]): T[]

@@ -67,9 +67,10 @@ export type ListDisplay = { ordering: RequestOrdering; grouping: RequestGrouping
 
 const ORDERINGS: readonly RequestOrdering[] = ["newest", "oldest", "title", "title_desc", "status"]
 const GROUPINGS: readonly RequestGrouping[] = ["status", "none", "project", "assignee"]
-/** Left out of the address. 25 is each group's first step (list-view-model.ts SHOWN_STEP). */
+/** Left out of the address. */
 export const LIST_DISPLAY_DEFAULTS: Readonly<ListDisplay> = { ordering: "newest", grouping: "status", collapsedGroups: [], shownCounts: {} }
-const SHOWN_DEFAULT = 25
+/** A212: each group shows this many Requests at first, and each Show more adds as many again (list-view-model.ts). */
+export const SHOWN_STEP = 25
 /** No list holds more; a shared link can't ask for an endless one. */
 const SHOWN_MAX = 1000
 const GROUP_ID = /^[\w-]+$/
@@ -77,26 +78,27 @@ const SHOWN = /^([\w-]+)\.(\d+)$/
 /** A group key is its grouping's prefix and an id; with no grouping, the one group's key is "all". */
 const prefixOf = (grouping: RequestGrouping) => grouping === "none" ? "" : `${grouping}:`
 
-function displayQuery(query: URLSearchParams, { ordering = "newest", grouping = "status", collapsedGroups = [], shownCounts = {} }: Partial<ListDisplay>) {
-  if (ordering !== "newest") query.set("order", ordering)
-  if (grouping !== "status") query.set("group", grouping)
+function displayQuery(query: URLSearchParams, display: Partial<ListDisplay>) {
+  const { ordering, grouping, collapsedGroups, shownCounts } = { ...LIST_DISPLAY_DEFAULTS, ...display }
+  if (ordering !== LIST_DISPLAY_DEFAULTS.ordering) query.set("order", ordering)
+  if (grouping !== LIST_DISPLAY_DEFAULTS.grouping) query.set("group", grouping)
   const prefix = prefixOf(grouping)
   // This grouping's ids, once each and in one order, so one list has one address.
   const ids = (keys: string[]) => [...new Set(keys.filter(key => prefix ? key.startsWith(prefix) : key === "all").map(key => key.slice(prefix.length)))].sort()
   if (prefix) for (const id of ids(collapsedGroups)) query.append("folded", id)
-  for (const id of ids(Object.keys(shownCounts))) if (shownCounts[prefix + id] !== SHOWN_DEFAULT) query.append("shown", `${id}.${shownCounts[prefix + id]}`)
+  for (const id of ids(Object.keys(shownCounts))) if (shownCounts[prefix + id] !== SHOWN_STEP) query.append("shown", `${id}.${shownCounts[prefix + id]}`)
 }
 
 /** Reads the list's display from an address. A missing or unknown value reads as its default. */
 export function parseListDisplay(params: SearchParamsLike & { getAll(name: string): string[] }): ListDisplay {
-  const ordering = ORDERINGS.find(item => item === params.get("order")) ?? "newest"
-  const grouping = GROUPINGS.find(item => item === params.get("group")) ?? "status"
+  const ordering = ORDERINGS.find(item => item === params.get("order")) ?? LIST_DISPLAY_DEFAULTS.ordering
+  const grouping = GROUPINGS.find(item => item === params.get("group")) ?? LIST_DISPLAY_DEFAULTS.grouping
   const prefix = prefixOf(grouping)
   const collapsedGroups = prefix ? [...new Set(params.getAll("folded").filter(id => GROUP_ID.test(id)).map(id => prefix + id))] : []
   const shownCounts: Record<string, number> = {}
   for (const value of params.getAll("shown")) {
     const [, id, count] = SHOWN.exec(value) ?? []
-    if (id && (prefix || id === "all") && +count > 0 && +count !== SHOWN_DEFAULT) shownCounts[prefix + id] = Math.min(+count, SHOWN_MAX)
+    if (id && (prefix || id === "all") && +count > 0 && +count !== SHOWN_STEP) shownCounts[prefix + id] = Math.min(+count, SHOWN_MAX)
   }
   return { ordering, grouping, collapsedGroups, shownCounts }
 }
