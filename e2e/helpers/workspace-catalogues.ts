@@ -168,7 +168,7 @@ export async function verifyCataloguePickers(page: Page, orgId: string, fixture:
   await expect(workspace).toBeChecked(); await expect(scoped).toBeChecked();
   await capture("labels-selected-in-project");
   await page.keyboard.press("Escape"); await expect(labels(page)).toBeHidden();
-  await selectCatalogueProject(page, "No project");
+  await selectCatalogueProject(page, "No Project");
   await composer(page).locator("#intake-request-labels").press("Enter");
   await expect(scoped).toBeChecked();
   await expect(labels(page).getByText("Other Project, remove to save", { exact: true })).toBeVisible();

@@ -1,0 +1,7 @@
+/* #280 (B19): a Pick up that can't be made yet says why beside it, as text. A long reason wraps rather than being
+ * cut, and the strip grows for it on a phone. */
+.blocked { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.reason { max-width: calc(var(--space-1) * 72); margin: 0; color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--leading-body); text-align: end; text-wrap: pretty; }
+@media (max-width: 640px) {
+  .reason { max-width: calc(var(--space-1) * 40); }
+}

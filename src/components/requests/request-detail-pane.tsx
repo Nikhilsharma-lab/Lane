@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { canChange } from "@/lib/request-access-rules"
+import { pickupRequester } from "@/lib/request-lifecycle"
 import { CommentForm } from "@/app/(app)/requests/[id]/comment-form"
 import { AttachmentDownload } from "@/app/(app)/requests/[id]/attachment-download"
 import { LifecycleButtons } from "@/app/(app)/requests/[id]/lifecycle-buttons"
@@ -39,12 +40,12 @@ export function RequestDetailPane({ orgId, currentUserId, viewerName, isAdmin, r
       offered: <EditRequest key="offered" request={request} orgId={orgId} draftOwnerId={currentUserId} writePrediction={{ open: false }} />,
       asked: <EditRequest key="asked" request={request} orgId={orgId} draftOwnerId={currentUserId} writePrediction={{ open: true }} />,
     } : null} /> : undefined
-  const pickupRequester = changes ? null : request.creatorName || "the Requester"
+  const requester = pickupRequester({ guestSubmission: request.guestSubmission?.state ?? null, creatorName: request.creatorName, takenOnByName: request.guestSubmission?.takenOnByName ?? null }, changes)
   const closure = closureLabel(request)
   return <RequestDetailView {...props} orgId={orgId} viewer={{ id: currentUserId, name: viewerName, isAdmin, readOnly }} peekStrip={peekStrip}
     requestPanels={<RequestTimeline key={request.id} request={request} orgId={orgId} isGuest={isGuest} readOnly={readOnly} reader={reader} />}
     relatedRequests={!isGuest && <SameProblemSection key={`iterations-${request.id}`} requestId={request.id} requestNumber={request.requestNumber} orgId={orgId} canLink={!readOnly} />}
-    lifecycleActions={request.agreementBlocked ? <a href="#journey">{closure ?? "Closed"}</a> : <LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={pickupRequester} />}
+    lifecycleActions={request.agreementBlocked ? <a href="#journey">{closure ?? "Closed"}</a> : <LifecycleButtons requestId={request.id} status={request.status} context={{ orgId }} isGuest={isGuest} pickupBlockedReason={pickupBlockedReason} pickupRequester={requester} />}
     guestSubmission={guestSubmission}
     editRequest={request.status === "open" && changes ? <><EditRequest request={request} orgId={orgId} draftOwnerId={currentUserId} withoutPrediction={isGuest} /><DeleteRequest requestId={request.id} title={request.title} orgId={orgId} /></> : undefined}
     commentForm={readOnly ? null : <CommentForm requestId={request.id} context={{ orgId }} />}

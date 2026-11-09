@@ -2,7 +2,7 @@
 
 import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { OverviewRequest } from "@/lib/request-overview"
-import { availableMove, type LifecycleMove } from "@/lib/request-lifecycle"
+import { availableMove, pickupRequester, type LifecycleMove } from "@/lib/request-lifecycle"
 import { moveTarget, useRequestMoves } from "./request-moves"
 import { useRequestNavigation } from "./request-navigation"
 import { useServerRefresh } from "./use-optimistic-action"
@@ -122,7 +122,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     try {
       const outcome = await moves.moveMany(selected.map(row => ({
         ...moveTarget(row), status: row.status, agreementBlocked: row.agreementBlocked,
-        pickupBlockedReason: row.pickupBlockedReason, requester: row.canEdit ? null : row.creatorName || "the Requester",
+        pickupBlockedReason: row.pickupBlockedReason, requester: pickupRequester({ guestSubmission: row.guestSubmission ?? null, creatorName: row.creatorName }, Boolean(row.canEdit)),
       })), availableAction, { isGuest, readOnly, current,
         onStart: count => {
           setState(previous => ({ ...previous, pending: { kind: availableAction, count }, error: "", failedCount: 0, message: "" }))
