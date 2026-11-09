@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from "react"
-import { gridCommand, headerOf, isGroupKey, isMoreKey, isTypingTarget, listCommand, nextKey, requestIdOf, tabbableKey, type GridKey, type GridMove } from "./request-grid-keys"
+import { gridCommand, groupOfKey, headerOf, isGroupKey, isMoreKey, isTypingTarget, listCommand, nextKey, requestIdOf, tabbableKey, type GridKey, type GridMove } from "./request-grid-keys"
 import { isShown, overlayOpen } from "./list-focus"
 
 export type RequestGridOptions = {
@@ -106,7 +106,7 @@ export function useRequestGrid({ gridRef, scopeRef, keys, groupOf, isCollapsed, 
     if (event.key === " " && event.repeat && target === row && onPeek) { event.preventDefault(); return }
     const command = gridCommand(event, isTypingTarget(target))
     if (!command || overlayOpen()) return
-    const group = isGroupKey(key) ? key.slice(2) : null
+    const group = isGroupKey(key) ? groupOfKey(key) : null
     switch (command) {
       case "next": case "previous": case "next-request": case "previous-request": case "first": case "last": {
         if (!move(key, command)) return

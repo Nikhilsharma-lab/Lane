@@ -5,7 +5,7 @@
  * no sequence.
  */
 
-/** The list's filtered, sorted and grouped order across every page, and the Request opened from it. */
+/** The list's filtered, sorted and grouped order, shown or not (every group's rows past its Show more too), and the Request opened from it. */
 export type DetailSequence = {
   ids: readonly string[]
   openedId: string
