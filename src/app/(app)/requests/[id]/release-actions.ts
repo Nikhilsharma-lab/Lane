@@ -4,11 +4,10 @@ import { loadRequestRelease } from '@/lib/data/request-journey';
 import type { RequestChangeContext } from '@/lib/request-reviewer-rules';
 import { changeRequest, insist } from '@/lib/request-change-store';
 import { expectedImpactSchema } from '@/lib/request-impact';
-import { releaseChangeSchema, releaseWindow, earliestExposure, valueBeforeReleaseOf, type ReleaseState } from '@/lib/request-release';
+import { releaseChangeSchema, releaseWindow, releaseDateBounds, valueBeforeReleaseOf, type ReleaseState } from '@/lib/request-release';
 import { requesterOf } from '@/lib/request-journey';
 import { agreedAudience } from '@/lib/request-release-facts';
 import { allow, journeyActionsFor, personName, rosterMember } from '@/lib/request-journey-access';
-import { utcDay } from '@/lib/utc-day';
 /** Each release change and the journey action that allows it. */
 const JOURNEY_ACTION = { release: 'release', correct: 'correctRelease', void: 'voidRelease', transfer: 'handover' } as const;
 export async function changeRequestRelease(context: RequestChangeContext, input: unknown) {
@@ -43,9 +42,11 @@ export async function changeRequestRelease(context: RequestChangeContext, input:
                     nextRelease = null;
                 }
                 else {
-                    insist(change.exposureDate <= utcDay(), 'The release date cannot be in the future.');
-                    const earliest = earliestExposure(request);
-                    insist(change.exposureDate >= earliest, `The release date cannot be before the Request was created on ${plannedDay(earliest)}.`);
+                    const bounds = releaseDateBounds(request, new Date(), change.kind === 'correct' ? before?.exposureDate : null);
+                    insist(change.exposureDate <= bounds.latest, 'The release date can’t be in the future.');
+                    insist(change.exposureDate >= bounds.earliest, bounds.started === 'picked up'
+                        ? `The release date can’t be before the work was picked up on ${plannedDay(bounds.startedOn)}.`
+                        : `The release date can’t be before the Request was filed on ${plannedDay(bounds.startedOn)}.`);
                     // A measured plan records the value before release, in its metric's unit, or the release is refused.
                     const impact = expectedImpactSchema.safeParse(request.expectedImpact).data ?? null;
                     const valueBefore = valueBeforeReleaseOf(impact);
