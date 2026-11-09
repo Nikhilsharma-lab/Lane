@@ -4,8 +4,11 @@ import { useLayoutEffect, useSyncExternalStore } from "react"
 import { useToastStackState, type ToastStackApi, type ToastStackState } from "@/components/arc/toast-stack/toast-stack"
 import { createExternalStore } from "@/lib/external-store"
 
+/** How an undo of Mark Done was asked for: the toast's (or palette's) Undo, or the Done step's Reopen (#278). */
+export type UndoKind = "undo" | "reopen"
+
 /** #103: the latest Mark Done, while its toast still offers Undo. `undo` is that toast's own Undo. */
-export type UndoableMarkDone = { toastId: string; requestId: string; name: string; undo: () => void }
+export type UndoableMarkDone = { toastId: string; requestId: string; name: string; undo: (kind?: UndoKind) => void | Promise<void> }
 
 /** Latest single-Request Done, observed through the actual Arc queue rather than its rendering. */
 export function createMarkDoneUndoStore() {
@@ -45,6 +48,8 @@ export type MarkDoneUndoStore = ReturnType<typeof createMarkDoneUndoStore>
 
 // One pointer for the app: every Mark Done toast goes to the root layout's one stack.
 const markDoneUndo = createMarkDoneUndoStore()
+/** The app's one pointer, for the moves that end it (Reopen). */
+export const appMarkDoneUndo = markDoneUndo
 
 /**
  * Mark Done's confirmation: "Marked Done" with Undo for 10 seconds (paused while the stack is
@@ -52,19 +57,19 @@ const markDoneUndo = createMarkDoneUndoStore()
  * The returned handle restores that same operation after "Not yet", without making it newer.
  */
 export function showMarkedDone(toast: ToastStackApi["toast"], request: { id: string; name: string },
-  undo: (toastId: string, requestId: string, name: string) => void | Promise<void>, store: MarkDoneUndoStore = markDoneUndo) {
+  undo: (toastId: string, requestId: string, name: string, kind: UndoKind) => void | Promise<void>, store: MarkDoneUndoStore = markDoneUndo) {
   const { id: requestId, name } = request
   let consumed = false
   let ended = false
-  const runUndo = (id: string) => {
+  const runUndo = (id: string, kind: UndoKind = "undo") => {
     if (id !== toastId || consumed || ended || !store.eligible(toastId, runUndo)) return
     consumed = true
     store.clear(runUndo)
-    void undo(id, requestId, name)
+    return undo(id, requestId, name, kind)
   }
   const show = (id?: string) => toast({ id, type: "success", title: "Marked Done", description: markedDoneDescription(name), duration: 10_000, action: { label: "Undo", onClick: runUndo } })
   const toastId = show()
-  store.set({ toastId, requestId, name, undo: () => runUndo(toastId) }, runUndo)
+  store.set({ toastId, requestId, name, undo: (kind?: UndoKind) => runUndo(toastId, kind) }, runUndo)
   return {
     toastId,
     get consumed() { return consumed },
