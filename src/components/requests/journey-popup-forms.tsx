@@ -6,6 +6,9 @@ import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverFo
 import type { Views } from "./request-timeline"
 import { FocusOnArrival } from "./focus-on-arrival"
 
+// The release date picker takes Escape for itself while open; the popup reads this with its forms.
+export { keepOpenWhilePickerOpen } from "./picker-escape"
+
 /**
  * #277: what a Journey popup holds, loaded the first time one opens (journey-step-form.tsx), so the forms, their
  * checks and the date picker stay out of the Request page's first load. Each form keeps its own server call and ends

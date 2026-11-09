@@ -13,6 +13,7 @@ import type { agreedResult, OutcomeChange } from "@/lib/request-outcome"
 import type { ReleaseFact } from "@/lib/request-release"
 import { utcDay } from "@/lib/utc-day"
 import { useJourneyChange } from "./use-journey-change"
+import { resultValue } from "./result-value"
 import styles from "./request-timeline.module.css"
 import popupStyles from "@/components/popup/popup.module.css"
 
@@ -20,8 +21,6 @@ import popupStyles from "@/components/popup/popup.module.css"
 export type FormProps = { requestId: string; orgId: string; revision: number; onSaved: () => void; onCancel: () => void }
 type AgreedResult = ReturnType<typeof agreedResult>
 
-/** "50%", "12 ms" or "No baseline". */
-export const resultValue = (n: number | null, unit: string) => n === null ? "No baseline" : unit === "%" ? `${n}%` : `${n} ${unit}`.trim()
 const RELEASE_FAILED = "Couldn’t save release. Your input is preserved; try again."
 const OUTCOME_FAILED = "Couldn’t save the outcome. Your input is preserved; try again."
 

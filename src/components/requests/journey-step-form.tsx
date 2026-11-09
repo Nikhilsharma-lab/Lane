@@ -6,7 +6,6 @@ import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-p
 import { focusWithoutScroll } from "@/components/popup/focus"
 import { Placeholder } from "@/components/loading/placeholder"
 import { actionButton } from "./journey-step-actions"
-import { keepOpenWhilePickerOpen } from "./picker-escape"
 import type { FormProps } from "./request-timeline-forms"
 import type { TimelineStep } from "./request-timeline-model"
 import type { Views } from "./request-timeline"
@@ -52,7 +51,7 @@ export function JourneyStepForm({ mode, steps, views, form }: { mode: JourneyAct
 
   return <Dialog guardTypedText open={open} onOpenChange={next => { if (!next) form.onCancel() }}>
     {shown && <DialogContent title={JOURNEY_POPUP_TITLES[shown]} aria-describedby={undefined} data-journey-popup={shown}
-      returnFocus={() => actionButton(shown)} onEscapeKeyDown={keepOpenWhilePickerOpen}
+      returnFocus={() => actionButton(shown)} onEscapeKeyDown={code?.keepOpenWhilePickerOpen}
       onOpenAutoFocus={() => { saved.current = false }}
       onCloseAutoFocus={event => {
         if (!saved.current) return

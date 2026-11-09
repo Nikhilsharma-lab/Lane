@@ -1,7 +1,8 @@
 import type { ReactNode } from "react"
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome-options"
-import { resultValue } from "./request-timeline-forms"
+// The forms load with their popups (#277); the details need only the value words.
+import { resultValue } from "./result-value"
 import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, learnedLine, observedLine, type TimelineStep } from "./request-timeline-model"
 import { LocalTime } from "./local-time"
 import { SectionHeading } from "./section-heading"

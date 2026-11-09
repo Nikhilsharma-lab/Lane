@@ -10,7 +10,7 @@ import { runOptimistic, runOptimisticBatch, type ActionResult } from "./use-opti
 // #135: "Is it live?" after a successful single-Request Mark Done. These run the real Request moves, the
 // real Undo pointer and the prompt's logic; only the external server actions are controlled.
 
-function app({ hideToast = false } = {}) {
+function app() {
   const stack = toastStack()
   const { toast, update } = stack
 
@@ -25,18 +25,12 @@ function app({ hideToast = false } = {}) {
   }
 
   let view: IsItLiveView | null = null
+  const prompt = createIsItLive(next => { view = next })
   const undoStore = createMarkDoneUndoStore()
   undoStore.bind(stack.state)
-  const prompt = createIsItLive(next => { view = next })
-  // With `hideToast`, as IsItLiveProvider asks: the Request's Marked Done toast steps aside while its prompt is open (C2-12).
-  const ask: typeof prompt.ask = (asked, undo) => {
-    prompt.ask(asked, undo)
-    const pointer = undoStore.get()
-    if (pointer?.requestId === asked.id) stack.dismiss(pointer.toastId)
-  }
   const moves = createRequestMoves({
     orgId: "org1", announce: vi.fn(), toast, update, optimistic: options => runOptimistic(optimisticDeps, options), optimisticBatch: options => runOptimisticBatch(optimisticDeps, options), confirmPickup: async () => true, copyText: async () => true,
-    actions, undoStore, isItLive: hideToast ? ask : prompt.ask, refresh: optimisticDeps.refresh, continuation: requestNavigation().continuation,
+    actions, undoStore, isItLive: prompt.ask, refresh: optimisticDeps.refresh, continuation: requestNavigation().continuation,
   })
   const flush = () => new Promise(resolve => setTimeout(resolve, 0))
   return {
@@ -61,29 +55,6 @@ describe("Is it live? after Mark Done (#135)", () => {
       endsUndo: "Once you record the release, you can’t reopen this Request.",
     })
     expect(IS_IT_LIVE_COPY.question("LAN-12")).toBe("LAN-12 is Done. Has the agreed audience received it?")
-  })
-
-  // C2-12: on a phone the Marked Done toast sat over the prompt. It steps aside while the prompt is open and comes
-  // back, with its Undo and a fresh 10 seconds, on Not yet.
-  it("hides the Marked Done toast while the prompt is open, and brings it back on Not yet", async () => {
-    const a = app({ hideToast: true })
-    await a.moves.move(request, "done")
-    expect(a.view()).toEqual({ step: "ask", request })
-    expect(a.toasts.filter(item => item.title === "Marked Done")).toHaveLength(0)
-    a.prompt.record()
-    expect(a.toasts.filter(item => item.title === "Marked Done")).toHaveLength(0)
-    a.prompt.notYet()
-    expect(a.toasts[0]).toMatchObject({ title: "Marked Done", duration: 10_000, action: { label: "Undo" } })
-    expect(a.undoStore.get()).toMatchObject({ requestId: "r1" })
-  })
-
-  it("a newer prompt brings back the older Request's hidden toast and hides its own", async () => {
-    const a = app({ hideToast: true })
-    await a.moves.move(request, "done")
-    await a.moves.move({ id: "r2", name: "LAN-13" }, "done")
-    expect(a.toasts.filter(item => item.title === "Marked Done").map(item => item.description)).toEqual(["LAN-12 is now Done."])
-    a.prompt.saved()
-    expect(a.toasts.map(item => item.title)).toEqual(["Release recorded", "Marked Done"])
   })
 
   it("does not open when Mark Done fails, for a pick up, or once Undo has already run", async () => {

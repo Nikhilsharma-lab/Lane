@@ -7,6 +7,9 @@ import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
 import { IS_IT_LIVE_COPY, type IsItLiveRequest } from "./is-it-live"
 import { ReleaseForm } from "./release-form"
 import { FocusOnArrival } from "./focus-on-arrival"
+
+// The release date picker takes Escape for itself while open; the prompt reads this once its release step is here.
+export { keepOpenWhilePickerOpen } from "./picker-escape"
 import detailStyles from "./detail.module.css"
 import styles from "./is-it-live.module.css"
 import { Placeholder } from "@/components/loading/placeholder";

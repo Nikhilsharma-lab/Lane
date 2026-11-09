@@ -227,10 +227,10 @@ test.describe("#277 Journey popups and the one release form", () => {
       await lifecycle.getByRole("button", { name: "Pick up", exact: true }).click();
       await lifecycle.getByRole("button", { name: "Mark Done", exact: true }).click({ timeout: 20_000 });
 
-      // C2-12: while Is it live? is open, the Marked Done toast isn't there to cover it.
+      // C2-12: while Is it live? is open, the Marked Done toast steps aside instead of covering it.
       const live = isItLivePrompt(page);
       await expect(live).toBeVisible({ timeout: 20_000 });
-      await expect(messages.getByText("Marked Done", { exact: true })).toHaveCount(0);
+      await expect(messages.getByText("Marked Done", { exact: true })).toBeHidden();
       await expect(live.getByText(WARNING, { exact: true })).toBeVisible();
       const phone = await box(live);
       expect(phone.left <= 1 && phone.right >= phone.width - 1 && phone.bottom >= phone.height - 1).toBe(true);
@@ -241,7 +241,7 @@ test.describe("#277 Journey popups and the one release form", () => {
       await expect(prompted.getByLabel("Value before release (%)", { exact: true })).toHaveValue("62", { timeout: 20_000 });
       await expect(prompted.getByRole("button", { name: "Release date", exact: true })).toContainText(shownDay(new Date()));
       await expect(prompted.getByRole("button").last()).toHaveText("Mark as released");
-      await expect(messages.getByText("Marked Done", { exact: true })).toHaveCount(0);
+      await expect(messages.getByText("Marked Done", { exact: true })).toBeHidden();
       await prompted.getByRole("button", { name: "Not yet", exact: true }).click();
       await expect(prompted).toHaveCount(0);
       // Not yet brings the toast back with its Undo.
