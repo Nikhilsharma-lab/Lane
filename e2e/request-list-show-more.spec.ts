@@ -146,6 +146,17 @@ test("each status group shows 25 with its own Show more, full counts and J/K fro
     expect(olderReads).toHaveLength(1);
     await testInfo.attach("groups-shown-in-full", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
 
+    // #275: a reload shows the same list. The address keeps how far Done was expanded, and the group reads its older
+    // Requests again until it holds them all, with no Show more left over.
+    await expect(page).toHaveURL(url => url.searchParams.getAll("shown").includes("done.75"));
+    const reread = page.waitForResponse(response => new URL(response.url()).pathname === "/api/requests/done" && response.ok());
+    await page.reload();
+    expect(new URL((await reread).url()).searchParams.get("status")).toBe("done");
+    await expect(groupRows(page, "Done")).toHaveCount(60);
+    expect(await ids(page, "Done")).toEqual(seeded.done);
+    await expect(more(page, "done")).toHaveCount(0);
+    await expect(groupRows(page, "Open")).toHaveCount(30);
+
     // No grouping: one list, 25 at a time, with one Show more at the bottom.
     await page.getByRole("button", { name: "Display", exact: true }).click();
     await page.getByRole("combobox", { name: "Group by", exact: true }).click();

@@ -302,15 +302,35 @@ test("each status pill has its own empty line; chips only for added filters (#27
     await expect(line("Nothing is Measuring")).toBeVisible();
     await expect(activeFilters(page)).toHaveCount(0);
 
-    // A29: the "N more" menu insets its items with their glyphs.
+    // On the whole list Add filter offers Project: a Project added there is a chip, and Clear all clears it (A215).
+    await page.goto("/");
+    await expect(row(page, seeded.done)).toBeVisible();
+    await page.locator('[data-slot="requests-toolbar"] [data-filter-trigger]').click();
+    const listFilter = page.getByRole("dialog", { name: "Add filter" });
+    await listFilter.getByRole("menuitem", { name: /^Project/ }).click();
+    await listFilter.getByRole("menuitemradio", { name: /^Checkout and billing redesign/ }).click();
+    await expect(row(page, seeded.done)).toHaveCount(0);
+    await expect(row(page, seeded.open)).toBeVisible();
+    await expect(activeFilters(page).getByRole("button", { name: "Remove Project: Checkout and billing redesign", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(url => url.searchParams.get("project") === seeded.project);
+    await activeFilters(page).getByRole("button", { name: "Clear all", exact: true }).click();
+    await expect(activeFilters(page)).toHaveCount(0);
+    await expect(page).toHaveURL(url => !url.searchParams.has("project"));
+    await expect(row(page, seeded.done)).toBeVisible();
+
+    // A29: the "N more" menu insets its items with their glyphs. Its items are the status choices, so a screen reader
+    // hears which one is current, not only a check mark it can't see.
     await page.setViewportSize({ width: 480, height: 844 });
     await page.goto("/");
     const more = page.locator("[data-status-more] button").first();
     await expect(more).toBeVisible();
     await more.click();
-    const items = page.getByRole("menuitem");
+    const items = page.getByRole("menuitemradio");
     expect(await items.count()).toBeGreaterThan(0);
-    for (const item of await items.all()) await expect(item.locator("svg").first()).toBeVisible();
+    for (const item of await items.all()) {
+      await expect(item.locator("svg").first()).toBeVisible();
+      await expect(item).toHaveAttribute("aria-checked", "false");
+    }
     await shot(page, info, "status-more");
     await page.keyboard.press("Escape");
 
@@ -325,7 +345,10 @@ test("each status pill has its own empty line; chips only for added filters (#27
       await expect(tapped).toBeVisible();
       // A29: where no pill fits, the current view opens the menu and is checked there.
       await tapPage.locator("[data-status-more] button").first().tap();
-      await expect(tapPage.getByRole("menuitem", { name: "All", exact: true }).locator("svg.lucide-check")).toBeVisible();
+      const all = tapPage.getByRole("menuitemradio", { name: "All", exact: true });
+      await expect(all.locator("svg.lucide-check")).toBeVisible();
+      await expect(all).toHaveAttribute("aria-checked", "true");
+      await expect(tapPage.getByRole("menuitemradio", { checked: true })).toHaveCount(1);
       await tapPage.keyboard.press("Escape");
       await expect(tapPage.getByRole("menu")).toHaveCount(0);
       await tapped.locator("a[data-request-title]").tap();
