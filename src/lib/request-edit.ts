@@ -1,6 +1,6 @@
 import { requestLabelKeys, sourceRequestType } from "./request-labels";
 import * as z from "zod";
-import { requestSchema, problemFramingSchema, DESCRIPTION_MAX, formContext } from "./request-schema";
+import { requestSchema, problemFramingSchema, DESCRIPTION_MAX, formContext, REQUEST_CONTEXT_FIELDS, type RequestInput } from "./request-schema";
 import { impactStateOf } from "./request-impact";
 import { expectedImpactSchema, incompleteMeasurementSchema, noMeasurableImpactSchema, type ExpectedImpactDraft } from "./request-impact";
 import { measurementRequestTypeIssue } from "./request-measurement";
@@ -42,3 +42,28 @@ export function requestEditSnapshot(request: Parameters<typeof requestEditValues
 
 /** Source validation for existing Requests; New keeps requestSchema unchanged. */
 export const requestEditSourceSchema = z.object({ ...requestSchema.shape, expectedImpact: requestEditSchema.shape.expectedImpact });
+
+/**
+ * #280 (B9): whether saving `values` changes the Request's content, which clears every review answer while it is
+ * Open. The same fields the database's reset_reviews_on_edit trigger compares: the wording, the context, the Project,
+ * the labels, the saved framing and the goal as the Request saves it (an unfinished goal is kept as a draft beside
+ * it). Priority is not content.
+ */
+export function editChangesContent(
+    values: Omit<RequestInput, "expectedImpact"> & { expectedImpact?: unknown },
+    original: ReturnType<typeof requestEditValues>,
+    framing: { reframedProblem: string | null; extractedSolution: string | null },
+): boolean {
+    const text = (value: string | null | undefined) => value?.trim() ?? "";
+    const goal = (value: unknown) => {
+        const parsed = expectedImpactSchema.safeParse(value);
+        return parsed.success ? JSON.stringify(canonical(parsed.data)) : null;
+    };
+    return text(values.title) !== text(original.title) || text(values.description) !== text(original.description)
+        || REQUEST_CONTEXT_FIELDS.some(field => text(values[field]) !== text(original[field]))
+        || (values.projectId ?? null) !== original.projectId
+        || JSON.stringify(requestLabelKeys(values)) !== JSON.stringify(original.labelKeys)
+        || text(framing.reframedProblem) !== text(original.reframedProblem) || text(framing.extractedSolution) !== text(original.extractedSolution)
+        || goal(values.expectedImpact) !== goal(original.expectedImpact);
+}
+

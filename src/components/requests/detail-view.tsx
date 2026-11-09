@@ -13,7 +13,7 @@ import { DetailProperties, DetailStateLine } from "./detail-properties"
 import { DetailStrip } from "./detail-strip"
 import { RequestPaneTabs, RequestPanePanel } from "./request-pane-tabs"
 import { RequestPaneHeader } from "./request-pane-header"
-import { RequestTitle } from "./request-title"
+import { RequestTitle, ShownTitle } from "./request-title"
 import detailStyles from "./detail.module.css"
 import styles from "./requests.module.css"
 import { SectionHeading } from "./section-heading"
@@ -27,6 +27,8 @@ export type RequestDetail = {
   pickupBlockedReason?: string | null
   /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
+  /** #280 (B9): the review answers an edit would clear (concerns by name), or null. Optional only for older fixtures. */
+  answeredReviews?: import("@/lib/request-reviewer-rules").AnsweredReviews | null
   /** Each saved reviewer's shape, so the reviewers' loading state holds their rows (#295). Optional only for older fixtures. */
   reviewerOutline?: import("@/lib/request-reviewer-rules").ReviewerOutline[]
   /** The journey as the saved Request and its reader draw it, decided on the server: shown until the journey's reads arrive (#295). */
@@ -124,7 +126,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
         <div className={detailStyles.layout}>
           <div className={detailStyles.main} data-detail-main="">
             {!peekStrip && <header className={detailStyles.titleBlock} data-detail-title="">
-              <RequestTitle as={Title} className={detailStyles.title}>{request.title}</RequestTitle>
+              <RequestTitle as={Title} className={detailStyles.title}><ShownTitle saved={request.title} /></RequestTitle>
               <DetailStateLine />
             </header>}
             <RequestPanePanel value="overview"><section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>

@@ -20,6 +20,8 @@ export type ComposerDraftState = {
   previousProblem: string;
   previousProblemSource: Pick<RequestInput, "title" | "description"> | null;
   reviewers: ReviewersDraft | undefined;
+  /** An edit's saved framing as reworded so far; New has none. */
+  framing?: IntakeDraft["framing"];
 };
 
 /**
@@ -37,6 +39,7 @@ export function composerDraft(state: ComposerDraftState): Omit<IntakeDraft, "ver
     previousProblem: state.editedProblem || state.previousProblem,
     previousProblemSource: state.previousProblemSource,
     reviewers: state.reviewers,
+    ...(state.framing ? { framing: state.framing } : {}),
   };
 }
 
@@ -49,6 +52,8 @@ export type RestoredComposer = {
   previousProblemSource: Pick<RequestInput, "title" | "description"> | null;
   /** The review to resume at the framing step, or null for the compose step. */
   review: IntakeDraft["review"];
+  /** An edit's reworded saved framing, if the draft kept one. */
+  framing: IntakeDraft["framing"] | null;
 };
 
 /**
@@ -66,6 +71,7 @@ export function restoredComposer(draft: IntakeDraft): RestoredComposer {
     previousProblem: draft.previousProblem || draft.review?.editedProblem || "",
     previousProblemSource: framed ? { title: draft.source.title, description: draft.source.description } : draft.previousProblemSource ?? null,
     review: draft.review && requiredExpectedImpactSchema.safeParse(draft.source.expectedImpact).success ? draft.review : null,
+    framing: draft.framing ?? null,
   };
 }
 

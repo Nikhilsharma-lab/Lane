@@ -78,7 +78,10 @@ import { ExpectedImpactSummary } from "@/components/requests/expected-impact-sum
 import { RequestReviewSupportingDetails } from "@/components/requests/request-review-supporting-details";
 
 import type { RequestDetail } from "@/components/requests/detail-view";
-import { requestEditValues, requestEditSnapshot, requestEditSourceSchema } from "@/lib/request-edit";
+import { editChangesContent, requestEditValues, requestEditSnapshot, requestEditSourceSchema } from "@/lib/request-edit";
+import { framingChanges } from "@/lib/request-framing";
+import { reviewResetWarning } from "@/lib/request-reviewer-rules";
+import { sourceRequestType } from "@/lib/request-labels";
 import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
 import { saveNewIntake, saveEditedIntake } from "./intake-save";
 import { useOptimisticAction, useServerRefresh } from "@/components/requests/use-optimistic-action";
@@ -92,6 +95,8 @@ import {
 } from "./attachment-actions";
 import {
   runTriage,
+  type IntakeFailure,
+  type SaveResponse,
   type TriageResponse,
 } from "./actions";
 import { composerDraft, restoredComposer } from "./intake-session";
@@ -230,6 +235,12 @@ function IntakeNotice({
   );
 }
 
+/** #280: an Edit Request save the dialog runs once it has closed, so Save closes at once. `compose` says which step
+ * the save was made from; `clearDraft` drops the kept draft once the save lands. */
+export type BackgroundSave = { run: () => Promise<SaveResponse>; compose: boolean; clearDraft: () => void };
+/** #280: why the dialog's background save was refused; the editor reopens on the step it was made from and says so. */
+export type RefusedSave = { failure: IntakeFailure | null; compose: boolean };
+
 export default function RequestEditor({
   context,
   draftOwnerId,
@@ -256,8 +267,10 @@ export default function RequestEditor({
   onCancelCheckChange?: (cancel: (() => void) | null) => void;
   registerCloseAttempt?: RegisterIntakeCloseAttempt;
   initialProjectId?: string | null;
-  /** `saveLabel` names the save button when the edit has one purpose ("Save goal", #261); else "Save changes". */
-  editing?: { request: RequestDetail; onSaved: () => void; saveLabel?: string };
+  /** `saveLabel` names the save button when the edit has one purpose ("Save goal", #261); else "Save changes".
+   * `backLabel` names the review step's way back ("Back to editing", #280). With `saveInBackground` a save with no
+   * files to upload is handed to the dialog, which closes at once; `refused` is that save's refusal on reopening. */
+  editing?: { request: RequestDetail; onSaved: () => void; saveLabel?: string; backLabel?: string; saveInBackground?: (save: BackgroundSave) => void; refused?: RefusedSave | null };
   /** #78: non-guests can ask people to review while creating. Not offered when editing. */
   canAddReviewers?: boolean;
   /** #212: a Guest's Request has no prediction (Expected impact); the Member who takes it on writes it. */
@@ -272,6 +285,7 @@ export default function RequestEditor({
   const [initialValues] = useState<RequestInput>(() => original
     ? { ...original, expectedImpact: original.expectedImpact ?? { ...EMPTY_METRIC_IMPACT, unit: "" } }
     : emptyRequest);
+  const [refusedOnOpen] = useState(() => editing?.refused ?? null);
   const [savedProblem, setSavedProblem] = useState(original?.reframedProblem ?? null);
   const [savedSolution, setSavedSolution] = useState(original?.extractedSolution ?? null);
   const [framingError, setFramingError] = useState<{ field: "reframedProblem" | "extractedSolution"; message: string } | null>(null);
@@ -346,6 +360,21 @@ export default function RequestEditor({
     : uploadState.phase === "recovery" ? "attachment_recovery"
     : uploadState.phase === "reconciling" ? "uploads_checking"
     : uploadState.phase === "lost" ? "uploads_lost" : uploadState.phase;
+  function finishCreatedRequest(requestId: string, { open = false }: { open?: boolean } = {}) {
+    setStage("complete");
+    if (editing) {
+      editing.onSaved();
+      refresh();
+      return;
+    }
+    if (onCreated) {
+      onCreated(requestId, { open, created: createdRow.current?.id === requestId ? createdRow.current : undefined });
+      return;
+    }
+    if (!open) toast(requestCreatedToast({}));
+    router.push(`/requests/${requestId}`);
+  }
+
   const presentation = useEffectEvent(() => ({
     busy: (value: boolean) => onBusyChange?.(value || projectInFlight.current || metricInFlight.current || validationInFlight.current),
     finish: (id: string, options?: { open?: boolean }) => finishCreatedRequest(id, options),
@@ -385,8 +414,11 @@ export default function RequestEditor({
   // value on each keystroke and render the entire composer with it. The draft is persisted on
   // every change through the render-free subscription below.
   const [affectedPeople, desiredChange, observedEvidence, uncertainty, projectId, requestType, priority, labelKeys] = useWatch({ control, name: shownFields });
-  const originalTextUnchanged = useWatch({ control, name: ["title", "description"], compute: ([title, description]) => Boolean(editing && original && title?.trim() === original.title && description?.trim() === original.description) });
+  // #280 (B8): only a changed description is checked again; a new title keeps the saved judgement and framing.
+  const descriptionUnchanged = useWatch({ control, name: "description", compute: description => Boolean(editing && original && description?.trim() === original.description) });
   const hasLink = useWatch({ control, name: "usefulLink", compute: hasText });
+  // #280 (B9): an edit that changes the Request's content clears every review answer; the footer says whose.
+  const valuesChangeContent = useWatch({ control, compute: values => Boolean(editing && original && editChangesContent(values, original, original)) });
   // Expected impact keeps its identity until its content changes, so the measurement editor can
   // skip every render its own value did not cause.
   const expectedImpact = useWatch({ control, name: "expectedImpact", compute: parseExpectedImpact });
@@ -464,6 +496,10 @@ export default function RequestEditor({
         setRestoredDraft(true);
         setPreviousProblem(restored.previousProblem);
         setPreviousProblemSource(restored.previousProblemSource);
+        if (snapshot !== null && restored.framing) {
+          setSavedProblem(restored.framing.reframedProblem);
+          setSavedSolution(restored.framing.extractedSolution);
+        }
         if (restored.review) {
           setTriage(restored.review.triage);
           setToken(restored.review.token);
@@ -474,13 +510,23 @@ export default function RequestEditor({
         }
       }
 
+      // #280: the dialog reopened after its save was refused: say why, on the step the save was made from.
+      if (refusedOnOpen) {
+        const failure = refusedOnOpen.failure ?? { code: "save_failed" as const, message: `Your changes couldn’t be saved. ${TEXT_KEPT} Try again.` };
+        setRestoredDraft(false);
+        const field = failure.code === "validation" ? failure.field : undefined;
+        if (field === "editedProblemText") setProblemError(failure.message);
+        else if (field && field !== "reviewers") setError(field, { type: "server", message: failure.message });
+        else setFailure(failure);
+        if (refusedOnOpen.compose) focusAfterCompose.current = "submit";
+      }
       setDraftReady(true);
     }, 0);
 
     return () => {
       window.clearTimeout(restoreTimer);
     };
-  }, [draftScope, reset, session, snapshot]);
+  }, [draftScope, refusedOnOpen, reset, session, setError, snapshot]);
 
   useEffect(() => {
     if (!draftReady || !active || !initialProjectId || projectDefaultApplied.current) return;
@@ -498,7 +544,8 @@ export default function RequestEditor({
   // #78: reviewer picks and their question are restored with the draft, like Project, Labels and Priority.
   const reviewersDraft = offerReviewers ? { people: reviewers, question: reviewQuestion } : undefined;
   /** The draft for the composer as it stands (intake-session.ts). */
-  const currentDraft = () => composerDraft({ stage, triage, token, editedProblem, source, values: getValues(), previousProblem, previousProblemSource, reviewers: reviewersDraft });
+  const currentDraft = () => composerDraft({ stage, triage, token, editedProblem, source, values: getValues(), previousProblem, previousProblemSource, reviewers: reviewersDraft,
+    framing: editing ? { reframedProblem: savedProblem, extractedSolution: savedSolution } : undefined });
   const persistDraft = useEffectEvent(() => {
     if (!draftReady || session.getSnapshot().requestId || stage === "uploads_checking" || stage === "uploads_lost") return true;
     try {
@@ -520,6 +567,8 @@ export default function RequestEditor({
     previousProblemSource,
     reviewers,
     reviewQuestion,
+    savedProblem,
+    savedSolution,
   ]);
   // Every value change, keystrokes included, without a render of the form.
   useEffect(() => subscribe({ formState: { values: true }, callback: () => { persistDraft(); } }), [subscribe]);
@@ -723,21 +772,6 @@ export default function RequestEditor({
     pendingWriter?.insert(row);
   }
 
-  function finishCreatedRequest(requestId: string, { open = false }: { open?: boolean } = {}) {
-    setStage("complete");
-    if (editing) {
-      editing.onSaved();
-      refresh();
-      return;
-    }
-    if (onCreated) {
-      onCreated(requestId, { open, created: createdRow.current?.id === requestId ? createdRow.current : undefined });
-      return;
-    }
-    if (!open) toast(requestCreatedToast({}));
-    router.push(`/requests/${requestId}`);
-  }
-
   function openLostRequest() { session.openLost(); }
   function dismissLostUploads() { session.dismissLost(); }
 
@@ -760,6 +794,21 @@ export default function RequestEditor({
     setFailure(null);
     setProblemError(null);
 
+    // #280: with no files to upload, the dialog closes at once and runs the save; the draft kept here reopens it,
+    // everything typed included, if the server refuses.
+    if (editing?.saveInBackground && original && snapshot && !attachments.length) {
+      const compose = Boolean(unchangedSource);
+      const input = { requestId: editing.request.id, source: savingSource, original,
+        initialImpact: initialValues.expectedImpact, noMeasurableImpactReason: editing.request.noMeasurableImpactReason ?? null,
+        unchanged: compose, savedProblem, savedSolution, snapshot, token, triage, editedProblem };
+      const patch = { kind: "edit" as const, title: savingSource.title, priority: savingSource.priority ?? "none",
+        projectId: savingSource.projectId ?? null, projectName: projects.projects.find(project => project.id === savingSource.projectId)?.name ?? null,
+        labelKeys: requestLabelKeys(savingSource), requestType: sourceRequestType(savingSource) };
+      session.persistDraft(() => writeIntakeDraft(window.sessionStorage, draftScope, currentDraft()));
+      editing.saveInBackground({ compose, run: () => saveEditedIntake(input, context, optimistic, patch), clearDraft: () => clearIntakeDraft(window.sessionStorage, draftScope) });
+      return;
+    }
+
     await session.save({
       title: savingSource.title, attachments,
       run: () => editing && original && snapshot
@@ -769,41 +818,43 @@ export default function RequestEditor({
           token, triage, editedProblem }, context, optimistic)
         : saveNewIntake({ token, triage, editedProblem, offerReviewers, reviewers, reviewQuestion }, context),
       saved: result => showCreatedInList(result.created),
-      failed: (failure, thrown) => {
-        // #260 (C1): offline says so; nothing was sent and the text stays.
-        const message = isOfflineError(thrown) ? `${OFFLINE_ANSWER} ${TEXT_KEPT}`
-          : editing ? `Your changes couldn’t be saved. ${TEXT_KEPT} Try again.` : `Your Request couldn’t be created. ${TEXT_KEPT} Try again.`;
-        const result = { error: failure ?? { code: "save_failed" as const, message, field: undefined } };
-        if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
-          const field = result.error.field;
-          setError(field, { type: "server", message: result.error.message });
-          focusAfterCompose.current = "none";
-          setStage("compose");
-          const focusTimeout = window.setTimeout(session.guard(() => focusRequestField(field)), 0);
-          return () => window.clearTimeout(focusTimeout);
-        }
-        if (result.error.field === "reviewers") {
-          // Nothing was created: back to the compose step, where the picker shows why.
-          setReviewersError(result.error.message);
-          focusAfterCompose.current = "none";
-          setStage("compose");
-          const focusTimeout = window.setTimeout(session.guard(() => document.getElementById("intake-reviewers")?.focus()), 0);
-          return () => window.clearTimeout(focusTimeout);
-        }
-        if (
-          result.error.code === "validation" &&
-          result.error.field === "editedProblemText"
-        ) {
-          setProblemError(result.error.message);
-          const focusTimeout = window.setTimeout(session.guard(() => problemRef.current?.focus()), 0);
-          return () => window.clearTimeout(focusTimeout);
-        } else {
-          setFailure(result.error);
-        }
-        setStage(unchangedSource ? "compose" : "framing");
-        return;
-      },
+      failed: (failure, thrown) => showSaveFailure(failure, thrown, Boolean(unchangedSource)),
     });
+  }
+
+  /** A save that didn't land: the field it names, or the message on the step it was made from (`compose`). */
+  function showSaveFailure(failure: IntakeFailure | null, thrown: unknown, compose: boolean) {
+    // #260 (C1): offline says so; nothing was sent and the text stays.
+    const message = isOfflineError(thrown) ? `${OFFLINE_ANSWER} ${TEXT_KEPT}`
+      : editing ? `Your changes couldn’t be saved. ${TEXT_KEPT} Try again.` : `Your Request couldn’t be created. ${TEXT_KEPT} Try again.`;
+    const result = { error: failure ?? { code: "save_failed" as const, message, field: undefined } };
+    if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
+      const field = result.error.field;
+      setError(field, { type: "server", message: result.error.message });
+      focusAfterCompose.current = "none";
+      setStage("compose");
+      const focusTimeout = window.setTimeout(session.guard(() => focusRequestField(field)), 0);
+      return () => window.clearTimeout(focusTimeout);
+    }
+    if (result.error.field === "reviewers") {
+      // Nothing was created: back to the compose step, where the picker shows why.
+      setReviewersError(result.error.message);
+      focusAfterCompose.current = "none";
+      setStage("compose");
+      const focusTimeout = window.setTimeout(session.guard(() => document.getElementById("intake-reviewers")?.focus()), 0);
+      return () => window.clearTimeout(focusTimeout);
+    }
+    if (
+      result.error.code === "validation" &&
+      result.error.field === "editedProblemText"
+    ) {
+      setProblemError(result.error.message);
+      const focusTimeout = window.setTimeout(session.guard(() => problemRef.current?.focus()), 0);
+      return () => window.clearTimeout(focusTimeout);
+    } else {
+      setFailure(result.error);
+    }
+    setStage(compose ? "compose" : "framing");
   }
 
   async function retryAttachments(failed: QueuedAttachment[]) { await session.retry(failed.map(file => file.key)); }
@@ -831,9 +882,14 @@ export default function RequestEditor({
   }
 
   const composing = stage === "compose" || checking;
+  const framingReworded = Boolean(original) && ((savedProblem ?? "").trim() !== (original?.reframedProblem ?? "").trim() || (savedSolution ?? "").trim() !== (original?.extractedSolution ?? "").trim());
   // Incomplete guardrails and recovered pending changes must be resolved first.
   const guardrailEditing = hasGuardrailEdits(currentValues.expectedImpact);
   const reviewing = stage === "framing" || creating;
+  // A review step follows a changed description, which is always a change of content.
+  const resetNote = editing && (reviewing || valuesChangeContent || framingReworded) ? reviewResetWarning(editing.request.answeredReviews) : null;
+  // #280: what the re-check does to the framing saved before it.
+  const savedFramingChanges = editing && original && triage ? framingChanges(original, { classification: triage.classification, reframedProblem: editedProblem, extractedSolution: triage.extractedSolution }) : [];
   // Compose shows gate failures; review-step failures keep their own alert.
   const gateNotice = composing && failure ? gateFailureNotice(failure) : null;
   const shortcut = shortcutHint && <KeyCap className={styles.shortcut}>{shortcutHint}</KeyCap>;
@@ -883,8 +939,8 @@ export default function RequestEditor({
     validationInFlight.current = true;
     session.syncBusy();
     void handleSubmit(session.guard(data => {
-      if (original && editing && data.title.trim() === original.title && data.description.trim() === original.description) {
-        // Unchanged wording keeps its judgement, so its framing can be reworded but not emptied.
+      if (original && editing && data.description.trim() === original.description) {
+        // An unchanged description keeps its judgement, so its framing can be reworded but not emptied.
         const framing = savedFraming(storedShape({ classification: editing.request.classification, reframedProblem: original.reframedProblem, extractedSolution: original.extractedSolution }), { reframedProblem: savedProblem, extractedSolution: savedSolution });
         if (!framing.ok) {
           setFramingError(framing);
@@ -1176,6 +1232,24 @@ export default function RequestEditor({
             )}
           </div>
 
+          {savedFramingChanges.length > 0 && (
+            <section aria-labelledby="framing-changes-heading" className={styles.framingChanges} data-framing-changes="">
+              <h3 id="framing-changes-heading" className="text-sm font-medium">What saving changes</h3>
+              <p className="text-sm text-muted-foreground">The new description was checked again. Saving replaces what this Request says now.</p>
+              <dl className={styles.framingChangeList}>
+                {savedFramingChanges.map(change => (
+                  <div key={change.label} className={styles.framingChange}>
+                    <dt className="text-sm font-medium">{change.label}</dt>
+                    <dd><span className={styles.framingChangeWhen}>Before</span><span className="whitespace-pre-wrap break-words">{change.before}</span></dd>
+                    <dd><span className={styles.framingChangeWhen}>After</span>{change.after === null
+                      ? <span className="text-muted-foreground">Removed</span>
+                      : <span className="whitespace-pre-wrap break-words">{change.after}</span>}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
           {triage.classification === "problem" ? (
             <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{source.description}</p>
           ) : (
@@ -1387,26 +1461,29 @@ export default function RequestEditor({
       </div>
       {composing && (
         <footer className={styles.footer}>
+          {descriptionUnchanged && resetNote && !guardrailEditing && <p id="intake-review-reset" className={styles.resetNote}>{resetNote}</p>}
           <div className={styles.actions}>
             {guardrailEditing && !checking && <p id="intake-guardrail-pending" className={styles.footerNote}>Complete or remove the guardrail to review your Request.</p>}
             {shortcut}
             <Button ref={submitRef} type="submit" form={formId} disabled={projectBusy || metricBusy || guardrailEditing} loading={checking} aria-keyshortcuts="Meta+Enter Control+Enter"
-              aria-describedby={guardrailEditing && !checking ? "intake-guardrail-pending" : undefined}>
-              {originalTextUnchanged ? editing?.saveLabel ?? "Save changes" : "Review Request"}
+              aria-describedby={guardrailEditing && !checking ? "intake-guardrail-pending" : descriptionUnchanged && resetNote ? "intake-review-reset" : undefined}>
+              {descriptionUnchanged ? editing?.saveLabel ?? "Save changes" : "Review Request"}
             </Button>
           </div>
         </footer>
       )}
       {reviewing && triage && source && (
         <footer className={styles.footer}>
+          {resetNote && <p id="intake-review-reset" className={styles.resetNote}>{resetNote}</p>}
           <div className={styles.actions}>
             <Button type="button" variant="ghost" className={styles.lead} onClick={() => {
               setFailure(null);
               setStage("compose");
-            }} disabled={creating}>Edit Request</Button>
+            }} disabled={creating}>{editing?.backLabel ?? "Edit Request"}</Button>
             {!creating && shortcut}
             <Button
               type="button"
+              aria-describedby={resetNote ? "intake-review-reset" : undefined}
               onClick={
                 failure?.code === "review_expired"
                   ? () => source && void checkFraming(source)

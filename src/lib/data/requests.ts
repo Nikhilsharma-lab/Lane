@@ -7,6 +7,7 @@ import { alias } from "drizzle-orm/pg-core"
 import { db, comments, profiles, projects, requestAgreements, requestAttachments, requests } from "@/db"
 import type { MemberAuth } from "@/lib/auth-guard"
 import type { Reviewer, ReviewerOutline, ReviewState } from "@/lib/request-reviewer-rules"
+import { answeredReviewsOf } from "@/lib/request-reviewer-rules"
 import { reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
 import { currentMetricNames } from "@/lib/metrics-library"
@@ -333,5 +334,7 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   const { guestSubmissionState: state, takenOnByName, ...saved } = withoutReviewers(request)
   // #212: who filed it and who took it on, for the Request's Guest submission notice.
   const guestSubmission = state ? { state, submitterName: request.creatorName, takenOnBy: request.takenOnBy, takenOnByName } : null
-  return { request: { ...saved, guestSubmission, reviewState, metricNames, journeyOutline: outlineFor(auth, request), pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
+  // #280 (B9): the answers an edit would clear, for the Edit dialog's warning.
+  const answeredReviews = answeredReviewsOf(request.reviewers)
+  return { request: { ...saved, guestSubmission, reviewState, answeredReviews, metricNames, journeyOutline: outlineFor(auth, request), pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
 }

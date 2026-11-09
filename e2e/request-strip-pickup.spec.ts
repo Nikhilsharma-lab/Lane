@@ -36,15 +36,18 @@ async function holdNextAction(page: Page, requestId: string) {
   const path = `**/requests/${requestId}**`;
   const released = Promise.withResolvers<void>();
   const seen = Promise.withResolvers<void>();
+  const failed = Promise.withResolvers<void>();
   let count = 0;
   await page.route(path, async route => {
     if (route.request().method() !== "POST" || !route.request().headers()["next-action"]) return route.continue();
     count++;
+    if (count > 1) return route.continue();
     seen.resolve();
     await released.promise;
     await route.abort("failed");
+    failed.resolve();
   });
-  return { seen: seen.promise, count: () => count, async release() { released.resolve(); await page.unroute(path); } };
+  return { seen: seen.promise, count: () => count, async release() { released.resolve(); await failed.promise; await page.unroute(path); } };
 }
 
 /**

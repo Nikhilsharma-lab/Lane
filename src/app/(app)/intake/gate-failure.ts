@@ -1,5 +1,5 @@
 import type { IntakeFailure } from "./actions";
-import { OFFLINE_ANSWER, OFFLINE_LINE, TEXT_KEPT } from "@/lib/failure-messages";
+import { OFFLINE_ANSWER, OFFLINE_LINE, SAVE_FAILED_TITLE, TEXT_KEPT } from "@/lib/failure-messages";
 
 /** A failure the composer meets on its own side of the action: the call threw. */
 export type ClientGateFailure = { code: "offline" | "unavailable"; message: string };
@@ -40,6 +40,9 @@ export function gateFailureNotice(failure: GateFailure): GateNotice {
     case "billing_blocked":
       // #213: the Free Requests are used; the message says why and that an Admin needs to pay.
       return { tone: "warning", title: "An Admin needs to pay", body: `${failure.message} ${TEXT_KEPT}`, signIn: false };
+    case "save_failed":
+      // #280: an Edit Request whose save was refused reopens on the step it was made from, saying so.
+      return { tone: "danger", title: SAVE_FAILED_TITLE, body: failure.message, signIn: false };
     case "timeout":
     case "network":
     case "provider":
