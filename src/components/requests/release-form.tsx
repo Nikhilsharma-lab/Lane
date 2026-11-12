@@ -10,6 +10,7 @@ import type { ReleaseFact } from "@/lib/request-release"
 import { localDate, localDay } from "@/lib/local-day"
 import { IS_IT_LIVE_COPY } from "./is-it-live"
 import { useJourneyChange } from "./use-journey-change"
+import { useEscapeClosesPickerFirst } from "./picker-escape"
 import styles from "./request-timeline.module.css"
 import noteStyles from "./is-it-live.module.css"
 import popupStyles from "@/components/popup/popup.module.css"
@@ -48,6 +49,7 @@ export type ReleaseFormProps = {
  */
 export function ReleaseForm({ requestId, orgId, read, correcting = false, onSaved, onCancel, cancelLabel = "Cancel" }: ReleaseFormProps) {
   const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: "Couldn’t save release. Your input is preserved; try again." })
+  useEscapeClosesPickerFirst()
   const saved = correcting ? read.release : null
   const { valueBefore } = read
   const [today] = useState(() => localDay())

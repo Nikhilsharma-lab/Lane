@@ -61,7 +61,7 @@ export function IsItLiveProvider({ orgId, children }: { orgId: string; children:
   return <IsItLiveContext.Provider value={ask}>
     {children}
     <Dialog guardTypedText open={view !== null} onOpenChange={open => { if (!open) prompt.notYet() }}>
-      {view && <DialogContent data-is-it-live="" className={styles.prompt} sheetClassName={styles.prompt} onCloseAutoFocus={returnFocus} onEscapeKeyDown={release?.keepOpenWhilePickerOpen}
+      {view && <DialogContent data-is-it-live="" onCloseAutoFocus={returnFocus}
         title={view.step === "ask" ? IS_IT_LIVE_COPY.title : IS_IT_LIVE_COPY.releaseTitle}
         description={view.step === "ask" ? IS_IT_LIVE_COPY.question(view.request.name) : view.request.name}>
         {view.step === "ask" ? <>

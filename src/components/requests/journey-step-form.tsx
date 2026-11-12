@@ -54,7 +54,7 @@ export function JourneyStepForm({ mode, steps, views, form }: { mode: JourneyAct
 
   return <Dialog guardTypedText open={open} onOpenChange={next => { if (!next) form.onCancel() }}>
     {shown && <DialogContent title={JOURNEY_POPUP_TITLES[shown]} aria-describedby={undefined} data-journey-popup={shown}
-      returnFocus={() => actionButton(shown)} onEscapeKeyDown={code?.keepOpenWhilePickerOpen}
+      returnFocus={() => actionButton(shown)}
       onCloseAutoFocus={event => {
         if (!saved.current) return
         // The action's button may be about to go: the saved step moves on once the Journey re-reads.

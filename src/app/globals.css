@@ -58,3 +58,8 @@
    every pressable row and link; :root lifts it over their own hover styles, since the pointer is still
    resting on what it clicked. */
 :root [data-pressable][data-pressed] { background-color: var(--interaction-pressed); }
+
+/* #277 (C2-12): while "Is it live?" is open, Lane's messages step aside, so the Marked Done toast never covers it on a
+   phone. The toast keeps its place in the stack: Not yet brings it back with its Undo and a fresh 10 seconds, and a
+   saved release turns it into "Release recorded" (src/components/requests/is-it-live-prompt.tsx). */
+:root:has([data-is-it-live]) section[aria-label^="Messages"] li { visibility: hidden; }
