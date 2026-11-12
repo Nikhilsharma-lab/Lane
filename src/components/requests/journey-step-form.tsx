@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { JourneyAction } from "@/lib/request-journey"
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup"
@@ -38,7 +38,10 @@ export function JourneyStepForm({ mode, steps, views, form }: { mode: JourneyAct
   // The action shown stays while the popup closes, so its content leaves with it.
   const [shown, setShown] = useState(mode)
   if (open && mode !== shown) setShown(mode)
+  // Whether this opening ended in a save. Reset as each opening starts: Radix skips its open-focus event when the form
+  // has already taken focus.
   const saved = useRef(false)
+  useLayoutEffect(() => { if (open) saved.current = false }, [open])
   useEffect(() => {
     const ahead = (event: Event) => { if (event.target instanceof Element && event.target.closest("#journey [data-journey-action]")) formsCode.preload() }
     document.addEventListener("pointerover", ahead)
@@ -52,7 +55,6 @@ export function JourneyStepForm({ mode, steps, views, form }: { mode: JourneyAct
   return <Dialog guardTypedText open={open} onOpenChange={next => { if (!next) form.onCancel() }}>
     {shown && <DialogContent title={JOURNEY_POPUP_TITLES[shown]} aria-describedby={undefined} data-journey-popup={shown}
       returnFocus={() => actionButton(shown)} onEscapeKeyDown={code?.keepOpenWhilePickerOpen}
-      onOpenAutoFocus={() => { saved.current = false }}
       onCloseAutoFocus={event => {
         if (!saved.current) return
         // The action's button may be about to go: the saved step moves on once the Journey re-reads.

@@ -122,9 +122,11 @@ test('Journey rejects a read begun before editing and refreshes at its scheduled
       await held.deliver();
       await expect(evidence).toHaveValue('Acceptance: still editing this draft');
       await expect(evidence).toBeFocused();
-      await expect(panel.getByText('Evidence: Acceptance: original exposure evidence', { exact: true })).toBeVisible();
-      await expect(panel.getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toHaveCount(0);
-      await expect(panel.getByRole('alert')).toHaveCount(0);
+      // The popup is modal, so the Journey behind it is hidden from the accessibility tree; read it by its id.
+      const behind = page.locator('#journey');
+      await expect(behind.getByText('Evidence: Acceptance: original exposure evidence', { exact: true })).toBeVisible();
+      await expect(behind.getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toHaveCount(0);
+      await expect(behind.locator('[role=alert]')).toHaveCount(0);
       await correction.getByRole('button', { name: 'Cancel', exact: true }).click();
       await expect(panel.getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toBeVisible();
     } finally { await held.stop(); }

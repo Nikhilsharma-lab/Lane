@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 import { cleanupTestWorkspace, e2eDatabase, getTestWorkspaceId } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
@@ -269,14 +269,43 @@ test.describe("#277 Journey popups and the one release form", () => {
       await page.keyboard.press("Escape");
       await expect(calendar).toHaveCount(0);
 
+      // Coming back to the tab while the panel is open reads nothing, so nothing typed moves (the Journey reads on return).
+      const evidence = release.getByLabel("Release evidence", { exact: true });
+      await evidence.fill("Phone rollout log");
+      let reads = 0;
+      const countRead = (request: Request) => { if (request.method() === "POST" && request.headers()["next-action"] && request.postData()?.includes(id)) reads++; };
+      page.on("request", countRead);
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await page.waitForTimeout(500);
+      page.off("request", countRead);
+      expect(reads).toBe(0);
+      await expect(evidence).toHaveValue("Phone rollout log");
+      await expect(evidence).toBeFocused();
+
       // Escape with typed text asks here too; Discard closes the panel and focus goes back to the action.
-      await release.getByLabel("Release evidence", { exact: true }).fill("Phone rollout log");
       await blurToPage(page);
       await page.keyboard.press("Escape");
       await expect(discardPrompt(page).getByRole("button", { name: "Keep editing", exact: true })).toBeFocused();
       await discardPrompt(page).getByRole("button", { name: "Discard", exact: true }).click();
       await expect(release).toHaveCount(0);
       await expect(record).toBeFocused();
+
+      // A choice picked from a menu inside the panel keeps the panel open, and a return to the tab reads nothing.
+      const closeWithout = journey(page).getByRole("button", { name: /^Close without a result/ });
+      await closeWithout.click();
+      const close = popup(page, "Close without a result");
+      await close.getByRole("combobox", { name: "Why" }).click();
+      await page.getByRole("option").first().click();
+      await page.waitForTimeout(500);
+      await expect(close).toBeVisible();
+      page.on("request", countRead);
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await page.waitForTimeout(500);
+      page.off("request", countRead);
+      expect(reads).toBe(0);
+      await close.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(close).toHaveCount(0);
+      await expect(closeWithout).toBeFocused();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     });
   });

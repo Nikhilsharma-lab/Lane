@@ -9,6 +9,6 @@
  * phone. The toast keeps its place in the stack: Not yet brings it back with its Undo and a fresh 10 seconds, and a
  * saved release turns it into "Release recorded".
  */
-:global(html):has(.prompt) :global(section[aria-label^="Messages"]) {
+:global(html):has(.prompt) :global(section[aria-label^="Messages"] li) {
   visibility: hidden;
 }

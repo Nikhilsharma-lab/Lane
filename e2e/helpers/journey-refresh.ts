@@ -64,7 +64,8 @@ export async function expectOpenFormSurvivesReturn(page: Page, reads: JourneyRea
   expect(reads.count()).toBe(before);
   await expect(field).toHaveValue(value);
   await expect(field).toBeFocused();
-  await expect(journey(page).getByRole("alert")).toHaveCount(0);
+  // A modal Journey popup hides the Journey from the accessibility tree; read it by its id.
+  await expect(page.locator("#journey [role=alert]")).toHaveCount(0);
 }
 
 /** Delay delivery, not execution: the response and saved facts remain real. */
