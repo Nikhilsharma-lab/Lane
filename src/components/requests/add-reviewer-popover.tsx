@@ -16,6 +16,8 @@ import pickerStyles from "./request-property-pickers.module.css";
  * #279: Add reviewer on Request detail, an Arc popover like the composer's Reviewers picker: search the workspace's
  * Admins and Members, pick one or more, add the optional question, then Add reviewer. The people load when it first
  * opens. The popover closes at once and the reviewers show straight away (`onAdd`); the server checks every rule.
+ * Closing it any other way (Escape, a press outside) keeps the picks and the question for the next opening, so nothing
+ * typed is lost and nothing needs asking.
  */
 export function AddReviewerPopover({ orgId, unavailable, canInvite, slots, onAdd, triggerRef, className }: {
   orgId: string;
@@ -50,7 +52,6 @@ export function AddReviewerPopover({ orgId, unavailable, canInvite, slots, onAdd
   const openChange = (next: boolean) => {
     setOpen(next);
     setQuery("");
-    if (next) { setChosen([]); setNote(""); }
     if (next && !people && !loading) void load();
   };
 
@@ -64,6 +65,8 @@ export function AddReviewerPopover({ orgId, unavailable, canInvite, slots, onAdd
         if (!chosen.length) return;
         onAdd(chosen, note);
         setOpen(false);
+        setChosen([]);
+        setNote("");
       }}>
         <div className={labelStyles.search}>
           <SearchField ref={searchRef} label="Search people" hideLabel placeholder="Search people…" maxLength={100} value={query} onValueChange={setQuery}
@@ -77,11 +80,11 @@ export function AddReviewerPopover({ orgId, unavailable, canInvite, slots, onAdd
         {loading && <Placeholder label="Loading people" lines={2} />}
         {error && <><p role="alert" className={labelStyles.error}>{error}</p><Button type="button" size="sm" variant="secondary" onClick={() => { searchRef.current?.focus(); void load(); }}>Try again</Button></>}
         {full && chosen.length > 0 && <p role="status" className={labelStyles.caption}>A Request can have at most {MAX_REVIEWERS} reviewers.</p>}
-        {chosen.length > 0 && <div className={labelStyles.question}>
+        <div className={labelStyles.question}>
           <Textarea label={REVIEW_QUESTION.label} description={REVIEW_QUESTION.description} placeholder={REVIEW_QUESTION.placeholder}
             value={note} onChange={(event) => setNote(event.target.value)} maxLength={REVIEW_NOTE_MAX} rows={2} />
-        </div>}
-        <div className={`${labelStyles.actions} ${labelStyles.question}`}>
+        </div>
+        <div className={`${labelStyles.actions} ${labelStyles.caption}`}>
           <Button type="submit" size="sm" disabled={!chosen.length}>{chosen.length > 1 ? `Add ${chosen.length} reviewers` : "Add reviewer"}</Button>
         </div>
       </form>
