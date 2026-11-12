@@ -6,7 +6,7 @@ import { provisionAndSignIn } from "./helpers/auth";
 /**
  * #258 (speed fix 2): resting on a row, or keyboard focus stopping on one, reads its Request into the
  * preview's memory before the preview opens, so opening it shows the Request at once. Only where the
- * preview is offered (768px and wider with a mouse), and only the row a held J stops on. A read ahead
+ * preview is offered (1280px and wider with a mouse), and only the row a held J stops on. A read ahead
  * and the preview's open share one read: a Request is never read twice at once.
  */
 
@@ -191,7 +191,8 @@ test("the Request preview loads ahead on the Requests list and the Inbox", async
     });
 
     await test.step("short windows keep the header in place when keyboard focus reaches the comment action", async () => {
-      await page.setViewportSize({ width: 1024, height: 600 });
+      // #273: the narrowest window the preview is offered in.
+      await page.setViewportSize({ width: 1280, height: 600 });
       try {
         await page.locator(ROW).first().locator("a[data-request-title]").click();
         const header = preview.locator("[data-detail-title]");

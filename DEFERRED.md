@@ -71,11 +71,14 @@ not authorize implementing these unrelated deferrals.
   Merge 879b484 (branch feat/detail-nplus1). — Day 3 #3.
 - **Board pagination — OPEN, DEFERRED POST-GTM (trigger below → exempt from the hard GTM gate).**
   Re-scoped 2026-07-12; the original text ("only a `.limit(100)` safety cap") was stale. Current state
-  on main: query capped at 200 (`MAX_REQUESTS_QUERY`, `src/app/(app)/page.tsx:13`), Done group capped
-  at 25 with a count affordance ("Showing the latest 25 of N completed." — `page.tsx:14,52,181-184`) —
-  partial mitigation already shipped. What's absent: cursor/offset "load more" pagination (grep: no
-  pagination code in the board path). Decision: DEFER — Lane launches invite-only to early design
-  teams whose active boards are dozens, not hundreds; the failure mode at the cap is graceful (oldest
+  (re-checked with #272, Build 5.1 of #256): `loadRequestList` (`src/lib/data/requests.ts`) reads every
+  Open and In progress Request up to `MAX_REQUESTS_QUERY = 200`, with the note "Showing the latest 200
+  Requests." past it, plus the latest `DONE_PAGE_SIZE = 50` finished ones (Done, Measuring, Closed) and
+  each finished status's full count. The list shows 25 per group with a Show more per group; a finished
+  group's Show more pages older finished Requests through `/api/requests/done` (cursor), so finished work
+  is no longer capped. What's absent: a cursor for *active* Requests past the 200 cap (they stop
+  displaying, and the Open and In progress counts stop at what's loaded). Decision: DEFER — Lane
+  launches invite-only to early design teams whose active boards are dozens, not hundreds; the failure mode at the cap is graceful (oldest
   items stop displaying, no crash) on a board where stale requests get closed; building cursor
   pagination now solves a scale problem that only appears at customer volume launch won't have (YAGNI).
   Trigger: any workspace exceeds ~120 active (Open + In-Progress) requests, OR the first
@@ -377,7 +380,8 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   (ungated, needed Nikhil's explicit written decision; Plane's issue peek-overview as reference; trigger: a real
   need to view a Request without losing list place) was cleared by Nikhil in chat on 2026-10-21 ("build all"
   leftover items, `docs/superpowers/plans/2026-10-21-leftover-build-plan.md`, PR #63). Built as a non-modal
-  preview on the Requests list (Space, J/K follow, Esc back to the row; phones keep full-page navigation),
+  preview on the Requests list (Space, J/K follow, Esc back to the row; below 1280px, phones and touch screens keep
+  full-page navigation, #240 decision 2, Build 5 of #256),
   reusing the Request page's detail pane through a read-only `GET /api/requests/[id]`. Spec:
   `docs/superpowers/plans/2026-10-21-request-peek.md`. The inbox-pane notification form it was a prerequisite
   for stays deferred under NOTIFICATION AT-SCALE, whose primary trigger this fires (noted there).

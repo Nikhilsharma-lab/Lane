@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type RefObject } from "react"
-import { gridCommand, headerOf, isGroupKey, isTypingTarget, listCommand, nextKey, requestIdOf, tabbableKey, type GridKey } from "./request-grid-keys"
+import { gridCommand, groupOfKey, headerOf, isGroupKey, isMoreKey, isTypingTarget, listCommand, nextKey, requestIdOf, tabbableKey, type GridKey, type GridMove } from "./request-grid-keys"
 import { isShown, overlayOpen } from "./list-focus"
 
 export type RequestGridOptions = {
@@ -9,19 +9,14 @@ export type RequestGridOptions = {
   gridRef: RefObject<HTMLElement | null>
   /** The list page around it (toolbar and grid); J, K and F work anywhere in it while it is shown. */
   scopeRef: RefObject<HTMLElement | null>
-  /** The grid's rows in page order. */
+  /** The grid's rows in list order: headers, Requests and Show more rows (A212). */
   keys: GridKey[]
-  /** The rows another page would show, so crossing a page can land on its first or last row. */
-  keysForPage: (pageIndex: number) => GridKey[]
   /** The group a Request row belongs to, when grouped. */
   groupOf: (key: GridKey) => string | null
   isCollapsed: (group: string) => boolean
   setCollapsed: (group: string, collapsed: boolean) => void
   /** Toggles a Request's selection (X). */
   toggleSelected: (id: string) => void
-  page: { index: number; count: number; go: (index: number) => void }
-  /** Speaks a page crossing. */
-  announce: (text: string) => void
   /** Plan item 2.12: Space on a Request row previews it. Returns false when the preview is not available (phones). */
   onPeek?: (id: string) => boolean
   /** Keyboard movement follows an open preview; pointer focus on a control does not. */
@@ -37,7 +32,7 @@ const PEEK = "[data-request-peek]"
  * has tabIndex 0; a move re-renders two rows and focuses after the commit, so
  * the shared Arc ring (which skips tabindex="-1") always draws.
  */
-export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, isCollapsed, setCollapsed, toggleSelected, page, announce, onPeek, onNavigate }: RequestGridOptions) {
+export function useRequestGrid({ gridRef, scopeRef, keys, groupOf, isCollapsed, setCollapsed, toggleSelected, onPeek, onNavigate }: RequestGridOptions) {
   const [active, setActiveState] = useState<{ key: GridKey; index: number } | null>(null)
   const [focusTick, setFocusTick] = useState(0)
   const pendingFocus = useRef<GridKey | null>(null)
@@ -90,29 +85,13 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
     return true
   }, [scopeRef])
 
-  const crossPage = (index: number, edge: "first" | "last") => {
-    const target = keysForPage(index)
-    const key = edge === "first" ? target[0] : target[target.length - 1]
-    page.go(index)
-    if (key) {
-      focusKey(key, edge === "first" ? 0 : target.length - 1)
-      const id = requestIdOf(key)
-      if (id) onNavigate?.(id)
-    }
-    announce(`Page ${index + 1} of ${page.count}.`)
-  }
-
-  /** Moves from a row as J, K, Home or End do, crossing a page at either end. False when nothing moves. */
-  const move = (key: GridKey, command: "next" | "previous" | "first" | "last") => {
+  /** Moves from a row as ↓, ↑, J, K, Home or End do. The list has no pages, so its ends stay put. False when nothing moves. */
+  const move = (key: GridKey, command: GridMove) => {
     const target = nextKey(keys, key, command)
     if (!target) return false
-    if ("key" in target) {
-      focusKey(target.key)
-      const id = requestIdOf(target.key)
-      if (id) onNavigate?.(id)
-    }
-    else if (target.edge === "next-page" && page.index + 1 < page.count) crossPage(page.index + 1, "first")
-    else if (target.edge === "previous-page" && page.index > 0) crossPage(page.index - 1, "last")
+    focusKey(target.key)
+    const id = requestIdOf(target.key)
+    if (id) onNavigate?.(id)
     return true
   }
 
@@ -127,9 +106,9 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
     if (event.key === " " && event.repeat && target === row && onPeek) { event.preventDefault(); return }
     const command = gridCommand(event, isTypingTarget(target))
     if (!command || overlayOpen()) return
-    const group = isGroupKey(key) ? key.slice(2) : null
+    const group = isGroupKey(key) ? groupOfKey(key) : null
     switch (command) {
-      case "next": case "previous": case "first": case "last": {
+      case "next": case "previous": case "next-request": case "previous-request": case "first": case "last": {
         if (!move(key, command)) return
         break
       }
@@ -159,6 +138,7 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
         // Enter on a control inside the row is that control's own (a copy button, a link).
         if (target !== row) return
         if (group) toggleGroup(group, !isCollapsed(group))
+        else if (isMoreKey(key)) row.querySelector<HTMLButtonElement>("button")?.click()
         else row.querySelector<HTMLAnchorElement>("a[data-request-title]")?.click()
         break
       }
@@ -173,6 +153,8 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
         break
       }
       case "peek": {
+        // Space on a Show more row shows more, as on a button.
+        if (target === row && isMoreKey(key)) { row.querySelector<HTMLButtonElement>("button")?.click(); break }
         // Space on a control inside the row is that control's own; a group header has nothing to preview.
         const id = requestIdOf(key)
         if (target !== row || !id || !onPeek?.(id)) return
@@ -199,14 +181,19 @@ export function useRequestGrid({ gridRef, scopeRef, keys, keysForPage, groupOf, 
     const command = listCommand(event, isTypingTarget(target))
     if (!command || overlayOpen()) return
     if (command === "filter") { if (openFilter()) event.preventDefault(); return }
+    const direction = command === "focus-next" ? "next-request" : "previous-request"
     // In the open preview, J and K carry on through the list, and the preview follows.
     if (target instanceof Element && target.closest(PEEK) && active && keys.includes(active.key)) {
-      if (move(active.key, command === "focus-next" ? "next" : "previous")) event.preventDefault()
+      if (move(active.key, direction)) event.preventDefault()
       return
     }
     const stop = gridRef.current?.querySelector<HTMLElement>('[role="row"][tabindex="0"]')
     if (!isShown(stop)) return
     event.preventDefault()
+    // J and K land on a Request (#240 decision 5): from a header or Show more tab stop, the nearest one that way.
+    const key = stop.dataset.gridRow
+    const request = key && !requestIdOf(key) ? (nextKey(keys, key, direction) ?? nextKey(keys, key, direction === "next-request" ? "previous-request" : "next-request"))?.key : undefined
+    if (request) { focusKey(request); return }
     stop.focus({ preventScroll: true })
     stop.scrollIntoView({ block: "nearest" })
   })

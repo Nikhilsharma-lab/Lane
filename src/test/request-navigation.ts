@@ -5,7 +5,7 @@ import type { ListViewState } from "@/components/requests/list-view-state"
 export function requestNavigation() {
   let view: ListViewState = { title: "",
     status: "all", project: "all", columnVisibility: {}, localFilters: [], ordering: "newest",
-    grouping: "status", collapsedGroups: [], pagination: { pageIndex: 0, pageSize: 25 },
+    grouping: "status", collapsedGroups: [], shownCounts: {},
   }
   const controller = createRequestNavigation({ getView: () => view,
     setView: next => { view = typeof next === "function" ? next(view) : next }, setDetailSession: () => {},

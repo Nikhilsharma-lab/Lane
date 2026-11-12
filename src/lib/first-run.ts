@@ -8,7 +8,7 @@ import { db, firstRunProgress, requests } from "@/db";
 import type { MemberAuth, WorkspacePerson } from "./auth-guard";
 import { readFreeRequests, type WorkspaceFreeRequests } from "./billing";
 import {
-  firstRunGuideFor, firstRunView, startingProgress, withStepRead, type FirstRunChange, type FirstRunGuide, type FirstRunProgress, type FirstRunView,
+  backTo, firstRunGuideFor, firstRunView, startingProgress, withStepRead, type FirstRunChange, type FirstRunGuide, type FirstRunProgress, type FirstRunView,
 } from "./first-run-rules";
 
 /**
@@ -92,8 +92,8 @@ export async function changeFirstRun(person: Person, change: FirstRunChange): Pr
     const [row] = await tx.select({ guide: firstRunProgress.guide, steps: firstRunProgress.steps }).from(firstRunProgress).where(where).for("update");
     if (!row) return { refused: "not_started" as const };
     const now = new Date();
-    if (change.change === "step") {
-      const steps = withStepRead(row.guide, row.steps, change.step);
+    if (change.change === "step" || change.change === "back") {
+      const steps = change.change === "step" ? withStepRead(row.guide, row.steps, change.step) : backTo(row.guide, row.steps, change.step);
       if (!steps) return { refused: "not_a_step" as const };
       await tx.update(firstRunProgress).set({ steps, updatedAt: now }).where(where);
     } else if (change.change === "skip") {

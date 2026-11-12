@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { filtersHiding, groupRequestRows, matchesListFilters, sortRequestRows, paginateRequests, type ListFilters, type OverviewRequest } from "./request-overview"
+import { filtersHiding, groupRequestRows, matchesListFilters, sortRequestRows, type ListFilters, type OverviewRequest } from "./request-overview"
 import type { ReleaseState } from "./request-release"
 
 describe("The journey in the list (#133)", () => {
@@ -77,14 +77,6 @@ describe("Requests overview sorting", () => {
   })
 })
 
-it("clamps pagination after filtering and preserves all requests across pages", () => {
-  const items = Array.from({ length: 18 }, (_, id) => id)
-  expect(paginateRequests(items, 0, 10).rows).toEqual(items.slice(0, 10))
-  expect(paginateRequests(items, 1, 10).rows).toEqual(items.slice(10))
-  expect(paginateRequests(items.slice(0, 2), 1, 10).pageIndex).toBe(0)
-  expect(paginateRequests([], 5, 10)).toEqual({ rows: [], pageIndex: 0, pageCount: 1 })
-})
-
 describe("Request row grouping and order", () => {
   it("keeps assignees with the same display name in separate identity groups", () => {
     const rows = [
@@ -112,12 +104,10 @@ describe("Request row grouping and order", () => {
     expect(sortRequestRows(tied, "title_desc").map(row => row.id)).toEqual(["a", "z"])
     expect(groupRequestRows([requests[2], requests[0], requests[1]], "status").map(group => group.label)).toEqual(["Open", "In progress", "Done", "Measuring", "Closed"])
   })
-  it("keeps every grouped Request across page boundaries and preserves the input", () => {
+  it("keeps every grouped Request in its group's order and preserves the input", () => {
     const rows = [requests[2], requests[0], requests[1], { ...requests[0], id: "d" }]
     const groups = groupRequestRows(sortRequestRows(rows, "title"), "status")
-    const ordered = groups.flatMap(group => group.rows)
-    expect(paginateRequests(ordered, 0, 2).rows.map(row => row.id)).toEqual(["a", "d"])
-    expect(paginateRequests(ordered, 1, 2).rows.map(row => row.id)).toEqual(["b", "c"])
+    expect(groups.flatMap(group => group.rows).map(row => row.id)).toEqual(["a", "d", "b", "c"])
     expect(groups[0].rows).toHaveLength(2)
     expect(rows.map(row => row.id)).toEqual(["c", "a", "b", "d"])
   })

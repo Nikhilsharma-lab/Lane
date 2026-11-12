@@ -8,7 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { motionTokens } from "../lib/motion-tokens";
 import styles from "./dropdown-menu.module.css";
 
-export interface DropdownItem { label: string; onSelect?: () => void; disabled?: boolean; icon?: ReactNode; trailingIcon?: ReactNode; destructive?: boolean; separatorBefore?: boolean; }
+export interface DropdownItem { label: string; onSelect?: () => void; disabled?: boolean; icon?: ReactNode; trailingIcon?: ReactNode; destructive?: boolean; separatorBefore?: boolean; /** One of a set of choices: the item is a menuitemradio and says whether it is the current one. */ checked?: boolean; }
 export interface DropdownMenuProps {
   label: string; items: DropdownItem[]; icon?: ReactNode;
   trigger?: ReactElement;
@@ -53,7 +53,7 @@ export function DropdownMenu({ label, items, icon, trigger, onCloseAutoFocus, on
   useEffect(() => () => window.clearTimeout(clearTimer.current), []);
   // Radix focuses the highlighted item (pointer or keyboard) and the content when the pointer leaves an item.
   function onMenuFocus(event: FocusEvent<HTMLDivElement>) {
-    const item = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('[role="menuitem"]') : null;
+    const item = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('[role^="menuitem"]') : null;
     window.clearTimeout(clearTimer.current);
     if (!item) {
       // A short grace period keeps the highlight gliding across separators and item gaps.
@@ -69,7 +69,7 @@ export function DropdownMenu({ label, items, icon, trigger, onCloseAutoFocus, on
     <DropdownPrimitive.Portal><DropdownPrimitive.Content aria-label={label} className={styles.menu} sideOffset={6} align="end" collisionPadding={12} loop onCloseAutoFocus={onCloseAutoFocus} onKeyDown={onContentKeyDown} onFocus={onMenuFocus} onPointerMoveCapture={() => { pointer.current = true; }} onKeyDownCapture={() => { pointer.current = false; }}>
       {/* One highlight glides between items for the pointer and jumps instantly for the keyboard. */}
       <m.span className={styles.highlight} data-tone={highlight?.danger ? "danger" : undefined} aria-hidden="true" initial={false} animate={highlight ? { y: highlight.top, height: highlight.height, opacity: 1 } : { opacity: 0 }} transition={{ default: highlight?.glide && !reduced ? motionTokens.spring.snappy : { duration: 0 }, opacity: { duration: reduced ? 0 : motionTokens.duration.instant } }}/>
-      {items.map((item, index) => <Fragment key={item.label}>{item.separatorBefore && <DropdownPrimitive.Separator className={styles.separator}/>}<DropdownPrimitive.Item className={[styles.item, item.destructive ? styles.destructive : ""].filter(Boolean).join(" ")} data-tone={item.destructive ? "danger" : undefined} style={{ "--i": index } as CSSProperties} disabled={item.disabled} onSelect={item.onSelect}>{item.icon && <span className={styles.icon} aria-hidden="true">{item.icon}</span>}{item.label}{item.trailingIcon && <span className={styles.trailingIcon} aria-hidden="true">{item.trailingIcon}</span>}</DropdownPrimitive.Item></Fragment>)}
+      {items.map((item, index) => <Fragment key={item.label}>{item.separatorBefore && <DropdownPrimitive.Separator className={styles.separator}/>}<DropdownPrimitive.Item className={[styles.item, item.destructive ? styles.destructive : ""].filter(Boolean).join(" ")} data-tone={item.destructive ? "danger" : undefined} style={{ "--i": index } as CSSProperties} disabled={item.disabled} onSelect={item.onSelect} {...item.checked !== undefined && { role: "menuitemradio", "aria-checked": item.checked }}>{item.icon && <span className={styles.icon} aria-hidden="true">{item.icon}</span>}{item.label}{item.trailingIcon && <span className={styles.trailingIcon} aria-hidden="true">{item.trailingIcon}</span>}</DropdownPrimitive.Item></Fragment>)}
     </DropdownPrimitive.Content></DropdownPrimitive.Portal>
   </DropdownPrimitive.Root>;
 }

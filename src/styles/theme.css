@@ -221,6 +221,8 @@
   --lane-warning: oklch(68.1% 0.162 75.834);
   --lane-warning-soft: color-mix(in oklab, var(--lane-warning) 10%, transparent);
   --lane-warning-border: oklch(79.5% 0.184 86.047);
+  /* Warning words on the warning wash, readable at chip size (polish bar §14): the light warning hue is 2.66:1 there. */
+  --lane-warning-ink: oklch(47.3% 0.137 46.201);
   --lane-info: oklch(58.5% 0.233 277.117);
   --lane-destructive-hover: oklch(0.577 0.245 27.325);
   --lane-input-error-background: oklch(0.971 0.013 17.38);
@@ -344,7 +346,8 @@
   --lane-text-5xl: 2.875rem;
   --lane-text-5xl--line-height: 1;
   --lane-tracking-display: -.025em;
-  --lane-badge-sm-font: 9px;
+  /* Small badges (row chips, tags): the polish bar's 11px floor, Arc's own small badge size (#274). */
+  --lane-badge-sm-font: 11px;
 
   /* Spacing steps over tweakcn's --spacing unit. */
   --lane-space-1: calc(var(--spacing) * 1);
@@ -453,6 +456,7 @@
   --lane-warning: oklch(79.5% 0.184 86.047);
   --lane-warning-soft: color-mix(in oklab, var(--lane-warning) 10%, transparent);
   --lane-warning-border: oklch(55.4% 0.135 66.442);
+  --lane-warning-ink: var(--lane-warning);
   --lane-info: oklch(58.5% 0.233 277.117);
   --lane-destructive-hover: oklch(0.577 0.245 27.325);
   --lane-input-error-background: oklch(0.258 0.092 26.042);

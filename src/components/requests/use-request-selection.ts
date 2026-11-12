@@ -32,7 +32,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   const moves = useRequestMoves({ orgId: context?.orgId ?? "", announce })
   const { continuation } = useRequestNavigation()
   const [state, setState] = useState(() => emptySelection(scope))
-  // Changing a filter/page/workspace starts a fresh selection, including when returning to an old view.
+  // Changing a filter, the order, the grouping or the workspace starts a fresh selection, including when returning to an old view (list-view-model.ts viewResets).
   if (state.scope !== scope) setState(emptySelection(scope))
   const current = state.scope === scope ? state : emptySelection(scope)
   const selected = rows.filter(row => current.ids.includes(row.id))
@@ -45,23 +45,15 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
   // them, so toggle reads the latest selection here instead of from its closure.
   const latest = useRef({ selected, busy })
   useLayoutEffect(() => { latest.current = { selected, busy } })
-  // A view change (filter, page, group collapse) starts a fresh selection. A
-  // selection it drops is announced, so a J past the page edge or a collapse
-  // from the keyboard never clears it silently (plan item 2.4).
+  // A view change (a filter, a group folding) starts a fresh selection. A
+  // selection it drops is announced, so a fold from the keyboard never
+  // clears it silently (plan item 2.4). Show more only adds rows, so it keeps it.
   const held = useRef({ scope, count: 0 })
-  const dropNoted = useRef(false)
   useLayoutEffect(() => {
     const previous = held.current
     held.current = { scope, count: selected.length }
-    if (previous.scope !== scope && previous.count > 0 && !dropNoted.current) announce("Selection cleared.", { key: "selection" })
-    dropNoted.current = false
+    if (previous.scope !== scope && previous.count > 0) announce("Selection cleared.", { key: "selection" })
   })
-  /** For a view change the list announces itself (a page crossing): the dropped selection joins that message, said once. */
-  function withDropNotice(text: string) {
-    if (!held.current.count) return text
-    dropNoted.current = true
-    return `${text} Selection cleared.`
-  }
   useLayoutEffect(() => {
     activeScope.current = scope
     running.current = null
@@ -183,7 +175,7 @@ export function useRequestSelection(scope: string, rows: OverviewRequest[], cont
     copyLinks: () => run.current.copyLinks(),
     refresh,
   }), [refresh])
-  return { selected, busy, count: current.pending?.count ?? selected.length, error, message: current.message, action, toggle, withDropNotice, actions, allSelected: selected.length === rows.length }
+  return { selected, busy, count: current.pending?.count ?? selected.length, error, message: current.message, action, toggle, actions, allSelected: selected.length === rows.length }
 }
 
 export type RequestSelectionActions = ReturnType<typeof useRequestSelection>["actions"]

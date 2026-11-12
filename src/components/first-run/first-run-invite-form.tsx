@@ -16,12 +16,10 @@ const seatDialogCode = popupCode(() => import("@/components/settings/paid-seat-d
 export type FirstRunInviteRole = "member" | "viewer";
 type Answer = { success?: true; error?: string };
 
-/** A Reviewer is a Member: only paid seats review (#211). A Viewer reads and changes nothing (#210). */
-const ROLE_LABELS: Record<FirstRunInviteRole, string> = { member: "Reviewer", viewer: "Viewer" };
-const ROLE_NOTES: Record<FirstRunInviteRole, string> = {
-  member: `Joins as a Member. ${ROLE_DESCRIPTIONS.member}`,
-  viewer: ROLE_DESCRIPTIONS.viewer,
-};
+/** Reviewers are Members: only paid seats review (#211). A Viewer reads and changes nothing (#210). A218: the role is
+ * named as Lane names it, with its seat; each role's note is the one Settings → Members shows (ROLE_DESCRIPTIONS). */
+const ROLE_LABELS: Record<FirstRunInviteRole, string> = { member: "Member · Paid seat", viewer: "Viewer" };
+const ROLE_NAMES: Record<FirstRunInviteRole, string> = { member: "a Member", viewer: "a Viewer" };
 const FAILED = "Couldn’t reach Lane. Try again.";
 
 export type FirstRunInviteFormProps = {
@@ -33,8 +31,8 @@ export type FirstRunInviteFormProps = {
 };
 
 /**
- * #217: an Admin invites teammates from the first run, as Reviewers (Members) or Viewers. Clerk sends the
- * invitation through the same Members action as Settings; Lane stores nothing. A teammate can be picked as a
+ * #217: an Admin invites teammates from the first run, as Members (who can review) or Viewers. The invitation goes
+ * out through the same Members action as Settings (Clerk sends it; A218: the guide says Lane, as people see it). A teammate can be picked as a
  * Reviewer once they have joined.
  */
 export function FirstRunInviteForm({ roles, confirmPaidSeats = false, onInvite }: FirstRunInviteFormProps) {
@@ -54,7 +52,7 @@ export function FirstRunInviteForm({ roles, confirmPaidSeats = false, onInvite }
     setBusy(false);
     if (answer.error || !answer.success) { setResult({ status: "", error: answer.error || FAILED }); return; }
     setEmail("");
-    setResult({ status: `Invitation sent to ${address} as ${chosen === "member" ? "a Reviewer" : "a Viewer"}.`, error: null });
+    setResult({ status: `Invitation sent to ${address} as ${ROLE_NAMES[chosen]}.`, error: null });
   }
 
   function submit(event: FormEvent) {
@@ -72,12 +70,12 @@ export function FirstRunInviteForm({ roles, confirmPaidSeats = false, onInvite }
 
   return <form className={styles.invite} onSubmit={submit} noValidate aria-labelledby="first-run-invite-heading">
     <h4 id="first-run-invite-heading">Invite teammates</h4>
-    <p>Clerk emails them an invitation to this workspace. Once they join, you can pick them as Reviewers.</p>
+    <p>Lane emails them an invitation to this workspace. Once they join, you can pick them as Reviewers.</p>
     <Input label="Email address" type="email" name="email" autoComplete="off" spellCheck={false} value={email} onChange={event => setEmail(event.target.value)} disabled={busy} />
     {roles.length > 1
       ? <RadioGroup label="Invite as" name="first-run-invite-role" value={role} onValueChange={value => setRole(value as FirstRunInviteRole)}
-          options={roles.map(option => ({ value: option, label: ROLE_LABELS[option], description: ROLE_NOTES[option] }))} />
-      : <p><strong>{ROLE_LABELS.member}</strong>: {ROLE_NOTES.member}</p>}
+          options={roles.map(option => ({ value: option, label: ROLE_LABELS[option], description: ROLE_DESCRIPTIONS[option] }))} />
+      : <div className={styles.role}><p><strong>{ROLE_LABELS.member}</strong></p><p>{ROLE_DESCRIPTIONS.member}</p></div>}
     {result?.error && <Alert role="alert" tone="danger" title={result.error} />}
     <p role="status" className={styles.status}>{result?.status ?? ""}</p>
     <Button type="submit" variant="secondary" loading={busy} data-seat-return="first-run-invite">Send invitation</Button>

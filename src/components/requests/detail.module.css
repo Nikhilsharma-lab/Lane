@@ -31,7 +31,7 @@
 .description { margin: 0; color: var(--foreground); font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-wrap; }
 .disclosure { min-width: 0; }
 .disclosure > summary { width: fit-content; min-height: var(--control-height-sm); padding-block: var(--space-2); border-radius: var(--radius-control); color: var(--text-secondary); cursor: pointer; }
-.disclosure > summary h3 { display: inline; margin: 0; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.disclosure > summary :is(h3, h4) { display: inline; margin: 0; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-medium); }
 @media (hover: hover) and (pointer: fine) { .disclosure > summary:hover { color: var(--foreground); } }
 .disclosure[open] > summary { color: var(--foreground); }
 .disclosureBody { display: grid; gap: var(--space-4); padding-block: var(--space-2) var(--space-1); }

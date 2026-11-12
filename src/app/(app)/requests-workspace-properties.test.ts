@@ -43,9 +43,11 @@ describe("Request property reads preserve workspace and guest boundaries", () =>
     expect(list.sql).toMatch(/^\(select .*"requests"\."status" = 'open'\) or .*"requests"\."status" = 'in_progress'.*limit \$\d+\) union all \(select .*"requests"\."status" = 'done'.*"requests"\."outcome_closure" is not null or "requests"\."exception_closure" is not null.*limit \$\d+\)$/)
     expect(list.params).toEqual(expect.arrayContaining([201, 51]))
     for (const where of list.sql.match(/where \([^)]*\)/g) ?? []) expect(where).not.toContain('"requests"."project_id"')
-    expect(list.sql.match(/where \(/g)).toHaveLength(2)
-    // Both halves join Projects within the workspace and filter by it.
-    expect(orgParams(list)).toHaveLength(4)
+    expect(list.sql.match(/(?<!filter \()where \(/g)).toHaveLength(2)
+    // A212: the finished half also counts each finished status, inside the workspace, with no Project filter.
+    expect(list.sql).toMatch(/\(select jsonb_build_object\('done', count\(\*\) filter \(where .*'measuring', count\(\*\) filter \(where .*'closed', count\(\*\) filter \(where .*\) from "requests" where "requests"\."org_id" = \$\d+\) from "requests"/)
+    // Both halves join Projects within the workspace and filter by it; the counts filter by it too.
+    expect(orgParams(list)).toHaveLength(5)
     expect(list.sql.match(/left join "projects" on \("requests"\."project_id" = "projects"\."id" and "projects"\."org_id" = \$\d+\)/g)).toHaveLength(2)
   })
 
@@ -53,10 +55,11 @@ describe("Request property reads preserve workspace and guest boundaries", () =>
     recorded.role = "guest"
     await RequestsWorkspace()
     const [list] = recorded.queries
-    // Each half shows only what the guest created; its edit flag reads who answers for it now (#212).
-    expect(list.sql.match(/"requests"\."created_by" = \$\d+/g)).toHaveLength(2)
+    // Each half, and the finished counts (A212), take only what the guest created; its edit flag reads who answers for it now (#212).
+    expect(list.sql.match(/"requests"\."created_by" = \$\d+/g)).toHaveLength(3)
+    expect(list.sql).toMatch(/from "requests" where \("requests"\."org_id" = \$\d+ and "requests"\."created_by" = \$\d+\)\) from "requests"/)
     expect(list.sql.match(/coalesce\("requests"\."taken_on_by", "requests"\."created_by"\) = \$\d+/g)).toHaveLength(2)
-    expect(list.params.filter(value => value === "person_current")).toHaveLength(4)
+    expect(list.params.filter(value => value === "person_current")).toHaveLength(5)
   })
 
   it("loads only the Request, its comments and its files on a Request page, never the list (plan item 1.10)", async () => {

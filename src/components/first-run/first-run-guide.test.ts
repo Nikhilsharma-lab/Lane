@@ -6,6 +6,7 @@ vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams()
 
 import { FirstRunGuideView, type FirstRunGuideViewProps } from "./first-run-guide-view"
 import { FirstRunInviteForm } from "./first-run-invite-form"
+import { ROLE_DESCRIPTIONS } from "@/lib/member-role-rules"
 
 const noop = () => {}
 const free = { planState: "free" as const, free: { total: 4, used: 0, left: 4, usedElsewhere: null } }
@@ -38,10 +39,10 @@ describe("the first Request guide (#217)", () => {
     }
   })
 
-  it("explains the prediction from the Metrics library, with a way to it", () => {
+  it("explains the goal in Goal words, with a way to the Metrics library (A219)", () => {
     const html = render({ step: "prediction" })
     expect(html).toContain('aria-label="Step 2 of 5: Set the goal"')
-    expect(text(html)).toContain("Pick the metric you want to move from the Metrics library")
+    expect(html).toContain("<p>Set the goal: pick the metric you expect to move, where it is now and where you expect it to go. Not in the list? Add it from the picker. If the work has nothing to measure, say why instead.</p>")
     expect(html).toMatch(/<a [^>]*href="\/settings\/metrics"[^>]*>Open the Metrics library<\/a>/)
     expect(html).toContain(">Back<")
   })
@@ -130,20 +131,25 @@ describe("the short first run for people who join later", () => {
 describe("inviting teammates from the first run", () => {
   const form = (roles: ("member" | "viewer")[]) => renderToStaticMarkup(createElement(FirstRunInviteForm, { roles, onInvite: async () => ({ success: true as const }) }))
 
-  it("invites a teammate as a Reviewer (a Member)", () => {
+  it("invites a teammate as a Member, in Lane's own words and the real role (A218)", () => {
     const html = form(["member"])
     expect(html).toMatch(/<form[^>]*aria-labelledby="first-run-invite-heading"/)
     expect(html).toContain(">Invite teammates<")
     expect(html).toContain(">Email address<")
-    expect(html).toContain(">Reviewer<")
-    expect(text(html)).toContain("Once they join, you can pick them as Reviewers.")
+    expect(text(html)).toContain("Lane emails them an invitation to this workspace. Once they join, you can pick them as Reviewers.")
+    expect(html).toContain(">Member · Paid seat<")
+    // Only the role's label is the guide's own; its note is the one Settings → Members shows.
+    expect(text(html)).toContain(ROLE_DESCRIPTIONS.member)
+    expect(text(html)).not.toContain("Clerk")
+    expect(html).not.toContain(">Reviewer<")
+    expect(text(html)).not.toContain("Joins as a Member")
     expect(html).toContain(">Send invitation<")
     expect(html).not.toContain(">Viewer<")
   })
 
   it("offers Viewer too once Viewers are available", () => {
     const html = form(["member", "viewer"])
-    expect(html).toContain(">Reviewer<")
+    expect(html).toContain(">Member · Paid seat<")
     expect(html).toContain(">Viewer<")
     expect(text(html)).toContain("Free. Reads everything")
   })

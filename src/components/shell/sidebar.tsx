@@ -10,6 +10,7 @@ import { useSharedWorkspaceProjects } from "@/components/projects/workspace-proj
 import { createProject, deleteProject } from "@/app/(app)/intake/project-actions";
 import { useListViewSnapshot } from "@/components/requests/list-view-state";
 import { useWorkspaceLabels } from "@/components/requests/workspace-labels";
+import { useShownSavedViews } from "@/components/requests/saved-views-store";
 import { InboxBell } from "./inbox-bell";
 import { SidebarView } from "./sidebar-view";
 import { CommandPaletteHost } from "./command-palette-lazy";
@@ -18,6 +19,7 @@ import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
 import type { SavedView } from "@/lib/saved-view-nav";
 
+const noViews: SavedView[] = [];
 const PROJECT_NOT_CREATED = `Couldn’t create the Project. ${CHECK_CONNECTION}`;
 
 export function Sidebar({
@@ -59,6 +61,7 @@ export function Sidebar({
   const { isLoaded, organization } = useOrganization();
   const { signOut } = useClerk();
   const workspaceSwitcher = useWorkspaceSwitcher(orgId);
+  const views = useShownSavedViews(savedViews ?? noViews);
   // Plan item 1.16: search reads the GET route, so it never queues behind a mutation.
   const search = useMemo(() => fetchWorkspaceSearch(orgId), [orgId]);
   // Clerk owns the current name. Only a matching loaded organization may
@@ -107,7 +110,7 @@ export function Sidebar({
       onSignOut={() => signOut({ redirectUrl: "/login" })}
       onSearch={search}
       workspaceSwitcher={workspaceSwitcher}
-      savedViews={savedViews}
+      savedViews={views}
     >
       {children}
     </SidebarView>

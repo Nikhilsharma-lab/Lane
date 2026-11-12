@@ -8,7 +8,7 @@ import {
   type NavigationRequest,
 } from "./helpers/request-navigation";
 
-// The production footer appears only above the default 25 rows. These are
+// Show more appears only above the default 25 rows. These are
 // ordinary Intake saves using the existing signed-review seam, not seeded rows
 // or injected React state. Retain confirmed IDs for inspection and later checks.
 test("Requests navigation preserves list context, native links, history and the newest intent", async ({ browser, page }, testInfo) => {

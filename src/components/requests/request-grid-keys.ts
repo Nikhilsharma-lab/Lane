@@ -6,10 +6,12 @@
 
 export { isTypingTarget } from "@/lib/keyboard-guards"
 
-/** A row in the grid: "r:{Request id}" or "g:{group key}". */
+/** A row in the grid: "r:{Request id}", "g:{group key}" (a group header) or "m:{group key}" (that group's Show more, A212). */
 export type GridKey = string
 
-export type GridCommand = "next" | "previous" | "first" | "last" | "expand" | "collapse" | "activate" | "select" | "filter" | "peek"
+/** ↓ and ↑ ("next", "previous") stop on every row; J and K ("next-request", "previous-request") only on Requests (#240 decision 5). */
+export type GridMove = "next" | "previous" | "next-request" | "previous-request" | "first" | "last"
+export type GridCommand = GridMove | "expand" | "collapse" | "activate" | "select" | "filter" | "peek"
 /** Keys that work while focus is elsewhere on the list page. */
 export type ListCommand = "focus-next" | "focus-previous" | "filter"
 
@@ -34,7 +36,7 @@ export function plain(event: KeyLike, typing: boolean) {
   return true
 }
 
-const REPEATS = new Set(["next", "previous"])
+const REPEATS = new Set(["next", "previous", "next-request", "previous-request"])
 
 /** The command a key gives inside the grid, or null. */
 export function gridCommand(event: KeyLike, typing = false): GridCommand | null {
@@ -43,8 +45,10 @@ export function gridCommand(event: KeyLike, typing = false): GridCommand | null 
   // Arrows, Home, End and Enter mean nothing with Shift here.
   if (event.shiftKey && !LETTER.test(event.key)) return null
   const command: GridCommand | null =
-    key === "j" || key === "ArrowDown" ? "next"
-      : key === "k" || key === "ArrowUp" ? "previous"
+    key === "j" ? "next-request"
+      : key === "ArrowDown" ? "next"
+      : key === "k" ? "previous-request"
+      : key === "ArrowUp" ? "previous"
         : key === "Home" ? "first"
           : key === "End" ? "last"
             : key === "ArrowRight" ? "expand"
@@ -70,22 +74,28 @@ export function listCommand(event: KeyLike, typing = false): ListCommand | null 
 }
 
 export const isGroupKey = (key: GridKey) => key.startsWith("g:")
+export const isMoreKey = (key: GridKey) => key.startsWith("m:")
 export const requestIdOf = (key: GridKey) => key.startsWith("r:") ? key.slice(2) : null
+/** The group a header's or Show more's key names. */
+export const groupOfKey = (key: GridKey) => isGroupKey(key) || isMoreKey(key) ? key.slice(2) : null
 
-/** The row a move lands on, or an edge to cross to the next or previous page. */
-export function nextKey(keys: GridKey[], from: GridKey, command: "next" | "previous" | "first" | "last"): { key: GridKey } | { edge: "next-page" | "previous-page" } | null {
+/** The row a move lands on, or null when nothing is there: the list has no pages, so its ends stay put (A212). */
+export function nextKey(keys: GridKey[], from: GridKey, command: GridMove): { key: GridKey } | null {
   if (!keys.length) return null
   if (command === "first") return { key: keys[0] }
   if (command === "last") return { key: keys[keys.length - 1] }
+  const step = command === "next" || command === "next-request" ? 1 : -1
+  const stops = (key: GridKey) => command === "next" || command === "previous" || requestIdOf(key) !== null
   const index = keys.indexOf(from)
-  if (index < 0) return { key: keys[0] }
-  const target = index + (command === "next" ? 1 : -1)
-  if (target >= keys.length) return { edge: "next-page" }
-  if (target < 0) return { edge: "previous-page" }
-  return { key: keys[target] }
+  if (index < 0) {
+    const first = keys.find(stops)
+    return first ? { key: first } : null
+  }
+  for (let target = index + step; target >= 0 && target < keys.length; target += step) if (stops(keys[target])) return { key: keys[target] }
+  return null
 }
 
-/** The group header above a Request row, in page order. */
+/** The group header above a Request row or a Show more, in list order. */
 export function headerOf(keys: GridKey[], from: GridKey): GridKey | null {
   for (let index = keys.indexOf(from) - 1; index >= 0; index--) if (isGroupKey(keys[index])) return keys[index]
   return null
@@ -102,17 +112,13 @@ export function tabbableKey(keys: GridKey[], active: { key: GridKey; index: numb
 }
 
 /**
- * The grid's rows in page order. Grouped: each group with a Request on this
- * page gives its header, then its rows on this page unless it is collapsed;
- * a group with no Requests at all (an empty board column) gives its header on
- * every page. Ungrouped: the page's rows.
+ * The grid's rows in list order, from each group's shown rows (A212). Grouped: each group gives its header, then,
+ * unless it is folded, its shown Requests and its Show more when it has more. Ungrouped: the one group's rows and
+ * its Show more, with no header.
  */
-export function gridKeysFor(groups: { key: string; rows: { id: string }[] }[] | null, pageRows: { id: string }[], collapsedGroups: string[]): GridKey[] {
-  if (!groups) return pageRows.map(row => `r:${row.id}`)
-  const onPage = new Set(pageRows.map(row => row.id))
+export function gridKeysFor(groups: { key: string; rows: { id: string }[]; more: boolean }[], { headers, collapsedGroups }: { headers: boolean; collapsedGroups: string[] }): GridKey[] {
   return groups.flatMap(group => {
-    const rows = group.rows.filter(row => onPage.has(row.id))
-    if (!rows.length && group.rows.length) return []
-    return [`g:${group.key}`, ...(collapsedGroups.includes(group.key) ? [] : rows.map(row => `r:${row.id}`))]
+    const open = !headers || !collapsedGroups.includes(group.key)
+    return [...(headers ? [`g:${group.key}`] : []), ...(open ? group.rows.map(row => `r:${row.id}`) : []), ...(open && group.more ? [`m:${group.key}`] : [])]
   })
 }

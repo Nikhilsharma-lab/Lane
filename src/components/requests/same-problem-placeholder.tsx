@@ -1,6 +1,7 @@
 import type { Ref } from "react"
 import { ITERATIONS_SECTION_ID } from "@/lib/same-problem-rules"
 import styles from "./same-problem.module.css"
+import { SectionHeading } from "./section-heading"
 
 export const ITERATIONS_HEADING_ID = "iterations-heading"
 /** The empty state's words: no group yet, and (for those who can) how to start one. */
@@ -17,7 +18,7 @@ export function IterationsPlaceholder({ canLink, headingRef }: { canLink: boolea
   if (!canLink) return null
   return <section id={ITERATIONS_SECTION_ID} aria-labelledby={ITERATIONS_HEADING_ID} className={styles.section}>
     <div className={`${styles.header} ${styles.holdsButton}`} data-holds-button="">
-      <h2 id={ITERATIONS_HEADING_ID} ref={headingRef} tabIndex={-1} className={styles.heading}>Iterations of this problem</h2>
+      <SectionHeading level={2} id={ITERATIONS_HEADING_ID} ref={headingRef} tabIndex={-1} className={styles.heading}>Iterations of this problem</SectionHeading>
     </div>
     <div className={styles.holding}>
       <p role="status" className={styles.muted}>Loading Iterations…</p>

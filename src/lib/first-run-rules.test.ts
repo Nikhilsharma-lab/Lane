@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  firstRunGuideFor, firstRunView, freeRequestsNote, parseFirstRunChange, startingProgress, withStepRead, type FirstRunProgress,
+  backTo, firstRunGuideFor, firstRunView, freeRequestsNote, parseFirstRunChange, startingProgress, withStepRead, type FirstRunProgress,
 } from "./first-run-rules";
 
 const progress = (over: Partial<FirstRunProgress> = {}): FirstRunProgress => ({ guide: "first_request", steps: [], skippedAt: null, completedAt: null, ...over });
@@ -58,11 +58,44 @@ describe("what the first run shows", () => {
   });
 });
 
+describe("going Back (A220, decided 2026-11-08)", () => {
+  const resumesAt = (steps: string[]) => (firstRunView(progress({ steps }), { filed: false }) as { step: string }).step;
+
+  it("reopens at the step gone back to, not the furthest step read", () => {
+    const steps = backTo("first_request", ["framing", "prediction", "reviewers"], "prediction");
+    expect(steps).toEqual(["framing"]);
+    expect(resumesAt(steps!)).toBe("prediction");
+  });
+
+  it("marks the step gone back to, and every step after it, unread again", () => {
+    expect(backTo("first_request", ["framing", "prediction", "reviewers", "free_requests", "release"], "reviewers")).toEqual(["framing", "prediction"]);
+    expect(resumesAt(["framing", "prediction"])).toBe("reviewers");
+    expect(backTo("first_request", ["framing", "prediction"], "framing")).toEqual([]);
+    expect(resumesAt([])).toBe("framing");
+  });
+
+  it("keeps the steps before it as they were", () => {
+    expect(backTo("first_request", ["prediction", "reviewers"], "reviewers")).toEqual(["prediction"]);
+  });
+
+  it("refuses a step that isn't the first Request guide's", () => {
+    expect(backTo("first_request", ["framing"], "inbox")).toBeNull();
+    expect(backTo("joined", ["inbox"], "inbox")).toBeNull();
+    expect(backTo("first_request", [], "demo")).toBeNull();
+  });
+});
+
 describe("what the first run's action accepts", () => {
   it("takes a known step, skip, finish or reopen", () => {
     expect(parseFirstRunChange({ change: "step", step: "prediction" })).toEqual({ change: "step", step: "prediction" });
     expect(parseFirstRunChange({ change: "step", step: "inbox" })).toEqual({ change: "step", step: "inbox" });
     for (const change of ["skip", "finish", "reopen"]) expect(parseFirstRunChange({ change })).toEqual({ change });
+  });
+
+  it("takes going Back to one of the first Request guide's steps", () => {
+    expect(parseFirstRunChange({ change: "back", step: "prediction" })).toEqual({ change: "back", step: "prediction" });
+    for (const input of [{ change: "back" }, { change: "back", step: "inbox" }, { change: "back", step: "demo" }, { change: "back", step: "framing", orgId: "org_x" }])
+      expect(parseFirstRunChange(input)).toBeNull();
   });
 
   it("refuses anything else, extra keys included", () => {

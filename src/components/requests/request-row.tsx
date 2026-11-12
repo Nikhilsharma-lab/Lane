@@ -3,6 +3,7 @@
 import { useRequestLabels } from "./request-labels"
 import { requestLabelKeys } from "@/lib/request-labels"
 import { memo, useRef, useState } from "react"
+import { ArrowUpRight, PanelRight, SquareCheck } from "lucide-react"
 import { formatRequestCode } from "@/lib/request-code"
 import { concernMarker } from "@/lib/request-reviewer-rules"
 import { WAITING_TO_BE_TAKEN_ON } from "@/lib/guest-submission"
@@ -17,10 +18,11 @@ import { requestRowLabel } from "./request-row-label"
 import styles from "./request-rows.module.css"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
 import { ContextMenu, type ContextMenuItem } from "@/components/arc/context-menu/context-menu"
+import { Tooltip } from "@/components/arc/tooltip/tooltip"
 import { PriorityGlyph, StatusGlyph, useRequestRowPresentation } from "./row-presentation"
 import { statusOfJourney } from "./tasks/statuses"
 import { DueTag, useDueNow } from "./due-tag"
-import { useRequestPeekOpener } from "./request-peek"
+import { REQUEST_PREVIEW_ID, useRequestPeekOpener } from "./request-peek"
 import { useRowLoadAhead } from "./request-peek-load-ahead"
 
 type RequestRowProps = {
@@ -73,13 +75,13 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   // #258: that rest, by keyboard or pointer, also reads the Request into its preview, where the list offers one.
   const rest = useRowLoadAhead(requestDetailHref(request.id, "all"), request.id)
   const actionItems = presentation?.menuItems(request) ?? []
-  // Plan item 2.12: Preview, where the list offers it (not on phones).
+  // Plan item 2.12: Preview, where the list offers it (1280px and wider with a mouse).
   const peek = useRequestPeekOpener()
-  // The row menu names the two keys it can stand in for; nothing else carries a hint.
+  // The row menu names the keys it can stand in for; nothing else carries a hint. A28: each item has its own icon.
   const menuItems: ContextMenuItem[] = presentation ? [...actionItems,
-    { id: "select", label: checked ? "Deselect" : "Select", shortcut: ROW_MENU_HINTS.select, separatorBefore: true, disabled, onSelect: () => onCheckedChange(!checked) },
-    { id: "open", label: "Open Request", shortcut: ROW_MENU_HINTS.open, onSelect: () => rowRef.current?.querySelector<HTMLAnchorElement>("a[data-request-title]")?.click() },
-    ...(peek ? [{ id: "peek", label: "Preview", shortcut: ROW_MENU_HINTS.peek, onSelect: () => peek(request.id) }] : []),
+    { id: "select", label: checked ? "Deselect" : "Select", icon: <SquareCheck />, shortcut: ROW_MENU_HINTS.select, separatorBefore: true, disabled, onSelect: () => onCheckedChange(!checked) },
+    { id: "open", label: "Open Request", icon: <ArrowUpRight />, shortcut: ROW_MENU_HINTS.open, onSelect: () => rowRef.current?.querySelector<HTMLAnchorElement>("a[data-request-title]")?.click() },
+    ...(peek ? [{ id: "peek", label: "Preview", icon: <PanelRight />, shortcut: ROW_MENU_HINTS.peek, onSelect: () => peek(request.id) }] : []),
   ] : []
   // #133: the one journey status and, while Measuring, the due tag (the row's name reads both).
   const journey = rowJourney(request)
@@ -95,8 +97,8 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   const unset = (key: string) => key === "requestType" ? !requestLabelKeys(request).length : key === "project" ? !request.projectId : false
   // Plan item 2.4 (decision 8.24): an APG grid row. The row is the one tab
   // stop and carries every value in its name; each control inside it is
-  // tabIndex -1 and stays reachable through the row menu or a key.
-  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-current={previewed || undefined} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
+  // tabIndex -1 and stays reachable through the row menu or a key. The previewed row names the preview it controls.
+  const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-current={previewed || undefined} aria-controls={previewed ? REQUEST_PREVIEW_ID : undefined} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
     id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
     className={styles.row} data-pressable="" data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-previewed={previewed || undefined} data-menu-open={menuOpen || undefined}
     {...rest.focus} {...rest.pointer}>
@@ -109,11 +111,12 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
         <button type="button" tabIndex={-1} className={styles.identityControl} data-status={journey.status} aria-haspopup="menu" aria-label={`Status: ${status.label}`}><StatusGlyph status={journey.status} /></button>
       </GlyphMenu>}
     {columns[0].render(request)}
-    {identity && request.status !== "done" &&
-      <GlyphMenu label="Request priority" items={actionItems.find(item => item.id === "priority")?.children ?? []} tip={`Priority: ${priorityLabel}`}>
+    {/* #240 decision 6 (A213): every status shows its priority; it changes only while Open, as on Request detail. */}
+    {identity && (request.canEdit
+      ? <GlyphMenu label="Request priority" items={actionItems.find(item => item.id === "priority")?.children ?? []} tip={`Priority: ${priorityLabel}`}>
         <button type="button" tabIndex={-1} className={styles.identityControl} data-priority={identity.priority} aria-haspopup="menu" aria-label={`Priority: ${priorityLabel}`}><PriorityGlyph priority={identity.priority} /></button>
       </GlyphMenu>
-    }
+      : <Tooltip morph="plain" content={`Priority: ${priorityLabel}`}><span className={styles.identityControl} data-priority={identity.priority} data-readonly=""><PriorityGlyph priority={identity.priority} /></span></Tooltip>)}
     {/* The sketch's reserved "waiting" token (2026-10-11): a Guest submission waiting to be taken on (#212); see request-rows.module.css. */}
     <div className={styles.properties}>
       {request.guestSubmission === "waiting" && <span data-row-property="waiting" aria-hidden="true"><Badge size="sm" tone="warning">{WAITING_TO_BE_TAKEN_ON}</Badge></span>}

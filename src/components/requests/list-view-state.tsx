@@ -3,9 +3,9 @@
 import { listFiltersOf } from "./list-view-model"
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from "react"
 import { useSearchParams } from "next/navigation"
-import type { ColumnFiltersState, ColumnVisibilityState, PaginationState } from "@tanstack/react-table"
+import type { ColumnFiltersState, ColumnVisibilityState } from "@tanstack/react-table"
 import { filtersHiding, type ListFilters, type OverviewRequest, type RequestGrouping, type RequestOrdering } from "@/lib/request-overview"
-import { hasRequestListContext, parseRequestListContext, requestListHref, type RequestListContext } from "@/lib/request-workspace"
+import { hasRequestListContext, LIST_DISPLAY_DEFAULTS, parseListDisplay, parseRequestListContext, requestListHref, type ListDisplay, type RequestListContext } from "@/lib/request-workspace"
 import { createCurrentRequestStore, resolveCurrentRequest, type CurrentRequest } from "./current-request"
 import { createExternalStore } from "@/lib/external-store"
 import { usePendingMutations } from "./pending-mutations-provider"
@@ -18,11 +18,15 @@ export type ListViewState = Required<RequestListContext> & {
   ordering: RequestOrdering
   grouping: RequestGrouping
   collapsedGroups: string[]
-  pagination: PaginationState
+  /** A212: how many Requests each group shows, by group key; a group not listed shows its first 25 (list-view-model.ts). */
+  shownCounts: Record<string, number>
   /** Plan item 2.3: a Request the list should bring into view and focus once, then clear. */
   reveal?: string
   /** #219: the saved view the person opened, kept while they change its filters so the change can be saved into it. */
   savedView?: string
+  /** A215: the Project came from Add filter (or the summary) on the whole list, so it is a chip and Clear all clears
+   * it. Any other way to a Project (the sidebar, a saved view, an address) makes it the page's own. Memory only. */
+  projectAdded?: true
 }
 /** The status view and Project plus the open saved view (#219). The title filter (A214) changes on each keystroke, so it stays out: the sidebar reads this. */
 export type OpenListContext = Omit<RequestListContext, "title"> & { savedView?: string }
@@ -31,8 +35,7 @@ export type SetListView = Dispatch<SetStateAction<ListViewState>>
 const initialView: ListViewState = {
   // Keep the first scan about the Request and its current assignee. The other
   // fields remain available in the Display control when a team needs them.
-  columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ordering: "newest", grouping: "status", collapsedGroups: [],
-  pagination: { pageIndex: 0, pageSize: 25 },
+  columnVisibility: { requestType: true, submittedBy: false }, localFilters: [], ...LIST_DISPLAY_DEFAULTS,
   status: "all", project: "all", title: "",
 }
 
@@ -98,6 +101,8 @@ export function RequestListViewProvider({ children, initialColumnVisibility, ini
   const [state, setState] = useState<ListViewState>(() => ({
     ...initialView,
     ...parseRequestListContext(searchParams),
+    // #275: a reload or a shared link shows the same list.
+    ...(searchParams ? parseListDisplay(searchParams) : {}),
     columnVisibility: { ...initialView.columnVisibility, ...initialColumnVisibility },
   }))
   const listContext = useMemo<OpenListContext>(() => ({ status: state.status, project: state.project, savedView: state.savedView }), [state.status, state.project, state.savedView])
@@ -209,7 +214,7 @@ export function revealRequest(view: ListViewState, row: OverviewRequest): ListVi
   })
   const localFilters = view.localFilters.filter(item => !hiding.has(item.id as keyof ListFilters))
   const narrowed = localFilters.length !== view.localFilters.length
-  return { ...moved, localFilters, pagination: narrowed ? { ...moved.pagination, pageIndex: 0 } : moved.pagination, reveal: row.id }
+  return { ...moved, localFilters, shownCounts: narrowed ? {} : moved.shownCounts, reveal: row.id }
 }
 
 /** Plan item 2.5: Request detail's session. */
@@ -227,18 +232,18 @@ export function useRequestListContext(): OpenListContext {
   return required(useContext(ListContextContext), "useRequestListContext")
 }
 
-/** Moves the list to another status view, Project or title filter and returns to the first page. A missing part stays as it is. */
+/** Moves the list to another status view, Project or title filter, with each group back to its first 25. A missing part stays as it is. */
 export function withListContext(view: ListViewState, next: Partial<RequestListContext>): ListViewState {
   const status = next.status ?? view.status, project = next.project ?? view.project, title = next.title ?? view.title
   if (status === view.status && project === view.project && title === view.title) return view
-  return { ...view, status, project, title, pagination: { ...view.pagination, pageIndex: 0 } }
+  return { ...view, status, project, title, shownCounts: {}, projectAdded: project === view.project ? view.projectAdded : undefined }
 }
 
-/** #219: opens a saved view (its filters, on the first page), or with null closes the open one and keeps the filters. */
+/** #219: opens a saved view (its filters, each group at its first 25), or with null closes the open one and keeps the filters. */
 export function withSavedView(view: ListViewState, saved: { id: string; filters: RequestListContext } | null): ListViewState {
   if (!saved) return view.savedView === undefined ? view : { ...view, savedView: undefined }
   const moved = withListContext(view, saved.filters)
-  return { ...moved, savedView: saved.id, pagination: { ...moved.pagination, pageIndex: 0 } }
+  return { ...moved, savedView: saved.id, shownCounts: {} }
 }
 
 /**
@@ -250,6 +255,17 @@ export function withEmptyWorkspaceStatus(view: ListViewState, workspaceEmpty: bo
   return workspaceEmpty ? withListContext(view, { status: "all" }) : view
 }
 
+/** #275: the whole list's address, how it shows included. */
+export type ListAddress = Required<RequestListContext> & ListDisplay
+type AddressOf = RequestListContext & Partial<ListDisplay>
+/** The "/" address of a list context and its display (defaults left out). */
+export const listViewHref = (view: AddressOf) => requestListHref(view.status, view.project, view.title, view)
+
+/** #275: an address that arrived is the whole list: its context, order, grouping, folded groups and shown counts. */
+export function withListAddress(view: ListViewState, { ordering, grouping, collapsedGroups, shownCounts, ...context }: ListAddress): ListViewState {
+  return { ...withListContext(view, context), ordering, grouping, collapsedGroups, shownCounts }
+}
+
 export type ListUrlSyncInput = {
   /** The URL query as useSearchParams reports it now. */
   search: string
@@ -257,7 +273,7 @@ export type ListUrlSyncInput = {
   seen: string | null
   /** The query this page last wrote, or null. */
   written: string | null
-  current: RequestListContext
+  current: AddressOf
   /** A newer explicit selection has not reached the router and address bar yet. */
   localSelectionPending?: boolean
   hold: boolean
@@ -272,16 +288,16 @@ export type ListUrlSyncInput = {
  * "/" URL. A bare "/" keeps the current context, so returning from a Request
  * keeps the Project filter. Nothing is written while `hold` is true.
  */
-export function planListUrlSync({ search, seen, written, current, localSelectionPending = false, hold, pathname, locationSearch }: ListUrlSyncInput): { seen: string; adopt?: RequestListContext; write?: string } {
+export function planListUrlSync({ search, seen, written, current, localSelectionPending = false, hold, pathname, locationSearch }: ListUrlSyncInput): { seen: string; adopt?: ListAddress; write?: string } {
   if (!localSelectionPending && search !== seen && search !== written) {
     const params = new URLSearchParams(search)
     if (hasRequestListContext(params)) {
-      const next = parseRequestListContext(params)
-      if (next.status !== current.status || next.project !== current.project || next.title !== (current.title ?? "")) return { seen: search, adopt: next }
+      const next = { ...parseRequestListContext(params), ...parseListDisplay(params) }
+      if (listViewHref(next) !== listViewHref(current)) return { seen: search, adopt: next }
     }
   }
   if (hold || pathname !== "/") return { seen: search }
-  const href = requestListHref(current.status, current.project, current.title)
+  const href = listViewHref(current)
   return `${pathname}${locationSearch}` === href ? { seen: search } : { seen: search, write: href }
 }
 
@@ -291,7 +307,7 @@ export function planListUrlSync({ search, seen, written, current, localSelection
  * true: in Next 16.2 a patched replaceState while a server action is pending
  * discards that action's revalidated payload (plan item 1.5).
  */
-export function useRequestListUrlSync({ status, project, title }: RequestListContext, setView: SetListView, hold: boolean) {
+export function useRequestListUrlSync({ status, project, title, ordering, grouping, collapsedGroups, shownCounts }: AddressOf, setView: SetListView, hold: boolean) {
   const searchParams = useSearchParams()
   const search = searchParams?.toString() ?? ""
   const navigation = required(useContext(RequestNavigationContext), "useRequestListUrlSync")
@@ -302,10 +318,10 @@ export function useRequestListUrlSync({ status, project, title }: RequestListCon
     seen.current = plan.seen
     if (plan.adopt) {
       const next = plan.adopt
-      setView(view => withListContext(view, next))
+      setView(view => withListAddress(view, next))
     } else if (plan.write) {
       written.current = new URL(plan.write, window.location.origin).searchParams.toString()
       window.history.replaceState(null, "", plan.write)
     }
-  }, [search, status, project, title, hold, setView, navigation])
+  }, [search, status, project, title, ordering, grouping, collapsedGroups, shownCounts, hold, setView, navigation])
 }

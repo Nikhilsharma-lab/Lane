@@ -10,6 +10,7 @@ import { LocalTime } from "./local-time"
 import { ITERATIONS_SECTION_ID, type SameProblemHistoryLine } from "@/lib/same-problem-rules"
 import { IterationsPlaceholder, ITERATIONS_HEADING_ID, LINK_HINT, NO_LINKS_YET } from "./same-problem-placeholder"
 import styles from "./same-problem.module.css"
+import { SectionHeading } from "./section-heading"
 
 export type SameProblemState =
   | { kind: "loading" }
@@ -91,7 +92,7 @@ export function SameProblemView({ requestNumber, state, canLink = true, onOpenLi
     const frame = window.requestAnimationFrame(() => document.getElementById(ITERATIONS_SECTION_ID)?.scrollIntoView({ block: "start" }))
     return () => window.cancelAnimationFrame(frame)
   }, [state])
-  const heading = <h2 id={ITERATIONS_HEADING_ID} ref={headingRef} tabIndex={-1} className={styles.heading}>Iterations of this problem</h2>
+  const heading = <SectionHeading level={2} id={ITERATIONS_HEADING_ID} ref={headingRef} tabIndex={-1} className={styles.heading}>Iterations of this problem</SectionHeading>
   if (state.kind === "loading") return <IterationsPlaceholder canLink={canLink} headingRef={headingRef} />
   if (state.kind === "error") return <section id={ITERATIONS_SECTION_ID} aria-labelledby={ITERATIONS_HEADING_ID} className={styles.section}>
     <div className={styles.header}>{heading}</div>
