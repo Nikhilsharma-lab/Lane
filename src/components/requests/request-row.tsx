@@ -119,7 +119,7 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
       : <Tooltip morph="plain" content={`Priority: ${priorityLabel}`}><span className={styles.identityControl} data-priority={identity.priority} data-readonly=""><PriorityGlyph priority={identity.priority} /></span></Tooltip>)}
     {/* The sketch's reserved "waiting" token (2026-10-11): a Guest submission waiting to be taken on (#212); see request-rows.module.css. */}
     <div className={styles.properties}>
-      {request.guestSubmission === "waiting" && <span data-row-property="waiting" aria-hidden="true"><Badge size="sm" tone="warning">{WAITING_TO_BE_TAKEN_ON}</Badge></span>}
+      {request.guestSubmission === "waiting" && <span data-row-property="waiting" aria-hidden="true" title={WAITING_TO_BE_TAKEN_ON}><Badge size="sm" tone="warning" className={styles.waitingBadge}><span className={styles.waitingWords}>{WAITING_TO_BE_TAKEN_ON}</span></Badge></span>}
       {concerns && <span data-row-property="concerns" aria-hidden="true"><Badge size="sm" tone="warning">{concerns}</Badge></span>}
       {due.kind !== "none" && <span data-row-property="due" aria-hidden="true"><DueTag signal={due} /></span>}
       {columns.filter(column => column.key !== "title" && (!presentation || (column.key !== "status" && !unset(column.key))) && visibility[column.key] !== false).map(column => <span key={column.key} data-row-property={column.key}>{column.render(request)}</span>)}

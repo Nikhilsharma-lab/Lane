@@ -106,6 +106,12 @@
    avatar never overlap. Arc's badge sizes its content to max-content; in a row it may shrink instead. */
 .row[data-compact-row] .properties :is(.propertyTrigger, .propertyTrigger > *, .propertyBadge > span, .propertyBadge > span > span, [data-label-tag], [data-label-tag] > span, [data-label-tag] > span > span) { min-width: 0; max-width: 100%; }
 .row[data-compact-row] .properties :is(.propertyBadge, [data-label-tag]) > span > span { width: auto; }
+/* Follow-up to Build 5 of #256 (decision 4b): beside the preview or the summary the Guest "Waiting to be taken on" tag
+   gives way the same way, ending in "…" inside its own column, so it never reaches into the avatar or the date. Its
+   words stay whole on hover (the column's title) and in the row's name. */
+.row[data-compact-row] .properties :is(.waitingBadge, .waitingBadge > span, .waitingBadge > span > span) { min-width: 0; max-width: 100%; }
+.row[data-compact-row] .properties .waitingBadge > span > span { width: auto; }
+.waitingWords { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* #240 decision 6: a priority this person can't change is the glyph alone, with no button behind it. */
 .identityControl[data-readonly] { cursor: inherit; }
 /* Touch (#256 story 41): the row shows it's pressed as the finger lands. While its page is on the way
