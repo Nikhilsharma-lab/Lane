@@ -14,8 +14,7 @@ import type { ReleaseFact } from "@/lib/request-release"
 import { utcDay } from "@/lib/utc-day"
 import { localDate, localDay } from "@/lib/local-day"
 import { charactersLeftNote } from "@/lib/character-count"
-import { goalText } from "@/lib/impact-presenter"
-import { DIDNT_PASS, PASSED } from "@/lib/result-phrasing"
+import { DIDNT_PASS, PASSED, goalValueText } from "@/lib/result-phrasing"
 import { DatePicker, preloadDatePicker } from "@/components/date-picker-lazy"
 import { CLOSED_NEXT } from "./request-timeline-model"
 import { useEscapeClosesPickerFirst } from "./picker-escape"
@@ -66,7 +65,7 @@ function Controls({ busy, error, submit, disabled, permanent = false, onCancel }
 /** The goal as the Requester agreed it: a check's own words, or a metric with its end value and start. */
 const goalWords = (agreed: AgreedResult) => agreed.form === "pass_fail"
   ? agreed.label
-  : `${agreed.label}, ${goalText({ form: "numeric", metric: agreed.label, unit: agreed.unit, baseline: agreed.baseline, target: agreed.target })}`
+  : `${agreed.label}, ${goalValueText(agreed)}`
 
 export function VoidReleaseForm({ requestId, orgId, revision, onSaved, onCancel }: FormProps) {
   const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: RELEASE_FAILED })

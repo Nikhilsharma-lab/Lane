@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DIDNT_PASS, PASSED, goalDirection, passFailText, resultAgainstGoal, resultValueText } from "./result-phrasing";
+import { DIDNT_PASS, PASSED, goalDirection, goalValueText, passFailText, resultAgainstGoal, resultValueText } from "./result-phrasing";
 
 // #279 (decision 8, from #242 item 3): a result reads against the goal in the goal's own direction, worked out from
 // its start and end. Build 7's Impact (#282) reuses these words.
@@ -63,5 +63,14 @@ describe("a pass/fail check's result", () => {
     expect(passFailText(true)).toBe("Passed");
     expect(passFailText(false)).toBe("Didn’t pass");
     expect([PASSED, DIDNT_PASS]).toEqual(["Passed", "Didn’t pass"]);
+  });
+});
+
+describe("a numeric goal's value", () => {
+  it("is its end value, with where it starts when that's known", () => {
+    expect(goalValueText({ unit: "%", baseline: 62, target: 80 })).toBe("80% (from 62%)");
+    expect(goalValueText({ unit: "minutes", baseline: 240, target: 90 })).toBe("90 minutes (from 240 minutes)");
+    expect(goalValueText({ unit: "count", baseline: null, target: 12 })).toBe("12");
+    expect(goalValueText({ unit: "%", baseline: 62, target: null })).toBe("No goal set");
   });
 });

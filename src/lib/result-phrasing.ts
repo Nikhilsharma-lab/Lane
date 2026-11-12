@@ -32,6 +32,16 @@ export function resultValueText(value: number, unit: string): string {
   return `${value} ${unit}`.trim();
 }
 
+/**
+ * A numeric goal as its end value, with where it starts when that's known: "80% (from 62%)", "12". The same words as
+ * Impact's goal (impact-presenter.ts `goalText`), which #282 can build on this.
+ */
+export function goalValueText({ unit, baseline, target }: NumericGoal): string {
+  if (target === null) return "No goal set";
+  const end = resultValueText(target, unit);
+  return baseline !== null ? `${end} (from ${resultValueText(baseline, unit)})` : end;
+}
+
 /** How far a result is from its goal, in the goal's direction; null without a direction. */
 export type GoalGap = { kind: "past" | "short"; amount: number } | { kind: "exact" };
 

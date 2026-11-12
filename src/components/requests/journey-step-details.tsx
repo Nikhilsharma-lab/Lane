@@ -3,8 +3,7 @@ import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome-options"
 // The forms load with their popups (#277); the details need only the value words.
 import { resultValue } from "./result-value"
-import { goalText } from "@/lib/impact-presenter"
-import { passFailText, resultAgainstGoal, resultValueText } from "@/lib/result-phrasing"
+import { goalValueText, passFailText, resultAgainstGoal, resultValueText } from "@/lib/result-phrasing"
 import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, learnedLine, observedLine, type TimelineStep } from "./request-timeline-model"
 import { LocalTime } from "./local-time"
 import { SectionHeading } from "./section-heading"
@@ -32,7 +31,7 @@ export function journeyStepDetails(step: TimelineStep, { views: { release, outco
   return <div className={styles.facts}>
     {agreed && closure.kind === "measured" && <dl className={styles.facts}>
       {/* #279: the goal in its own words, and the result against it in the goal's direction (result-phrasing.ts). */}
-      <div><dt>Goal</dt><dd>{agreed.label}{agreed.form === "numeric" && `: ${goalText({ form: "numeric", metric: agreed.label, unit: agreed.unit, baseline: agreed.baseline, target: agreed.target })}`}</dd></div>
+      <div><dt>Goal</dt><dd>{agreed.label}{agreed.form === "numeric" && `: ${goalValueText(agreed)}`}</dd></div>
       <div><dt>Result</dt><dd>{closure.primary.kind === "numeric" ? resultAgainstGoal(closure.primary.actual, { unit: closure.primary.unit, baseline: agreed.baseline, target: agreed.target }) : passFailText(closure.primary.passed)}</dd></div>
       {closure.guardrails.map((g, i) => <div key={i}><dt>Guardrail: {g.metric}</dt><dd>Stays {guardrailComparisonPhrase[g.operator]} {resultValue(g.limit, g.unit)} · Actual {resultValue(g.actual, g.unit)} · {g.held ? "Held" : "Breached"}</dd></div>)}
     </dl>}
