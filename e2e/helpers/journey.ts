@@ -47,3 +47,9 @@ export async function recordReleaseInPrompt(page: Page, evidence: string) {
   await expect(form).toHaveCount(0);
   await expect(page.getByRole("region", { name: /^Messages/ })).toContainText("Release recorded");
 }
+
+/** #278: a step's less common actions sit behind its "More" button. Opens the menu and chooses one. */
+export async function chooseJourneyMore(page: Page, name: string) {
+  await journey(page).getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("menu", { name: "More", exact: true }).getByRole("menuitem", { name, exact: true }).click();
+}

@@ -64,17 +64,28 @@ describe("undoMarkDone", () => {
     for (const id of [requestId, other]) expect((await doneAt(id))!.getTime()).toBeGreaterThanOrEqual(before.getTime() - 1000);
   });
 
-  it("refuses once the Done move is older than the undo window", async () => {
+  // #278: the window counts from the saved Done time, so Reopen's button and this check end together.
+  it("refuses once the Done time is older than the window, even when the Request was just edited", async () => {
     const { markDone, pickUpRequest, undoMarkDone } = await api();
     await pickUpRequest(requestId, { orgId: ORG });
     await markDone(requestId, { orgId: ORG });
-    // The 0002 trigger stamps updated_at on every update, so age the row with it paused.
-    await connection`alter table requests disable trigger set_updated_at_requests`;
-    try { await connection`update requests set updated_at = now() - interval '1 hour' where id = ${requestId}`; }
-    finally { await connection`alter table requests enable trigger set_updated_at_requests`; }
+    // This update also stamps updated_at now (the 0002 trigger), as any later edit would.
+    await connection`update requests set done_at = now() - interval '16 minutes' where id = ${requestId}`;
     expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ error: "Undo is only offered right after a Request is marked Done. Further work needs a new Request." });
     expect((await saved()).status).toBe("done");
     expect(await doneNotifications()).toBe(1);
+  });
+
+  it("allows it within 15 minutes of the Done time, whenever the Request was last updated", async () => {
+    const { markDone, pickUpRequest, undoMarkDone } = await api();
+    await pickUpRequest(requestId, { orgId: ORG });
+    await markDone(requestId, { orgId: ORG });
+    await connection`update requests set done_at = now() - interval '14 minutes' where id = ${requestId}`;
+    // The 0002 trigger stamps updated_at on every update, so age it with the trigger paused.
+    await connection`alter table requests disable trigger set_updated_at_requests`;
+    try { await connection`update requests set updated_at = now() - interval '1 hour' where id = ${requestId}`; }
+    finally { await connection`alter table requests enable trigger set_updated_at_requests`; }
+    expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ success: true, status: "in_progress" });
   });
 
   it("refuses a Request that is not Done", async () => {

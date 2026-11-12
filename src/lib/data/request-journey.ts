@@ -9,7 +9,8 @@ import { peopleNames, journeyActionsFor } from "@/lib/request-journey-access";
 import { journeyStatus, requesterOf } from "@/lib/request-journey";
 import { expectedImpactSchema } from "@/lib/request-impact";
 import { earliestExposure, releaseMeasurement, valueBeforeReleaseOf } from "@/lib/request-release";
-import { agreedAudience, valueBeforeReleaseFor } from "@/lib/request-release-facts";
+import { agreedAudience } from "@/lib/measurement-audience";
+import { valueBeforeReleaseFor } from "@/lib/request-release-facts";
 import { agreedResult, guardrailHeld } from "@/lib/request-outcome";
 import { utcDay } from "@/lib/utc-day";
 

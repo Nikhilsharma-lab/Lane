@@ -385,3 +385,33 @@ it.each([{ isGuest: true }, { isGuest: false, readOnly: true }])("offers no bulk
   expect(a.calls).toEqual([])
   expect(a.shown().status).toBe("open")
 })
+
+// #278: the Done step's Reopen runs the same undo of Mark Done as the toast's Undo, and ends that Undo.
+it("Reopen while the Done toast still offers Undo runs that same undo and takes the Undo away", async () => {
+  const a = app()
+  const move = a.moves.move(request, "done")
+  ;(await a.sent()).response.resolve({ success: true })
+  await move
+  expect(a.undoStore.get()?.requestId).toBe("r1")
+  const reopened = a.moves.reopen(request)
+  const reverse = await a.sent(1)
+  expect(reverse.name).toBe("undoMarkDone")
+  expect(a.undoStore.get()).toBeNull()
+  expect(a.stack.toasts).toHaveLength(1)
+  expect(a.stack.toasts[0]).toMatchObject({ title: "Reopening", action: undefined })
+  reverse.response.resolve({ success: true })
+  await reopened
+  expect(a.stack.toasts[0]).toMatchObject({ type: "success", title: "Back to In progress", description: "LAN-1 is In progress again." })
+  expect(a.shown("r1", "done").status).toBe("in_progress")
+})
+
+it("Reopen after the Done toast has gone says so in its own message, and a refusal says why", async () => {
+  const a = app()
+  const reopened = a.moves.reopen(request)
+  expect(a.stack.toasts[0]).toMatchObject({ type: "loading", title: "Reopening", description: "LAN-1 is moving back to In progress." })
+  ;(await a.sent()).response.resolve({ error: "Undo is only offered right after a Request is marked Done. Further work needs a new Request." })
+  await reopened
+  expect(a.stack.toasts).toHaveLength(1)
+  expect(a.stack.toasts[0]).toMatchObject({ type: "error", title: "Couldn’t reopen", description: "Undo is only offered right after a Request is marked Done. Further work needs a new Request." })
+  expect(a.shown("r1", "done").status).toBe("done")
+})

@@ -58,10 +58,7 @@ export type MeasurementPlanDraft = z.infer<typeof measurementPlanDraftSchema>;
 export type MeasurementPrimaryDraft = MeasurementPlanDraft["primary"];
 export type MeasurementGuardrailDraft = MeasurementPlanDraft["guardrails"][number];
 
-export function measurementAudienceLabel(measurement: Pick<MeasurementPlanDraft["measurement"], "audience" | "audienceName">): string {
-  return measurement.audience === "custom" ? measurement.audienceName?.trim() || "Custom audience"
-    : { all: "All users", new: "New users", returning: "Returning users" }[measurement.audience];
-}
+export { measurementAudienceLabel } from "./measurement-audience";
 export function measurementPlatformLabel(measurement: Pick<MeasurementPlanDraft["measurement"], "platform" | "platformName">): string {
   return measurement.platform === "custom" ? measurement.platformName?.trim() || "Custom platform"
     : { all: "All platforms", web: "Web", ios: "iOS", android: "Android" }[measurement.platform];

@@ -25,7 +25,7 @@ describe("single-Request Undo follows actual Arc toast state", () => {
     const palette = a.store.get()!.undo
     const toast = () => a.stack.toasts[0].action!.onClick(id)
     if (first === "toast") { toast(); palette() } else { palette(); toast() }
-    expect(a.undo).toHaveBeenCalledExactlyOnceWith(id, "r1", "LAN-12")
+    expect(a.undo).toHaveBeenCalledExactlyOnceWith(id, "r1", "LAN-12", "undo")
     expect(a.store.get()).toBeNull()
   })
 
@@ -74,7 +74,7 @@ describe("single-Request Undo follows actual Arc toast state", () => {
     const second = a.mark("r2", "LAN-13")
     expect(a.store.get()?.requestId).toBe("r2")
     firstAction(first.toastId)
-    expect(a.undo).toHaveBeenCalledExactlyOnceWith(first.toastId, "r1", "LAN-12")
+    expect(a.undo).toHaveBeenCalledExactlyOnceWith(first.toastId, "r1", "LAN-12", "undo")
     expect(a.store.get()?.requestId).toBe("r2")
     a.stack.dismiss(second.toastId)
     expect(a.store.get()).toBeNull()
@@ -103,7 +103,7 @@ describe("single-Request Undo follows actual Arc toast state", () => {
     first.restore()
     expect(a.store.get()).toBeNull()
     a.stack.toasts.find(toast => toast.id === first.toastId)!.action!.onClick(first.toastId)
-    expect(a.undo).toHaveBeenCalledExactlyOnceWith(first.toastId, "r1", "LAN-12")
+    expect(a.undo).toHaveBeenCalledExactlyOnceWith(first.toastId, "r1", "LAN-12", "undo")
   })
 
   it("unbinding stops eligibility, and rebinding reconciles current actual state", () => {
