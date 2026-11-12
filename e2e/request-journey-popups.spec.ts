@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page, type Request } from "@playwright
 import { cleanupTestWorkspace, e2eDatabase, getTestWorkspaceId } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
-import { isItLivePrompt, isItLiveRelease, journey, journeyStep } from "./helpers/journey";
+import { chooseJourneyMore, isItLivePrompt, isItLiveRelease, journey, journeyStep } from "./helpers/journey";
 
 // #277 (Build 6.1, spec #256 "Journey (timeline view)" and "Release form"): every Journey action opens in one popup on
 // Lane's adaptive popup (centred on desktop, the bottom panel on a phone). Focus moves in and back, Escape asks before
@@ -171,9 +171,9 @@ test.describe("#277 Journey popups and the one release form", () => {
       await expect(journeyStep(page, "Measuring", "current step")).toContainText("Released to ", { timeout: 20_000 });
       await expect(steps.getByRole("heading", { name: "Journey", exact: true })).toBeFocused();
 
-      // Correct release starts from the saved facts.
-      const correct = steps.getByRole("button", { name: "Correct release", exact: true });
-      await correct.click();
+      // Measuring's other actions sit behind More (#278). Correct release starts from the saved facts.
+      const more = steps.getByRole("button", { name: "More", exact: true });
+      await chooseJourneyMore(page, "Correct release");
       const correction = popup(page, "Correct release");
       await expect(correction.getByLabel("Release evidence", { exact: true })).toHaveValue("Rollout log: every shopper has the new checkout");
       await expect(correction.getByLabel("Value before release (%)", { exact: true })).toHaveValue("62");
@@ -182,30 +182,30 @@ test.describe("#277 Journey popups and the one release form", () => {
       await expect(correction.getByRole("button").last()).toHaveText("Save correction");
       await correction.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(correction).toHaveCount(0);
-      await expect(correct).toBeFocused();
+      await expect(more).toBeFocused();
 
-      // Every other Measuring action: its own popup, focus in, its own button last, focus back on Cancel.
-      for (const [action, title, button] of [
-        [/^Void incorrect release$/, "Void incorrect release", "Confirm void"],
-        [/^Create follow-up Request$/, "Create follow-up Request", "Create follow-up Request"],
-        [/^Close without a result/, "Close without a result", "Close without a result"],
+      // Every other Measuring action: its own popup, focus in, its own button last, focus back to More on Cancel.
+      for (const [title, button] of [
+        ["Void incorrect release", "Confirm void"],
+        ["Create follow-up Request", "Create follow-up Request"],
+        ["Close without a result", "Close without a result"],
       ] as const) {
-        const opener = steps.getByRole("button", { name: action });
-        await opener.click();
+        await chooseJourneyMore(page, title);
         const dialog = popup(page, title);
         await expect(dialog).toBeVisible();
         await expect.poll(() => focusedInside(dialog)).toBe(true);
         await expect(dialog.getByRole("button").last()).toHaveText(button);
         await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
         await expect(dialog).toHaveCount(0);
-        await expect(opener).toBeFocused();
+        await expect(more).toBeFocused();
       }
 
       // Closing without a result, then Add correction on the Closed step: the same popup.
-      await steps.getByRole("button", { name: /^Close without a result/ }).click();
+      await chooseJourneyMore(page, "Close without a result");
       const close = popup(page, "Close without a result");
       await close.getByRole("combobox", { name: "Why" }).click();
       await page.getByRole("option").first().click();
+      await expect(page.getByRole("listbox")).toHaveCount(0);
       await close.getByLabel(/^(Reason|Details \(optional\))$/).fill("Measured on the wrong cohort; starting over.");
       await close.getByRole("button", { name: "Close without a result", exact: true }).click();
       await expect(close).toHaveCount(0, { timeout: 20_000 });

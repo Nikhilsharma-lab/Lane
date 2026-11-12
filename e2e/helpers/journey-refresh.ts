@@ -1,6 +1,6 @@
 import { expect, type APIResponse, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { nextActionResponse } from "./action-response";
-import { journey, journeyPopup } from "./journey";
+import { chooseJourneyMore, journey, journeyPopup } from "./journey";
 
 function hasJourneyArguments(request: Request, requestId: string, orgId: string) {
   if (request.method() !== "POST" || !request.headers()["next-action"]) return false;
@@ -26,7 +26,8 @@ export async function observeJourneyReads(page: Page, requestId: string, orgId: 
   expect(body).toContain('"release":');
   expect(body).toContain('"outcome":');
   expect(body).toContain('"rosterUnavailable":');
-  await expect(journey(page).getByRole("button", { name: "Correct release", exact: true })).toBeVisible();
+  // The read is on the page: the outline's loading line has gone.
+  await expect(journey(page).getByText("Loading journey…", { exact: true })).toHaveCount(0);
   const actionId = response.request.headers()["next-action"];
   const matches = (request: Request) => request.headers()["next-action"] === actionId &&
     hasJourneyArguments(request, requestId, orgId);
@@ -113,7 +114,7 @@ export async function holdNextJourneyRead(page: Page, reads: JourneyReads) {
 
 export async function saveReleaseCorrection(page: Page, evidence: string) {
   const panel = journey(page);
-  await panel.getByRole("button", { name: "Correct release", exact: true }).click();
+  await chooseJourneyMore(page, "Correct release");
   // #277: the form opens in its Journey popup.
   const form = journeyPopup(page, "Correct release");
   await form.getByLabel("Release evidence", { exact: true }).fill(evidence);

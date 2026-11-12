@@ -1133,6 +1133,8 @@ increment at a time.
   migrated, 2026-10-10) for 15 minutes after the move: the Request returns to In Progress and its Done
   notification is withdrawn. This is the undo of Mark Done, offered to the same members who can mark Done,
   not a reverse lifecycle move; Closed outcomes never reopen this way.
+  2026-11-09 (#278): the 15 minutes count from the saved Done time, so an unrelated edit can't restart them,
+  and Request detail's Done step offers this undo as **Reopen** until the release is recorded.
 - **2026-10-09:** Saved priority (none, urgent, high, medium, low) is a triage signal members set from the
   list; it does not assign people or start work.
 - **2026-10-18:** Design review happens entirely in Figma. Lane retains design links and Request tracking;

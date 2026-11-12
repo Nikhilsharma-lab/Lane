@@ -1,5 +1,5 @@
-import { afterEach, expect, it, vi } from "vitest"
-import { createJourneyRefresh, watchJourneyDate } from "./journey-refresh"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { createJourneyRefresh, viewerToday, watchJourneyDate } from "./journey-refresh"
 
 function pending<T>() {
   let resolve!: (value: T) => void
@@ -146,4 +146,45 @@ it("opening another form cancels a pending save's focus and protects its draft",
   await refresh.closeForm()
   expect(shown).toEqual(["saved"])
   expect(focused).toBe(0)
+})
+
+// #278: the Journey's day turns at the viewer's own midnight; the server's day (and with it Close Request) at its own.
+describe("the viewer's day", () => {
+  const zone = process.env.TZ
+  afterEach(() => { if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone })
+
+  it("refreshes at the viewer's local midnight, then once more when the server's day turns, and doesn't poll", async () => {
+    process.env.TZ = "Asia/Kolkata"
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-10-24T18:00:00Z")) // 23:30 in India, still the 24th in UTC
+    let reads = 0
+    const stop = watchJourneyDate("2026-10-24", () => { reads++ }, new EventTarget())
+    await vi.advanceTimersByTimeAsync(29 * 60_000)
+    expect(reads).toBe(0)
+    await vi.advanceTimersByTimeAsync(2 * 60_000) // midnight in India
+    expect(reads).toBe(1)
+    await vi.advanceTimersByTimeAsync(5.5 * 3_600_000) // midnight in UTC: the server's next day
+    expect(reads).toBe(2)
+    await vi.advanceTimersByTimeAsync(86_400_000)
+    expect(reads).toBe(2)
+    stop()
+  })
+
+  it("refreshes once when the viewer's midnight is the server's", async () => {
+    process.env.TZ = "UTC"
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-10-24T23:59:00Z"))
+    let reads = 0
+    const stop = watchJourneyDate("2026-10-24", () => { reads++ }, new EventTarget())
+    await vi.advanceTimersByTimeAsync(2 * 3_600_000)
+    expect(reads).toBe(1)
+    stop()
+  })
+
+  it("names the viewer's calendar day, not UTC's", () => {
+    process.env.TZ = "Asia/Kolkata"
+    expect(viewerToday(new Date("2026-10-24T18:45:00Z"))).toBe("2026-10-25")
+    process.env.TZ = "America/Los_Angeles"
+    expect(viewerToday(new Date("2026-10-25T03:00:00Z"))).toBe("2026-10-24")
+  })
 })

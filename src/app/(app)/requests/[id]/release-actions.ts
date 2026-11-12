@@ -6,7 +6,7 @@ import { changeRequest, insist } from '@/lib/request-change-store';
 import { expectedImpactSchema } from '@/lib/request-impact';
 import { releaseChangeSchema, releaseWindow, releaseDateBounds, valueBeforeReleaseOf, type ReleaseState } from '@/lib/request-release';
 import { requesterOf } from '@/lib/request-journey';
-import { agreedAudience } from '@/lib/request-release-facts';
+import { agreedAudience } from '@/lib/measurement-audience';
 import { allow, journeyActionsFor, personName, rosterMember } from '@/lib/request-journey-access';
 /** Each release change and the journey action that allows it. */
 const JOURNEY_ACTION = { release: 'release', correct: 'correctRelease', void: 'voidRelease', transfer: 'handover' } as const;

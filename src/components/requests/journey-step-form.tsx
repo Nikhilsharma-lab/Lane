@@ -11,7 +11,7 @@ import type { TimelineStep } from "./request-timeline-model"
 import type { Views } from "./request-timeline"
 
 // The forms, their checks and the date picker load when a Journey popup first opens, or a moment earlier, when the
-// pointer or focus reaches one of the Journey's action buttons.
+// pointer or focus reaches one of the Journey's action buttons or its More button.
 const formsCode = popupCode(() => import("./journey-popup-forms"))
 
 /** Each Journey popup is titled with its action's name; its final button is the form's own. */
@@ -33,8 +33,8 @@ export const JOURNEY_POPUP_TITLES: Record<JourneyAction, string> = {
  * "Discard what you typed?" before dropping typed text. After a save, focus goes to the Journey's heading, which the
  * re-read Journey keeps.
  */
-export function JourneyStepForm({ mode, steps, views, form }: { mode: JourneyAction | null; steps: Pick<TimelineStep, "actions">[]; views: Views; form: FormProps }) {
-  const open = mode !== null && steps.some(step => step.actions.some(action => action.action === mode && action.available))
+export function JourneyStepForm({ mode, steps, views, form }: { mode: JourneyAction | null; steps: Pick<TimelineStep, "actions" | "more">[]; views: Views; form: FormProps }) {
+  const open = mode !== null && steps.some(step => [...step.actions, ...step.more].some(action => action.action === mode && action.available))
   // The action shown stays while the popup closes, so its content leaves with it.
   const [shown, setShown] = useState(mode)
   if (open && mode !== shown) setShown(mode)
@@ -43,7 +43,7 @@ export function JourneyStepForm({ mode, steps, views, form }: { mode: JourneyAct
   const saved = useRef(false)
   useLayoutEffect(() => { if (open) saved.current = false }, [open])
   useEffect(() => {
-    const ahead = (event: Event) => { if (event.target instanceof Element && event.target.closest("#journey [data-journey-action]")) formsCode.preload() }
+    const ahead = (event: Event) => { if (event.target instanceof Element && event.target.closest("#journey :is([data-journey-action], [data-journey-more])")) formsCode.preload() }
     document.addEventListener("pointerover", ahead)
     document.addEventListener("focusin", ahead)
     return () => { document.removeEventListener("pointerover", ahead); document.removeEventListener("focusin", ahead) }

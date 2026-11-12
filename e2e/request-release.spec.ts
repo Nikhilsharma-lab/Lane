@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
 import { renewSessionToken } from './helpers/test-user';
-import { answerIsItLive, journey, journeyPopup, journeyStep, recordReleaseInPrompt } from './helpers/journey';
+import { answerIsItLive, chooseJourneyMore, journey, journeyPopup, journeyStep, recordReleaseInPrompt } from './helpers/journey';
 import { dispatchWindowReturn, expectOpenFormSurvivesReturn, holdNextJourneyRead, observeJourneyReads, saveReleaseCorrection } from './helpers/journey-refresh';
 
 // Hosted acceptance gate: requires verified backup and staging migrations 0028–0034 (#127 adds 0034).
@@ -49,7 +49,7 @@ test('Is it live? records the release; the timeline, due tag, correction and han
       await expect(page.locator(`[role=row][data-request-id="${request.id}"]`)).toHaveCount(0);
       const reads = await observeJourneyReads(page, request.id, team.orgId);
       await reads.focusRefresh();
-      await release.getByRole('button', { name: 'Correct release', exact: true }).click();
+      await chooseJourneyMore(page, 'Correct release');
       // #277: the correction opens in its Journey popup.
       const correction = journeyPopup(page, 'Correct release');
       await correction.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: corrected exposure log link');
@@ -76,7 +76,7 @@ test('Is it live? records the release; the timeline, due tag, correction and han
     // The new Admin's tab picks up the role change before it reads the Request.
     const admin = team.pages[1]; await renewSessionToken(admin); await admin.goto(lastPath); await admin.reload();
     const panel = admin.getByRole('region', { name: 'Journey', exact: true });
-    await panel.getByRole('button', { name: 'Hand over to a new Requester' }).click();
+    await chooseJourneyMore(admin, 'Hand over to a new Requester');
     const handover = journeyPopup(admin, 'Hand over to a new Requester');
     await handover.getByRole('combobox', { name: 'New Requester' }).click();
     await admin.getByRole('option', { name: 'Review Developer' }).click();
@@ -88,7 +88,7 @@ test('Is it live? records the release; the timeline, due tag, correction and han
   } finally { await team.close(testInfo); }
 });
 
-test('Journey rejects a read begun before editing and refreshes at its scheduled UTC midnight', async ({ browser, page }, testInfo) => {
+test('Journey rejects a read begun before editing and refreshes at the viewer\'s midnight or the server\'s, whichever comes first', async ({ browser, page }, testInfo) => {
   test.setTimeout(360_000);
   const team = await createReviewTeam(browser, page);
   const writer = await page.context().newPage();
@@ -105,7 +105,7 @@ test('Journey rejects a read begun before editing and refreshes at its scheduled
     const correction = journeyPopup(page, 'Correct release');
     const evidence = correction.getByLabel('Release evidence', { exact: true });
     await reads.focusRefresh();
-    await panel.getByRole('button', { name: 'Correct release', exact: true }).click();
+    await chooseJourneyMore(page, 'Correct release');
     // Keep this tab editing while another tab commits a distinguishable real fact.
     await dispatchWindowReturn(page);
     await writer.goto(`/requests/${request.id}`);
@@ -116,7 +116,7 @@ test('Journey rejects a read begun before editing and refreshes at its scheduled
       // already from the server before the next form opens, but not delivered.
       await correction.getByRole('button', { name: 'Cancel', exact: true }).click();
       expect(await held.received()).toContain('Acceptance: evidence saved in the other tab');
-      await panel.getByRole('button', { name: 'Correct release', exact: true }).click();
+      await chooseJourneyMore(page, 'Correct release');
       await evidence.fill('Acceptance: still editing this draft');
       await evidence.focus();
       await held.deliver();
@@ -142,7 +142,9 @@ test('Journey rejects a read begun before editing and refreshes at its scheduled
     reads = await observeJourneyReads(page, request.id, team.orgId);
     // The server's UTC day (the release date picker is now in the viewer's day, #277).
     const serverDay = new Date(fixedTime).toISOString().slice(0, 10);
-    const untilMidnight = Date.parse(`${serverDay}T00:00:00Z`) + 86_400_000 - fixedTime;
+    // #278: the Journey's day turns at the viewer's own midnight; the server's day, which opens Close Request, at UTC's.
+    const localMidnight = await page.evaluate(now => { const day = new Date(now); day.setHours(24, 0, 0, 0); return day.getTime(); }, fixedTime);
+    const untilMidnight = Math.min(localMidnight, Date.parse(`${serverDay}T00:00:00Z`) + 86_400_000) - fixedTime;
     expect(untilMidnight).toBeGreaterThan(0);
     const midnight = await holdNextJourneyRead(page, reads);
     try {
@@ -166,7 +168,7 @@ test('Journey rejects a read begun before editing and refreshes at its scheduled
     const editingTime = Date.now();
     await page.clock.setFixedTime(editingTime);
     reads = await observeJourneyReads(page, request.id, team.orgId);
-    await panel.getByRole('button', { name: 'Correct release', exact: true }).click();
+    await chooseJourneyMore(page, 'Correct release');
     const editingDay = new Date(editingTime).toISOString().slice(0, 10);
     await evidence.fill('Acceptance: preserve this draft across the date timer');
     await evidence.focus();

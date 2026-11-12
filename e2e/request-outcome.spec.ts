@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
 import { renewSessionToken } from './helpers/test-user';
-import { answerIsItLive, journey, journeyPopup, journeyStep } from './helpers/journey';
+import { answerIsItLive, chooseJourneyMore, journey, journeyPopup, journeyStep } from './helpers/journey';
 import { expectOpenFormSurvivesReturn, observeJourneyReads } from './helpers/journey-refresh';
 
 // Hosted acceptance gate: requires verified backup and staging migrations 0028–0034 (#127 adds 0034).
@@ -50,7 +50,7 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await expect(outcome.getByRole('button', { name: 'Close Request', exact: true })).toBeDisabled();
       await expect(outcome.getByText(/^Opens on /)).toBeVisible();
       // Follow-up first: the original keeps its obligation and the follow-up is reviewed afresh.
-      await outcome.getByRole('button', { name: 'Create follow-up Request' }).click();
+      await chooseJourneyMore(page, 'Create follow-up Request');
       const followUp = journeyPopup(page, 'Create follow-up Request');
       await followUp.getByLabel('What changed and why').fill('Acceptance: mobile checkout needs the same fix');
       await followUp.getByRole('button', { name: 'Create follow-up Request' }).dblclick();
@@ -62,7 +62,9 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await expect(outcome.getByText(/· Due in 14 days$/)).toBeVisible();
       await expect(outcome.getByRole('link', { name: /outcome acceptance/ })).toHaveCount(1);
       // Closing without a result by keyboard, early, with a reason and no invented numbers.
-      await outcome.getByRole('button', { name: 'Close without a result…' }).focus(); await page.keyboard.press('Enter');
+      // #278: it sits first in Measuring's More menu, which the keyboard opens onto it.
+      await outcome.getByRole('button', { name: 'More', exact: true }).focus(); await page.keyboard.press('Enter');
+      await expect(page.getByRole('menuitem', { name: 'Close without a result', exact: true })).toBeFocused(); await page.keyboard.press('Enter');
       const closing = journeyPopup(page, 'Close without a result');
       await closing.getByRole('combobox', { name: 'Why' }).click();
       await page.getByRole('option', { name: 'Rolled back' }).click();
@@ -77,7 +79,7 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await expect(outcome.getByRole('heading', { name: 'Journey', exact: true })).toBeFocused();
       await page.reload();
       await expect(outcome.getByText('Closed without a result at Measuring: Rolled back.')).toBeVisible();
-      await expect(journeyStep(page, 'Closed without a result', 'current step')).toContainText('Closed Requests never reopen.');
+      await expect(journeyStep(page, 'Closed without a result', 'current step')).toContainText('Closed Requests can’t be reopened.');
       await expect(journeyStep(page, 'Measuring', 'finished')).toContainText('Released to ');
       await expect(outcome.getByRole('button', { name: 'Correct release' })).toHaveCount(0);
       await outcome.getByRole('button', { name: 'Add correction' }).click();
@@ -106,9 +108,9 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
     await client.organizations.deleteOrganizationMembership({ organizationId: team.orgId, userId: team.users[0].id });
     // The new Admin's tab picks up the role change before it reads the Request.
     const admin = team.pages[1]; await renewSessionToken(admin); await admin.goto(path); await admin.reload();
-    await expect(admin.getByRole('region', { name: 'Journey', exact: true }).getByRole('button', { name: 'Close without a result…' })).toHaveCount(0);
+    await expect(admin.getByRole('region', { name: 'Journey', exact: true }).getByRole('button', { name: 'Close without a result', exact: true })).toHaveCount(0);
     const release = admin.getByRole('region', { name: 'Journey', exact: true });
-    await release.getByRole('button', { name: 'Hand over to a new Requester' }).click();
+    await chooseJourneyMore(admin, 'Hand over to a new Requester');
     const handover = journeyPopup(admin, 'Hand over to a new Requester');
     await handover.getByRole('combobox', { name: 'New Requester' }).click();
     await admin.getByRole('option', { name: 'Review Developer' }).click();
@@ -118,7 +120,7 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
     await expect(release).toContainText('Requester: Review Developer', { timeout: 20_000 });
     const developer = team.pages[2]; await developer.goto(path);
     const outcome = developer.getByRole('region', { name: 'Journey', exact: true });
-    await outcome.getByRole('button', { name: 'Close without a result…' }).click();
+    await chooseJourneyMore(developer, 'Close without a result');
     const closing = journeyPopup(developer, 'Close without a result');
     await closing.getByRole('combobox', { name: 'Why' }).click();
     await developer.getByRole('option', { name: 'Can’t be measured' }).click();

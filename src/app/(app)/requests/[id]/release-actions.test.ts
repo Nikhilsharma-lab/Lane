@@ -37,7 +37,8 @@ it('records past exposure once and derives UTC measurement deadline from exposur
     expect(saved).toEqual({ success: true, revision: 1 });
     expect(await api.changeRequestRelease(ctx, release)).toEqual(saved);
     const view = await api.readRequestRelease(id, { orgId });
-    expect(view).toMatchObject({ release: { exposureDate: '2026-10-21', audience: 'All shoppers', dueDate: '2026-10-28', windowKind: 'relative' }, measurement: { label: 'Due in 3 days', due: false }, requesterId: 'release_owner' });
+    // #278: the release saves the agreed goal's audience in the plan's own words, not the Request's "Users" field.
+    expect(view).toMatchObject({ release: { exposureDate: '2026-10-21', audience: 'All users', dueDate: '2026-10-28', windowKind: 'relative' }, measurement: { label: 'Due in 3 days', due: false }, requesterId: 'release_owner' });
     const [row] = await connection `select status,priority,release_state from requests where id=${id}`;
     expect(row.status).toBe('done');
     expect(row.priority).toBe('high');
@@ -161,7 +162,7 @@ it('lets the Requester correct and void a release after another member departs',
     roster.ids = roster.ids.filter(id => id !== 'release_designer');
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ actions: { correctRelease: { allowed: true } } });
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-20', reason: 'Verified original exposure log' })).toHaveProperty('success', true);
-    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { exposureDate: '2026-10-20', dueDate: '2026-10-27', audience: 'All shoppers' } });
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { exposureDate: '2026-10-20', dueDate: '2026-10-27', audience: 'All users' } });
     expect(await api.changeRequestRelease(context(id, 2), { kind: 'void', reason: 'Only staging was exposed', neverExposed: true })).toHaveProperty('success', true);
 });
 // #277 (#235 item 8): the earliest release date is the pickup day. Pickup and release are UTC days while the picker
