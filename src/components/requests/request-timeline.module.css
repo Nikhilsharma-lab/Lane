@@ -158,6 +158,10 @@
 .countdown {
   font-weight: var(--weight-medium);
 }
+/* C2-11: an overdue result's countdown, in the warning tone at text contrast (Lane's warning ink on the page). */
+.countdown[data-tone="warning"] {
+  color: var(--request-warning-ink);
+}
 .actions {
   display: flex;
   flex-wrap: wrap;
