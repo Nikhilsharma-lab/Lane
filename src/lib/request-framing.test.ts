@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { framingIssue, framingShape, KEEP_PROBLEM, KEEP_SOLUTION, savedFraming, storedShape } from "./request-framing"
+import { framingChanges, framingIssue, framingShape, KEEP_PROBLEM, KEEP_SOLUTION, savedFraming, storedShape } from "./request-framing"
 
 const problem = "Customers abandon checkout after unexpected delivery costs."
 const solution = "Display delivery costs earlier."
@@ -39,3 +39,31 @@ describe("storedShape", () => {
     expect(storedShape({ classification: null, reframedProblem: problem, extractedSolution: null })).toEqual({ problem: true, solution: false })
   })
 })
+
+// #280: an edit's re-check shows what it would do to the saved framing.
+describe("framingChanges", () => {
+  const saved = { reframedProblem: "Customers abandon checkout after unexpected delivery costs.", extractedSolution: "Display delivery costs earlier." }
+  it("lists nothing when the re-check keeps both parts as saved", () => {
+    expect(framingChanges(saved, { classification: "hybrid", ...saved })).toEqual([])
+    expect(framingChanges(saved, { classification: "hybrid", reframedProblem: ` ${saved.reframedProblem} `, extractedSolution: saved.extractedSolution })).toEqual([])
+  })
+  it("shows a changed part before and after", () => {
+    expect(framingChanges(saved, { classification: "hybrid", reframedProblem: "Delivery costs surprise people at payment.", extractedSolution: saved.extractedSolution })).toEqual([
+      { label: "Problem to solve", before: saved.reframedProblem, after: "Delivery costs surprise people at payment." },
+    ])
+  })
+  it("shows a part the new judgement drops as removed", () => {
+    expect(framingChanges(saved, { classification: "problem", reframedProblem: null, extractedSolution: null })).toEqual([
+      { label: "Problem to solve", before: saved.reframedProblem, after: null },
+      { label: "Suggested change", before: saved.extractedSolution, after: null },
+    ])
+    // A solution keeps a problem to solve but no suggested change, whatever the review carried.
+    expect(framingChanges(saved, { classification: "solution", ...saved })).toEqual([
+      { label: "Suggested change", before: saved.extractedSolution, after: null },
+    ])
+  })
+  it("says nothing about a part that wasn't saved", () => {
+    expect(framingChanges({ reframedProblem: null, extractedSolution: null }, { classification: "hybrid", ...saved })).toEqual([])
+  })
+})
+

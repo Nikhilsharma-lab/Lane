@@ -29,8 +29,23 @@ else if (kind === "other-workspace")
     session.orgId = "other-org";
 else
     await sql `update requests set status=${kind}::request_status where id=${id}`; expect(await save(input())).toHaveProperty("error"); });
-it("requires a matching signed review when source content changes", async () => { const x = input(); x.title = "Customers leave checkout early"; expect(await save(x)).toHaveProperty("error"); const token = createTriageToken(x, { classification: "problem", reframedProblem: null, extractedSolution: null }, { orgId: "org-edit", userId: "edit-owner" }, id); expect(await save(x, token)).toMatchObject({ success: true }); });
-it("rejects a review for different content", async () => { const x = input(); x.title = "Changed title without review"; const token = createTriageToken(input(), { classification: "problem", reframedProblem: null, extractedSolution: null }, { orgId: "org-edit", userId: "edit-owner" }, id); expect(await save(x, token)).toHaveProperty("error"); });
+it("requires a matching signed review when the description changes", async () => { const x = input(); x.description = "Customers leave checkout when the delivery cost appears at the last step."; expect(await save(x)).toHaveProperty("error"); const token = createTriageToken(x, { classification: "problem", reframedProblem: null, extractedSolution: null }, { orgId: "org-edit", userId: "edit-owner" }, id); expect(await save(x, token)).toMatchObject({ success: true }); });
+it("rejects a review for different content", async () => { const x = input(); x.description = "A changed description without its review."; const token = createTriageToken(input(), { classification: "problem", reframedProblem: null, extractedSolution: null }, { orgId: "org-edit", userId: "edit-owner" }, id); expect(await save(x, token)).toHaveProperty("error"); });
+// #280 (B8): the wording check reads the description. A title-only edit keeps the saved classification, "Problem to
+// solve" and "Suggested change" with no review; a description change is reviewed with the title it was checked with.
+it("keeps the saved classification and framing on a title-only edit, with no review", async () => {
+    await sql`update requests set classification='hybrid', reframed_problem='Customers abandon checkout after unexpected delivery costs.', extracted_solution='Display delivery costs earlier.' where id=${id}`;
+    const saved = { ...input(), reframedProblem: "Customers abandon checkout after unexpected delivery costs.", extractedSolution: "Display delivery costs earlier." };
+    const x = { ...saved, title: "Delivery costs show only at payment" };
+    expect(await save(x, undefined, requestEditSnapshot(saved))).toMatchObject({ success: true });
+    const [row] = await sql`select title, classification::text, reframed_problem, extracted_solution from requests where id=${id}`;
+    expect(row).toEqual({ title: "Delivery costs show only at payment", classification: "hybrid", reframed_problem: "Customers abandon checkout after unexpected delivery costs.", extracted_solution: "Display delivery costs earlier." });
+});
+it("refuses a description review that was run with another title", async () => {
+    const x = input(); x.description = "Customers leave checkout when the delivery cost appears at the last step.";
+    const token = createTriageToken({ ...x, title: "An older title" }, { classification: "problem", reframedProblem: null, extractedSolution: null }, { orgId: "org-edit", userId: "edit-owner" }, id);
+    expect(await save(x, token)).toHaveProperty("error");
+});
 it("rejects stale edits instead of overwriting another save", async () => { const x = input(); x.expectedImpact.guardrails[0].limit = 9; expect(await save(x)).toMatchObject({ success: true }); expect(await save(input())).toHaveProperty("error"); });
 it("rejects invalid guardrail values", async () => { const x = input(); x.expectedImpact.guardrails[0].limit = 101; expect(await save(x)).toHaveProperty("error"); });
 it("preserves the Request-type constraint for no baseline", async () => {
@@ -40,7 +55,7 @@ it("preserves the Request-type constraint for no baseline", async () => {
 });
 it("requires confirmed framing for a hybrid review", async () => {
     const x = input();
-    x.title = "Make delivery costs visible earlier";
+    x.description = "Make delivery costs visible earlier, because customers leave at payment.";
     const token = createTriageToken(x, { classification: "hybrid", reframedProblem: "Customers abandon checkout after unexpected delivery costs.", extractedSolution: "Display delivery costs earlier." }, { orgId: "org-edit", userId: "edit-owner" }, id);
     expect(await save(x, token)).toHaveProperty("error");
 });
@@ -147,18 +162,18 @@ const storeFraming = async (classification: string, framing: { reframedProblem: 
 const framingRow = async () => (await sql`select classification::text, reframed_problem, extracted_solution from requests where id=${id}`)[0];
 
 it("refuses a new-Request review for an edit", async () => {
-    const x = input(); x.title = "Customers leave checkout early";
+    const x = input(); x.description = "Customers leave checkout early.";
     const token = createTriageToken(x, { classification: "problem", reframedProblem: null, extractedSolution: null }, reviewer);
-    expect(await save(x, token)).toEqual({ error: "Review the changed title and description before saving." });
+    expect(await save(x, token)).toEqual({ error: "Review the changed description before saving." });
 });
 it("saves the reviewed suggested change, not one the browser sends", async () => {
-    const x = { ...input(), title: "Make delivery costs visible earlier", reframedProblem: hybrid.reframedProblem, extractedSolution: "Something the review never saw." };
+    const x = { ...input(), description: "Make delivery costs visible earlier.", reframedProblem: hybrid.reframedProblem, extractedSolution: "Something the review never saw." };
     const token = createTriageToken(x, { classification: "hybrid", ...hybrid }, reviewer, id);
     expect(await save(x, token)).toMatchObject({ success: true });
     expect(await framingRow()).toEqual({ classification: "hybrid", reframed_problem: hybrid.reframedProblem, extracted_solution: hybrid.extractedSolution });
 });
 it("drops framing a problem review doesn't carry", async () => {
-    const x = { ...input(), title: "Customers leave checkout early", ...hybrid };
+    const x = { ...input(), description: "Customers leave checkout early.", ...hybrid };
     const token = createTriageToken(x, { classification: "problem", reframedProblem: null, extractedSolution: null }, reviewer, id);
     expect(await save(x, token)).toMatchObject({ success: true });
     expect(await framingRow()).toEqual({ classification: "problem", reframed_problem: null, extracted_solution: null });
@@ -171,12 +186,32 @@ it("lets unchanged wording keep its judgement while its framing is reworded", as
 });
 it("never empties the framing of unchanged wording", async () => {
     const snapshot = await storeFraming("hybrid", hybrid);
-    expect(await save({ ...input(), ...hybrid, extractedSolution: "   " }, undefined, snapshot)).toEqual({ error: "Keep the suggested change, or change the title or description and review again." });
-    expect(await save({ ...input(), ...hybrid, reframedProblem: null }, undefined, snapshot)).toEqual({ error: "Keep the problem to solve, or change the title or description and review again." });
+    expect(await save({ ...input(), ...hybrid, extractedSolution: "   " }, undefined, snapshot)).toEqual({ error: "Keep the suggested change, or change the description and review again." });
+    expect(await save({ ...input(), ...hybrid, reframedProblem: null }, undefined, snapshot)).toEqual({ error: "Keep the problem to solve, or change the description and review again." });
     expect(await framingRow()).toEqual({ classification: "hybrid", reframed_problem: hybrid.reframedProblem, extracted_solution: hybrid.extractedSolution });
 });
 it("adds no framing to a problem whose wording is unchanged", async () => {
     const snapshot = await storeFraming("problem", { reframedProblem: null, extractedSolution: null });
     expect(await save({ ...input(), ...hybrid }, undefined, snapshot)).toMatchObject({ success: true });
     expect(await framingRow()).toEqual({ classification: "problem", reframed_problem: null, extracted_solution: null });
+});
+
+// #280 (B9): what the Edit dialog treats as a change that clears review answers, the same fields the database's
+// reset_reviews_on_edit trigger compares. Priority is not content.
+it("treats wording, context, Project, labels, framing and a complete goal as content; priority and an unchanged goal not", async () => {
+    const { editChangesContent, requestEditValues } = await import("@/lib/request-edit");
+    const original = requestEditValues({ ...input(), measurementDraft: null, reframedProblem: "Customers abandon checkout.", extractedSolution: null, labelKeys: ["improvement"] });
+    const values = { ...original, expectedImpact: structuredClone(plan) };
+    const framing = { reframedProblem: "Customers abandon checkout.", extractedSolution: null };
+    expect(editChangesContent(values, original, framing)).toBe(false);
+    expect(editChangesContent({ ...values, priority: "low" }, original, framing)).toBe(false);
+    expect(editChangesContent({ ...values, title: ` ${values.title} ` }, original, framing)).toBe(false);
+    expect(editChangesContent({ ...values, title: "Delivery costs show only at payment" }, original, framing)).toBe(true);
+    expect(editChangesContent({ ...values, usefulLink: "https://example.com/notes" }, original, framing)).toBe(true);
+    expect(editChangesContent({ ...values, projectId: randomUUID() }, original, framing)).toBe(true);
+    expect(editChangesContent({ ...values, labelKeys: ["bug"] }, original, framing)).toBe(true);
+    expect(editChangesContent(values, original, { ...framing, reframedProblem: "Delivery costs surprise people." })).toBe(true);
+    expect(editChangesContent({ ...values, expectedImpact: { ...plan, primary: { ...plan.primary, target: 90 } } }, original, framing)).toBe(true);
+    // An unfinished goal is kept as a draft beside the Request, not on it.
+    expect(editChangesContent({ ...values, expectedImpact: { ...plan, primary: { ...plan.primary, key: "" as never } } }, { ...original, expectedImpact: null }, framing)).toBe(false);
 });

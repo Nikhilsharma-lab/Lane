@@ -24,7 +24,7 @@ test('Is it live? records the release; the timeline, due tag, correction and han
       await expect(journeyStep(page, 'Open', 'current step')).toContainText('Requested by Review PM');
       await page.getByRole('button', { name: 'Pick up', exact: true }).click();
       // Wait for the saved pickup before reloading, or the reload can cancel it.
-      await expect(page.getByRole('button', { name: 'Mark Done', exact: true })).toBeVisible({ timeout: 20_000 }); await page.reload();
+      await expect(page.getByRole('button', { name: 'Mark Done', exact: true })).toBeEnabled({ timeout: 20_000 }); await page.reload();
       await expect(journeyStep(page, 'In progress', 'current step')).toContainText('Mark Done when the work is finished.');
       // Exposure cannot predate the agreement made moments ago, so this run records today and checks the live
       // countdown. Due/overdue boundaries are proven with a controlled clock in release-actions.test.ts.

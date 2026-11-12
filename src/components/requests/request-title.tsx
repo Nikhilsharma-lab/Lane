@@ -1,6 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
+import { useOptionalDetailRequest } from "./detail-context"
 
 /**
  * The open Request's title, `#request-title`: arrival, Mark Done and the composer move focus to it.
@@ -18,3 +19,9 @@ export function RequestTitle({ as: Heading, className, children }: { as: "h1" | 
 function takeTitleId(heading: HTMLHeadingElement | null) {
   heading?.setAttribute("id", "request-title")
 }
+
+/** #280: the open Request's title as the page shows it: a saved Edit Request's new title at once, through the overlay. */
+export function ShownTitle({ saved }: { saved: string }) {
+  return useOptionalDetailRequest()?.request.title ?? saved
+}
+

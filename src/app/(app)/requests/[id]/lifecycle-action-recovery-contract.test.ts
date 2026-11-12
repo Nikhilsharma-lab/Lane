@@ -35,7 +35,11 @@ describe("Reliable Request lifecycle action contract", () => {
 
   it("keeps loading visible, labelled, and keyboard-safe", () => {
     // #262: Arc Button's loading state keeps the label and focus, and swallows presses.
-    expect(LIFECYCLE).toContain("loading={pending}");
+    // #280: it shows only once the unconfirmed move outlasts the placeholder delay; until then the next button is
+    // shown but can't be pressed.
+    expect(LIFECYCLE).toContain("useDelayedBusy(unconfirmed)");
+    expect(LIFECYCLE).toContain("loading={busy}");
+    expect(LIFECYCLE).toContain("aria-disabled={unconfirmed || undefined}");
     expect(LIFECYCLE).not.toContain("LoaderCircleIcon");
     expect(LIFECYCLE).not.toContain("Picking up…");
     expect(LIFECYCLE).not.toContain("Completing…");

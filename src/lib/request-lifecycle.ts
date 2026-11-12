@@ -1,4 +1,5 @@
 import { canChange } from "./request-access-rules"
+import { TAKE_ON_FIRST, WRITE_THE_PREDICTION, type GuestSubmissionState } from "./guest-submission"
 export type RequestStatus = "open" | "in_progress" | "done"
 export type LifecycleMove = "pick-up" | "done"
 export type AllowedMove = { move: LifecycleMove; to: "in_progress" | "done"; label: "Pick up" | "Mark Done" }
@@ -61,7 +62,21 @@ export function moveRefusal(
   return null
 }
 
-/** A blocked pickup, said to this viewer: someone who can't edit the plan is told who can. */
+/** A blocked pickup, said to this viewer: someone who can't edit the plan is told who can. A waiting Guest
+ * submission's reason is said as it is, since any Member may take it on (#280). */
 export function pickupBlockedMessage(reason: string, requester: string | null): string {
-  return requester ? `Ask ${requester} to add current values before pickup.` : reason
+  if (!requester || reason === TAKE_ON_FIRST) return reason
+  if (reason === WRITE_THE_PREDICTION) return `Ask ${requester} to set the goal before pickup.`
+  return `Ask ${requester} to add current values before pickup.`
+}
+
+/**
+ * Who pickupBlockedMessage sends a viewer to, or null for a viewer who can change the Request (`changes`). A Guest
+ * submission is never answered for by its Guest (#280): nobody while it waits, then whoever took it on. A list row
+ * doesn't carry the taker's name (`takenOnByName` undefined), so its reason is said as it is.
+ */
+export function pickupRequester(request: { guestSubmission: GuestSubmissionState | null; creatorName: string | null; takenOnByName?: string | null }, changes: boolean): string | null {
+  if (changes || request.guestSubmission === "waiting") return null
+  if (request.guestSubmission === "taken_on") return request.takenOnByName === undefined ? null : request.takenOnByName || "the Requester"
+  return request.creatorName || "the Requester"
 }
