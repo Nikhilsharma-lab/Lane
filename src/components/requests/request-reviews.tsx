@@ -4,15 +4,16 @@ import { callAction } from "@/lib/action-call";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useOptimisticAction } from "./use-optimistic-action";
 import { Button } from "@/components/arc/button/button";
-import { Textarea } from "@/components/arc/textarea/textarea";
-import { Select } from "@/components/arc/select/select";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
-import { reviewerKey as keyOf, REVIEW_NOTE_MAX, REVIEW_REASON_MAX, reviewStateOf, type ReviewerOutline } from "@/lib/request-reviewer-rules";
+import { MAX_REVIEWERS, reviewerKey as keyOf, reviewStateOf, type ReviewerOutline } from "@/lib/request-reviewer-rules";
 import * as actions from "@/app/(app)/requests/[id]/reviewer-actions";
 import { useReportReviewState } from "./pickup-confirmation";
-import { REVIEW_QUESTION, useReviewerPeople } from "./request-reviewers-picker";
-import { ReviewerInviteHint } from "./reviewer-invite-hint";
-import { InPageForm } from "@/components/popup/in-page-form";
+import { AddReviewerPopover } from "./add-reviewer-popover";
+import { isPendingReviewer, withAnswer, withReviewerBack, withReviewersAdded, withoutReviewer, type RemovedReviewer } from "./reviewer-changes";
+import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog";
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
+import { focusWithoutScroll } from "@/components/popup/focus";
+import type { ReviewAnswer } from "./review-answer-form";
 import styles from "./request-timeline.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 import { SectionHeading } from "./section-heading";
@@ -20,27 +21,36 @@ type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
   { error: string }
 >;
-type Kind = "addReviewers" | "removeReviewer" | "answerReview";
-const SAVED: Record<Kind, string> = {
-  addReviewers: "Reviewer added",
-  removeReviewer: "Reviewer removed",
-  answerReview: "Review saved",
-};
+type Reviewer = View["reviewers"][number];
+type Kind = "addReviewers" | "removeReviewer" | "answerReview" | "restoreReviewer";
 
 const OPTIONAL_LINE = "Optional. People who should look at this before work starts.";
+/** How long a removed reviewer's Undo stays, as Mark Done's does. */
+const UNDO_MS = 10_000;
 
-function reviewStatusLabel(reviewer: View["reviewers"][number], open: boolean) {
+// The answer popup's form loads when it first opens, or a moment earlier, when the pointer or focus reaches an answer
+// button.
+const answerCode = popupCode(() => import("./review-answer-form"));
+
+function reviewStatusLabel(reviewer: Reviewer, open: boolean) {
   if (reviewer.decision?.kind === "looks_good") return "Looks good";
   if (reviewer.decision?.kind === "concern") return "Raised a concern";
   if (!open) return "No answer before pickup";
   return "Waiting";
 }
 
+/** A reviewer's row, found by id, for focus after a change. */
+const rowControl = (id: string, selector: string) => document.querySelector<HTMLElement>(`#reviewers [data-reviewer-id="${id}"] ${selector}`);
+
 /**
  * The timeline's Open step: reviews (#134).
  * Optional reviewers look at an Open Request before work starts. Each answers
  * Looks good or raises a concern with a reason. Reviews never block pickup;
  * once work starts the list is a read-only record.
+ *
+ * #279: every change shows at once and goes back if the server refuses: adding (an Arc popover), removing (with Undo
+ * for 10 seconds, which puts the reviewer back exactly as they were), Looks good and Raise a concern (in the Journey
+ * popup). Once answered, a reviewer's one button reads Change answer.
  */
 export function RequestReviews({
   requestId,
@@ -60,19 +70,20 @@ export function RequestReviews({
   deferred?: boolean;
 }) {
   const runAction = useOptimisticAction();
-  const { toast } = useToastStack();
-  const [view, setView] = useState<View | null>(null);
-  const { people: loaded, error: peopleError, load: loadPeople, loading: loadingPeople } = useReviewerPeople(orgId);
-  const people = loaded ?? [];
+  const { toast, update } = useToastStack();
+  const [view, setShown] = useState<View | null>(null);
+  // The list as shown, read by changes and Undo after the render that made them.
+  const shown = useRef<View | null>(null);
+  const setView = useCallback((next: View | null) => { shown.current = next; setShown(next); }, []);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [selected, setSelected] = useState("");
-  const [note, setNote] = useState("");
-  const [concernFor, setConcernFor] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
+  // The answer popup: whose answer, and whether it changes one already given.
+  const [answering, setAnswering] = useState<{ id: string; changing: boolean; initial: ReviewAnswer; error: string } | null>(null);
+  const [answerOpen, setAnswerOpen] = useState(false);
   const retry = useRef<ChangeAttempt | null>(null);
   const running = useRef(false);
+  // Each change counts up, so a read that a later change overtook never undoes what that change shows.
+  const changes = useRef(0);
   const addButton = useRef<HTMLButtonElement>(null);
   const reportReviewState = useReportReviewState();
   // #77: pickup confirms from what this panel last read, which is newer than the
@@ -90,12 +101,14 @@ export function RequestReviews({
     }
     setError("");
     setView(result);
-  }, []);
+  }, [setView]);
   const load = useCallback(async () => {
+    const at = changes.current;
     try {
-      applyView(await callAction(() => actions.readReviews(requestId, { orgId })));
+      const result = await callAction(() => actions.readReviews(requestId, { orgId }));
+      if (at === changes.current) applyView(result);
     } catch {
-      setError("Couldn’t load reviews. Try again.");
+      if (at === changes.current) setError("Couldn’t load reviews. Try again.");
     }
   }, [applyView, requestId, orgId]);
   useEffect(() => {
@@ -106,38 +119,88 @@ export function RequestReviews({
       .catch(() => { if (active) setError("Couldn’t load reviews. Try again."); });
     return () => { active = false; };
   }, [applyView, requestId, orgId, revision, deferred]);
-  useEffect(() => {
-    if (isGuest || !adding || loaded || loadingPeople || peopleError) return;
-    void loadPeople();
-  }, [adding, isGuest, loaded, loadingPeople, peopleError, loadPeople]);
 
-  async function run(kind: Kind, input: unknown): Promise<boolean> {
-    if (!view || running.current) return false;
+  /**
+   * Shows `show`'s list at once and sends the change. A refusal puts back the list as it was and says why: inline, or
+   * through `onRefused`. A saved change reads the list again, quietly, for the server's own rows.
+   */
+  async function change(kind: Kind, input: unknown, show: (view: View) => View, onRefused?: (message: string) => void): Promise<{ revision: number } | null> {
+    const before = shown.current;
+    if (!before || running.current) return null;
     running.current = true;
+    changes.current += 1;
     setBusy(true);
     setError("");
-    const { operationId } = retry.current = changeAttempt(retry.current, { kind, input }, view.revision);
+    setView(show(before));
+    const refused = (message: string) => { setView(before); if (onRefused) onRefused(message); else setError(message); };
+    const { operationId } = retry.current = changeAttempt(retry.current, { kind, input }, before.revision);
     try {
       const outcome = await runAction({
         id: requestId,
         waitForPending: true,
         refreshOnError: false,
-        run: () => actions[kind]({ orgId, requestId, expectedRevision: view.revision, operationId }, input),
-        onError: (message, { thrown, offline }) => setError(thrown && !offline ? "Couldn’t confirm the change. Try again." : message),
+        run: () => actions[kind]({ orgId, requestId, expectedRevision: before.revision, operationId }, input),
+        onError: (message, { thrown, offline }) => refused(thrown && !offline ? "Couldn’t confirm the change. Try again." : message),
       });
-      if (outcome.status !== "success") return false;
+      if (outcome.status === "skipped") refused("Couldn’t confirm the change. Try again.");
+      if (outcome.status !== "success" || !("success" in outcome.value)) return null;
       retry.current = null;
-      toast({ type: "success", title: SAVED[kind] });
-      await load();
-      return true;
+      const saved = { revision: outcome.value.revision };
+      if (shown.current) setView({ ...shown.current, revision: saved.revision });
+      void load();
+      return saved;
     } catch {
-      setError("Couldn’t confirm the change. Try again.");
-      return false;
+      refused("Couldn’t confirm the change. Try again.");
+      return null;
     } finally {
       running.current = false;
       setBusy(false);
     }
   }
+
+  function add(people: { nominee: { kind: "member"; userId: string }; name: string }[], note: string) {
+    void change("addReviewers", { nominees: people.map((p) => p.nominee), note },
+      (v) => withReviewersAdded(v, people.map((p) => ({ key: keyOf(p.nominee), name: p.name })), note));
+  }
+
+  async function remove(reviewer: Reviewer) {
+    const current = shown.current;
+    if (!current) return;
+    const { removed } = withoutReviewer(current, reviewer.id);
+    if (!removed) return;
+    // The row is going, so focus goes to the section's heading.
+    focusWithoutScroll(document.getElementById("reviewers-heading"));
+    const saved = await change("removeReviewer", { reviewerId: reviewer.id }, (v) => withoutReviewer(v, reviewer.id).shown);
+    if (!saved) return;
+    const id = `reviewer-removed:${reviewer.id}`;
+    toast({ id, type: "success", title: "Reviewer removed", description: `${reviewer.name} is no longer asked to review.`, duration: UNDO_MS, action: { label: "Undo", onClick: () => { void undoRemove(id, removed); } } });
+  }
+
+  /** Undo: the same entry back in its place (restoreReviewer), only if nothing changed since. */
+  async function undoRemove(toastId: string, removed: RemovedReviewer) {
+    const name = removed.entry.name;
+    update(toastId, { type: "loading", title: "Putting reviewer back", description: `${name} is going back on the list.`, action: undefined });
+    const back = await change("restoreReviewer", { reviewerId: removed.entry.id }, (v) => withReviewerBack(v, removed),
+      (message) => update(toastId, { type: "error", title: "Couldn’t undo", description: message, action: undefined }));
+    if (back) update(toastId, { type: "success", title: "Reviewer back", description: `${name} is asked to review again, as before.`, action: undefined });
+  }
+
+  function answer(reviewer: Reviewer, given: ReviewAnswer, changing: boolean) {
+    void change("answerReview", { reviewerId: reviewer.id, ...given }, (v) => withAnswer(v, reviewer.id, given), (message) => {
+      // Refused: the popup comes back with their words and why.
+      if (given.kind === "concern" || changing) { setAnswering({ id: reviewer.id, changing, initial: given, error: message }); setAnswerOpen(true); }
+      else setError(message);
+    });
+  }
+
+  function looksGood(reviewer: Reviewer) {
+    answer(reviewer, { kind: "looks_good", reason: "" }, false);
+    // The answer buttons give way to Change answer, which takes focus.
+    requestAnimationFrame(() => focusWithoutScroll(rowControl(reviewer.id, "[data-review-answer]")));
+  }
+
+  const answerForm = usePopupCode(answerCode, answerOpen, () => couldNotOpen("review-answer", setAnswerOpen));
+  const answeringReviewer = answering && view?.reviewers.find((r) => r.id === answering.id);
 
   if (!view && error)
     return (
@@ -174,106 +237,44 @@ export function RequestReviews({
       </section>
     );
 
-  const options = people
-    .filter((p) => !view.unavailable.includes(keyOf(p.nominee)))
-    .map((p) => ({
-      value: keyOf(p.nominee),
-      label: p.name,
-    }));
-
   return (
-    <section id="reviewers" aria-labelledby="reviewers-heading" className={styles.reviews} aria-busy={busy}>
+    <section id="reviewers" aria-labelledby="reviewers-heading" className={styles.reviews}>
       <div className={styles.header}>
-        <SectionHeading level={4} id="reviewers-heading">Reviewers</SectionHeading>
-        {view.canAdd && !adding && (
-          <Button ref={addButton} variant="ghost" className={styles.end} onClick={() => { setAdding(true); setSelected(""); setNote(""); }} disabled={busy}>Add reviewer</Button>
+        <SectionHeading level={4} id="reviewers-heading" tabIndex={-1}>Reviewers</SectionHeading>
+        {view.canAdd && !isGuest && (
+          <AddReviewerPopover orgId={orgId} unavailable={view.unavailable} canInvite={view.canInvite} slots={MAX_REVIEWERS - view.reviewers.length}
+            onAdd={add} triggerRef={addButton} className={styles.end} />
         )}
       </div>
       {view.open && <p className={styles.muted}>{OPTIONAL_LINE}</p>}
-
-      {adding && (
-        <InPageForm onDismiss={() => setAdding(false)} returnFocus={() => addButton.current ?? document.getElementById("reviewers-heading")}>
-        <form
-          className={styles.stack}
-          onSubmit={(e) => {
-            e.preventDefault();
-            const nominee = people.find((p) => keyOf(p.nominee) === selected)?.nominee;
-            if (!nominee) return;
-            void run("addReviewers", { nominees: [nominee], note }).then((saved) => { if (saved) setAdding(false); });
-          }}
-        >
-          <div className={styles.fields}>
-            <Select
-              label="Reviewer"
-              placeholder={loaded && !options.length ? "Nobody else to ask yet" : "Choose a person"}
-              value={selected}
-              onValueChange={setSelected}
-              options={options}
-              disabled={busy || !options.length}
-            />
-            <ReviewerInviteHint canInvite={view.canInvite} className={styles.muted} />
-          </div>
-          {peopleError && <div className={styles.controls}>
-            <p role="alert">{peopleError}</p>
-            <Button type="button" variant="secondary" onClick={() => { void loadPeople(); }}>Try again</Button>
-          </div>}
-          <Textarea
-            label={REVIEW_QUESTION.label}
-            description={REVIEW_QUESTION.description}
-            placeholder={REVIEW_QUESTION.placeholder}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            maxLength={REVIEW_NOTE_MAX}
-            rows={2}
-            disabled={busy}
-          />
-          <div className={styles.controls}>
-            <Button type="submit" loading={busy} disabled={!busy && !selected}>Add reviewer</Button>
-            <Button type="button" variant="ghost" onClick={() => setAdding(false)} disabled={busy}>Cancel</Button>
-          </div>
-        </form>
-        </InPageForm>
-      )}
 
       {view.reviewers.length ? (
         <ul className={styles.reviewerList}>
           {view.reviewers.map((reviewer) => {
             const decision = reviewer.decision;
+            const pending = isPendingReviewer(reviewer);
+            const ahead = { onPointerEnter: answerCode.preload, onFocus: answerCode.preload };
             return (
-              <li key={reviewer.id} data-reviewer-id={reviewer.id} className={reviewer.active ? styles.reviewer : `${styles.reviewer} ${styles.inactive}`}>
+              <li key={reviewer.id} data-reviewer-id={reviewer.id} data-pending={pending ? "" : undefined} className={reviewer.active ? styles.reviewer : `${styles.reviewer} ${styles.inactive}`}>
                 <span>{reviewer.name}</span>
                 <span className={styles.role}>{reviewer.active ? reviewer.role : "No longer in the workspace"}</span>
                 <span className={decision?.kind === "concern" ? styles.warning : styles.muted}>{reviewStatusLabel(reviewer, view.open)}</span>
                 <span className={styles.controls}>
-                  {reviewer.canAnswer && concernFor !== reviewer.id && (
-                    <>
-                      {decision?.kind !== "looks_good" && <Button disabled={busy} onClick={() => void run("answerReview", { reviewerId: reviewer.id, kind: "looks_good", reason: "" })}>Looks good</Button>}
-                      <Button variant="secondary" disabled={busy} onClick={() => { setConcernFor(reviewer.id); setReason(""); }}>Raise a concern</Button>
-                    </>
-                  )}
+                  {reviewer.canAnswer && (decision
+                    ? <Button variant="secondary" data-review-answer="" disabled={busy} {...ahead}
+                      onClick={() => { setAnswering({ id: reviewer.id, changing: true, initial: { kind: decision.kind, reason: decision.reason }, error: "" }); setAnswerOpen(true); }}>Change answer</Button>
+                    : <>
+                      {/* #279 (B13): secondary, so the strip's Pick up stays the one main button. */}
+                      <Button variant="secondary" disabled={busy} onClick={() => looksGood(reviewer)}>Looks good</Button>
+                      <Button variant="secondary" data-review-answer="" disabled={busy} {...ahead}
+                        onClick={() => { setAnswering({ id: reviewer.id, changing: false, initial: { kind: "concern", reason: "" }, error: "" }); setAnswerOpen(true); }}>Raise a concern</Button>
+                    </>)}
                   {view.canRemove && (
-                    <Button variant="ghost" disabled={busy} aria-label={`Remove ${reviewer.name}`} onClick={() => void run("removeReviewer", { reviewerId: reviewer.id })}>Remove</Button>
+                    <Button variant="ghost" disabled={busy || pending} aria-label={`Remove ${reviewer.name}`} onClick={() => void remove(reviewer)}>Remove</Button>
                   )}
                 </span>
                 {reviewer.note && <p className={`${styles.reason} ${styles.muted}`}>Asked: {reviewer.note}</p>}
-                {decision?.kind === "concern" && <p className={styles.reason}>{decision.reason}</p>}
-                {concernFor === reviewer.id && (
-                  <InPageForm onDismiss={() => setConcernFor(null)} returnFocus={() => document.querySelector<HTMLElement>(`#reviewers [data-reviewer-id="${reviewer.id}"] button:not(:disabled)`)}>
-                  <form
-                    className={styles.reason}
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void run("answerReview", { reviewerId: reviewer.id, kind: "concern", reason }).then((saved) => { if (saved) setConcernFor(null); });
-                    }}
-                  >
-                    <Textarea label="What concerns you?" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={REVIEW_REASON_MAX} required disabled={busy} />
-                    <div className={styles.controls}>
-                      <Button type="submit" disabled={busy || !reason.trim()}>Raise concern</Button>
-                      <Button type="button" variant="ghost" onClick={() => setConcernFor(null)} disabled={busy}>Cancel</Button>
-                    </div>
-                  </form>
-                  </InPageForm>
-                )}
+                {decision?.kind === "concern" && <p className={styles.reason}>Concern: {decision.reason}</p>}
               </li>
             );
           })}
@@ -282,6 +283,20 @@ export function RequestReviews({
         <p className={styles.muted}>{view.open ? "No reviewers yet." : "No reviewers."}</p>
       )}
       {error && <p role="alert">{error}</p>}
+      {/* #279: Raise a concern and Change answer open in the Journey popup (Lane's adaptive popup). */}
+      <Dialog guardTypedText open={answerOpen} onOpenChange={setAnswerOpen}>
+        {answering && <DialogContent title={answering.changing ? "Change answer" : "Raise a concern"} aria-describedby={undefined}
+          returnFocus={() => rowControl(answering.id, "[data-review-answer]") ?? document.getElementById("reviewers-heading")}>
+          {answerForm
+            ? <answerForm.ReviewAnswerForm key={`${answering.id}:${answering.changing}:${answering.error}`} changing={answering.changing} initial={answering.initial} error={answering.error}
+              onCancel={() => setAnswerOpen(false)}
+              onAnswer={(given) => {
+                setAnswerOpen(false);
+                if (answeringReviewer) answer(answeringReviewer, given, answering.changing);
+              }} />
+            : <Placeholder label="Loading form" lines={2} />}
+        </DialogContent>}
+      </Dialog>
     </section>
   );
 }
