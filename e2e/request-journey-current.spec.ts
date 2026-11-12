@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type Page, type Request, type Route } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, getTestWorkspaceId } from "./helpers/cleanup";
-import { answerIsItLive, journey, journeyStep, recordReleaseInPrompt } from "./helpers/journey";
+import { answerIsItLive, journey, journeyPopup, journeyStep, pickEarliestReleaseDay, recordReleaseInPrompt } from "./helpers/journey";
 import { compiledJourneyRead } from "./helpers/server-action-identity";
 import { toastRegion } from "./helpers/mark-done-undo";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
@@ -122,10 +122,12 @@ test.describe("the Journey stays current (#278)", () => {
 
       // Close without a result: Closed at once, with a message, before the reads bring who closed it.
       await done.getByRole("button", { name: "Close without a result", exact: true }).click();
-      await journey(page).getByRole("combobox", { name: "Why" }).click();
+      // #277: the form opens in its Journey popup.
+      const closing = journeyPopup(page, "Close without a result");
+      await closing.getByRole("combobox", { name: "Why" }).click();
       await page.getByRole("option", { name: "Rolled back" }).click();
       hold = await holdJourneyReads(page, reads);
-      await journey(page).getByRole("button", { name: "Close without a result", exact: true }).click();
+      await closing.getByRole("button", { name: "Close without a result", exact: true }).click();
       const closed = journeyStep(page, "Closed without a result", "current step");
       await expect(closed).toBeVisible({ timeout: 20_000 });
       await expect(closed).toContainText("Closed Requests can’t be reopened.");
@@ -154,12 +156,13 @@ test.describe("the Journey stays current (#278)", () => {
       await expect(done.getByRole("button", { name: "Record release", exact: true })).toBeVisible({ timeout: 30_000 });
       await expect(done.getByRole("button", { name: "Reopen", exact: true })).toHaveCount(0);
       await done.getByRole("button", { name: "Record release", exact: true }).click();
-      const releaseDay = filed.toISOString().slice(0, 10);
-      await journey(page).getByLabel("Release date", { exact: true }).fill(releaseDay);
-      await journey(page).getByLabel("Value before release (%)", { exact: true }).fill("62");
-      await journey(page).getByLabel("Release evidence", { exact: true }).fill("Feature flag at 100% since the day it was filed");
-      await journey(page).getByRole("checkbox", { name: "The agreed audience received this work" }).check();
-      await journey(page).getByRole("button", { name: "Mark as released", exact: true }).click();
+      // #277: the form opens in its Journey popup; its date picker starts at the pickup day, the day it was filed.
+      const releasing = journeyPopup(page, "Record release");
+      await pickEarliestReleaseDay(page, releasing);
+      await releasing.getByLabel("Value before release (%)", { exact: true }).fill("62");
+      await releasing.getByLabel("Release evidence", { exact: true }).fill("Feature flag at 100% since the day it was filed");
+      await releasing.getByRole("checkbox", { name: "The agreed audience received this work" }).check();
+      await releasing.getByRole("button", { name: "Mark as released", exact: true }).click();
 
       const measuring = journeyStep(page, "Measuring", "current step");
       const countdown = measuring.getByRole("status");

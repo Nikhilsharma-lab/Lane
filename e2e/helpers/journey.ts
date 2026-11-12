@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { IS_IT_LIVE_COPY } from "../../src/components/requests/is-it-live";
 
 // #127 journey helpers: the "Is it live?" prompt after Mark Done (#135), the
@@ -58,3 +58,17 @@ export async function chooseJourneyMore(page: Page, name: string) {
   await journey(page).getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menu", { name: "More", exact: true }).getByRole("menuitem", { name, exact: true }).click();
 }
+
+/**
+ * #277: picks the earliest day the release date picker offers (the pickup day in the viewer's zone): opens its calendar,
+ * pages back past it (the calendar stops at its earliest day) and chooses that day.
+ */
+export async function pickEarliestReleaseDay(page: Page, form: Locator) {
+  await form.getByRole("button", { name: "Release date", exact: true }).click();
+  const calendar = form.getByRole("dialog", { name: "Release date calendar", exact: true });
+  await expect(calendar).toBeVisible();
+  for (let i = 0; i < 4; i++) await page.keyboard.press("PageUp");
+  await page.keyboard.press("Enter");
+  await expect(calendar).toHaveCount(0);
+}
+
