@@ -66,6 +66,8 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       const closing = journeyPopup(page, 'Close without a result');
       await closing.getByRole('combobox', { name: 'Why' }).click();
       await page.getByRole('option', { name: 'Rolled back' }).click();
+      // In the phone panel the menu hands focus back to its button as it finishes leaving; type after that.
+      await expect(page.getByRole('listbox')).toHaveCount(0);
       await closing.getByLabel('Details (optional)').fill('Acceptance: rolled back after payment errors');
       await expectOpenFormSurvivesReturn(page, reads, closing.getByLabel('Details (optional)'), 'Acceptance: rolled back after payment errors');
       await closing.getByRole('button', { name: 'Close without a result', exact: true }).press('Enter');
@@ -82,6 +84,7 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       const correcting = journeyPopup(page, 'Add correction');
       await correcting.getByRole('combobox', { name: 'What needs correcting' }).click();
       await page.getByRole('option', { name: 'Reason', exact: true }).click();
+      await expect(page.getByRole('listbox')).toHaveCount(0);
       await correcting.getByLabel('Correction', { exact: true }).fill('Rolled back after checkout timeouts');
       await correcting.getByLabel('Correction reason').fill('Acceptance: wrong cause recorded');
       await expectOpenFormSurvivesReturn(page, reads, correcting.getByLabel('Correction', { exact: true }), 'Rolled back after checkout timeouts');

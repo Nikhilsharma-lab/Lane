@@ -52,10 +52,10 @@ async function withWorkspace(page: Page, label: string, run: (user: TestUser) =>
     await provisionAndSignIn(page, user, { name: "Popup Tester", workspaceName: `#277 ${label}` });
     await run(user);
   } finally {
-    // A recorded release can never be deleted (its history is immutable), so that workspace's rows stay in the test
-    // database; the Clerk organization goes and a borrowed user is given back either way.
+    // A recorded release or a closed Request can never be deleted (both are immutable), so that workspace's rows stay
+    // in the test database; the Clerk organization goes and a borrowed user is given back either way.
     await cleanupTestWorkspace(user.id).catch((error: unknown) => {
-      if (!String((error as { message?: string }).message).includes("Release history is immutable")) throw error;
+      if (!/^(Release history|Closed Request) is immutable$/.test(String((error as { message?: string }).message))) throw error;
     }).finally(() => deleteTestUser(user.id));
   }
 }
@@ -143,7 +143,7 @@ test.describe("#277 Journey popups and the one release form", () => {
       await page.keyboard.press("Escape");
       const prompt = discardPrompt(page);
       await expect(prompt.getByRole("button", { name: "Keep editing", exact: true })).toBeFocused();
-      await page.keyboard.press("Enter");
+      await prompt.getByRole("button", { name: "Keep editing", exact: true }).click();
       await expect(prompt).toHaveCount(0);
       await expect(release).toBeVisible();
       await expect(evidence).toHaveValue("Rollout log: every shopper has the new checkout");
@@ -298,11 +298,16 @@ test.describe("#277 Journey popups and the one release form", () => {
       await page.getByRole("option").first().click();
       await page.waitForTimeout(500);
       await expect(close).toBeVisible();
+      const details = close.getByLabel(/^(Reason|Details \(optional\))$/);
+      await details.fill("Rolled back after payment errors");
+      await details.focus();
       page.on("request", countRead);
       await page.evaluate(() => window.dispatchEvent(new Event("focus")));
       await page.waitForTimeout(500);
       page.off("request", countRead);
       expect(reads).toBe(0);
+      await expect(details).toHaveValue("Rolled back after payment errors");
+      await expect(details).toBeFocused();
       await close.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(close).toHaveCount(0);
       await expect(closeWithout).toBeFocused();

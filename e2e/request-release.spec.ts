@@ -180,7 +180,9 @@ test('Journey rejects a read begun before editing and refreshes at its scheduled
     const afterCancel = page.waitForResponse(response => reads.matches(response.request()));
     await correction.getByRole('button', { name: 'Cancel', exact: true }).click();
     expect(await (await afterCancel).finished()).toBeNull();
-    await expect(panel.getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toBeVisible();
+    // The installed clock holds the popup's exit animation, so the modal popup still hides the Journey from the
+    // accessibility tree; read it by its id.
+    await expect(page.locator('#journey').getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toBeVisible();
     await page.waitForTimeout(300);
     expect(reads.count()).toBe(before + 1);
     reads.stop();
