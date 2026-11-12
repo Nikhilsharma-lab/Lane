@@ -71,17 +71,18 @@ export async function saveRequestEdits(requestId: string, input: unknown, contex
             // #212: a Guest files without a prediction; the Member who takes it on writes it.
             if (auth.role === "guest" && (impactChanged || impactStorage.measurementDraft !== null))
                 return { error: "A Member sets the goal once they take this on." };
-            // Changed wording needs a fresh review of this Request, which sets the
-            // classification and the suggested change. Unchanged wording keeps the
+            // A changed description needs a fresh review of this Request, which sets the
+            // classification and the suggested change; the review was run with the title
+            // being saved. Anything else, a title-only change included (#280, B8), keeps the
             // stored judgement; its framing is the person's to reword, never to drop.
             let classification = stored.classification;
             let shape = storedShape(stored);
             let extractedSolution = changes.extractedSolution;
             let missingProblem: string | undefined;
-            if (stored.title !== changes.title || stored.description !== changes.description) {
+            if (stored.description !== changes.description) {
                 const review = token ? verifyTriageToken(token, auth, requestId) : null;
                 if (!review?.valid || review.payload.title !== changes.title || review.payload.description !== changes.description)
-                    return { error: "Review the changed title and description before saving." };
+                    return { error: "Review the changed description before saving." };
                 classification = review.payload.classification;
                 shape = framingShape(classification);
                 extractedSolution = review.payload.extractedSolution;

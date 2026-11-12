@@ -16,7 +16,7 @@ async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   await page.goto(path);
   await page.getByRole('button', { name: 'Pick up', exact: true }).click();
   // Wait for the saved pickup before reloading, or the reload can cancel it.
-  await expect(page.getByRole('button', { name: 'Mark Done', exact: true })).toBeVisible({ timeout: 20_000 }); await page.reload();
+  await expect(page.getByRole('button', { name: 'Mark Done', exact: true })).toBeEnabled({ timeout: 20_000 }); await page.reload();
   await page.getByRole('button', { name: 'Mark Done', exact: true }).click();
   // "Is it live?" → Not yet: the Request stays Done, its Undo comes back, and the timeline's Done step
   // offers the release instead.

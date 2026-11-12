@@ -119,7 +119,7 @@ export function PickerOptions<T>({ items, label, optionRefs, searchRef, keyOf, i
 }
 
 type ProjectChoice = { id: string | null; name: string; kind: "project" | "none" | "create" };
-const noProject: ProjectChoice = { id: null, name: "No project", kind: "none" };
+const noProject: ProjectChoice = { id: null, name: "No Project", kind: "none" };
 
 /** Arc Popover with Lane's existing project selection and creation contract. */
 export function ProjectPicker({ orgId, value, onChange, disabled, state, onBusyChange, error }: {

@@ -36,6 +36,12 @@ describe("restoredComposer", () => {
     const incomplete = { ...source("Saved"), expectedImpact: { ...plan, primary: { ...plan.primary, key: "" as const } } };
     expect(restoredComposer(draft({ source: incomplete, review: { triage: hybrid, token: "signed", editedProblem: "x" } })).review).toBeNull();
   });
+  // #280: a refused Edit Request reopens with the saved framing as the person reworded it.
+  it("keeps an edit's reworded framing, and none for a draft without it", () => {
+    const framing = { reframedProblem: "Buyers can't see delivery costs early.", extractedSolution: null };
+    expect(restoredComposer(draft({ ...composerDraft({ ...base, stage: "compose", framing }) })).framing).toEqual(framing);
+    expect(restoredComposer(draft({})).framing).toBeNull();
+  });
   it("restores reviewer picks and their question", () => {
     const people = [{ nominee: { kind: "member" as const, userId: "u1" }, name: "Sam", email: "sam@x.test" }];
     expect(restoredComposer(draft({ reviewers: { people, question: "Can we build it?" } }))).toMatchObject({ reviewers: people, reviewQuestion: "Can we build it?" });

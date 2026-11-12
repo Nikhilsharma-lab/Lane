@@ -41,3 +41,11 @@
 @media (pointer: coarse), (max-width: 640px) {
   .composer input, .composer textarea { font-size: var(--text-base); }
 }
+/* #280 (B9): the footer names the review answers a save will clear, on its own line above the actions. */
+.resetNote { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); text-wrap: pretty; }
+/* #280: before and after for each saved part an edit's re-check would change or remove. */
+.framingChanges { display: grid; gap: var(--space-2); padding: var(--space-4); border: var(--border-width) solid var(--border); border-radius: var(--radius-control); }
+.framingChangeList { display: grid; gap: var(--space-4); margin: 0; }
+.framingChange { display: grid; gap: var(--space-1); min-width: 0; }
+.framingChange dd { display: grid; grid-template-columns: calc(var(--spacing) * 14) minmax(0, 1fr); gap: var(--space-2); margin: 0; font-size: var(--text-sm); line-height: var(--leading-body); }
+.framingChangeWhen { color: var(--text-secondary); }

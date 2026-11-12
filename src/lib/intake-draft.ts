@@ -83,6 +83,11 @@ const intakeDraftSchema = z.object({
     .nullable(),
   // Older drafts have none; unreadable picks are dropped without losing the text.
   reviewers: reviewersDraftSchema.optional().catch(undefined),
+  // #280: an Edit Request's reworded saved framing, so a refused save reopens with it.
+  framing: z.object({
+    reframedProblem: z.string().max(DESCRIPTION_MAX).nullable(),
+    extractedSolution: z.string().max(DESCRIPTION_MAX).nullable(),
+  }).optional().catch(undefined),
 });
 
 export type IntakeDraft = {
@@ -97,6 +102,8 @@ export type IntakeDraft = {
     editedProblem: string;
   } | null;
   reviewers?: ReviewersDraft;
+  /** #280: an edit's saved framing as the person reworded it ("Problem to solve", "Suggested change"). */
+  framing?: { reframedProblem: string | null; extractedSolution: string | null };
 };
 
 export function readIntakeDraft(
