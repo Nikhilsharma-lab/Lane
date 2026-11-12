@@ -1,14 +1,16 @@
+import { refreshRequestList } from "@/app/(app)/list-refresh-actions"
 import { motionTokens } from "@/components/arc/lib/motion-tokens"
 import { prefersReducedMotion } from "@/components/motion/reduced-motion"
+import { callAction } from "@/lib/action-call"
 
 /**
  * #275: the list's feel. Rows slide into place, fade out as they leave and fade in as a group unfolds (#230 idea 8,
- * #256 user story 44), the list keeps its scroll position (A232), coming back to the tab reads fresh rows (#230 idea 9)
- * and a group reads the older Requests it should show (list-fill.ts). list-feel.ts, the hook DataTable calls, loads
- * this file once the page has loaded and is idle (after-page-load.ts) and runs it through `commit`, `mount` and
+ * #256 user story 44), the list keeps its scroll position (A232), coming back to a hidden tab reads fresh rows (#230
+ * idea 9) and a group reads the older Requests it should show (list-fill.ts). list-feel.ts, the hook DataTable calls,
+ * loads this file once the page has loaded and is idle (after-page-load.ts) and runs it through `commit`, `mount` and
  * `fillGroups`; until then the list works as before. The hook passes the grid's rows, `still` (changes when the list
- * itself does, so nothing slides), the list's address, its workspace and person (`scope`), and whether a change is
- * unconfirmed (no refresh then).
+ * itself does, so nothing slides), the list's address, its workspace and person (`scope`), the workspace whose rows
+ * are read again, and whether a change is unconfirmed (no read then).
  */
 export { fillGroups } from "./list-fill"
 
@@ -20,8 +22,6 @@ const STRIPPED = ["id", "role", "tabindex", "data-grid-row", "data-request-id", 
 const MOST_MOVES = 120
 /** A restore waits this many frames at most for the rows to reach the remembered position. */
 const RESTORE_FRAMES = 10
-/** Focus and visibility arrive together when a person comes back to the tab: one read covers both. */
-const SAME_RETURN_MS = 1000
 
 /** Where each list was last scrolled, by workspace and person: memory only, so a reload or sign-out drops it. */
 const places = new Map<string, { href: string; top: number }>()
@@ -105,31 +105,37 @@ export function keepPlace(element: HTMLElement, scope: string, address: () => st
 }
 
 /**
- * The tab becoming visible, or the window taking focus, reads the list again through the one server refresh, as
- * Inbox re-reads its list (decision 8.15). `refresh` does nothing offline, or while a change is unconfirmed (its own
- * response brings the fresh rows); pending optimistic changes apply over whatever rows arrive, so they stay shown.
+ * Coming back to a tab that was hidden reads the list again (decision 4a, 2026-11-12). A window focus while the tab
+ * stayed visible (coming back from another window) reads nothing.
  */
-export function refreshOnReturn(refresh: () => void) {
-  let last = 0
-  const read = () => { if (document.visibilityState !== "visible" || Date.now() - last < SAME_RETURN_MS) return; last = Date.now(); refresh() }
-  window.addEventListener("focus", read)
-  document.addEventListener("visibilitychange", read)
-  return () => { window.removeEventListener("focus", read); document.removeEventListener("visibilitychange", read) }
+export function refreshOnReturn(read: () => void) {
+  const returned = () => { if (document.visibilityState === "visible") read() }
+  document.addEventListener("visibilitychange", returned)
+  return () => document.removeEventListener("visibilitychange", returned)
+}
+
+/**
+ * One request: the fresh rows come back in the action's own response, and the pages the rows' links read ahead stay
+ * (list-refresh-actions.ts). Pending optimistic changes apply over whatever rows arrive, so they stay shown. Offline
+ * or on a failure the rows on screen stay, with nothing said, and the next return reads again.
+ */
+function readFreshRows(orgId: string) {
+  callAction(() => refreshRequestList({ orgId })).catch(() => {})
 }
 
 /** What list-feel.ts keeps for the list between commits. */
-export type Feel = RowMoves & { href: string; hold?: boolean; reread?: () => void; place?: ReturnType<typeof keepPlace> }
+export type Feel = RowMoves & { href: string; hold?: boolean; orgId?: string | null; place?: ReturnType<typeof keepPlace> }
 
 /** After each commit: rows slide into place, and a new address keeps the position the list has now. */
-export function commit(feel: Feel, grid: HTMLElement | null, still: string, href: string, hold: boolean, reread: () => void) {
-  Object.assign(feel, { hold, reread })
+export function commit(feel: Feel, grid: HTMLElement | null, still: string, href: string, hold: boolean, orgId: string | null) {
+  Object.assign(feel, { hold, orgId })
   moveRows(grid, still, feel)
   if (feel.href !== href) { feel.href = href; feel.place?.moved() }
 }
 
-/** While the list is shown: its place (for a workspace and person), and fresh rows on the tab's return unless a change is unconfirmed. */
+/** While the list is shown: its place (for a workspace and person), and fresh rows on a hidden tab's return unless a change is unconfirmed. */
 export function mount(feel: Feel, scroller: HTMLElement | null, scope: string | null) {
   const place = feel.place = scroller && scope ? keepPlace(scroller, scope, () => feel.href) : undefined
-  const stop = refreshOnReturn(() => { if (!feel.hold) feel.reread?.() })
+  const stop = refreshOnReturn(() => { if (!feel.hold && feel.orgId) readFreshRows(feel.orgId) })
   return () => { place?.stop(); stop() }
 }
