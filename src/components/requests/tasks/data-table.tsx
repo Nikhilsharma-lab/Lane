@@ -157,9 +157,9 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
   // preview. A change made in the preview that moves its Request out of the view does not: that
   // is no view change.
   const viewSignature = viewResets.preview(view)
-  // #275: rows slide into place, Back finds the list where it was (A232), the tab's return reads fresh rows.
+  // #275: rows slide into place, Back finds the list where it was (A232), a hidden tab's return reads fresh rows.
   // A212: and a group reads the older Requests it should show (a reload, or a Show more whose read added none of its own).
-  useListFeel({ grid: gridRef, scroller: scrollRef, rows: gridKeys, still: viewSignature, href: listViewHref(view), scope: context && viewer ? `${context.orgId}:${viewer.id}` : null, hold, groups, shownCounts: view.shownCounts, older })
+  useListFeel({ grid: gridRef, scroller: scrollRef, rows: gridKeys, still: viewSignature, href: listViewHref(view), scope: context && viewer ? `${context.orgId}:${viewer.id}` : null, orgId: context?.orgId ?? null, hold, groups, shownCounts: view.shownCounts, older })
   const [peekView, setPeekView] = useState(viewSignature)
   if (peekView !== viewSignature) {
     setPeekView(viewSignature)

@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useState, type RefObject } from "react"
 import { afterPageLoad } from "@/lib/after-page-load"
-import { useServerRefresh } from "./use-optimistic-action"
 import type { OlderFill } from "./list-fill"
 import type { ListGroup } from "./list-view-model"
 
@@ -18,7 +17,9 @@ export type ListFeelInput = {
   href: string
   /** The workspace and person whose scroll position is kept; null (no workspace) keeps none. */
   scope: string | null
-  /** A change is unconfirmed: no refresh on the tab's return. */
+  /** The workspace whose rows a hidden tab's return reads again; null (no workspace) reads none. */
+  orgId: string | null
+  /** A change is unconfirmed: no read on the tab's return. */
   hold: boolean
   /** A212: the groups, the count each should show and the older reads that fill them (none without a workspace). */
   groups: ListGroup[]
@@ -27,12 +28,11 @@ export type ListFeelInput = {
 }
 
 /** #275: loads list-motion.ts after the page and runs it; its notes say what each part does and why. */
-export function useListFeel({ grid, scroller, rows, still, href, scope, hold, groups, shownCounts, older }: ListFeelInput) {
+export function useListFeel({ grid, scroller, rows, still, href, scope, orgId, hold, groups, shownCounts, older }: ListFeelInput) {
   const [code, setCode] = useState(motion)
   useEffect(() => code ? undefined : afterPageLoad(() => { void import("./list-motion").then(module => setCode(motion = module)) }), [code])
-  const refresh = useServerRefresh()
   const [feel] = useState(() => ({ running: new Set<Animation>(), href }))
-  useLayoutEffect(() => { code?.commit(feel, grid.current, still, href, hold, refresh) }, [code, feel, grid, rows, still, href, hold, refresh])
+  useLayoutEffect(() => { code?.commit(feel, grid.current, still, href, hold, orgId) }, [code, feel, grid, rows, still, href, hold, orgId])
   useLayoutEffect(() => code?.mount(feel, scroller.current, scope), [code, feel, scroller, scope])
   useEffect(() => { if (older) code?.fillGroups(groups, shownCounts, older) }, [code, groups, shownCounts, older])
 }
