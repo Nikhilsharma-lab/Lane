@@ -14,7 +14,7 @@ export async function compiledActionId(filename: string, exportedName: string) {
  * #279: holds the page's next call of one server action until `release`, then sends it on unchanged, so a check can
  * see what the page shows before the server has answered. Only that action is held; the page's reads go through.
  */
-export async function holdNextAction(page: Page, filename: string, exportedName: string) {
+export async function holdNextAction(page: Page, filename: string, exportedName: string, path = "**/requests/**") {
   const action = await compiledActionId(filename, exportedName);
   const released = Promise.withResolvers<void>();
   const seen = Promise.withResolvers<void>();
@@ -27,9 +27,10 @@ export async function holdNextAction(page: Page, filename: string, exportedName:
     await released.promise;
     await route.continue().finally(() => sent.resolve());
   };
-  await page.route("**/*", handler);
+  // Only the Request page's own posts: Clerk's requests have routes of their own in these tests.
+  await page.route(path, handler);
   return {
     seen: seen.promise,
-    async release() { released.resolve(); await sent.promise; await page.unroute("**/*", handler); },
+    async release() { released.resolve(); await sent.promise; await page.unroute(path, handler); },
   };
 }

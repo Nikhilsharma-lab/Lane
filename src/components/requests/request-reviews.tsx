@@ -105,19 +105,23 @@ export function RequestReviews({
   }, [setView]);
   const load = useCallback(async () => {
     const at = changes.current;
+    const current = () => at === changes.current && !running.current;
     try {
       const result = await callAction(() => actions.readReviews(requestId, { orgId }));
-      if (at === changes.current) applyView(result);
+      if (current()) applyView(result);
     } catch {
-      if (at === changes.current) setError("Couldn’t load reviews. Try again.");
+      if (current()) setError("Couldn’t load reviews. Try again.");
     }
   }, [applyView, requestId, orgId]);
   useEffect(() => {
     if (deferred) return;
     let active = true;
+    // A change made while this read was out shows what it did; the read that change makes comes after it.
+    const at = changes.current;
+    const current = () => active && at === changes.current && !running.current;
     void callAction(() => actions.readReviews(requestId, { orgId }))
-      .then((result) => { if (active) applyView(result); })
-      .catch(() => { if (active) setError("Couldn’t load reviews. Try again."); });
+      .then((result) => { if (current()) applyView(result); })
+      .catch(() => { if (current()) setError("Couldn’t load reviews. Try again."); });
     return () => { active = false; };
   }, [applyView, requestId, orgId, revision, deferred]);
 
