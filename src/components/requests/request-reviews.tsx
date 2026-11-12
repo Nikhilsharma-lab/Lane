@@ -204,6 +204,9 @@ export function RequestReviews({
     requestAnimationFrame(() => focusWithoutScroll(rowControl(reviewer.id, "[data-review-answer]")));
   }
 
+  // While a change is on its way the buttons wait (it is sent against the list's revision) but keep focus, so focus
+  // can rest on the button a change just showed.
+  const held = busy || undefined;
   const answerForm = usePopupCode(answerCode, answerOpen, () => couldNotOpen("review-answer", setAnswerOpen));
   const [addPressed, setAddPressed] = useState(false);
   useEffect(() => { if (!isGuest) addCode.preload(); }, [isGuest]);
@@ -271,16 +274,16 @@ export function RequestReviews({
                 <span className={decision?.kind === "concern" ? styles.warning : styles.muted}>{reviewStatusLabel(reviewer, view.open)}</span>
                 <span className={styles.controls}>
                   {reviewer.canAnswer && (decision
-                    ? <Button variant="secondary" data-review-answer="" disabled={busy} {...ahead}
-                      onClick={() => { setAnswering({ id: reviewer.id, changing: true, initial: { kind: decision.kind, reason: decision.reason }, error: "" }); setAnswerOpen(true); }}>Change answer</Button>
+                    ? <Button variant="secondary" data-review-answer="" aria-disabled={held} {...ahead}
+                      onClick={() => { if (busy) return; setAnswering({ id: reviewer.id, changing: true, initial: { kind: decision.kind, reason: decision.reason }, error: "" }); setAnswerOpen(true); }}>Change answer</Button>
                     : <>
                       {/* #279 (B13): secondary, so the strip's Pick up stays the one main button. */}
-                      <Button variant="secondary" disabled={busy} onClick={() => looksGood(reviewer)}>Looks good</Button>
-                      <Button variant="secondary" data-review-answer="" disabled={busy} {...ahead}
-                        onClick={() => { setAnswering({ id: reviewer.id, changing: false, initial: { kind: "concern", reason: "" }, error: "" }); setAnswerOpen(true); }}>Raise a concern</Button>
+                      <Button variant="secondary" aria-disabled={held} onClick={() => { if (!busy) looksGood(reviewer); }}>Looks good</Button>
+                      <Button variant="secondary" data-review-answer="" aria-disabled={held} {...ahead}
+                        onClick={() => { if (busy) return; setAnswering({ id: reviewer.id, changing: false, initial: { kind: "concern", reason: "" }, error: "" }); setAnswerOpen(true); }}>Raise a concern</Button>
                     </>)}
                   {view.canRemove && (
-                    <Button variant="ghost" disabled={busy || pending} aria-label={`Remove ${reviewer.name}`} onClick={() => void remove(reviewer)}>Remove</Button>
+                    <Button variant="ghost" disabled={pending} aria-disabled={held} aria-label={`Remove ${reviewer.name}`} onClick={() => { if (!busy) void remove(reviewer); }}>Remove</Button>
                   )}
                 </span>
                 {reviewer.note && <p className={`${styles.reason} ${styles.muted}`}>Asked: {reviewer.note}</p>}
