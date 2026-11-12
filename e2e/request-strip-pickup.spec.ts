@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
 import { answerIsItLive } from "./helpers/journey";
+import { runningActionManifestPath } from "./helpers/server-action-identity";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 
@@ -31,17 +33,27 @@ async function seedRequest(orgId: string, userId: string, title: string, current
   } finally { await sql.end(); }
 }
 
-/** Holds this Request's next server action until `release`, then fails it as a lost response would. */
-async function holdNextAction(page: Page, requestId: string) {
+/** The compiled id of one of the moves in the app this checkout's Playwright config launched. */
+async function moveActionId(exportedName: "pickUpRequest" | "markDone") {
+  const manifest: { node: Record<string, { filename?: string; exportedName?: string }> } = JSON.parse(await readFile(runningActionManifestPath(), "utf8"));
+  const [id] = Object.entries(manifest.node).find(([, item]) => item.filename === "src/app/(app)/requests/[id]/actions.ts" && item.exportedName === exportedName) ?? [];
+  if (!id) throw new Error(`No compiled ${exportedName}`);
+  return id;
+}
+
+/** Holds this Request's next `move` until `release`, then fails it as a lost response would. The page's own reads
+ * (the Journey, Iterations) are server actions too, so only the move's compiled id is held. */
+async function holdNextAction(page: Page, requestId: string, move: "pickUpRequest" | "markDone") {
+  const action = await moveActionId(move);
   const path = `**/requests/${requestId}**`;
   const released = Promise.withResolvers<void>();
   const seen = Promise.withResolvers<void>();
   const failed = Promise.withResolvers<void>();
   let count = 0;
   await page.route(path, async route => {
-    if (route.request().method() !== "POST" || !route.request().headers()["next-action"]) return route.continue();
+    if (route.request().method() !== "POST" || route.request().headers()["next-action"] !== action) return route.fallback();
     count++;
-    if (count > 1) return route.continue();
+    if (count > 1) return route.fallback();
     seen.resolve();
     await released.promise;
     await route.abort("failed");
@@ -87,10 +99,15 @@ test("a greyed Pick up says why in the strip, not only on hover (B19)", async ({
       const reason = strip(page).getByText("Add the current value before picking up this Request.", { exact: true });
       await expect(reason).toBeVisible();
       expect((await reason.boundingBox())?.width ?? 0, `the reason is laid out as text at ${width}px`).toBeGreaterThan(40);
-      await expect(strip(page).getByRole("button", { name: "Pick up", exact: true })).toBeDisabled();
+      // On a phone the reason stands alone in the slot; wider, it sits beside a greyed Pick up.
+      if (width > 640) await expect(strip(page).getByRole("button", { name: "Pick up", exact: true })).toBeDisabled();
+      else await expect(strip(page).getByRole("button", { name: "Pick up", exact: true })).toBeHidden();
       // Nothing in the strip is pushed past the screen's edge.
       const edge = await page.locator('[data-slot="page-strip"]').first().evaluate(element => ({ scroll: element.scrollWidth, client: element.clientWidth }));
       expect(edge.scroll, `the strip fits at ${width}px`).toBeLessThanOrEqual(edge.client + 1);
+      // The Request's code stays whole beside it.
+      const code = page.locator('[data-slot="page-strip"] li[aria-current="page"] > *').first();
+      expect(await code.evaluate(element => element.scrollWidth <= element.clientWidth + 1), `the code is whole at ${width}px`).toBe(true);
       await page.screenshot({ path: info.outputPath(`strip-reason-${width}.png`) });
     }
   } finally {
@@ -112,16 +129,22 @@ test("Pick up and Mark Done show the next state at once and roll back on a refus
     await expect(pickUp).toBeEnabled();
 
     // Pick up: Mark Done shows in the same moment, not pressable and not yet busy; busy only past the delay.
-    let held = await holdNextAction(page, id);
+    let held = await holdNextAction(page, id, "pickUpRequest");
     const picked = await pressAndWatch(page, "Pick up");
     expect(picked.ms, "first change after Pick up").toBeLessThanOrEqual(100);
     expect(picked).toMatchObject({ next: "Mark Done", disabled: "true", busy: null });
     await held.seen;
     await expect(markDone).toHaveAttribute("aria-busy", "true");
     // The double-submit guard: pressing the new Mark Done sends nothing.
+    const markDoneId = await moveActionId("markDone");
+    let doneSent = 0;
+    const watchDone = (request: import("@playwright/test").Request) => { if (request.method() === "POST" && request.headers()["next-action"] === markDoneId) doneSent++; };
+    page.on("request", watchDone);
     await markDone.evaluate((button: HTMLButtonElement) => button.click());
     await page.waitForTimeout(300);
+    page.off("request", watchDone);
     expect(held.count()).toBe(1);
+    expect(doneSent, "Mark Done pressed before the pick up was confirmed").toBe(0);
     await held.release();
     await expect(toasts(page)).toContainText("Try again if this Request is still Open");
     await expect(pickUp).toBeEnabled();
@@ -133,7 +156,7 @@ test("Pick up and Mark Done show the next state at once and roll back on a refus
     await expect(markDone).not.toHaveAttribute("aria-disabled", "true");
 
     // Mark Done: the strip empties at once (Done has no next move here); a refusal brings Mark Done back.
-    held = await holdNextAction(page, id);
+    held = await holdNextAction(page, id, "markDone");
     const done = await pressAndWatch(page, "Mark Done");
     expect(done.ms, "first change after Mark Done").toBeLessThanOrEqual(100);
     expect(done.next).toBeNull();
@@ -145,7 +168,7 @@ test("Pick up and Mark Done show the next state at once and roll back on a refus
     await markDone.click();
     await answerIsItLive(page, "not yet");
     await expect(markDone).toHaveCount(0);
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-detail-panel] [data-detail-status]")).toHaveAttribute("data-status", "done");
   } finally {
     if (user) try { await cleanupTestWorkspace(user.id); } finally { await deleteTestUser(user.id); }

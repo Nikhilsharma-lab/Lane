@@ -103,13 +103,13 @@ test("a taken-on Guest submission can't be picked up before its goal is set (Z2)
     // The server refuses the move with the same words.
     await page.goto(`/requests/${requestId}`);
     expect(await callPickUp(page, requestId, orgId)).toEqual({ error: "Set the goal before picking up this Request." });
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expectVisibleReason(page, "Set the goal before picking up this Request.");
 
     // Once the goal is saved, Pick up is offered.
     const db = e2eDatabase();
     try { await db`UPDATE requests SET expected_impact = ${db.json(GOAL)} WHERE id = ${requestId}`; } finally { await db.end(); }
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(strip(page).getByRole("button", { name: "Pick up", exact: true })).toBeEnabled();
   } finally {
     if (user) try { await cleanupTestWorkspace(user.id); } finally {

@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
+import { runningActionManifestPath } from "./helpers/server-action-identity";
 
 /**
  * #280: an honest Edit Request. A title-only edit keeps "Problem to solve" and "Suggested change" (B8); before
@@ -72,7 +74,7 @@ test("a title-only edit keeps Problem to solve and Suggested change, with no rev
     await expect(editor(page)).toBeHidden();
     await expect(page.getByRole("region", { name: /^Messages/ })).toContainText("Changes saved", { timeout: 20_000 });
 
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("#request-title")).toHaveText("Delivery costs show only at payment");
     await expect(page.getByText(PROBLEM, { exact: true }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Suggested change", exact: true })).toBeVisible();
@@ -105,9 +107,13 @@ test("the Edit dialog names the review answers a save clears, closes at once and
     await expect(editor(page).getByRole("button", { name: "Save changes", exact: true })).toHaveAccessibleDescription(/Saving clears Daniel’s concern/);
 
     // The server refuses this save: the dialog has already closed with the new title on the page, then reopens with it.
+    const manifest: { node: Record<string, { filename?: string; exportedName?: string }> } = JSON.parse(await readFile(runningActionManifestPath(), "utf8"));
+    const [saveId] = Object.entries(manifest.node).find(([, item]) => item.filename === "src/app/(app)/requests/[id]/edit-actions.ts" && item.exportedName === "saveRequestEdits") ?? [];
+    expect(saveId).toBeTruthy();
     const path = `**/requests/${id}**`;
     await page.route(path, async route => {
-      if (route.request().method() !== "POST" || !route.request().headers()["next-action"]) return route.continue();
+      // The page's own reads are server actions too: hold only the save.
+      if (route.request().method() !== "POST" || route.request().headers()["next-action"] !== saveId) return route.fallback();
       await new Promise(resolve => setTimeout(resolve, 600));
       await route.abort("failed");
     });
@@ -124,7 +130,7 @@ test("the Edit dialog names the review answers a save clears, closes at once and
     await editor(page).getByRole("button", { name: "Save changes", exact: true }).click();
     await expect(editor(page)).toBeHidden({ timeout: 1_000 });
     await expect(page.getByRole("region", { name: /^Messages/ })).toContainText("Changes saved", { timeout: 20_000 });
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("#request-title")).toHaveText("Delivery costs show only at payment");
     await openEditor(page);
     await editor(page).getByRole("textbox", { name: "Request title" }).fill("Delivery costs appear late");

@@ -105,7 +105,7 @@ export function LifecycleButtons({
   if (move.blockedReason) return (
     <div ref={slot} data-slot="request-lifecycle-actions" className={styles.blocked}>
       <p id={reasonId} className={styles.reason}>{pickupBlockedMessage(move.blockedReason, pickupRequester)}</p>
-      <Button size="sm" disabled aria-describedby={reasonId}>Pick up</Button>
+      <Button size="sm" disabled aria-describedby={reasonId} className={styles.greyed}>Pick up</Button>
     </div>
   );
 
