@@ -39,6 +39,10 @@ export const addReviewersSchema = z
 export const removeReviewerSchema = z
   .object({ reviewerId: z.uuid() })
   .strict();
+/** #279: Undo after removing a reviewer names the reviewer the removal took off. */
+export const restoreReviewerSchema = z
+  .object({ reviewerId: z.uuid() })
+  .strict();
 export const answerReviewSchema = z
   .object({
     reviewerId: z.uuid(),
