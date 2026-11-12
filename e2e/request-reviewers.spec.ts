@@ -52,7 +52,7 @@ test("a reviewer added while creating raises a concern; pickup confirms, then go
         await confirmation.getByRole("button", { name: "Pick up anyway", exact: true }).click();
         await expect(confirmation).toHaveCount(0);
         // Wait for the saved pickup before reloading, or the reload can cancel it.
-        await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeEnabled({ timeout: 20_000 });
         // Afterwards the list is a record.
         await page.reload();
         const reviewers = page.getByRole("region", { name: "Reviewers", exact: true });

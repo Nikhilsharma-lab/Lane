@@ -116,8 +116,8 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       // C2-1 and C2-3: a Journey step form. Opening moves focus into it, Cancel hands it back to its button.
       const lifecycle = page.locator('[data-slot="request-lifecycle-actions"]:visible');
       await lifecycle.getByRole("button", { name: "Pick up", exact: true }).click();
-      // Wait for the saved pickup before reloading, as request-release.spec.ts does.
-      await expect(lifecycle.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible({ timeout: 20_000 });
+      // Wait for the saved pickup before reloading: Mark Done shows at once and is pressable once it is saved (#280).
+      await expect(lifecycle.getByRole("button", { name: "Mark Done", exact: true })).toBeEnabled({ timeout: 20_000 });
       await openRequest(page, id);
       const journey = page.getByRole("region", { name: "Journey", exact: true });
       const closeWithout = journey.getByRole("button", { name: /^Close without a result/ });
