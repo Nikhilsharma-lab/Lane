@@ -4,7 +4,7 @@ import { Input } from "@/components/arc/input/input"
 import { Textarea } from "@/components/arc/textarea/textarea"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
 import { Button } from "@/components/arc/button/button"
-import { DatePicker } from "@/components/arc/date-picker/date-picker"
+import { DatePicker, preloadDatePicker } from "@/components/date-picker-lazy"
 import { changeRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
 import type { ReleaseFact } from "@/lib/request-release"
 import { localDate, localDay } from "@/lib/local-day"
@@ -14,6 +14,8 @@ import { useEscapeClosesPickerFirst } from "./picker-escape"
 import styles from "./request-timeline.module.css"
 import noteStyles from "./is-it-live.module.css"
 import popupStyles from "@/components/popup/popup.module.css"
+
+preloadDatePicker()
 
 /** What the release form reads: the Request's release read, shared by the Journey and "Is it live?". */
 export type ReleaseRead = {

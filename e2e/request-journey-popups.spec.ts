@@ -230,7 +230,9 @@ test.describe("#277 Journey popups and the one release form", () => {
       const lifecycle = page.locator('[data-slot="request-lifecycle-actions"]:visible');
       const messages = page.getByRole("region", { name: /^Messages/ });
       await lifecycle.getByRole("button", { name: "Pick up", exact: true }).click();
-      await lifecycle.getByRole("button", { name: "Mark Done", exact: true }).click({ timeout: 20_000 });
+      // Mark Done shows at once and is pressable once the pickup is saved (#280).
+      await expect(lifecycle.getByRole("button", { name: "Mark Done", exact: true })).toBeEnabled({ timeout: 20_000 });
+      await lifecycle.getByRole("button", { name: "Mark Done", exact: true }).click();
 
       // C2-12: while Is it live? is open, the Marked Done toast steps aside instead of covering it.
       const live = isItLivePrompt(page);
