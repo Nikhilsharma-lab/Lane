@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page, type Request, type Route } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, getTestWorkspaceId } from "./helpers/cleanup";
 import { answerIsItLive, journey, journeyStep, recordReleaseInPrompt } from "./helpers/journey";
-import { observeJourneyReads, type JourneyReads } from "./helpers/journey-refresh";
+import { compiledJourneyRead } from "./helpers/server-action-identity";
 import { toastRegion } from "./helpers/mark-done-undo";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
@@ -39,24 +39,46 @@ async function seedRequest(userId: string, title: string, more: { status?: "open
   }
 }
 
+/** This Request's Journey reads, by the running build's own action identity. */
+async function journeyReads(requestId: string, orgId: string) {
+  const { id } = await compiledJourneyRead();
+  return (request: Request) => {
+    if (request.method() !== "POST" || request.headers()["next-action"] !== id) return false;
+    try {
+      const args: unknown = JSON.parse(request.postData() ?? "null");
+      return Array.isArray(args) && args[0] === requestId && (args[1] as { orgId?: string } | null)?.orgId === orgId;
+    } catch { return false; }
+  };
+}
+
 /** Holds every Journey read until released: what the Journey shows meanwhile comes from the live Request alone. */
-async function holdJourneyReads(page: Page, reads: JourneyReads) {
+async function holdJourneyReads(page: Page, matches: (request: Request) => boolean) {
   const gate = Promise.withResolvers<void>();
-  let held = 0;
-  const handler = async (route: Route) => {
-    if (!reads.matches(route.request())) return route.fallback();
-    held++;
-    await gate.promise;
-    await route.continue();
+  const held: Promise<void>[] = [];
+  const handler = (route: Route) => {
+    if (!matches(route.request())) return route.fallback();
+    const sent = gate.promise.then(() => route.continue());
+    held.push(sent);
+    return sent;
   };
   await page.route("**/requests/**", handler);
   return {
-    held: () => held,
+    held: () => held.length,
     async release() {
+      // Every held read is sent on before the route goes, so none is left to the default handling.
       gate.resolve();
+      await Promise.all(held);
       await page.unroute("**/requests/**", handler);
     },
   };
+}
+
+/** The workspace's rows go where they can: one with release history keeps them (history is immutable). The user and
+ * their Clerk workspace go either way. */
+async function cleanup(userId: string) {
+  try {
+    await cleanupTestWorkspace(userId).catch(error => console.warn(`[e2e] kept the local rows of ${userId}'s workspace:`, (error as Error).message));
+  } finally { await deleteTestUser(userId); }
 }
 
 const strip = (page: Page) => page.locator('[data-slot="request-lifecycle-actions"]:visible');
@@ -68,10 +90,12 @@ test.describe("the Journey stays current (#278)", () => {
     try {
       const orgId = await provisionAndSignIn(page, user, { name: "Jo Journey", workspaceName: "Journey current" });
       const id = await seedRequest(user.id, "Saved cards survive a failed payment");
-      const reads = await observeJourneyReads(page, id, orgId);
-      await expect(journeyStep(page, "Open", "current step")).toBeVisible();
-      const navigations: string[] = [];
-      page.on("framenavigated", frame => { if (frame === page.mainFrame()) navigations.push(frame.url()); });
+      const reads = await journeyReads(id, orgId);
+      await page.goto(`/requests/${id}`);
+      await expect(journeyStep(page, "Open", "current step")).toBeVisible({ timeout: 30_000 });
+      await expect(journey(page).getByText("Loading journey…", { exact: true })).toHaveCount(0);
+      // A mark on this document: a reload would start a new one without it.
+      await page.evaluate(() => { (window as Window & { journeyNoReload?: boolean }).journeyNoReload = true; });
 
       // Pick up: the Journey moves with the strip while its reads are still out, then fills in what they say.
       let hold = await holdJourneyReads(page, reads);
@@ -109,10 +133,9 @@ test.describe("the Journey stays current (#278)", () => {
       await expect(toastRegion(page)).toContainText("Request closed");
       await hold.release();
       await expect(closed).toContainText("Closed without a result at Done: Rolled back.", { timeout: 20_000 });
-      reads.stop();
-      expect(navigations).toEqual([]);
+      expect(await page.evaluate(() => (window as Window & { journeyNoReload?: boolean }).journeyNoReload)).toBe(true);
     } finally {
-      try { await cleanupTestWorkspace(user.id); } finally { await deleteTestUser(user.id); }
+      await cleanup(user.id);
     }
   });
 
@@ -167,7 +190,7 @@ test.describe("the Journey stays current (#278)", () => {
       await expect(measuring.getByRole("button", { name: "More", exact: true })).toBeFocused();
       await page.screenshot({ path: test.info().outputPath("B36-measuring-overdue-1440-light.png"), fullPage: true });
     } finally {
-      try { await cleanupTestWorkspace(user.id); } finally { await deleteTestUser(user.id); }
+      await cleanup(user.id);
     }
   });
 
@@ -224,7 +247,7 @@ test.describe("the Journey stays current (#278)", () => {
       await expect(lateReopen).toHaveCount(0);
       await expect(journeyStep(page, "Done", "current step").getByRole("button", { name: "Record release", exact: true })).toBeVisible();
     } finally {
-      try { await cleanupTestWorkspace(user.id); } finally { await deleteTestUser(user.id); }
+      await cleanup(user.id);
     }
   });
 });

@@ -123,11 +123,14 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
   // Pickup, Done and Reopen change status without changing the journey revision. Read again whenever the shown status
   // moves, once the move has answered (so the read sees it), in the same lifetime, deferred while a form is open.
   const liveStatus = live.status
+  const serverStatus = request.status
   useEffect(() => {
+    // Nothing on its way: read now, as the page loads.
+    if (liveStatus === serverStatus || !overlay) { void refresh.reload(); return }
     let current = true
-    void (overlay?.settled(requestId) ?? Promise.resolve(true)).then(() => { if (current) void refresh.reload() })
+    void overlay.settled(requestId).then(() => { if (current) void refresh.reload() })
     return () => { current = false }
-  }, [refresh, overlay, requestId, revision, request.status, liveStatus])
+  }, [refresh, overlay, requestId, revision, serverStatus, liveStatus])
   const today = views?.release.today
   useEffect(() => {
     if (today) return watchJourneyDate(today, () => { void refresh.reload() })
