@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, type Ref } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { Button } from "@/components/arc/button/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { SearchField } from "@/components/arc/search-field/search-field";
@@ -19,7 +19,7 @@ import pickerStyles from "./request-property-pickers.module.css";
  * Closing it any other way (Escape, a press outside) keeps the picks and the question for the next opening, so nothing
  * typed is lost and nothing needs asking.
  */
-export function AddReviewerPopover({ orgId, unavailable, canInvite, slots, onAdd, triggerRef, className }: {
+export function AddReviewerPopover({ orgId, unavailable, canInvite, slots, onAdd, triggerRef, className, defaultOpen = false }: {
   orgId: string;
   /** Who can't be picked: the viewer, the Requester and anyone already reviewing (readReviews' `unavailable`). */
   unavailable: string[];
@@ -29,13 +29,16 @@ export function AddReviewerPopover({ orgId, unavailable, canInvite, slots, onAdd
   onAdd: (people: ReviewerChoice[], note: string) => void;
   triggerRef?: Ref<HTMLButtonElement>;
   className?: string;
+  /** Pressed before this code arrived: it opens as it arrives. */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [query, setQuery] = useState("");
   const [chosen, setChosen] = useState<ReviewerChoice[]>([]);
   const [note, setNote] = useState("");
   const { people, loading, error, load } = useReviewerPeople(orgId);
   const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (defaultOpen) void load(); }, [defaultOpen, load]);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const chosenKeys = new Set(chosen.map((person) => reviewerKey(person.nominee)));
