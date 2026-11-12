@@ -80,10 +80,11 @@ export async function prepareMoveCoordination(page: Page, orgId: string, fixture
   await capture("current-value-empty-without-ai");
   await page.goto(`/requests/${fixture.b.id}`);
   const panel = page.getByRole("region", { name: "Reviewers", exact: true });
+  // #279: Add reviewer is an Arc popover, portalled outside the section.
   await panel.getByRole("button", { name: "Add reviewer", exact: true }).click();
-  await panel.getByRole("combobox", { name: "Reviewer", exact: true }).click();
-  await page.getByRole("option", { name: fixture.reviewerName, exact: true }).click();
-  const change = await beginCoordinatedChange(page, orgId, "reviewers", [fixture.b.id], recorder, () => panel.getByRole("button", { name: "Add reviewer", exact: true }).press("Enter"));
+  const popover = page.getByRole("dialog", { name: "Add reviewer", exact: true });
+  await popover.getByRole("option").filter({ has: page.getByText(fixture.reviewerName, { exact: true }) }).click();
+  const change = await beginCoordinatedChange(page, orgId, "reviewers", [fixture.b.id], recorder, () => popover.getByRole("button", { name: "Add reviewer", exact: true }).press("Enter"));
   await change.finish();
   await expect(panel.getByRole("listitem").filter({ hasText: fixture.reviewerName })).toContainText("Waiting");
   await capture("existing-optional-reviewer-waiting");
