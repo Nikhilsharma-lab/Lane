@@ -6,6 +6,7 @@ import { Button } from "@/components/arc/button/button"
 import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
 import { IS_IT_LIVE_COPY, type IsItLiveRequest } from "./is-it-live"
 import { ReleaseForm } from "./release-form"
+import { FocusOnArrival } from "./focus-on-arrival"
 import detailStyles from "./detail.module.css"
 import styles from "./is-it-live.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
@@ -13,9 +14,9 @@ import { Placeholder } from "@/components/loading/placeholder";
 type ReleaseRead = Awaited<ReturnType<typeof readRequestRelease>>
 
 /**
- * #135: "Yes, record release": the release form for the Request just marked Done, from the same release read as
- * the timeline, with today (UTC) as the exposure date. Loaded only when chosen, so it stays out of every page's
- * first load.
+ * #135: "Yes, record release": the release form for the Request just marked Done, from the same release read as the
+ * Journey, with the same defaults as the Journey's Record release (#277). Loaded only when chosen, so it stays out of
+ * every page's first load.
  */
 export function IsItLiveRelease({ request, orgId, onSaved, onNotYet }: { request: IsItLiveRequest; orgId: string; onSaved: () => void; onNotYet: () => void }) {
   const [read, setRead] = useState<ReleaseRead | null>(null)
@@ -31,8 +32,5 @@ export function IsItLiveRelease({ request, orgId, onSaved, onNotYet }: { request
   if (!read) return <Placeholder label="Loading release" lines={2} />
   if ("error" in read) return <><p role="alert">{read.error}</p>{notYet}</>
   if (!read.actions.release.allowed) return <><p className={styles.note}>{read.actions.release.reason}</p>{notYet}</>
-  return <ReleaseForm requestId={request.id} orgId={orgId} revision={read.revision} audience={read.audience}
-    earliestExposure={read.earliestExposure} today={read.today} valueBefore={read.valueBefore} defaultExposureDate={read.today}
-    intro={<p className={styles.note}>{IS_IT_LIVE_COPY.endsUndo}</p>}
-    onSaved={onSaved} onCancel={onNotYet} cancelLabel={IS_IT_LIVE_COPY.notYet} />
+  return <FocusOnArrival><ReleaseForm requestId={request.id} orgId={orgId} read={read} onSaved={onSaved} onCancel={onNotYet} cancelLabel={IS_IT_LIVE_COPY.notYet} /></FocusOnArrival>
 }

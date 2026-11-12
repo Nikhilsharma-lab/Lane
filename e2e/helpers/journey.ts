@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { IS_IT_LIVE_COPY } from "../../src/components/requests/is-it-live";
 
 // #127 journey helpers: the "Is it live?" prompt after Mark Done (#135), the
@@ -11,6 +11,10 @@ export const isItLivePrompt = (page: Page) =>
 /** The prompt's release step, after "Yes, record release". */
 export const isItLiveRelease = (page: Page) =>
   page.getByRole("dialog", { name: IS_IT_LIVE_COPY.releaseTitle, exact: true });
+
+/** A Journey action's popup (#277), titled with the action's name. */
+export const journeyPopup = (page: Page, title: string) =>
+  page.getByRole("dialog", { name: title, exact: true });
 
 /** The Request page's timeline: Open → In progress → Done → Measuring → Closed. */
 export const journey = (page: Page) =>
@@ -36,11 +40,12 @@ export async function answerIsItLive(page: Page, answer: "not yet" | "yes") {
 /** Records today's release in the prompt's release step and waits for its confirmation. */
 export async function recordReleaseInPrompt(page: Page, evidence: string) {
   const form = isItLiveRelease(page);
-  const today = new Date().toISOString().slice(0, 10);
-  await expect(form.getByLabel("Release date", { exact: true })).toHaveValue(today);
+  // #277: the release date starts as today, in the browser's own zone.
+  const today = await page.evaluate(() => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date()));
+  await expect(form.getByRole("button", { name: "Release date", exact: true })).toContainText(today);
   await expect(form.getByText(IS_IT_LIVE_COPY.endsUndo, { exact: true })).toBeVisible();
-  // The helper's measured plan (current 62%) requires the value before release, in its unit.
-  await form.getByLabel("Value before release (%)", { exact: true }).fill("62");
+  // The helper's measured plan (current 62%) requires the value before release, in its unit; it starts there.
+  await expect(form.getByLabel("Value before release (%)", { exact: true })).toHaveValue("62");
   await form.getByLabel("Release evidence", { exact: true }).fill(evidence);
   await form.getByRole("checkbox", { name: "The agreed audience received this work" }).check();
   await form.getByRole("button", { name: "Mark as released", exact: true }).click();
@@ -53,3 +58,17 @@ export async function chooseJourneyMore(page: Page, name: string) {
   await journey(page).getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menu", { name: "More", exact: true }).getByRole("menuitem", { name, exact: true }).click();
 }
+
+/**
+ * #277: picks the earliest day the release date picker offers (the pickup day in the viewer's zone): opens its calendar,
+ * pages back past it (the calendar stops at its earliest day) and chooses that day.
+ */
+export async function pickEarliestReleaseDay(page: Page, form: Locator) {
+  await form.getByRole("button", { name: "Release date", exact: true }).click();
+  const calendar = form.getByRole("dialog", { name: "Release date calendar", exact: true });
+  await expect(calendar).toBeVisible();
+  for (let i = 0; i < 4; i++) await page.keyboard.press("PageUp");
+  await page.keyboard.press("Enter");
+  await expect(calendar).toHaveCount(0);
+}
+

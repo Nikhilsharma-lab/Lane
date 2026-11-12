@@ -501,6 +501,12 @@ and follow-through, engineering owns deployment in its tools, and design checks 
 Links do not imply automatic integrations or release automation. Partial-release representation and control
 details must be resolved in the release increment's plan before implementation.
 
+**Release date bounds, 2026-11-09 (#277, #235 item 8):** the release date can be no earlier than the day the work
+was picked up (the day the Request was filed, for older work with no pickup time) and no later than today, both in
+the person's own time zone. Pickup and today are stored as UTC days, so the server allows one day either side
+(UTC pickup day minus one to UTC today plus one) and never refuses a valid local choice. A correction may keep the
+date already saved.
+
 ### 4.10 Measure and close — Approved target
 
 The Requester returns after delivery, records what happened, compares it with the original goal, and

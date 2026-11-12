@@ -14,6 +14,11 @@ describe("the Request page's timeline", () => {
     expect(read(`src/components/requests/${file}`)).not.toMatch(SCHEMA_MODULES)
   })
 
+  // #277: the Journey's forms, their checks and the date picker arrive with the popup that opens them.
+  it.each(TIMELINE.filter(file => file !== "request-timeline-forms.tsx"))("%s loads the Journey's forms only with their popup", file => {
+    expect(read(`src/components/requests/${file}`)).not.toMatch(/^import (?!type\b)[^\n]*from "\.\/(request-timeline-forms|release-form|journey-popup-forms)"/m)
+  })
+
   it("keeps the outcome's plain choices free of zod", () => {
     expect(read("src/lib/request-outcome-options.ts")).not.toMatch(/^import /m)
   })

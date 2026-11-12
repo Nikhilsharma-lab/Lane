@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
 import { renewSessionToken } from './helpers/test-user';
-import { answerIsItLive, chooseJourneyMore, journey, journeyStep, recordReleaseInPrompt } from './helpers/journey';
+import { answerIsItLive, chooseJourneyMore, journey, journeyPopup, journeyStep, recordReleaseInPrompt } from './helpers/journey';
 import { dispatchWindowReturn, expectOpenFormSurvivesReturn, holdNextJourneyRead, observeJourneyReads, saveReleaseCorrection } from './helpers/journey-refresh';
 
 // Hosted acceptance gate: requires verified backup and staging migrations 0028–0034 (#127 adds 0034).
@@ -50,15 +50,17 @@ test('Is it live? records the release; the timeline, due tag, correction and han
       const reads = await observeJourneyReads(page, request.id, team.orgId);
       await reads.focusRefresh();
       await chooseJourneyMore(page, 'Correct release');
-      await release.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: corrected exposure log link');
-      await release.getByLabel('Correction reason').fill('Acceptance fixture: evidence pointed at the wrong log');
-      await expectOpenFormSurvivesReturn(page, reads, release.getByLabel('Release evidence', { exact: true }), 'Staging acceptance: corrected exposure log link');
-      await expect(release.getByLabel('Correction reason')).toHaveValue('Acceptance fixture: evidence pointed at the wrong log');
-      await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
-      await release.getByRole('button', { name: 'Save correction' }).press('Enter');
+      // #277: the correction opens in its Journey popup.
+      const correction = journeyPopup(page, 'Correct release');
+      await correction.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: corrected exposure log link');
+      await correction.getByLabel('Correction reason').fill('Acceptance fixture: evidence pointed at the wrong log');
+      await expectOpenFormSurvivesReturn(page, reads, correction.getByLabel('Release evidence', { exact: true }), 'Staging acceptance: corrected exposure log link');
+      await expect(correction.getByLabel('Correction reason')).toHaveValue('Acceptance fixture: evidence pointed at the wrong log');
+      await correction.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
+      await correction.getByRole('button', { name: 'Save correction' }).press('Enter');
       // Wait for the saved correction before reloading; reloading earlier can cancel the save.
       await expect(release.getByText('Evidence: Staging acceptance: corrected exposure log link', { exact: true })).toBeVisible({ timeout: 20_000 });
-      await expect(release.getByLabel('Release evidence', { exact: true })).toHaveCount(0);
+      await expect(correction).toHaveCount(0);
       await expect(release.getByRole('heading', { name: 'Journey', exact: true })).toBeFocused();
       reads.stop();
       await page.reload();
@@ -75,10 +77,11 @@ test('Is it live? records the release; the timeline, due tag, correction and han
     const admin = team.pages[1]; await renewSessionToken(admin); await admin.goto(lastPath); await admin.reload();
     const panel = admin.getByRole('region', { name: 'Journey', exact: true });
     await chooseJourneyMore(admin, 'Hand over to a new Requester');
-    await panel.getByRole('combobox', { name: 'New Requester' }).click();
+    const handover = journeyPopup(admin, 'Hand over to a new Requester');
+    await handover.getByRole('combobox', { name: 'New Requester' }).click();
     await admin.getByRole('option', { name: 'Review Developer' }).click();
-    await panel.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
-    await panel.getByRole('button', { name: 'Hand over' }).click();
+    await handover.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
+    await handover.getByRole('button', { name: 'Hand over' }).click();
     await expect(panel).toContainText('Requester: Review Developer', { timeout: 20_000 });
     await admin.reload(); await expect(panel).toContainText('Requester: Review Developer');
     await expect(panel.getByText(/· Due in 7 days$/)).toBeVisible();
@@ -98,7 +101,9 @@ test('Journey rejects a read begun before editing and refreshes at the viewer\'s
     await recordReleaseInPrompt(page, 'Acceptance: original exposure evidence');
     let reads = await observeJourneyReads(page, request.id, team.orgId);
     const panel = journey(page);
-    const evidence = panel.getByLabel('Release evidence', { exact: true });
+    // #277: the correction opens in its Journey popup.
+    const correction = journeyPopup(page, 'Correct release');
+    const evidence = correction.getByLabel('Release evidence', { exact: true });
     await reads.focusRefresh();
     await chooseJourneyMore(page, 'Correct release');
     // Keep this tab editing while another tab commits a distinguishable real fact.
@@ -109,7 +114,7 @@ test('Journey rejects a read begun before editing and refreshes at the viewer\'s
     try {
       // Cancelling flushes the deferred window-return read. Its response is
       // already from the server before the next form opens, but not delivered.
-      await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await correction.getByRole('button', { name: 'Cancel', exact: true }).click();
       expect(await held.received()).toContain('Acceptance: evidence saved in the other tab');
       await chooseJourneyMore(page, 'Correct release');
       await evidence.fill('Acceptance: still editing this draft');
@@ -117,10 +122,12 @@ test('Journey rejects a read begun before editing and refreshes at the viewer\'s
       await held.deliver();
       await expect(evidence).toHaveValue('Acceptance: still editing this draft');
       await expect(evidence).toBeFocused();
-      await expect(panel.getByText('Evidence: Acceptance: original exposure evidence', { exact: true })).toBeVisible();
-      await expect(panel.getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toHaveCount(0);
-      await expect(panel.getByRole('alert')).toHaveCount(0);
-      await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+      // The popup is modal, so the Journey behind it is hidden from the accessibility tree; read it by its id.
+      const behind = page.locator('#journey');
+      await expect(behind.getByText('Evidence: Acceptance: original exposure evidence', { exact: true })).toBeVisible();
+      await expect(behind.getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toHaveCount(0);
+      await expect(behind.locator('[role=alert]')).toHaveCount(0);
+      await correction.getByRole('button', { name: 'Cancel', exact: true }).click();
       await expect(panel.getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toBeVisible();
     } finally { await held.stop(); }
     reads.stop();
@@ -133,10 +140,8 @@ test('Journey rejects a read begun before editing and refreshes at the viewer\'s
     await page.clock.install({ time: fixedTime });
     await page.clock.setFixedTime(fixedTime);
     reads = await observeJourneyReads(page, request.id, team.orgId);
-    await chooseJourneyMore(page, 'Correct release');
-    const serverDay = await panel.getByLabel('Release date', { exact: true }).getAttribute('max');
-    expect(serverDay).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+    // The server's UTC day (the release date picker is now in the viewer's day, #277).
+    const serverDay = new Date(fixedTime).toISOString().slice(0, 10);
     // #278: the Journey's day turns at the viewer's own midnight; the server's day, which opens Close Request, at UTC's.
     const localMidnight = await page.evaluate(now => { const day = new Date(now); day.setHours(24, 0, 0, 0); return day.getTime(); }, fixedTime);
     const untilMidnight = Math.min(localMidnight, Date.parse(`${serverDay}T00:00:00Z`) + 86_400_000) - fixedTime;
@@ -164,8 +169,7 @@ test('Journey rejects a read begun before editing and refreshes at the viewer\'s
     await page.clock.setFixedTime(editingTime);
     reads = await observeJourneyReads(page, request.id, team.orgId);
     await chooseJourneyMore(page, 'Correct release');
-    const editingDay = await panel.getByLabel('Release date', { exact: true }).getAttribute('max');
-    expect(editingDay).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const editingDay = new Date(editingTime).toISOString().slice(0, 10);
     await evidence.fill('Acceptance: preserve this draft across the date timer');
     await evidence.focus();
     const before = reads.count();
@@ -176,9 +180,11 @@ test('Journey rejects a read begun before editing and refreshes at the viewer\'s
     await expect(evidence).toBeFocused();
     await page.clock.setSystemTime(Date.now());
     const afterCancel = page.waitForResponse(response => reads.matches(response.request()));
-    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await correction.getByRole('button', { name: 'Cancel', exact: true }).click();
     expect(await (await afterCancel).finished()).toBeNull();
-    await expect(panel.getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toBeVisible();
+    // The installed clock holds the popup's exit animation, so the modal popup still hides the Journey from the
+    // accessibility tree; read it by its id.
+    await expect(page.locator('#journey').getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toBeVisible();
     await page.waitForTimeout(300);
     expect(reads.count()).toBe(before + 1);
     reads.stop();

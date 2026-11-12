@@ -1,70 +1,95 @@
 "use client"
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
 import { Input } from "@/components/arc/input/input"
 import { Textarea } from "@/components/arc/textarea/textarea"
 import { Checkbox } from "@/components/arc/checkbox/checkbox"
 import { Button } from "@/components/arc/button/button"
+import { DatePicker, preloadDatePicker } from "@/components/date-picker-lazy"
 import { changeRequestRelease } from "@/app/(app)/requests/[id]/release-actions"
+import type { ReleaseFact } from "@/lib/request-release"
+import { localDate, localDay } from "@/lib/local-day"
+import { IS_IT_LIVE_COPY } from "./is-it-live"
 import { useJourneyChange } from "./use-journey-change"
+import { useEscapeClosesPickerFirst } from "./picker-escape"
 import styles from "./request-timeline.module.css"
+import noteStyles from "./is-it-live.module.css"
+import popupStyles from "@/components/popup/popup.module.css"
+
+preloadDatePicker()
+
+/** What the release form reads: the Request's release read, shared by the Journey and "Is it live?". */
+export type ReleaseRead = {
+  /** The Request's revision the release is recorded against. */
+  revision: number
+  /** The agreed audience. */
+  audience: string
+  /** The pickup (else the filing): its day in the viewer's zone is the earliest release day (#277). */
+  earliestRelease: string
+  /** Whether this release records the value before release, in which unit, and the goal's current value (#151 decision 3). */
+  valueBefore: { required: true; unit: string; current: number } | { required: false; unit: null }
+  /** The current release, which Correct release starts from. */
+  release: ReleaseFact | null
+  recordedValueBefore: { value: number; unit: string } | null
+}
 
 export type ReleaseFormProps = {
   requestId: string
   orgId: string
-  /** The Request's revision the release is recorded against (from the release read). */
-  revision: number
-  /** The agreed audience, the earliest allowed exposure and today, all from the release read (UTC dates). */
-  audience: string
-  earliestExposure: string
-  today: string
-  /** Whether this release records the value before release, and in which unit (#151 decision 3). */
-  valueBefore?: { required: true; unit: string } | { required: false; unit: null }
-  /** Correct an existing release: its facts prefill the form and a reason is required. */
-  correcting?: { exposureDate: string; evidence: string; valueBefore?: { value: number; unit: string } | null }
-  /** Prefill for a new release's exposure date, e.g. today when the work is already live. */
-  defaultExposureDate?: string
-  /** Shown above the fields. */
-  intro?: ReactNode
+  read: ReleaseRead
+  /** Correct the current release: its saved facts fill the form and a reason is required. */
+  correcting?: boolean
   onSaved: () => void
-  onCancel?: () => void
+  onCancel: () => void
   cancelLabel?: string
 }
 
 /**
- * Record or correct a release: when the agreed audience received the work, and where that can be checked.
- * Any active member working on the Request can use it while the work is Done or Measuring. Reused by the
- * timeline's Done and Measuring steps and by "Is it live?" after Mark Done.
+ * #277: the one release form. The Journey's Done step and "Is it live?" open it with the same defaults: the release
+ * date starts as today and "Value before release" as the goal's current value. Correct release starts from the saved
+ * facts. The release date is the viewer's own day, from the day the work was picked up (the day the Request was filed,
+ * for older work) to today; the server allows a day either side for the time zone.
  */
-export function ReleaseForm({ requestId, orgId, revision, audience, earliestExposure, today, valueBefore, correcting, defaultExposureDate, intro, onSaved, onCancel, cancelLabel }: ReleaseFormProps) {
+export function ReleaseForm({ requestId, orgId, read, correcting = false, onSaved, onCancel, cancelLabel = "Cancel" }: ReleaseFormProps) {
   const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: "Couldn’t save release. Your input is preserved; try again." })
-  const [date, setDate] = useState(correcting?.exposureDate ?? defaultExposureDate ?? "")
-  const [evidence, setEvidence] = useState(correcting?.evidence ?? "")
-  const [value, setValue] = useState(correcting?.valueBefore ? String(correcting.valueBefore.value) : "")
+  useEscapeClosesPickerFirst()
+  const saved = correcting ? read.release : null
+  const { valueBefore } = read
+  const [today] = useState(() => localDay())
+  const [date, setDate] = useState(saved?.exposureDate ?? today)
+  const [evidence, setEvidence] = useState(saved?.evidence ?? "")
+  const [value, setValue] = useState(() => {
+    if (saved) return read.recordedValueBefore ? String(read.recordedValueBefore.value) : ""
+    return valueBefore.required ? String(valueBefore.current) : ""
+  })
   const [confirmed, setConfirmed] = useState(false)
   const [reason, setReason] = useState("")
-  const measured = valueBefore?.required === true
-  // A blank value is never sent: the button stays off until there is a number (the server refuses it too).
-  const valueMissing = measured && value.trim() === ""
+  const pickedUp = localDay(new Date(read.earliestRelease))
+  // A correction may keep a date saved before the pickup-day rule.
+  const earliest = saved && saved.exposureDate < pickedUp ? saved.exposureDate : pickedUp
+  const measured = valueBefore.required
+  // A blank value or date is never sent: the button stays off until both are there (the server refuses them too).
+  const missing = !date || (measured && value.trim() === "")
   return <form className={styles.stack} aria-busy={busy} onSubmit={e => {
     e.preventDefault()
-    if (!confirmed || valueMissing) return
+    if (!confirmed || missing) return
     const recorded = measured ? { valueBeforeRelease: { value: Number(value), unit: valueBefore.unit } } : {}
     const input = correcting
       ? { kind: "correct" as const, exposureDate: date, evidence, audienceConfirmed: true as const, ...recorded, reason }
       : { kind: "release" as const, exposureDate: date, evidence, audienceConfirmed: true as const, ...recorded }
-    void save(input, revision, context => changeRequestRelease(context, input)).then(saved => { if (saved) onSaved() })
+    void save(input, read.revision, context => changeRequestRelease(context, input)).then(done => { if (done) onSaved() })
   }}>
-    {intro}
-    <p>Agreed audience: {audience}</p>
-    <Input label="Release date" type="date" required min={earliestExposure} max={today} value={date} onChange={e => setDate(e.target.value)} disabled={busy} />
+    <p>Agreed audience: {read.audience}</p>
+    <DatePicker label="Release date" value={date ? localDate(date) : undefined} onChange={day => setDate(day ? localDay(day) : "")}
+      minDate={localDate(earliest)} maxDate={localDate(today)} locale="en-GB" disabled={busy} />
     {measured && <Input label={`Value before release (${valueBefore.unit})`} type="number" step="any" required value={value} onChange={e => setValue(e.target.value)} disabled={busy} description="The measured value just before the audience received this work, in the metric’s unit. Change is measured from it." />}
     <Textarea label="Release evidence" required maxLength={4000} value={evidence} onChange={e => setEvidence(e.target.value)} disabled={busy} description="Record where anyone can check that the agreed audience has this work. Deployment alone is not release." />
     <Checkbox label="The agreed audience received this work" checked={confirmed} onCheckedChange={v => setConfirmed(v === true)} disabled={busy} />
     {correcting && <Textarea label="Correction reason" required maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy} description="The original stays in history. Relative deadlines are recalculated; fixed dates stay unchanged." />}
     {error && <p role="alert">{error}</p>}
-    <div className={styles.controls}>
-      <Button type="submit" loading={busy} disabled={!busy && (!confirmed || valueMissing)}>{correcting ? "Save correction" : "Mark as released"}</Button>
-      {onCancel && <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>{cancelLabel ?? "Cancel"}</Button>}
+    {!correcting && <p className={noteStyles.note}>{IS_IT_LIVE_COPY.endsUndo}</p>}
+    <div className={popupStyles.actions}>
+      <Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>{cancelLabel}</Button>
+      <Button type="submit" loading={busy} disabled={!busy && (!confirmed || missing)}>{correcting ? "Save correction" : "Mark as released"}</Button>
     </div>
   </form>
 }

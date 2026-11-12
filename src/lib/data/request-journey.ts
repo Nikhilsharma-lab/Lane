@@ -8,7 +8,7 @@ import { workspaceRoster } from "@/lib/workspace-roster";
 import { peopleNames, journeyActionsFor } from "@/lib/request-journey-access";
 import { journeyStatus, requesterOf } from "@/lib/request-journey";
 import { expectedImpactSchema } from "@/lib/request-impact";
-import { earliestExposure, releaseMeasurement, valueBeforeReleaseOf } from "@/lib/request-release";
+import { earliestReleaseAt, releaseMeasurement, valueBeforeReleaseOf } from "@/lib/request-release";
 import { agreedAudience } from "@/lib/measurement-audience";
 import { valueBeforeReleaseFor } from "@/lib/request-release-facts";
 import { agreedResult, guardrailHeld } from "@/lib/request-outcome";
@@ -55,7 +55,7 @@ function releaseView({ request, auth, roster, now, expected, common }: Context) 
     ...common, workStatus: request.status, pickedUpAt: request.pickedUpAt?.toISOString() ?? null, doneAt: request.doneAt?.toISOString() ?? null,
     today: utcDay(now), valueBefore: valueBeforeReleaseOf(expected),
     recordedValueBefore: valueBeforeReleaseFor(request.releaseState, common.release),
-    audience: agreedAudience(request), earliestExposure: earliestExposure(request),
+    audience: agreedAudience(request), earliestRelease: earliestReleaseAt(request),
     people: auth.role === "admin" ? (roster ?? []).flatMap(p => p.nominee.kind === "member" ? [{ id: p.nominee.userId, name: p.name }] : []) : [],
     history: (request.releaseState?.history ?? []).map(event => ({ actorId: event.actorId, at: event.at, input: event.input, previousRelease: event.previousRelease, release: event.release, previousOwnerId: event.previousOwnerId, ownerId: event.ownerId, revision: event.revision })),
   };

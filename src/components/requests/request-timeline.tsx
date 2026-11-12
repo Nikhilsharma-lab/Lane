@@ -231,11 +231,12 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
           details: journeyStepDetails(step, { views, reviews, name }),
           countdown: step.countdown && <p role="status" className={styles.countdown} data-tone={step.countdownTone ?? undefined}>{step.countdown}</p>,
           next: step.next && <p className={styles.muted}>{step.next}</p>,
-          actions: mode === null && <JourneyStepActions step={step} headingId={headingId} onOpen={openForm} onReopen={reopen} />,
-          form: mode && [...step.actions, ...step.more].some(a => a.action === mode && a.available) && <JourneyStepForm mode={mode} views={views} form={form} />,
+          actions: <JourneyStepActions step={step} headingId={headingId} onOpen={openForm} onReopen={reopen} />,
+          form: null,
         })
       })}
     </ol>
+    <JourneyStepForm mode={mode} steps={steps} views={views} form={form} />
     {!!release.history.length && <details className={styles.history}>
       <summary>Release and handover history ({release.history.length})</summary>
       <ol className={styles.list}>{release.history.map(event => <li key={event.revision}>
