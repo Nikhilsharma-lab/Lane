@@ -21,7 +21,7 @@ export function JourneyForm({ action, views: { release, outcome }, form }: { act
       case "voidRelease": return <VoidReleaseForm {...form} />
       case "close": return agreed && <MeasuredCloseForm {...form} agreed={agreed} release={release.release} />
       case "closeWithoutResult": return <CloseWithoutResultForm {...form} />
-      case "correctClosure": return closure && <ClosureCorrectionForm {...form} closureKind={closure.kind} result={closure.kind === "measured" ? closure.primary.kind === "numeric" ? { kind: "numeric", unit: closure.primary.unit } : { kind: "pass_fail" } : null} />
+      case "correctClosure": return closure && <ClosureCorrectionForm {...form} closureKind={closure.kind} hasGuardrails={closure.kind === "measured" && closure.guardrails.length > 0} result={closure.kind === "measured" ? closure.primary.kind === "numeric" ? { kind: "numeric", unit: closure.primary.unit } : { kind: "pass_fail" } : null} />
       case "followUp": return <FollowUpForm {...form} onCreated={id => router.push(`/requests/${id}`)} />
       case "handover": return <HandoverForm {...form} people={release.people} />
     }

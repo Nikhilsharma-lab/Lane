@@ -232,3 +232,10 @@
   min-block-size: var(--control-height-md);
   align-items: center;
 }
+/* #279: under a close form's red button, the line that says closing is permanent. The stack's gap sets it apart. */
+.permanent {
+  margin: 0;
+  text-align: end;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

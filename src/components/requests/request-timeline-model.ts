@@ -177,7 +177,8 @@ export const fixedWindowLine = (fact: ReleaseFact, now = new Date()) => `Agreed 
 export const DUE_DATE_LINE = "The due date does not close this Request automatically."
 /** The Closed step reads "Closed without a result" once a Request closed that way. */
 const stepLabel = (journey: Journey, status: JourneyStatus, label: JourneyLabel) => status === "closed" && journey.status === "closed" ? journey.label : label
-const CLOSED_NEXT = "Closed Requests can’t be reopened."
+/** The Closed step's last line, and the line under both close forms' buttons (#279). */
+export const CLOSED_NEXT = "Closed Requests can’t be reopened."
 const withoutResultLine = (stop: number, reasonCode: ExceptionReason) =>
   `Closed without a result at ${JOURNEY_STATUSES[stop].label}: ${EXCEPTION_REASON_OPTIONS.find(o => o.value === reasonCode)?.label ?? reasonCode}.`
 const doneNext = (audience: string) => `Record the release once the work reaches ${audienceInSentence(audience)}. Anyone working on this Request can record it.`
