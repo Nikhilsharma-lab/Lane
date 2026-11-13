@@ -21,18 +21,24 @@ export function useDiscardPrompt(): { ask: (discard: () => void) => void; prompt
   const [pending, setPending] = useState<(() => void) | null>(null)
   const [asked, setAsked] = useState(false)
   const returnTo = useRef<Element | null>(null)
+  const showing = useRef(false)
+  const keep = useCallback(() => { showing.current = false; setPending(null) }, [])
 
   const ask = useCallback((discard: () => void) => {
+    // Escape while it shows backs out of it. The popup behind can hear that Escape first (Radix hands Escape to the
+    // newest layer only on a later render), and then it asks again: that is Keep editing too.
+    if (showing.current) return keep()
+    showing.current = true
     returnTo.current = document.activeElement
     setAsked(true)
     setPending(() => discard)
-  }, [])
+  }, [keep])
 
-  const discardPrompt = usePopupCode(promptCode, pending !== null, () => couldNotOpen("discard", () => setPending(null), { retry: null, textKept: true }))
+  const discardPrompt = usePopupCode(promptCode, pending !== null, () => couldNotOpen("discard", keep, { retry: null, textKept: true }))
 
   // Once asked, it stays mounted, so it can animate out and hand focus back.
-  const prompt = asked && discardPrompt && <discardPrompt.default open={pending !== null} returnTo={returnTo} onKeep={() => setPending(null)}
-    onDiscard={() => { const discard = pending; setPending(null); discard?.() }} />
+  const prompt = asked && discardPrompt && <discardPrompt.default open={pending !== null} returnTo={returnTo} onKeep={keep}
+    onDiscard={() => { const discard = pending; keep(); discard?.() }} />
 
   return { ask, prompt }
 }
