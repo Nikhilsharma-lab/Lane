@@ -1,12 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import { Select } from "@/components/arc/select/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/arc/tabs/tabs"
 import type { ImpactPeriod } from "@/lib/impact-period"
 import type { ImpactDashboard, Teammate, MyWorkEntry } from "@/lib/impact-read-model"
 import type { ImpactTab } from "./impact-href"
 import { MyWorkTab, TeammateWorkList } from "./my-work-list"
-import { OutcomeReportView } from "./outcome-report"
+import { LazyOutcomeReport, preloadOutcomeReport } from "./outcome-report-lazy"
 import type { QuarterNoteEditorTarget } from "./quarter-notes"
 import styles from "./impact-screen.module.css"
 
@@ -41,6 +42,8 @@ export type ImpactScreenProps = {
 
 export function ImpactScreen({ dashboard, teammates, person, tab, showing = person?.id ?? null, canFile = false, onTabChange, onPeriodChange, onPersonChange, quarterNoteEditor = null }: ImpactScreenProps) {
   const report = dashboard.outcomeReport
+  // Opened on the report, the page renders it on the server; otherwise its code follows the page (outcome-report-lazy.tsx).
+  const [reportFirst] = useState(tab === "outcome-report")
 
   // Showing (#283, C4): You first, then the viewer's teammates. A choice swaps the list below in place.
   const picker = teammates.length > 0 && <div className={styles.showing}>
@@ -68,12 +71,12 @@ export function ImpactScreen({ dashboard, teammates, person, tab, showing = pers
       <div className={styles.tablist}>
         <TabsList aria-label="Impact views">
           <TabsTrigger value="my-work">My work</TabsTrigger>
-          <TabsTrigger value="outcome-report">Outcome report</TabsTrigger>
+          <TabsTrigger value="outcome-report" onPointerEnter={preloadOutcomeReport} onFocus={preloadOutcomeReport}>Outcome report</TabsTrigger>
         </TabsList>
       </div>
       <TabsContent value="my-work" className={styles.panel}>{myWork}</TabsContent>
       <TabsContent value="outcome-report" className={styles.panel}>
-        <OutcomeReportView report={report} onPeriodChange={onPeriodChange} quarterNoteEditor={quarterNoteEditor} />
+        <LazyOutcomeReport openedFirst={reportFirst} report={report} onPeriodChange={onPeriodChange} quarterNoteEditor={quarterNoteEditor} />
       </TabsContent>
     </Tabs>
   </div>

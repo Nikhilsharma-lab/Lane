@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 import { buildImpactDashboard, buildTeammateWork, type ImpactRow, type ImpactViewer, type Teammate } from "@/lib/impact-read-model"
 import { ImpactScreen, type ImpactScreenProps } from "./impact-screen"
+import { preloadOutcomeReport } from "./outcome-report-lazy"
 
 // New Request reads the list's Project from the address.
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }))
@@ -30,6 +31,12 @@ const ROWS: ImpactRow[] = [
 function screen(viewer: ImpactViewer, over: Partial<ImpactScreenProps> = {}) {
   const dashboard = buildImpactDashboard(viewer, ROWS, { now: NOW, period: over.period ?? null })
   return renderToStaticMarkup(createElement(ImpactScreen, { dashboard, period: null, teammates: [], person: null, tab: "my-work", ...over }))
+}
+
+/** The screen once the Outcome report's code, which follows the page, has arrived. */
+async function settled(viewer: ImpactViewer, over: Partial<ImpactScreenProps> = {}) {
+  await preloadOutcomeReport()
+  return screen(viewer, over)
 }
 
 const tabs = (markup: string) => [...markup.matchAll(/role="tab"[^>]*>(?:<span[^>]*><\/span>)?<span[^>]*>([^<]*)</g)].map(match => match[1])
@@ -62,19 +69,20 @@ describe("Impact screen: My work and Outcome report tabs (#208, #283)", () => {
     expect(selectedTab(screen(MEMBER, { tab: "outcome-report" }))).toEqual(["Outcome report"])
   })
 
-  it("renders the open tab's panel alone", () => {
-    const mine = screen(MEMBER)
+  it("renders the open tab's panel alone", async () => {
+    const mine = await settled(MEMBER)
     expect(mine).toContain("Member&#x27;s request")
     expect(mine).not.toContain("Up to date as of")
-    const report = screen(MEMBER, { tab: "outcome-report" })
+    const report = await settled(MEMBER, { tab: "outcome-report" })
     expect(report).toContain("Up to date as of")
     expect(report).not.toContain("Member&#x27;s request")
   })
 
-  it("gives a member the same Outcome report as an admin", () => {
+  it("gives a member the same Outcome report as an admin", async () => {
     const report = (markup: string) => markup.slice(markup.indexOf('role="tabpanel"'))
-    expect(report(screen(MEMBER, { tab: "outcome-report" }))).toContain("Up to date as of")
-    expect(report(screen(MEMBER, { tab: "outcome-report" }))).toBe(report(screen(ADMIN, { tab: "outcome-report" })))
+    const member = report(await settled(MEMBER, { tab: "outcome-report" }))
+    expect(member).toContain("Up to date as of")
+    expect(member).toBe(report(await settled(ADMIN, { tab: "outcome-report" })))
   })
 })
 
