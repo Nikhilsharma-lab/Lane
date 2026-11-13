@@ -60,6 +60,17 @@ describe("closing is permanent, and says so before you press", () => {
     expect(text(renderToStaticMarkup(createElement(MeasuredCloseForm, { ...form, agreed, release })))).toContain("Goal: Conversion rate, 50% (from 40%)")
   })
 
+  // #309: a Request with no measurable impact has no release to record, so this is how it closes.
+  it("closing a Request with no measurable impact starts at Can’t be measured and shows the Goal's reason", () => {
+    const markup = renderToStaticMarkup(createElement(CloseWithoutResultForm, { ...form, noMeasurableImpactReason: "Renames a settings label." }))
+    expect(text(markup)).toContain("Goal: No measurable impact Renames a settings label.")
+    expect(text(markup)).toContain("Can’t be measured")
+    expect(finalButton(markup)).not.toContain("disabled")
+    const plain = renderToStaticMarkup(createElement(CloseWithoutResultForm, form))
+    expect(text(plain)).not.toContain("No measurable impact")
+    expect(finalButton(plain)).toContain("disabled")
+  })
+
   it("a correction is never red and never says it's permanent", () => {
     const markup = renderToStaticMarkup(createElement(ClosureCorrectionForm, { ...form, closureKind: "measured", hasGuardrails: false }))
     expect(finalButton(markup)).not.toMatch(/class="[^"]*danger/)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { ReleaseFact, ReleaseState } from "./request-release"
-import { dueSignal, journeyActions, journeyOf, journeyStatus, type JourneyViewer } from "./request-journey"
+import { dueSignal, journeyActions, journeyOf, journeyStatus, NO_RELEASE_TO_RECORD, type JourneyViewer } from "./request-journey"
 
 const released: ReleaseFact = { exposureDate: "2026-10-21", audience: "All shoppers", evidence: "Rollout log", dueDate: "2026-10-28", startDate: "2026-10-21", windowKind: "relative" }
 const releaseState = (release: ReleaseFact | null, ownerId = "requester"): ReleaseState => ({ version: 1, ownerId, release, history: [] })
@@ -80,7 +80,7 @@ describe("journeyActions", () => {
   const admin: JourneyViewer = { id: "admin", role: "admin", active: true }
   const guest: JourneyViewer = { id: "guest", role: "guest", active: true }
   const people = { requesterName: "Asha", requesterActive: true }
-  const base = { createdBy: "requester", takenOnBy: null, releaseState: null, outcomeClosure: null, exceptionClosure: null }
+  const base = { createdBy: "requester", takenOnBy: null, releaseState: null, outcomeClosure: null, exceptionClosure: null, noMeasurableImpactReason: null }
   const open = { ...base, status: "open" } as const
   const inProgress = { ...base, status: "in_progress" } as const
   const done = { ...base, status: "done" } as const
@@ -99,6 +99,20 @@ describe("journeyActions", () => {
   it("keeps release closed before Done and after closure", () => {
     for (const facts of [open, inProgress]) expect(journeyActions(facts, teammate, people, beforeDue)).toMatchObject({ release: no("Opens once the work is Done."), correctRelease: no("Opens once the work is Done."), voidRelease: no("Opens once the work is Done.") })
     for (const facts of [closed, closedEarly]) expect(journeyActions(facts, requester, people, beforeDue)).toMatchObject({ release: no("This Request is closed."), correctRelease: no("This Request is closed."), voidRelease: no("This Request is closed.") })
+  })
+  it("#309: offers no release on a Request with no measurable impact, saying why; its Requester closes it without a result", () => {
+    const operational = { noMeasurableImpactReason: "Fixes a broken link; nothing to measure." }
+    const noRelease = no(NO_RELEASE_TO_RECORD)
+    expect(NO_RELEASE_TO_RECORD).toBe("This Request has no measurable impact, so there’s no release to record.")
+    for (const facts of [inProgress, done]) for (const viewer of [requester, teammate, admin]) {
+      expect(journeyActions({ ...facts, ...operational }, viewer, people, dueDay)).toMatchObject({ release: noRelease, correctRelease: noRelease })
+    }
+    expect(journeyActions({ ...done, ...operational }, teammate, people, dueDay).voidRelease).toEqual(no("There is no release to void yet."))
+    expect(journeyActions({ ...done, ...operational }, requester, people, dueDay).closeWithoutResult).toEqual(ok)
+    expect(journeyActions({ ...done, ...operational }, teammate, people, dueDay).closeWithoutResult).toEqual(no("Only the Requester, Asha, can close this."))
+    // Closed still says closed; who can't change things still hears why.
+    expect(journeyActions({ ...closedEarly, ...operational }, requester, people, dueDay).release).toEqual(no("This Request is closed."))
+    expect(journeyActions({ ...done, ...operational }, guest, people, dueDay).release).toEqual(no("Guests can follow this Request but can’t change it."))
   })
   it("lets only the Requester close, naming them to everyone else", () => {
     expect(journeyActions(measuring, requester, people, dueDay)).toMatchObject({ close: ok, closeWithoutResult: ok })

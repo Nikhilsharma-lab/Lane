@@ -45,6 +45,8 @@ async function loadContext(requestId: string, orgId: string, part: "release" | "
     requestId, revision: request.agreementRevision, requesterId, requesterName: names[requesterId], names,
     journey: journeyStatus(request), actions: journeyActionsFor(request, auth, roster, names[requesterId], now),
     release, measurement: releaseMeasurement(release, now),
+    // #309: a Goal of No measurable impact, with its reason: no release to record, and the close without a result says why.
+    noMeasurableImpactReason: request.noMeasurableImpactReason,
   };
   return { request, auth, roster, now, expected, common };
 }

@@ -91,7 +91,7 @@ function outlineFor(auth: MemberAuth, request: Parameters<typeof journeyActions>
   return journeyOutline({
     journey: journeyStatus(request), workStatus: request.status, isGuest: auth.role === "guest", readOnly: auth.role === "viewer",
     requestedBy: requesterName, requestedAt: request.createdAt.toISOString(), assigneeName: request.assigneeName, audience: agreedAudience(request),
-    hasAgreedResult: Boolean(request.expectedImpact), releaseState: request.releaseState, closure: request.outcomeClosure ?? request.exceptionClosure,
+    hasAgreedResult: Boolean(request.expectedImpact), noMeasurableImpact: Boolean(request.noMeasurableImpactReason), releaseState: request.releaseState, closure: request.outcomeClosure ?? request.exceptionClosure,
     actions: journeyActions(request, { id: auth.userId, role: auth.role, active: true }, { requesterName, requesterActive: true }, new Date()),
   })
 }

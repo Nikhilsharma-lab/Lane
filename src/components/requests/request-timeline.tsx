@@ -209,7 +209,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
     isGuest, readOnly, audience: release.audience,
     requesterName: release.requesterName, requestedBy: request.creatorName || FORMER_MEMBER, requestedAt: new Date(request.createdAt).toISOString(),
     assigneeName: live.assigneeName, pickedUpAt: release.pickedUpAt, doneAt: release.doneAt, release: release.release, releaseHistory: release.history,
-    closure: outcome.closure, names, hasAgreedResult: Boolean(outcome.agreed),
+    closure: outcome.closure, names, hasAgreedResult: Boolean(outcome.agreed), noMeasurableImpact: Boolean(release.noMeasurableImpactReason),
     // The countdown counts the viewer's own day; the server decides when Close Request opens (its actions).
     actions: release.actions, now: new Date(`${viewerToday(new Date(clock))}T00:00:00Z`), clock: new Date(clock),
   })

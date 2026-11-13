@@ -10,7 +10,7 @@
 import { plannedDay } from "@/lib/dates"
 import { audienceInSentence } from "@/lib/measurement-audience"
 import { reopenEndsAt } from "@/lib/reopen-window"
-import { FORMER_MEMBER, JOURNEY_STATUSES, journeyOf, type ActionAvailability, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
+import { FORMER_MEMBER, JOURNEY_STATUSES, journeyOf, NO_RELEASE_TO_RECORD, type ActionAvailability, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
 import type { RequestStatus } from "@/lib/request-lifecycle"
 import { EXCEPTION_REASON_OPTIONS, type ExceptionReason } from "@/lib/request-outcome-options"
 import type { OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
@@ -45,6 +45,8 @@ export type TimelineInput = {
   names: Record<string, string>
   /** A measured close needs the agreed Expected impact to measure against. */
   hasAgreedResult: boolean
+  /** #309: the Goal is No measurable impact, so there's no release to record and the Requester closes it without a result. */
+  noMeasurableImpact: boolean
   actions: JourneyActions
   /** The day planned days and the countdown are read against. */
   now: Date
@@ -102,8 +104,9 @@ export const REOPEN_LABEL = "Reopen"
 
 /**
  * Per step, the actions in the order shown. `quiet` ones only appear when available. A step fills at most its one
- * `primary` action (#241: one main button); Close without a result and Add correction never are. `more` ones sit behind
- * the step's "More" button, Void incorrect release last and set apart (#235 item 16).
+ * `primary` action (#241: one main button); Add correction never is, and Close without a result only on the Done step of
+ * a Request with no measurable impact (#309), which has no release to record. `more` ones sit behind the step's "More"
+ * button, Void incorrect release last and set apart (#235 item 16).
  */
 type Slot = { action: StepAction; quiet?: true; primary?: true; more?: true; separated?: true }
 const STEP_ACTIONS: Partial<Record<JourneyStatus, Slot[]>> = {
@@ -116,6 +119,8 @@ const STEP_ACTIONS: Partial<Record<JourneyStatus, Slot[]>> = {
   ],
   closed: [{ action: "correctClosure" }, { action: "followUp", quiet: true }, { action: "handover", quiet: true }],
 }
+const NO_MEASURABLE_IMPACT_DONE: Slot[] = [{ action: "closeWithoutResult", primary: true }, { action: "release" }, { action: "reopen", quiet: true }, { action: "handover", quiet: true }]
+const slotsFor = (status: JourneyStatus, noMeasurableImpact: boolean) => status === "done" && noMeasurableImpact ? NO_MEASURABLE_IMPACT_DONE : STEP_ACTIONS[status] ?? []
 
 const ORDER = JOURNEY_STATUSES.map(s => s.status)
 
@@ -138,20 +143,22 @@ function measuringFacts(fact: ReleaseFact, hasValueBefore: boolean, isCurrent: b
 
 /**
  * Reopen, for whoever may record the release (an active Member or Admin: the server's undo-Mark-Done rule), until 15
- * minutes after the saved Done time. Recording the release moves the Request on to Measuring, which ends it.
+ * minutes after the saved Done time. Recording the release moves the Request on to Measuring, which ends it. A Request
+ * with no measurable impact refuses its release to everyone that rule lets in, and only to them (#309).
  */
 function reopenAvailability(input: Pick<TimelineInput, "actions" | "doneAt" | "clock">): ActionAvailability {
-  if (!input.actions.release.allowed || !input.doneAt) return { allowed: false, reason: "" }
+  const release = input.actions.release
+  if (!(release.allowed || release.reason === NO_RELEASE_TO_RECORD) || !input.doneAt) return { allowed: false, reason: "" }
   return input.clock.getTime() < reopenEndsAt(input.doneAt) ? { allowed: true } : { allowed: false, reason: "" }
 }
 
-type StepActionsInput = Pick<TimelineInput, "isGuest" | "readOnly" | "actions" | "hasAgreedResult"> & Partial<Pick<TimelineInput, "doneAt" | "clock">>
+type StepActionsInput = Pick<TimelineInput, "isGuest" | "readOnly" | "actions" | "hasAgreedResult" | "noMeasurableImpact"> & Partial<Pick<TimelineInput, "doneAt" | "clock">>
 
 function stepActions(input: StepActionsInput, status: JourneyStatus): Pick<TimelineStep, "actions" | "more"> {
   if (input.isGuest || input.readOnly) return { actions: [], more: [] }
   const shown: TimelineAction[] = []
   const more: TimelineAction[] = []
-  for (const { action, quiet, primary, more: behindMore, separated } of STEP_ACTIONS[status] ?? []) {
+  for (const { action, quiet, primary, more: behindMore, separated } of slotsFor(status, input.noMeasurableImpact)) {
     let availability = action === "reopen"
       ? input.clock ? reopenAvailability({ actions: input.actions, doneAt: input.doneAt ?? null, clock: input.clock }) : { allowed: false as const, reason: "" }
       : input.actions[action]
@@ -181,7 +188,7 @@ const stepLabel = (journey: Journey, status: JourneyStatus, label: JourneyLabel)
 export const CLOSED_NEXT = "Closed Requests can’t be reopened."
 const withoutResultLine = (stop: number, reasonCode: ExceptionReason) =>
   `Closed without a result at ${JOURNEY_STATUSES[stop].label}: ${EXCEPTION_REASON_OPTIONS.find(o => o.value === reasonCode)?.label ?? reasonCode}.`
-const doneNext = (audience: string) => `Record the release once the work reaches ${audienceInSentence(audience)}. Anyone working on this Request can record it.`
+const doneNext = (audience: string, noMeasurableImpact: boolean) => noMeasurableImpact ? "The Requester closes this Request without a result." : `Record the release once the work reaches ${audienceInSentence(audience)}. Anyone working on this Request can record it.`
 const OPEN_NEXT = "Waiting for someone to pick this up. Reviews are optional and never block pickup."
 
 /** Each step's place in the journey: finished, current, not reached yet, or skipped by a close without a result. */
@@ -220,7 +227,7 @@ export function timelineSteps(input: TimelineInput): TimelineStep[] {
     }
     if (status === "done" && reached) {
       if (input.doneAt) happened.push(["Marked Done on ", day(input.doneAt), "."])
-      if (isCurrent) next = doneNext(input.audience)
+      if (isCurrent) next = doneNext(input.audience, input.noMeasurableImpact)
     }
     if (status === "measuring" && reached && release) {
       happened.push([`Released to ${audienceInSentence(release.audience)} on ${planned(release.exposureDate)}${recordedBy ? `, recorded by ${names[recordedBy] ?? FORMER_MEMBER}` : ""}.`])
@@ -289,7 +296,7 @@ export type OutlineStep = Pick<TimelineStep, "status" | "label" | "state"> & {
   more: TimelineAction[]
 }
 
-export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGuest" | "readOnly" | "requestedBy" | "requestedAt" | "assigneeName" | "audience" | "hasAgreedResult"> & {
+export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGuest" | "readOnly" | "requestedBy" | "requestedAt" | "assigneeName" | "audience" | "hasAgreedResult" | "noMeasurableImpact"> & {
   /** The reader's actions, decided on the server from the saved Request; none are held without them. */
   actions: JourneyActions | null
   releaseState: ReleaseState | null
@@ -328,7 +335,7 @@ export function journeyOutline(input: OutlineInput): JourneyOutline {
       // When it was marked Done arrives with the reads.
       if (status === "done" && reached) {
         happened.push(null)
-        if (isCurrent) after.push(doneNext(input.audience))
+        if (isCurrent) after.push(doneNext(input.audience, input.noMeasurableImpact))
       }
       if (status === "measuring" && reached && release) {
         happened.push(null)

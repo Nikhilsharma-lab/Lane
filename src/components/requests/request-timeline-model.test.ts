@@ -22,16 +22,16 @@ const DEV: JourneyViewer = { id: "dev", role: "member", active: true }
 const ADMIN: JourneyViewer = { id: "sam", role: "admin", active: true }
 const GUEST: JourneyViewer = { id: "ana", role: "guest", active: false }
 
-type Facts = { status: RequestStatus; releaseState?: ReleaseState | null; outcomeClosure?: TimelineInput["closure"]; exceptionClosure?: TimelineInput["closure"] }
+type Facts = { status: RequestStatus; releaseState?: ReleaseState | null; outcomeClosure?: TimelineInput["closure"]; exceptionClosure?: TimelineInput["closure"]; noMeasurableImpactReason?: string }
 function input(facts: Facts, viewer: JourneyViewer, more: Partial<TimelineInput> = {}, requesterActive = true): TimelineInput {
-  const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana", takenOnBy: null }
+  const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana", takenOnBy: null, noMeasurableImpactReason: facts.noMeasurableImpactReason ?? null }
   const closure = facts.outcomeClosure ?? facts.exceptionClosure ?? null
   return {
     journey: journeyStatus(saved), workStatus: facts.status, isGuest: viewer.role === "guest", audience: "All shoppers",
     requesterName: "Ana", requestedBy: "Ana", requestedAt: "2026-10-01T10:00:00Z",
     assigneeName: facts.status === "open" ? null : "Dev", pickedUpAt: null, doneAt: facts.status === "done" ? "2026-10-20T15:00:00Z" : null,
     release: facts.releaseState?.release ?? null, releaseHistory: facts.releaseState?.history ?? [], closure, names: NAMES,
-    hasAgreedResult: true, now: NOW, clock: NOW,
+    hasAgreedResult: !facts.noMeasurableImpactReason, noMeasurableImpact: Boolean(facts.noMeasurableImpactReason), now: NOW, clock: NOW,
     // The server decides the actions on its own clock: the fixture's day, unless a test moves it.
     actions: journeyActions(saved, viewer, { requesterName: "Ana", requesterActive }, more.now ?? NOW),
     ...more,
@@ -257,6 +257,36 @@ describe("Reopen", () => {
   })
 })
 
+// #309: a Request whose Goal is No measurable impact has no release to record. Its Done step says so beside Record
+// release, and its Requester's one main button is Close without a result.
+describe("No measurable impact", () => {
+  const DONE_AT = "2026-10-25T11:50:00Z"
+  const operational = { status: "done" as const, noMeasurableImpactReason: "Renames a settings label." }
+  const done = (viewer: JourneyViewer, more: Partial<TimelineInput> = {}) => step(timelineSteps(input(operational, viewer, { doneAt: DONE_AT, clock: new Date("2026-10-25T12:00:00Z"), ...more })), "done")
+  const noRelease = "Record release: This Request has no measurable impact, so there’s no release to record."
+
+  it("refuses Record release on Done with its reason, and fills Close without a result for the Requester", () => {
+    const step = done(ANA)
+    expect(step.actions.map(a => [a.available ? a.label : `${a.label}: ${a.reason}`, a.emphasis])).toEqual([
+      ["Close without a result", "primary"], [noRelease, "secondary"], ["Reopen", "secondary"],
+    ])
+    expect(step.next).toBe("The Requester closes this Request without a result.")
+  })
+
+  it("tells everyone else who closes it, and still offers Reopen to whoever may move the work", () => {
+    expect(actionsOf(done(DEV))).toEqual(["Close without a result: Only the Requester, Ana, can close this.", noRelease, "Reopen"])
+    expect(actionsOf(done({ id: "dev", role: "member", active: false }))).not.toContain("Reopen")
+    expect(done(GUEST).actions).toEqual([])
+  })
+
+  it("draws the same Done step in the outline", () => {
+    const held = outlineStep(outline(operational), "done")
+    expect(actionsOf(held)).toEqual(["Close without a result", noRelease])
+    expect(held.actions[0].emphasis).toBe("primary")
+    expect(held.after).toEqual(["The Requester closes this Request without a result."])
+  })
+})
+
 // B16: the audience in the plan's own words. Lane's own labels read lower-case mid-sentence; a name someone typed stays as typed.
 describe("Journey audience", () => {
   it("names Lane's audience labels in lower case mid-sentence, and a typed name as typed", () => {
@@ -308,11 +338,12 @@ describe("Live journey", () => {
 // #295: what the Journey draws from the Request alone, before its reads (which ask Clerk) arrive. Words the Request
 // already holds are shown; null holds the place of a line the reads fill in, so nothing below moves when they land.
 function outline(facts: Facts, reader: { isGuest?: boolean; readOnly?: boolean; viewer?: JourneyViewer } = {}): OutlineInput {
-  const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana", takenOnBy: null }
+  const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana", takenOnBy: null, noMeasurableImpactReason: facts.noMeasurableImpactReason ?? null }
   return {
     journey: journeyStatus(saved), workStatus: facts.status, isGuest: reader.isGuest ?? false, readOnly: reader.readOnly ?? false,
     // The reader's actions from the same rules as the read journey; only the Requester's name is a stand-in.
-    actions: journeyActions(saved, reader.viewer ?? ANA, { requesterName: "Ana", requesterActive: true }, NOW), hasAgreedResult: true,
+    actions: journeyActions(saved, reader.viewer ?? ANA, { requesterName: "Ana", requesterActive: true }, NOW),
+    hasAgreedResult: !facts.noMeasurableImpactReason, noMeasurableImpact: Boolean(facts.noMeasurableImpactReason),
     requestedBy: "Ana", requestedAt: "2026-10-01T10:00:00Z", assigneeName: facts.status === "open" ? null : "Dev", audience: "All shoppers",
     releaseState: saved.releaseState, closure: (facts.outcomeClosure ?? facts.exceptionClosure ?? null) as OutlineInput["closure"], now: NOW,
   }
