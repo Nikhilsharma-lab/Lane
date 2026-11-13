@@ -535,5 +535,19 @@
     "file": "src/components/arc/date-picker/date-picker.module.css",
     "upstreamSha256": "fc3907dc484832ef441b367dd16135bf081ec77894ea1ae7c9c59508a2abe95a",
     "localSha256": "502fe250e56057c02fece3438244d6dca4d97e18a13733a9ffe79fc985dc3882"
+  },
+  {
+    "id": "tabs",
+    "source": "https://uiarc.dev/r/tabs.json",
+    "file": "src/components/arc/tabs/tabs.tsx",
+    "upstreamSha256": "c37859cd1549cd44ca59d4e33e31fe18248919cc870d578439035c687716c7f9",
+    "localSha256": "8d379bfa06367eb210d04978eccce75c86fc6552fc0c36ec7208271b9d4bcbbe"
+  },
+  {
+    "id": "tabs",
+    "source": "https://uiarc.dev/r/tabs.json",
+    "file": "src/components/arc/tabs/tabs.module.css",
+    "upstreamSha256": "89c6cb2ae4fa5be61cc3dbe7f196cc495da06d0f61c538a562ecffd7b05cf6f5",
+    "localSha256": "180641628e85ae952646473c9492158a8d1e70d7d60c2f23682ced3a4d165c70"
   }
 ]
