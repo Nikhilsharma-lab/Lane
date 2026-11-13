@@ -2,6 +2,7 @@
 
 import { useMemo, type ReactNode } from "react"
 import { CommentThread } from "@/components/arc/comment-thread/comment-thread"
+import { LinkedText } from "@/components/linked-text"
 import { LocalTime } from "./local-time"
 import { useDetailRequest } from "./detail-context"
 import type { RequestComment } from "./detail-view"
@@ -20,6 +21,9 @@ export type ConversationComment = RequestComment
  * revalidated render lists it. A failure removes it and the form restores
  * the text.
  */
+/** #281 (B21): web addresses in a comment open in a new tab. Comments never fold. */
+const linkedText = (text: string) => <LinkedText text={text} />
+
 export function DetailConversation({ comments, children }: { comments: ConversationComment[]; children: ReactNode }) {
   const { request, viewer } = useDetailRequest()
   const shown = usePendingComments(request.id, comments)
@@ -37,6 +41,7 @@ export function DetailConversation({ comments, children }: { comments: Conversat
       readOnly
       composer={children ?? null}
       renderTimestamp={comment => comment.createdAt === "Sending…" ? comment.createdAt : <LocalTime iso={comment.createdAt} />}
+      renderText={linkedText}
       labels={{ thread: "Request comments", empty: "No comments yet." }}
     />
   </section>

@@ -114,6 +114,7 @@ export function LifecycleButtons({
       <Button
         key={move.move}
         size="sm"
+        className={styles.move}
         // The move it follows isn't confirmed yet: pressing would act on a state the server hasn't saved.
         aria-disabled={unconfirmed || undefined}
         onClick={() => { if (!unconfirmed) void runMove(move.move); }}

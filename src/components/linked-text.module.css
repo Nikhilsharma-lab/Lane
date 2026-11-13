@@ -1,0 +1,2 @@
+/* A web address inside plain text (#281): underlined in the text's own colour, so it reads as a link in light and dark. */
+.link { color: inherit; text-decoration: underline; text-underline-offset: var(--space-1); overflow-wrap: anywhere; border-radius: var(--corner-sm); }

@@ -159,7 +159,7 @@ export function CommentForm({
         <textarea {...fieldProps} data-1p-ignore="" data-lpignore="true" className={threadStyles.field} />
       </div>
       <div className={threadStyles.composerActions}>
-        <Button type="submit" size="sm" loading={pending} disabled={empty && !pending}>
+        <Button type="submit" size="sm" className={styles.post} loading={pending} disabled={empty && !pending}>
           {submissionState === "error" ? "Try again" : "Post comment"}
         </Button>
       </div>
