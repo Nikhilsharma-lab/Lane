@@ -1,7 +1,9 @@
 /**
  * The impact dashboard's shared presenter (spec #151, review fixes): the one place that turns read-model values into
  * the words and the entry kind every view shows. The views render these strings and compute nothing of their own.
- * Pure and client-safe. It imports types from the read model only, so the read model may import it back.
+ * Pure and client-safe. It imports types from the read model only, so the read model may import it back. Its words for
+ * values, changes, results and verdicts are the shared result phrasing's (result-phrasing.ts, #279/#282), so Impact
+ * says a result the same way as the Request's Journey.
  */
 import type { DueItem, Prediction, RequestEntry, ResultView, Verdict } from "./impact-read-model";
 import { changeAmountText, goalValueText, passFailCountText, passFailText, resultAgainstGoal, resultValueText } from "./result-phrasing";
