@@ -1,11 +1,13 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { buildImpactDashboard, buildTeammateWork, type ImpactRow, type ImpactViewer, type Teammate } from "@/lib/impact-read-model"
-import { impactHref } from "./impact-href"
-import { ImpactScreen, nextTab, type ImpactScreenProps } from "./impact-screen"
+import { ImpactScreen, type ImpactScreenProps } from "./impact-screen"
 
-// The Dashboard screen (#159): tabs, the guest rule and the teammate lists. Rendered as markup and checked there.
+// New Request reads the list's Project from the address.
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }))
+
+// The Impact screen (#159, #283): tabs, the guest rule, Showing and the empty My work. Rendered as markup and checked there.
 
 const NOW = new Date("2026-10-23T12:00:00.000Z")
 const ORG = "org_impact"
@@ -27,10 +29,13 @@ const ROWS: ImpactRow[] = [
 
 function screen(viewer: ImpactViewer, over: Partial<ImpactScreenProps> = {}) {
   const dashboard = buildImpactDashboard(viewer, ROWS, { now: NOW, period: over.period ?? null })
-  return renderToStaticMarkup(createElement(ImpactScreen, { dashboard, period: null, teammates: [], person: null, ...over }))
+  return renderToStaticMarkup(createElement(ImpactScreen, { dashboard, period: null, teammates: [], person: null, tab: "my-work", ...over }))
 }
 
-describe("Dashboard screen: the guest rule", () => {
+const tabs = (markup: string) => [...markup.matchAll(/role="tab"[^>]*>(?:<span[^>]*><\/span>)?<span[^>]*>([^<]*)</g)].map(match => match[1])
+const selectedTab = (markup: string) => [...markup.matchAll(/role="tab" aria-selected="true"[^>]*>(?:<span[^>]*><\/span>)?<span[^>]*>([^<]*)</g)].map(match => match[1])
+
+describe("Impact screen: the guest rule", () => {
   it("shows a guest only My work, with their own Requests, and no tabs, org view or other people's Requests", () => {
     const markup = screen(GUEST)
     expect(markup).toContain("Guest&#x27;s own request")
@@ -41,87 +46,80 @@ describe("Dashboard screen: the guest rule", () => {
     expect(markup).not.toContain("Up to date as of")
   })
 
-  it("offers a guest no teammate links, even if a list is passed in", () => {
-    const markup = screen(GUEST, { teammates: [{ id: "user_member", name: "Maya" }] })
-    expect(markup).not.toContain("Teammates")
-    expect(markup).not.toContain("person=user_member")
+  it("shows Showing only when the read model returns teammates", () => {
+    expect(screen(GUEST)).not.toContain("Showing")
+    expect(screen(MEMBER)).not.toContain("Showing")
   })
 })
 
-describe("Impact screen: My work and Outcome report tabs (#208)", () => {
-  it("gives a non-guest two tabs, My work and Outcome report, with My work selected and announced", () => {
+describe("Impact screen: My work and Outcome report tabs (#208, #283)", () => {
+  it("gives a non-guest two Arc tabs, My work and Outcome report, with the address's tab selected", () => {
     const markup = screen(MEMBER)
     expect(markup).toContain('role="tablist"')
-    expect([...markup.matchAll(/role="tab"[^>]*>([^<]*)</g)].map(match => match[1])).toEqual(["My work", "Outcome report"]);
-    const selected = [...markup.matchAll(/<button[^>]*aria-selected="true"[^>]*>([^<]*)<\/button>/g)].map(match => match[1]);
-    expect(selected).toEqual(["My work"])
-    expect(markup).toContain('aria-selected="false"')
+    expect(markup).toContain('aria-label="Impact views"')
+    expect(tabs(markup)).toEqual(["My work", "Outcome report"])
+    expect(selectedTab(markup)).toEqual(["My work"])
+    expect(selectedTab(screen(MEMBER, { tab: "outcome-report" }))).toEqual(["Outcome report"])
   })
 
-  it("links each tab to the panel it controls, and labels each panel by its tab", () => {
-    const markup = screen(ADMIN)
-    for (const id of ["my-work", "outcome-report"]) {
-      expect(markup).toContain(`aria-controls="impact-panel-${id}"`)
-      expect(markup).toContain(`id="impact-panel-${id}" role="tabpanel" aria-labelledby="impact-tab-${id}"`)
-    }
+  it("renders the open tab's panel alone", () => {
+    const mine = screen(MEMBER)
+    expect(mine).toContain("Member&#x27;s request")
+    expect(mine).not.toContain("Up to date as of")
+    const report = screen(MEMBER, { tab: "outcome-report" })
+    expect(report).toContain("Up to date as of")
+    expect(report).not.toContain("Member&#x27;s request")
   })
 
   it("gives a member the same Outcome report as an admin", () => {
-    const report = (markup: string) => markup.slice(markup.indexOf('id="impact-panel-outcome-report"'))
-    expect(report(screen(MEMBER))).toContain("Up to date as of")
-    expect(report(screen(MEMBER))).toBe(report(screen(ADMIN)))
-  })
-
-  it("opens the Outcome report first when the page asks for it", () => {
-    const markup = screen(MEMBER, { initialTab: "outcome-report" })
-    const selected = [...markup.matchAll(/<button[^>]*aria-selected="true"[^>]*>([^<]*)<\/button>/g)].map(match => match[1]);
-    expect(selected).toEqual(["Outcome report"])
-    expect(markup).toMatch(/id="impact-panel-my-work"[^>]*hidden/)
+    const report = (markup: string) => markup.slice(markup.indexOf('role="tabpanel"'))
+    expect(report(screen(MEMBER, { tab: "outcome-report" }))).toContain("Up to date as of")
+    expect(report(screen(MEMBER, { tab: "outcome-report" }))).toBe(report(screen(ADMIN, { tab: "outcome-report" })))
   })
 })
 
-describe("nextTab: the keyboard rule for the tabs", () => {
-  it("moves with the arrow keys, wrapping at the ends", () => {
-    expect(nextTab("my-work", "ArrowRight")).toBe("outcome-report")
-    expect(nextTab("outcome-report", "ArrowRight")).toBe("my-work")
-    expect(nextTab("my-work", "ArrowLeft")).toBe("outcome-report")
-    expect(nextTab("my-work", "ArrowDown")).toBe("outcome-report")
-  })
-
-  it("jumps to the first and last tab with Home and End, and ignores other keys", () => {
-    expect(nextTab("outcome-report", "Home")).toBe("my-work")
-    expect(nextTab("my-work", "End")).toBe("outcome-report")
-    expect(nextTab("my-work", "Enter")).toBeNull()
-  })
-})
-
-describe("Dashboard screen: teammate lists", () => {
+describe("Impact screen: Showing (#283, C4)", () => {
   const teammates: Teammate[] = [{ id: "user_admin", name: "Maya" }]
 
-  it("links each teammate to their own list, keeping the chosen period", () => {
-    const markup = screen(MEMBER, { teammates, period: { kind: "quarter", year: 2026, quarter: 4 } })
-    expect(markup).toContain('href="/impact?period=2026-q4&amp;person=user_admin"')
-    expect(markup).toContain("Maya")
+  it("puts Showing at the top of My work, reading You until someone is chosen", () => {
+    const markup = screen(MEMBER, { teammates })
+    expect(markup).toContain(">Showing</label>")
+    expect(markup).toMatch(/role="combobox"[^>]*>.*>You</)
+    expect(markup.indexOf("Showing")).toBeLessThan(markup.indexOf("Member&#x27;s request"))
+    expect(markup).toContain("Lists show results only, never totals or rankings.")
   })
 
-  it("shows the teammate's Requests with no totals, averages, scores or rankings", () => {
+  it("shows the chosen teammate's Requests in place of the viewer's, under a heading naming them, with no totals", () => {
     const person = { id: "user_admin", name: "Maya", entries: buildTeammateWork(MEMBER, ROWS, ADMIN.userId, { now: NOW })! }
     const markup = screen(MEMBER, { teammates, person })
+    expect(markup).toMatch(/role="combobox"[^>]*>.*>Maya</)
     expect(markup).toContain("Requests by Maya")
-    expect(markup).toContain("Member&#x27;s request")
-    // The copy elsewhere on the screen says "no totals"; only the teammate's own list is checked here.
+    expect(markup).toContain("Picked up by Maya")
+    expect(markup).not.toContain("Requested by you")
     const start = markup.indexOf("Requests by Maya")
     expect(markup.slice(start, markup.indexOf("</section>", start))).not.toMatch(/total|average|score|rank/i)
   })
 })
 
-describe("impactHref: the screen's own address", () => {
-  it("is the bare route when no period or person is chosen", () => {
-    expect(impactHref({ period: null })).toBe("/impact")
+describe("Impact screen: an empty My work (#283)", () => {
+  const nobody: ImpactViewer = { userId: "user_new", orgId: ORG, role: "member" }
+
+  it("says Requests you file or pick up show here, with New Request for someone who can file", () => {
+    const markup = screen(nobody, { canFile: true })
+    expect(markup).toContain("Requests you file or pick up show here.")
+    expect(markup).toMatch(/<a [^>]*href="\/intake"[^>]*>New Request<\/a>/)
   })
 
-  it("carries a chosen quarter, year or person in the query", () => {
-    expect(impactHref({ period: { kind: "quarter", year: 2026, quarter: 3 } })).toBe("/impact?period=2026-q3")
-    expect(impactHref({ period: { kind: "year", year: 2026 }, person: "user_x" })).toBe("/impact?period=2026&person=user_x")
+  it("gives someone who can't file the wording without the button", () => {
+    const markup = screen(nobody, { canFile: false })
+    expect(markup).toContain("Requests you file or pick up show here.")
+    expect(markup).not.toContain("New Request")
+  })
+
+  it("points someone who can't file to Showing when there are teammates to choose", () => {
+    const markup = screen(nobody, { canFile: false, teammates: [{ id: "user_admin", name: "Maya" }] })
+    expect(markup).toContain("Choose someone in Showing to see their Requests.")
+    expect(markup).not.toContain("Requests you file or pick up show here.")
+    expect(markup).not.toContain("New Request")
   })
 })

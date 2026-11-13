@@ -7,6 +7,8 @@ import { formatRequestCode } from "@/lib/request-code"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { Badge } from "@/components/arc/badge/badge"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
+import buttonStyles from "@/components/arc/button/button.module.css"
+import { NewRequestLink } from "@/components/requests/new-request-link"
 import styles from "./my-work-list.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
 
@@ -65,21 +67,33 @@ export function ImpactEntryList({ entries, subject }: { entries: MyWorkEntry[]; 
     {entries.map(entry => <li key={entry.requestId} className={styles.item}>
       <Link href={requestDetailHref(entry.requestId, "all")} className={styles.row} data-pressable="" data-request-id={entry.requestId}>
         <span className={styles.head}>
-          <span className={styles.code}>{formatRequestCode(entry.requestNumber)}</span>
-          <span className={styles.title}>{entry.title}</span>
-          <Badge size="sm">{roleLabel(entry.role, subject)}</Badge>
-          <Badge size="sm">{entry.journey}</Badge>
+          {/* C32: the number and title share a line, and the title wraps beside the number. */}
+          <span className={styles.name}>
+            <span className={styles.code}>{formatRequestCode(entry.requestNumber)}</span>
+            <span className={styles.title}>{entry.title}</span>
+          </span>
+          <span className={styles.badges}>
+            <Badge size="sm">{roleLabel(entry.role, subject)}</Badge>
+            <Badge size="sm">{entry.journey}</Badge>
+          </span>
         </span>
         <ResultDetail entry={entry} />
+        {entry.learned && <span className={styles.learned}><span className={styles.learnedLabel}>What we learned</span> {entry.learned.text}{entry.learned.corrected && " (corrected)"}</span>}
         {entry.followUps.length > 0 && <span className={styles.note}>Follow-up Requests: {entry.followUps.map(followUp => `${formatRequestCode(followUp.requestNumber)} ${followUp.title}`).join(", ")}</span>}
       </Link>
     </li>)}
   </ul>
 }
 
-/** The My work tab's content: the viewer's own Requests, or an empty state. */
-export function MyWorkTab({ entries }: { entries: MyWorkEntry[] }) {
-  if (entries.length === 0) return <EmptyState title="Nothing requested or picked up yet" description="Requests you request or pick up show here, with their goals and results." />
+/**
+ * The My work tab's content: the viewer's own Requests, or an empty state (#283). Someone who can file gets New Request,
+ * which opens the composer; someone who can't, with teammates to choose from, is pointed to Showing.
+ */
+export function MyWorkTab({ entries, canFile = false, chooseSomeone = false }: { entries: MyWorkEntry[]; canFile?: boolean; chooseSomeone?: boolean }) {
+  if (entries.length === 0) return chooseSomeone
+    ? <EmptyState title="Choose someone in Showing to see their Requests." description="" className={styles.oneLine} />
+    : <EmptyState title="Requests you file or pick up show here." description="" className={styles.oneLine}
+      action={canFile ? <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>New Request</NewRequestLink> : undefined} />
   return <ImpactEntryList entries={entries} />
 }
 

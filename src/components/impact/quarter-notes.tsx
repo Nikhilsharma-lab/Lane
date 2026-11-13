@@ -1,7 +1,8 @@
 "use client"
 
-import { lazy, Suspense, useRef, useState } from "react"
+import { lazy, Suspense, useState } from "react"
 import { Button } from "@/components/arc/button/button"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog"
 import { quarterStarted } from "@/lib/impact-period"
 import type { QuarterNoteSlot } from "@/lib/impact-read-model"
 import { LinkedText } from "@/components/linked-text"
@@ -11,7 +12,10 @@ import styles from "./outcome-report.module.css"
 
 // The Quarter notes at the end of the Outcome report (#209): the team's own words, one per quarter, with who last edited
 // each and when. Everyone who sees the report reads them; only an Admin gets the write and edit controls, and the
-// server refuses anyone else (saveQuarterNote). The editor loads only when an Admin opens it.
+// server refuses anyone else (saveQuarterNote). #283: an Admin writes in Lane's popup (adaptive-dialog.tsx): an Arc
+// dialog on desktop and the bottom panel on a phone, so the field and its buttons are always on screen. Focus moves in
+// and back to the button, and Escape, the × or a press outside ask before dropping typed text. The editor itself loads
+// only when an Admin opens it.
 
 const QuarterNoteEditor = lazy(() => import("./quarter-note-editor"))
 
@@ -24,18 +28,13 @@ function NoteText({ text }: { text: string }) {
 
 function QuarterNote({ slot, editor, asOf, heading }: { slot: QuarterNoteSlot; editor: QuarterNoteEditorTarget; asOf: string; heading: "h2" | "h3" }) {
   const [note, setNote] = useState(slot.note)
-  const [editing, setEditing] = useState(false)
-  const opener = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  // Saving holds the popup in place, a phone-panel drag included.
+  const [saving, setSaving] = useState(false)
   const headingId = `quarter-note-${slot.year}-q${slot.quarter}`
   const Heading = heading
   // A note is written during or after its quarter, never before; the server refuses the same.
   const writable = editor !== null && quarterStarted(slot.year, slot.quarter, new Date(`${asOf}T23:59:59.999Z`))
-
-  const close = () => {
-    setEditing(false)
-    // Focus goes back to the control that opened the editor, so keyboard users keep their place.
-    requestAnimationFrame(() => opener.current?.focus())
-  }
 
   return <section className={styles.quarterNote} aria-labelledby={headingId}>
     <Heading id={headingId} className={heading === "h2" ? styles.heading : styles.projectHeading}>{heading === "h2" ? `Quarter note, ${slot.label}` : slot.label}</Heading>
@@ -44,13 +43,18 @@ function QuarterNote({ slot, editor, asOf, heading }: { slot: QuarterNoteSlot; e
         <NoteText text={note.text} />
         <p className={styles.note}>Last edited by {note.editorName} on <LocalTime iso={note.editedAt} day />.</p>
       </>
-      : !editing && <p className={styles.note}>No Quarter note for {slot.label}.</p>}
-    {writable && !editing && <div className={styles.noteControls}>
-      <Button ref={opener} variant="secondary" size="sm" onClick={() => setEditing(true)}>{note ? `Edit the ${slot.label} note` : `Write the ${slot.label} note`}</Button>
-    </div>}
-    {writable && editing && <Suspense fallback={<Placeholder label="Opening the editor" lines={3} />}>
-      <QuarterNoteEditor orgId={editor.orgId} slot={slot} note={note} onCancel={close} onSaved={saved => { setNote(saved); close() }} />
-    </Suspense>}
+      : <p className={styles.note}>No Quarter note for {slot.label}.</p>}
+    {writable && <Dialog guardTypedText dismissible={!saving} open={open} onOpenChange={setOpen}>
+      <div className={styles.noteControls}>
+        <DialogTrigger asChild><Button variant="secondary" size="sm">{note ? `Edit the ${slot.label} note` : `Write the ${slot.label} note`}</Button></DialogTrigger>
+      </div>
+      <DialogContent title={`Quarter note, ${slot.label}`} aria-describedby={undefined}>
+        <Suspense fallback={<Placeholder label="Opening the editor" lines={3} />}>
+          <QuarterNoteEditor orgId={editor.orgId} slot={slot} note={note} onSavingChange={setSaving}
+            onSaved={saved => { setNote(saved); setOpen(false) }} />
+        </Suspense>
+      </DialogContent>
+    </Dialog>}
   </section>
 }
 

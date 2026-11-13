@@ -92,9 +92,10 @@ describe("Outcome report: period and freshness", () => {
     expect(body).not.toContain("UTC")
   })
 
-  it("lets the reader pick a month, quarter or year, with the chosen one pressed and named", () => {
+  it("lets the reader pick a month, quarter or year under a visible Show by, with the chosen one pressed and named", () => {
     const markup = html(AUGUST)
-    expect(markup).toMatch(/role="group" aria-label="Report by"/)
+    // C29: Show by is shown, and spoken once, as the group's name.
+    expect(markup).toMatch(/<span[^>]*aria-hidden="true">Show by<\/span><div[^>]*role="group" aria-label="Show by"/)
     expect([...markup.matchAll(/aria-pressed="true"[^>]*>(?:<[^>]+>)*([^<]+)</g)].map(match => match[1])).toEqual(["Month"])
     expect(markup).toContain(">Period</label>")
     expect(text(markup)).toContain("August 2026")

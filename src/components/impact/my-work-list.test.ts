@@ -97,6 +97,12 @@ describe("My work rows (#155)", () => {
     expect(out).toContain("Window 30 days after release")
   })
 
+  it("shows What we learned under a closed result (#283)", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: { ...measured(46), learned: "Shoppers trust a saved card" } })]
+    const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
+    expect(out).toContain("What we learned Shoppers trust a saved card")
+  })
+
   it("shows the evidence text beside a measured result, as text only", () => {
     const rows = [row({ id: "r1", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: measured(46) })]
     const html = renderToStaticMarkup(createElement(MyWorkTab, { entries: myEntries(rows) }))
@@ -161,9 +167,9 @@ describe("My work rows (#155)", () => {
 })
 
 describe("My work states (#155)", () => {
-  it("says so when the viewer has no Requests yet", () => {
+  it("says so when the viewer has no Requests yet (#283)", () => {
     const out = text(renderToStaticMarkup(createElement(MyWorkTab, { entries: [] })))
-    expect(out).toContain("Nothing requested or picked up yet")
+    expect(out).toBe("Requests you file or pick up show here.")
   })
 
   it("says so when a teammate has no Requests yet, by name", () => {
