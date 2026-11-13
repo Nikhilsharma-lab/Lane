@@ -634,3 +634,7 @@ The adaptation is the one `date-range-picker` had, with each component's API, be
 - `src/components/arc/date-picker/date-picker.module.css` and `src/components/arc/calendar/calendar.module.css`: pixel gaps, paddings and sizes become the theme's `--space-*` steps (or `calc` multiples of `--space-1`), `1px` borders `--border-width`, weights `--weight-medium`/`--weight-normal`, opacities the nearest `--lane-opacity-*` step, `100ms` the instant duration and the popover's `z-index: 20` `--lane-layer-popover`.
 
 Lane, not Arc, handles Escape inside a popup: Radix hears Escape on the document before the picker's own handler, so the release form (`src/components/requests/picker-escape.ts`) hears it first on the window and, with the calendar open, closes only the calendar through the picker's own button.
+
+### Build 6.5: the Request pane and its properties, finished (#281, 2026-11-13)
+
+- `src/components/arc/comment-thread/comment-thread.tsx`: an optional `renderText(text)` draws a comment body's plain text between @mentions, so Lane's `DetailConversation` shows web addresses as links that open in a new tab (`src/components/linked-text.tsx`, the Quarter notes' rule from `src/lib/text-links.ts`). Mentions keep their highlight; without the prop a body shows as before. Comments never fold. No other API, motion or styling changes.

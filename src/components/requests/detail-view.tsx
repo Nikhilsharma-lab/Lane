@@ -17,6 +17,8 @@ import { RequestTitle, ShownTitle } from "./request-title"
 import detailStyles from "./detail.module.css"
 import styles from "./requests.module.css"
 import { SectionHeading } from "./section-heading"
+import { FoldedText } from "./folded-text"
+import { LinkedText } from "@/components/linked-text"
 
 export type RequestStatus = "open" | "in_progress" | "done"
 
@@ -130,18 +132,18 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
               <DetailStateLine />
             </header>}
             <RequestPanePanel value="overview"><section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>
-              <SectionHeading level={2} id="problem-heading" className="sr-only">Problem</SectionHeading>
-              <p className={detailStyles.description}>{problem}</p>
+              <SectionHeading level={2} id="problem-heading" className={detailStyles.blockHeading}>Problem to solve</SectionHeading>
+              <FoldedText className={detailStyles.description}><LinkedText text={problem} /></FoldedText>
               {supportingLink && <a href={supportingLink} target="_blank" rel="noopener noreferrer" className={styles.fileRow}><LinkIcon aria-hidden="true" /><span className="min-w-0 flex-1 break-all text-sm">{supportingLink}<span className="sr-only"> (opens in a new tab)</span></span><ExternalLink aria-hidden="true" /></a>}
               {request.reframedProblem && <details className={detailStyles.disclosure}>
                 <summary><SectionHeading level={3}>Original Request</SectionHeading></summary>
-                <div className={detailStyles.disclosureBody}><p className={detailStyles.secondaryText}>{request.description}</p></div>
+                <div className={detailStyles.disclosureBody}><p className={detailStyles.secondaryText}><LinkedText text={request.description} /></p></div>
               </details>}
               {request.extractedSolution && <div className={detailStyles.block}>
                 <SectionHeading level={3} className={detailStyles.blockHeading}>Suggested change</SectionHeading>
-                <p className={detailStyles.secondaryText}>{request.extractedSolution}</p>
+                <p className={detailStyles.secondaryText}><LinkedText text={request.extractedSolution} /></p>
               </div>}
-              {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
+              {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd><LinkedText text={item.value!} /></dd></div>)}</dl>}
 
             </section>
             {guestSubmission}

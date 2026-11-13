@@ -499,7 +499,7 @@
     "source": "https://uiarc.dev/r/comment-thread.json",
     "file": "src/components/arc/comment-thread/comment-thread.tsx",
     "upstreamSha256": "cd6a270befb55c8190bec700e23170ce360586b09ee55d71b972b0e15a0fc442",
-    "localSha256": "d75a64c30537c7bc730a9746dbcdde43759bee2d45a82ad927dd76e2688f9b5d"
+    "localSha256": "473ae1c5c8fcd8896e5088d5294d2f70c65a0f1a6d097907b86e458abce2b5bc"
   },
   {
     "id": "comment-thread",

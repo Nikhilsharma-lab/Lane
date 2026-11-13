@@ -42,7 +42,6 @@
 .quarterNote { display: grid; gap: var(--space-2); min-width: 0; }
 .block > .quarterNote { margin-block-start: var(--space-3); }
 .noteBody { margin: 0; color: var(--foreground); font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-line; overflow-wrap: anywhere; }
-.noteLink { color: var(--foreground); text-decoration: underline; text-underline-offset: var(--space-1); border-radius: var(--corner-sm); }
 .noteForm { display: grid; gap: var(--space-3); min-width: 0; }
 .noteControls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 

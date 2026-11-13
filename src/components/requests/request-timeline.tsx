@@ -23,7 +23,7 @@ import type { RequestDetail } from "./detail-view"
 import { RequestReviews } from "./request-reviews"
 import { JourneyStepActions } from "./journey-step-actions"
 import { JourneyStepForm } from "./journey-step-form"
-import { journeyStepDetails } from "./journey-step-details"
+import { EvidenceLine, journeyStepDetails } from "./journey-step-details"
 import { liveJourney, timelineSteps, type JourneyOutline, type OutlineLine, type TimelineStep } from "./request-timeline-model"
 import { JourneyLine } from "./journey-line"
 import { LocalTime } from "./local-time"
@@ -243,7 +243,7 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
         <p>{historyLine(event)} by {name(event.actorId)} on <LocalTime iso={event.at} day />.</p>
         {"reason" in event.input && <p className={styles.muted}>{event.input.reason}</p>}
         {event.input.kind === "transfer" && <p className={styles.muted}>{name(event.previousOwnerId)} → {name(event.ownerId)}</p>}
-        {event.release && <p className={styles.muted}>Released: {plannedDay(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {plannedDay(event.release.dueDate)}. Evidence: {event.release.evidence}</p>}
+        {event.release && <p className={styles.muted}>Released: {plannedDay(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {plannedDay(event.release.dueDate)}. <EvidenceLine evidence={event.release.evidence} /></p>}
       </li>)}</ol>
     </details>}
     {!!outcome.followUps.length && <div className={styles.facts}>
@@ -274,7 +274,7 @@ function RequestActivity({ request, views: { release, outcome } }: { request: Re
       title: historyLine(event).toLowerCase(), icon: <History data-icon-size="sm" />,
       detail: <div className={styles.facts}>
         {"reason" in event.input && <p>{event.input.reason}</p>}
-        {event.release && <p>Audience: {event.release.audience}. Evidence: {event.release.evidence}</p>}
+        {event.release && <p>Audience: {event.release.audience}. <EvidenceLine evidence={event.release.evidence} /></p>}
       </div>,
     })),
     ...(outcome.closure ? [{ id: "closed", at: outcome.closure.closedAt, title: "Request closed", icon: <Check data-icon-size="sm" /> }] : []),
