@@ -9,7 +9,8 @@ import { CHECK_CONNECTION, OFFLINE_ANSWER, OFFLINE_ANSWER_TITLE, SAVE_FAILED_TIT
 import { usePendingMutationWriter, type PendingMutations, type RequestPatch } from "./pending-mutations-provider"
 
 /** What every Request action returns: `{ error }` on a refusal, anything else on success. */
-export type ActionResult = { error?: string } | { success?: boolean }
+/** `noMeasurableImpact`: a Mark Done of a Request whose Goal is No measurable impact (#309). */
+export type ActionResult = { error?: string } | { success?: boolean; noMeasurableImpact?: true }
 
 export type OptimisticOutcome<R> =
   | { status: "success"; value: R }
