@@ -13,6 +13,7 @@ import { allow, journeyActionsFor, personName } from '@/lib/request-journey-acce
 import { agreedResult, correctableFields, outcomeChangeSchema, type OutcomeClosure, type OutcomeException } from '@/lib/request-outcome';
 import { expectedImpactSchema } from '@/lib/request-impact';
 import { utcDay } from '@/lib/utc-day';
+import { plannedDay } from '@/lib/dates';
 import { deliverAfterResponse, deliverGuestEmailAfterResponse } from '@/lib/inbox-delivery';
 import { newRequestBlock } from '@/lib/billing';
 /** Each closure change and the journey action that allows it. */
@@ -39,7 +40,7 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
             allow(actions[JOURNEY_ACTION[change.kind]]);
             const closedAt = now.toISOString();
             if (change.kind === "correction") {
-                insist(correctableFields(request.outcomeClosure ? "measured" : "exception").includes(change.field), "Choose a part of this closure to correct.");
+                insist(correctableFields(request.outcomeClosure ? "measured" : "exception", { guardrails: !!request.outcomeClosure?.guardrails.length }).includes(change.field), "Choose a part of this closure to correct.");
                 // A corrected actual result has the closure's own form: a number for a metric, passed or not for a check.
                 const form = request.outcomeClosure?.primary.kind;
                 insist(!change.value || change.value.kind === form, form === "numeric" ? "Record the corrected actual value." : "Record whether the check passed.");
@@ -55,6 +56,8 @@ export async function changeRequestOutcome(context: RequestChangeContext, input:
                 insist(change.primary.kind === agreed.form, agreed.form === "numeric" ? "Record the actual value." : "Record whether the check passed.");
                 insist(change.guardrails.length === agreed.guardrails.length, "Record an actual value for every agreed guardrail.");
                 insist(change.observedFrom <= change.observedTo && change.observedTo <= utcDay(), "Observation period must end today or earlier and start before it ends.");
+                // #279 (story 38): a result can't cover a period before the release. Both are calendar days.
+                insist(change.observedFrom >= release.exposureDate, `The observation can’t start before the release on ${plannedDay(release.exposureDate, { now })}.`);
                 const closure: OutcomeClosure = {
                     version: 1, kind: "measured", actorId: auth.userId, ownerId: requesterId, closedAt, operationId: context.operationId, fingerprint,
                     expected, release,

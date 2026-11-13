@@ -3,6 +3,7 @@ import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome-options"
 // The forms load with their popups (#277); the details need only the value words.
 import { resultValue } from "./result-value"
+import { goalValueText, passFailText, resultAgainstGoal, resultValueText } from "@/lib/result-phrasing"
 import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, learnedLine, observedLine, type TimelineStep } from "./request-timeline-model"
 import { LocalTime } from "./local-time"
 import { SectionHeading } from "./section-heading"
@@ -29,8 +30,9 @@ export function journeyStepDetails(step: TimelineStep, { views: { release, outco
   if (step.status !== "closed" || !closure) return null
   return <div className={styles.facts}>
     {agreed && closure.kind === "measured" && <dl className={styles.facts}>
-      <div><dt>Expected {agreed.form === "numeric" ? "metric" : "check"}</dt><dd>{agreed.label}{agreed.form === "numeric" && `: ${resultValue(agreed.baseline, agreed.unit)} → ${resultValue(agreed.target, agreed.unit)}`}</dd></div>
-      <div><dt>Actual</dt><dd>{closure.primary.kind === "numeric" ? resultValue(closure.primary.actual, closure.primary.unit) : closure.primary.passed ? "Passed" : "Did not pass"}</dd></div>
+      {/* #279: the goal in its own words, and the result against it in the goal's direction (result-phrasing.ts). */}
+      <div><dt>Goal</dt><dd>{agreed.label}{agreed.form === "numeric" && `: ${goalValueText(agreed)}`}</dd></div>
+      <div><dt>Result</dt><dd>{closure.primary.kind === "numeric" ? resultAgainstGoal(closure.primary.actual, { unit: closure.primary.unit, baseline: agreed.baseline, target: agreed.target }) : passFailText(closure.primary.passed)}</dd></div>
       {closure.guardrails.map((g, i) => <div key={i}><dt>Guardrail: {g.metric}</dt><dd>Stays {guardrailComparisonPhrase[g.operator]} {resultValue(g.limit, g.unit)} · Actual {resultValue(g.actual, g.unit)} · {g.held ? "Held" : "Breached"}</dd></div>)}
     </dl>}
     {closure.kind === "measured" && <>
@@ -41,7 +43,7 @@ export function journeyStepDetails(step: TimelineStep, { views: { release, outco
     {/* #209: the line as given at closing; a Correction below shows any new wording beside it. */}
     {closure.learned && <p>{learnedLine(closure.learned)}</p>}
     {!!outcome.corrections.length && <div className={styles.facts}><SectionHeading level={4}>Corrections</SectionHeading><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
-      <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
+      <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValueText(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : passFailText(c.value.passed)}. </>}{c.correction}</p>
       <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on <LocalTime iso={c.at} day />.</p>
     </li>)}</ol></div>}
   </div>

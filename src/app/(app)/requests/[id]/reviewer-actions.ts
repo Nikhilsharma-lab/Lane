@@ -2,10 +2,10 @@
 import { canChange, seeable } from "@/lib/request-access";
 import { canChangeThings } from "@/lib/role-rules";
 import * as z from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
 import { guardActiveMember, guardCanChange, type MemberAuth } from "@/lib/auth-guard";
-import { addReviewersSchema, removeReviewerSchema, answerReviewSchema } from "@/lib/request-reviewer-schemas";
+import { addReviewersSchema, removeReviewerSchema, answerReviewSchema, restoreReviewerSchema } from "@/lib/request-reviewer-schemas";
 import {
   reviewerKey,
   reviewerPickRefusal,
@@ -150,6 +150,47 @@ export async function removeReviewer(context: RequestChangeContext, input: unkno
         reviewersRow,
         reviewers.filter((r) => r.id !== parsed.data.reviewerId),
       );
+    },
+  );
+}
+
+/**
+ * #279 (decision 10): Undo after removing a reviewer. Puts the saved entry back exactly as it was (its id, note,
+ * answer and who asked) in its old place, through the same change path, and tells nobody. Only whoever removed them,
+ * and only while that removal is still the Request's last change: anything since, and they're added again instead.
+ */
+export async function restoreReviewer(context: RequestChangeContext, input: unknown) {
+  const parsed = restoreReviewerSchema.safeParse(input);
+  if (!parsed.success) return { error: "Choose a reviewer to put back." };
+  return changeReviewers(
+    context,
+    parsed.data,
+    "reviewers_added",
+    async (tx, request, reviewersRow, auth) => {
+      insist(canChange(auth, request), "Only the Requester or a workspace admin can remove a reviewer.");
+      const [removal] = await tx
+        .select()
+        .from(requestAgreementEvents)
+        .where(and(
+          eq(requestAgreementEvents.orgId, auth.orgId),
+          eq(requestAgreementEvents.requestId, request.id),
+          eq(requestAgreementEvents.kind, "reviewer_removed"),
+        ))
+        .orderBy(desc(requestAgreementEvents.revision))
+        .limit(1);
+      const before = (removal?.payload.before as ReviewersRow | null | undefined)?.reviewers ?? [];
+      const at = before.findIndex((r) => r.id === parsed.data.reviewerId);
+      insist(
+        removal
+          && removal.revision === request.agreementRevision
+          && removal.actorId === auth.userId
+          && (removal.payload.input as { reviewerId?: string }).reviewerId === parsed.data.reviewerId
+          && at >= 0,
+        "The reviewers changed since. Add them again instead.",
+      );
+      const reviewers = [...(reviewersRow?.reviewers ?? [])];
+      reviewers.splice(at, 0, before[at]);
+      await saveReviewers(tx, request, reviewersRow, reviewers);
     },
   );
 }

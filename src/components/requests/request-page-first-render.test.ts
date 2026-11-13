@@ -100,7 +100,10 @@ describe("the Request page before its reads arrive (#295)", () => {
 
   it("holds the Iterations at the height of their empty state, with room for Link a Request", () => {
     const iterations = section(render(open), "iterations")
-    expect(iterations).toMatch(/role="status"[^>]*>Loading Iterations…/)
+    // #279 (story 69): shaped like the section: its heading, then placeholder lines where its words will be.
+    expect(iterations).toMatch(/<h\d[^>]*>Iterations of this problem</)
+    expect(iterations).toMatch(/role="status" aria-label="Loading Iterations" aria-busy="true"/)
+    expect(iterations).not.toContain("Loading Iterations…")
     expect(iterations).toMatch(/aria-hidden="true"[^>]*>No other Request is linked as Same problem yet. Link Requests that tackle the same problem to see each attempt and its result together.</)
     expect(iterations).toMatch(/data-holds-button/)
     // A Viewer sees the section only when the Request is linked, which is rare: nothing is held for them.

@@ -33,10 +33,14 @@ test("a reviewer added while creating raises a concern; pickup confirms, then go
         const developer = team.pages[2];
         await developer.goto(path);
         const developerPanel = developer.getByRole("region", { name: "Reviewers", exact: true });
+        // #279: Raise a concern opens in the Journey popup; the answer shows at once, labelled, and the button becomes Change answer.
         await developerPanel.getByRole("button", { name: "Raise a concern" }).click();
-        await developerPanel.getByLabel("What concerns you?").fill("Recovery API is unavailable");
-        await developerPanel.getByRole("button", { name: "Raise concern", exact: true }).click();
-        await expect(developerPanel).toContainText("Recovery API is unavailable");
+        const concern = developer.getByRole("dialog", { name: "Raise a concern", exact: true });
+        await concern.getByLabel("What concerns you?").fill("Recovery API is unavailable");
+        await concern.getByRole("button", { name: "Raise concern", exact: true }).click();
+        await expect(concern).toHaveCount(0);
+        await expect(developerPanel).toContainText("Concern: Recovery API is unavailable");
+        await expect(developerPanel.getByRole("button", { name: "Change answer", exact: true })).toBeFocused();
         const designer = team.pages[1];
         await designer.goto(path);
         const designerPanel = designer.getByRole("region", { name: "Reviewers", exact: true });
