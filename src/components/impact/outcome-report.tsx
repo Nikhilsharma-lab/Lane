@@ -10,7 +10,7 @@ import { Select } from "@/components/arc/select/select"
 import { guardrailComparisonPhrase, type GuardrailOperator } from "@/lib/guardrail-comparison"
 import { metricChart } from "@/lib/impact-chart-view"
 import { periodLabel, type ImpactPeriod } from "@/lib/impact-period"
-import { actualText, baselineLabelOf, changeText, goalText, NOTHING_MEASURED, totalText, valueText } from "@/lib/impact-presenter"
+import { actualText, BEFORE_RELEASE, beforeReleaseText, changeText, goalText, NOTHING_MEASURED, passFailTotalText, resultText, totalText, valueText } from "@/lib/impact-presenter"
 import { iterationsHref } from "@/lib/same-problem-rules"
 import type { CorrectedValue, IterationNote, LearnedLine, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
@@ -89,13 +89,13 @@ function TotalLine({ line }: { line: ResultLine }) {
     <h3 className={styles.lineTitle}>{line.metric}</h3>
     <p className={styles.note}>{line.audience} · {line.platform} · {line.window} · {results(line.count)}</p>
     {chart && <MetricChart chart={chart} />}
-    {line.summed?.change !== null && line.summed?.change !== undefined && <p className={styles.total}>{totalText(line.summed.change, line.unit, line.changeUnit)} from {results(line.summed.count)}</p>}
+    {line.summed?.change !== null && line.summed?.change !== undefined && <p className={styles.total}>{totalText(line.summed.change, line.unit, line.summed.count)}</p>}
     {line.unit === "%" && <p className={styles.note}>Changes are in percentage points. They are never added together or averaged.</p>}
-    {line.verdicts && <p className={styles.total}>Verified: {line.verdicts.good} good, {line.verdicts.bad} bad. Counted, not summed.</p>}
+    {line.verdicts && <p className={styles.total}>{passFailTotalText(line.verdicts)}. Counted, not summed.</p>}
     <ul className={styles.lineRequests} aria-label={`Requests counted in ${line.metric}`}>
       {line.results.map(result => <li key={result.requestId}>
         {result.requests.map((request, index) => <span key={request.requestId}>{index > 0 && ", "}<RequestLink {...request} /></span>)}
-        {result.correctedFrom && <> <Badge size="sm" tone="warning">Corrected</Badge></>}
+        {result.correctedFrom && <> <Badge size="sm" tone="warning">Corrected</Badge></>}: {resultText(result)}
       </li>)}
     </ul>
   </article>
@@ -129,20 +129,21 @@ function Guardrails({ guardrails }: { guardrails: ReportGuardrail[] }) {
   </div>
 }
 
-/** The result counted, marked Corrected with the value recorded at closing when a Correction stated another one. */
-function ActualResult({ result }: { result: ResultView }) {
+/** The result against its goal, marked Corrected with the value recorded at closing when a Correction stated another one. */
+function CountedResult({ result }: { result: ResultView }) {
   const original = result.correctedFrom
-  return <>{actualText(result)}{original && <> <Badge size="sm" tone="warning">Corrected</Badge> ({actualText({ ...result, ...original })} at closing)</>}</>
+  return <>{resultText(result)}{original && <> <Badge size="sm" tone="warning">Corrected</Badge> ({actualText({ ...result, ...original })} at closing)</>}</>
 }
 
 function MeasuredFacts({ result }: { result: ResultView }) {
-  if (result.form === "pass_fail") return <Fact label="Result"><ActualResult result={result} /></Fact>
+  if (result.form === "pass_fail") return <Fact label="Result"><CountedResult result={result} /></Fact>
+  const before = beforeReleaseText(result)
   return <>
-    {result.baselineSource !== null && result.baseline !== null && <Fact label={baselineLabelOf(result.baselineSource)}>{valueText(result.baseline, result.unit)}</Fact>}
+    {before !== null && <Fact label={BEFORE_RELEASE}>{before}</Fact>}
     {result.baselineState === "unknown" && <Fact label="Baseline">Unknown</Fact>}
     {result.baselineState === "new_capability" && <Fact label="Baseline">New capability, no change</Fact>}
-    <Fact label="Actual"><ActualResult result={result} /></Fact>
-    {result.change !== null && <Fact label="Change">{changeText(result.change, result.unit, result.changeUnit)}</Fact>}
+    <Fact label="Result"><CountedResult result={result} /></Fact>
+    {result.change !== null && <Fact label="Change">{changeText(result.change, result.unit)}</Fact>}
   </>
 }
 
@@ -156,8 +157,8 @@ function ReportRequest({ entry }: { entry: OutcomeReportEntry }) {
       <p className={styles.problem}>{entry.problem}</p>
       <dl className={styles.facts}>
         <Fact label="Released"><time dateTime={entry.releaseDate}>{plannedDay(entry.releaseDate)}</time></Fact>
-        {predicted && <Fact label="Metric">{predicted.metric}{predicted.form === "numeric" ? ` (${predicted.audience}, ${predicted.window})` : ""}</Fact>}
-        {predicted && predicted.form === "numeric" && <Fact label="Goal">{goalText(predicted)}</Fact>}
+        {predicted && predicted.form === "numeric" && <Fact label="Metric">{predicted.metric} ({predicted.audience}, {predicted.window})</Fact>}
+        {predicted && <Fact label="Goal">{goalText(predicted)}</Fact>}
         {outcome.kind === "measured" && <MeasuredFacts result={outcome.result} />}
         {outcome.kind === "still_due" && <Fact label="Result due"><time dateTime={outcome.dueDate}>{plannedDay(outcome.dueDate)}</time> ({outcome.dueLabel})</Fact>}
         {outcome.kind === "operational" && <Fact label="Not measured">Operational work: {outcome.reason}</Fact>}

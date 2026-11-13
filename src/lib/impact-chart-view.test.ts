@@ -24,13 +24,9 @@ function line(over: Partial<ResultLine> & { results: ResultView[] }): ResultLine
 
 describe("metric chart presenter (#158)", () => {
   it("scales one metric's chart to its own largest value, with each bar's height as a share of that scale", () => {
-    const chart = metricChart(line({ results: [result({ requestNumber: 1 })] }))
+    const chart = metricChart(line({ results: [result({ requestNumber: 1, baseline: 40, baselineSource: "release" })] }))
     expect(chart?.scaleMax).toBe(50)
-    expect(chart?.groups[0].bars).toEqual([
-      { series: "baseline", label: "Planning baseline", value: 40, height: 80 },
-      { series: "actual", label: "Actual", value: 46, height: 92 },
-      { series: "predicted", label: "Goal", value: 50, height: 100 },
-    ])
+    expect(chart?.groups[0].bars.map(bar => [bar.series, bar.height])).toEqual([["before_release", 80], ["result", 92], ["goal", 100]])
   })
 
   it("never draws values from another metric: a chart carries only its own line's results", () => {
@@ -48,24 +44,16 @@ describe("metric chart presenter (#158)", () => {
   })
 
   it("leaves out a baseline that is unknown and never draws it as zero", () => {
-    const chart = metricChart(line({ results: [result({ requestNumber: 1, baselineState: "unknown", baseline: null })] }))
-    const labels = chart?.groups[0].bars.map(bar => bar.series)
-    expect(labels).toEqual(["actual", "predicted"])
-    expect(chart?.description).toContain("baseline unknown")
-    expect(chart?.description).not.toContain("Baseline 0")
+    const chart = metricChart(line({ results: [result({ requestNumber: 1, baselineState: "unknown", baseline: null, baselineSource: null, plannedBaseline: null })] }))
+    expect(chart?.groups[0].bars.map(bar => bar.series)).toEqual(["result", "goal"])
+    expect(chart?.description).toContain("value before release unknown")
+    expect(chart?.description).not.toMatch(/before release 0/)
   })
 
-  it("draws a new capability's target only, labelled as a new capability, with no baseline bar", () => {
-    const chart = metricChart(line({ results: [result({ requestNumber: 1, baselineState: "new_capability", baseline: null, actual: null, change: null })] }))
-    expect(chart?.groups[0].bars).toEqual([{ series: "predicted", label: "Goal", value: 50, height: 100 }])
+  it("draws a new capability's goal only, labelled as a new capability, with no before-release bar", () => {
+    const chart = metricChart(line({ results: [result({ requestNumber: 1, baselineState: "new_capability", baseline: null, baselineSource: null, plannedBaseline: null, actual: null, change: null })] }))
+    expect(chart?.groups[0].bars).toEqual([{ series: "goal", label: "Goal", value: 50, valueLabel: "50%", height: 100 }])
     expect(chart?.description).toContain("new capability")
-  })
-
-  it("describes every value in words for screen readers, one sentence per Request", () => {
-    const chart = metricChart(line({ results: [result({ requestNumber: 1 })] }))
-    expect(chart?.description).toBe(
-      "Conversion rate, unit %, window 30 days after release. Request #1 Request 1: planning baseline 40 %, actual 46 %, goal 50 %.",
-    )
   })
 
   it("returns no chart for a Verified result, which is counted and never drawn as a number", () => {
@@ -73,23 +61,46 @@ describe("metric chart presenter (#158)", () => {
   })
 
   it("returns a chart with no groups when no result has a numeric value, so the view shows the empty message", () => {
-    const chart = metricChart(line({ results: [result({ requestNumber: 1, baselineState: "unknown", baseline: null, actual: null, predictedTarget: null })] }))
+    const chart = metricChart(line({ results: [result({ requestNumber: 1, baselineState: "unknown", baseline: null, baselineSource: null, actual: null, predictedTarget: null })] }))
     expect(chart?.groups).toEqual([])
     expect(chart?.scaleMax).toBe(0)
   })
 })
 
-describe("metric chart presenter: value before release (#151 decision 3)", () => {
-  it("labels a release-time baseline as before release, bar and description alike", () => {
-    const chart = metricChart(line({ results: [result({ requestNumber: 1, baseline: 42, baselineSource: "release" })] }))
-    expect(chart?.groups[0].bars[0]).toMatchObject({ series: "baseline", label: "Before release", value: 42 })
-    expect(chart?.baselineLabel).toBe("Before release")
-    expect(chart?.description).toContain("before release 42 %")
+describe("metric chart presenter: Lane's words and numbers (#282)", () => {
+  it("names its three series Before release, Result and Goal, in that order, for the legend", () => {
+    const chart = metricChart(line({ results: [result({ requestNumber: 1 })] }))
+    expect(chart?.legend.map(item => item.label)).toEqual(["Before release", "Result", "Goal"])
   })
 
-  it("says so plainly when one chart mixes release-time and planning baselines", () => {
-    const chart = metricChart(line({ results: [result({ requestNumber: 1, baseline: 42, baselineSource: "release" }), result({ requestNumber: 2, baselineSource: "planning" })] }))
-    expect(chart?.baselineLabel).toBe("Baseline: before release or planning baseline")
+  it("labels each group with its Request's saved code and title, and each bar with its value", () => {
+    const chart = metricChart(line({ results: [result({ requestNumber: 40, title: "Shorter checkout", baseline: 62, baselineSource: "release", actual: 75, predictedTarget: 80 })] }))
+    expect(chart?.groups[0]).toMatchObject({ code: "LAN-40", title: "Shorter checkout" })
+    expect(chart?.groups[0].bars.map(bar => [bar.label, bar.valueLabel])).toEqual([["Before release", "62%"], ["Result", "75%"], ["Goal", "80%"]])
+  })
+
+  it("writes values in their own unit: a count bare, other units by name", () => {
+    const minutes = metricChart(line({ unit: "minutes", results: [result({ requestNumber: 2, unit: "minutes", baseline: 240, baselineSource: "release", plannedBaseline: 240, actual: 75, predictedTarget: 90 })] }))
+    expect(minutes?.groups[0].bars.map(bar => bar.valueLabel)).toEqual(["240 minutes", "75 minutes", "90 minutes"])
+    const count = metricChart(line({ unit: "count", results: [result({ requestNumber: 3, unit: "count", baseline: null, baselineSource: null, actual: 12, predictedTarget: 10 })] }))
+    expect(count?.groups[0].bars.map(bar => bar.valueLabel)).toEqual(["12", "10"])
+  })
+
+  it("says each Request's code, title, values and goal in words, with no space before a percent sign", () => {
+    const chart = metricChart(line({ results: [result({ requestNumber: 40, title: "Shorter checkout", baseline: 58, baselineSource: "release", plannedBaseline: 62, actual: 75, predictedTarget: 80 })] }))
+    expect(chart?.description).toBe(
+      "Conversion rate, 30 days after release. LAN-40 Shorter checkout: before release 58%, result 75%, goal 80% (from 62%).",
+    )
+    expect(chart?.description).not.toMatch(/\d %/)
   })
 })
 
+describe("metric chart presenter: a legacy planning baseline (#282)", () => {
+  it("never draws a planning baseline as Before release: it reads as the goal's from value", () => {
+    const chart = metricChart(line({ results: [result({ requestNumber: 1, baseline: 40, baselineSource: "planning", plannedBaseline: 40, actual: 46, predictedTarget: 50 })] }))
+    expect(chart?.groups[0].bars.map(bar => bar.series)).toEqual(["result", "goal"])
+    expect(chart?.legend.map(item => item.label)).toEqual(["Before release", "Result", "Goal"])
+    expect(chart?.description).toBe("Conversion rate, 30 days after release. LAN-1 Request 1: result 46%, goal 50% (from 40%).")
+    expect(chart?.description).not.toMatch(/planning/i)
+  })
+})

@@ -48,7 +48,7 @@ function Outcome({ entry }: { entry: IterationEntry }) {
   switch (outcome.kind) {
     case "measured": {
       const { result } = outcome
-      return <div><dt>Result</dt><dd>{actualText(result)}{result.change !== null && ` (${changeText(result.change, result.unit, result.changeUnit)})`}</dd></div>
+      return <div><dt>Result</dt><dd>{actualText(result)}{result.change !== null && ` (${changeText(result.change, result.unit)})`}</dd></div>
     }
     case "closed_without_result": return <div><dt>Reason</dt><dd>{outcome.label}{outcome.reason && `: ${outcome.reason}`}</dd></div>
     case "operational": return <div><dt>Not measured</dt><dd>Operational work: {outcome.reason}</dd></div>

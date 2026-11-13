@@ -43,7 +43,7 @@ function MainUse({ use }: { use: DefinitionMainUse }) {
     <dl className={styles.facts}>
       <Fact label="Goal">{goalText(use.predicted)}</Fact>
       <Fact label="Actual">{outcome.kind === "measured" ? actualText(outcome.result) : waitingText(outcome)}</Fact>
-      {result && result.change !== null && <Fact label="Change">{changeText(result.change, result.unit, result.changeUnit)}</Fact>}
+      {result && result.change !== null && <Fact label="Change">{changeText(result.change, result.unit)}</Fact>}
     </dl>
   </li>;
 }
