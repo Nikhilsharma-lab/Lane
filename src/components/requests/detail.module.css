@@ -109,6 +109,10 @@
   .editLabel { display: none; }
 }
 
+/* #281 (B29): on a touch screen Back, Copy, the sequence, More actions, Edit and Delete are 44px to tap. After the
+   width rules above, so it wins; the strip is 44px, so it doesn't grow. */
+@media (pointer: coarse) { .iconButton, .editTrigger { min-width: var(--size-inner-xlarge); min-height: var(--size-inner-xlarge); } }
+
 /* The skeleton draws the loaded page's boxes. */
 .skeletonLine { display: flex; width: 60%; height: calc(var(--text-lg) * var(--leading-body)); align-items: center; }
 .skeletonBlocks { display: grid; gap: var(--space-6); }

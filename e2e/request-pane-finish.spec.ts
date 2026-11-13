@@ -274,4 +274,59 @@ test.describe("#281 the Request pane", () => {
       await expect(message).toHaveCount(0);
     });
   });
+
+  test("on a 390px phone, taps are at least 44px (B29) and messages never cover an open popup (B30)", async ({ browser }) => {
+    test.setTimeout(240_000);
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: "dark" });
+    const page = await context.newPage();
+    try {
+      await withWorkspace(page, "phone", async user => {
+        const id = await seedRequest(user.id, "Checkout keeps the saved card", { noMeasurableImpact: true });
+        await openRequest(page, id);
+        const strip = page.locator('[data-slot="page-strip"]');
+        const lifecycle = page.locator('[data-slot="request-lifecycle-actions"]:visible');
+
+        // B29: every control the walk measured at 26px is at least 44px to tap.
+        const taps = [
+          strip.getByRole("link", { name: "Back to Requests", exact: true }),
+          strip.getByRole("button", { name: "Edit Request", exact: true }),
+          strip.getByRole("button", { name: "Delete Request", exact: true }),
+          strip.getByRole("button", { name: "More actions", exact: true }),
+          lifecycle.getByRole("button", { name: "Pick up", exact: true }),
+          page.getByRole("button", { name: "Link a Request", exact: true }),
+          page.getByRole("button", { name: "Post comment", exact: true }),
+        ];
+        for (const tap of taps) {
+          await tap.scrollIntoViewIfNeeded();
+          const box = await tap.boundingBox();
+          expect(box, `${tap}`).not.toBeNull();
+          expect(Math.round(box!.height), `${tap} height`).toBeGreaterThanOrEqual(44);
+          expect(Math.round(box!.width), `${tap} width`).toBeGreaterThanOrEqual(44);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.screenshot({ path: test.info().outputPath("281-phone-strip-390-dark.png") });
+
+        // B30: Mark Done's message sits at the bottom; once the Properties bottom panel opens, it moves to the top
+        // and covers none of the panel.
+        await lifecycle.getByRole("button", { name: "Pick up", exact: true }).click();
+        await lifecycle.getByRole("button", { name: "Mark Done", exact: true }).click();
+        const message = toastRegion(page).locator("li").filter({ hasText: "is now Done." });
+        await expect(message).toBeVisible({ timeout: 20_000 });
+        expect((await message.boundingBox())!.y).toBeGreaterThan(844 / 2);
+        await page.locator("[data-detail-state-line]").click();
+        const panel = page.getByRole("dialog", { name: "Properties", exact: true });
+        await expect(panel).toBeVisible();
+        await expect.poll(async () => (await message.boundingBox())?.y ?? 844).toBeLessThan(844 / 4);
+        const [toastBox, panelBox] = await Promise.all([message.boundingBox(), panel.boundingBox()]);
+        expect(toastBox!.y + toastBox!.height, "the message ends above the panel").toBeLessThanOrEqual(panelBox!.y);
+        await page.screenshot({ path: test.info().outputPath("281-phone-message-over-panel-390-dark.png") });
+        // Closed, the message goes back to the bottom.
+        await page.keyboard.press("Escape");
+        await expect(panel).toHaveCount(0);
+        await expect.poll(async () => (await message.boundingBox())?.y ?? 0).toBeGreaterThan(844 / 2);
+      });
+    } finally {
+      await context.close();
+    }
+  });
 });
