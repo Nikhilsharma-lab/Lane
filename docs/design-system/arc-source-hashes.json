@@ -325,14 +325,14 @@
     "source": "https://uiarc.dev/r/toast-stack.json",
     "file": "src/components/arc/toast-stack/toast-stack.module.css",
     "upstreamSha256": "68ea14b271d2af559f90dd2e972b20591092b1dff9ef5e6a408f6082c015379a",
-    "localSha256": "30e80d560d147e8eb7f982f3a828a5663a6e6d0832cd8ec404a151a1bfac89ce"
+    "localSha256": "e6f89c57693ce10bfc8846826e93e10cc4be878b4012ddb669a5605e7a0180e3"
   },
   {
     "id": "toast-stack",
     "source": "https://uiarc.dev/r/toast-stack.json",
     "file": "src/components/arc/toast-stack/toast-stack.tsx",
     "upstreamSha256": "8dd2b0aa283f62b952deb6fd909e8c227251b6f04cb92b8aa0e37243672d6313",
-    "localSha256": "d611d2714354d5c66c47d44e2d1417e861f4ab3c4f8c44551a175144c1917e79"
+    "localSha256": "02aa6b7c177e8fa0004b9b9c53e06b2ff47a02bc49654103f280d800aa314902"
   },
   {
     "id": "tooltip",

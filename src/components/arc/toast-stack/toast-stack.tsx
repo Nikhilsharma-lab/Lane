@@ -23,6 +23,8 @@ export interface ToastOptions {
   title: string;
   description?: string;
   action?: ToastAction;
+  /** Lane adaptation (#281, B34): a read-only field under the copy holding text to select, such as a link that couldn't be copied. */
+  field?: { label: string; value: string };
   /** Milliseconds before the toast closes itself. Defaults by type; loading toasts wait for an update. Pass Infinity to keep it until closed. */
   duration?: number;
 }
@@ -70,7 +72,7 @@ export interface ToastStackProps {
   morph?: "blur" | "plain";
 }
 
-type ToastRecord = { id: string; type: ToastType; title: string; description?: string; action?: ToastAction; duration: number; seq: number; version: number };
+type ToastRecord = { id: string; type: ToastType; title: string; description?: string; action?: ToastAction; field?: ToastOptions["field"]; duration: number; seq: number; version: number };
 type ToastStore = ToastStackApi & { subscribe: (listener: () => void) => () => void; getSnapshot: () => ToastRecord[]; runAction: (id: string) => void };
 type Target = { y: number; scale: number; height: number; opacity: number; content: number };
 
@@ -308,7 +310,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, pla
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     pointerType.current = event.pointerType;
     suppressClick.current = false;
-    if (event.button !== 0 || !isPresent || (event.target as Element).closest("button, a")) return;
+    if (event.button !== 0 || !isPresent || (event.target as Element).closest("button, a, input")) return;
     // Catch a toast that is still springing back, from exactly where it is.
     x.stop();
     gesture.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, origin: x.get(), active: false, samples: [] };
@@ -362,7 +364,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, pla
   function onCardClick(event: MouseEvent<HTMLDivElement>) {
     if (suppressClick.current) { suppressClick.current = false; return; }
     // Touch has no hover, so a tap on the card opens or closes the stack instead.
-    if (pointerType.current !== "mouse" && !(event.target as Element).closest("button, a")) onTap();
+    if (pointerType.current !== "mouse" && !(event.target as Element).closest("button, a, input")) onTap();
   }
 
   // An action that updates its toast usually folds itself away; keyboard focus lands on the close button instead of the page.
@@ -395,6 +397,7 @@ function ToastItem({ toast, target, expanded, front, hidden, paused, reduce, pla
           <span className={styles.srOnly}>{typeLabels[toast.type]}: </span>
           <span className={styles.title}><AnimatePresence mode="popLayout" initial={false}><Swap key={toast.title} className={styles.line} {...swap}>{toast.title}</Swap></AnimatePresence></span>
           <AnimatePresence mode="popLayout" initial={false}>{toast.description ? <Swap key={toast.description} className={styles.description} {...swap}>{toast.description}</Swap> : null}</AnimatePresence>
+          {toast.field && <input className={styles.field} readOnly aria-label={toast.field.label} value={toast.field.value} onFocus={event => event.currentTarget.select()} />}
         </div>
         {/* The action folds its width away when an update removes it, so the copy widens instead of snapping. */}
         <AnimatePresence initial={false}>
