@@ -59,6 +59,25 @@ export function gapAmountText(amount: number, unit: string): string {
   return unit === "%" ? `${amount} ${amount === 1 ? "point" : "points"}` : `${amount}`;
 }
 
+/** The true minus sign, never a hyphen, on a signed change. */
+export const MINUS = "−";
+
+/**
+ * #282: a signed change in its unit, with a true minus sign: "+6 points" for a percentage (a difference of
+ * percentages is in points), "−165 minutes", "+30" for a count. Zero reads "No change".
+ */
+export function changeAmountText(change: number, unit: string): string {
+  if (change === 0) return "No change";
+  const sign = change > 0 ? "+" : MINUS;
+  const amount = Math.abs(change);
+  return `${sign}${unit === "%" ? gapAmountText(amount, unit) : resultValueText(amount, unit)}`;
+}
+
+/** #282: pass/fail checks counted together: "1 passed, 0 didn’t pass". */
+export function passFailCountText({ passed, didntPass }: { passed: number; didntPass: number }): string {
+  return `${passed} ${PASSED.toLowerCase()}, ${didntPass} ${DIDNT_PASS.toLowerCase()}`;
+}
+
 /**
  * A measured result against its goal: "Reached 75 minutes, 15 past the goal", "Reached 47%, 8 points short of the
  * goal", "Reached 80%, exactly the goal". Without a direction (no start, or a start equal to the end) it states the
