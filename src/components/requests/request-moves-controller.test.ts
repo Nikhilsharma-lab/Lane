@@ -415,3 +415,20 @@ it("Reopen after the Done toast has gone says so in its own message, and a refus
   expect(a.stack.toasts[0]).toMatchObject({ type: "error", title: "Couldn’t reopen", description: "Undo is only offered right after a Request is marked Done. Further work needs a new Request." })
   expect(a.shown("r1", "done").status).toBe("done")
 })
+
+// #309: a Request whose Goal is No measurable impact has no release to record, so Mark Done doesn't ask "Is it live?"
+// and its Marked Done toast keeps Undo.
+it("Mark Done on a Request with no measurable impact skips Is it live? and keeps the toast's Undo", async () => {
+  const a = app()
+  const done = a.moves.move({ id: "op", name: "LAN-4" }, "done")
+  ;(await a.sent()).response.resolve({ success: true, noMeasurableImpact: true })
+  expect(await done).toMatchObject({ status: "success" })
+  expect(a.isItLive).not.toHaveBeenCalled()
+  expect(a.stack.toasts.at(-1)).toMatchObject({ title: "Marked Done", action: { label: "Undo" } })
+  expect(a.undoStore.get()?.requestId).toBe("op")
+
+  const measured = a.moves.move({ id: "m", name: "LAN-5" }, "done")
+  ;(await a.sent(1)).response.resolve({ success: true })
+  await measured
+  expect(a.isItLive).toHaveBeenCalledTimes(1)
+})

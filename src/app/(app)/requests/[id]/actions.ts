@@ -21,11 +21,13 @@ async function transitionOne(
   move: "pick-up" | "done",
   requestId: string,
   context: { orgId: string }
-): Promise<{success?: boolean; error?: string; sessionExpired?: true}> {
+): Promise<{success?: boolean; error?: string; sessionExpired?: true; noMeasurableImpact?: true}> {
   if (!UUID_RE.test(requestId)) return { error: "Not found" };
   const outcome = await transitionRequests(move, [requestId], context);
   if (outcome.error) return { error: outcome.error, ...(outcome.sessionExpired ? { sessionExpired: true as const } : {}) };
-  return outcome.moved.length ? { success: true } : { error: outcome.failed[0]?.error ?? "Not found" };
+  if (!outcome.moved.length) return { error: outcome.failed[0]?.error ?? "Not found" };
+  // #309: there's no release to record, so the browser asks no "Is it live?".
+  return outcome.noMeasurableImpactIds?.length ? { success: true, noMeasurableImpact: true } : { success: true };
 }
 
 export async function pickUpRequest(requestId: string, context: { orgId: string }) {
