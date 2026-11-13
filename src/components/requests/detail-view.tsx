@@ -116,7 +116,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
   peekStrip?: (slots: { action?: ReactNode; editAction?: ReactNode }) => ReactNode;
 }) {
   const problem = request.reframedProblem ?? request.description
-  const context = [{ label: "Users", value: request.affectedPeople }, { label: "Desired change", value: request.desiredChange }, { label: "Supporting information", value: request.observedEvidence }, { label: "Open questions", value: request.uncertainty }].filter(item => item.value)
+  const context = [{ label: "Users", value: request.affectedPeople }, { label: "Desired change", value: request.desiredChange }, { label: "Supporting information", value: request.observedEvidence }, { label: "Open questions", value: request.uncertainty }].filter((item): item is { label: string; value: string } => Boolean(item.value))
   const supportingLink = isFigmaLink(request.usefulLink) ? null : request.usefulLink
   const Title = peekStrip ? "h2" : "h1"
   const action = isGuest || viewer.readOnly ? undefined : lifecycleActions
@@ -143,7 +143,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
                 <SectionHeading level={3} className={detailStyles.blockHeading}>Suggested change</SectionHeading>
                 <p className={detailStyles.secondaryText}><LinkedText text={request.extractedSolution} /></p>
               </div>}
-              {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd><LinkedText text={item.value!} /></dd></div>)}</dl>}
+              {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd><LinkedText text={item.value} /></dd></div>)}</dl>}
 
             </section>
             {guestSubmission}
