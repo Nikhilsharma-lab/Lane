@@ -129,7 +129,7 @@
     "source": "https://uiarc.dev/r/dropdown-menu.json",
     "file": "src/components/arc/dropdown-menu/dropdown-menu.tsx",
     "upstreamSha256": "555391c3bd2a0a3ba9818240a34a53ce51be40d2b9f290a23569bf6cf2328704",
-    "localSha256": "9f480698cb6055f3bfe7a44fa22ea1899b1c0d96b3981e28eedca052c3e939b7"
+    "localSha256": "86be5f831193c07ef1c3e827638bddb81cc211b7152634be7026ac0e85d6c6bd"
   },
   {
     "id": "empty-state",
@@ -290,7 +290,7 @@
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.tsx",
     "upstreamSha256": "673dc0c887a255c87bfbabd1835606d87cfbf59ed6fd4909a28038f00f673eaa",
-    "localSha256": "7261f371ea5fea0d2467cf777e8ce8b9d8f0fd7fa7fca9641c4be956437615a1"
+    "localSha256": "14b5812ce68d236ea8052ec7d525361846f70c0da4756e6fafeba983e88f85d1"
   },
   {
     "id": "skeleton",

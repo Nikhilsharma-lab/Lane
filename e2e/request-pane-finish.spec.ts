@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, getTestWorkspaceId } from "./helpers/cleanup";
-import { journey, journeyPopup, journeyStep, pickEarliestReleaseDay } from "./helpers/journey";
+import { answerIsItLive, journey, journeyPopup, journeyStep, pickEarliestReleaseDay } from "./helpers/journey";
 import { toastRegion } from "./helpers/mark-done-undo";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
@@ -98,6 +98,43 @@ async function expectOpensInNewTab(page: Page, link: Locator, href: string) {
   expect(page.url()).toContain("/requests/");
 }
 
+/**
+ * What axe's "aria-hidden-focus" rule finds: controls hidden from screen readers that Tab could still reach. Each is
+ * named by its text or label.
+ */
+const hiddenButFocusable = (page: Page) => page.evaluate(() => {
+  const focusable = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
+  return [...document.querySelectorAll('[aria-hidden="true"]')]
+    .flatMap(hidden => [hidden, ...hidden.querySelectorAll(focusable)])
+    // Radix's focus guards are the menu's own: empty, and they hand focus straight back into it.
+    .filter(element => element.matches(focusable) && !element.closest("[inert]") && !element.hasAttribute("data-radix-focus-guard") && element.getClientRects().length > 0)
+    .map(element => element.getAttribute("aria-label") ?? element.textContent?.trim() ?? element.tagName);
+});
+
+/** Where focus is: inside the open menu or list, or elsewhere. */
+const focusInside = (page: Page, role: "menu" | "listbox") => page.evaluate(role => Boolean(document.activeElement?.closest(`[role="${role}"]`)), role);
+
+/** With a menu open, Tab stays in it and nothing behind it (the sidebar, the skip link, the page) can take focus. */
+async function expectNothingReachableBehind(page: Page, role: "menu" | "listbox") {
+  await expect(page.getByRole(role)).toBeVisible();
+  await expect.poll(() => focusInside(page, role)).toBe(true);
+  // The skip link and the sidebar's links are hidden from screen readers while the menu is open...
+  await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "All Requests", exact: true })).toHaveCount(0);
+  // ...and, like everything else behind it, out of Tab's reach too.
+  expect(await hiddenButFocusable(page)).toEqual([]);
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press("Tab");
+    expect(await focusInside(page, role)).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole(role)).toHaveCount(0);
+  // Closed, the page is whole again: the skip link takes focus.
+  const skip = page.getByRole("link", { name: "Skip to content", exact: true });
+  await skip.focus();
+  await expect(skip).toBeFocused();
+}
+
 /** How many lines of text an element shows. */
 const shownLines = (element: Locator) => element.evaluate(node => {
   const lineHeight = parseFloat(getComputedStyle(node).lineHeight);
@@ -173,6 +210,68 @@ test.describe("#281 the Request pane", () => {
       await expect(measuring).toBeVisible({ timeout: 20_000 });
       await expectOpensInNewTab(page, measuring.getByRole("link", { name: new RegExp(`^${EVIDENCE_LINK}`) }), EVIDENCE_LINK);
       await page.screenshot({ path: test.info().outputPath("281-pane-1440.png"), fullPage: true });
+    });
+  });
+
+  test("an open Priority or Status menu leaves nothing behind it reachable by Tab (B37), and Priority reads as text once the work is picked up (B33)", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await withWorkspace(page, "menus", async user => {
+      const id = await seedRequest(user.id, "Checkout keeps the saved card", { priority: "medium" });
+      await openRequest(page, id);
+      const properties = page.getByRole("complementary", { name: "Properties", exact: true });
+
+      // Open: Priority is a menu, and so is Status.
+      await properties.getByRole("combobox", { name: "Priority: Medium" }).click();
+      await expectNothingReachableBehind(page, "listbox");
+      await properties.getByRole("button", { name: "Status: Open. Change status" }).click();
+      await expectNothingReachableBehind(page, "menu");
+
+      // In progress: Priority reads as text.
+      await properties.getByRole("button", { name: "Status: Open. Change status" }).click();
+      await page.getByRole("menu", { name: "Change status" }).getByRole("menuitem", { name: "Pick up" }).click();
+      const priority = properties.locator("[data-detail-priority]");
+      await expect(properties.getByRole("button", { name: /^Status: In progress/ })).toBeVisible({ timeout: 20_000 });
+      await expect(priority).toHaveText("Medium");
+      await expect(properties.getByRole("combobox", { name: /^Priority/ })).toHaveCount(0);
+
+      // Done, and after a reload: still there, still text.
+      await page.locator('[data-slot="request-lifecycle-actions"]:visible').getByRole("button", { name: "Mark Done", exact: true }).click();
+      await answerIsItLive(page, "not yet");
+      await expect(journeyStep(page, "Done", "current step")).toBeVisible({ timeout: 20_000 });
+      await expect(priority).toHaveText("Medium");
+      await page.reload();
+      await expect(properties.locator("[data-detail-priority]")).toHaveText("Medium");
+      await expect(properties.getByRole("combobox", { name: /^Priority/ })).toHaveCount(0);
+    });
+  });
+
+  test("when copying the link fails, the message shows the link in a read-only field to select (B34)", async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    // The browser refuses the clipboard, as the walk's test browser did.
+    await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => Promise.reject(new DOMException("Clipboard blocked", "NotAllowedError")) } }));
+    await withWorkspace(page, "copy", async user => {
+      const id = await seedRequest(user.id, "Checkout keeps the saved card");
+      await openRequest(page, id);
+      await page.locator('[data-slot="page-strip"]').getByRole("button", { name: "Copy link", exact: true }).click();
+
+      const message = toastRegion(page).locator("li").filter({ hasText: "Couldn’t copy" });
+      await expect(message).toContainText("Select the link and copy it instead.");
+      const field = message.getByRole("textbox", { name: "Link", exact: true });
+      const link = new URL(`/requests/${id}`, page.url()).href;
+      await expect(field).toHaveValue(link);
+      await expect(field).not.toBeEditable();
+      // Focusing the field selects the whole link, ready to copy.
+      await field.focus();
+      expect(await field.evaluate((input: HTMLInputElement) => [input.selectionStart, input.selectionEnd])).toEqual([0, link.length]);
+      await page.screenshot({ path: test.info().outputPath("281-copy-failed-1440.png") });
+      // The message waits until it's closed, so there's time to copy by hand.
+      await page.keyboard.press("Tab");
+      await page.waitForTimeout(9_000);
+      await expect(field).toBeVisible();
+      await message.getByRole("button", { name: "Dismiss notification" }).click();
+      await expect(message).toHaveCount(0);
     });
   });
 });

@@ -28,8 +28,8 @@ import styles from "./detail.module.css"
 // the sheet opens without waiting on the network.
 const drawerCode = popupCode(() => import("./detail-properties-drawer"))
 
-/** "In progress, High priority", "Open, No priority" or "Measuring, Due in 3 days": the phone's one state line (plan item 2.5; #133).
- * Priority is read only while it shows: before the work is Done. */
+/** "In progress, High priority", "Open, No priority" or "Measuring, Due in 3 days, High priority": the phone's one state line
+ * (plan item 2.5; #133). Priority shows at every status; it can be changed only while Open (#281, B33). */
 export function stateLineText(journey: Journey, priority: RequestPriority | null, due: DueSignal) {
   const facts = [journey.label, ...(due.kind === "none" ? [] : [due.label]), ...(priority ? [priority === "none" ? "No priority" : `${REQUEST_PRIORITY_LABELS[priority]} priority`] : [])]
   return facts.join(", ")
@@ -124,7 +124,6 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
   const { request } = useDetailRequest()
   const { statusControl, priorityControl } = usePropertyControls(inSheet)
   const { journey } = useDetailJourney()
-  const status = request.status
   const priority = request.priority
   const assignee = request.assignedTo ? request.assigneeName?.trim() || "Unknown member" : null
   return <div className={styles.properties}>
@@ -133,7 +132,8 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
       <Row label="Status" data-detail-status="" data-status={journey.status}>{statusControl}</Row>
     </dl>
     <dl className={styles.propertyGroup}>
-      {status !== "done" && <Row label="Priority" data-detail-priority="" data-priority={priority}>{priorityControl}</Row>}
+      {/* #281 (B33): Priority never vanishes. It's a menu while Open (canEditRequest) and text from In progress on, Done and Closed included. */}
+      <Row label="Priority" data-detail-priority="" data-priority={priority}>{priorityControl}</Row>
       <Row label="Assignee">{assignee
         ? <Value icon={<Avatar name={assignee} src={request.assigneeAvatarUrl ?? undefined} unoptimized size="sm" className={styles.avatar} aria-hidden="true" />}>{assignee}</Value>
         : <span className={styles.propertyMuted}>No one yet</span>}</Row>
@@ -163,8 +163,8 @@ export function DetailStateLine() {
   return <>
     <div className={styles.compactProperties} role="group" aria-label="Request properties">
       {statusControl}
-      {request.status !== "done" && priorityControl}
-    <Button ref={line} type="button" variant="secondary" size="sm" morph="plain" className={styles.stateLine} data-detail-state-line="" aria-label={`Properties: ${stateLineText(journey, request.status !== "done" ? request.priority : null, due)}`} aria-haspopup="dialog" aria-expanded={open}
+      {priorityControl}
+    <Button ref={line} type="button" variant="secondary" size="sm" morph="plain" className={styles.stateLine} data-detail-state-line="" aria-label={`Properties: ${stateLineText(journey, request.priority, due)}`} aria-haspopup="dialog" aria-expanded={open}
       onPointerDown={drawerCode.preload} onFocus={drawerCode.preload}
       onClick={() => setOpen(true)}>
       <SlidersHorizontal strokeWidth={1.75} aria-hidden="true" />
