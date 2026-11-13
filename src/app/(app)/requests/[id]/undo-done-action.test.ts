@@ -115,3 +115,15 @@ describe("undoMarkDone", () => {
     expect(await undoMarkDone("not-a-uuid", { orgId: ORG })).toEqual({ error: "Not found" });
   });
 });
+
+// #309: a Request whose Goal is No measurable impact has no release to record, so Mark Done says so (the browser then
+// asks no "Is it live?") and its Undo works as for any other Request.
+describe("Mark Done with no measurable impact", () => {
+  it("says the Request has no measurable impact, and Undo still returns it to In progress", async () => {
+    const { markDone, pickUpRequest, undoMarkDone } = await api();
+    await connection`update requests set no_measurable_impact_reason = 'Token rename with no user-facing change' where id = ${requestId}`;
+    expect(await pickUpRequest(requestId, { orgId: ORG })).toEqual({ success: true });
+    expect(await markDone(requestId, { orgId: ORG })).toEqual({ success: true, noMeasurableImpact: true });
+    expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ success: true, status: "in_progress" });
+  })
+})

@@ -40,6 +40,7 @@ export type BulkMoveOutcome = (BatchOutcome & {
 }) | { status: "busy" } | { status: "cancelled" }
 
 type Scope = { orgId: string }
+const noMeasurableImpact = (value: unknown) => typeof value === "object" && value !== null && "noMeasurableImpact" in value && value.noMeasurableImpact === true
 const EARLIER_CHANGE_FAILED = "An earlier change failed. Check this Request and try again."
 /** The undo of Mark Done's words, as the toast's Undo or the Done step's Reopen asked for it. Success reads the same. */
 const UNDO_WORDS: Record<UndoKind, { running: string; failed: string }> = {
@@ -154,8 +155,9 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       }
       // The failure toast speaks for itself; the region drops the claim it made.
       if (result.status === "error" && kind === "pick-up" && current()) announce("", { key: "row-change" })
-      // #135: once the Done is saved, ask whether the work is live. "Not yet" brings this toast's Undo back.
-      if (result.status === "success" && done && !done.consumed && current()) isItLive?.({ id: request.id, name }, {
+      // #135: once the Done is saved, ask whether the work is live. "Not yet" brings this toast's Undo back. #309: a
+      // Request with no measurable impact has no release to record, so it isn't asked and the toast keeps its Undo.
+      if (result.status === "success" && done && !done.consumed && current() && !noMeasurableImpact(result.value)) isItLive?.({ id: request.id, name }, {
         reshow: done.restore,
         end: () => {
           done.end()

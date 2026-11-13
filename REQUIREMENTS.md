@@ -796,6 +796,12 @@ Reporting requirements for the bounded design:
   **Closed without a result before any Release, decided 2026-10-26:** it appears in the Outcome report under "Closed
   without a result" (and its At a glance count) in the period it was closed (UTC). It is never counted as shipped or
   in any total.
+  **No release for No measurable impact, decided 2026-11-12 (#309):** a Request whose Goal is No measurable impact
+  has no measurement window, so Record release isn't offered (the Done step says why) and the server refuses to record
+  or correct one. Mark Done asks no "Is it live?" for it and keeps the toast's Undo. Its Requester closes it as Closed
+  without a result, "Can’t be measured" chosen and the Goal's reason shown, so it appears under "Closed without a
+  result" as above. Releasing operational work without a window stays an open decision (it needs a migration).
+  Integration branch only.
   **What we learned, Quarter note and printing, approved 2026-10-25 (#195, #209):** both closing forms (with a
   measured result, and Closed without a result) have an optional one-line What we learned box (up to 280 characters),
   stored with the closure (migration 0043). After closing it changes only by a Correction ("What we learned"); the

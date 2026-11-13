@@ -87,6 +87,40 @@ it('corrects relative exposure, requires reasons and explicit agreed-audience co
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-20', reason: 'Verified original exposure log' })).toHaveProperty('success', true);
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { dueDate: '2026-10-27' } });
 });
+// #309: a Request whose Goal is No measurable impact has no measurement window, so nothing is released or corrected.
+it('refuses to record or correct a release for a Request with no measurable impact, saving nothing', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T12:00:00Z'));
+    const api = await import('./release-actions');
+    const [row] = await connection `insert into requests(org_id,title,description,affected_people,created_by,status,priority,created_at,no_measurable_impact_reason) values (${orgId},'Rename tokens','Token rename','Engineers','release_owner','done','high','2026-10-01T00:00:00Z','Token rename with no user-facing change') returning id`;
+    const refusal = { error: 'This Request has no measurable impact, so there’s no release to record.' };
+    expect(await api.changeRequestRelease(context(row.id), release)).toEqual(refusal);
+    expect(await api.changeRequestRelease(context(row.id), { ...release, valueBeforeRelease: undefined })).toEqual(refusal);
+    expect(await api.changeRequestRelease(context(row.id), { ...release, kind: 'correct', reason: 'Release log had the wrong date' })).toEqual(refusal);
+    const [after] = await connection `select status,release_state,agreement_revision,exception_closure from requests where id=${row.id}`;
+    expect(after).toEqual({ status: 'done', release_state: null, agreement_revision: 0, exception_closure: null });
+    // Everyone sees the same reason the server gives.
+    expect(await api.readRequestRelease(row.id, { orgId })).toMatchObject({ noMeasurableImpactReason: 'Token rename with no user-facing change', actions: { release: { allowed: false, reason: refusal.error }, correctRelease: { allowed: false, reason: refusal.error }, closeWithoutResult: { allowed: true } } });
+});
+// #309: a released Request keeps its measured Goal: only an Open Request can be edited, so its Goal can't become No
+// measurable impact after the release.
+it('refuses to switch a released Request\'s Goal to No measurable impact', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T12:00:00Z'));
+    const api = await import('./release-actions');
+    const { saveRequestEdits } = await import('./edit-actions');
+    const { requestEditSnapshot } = await import('@/lib/request-edit');
+    const { db, requests } = await import('@/db');
+    const { eq } = await import('drizzle-orm');
+    const id = await fixture();
+    expect(await api.changeRequestRelease(context(id), release)).toEqual({ success: true, revision: 1 });
+    const [saved] = await db.select().from(requests).where(eq(requests.id, id));
+    const changes = { title: saved.title, description: saved.description, affectedPeople: saved.affectedPeople ?? '', desiredChange: '', observedEvidence: '', uncertainty: '', usefulLink: '',
+        projectId: null, requestType: null, priority: 'high', reframedProblem: null, extractedSolution: null, expectedImpact: { kind: 'no_measurable_impact', reason: 'Nothing to measure after all' } };
+    expect(await saveRequestEdits(id, { snapshot: requestEditSnapshot(saved as never), changes }, { orgId })).toEqual({ error: 'Only Open Requests can be edited. This Request has already been picked up.' });
+    const [row] = await connection `select expected_impact is not null as measured, no_measurable_impact_reason, release_state->'release'->>'exposureDate' as released from requests where id=${id}`;
+    expect(row).toEqual({ measured: true, no_measurable_impact_reason: null, released: '2026-10-21' });
+});
 it('blocks wrong lifecycle, guests and foreign workspace reads/writes', async () => {
     const api = await import('./release-actions');
     const id = await fixture();

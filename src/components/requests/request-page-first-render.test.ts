@@ -25,12 +25,12 @@ const inProgress = { ...open, status: "in_progress", assignedTo: "user_dev", ass
 
 /** The outline arrives with the Request, drawn on the server for its reader (loadRequestDetail); here, for the reader below. */
 function withOutline(request: RequestDetail, reader: { readOnly?: boolean; isGuest?: boolean }): RequestDetail {
-  const facts = { ...journeyFactsOf(request), createdBy: request.createdBy, takenOnBy: request.takenOnBy ?? null }
+  const facts = { ...journeyFactsOf(request), createdBy: request.createdBy, takenOnBy: request.takenOnBy ?? null, noMeasurableImpactReason: request.noMeasurableImpactReason ?? null }
   const role = reader.readOnly ? "viewer" : reader.isGuest ? "guest" : "member"
   return { ...request, journeyOutline: journeyOutline({
     journey: journeyStatus(facts), workStatus: request.status, isGuest: !!reader.isGuest, readOnly: !!reader.readOnly,
     requestedBy: request.creatorName!, requestedAt: request.createdAt.toISOString(), assigneeName: request.assigneeName, audience: "Everyone this Request is for",
-    hasAgreedResult: false, releaseState: null, closure: null,
+    hasAgreedResult: false, noMeasurableImpact: Boolean(request.noMeasurableImpactReason), releaseState: null, closure: null,
     actions: journeyActions(facts, { id: "user_reader", role, active: true }, { requesterName: "Robin", requesterActive: true }, new Date()),
   }) }
 }

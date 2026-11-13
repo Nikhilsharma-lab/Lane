@@ -139,9 +139,10 @@ export function MeasuredCloseForm({ requestId, orgId, revision, onSaved, onCance
   </form>
 }
 
-export function CloseWithoutResultForm({ requestId, orgId, revision, onSaved, onCancel }: FormProps) {
+/** #309: a Request whose Goal is No measurable impact closes this way, so the form starts at "Can’t be measured" and shows why. */
+export function CloseWithoutResultForm({ requestId, orgId, revision, onSaved, onCancel, noMeasurableImpactReason = null }: FormProps & { noMeasurableImpactReason?: string | null }) {
   const { busy, error, save } = useJourneyChange({ requestId, orgId, failed: OUTCOME_FAILED })
-  const [reasonCode, setReasonCode] = useState("")
+  const [reasonCode, setReasonCode] = useState<string>(noMeasurableImpactReason ? "cannot_measure" : "")
   const [reason, setReason] = useState("")
   const [learned, setLearned] = useState("")
   return <form className={styles.stack} aria-busy={busy} onSubmit={e => {
@@ -149,6 +150,7 @@ export function CloseWithoutResultForm({ requestId, orgId, revision, onSaved, on
     const input = { kind: "exception" as const, reasonCode: reasonCode as typeof EXCEPTION_REASON_OPTIONS[number]["value"], reason, learned }
     void save(input, revision, context => changeRequestOutcome(context, input)).then(saved => { if (saved) onSaved() })
   }}>
+    {noMeasurableImpactReason && <div><p>Goal: No measurable impact</p><p className="whitespace-pre-wrap break-words">{noMeasurableImpactReason}</p></div>}
     <p className={styles.muted}>Ends this Request without a measured result. It stays on record and never counts as measured impact.</p>
     <Select label="Why" options={EXCEPTION_REASON_OPTIONS} value={reasonCode} onValueChange={setReasonCode} disabled={busy} />
     <Textarea label={reasonCode === "other" ? "Reason" : "Details (optional)"} required={reasonCode === "other"} maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} disabled={busy} />
