@@ -180,6 +180,10 @@ test.describe("#281 the Request pane", () => {
       await expect(more).toBeVisible();
       expect(await shownLines(text)).toBeLessThanOrEqual(10);
 
+      // Checked here, built by Build 5 (#274): label chips are at least 11px.
+      const chip = page.getByRole("complementary", { name: "Properties", exact: true }).getByText("No labels", { exact: true });
+      expect(await chip.evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(11);
+
       // A short problem doesn't offer Show more.
       const short = await seedRequest(user.id, "Short problem", {});
       await openRequest(page, short);
