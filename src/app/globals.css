@@ -63,3 +63,10 @@
    phone. The toast keeps its place in the stack: Not yet brings it back with its Undo and a fresh 10 seconds, and a
    saved release turns it into "Release recorded" (src/components/requests/is-it-live-prompt.tsx). */
 :root:has([data-is-it-live]) section[aria-label^="Messages"] li { visibility: hidden; }
+
+/* #281 (B30): on a phone, while a popup or bottom panel is open, Lane's messages move to the top of the screen, so one
+   never covers it; they go back to the bottom when it closes. 639.98px is the popups' own switch to the bottom panel
+   (PHONE_PANEL in src/lib/use-media-query.ts). */
+@media (max-width: 639.98px) {
+  :root:has(:is([role="dialog"], [role="alertdialog"])[data-state="open"]) section[aria-label^="Messages"] { top: calc(env(safe-area-inset-top, 0px) + var(--space-4)); bottom: auto; }
+}

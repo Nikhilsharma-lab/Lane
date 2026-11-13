@@ -66,7 +66,8 @@ test('Is it live? records the release; the timeline, due tag, correction and han
       await page.reload();
       await expect(release.getByText('Evidence: Staging acceptance: corrected exposure log link', { exact: true })).toBeVisible();
       await expect(release.getByText(/· Due in 7 days$/)).toBeVisible();
-      expect(await page.locator('[data-detail-priority]').count()).toBe(0);
+      // #281 (B33): Priority never vanishes; once the work is picked up it reads as text.
+      await expect(page.locator('[data-detail-priority]:visible').getByRole('combobox')).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await testInfo.attach(`release-${width}-${colorScheme}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
     }
