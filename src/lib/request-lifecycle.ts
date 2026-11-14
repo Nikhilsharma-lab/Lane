@@ -1,10 +1,10 @@
 import { canChange } from "./request-access-rules"
-import { TAKE_ON_FIRST, WRITE_THE_PREDICTION, type GuestSubmissionState } from "./guest-submission"
+import type { GuestSubmissionState, PickupBlock } from "./guest-submission"
 export type RequestStatus = "open" | "in_progress" | "done"
 export type LifecycleMove = "pick-up" | "done"
 export type AllowedMove = { move: LifecycleMove; to: "in_progress" | "done"; label: "Pick up" | "Mark Done" }
 /** An offered move, and why it can't be made yet when it can't. */
-export type AvailableMove = AllowedMove & { blockedReason: string | null }
+export type AvailableMove = AllowedMove & { blockedReason: PickupBlock | null }
 /** Who asks. Profile labels never gate actions (AGENTS.md); only the Clerk role does: a Guest and a Viewer
  * (`readOnly`, #210) make no lifecycle move. */
 export type MoveViewer = { isGuest: boolean; readOnly?: boolean }
@@ -25,7 +25,7 @@ export type LifecycleRequest = {
   status: RequestStatus
   /** Closed with a result or without one: a closed Request never advances. */
   agreementBlocked?: boolean
-  pickupBlockedReason?: string | null
+  pickupBlockedReason?: PickupBlock | null
 }
 
 /** Each move's statuses and its copy, shared by every surface and the server. */
@@ -52,21 +52,21 @@ export function availableMove(request: LifecycleRequest, viewer: MoveViewer): Av
 
 /** Why the server refuses `move` on a Request it has locked, or null to let it through. */
 export function moveRefusal(
-  request: { status: RequestStatus; exceptionClosure: unknown; outcomeClosure: unknown; pickupBlockedReason: string | null },
+  request: { status: RequestStatus; exceptionClosure: unknown; outcomeClosure: unknown; pickupBlockedReason: PickupBlock | null },
   move: LifecycleMove,
 ): string | null {
   if (request.exceptionClosure) return "This Request is closed without a result and cannot advance."
   if (request.outcomeClosure) return "This Request is Closed and cannot advance."
   if (request.status !== MOVES[move].from) return `This Request is no longer ${MOVES[move].fromLabel}. Refresh to see its current state.`
-  if (move === "pick-up") return request.pickupBlockedReason
+  if (move === "pick-up") return request.pickupBlockedReason?.reason ?? null
   return null
 }
 
 /** A blocked pickup, said to this viewer: someone who can't edit the plan is told who can. A waiting Guest
  * submission's reason is said as it is, since any Member may take it on (#280). */
-export function pickupBlockedMessage(reason: string, requester: string | null): string {
-  if (!requester || reason === TAKE_ON_FIRST) return reason
-  if (reason === WRITE_THE_PREDICTION) return `Ask ${requester} to set the goal before pickup.`
+export function pickupBlockedMessage({ code, reason }: PickupBlock, requester: string | null): string {
+  if (!requester || code === "take_on_first") return reason
+  if (code === "set_the_goal") return `Ask ${requester} to set the goal before pickup.`
   return `Ask ${requester} to add current values before pickup.`
 }
 

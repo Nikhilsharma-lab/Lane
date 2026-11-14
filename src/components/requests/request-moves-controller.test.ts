@@ -164,7 +164,7 @@ it("mixed readiness asks once for ready Requests and keeps partial saved moves w
   const a = app()
   const targets = [
     { ...request, status: "open" as const, requester: null },
-    { ...request, id: "r2", name: "LAN-2", status: "open" as const, pickupBlockedReason: "Add a current value.", requester: "Ana" },
+    { ...request, id: "r2", name: "LAN-2", status: "open" as const, pickupBlockedReason: { code: "plan" as const, reason: "Add a current value." }, requester: "Ana" },
     { ...request, id: "r3", name: "LAN-3", status: "open" as const, requester: null },
   ]
   const onStart = vi.fn()
@@ -235,7 +235,7 @@ it("bulk Done owns one independent Undo for moved IDs and preserves partial reve
 
 it("all-unready bulk pickup explains what to complete without confirmation or optimistic changes", async () => {
   const a = app()
-  const result = await a.moves.moveMany([{ ...request, status: "open", requester: null, pickupBlockedReason: "Add a current value." }],
+  const result = await a.moves.moveMany([{ ...request, status: "open", requester: null, pickupBlockedReason: { code: "plan" as const, reason: "Add a current value." } }],
     "pick-up", { isGuest: false, current: () => true })
   expect(result).toEqual({ status: "success", moved: [], failed: [{ id: "r1", error: "LAN-1: Add a current value." }], notReadyOnly: true, detached: false })
   expect(a.asked()).toBeNull()

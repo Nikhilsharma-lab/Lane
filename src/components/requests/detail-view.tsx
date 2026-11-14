@@ -19,6 +19,7 @@ import styles from "./requests.module.css"
 import { SectionHeading } from "./section-heading"
 import { FoldedText } from "./folded-text"
 import { LinkedText } from "@/components/linked-text"
+import type { PickupBlock } from "@/lib/guest-submission"
 
 export type RequestStatus = "open" | "in_progress" | "done"
 
@@ -26,7 +27,7 @@ export type RequestDetail = {
   agreementRevision?: number
   agreementBlocked?: boolean
   /** Why it can't be picked up yet (measurementReadiness), from the loader. */
-  pickupBlockedReason?: string | null
+  pickupBlockedReason?: PickupBlock | null
   /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
   /** #280 (B9): the review answers an edit would clear (concerns by name), or null. Optional only for older fixtures. */
