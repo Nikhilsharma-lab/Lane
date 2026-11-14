@@ -1,63 +1,13 @@
-import { randomUUID } from "node:crypto";
-import { expect, test, type Page } from "@playwright/test";
-import { cleanupTestWorkspace, e2eDatabase, getTestWorkspaceId } from "./helpers/cleanup";
+import { expect, test } from "@playwright/test";
+import { cleanupTestWorkspace } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
-import { journey, journeyPopup, journeyStep, pickEarliestReleaseDay } from "./helpers/journey";
+import { releaseAndClose, seedPickedUp } from "./helpers/impact-results";
 
 // #282 (Build 7.1, spec #256 "Impact result wording" and "Chart presenter"; walk finding C2-2): Impact says how each
 // result compares with its goal, and the Outcome report's chart shows Request numbers, a value on every bar and a
 // three-item legend. A hosted run can't reach a result's date, so each Request was picked up weeks ago (seeded),
 // released on its pickup day and closed through the Journey, as `request-closing.spec.ts` does.
-
-const CONVERSION = {
-  kind: "measurement", version: 4,
-  primary: { key: "conversion", name: "", unit: "percent", current: 62, target: 80, noBaseline: false, check: "" },
-  measurement: { audience: "all", audienceName: "", platform: "all", platformName: "", windowDays: 14, exactDates: false, startDate: "", endDate: "" },
-  guardrails: [],
-};
-
-/** Picked up 40 days ago at midday UTC (the same day in the browser's zone) and Done an hour ago. */
-async function seedPickedUp(userId: string, title: string) {
-  const orgId = await getTestWorkspaceId(userId);
-  const sql = e2eDatabase();
-  const id = randomUUID();
-  const now = new Date();
-  const pickedUp = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 40, 12));
-  try {
-    const [{ request_number: number }] = await sql<{ request_number: number }[]>`
-      INSERT INTO requests (id, org_id, title, description, status, created_by, assigned_to, expected_impact, created_at, picked_up_at, done_at)
-      VALUES (${id}, ${orgId}, ${title}, 'Returning customers give up when checkout asks for their card again.', 'done', ${userId}, ${userId},
-        ${sql.json(CONVERSION as never)}, ${new Date(pickedUp.getTime() - 86_400_000).toISOString()}, ${pickedUp.toISOString()}, ${new Date(Date.now() - 3_600_000).toISOString()})
-      RETURNING request_number
-    `;
-    return { id, pickedUp, code: `LAN-${number}` };
-  } finally {
-    await sql.end();
-  }
-}
-
-/** Releases on the pickup day from 62%, then closes with the given result, both through the Journey. */
-async function releaseAndClose(page: Page, id: string, actual: string) {
-  await page.goto(`/requests/${id}`);
-  await expect(page.locator("#request-title")).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator("html[data-popup-behaviour=ready]")).toHaveCount(1, { timeout: 30_000 });
-  await journey(page).getByRole("button", { name: "Record release", exact: true }).click();
-  const release = journeyPopup(page, "Record release");
-  await expect(release.getByLabel("Value before release (%)", { exact: true })).toHaveValue("62");
-  await pickEarliestReleaseDay(page, release);
-  await release.getByLabel("Release evidence", { exact: true }).fill("Rollout log: every shopper has the new checkout");
-  await release.getByRole("checkbox", { name: "The agreed audience received this work" }).check();
-  await release.getByRole("button", { name: "Mark as released", exact: true }).click();
-  await expect(journeyStep(page, "Measuring", "current step")).toBeVisible({ timeout: 20_000 });
-
-  await journey(page).getByRole("button", { name: "Close Request", exact: true }).click();
-  const close = journeyPopup(page, "Close Request");
-  await close.getByLabel("Actual Conversion rate (%)", { exact: true }).fill(actual);
-  await close.getByLabel("Evidence and source", { exact: true }).fill("Checkout dashboard, the 14 days after release");
-  await close.getByRole("button", { name: "Close Request", exact: true }).click();
-  await expect(journeyStep(page, "Closed", "current step")).toBeVisible({ timeout: 20_000 });
-}
 
 const quarterKey = (day: Date) => `${day.getUTCFullYear()}-q${Math.floor(day.getUTCMonth() / 3) + 1}`;
 
@@ -82,7 +32,7 @@ test("Impact words results against the goal, and the chart shows Request numbers
     await expect(myWork).not.toContainText(/total|average|rank|Planning baseline|Predicted|percentage points/i);
 
     // Outcome report for the quarter they were released in.
-    await page.goto(`/impact?period=${quarterKey(short.pickedUp)}`);
+    await page.goto(`/impact?tab=outcome-report&period=${quarterKey(short.pickedUp)}`);
     const report = page.getByRole("tabpanel", { name: "Outcome report", exact: true });
     const totals = report.getByRole("region", { name: "Totals", exact: true });
     const line = totals.getByRole("article", { name: /^Conversion rate, %, / });

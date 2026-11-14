@@ -29,3 +29,10 @@
 @media (prefers-reduced-motion: reduce) {
   .bar { animation: none; }
 }
+
+/* #283: print and save as PDF. Browsers leave backgrounds off paper by default, which would drop every bar and swatch;
+   the report prints in light colours (print-in-light.ts), so the bars keep theirs. */
+@media print {
+  .bar, .swatch { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bar { animation: none; }
+}
