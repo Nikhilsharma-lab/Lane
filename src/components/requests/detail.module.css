@@ -117,6 +117,8 @@
 .skeletonLine { display: flex; width: 60%; height: calc(var(--text-lg) * var(--leading-body)); align-items: center; }
 .skeletonBlocks { display: grid; gap: var(--space-6); }
 .skeletonStateLine { width: calc(var(--space-1) * 48); height: var(--control-height-sm); }
+.skeletonHeading { width: calc(var(--space-1) * 28); }
+.skeletonComposer { height: var(--control-height-lg); border: var(--border-width) solid var(--border-subtle); border-radius: var(--radius-panel); }
 .skeletonRow { display: grid; grid-template-columns: calc(var(--space-1) * 22) minmax(0, 1fr); min-height: calc(var(--space-1) * 8); align-items: center; gap: var(--space-2); }
 @media (pointer: coarse) { .skeletonRow { min-height: calc(var(--space-1) * 11); } }
 @container detail (min-width: 920px) { .skeletonStateLine { display: none; } }
