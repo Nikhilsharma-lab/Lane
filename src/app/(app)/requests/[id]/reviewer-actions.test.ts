@@ -21,6 +21,8 @@ const users = vi.hoisted(() => [
 ]);
 /** Clerk roster roles; a user missing from it has left the workspace. */
 const roster = vi.hoisted(() => new Map<string, string>());
+/** Sign-in names changed since a reviewer was picked; everyone else is named by their user id. */
+const signInNames = vi.hoisted(() => new Map<string, string>());
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({
   auth: async () => ({ ...session }),
@@ -34,7 +36,7 @@ vi.mock("@clerk/nextjs/server", () => ({
           publicUserData: {
             userId,
             identifier: userId + "@example.test",
-            firstName: userId,
+            firstName: signInNames.get(userId) ?? userId,
           },
         })),
       }),
@@ -134,6 +136,7 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   roster.clear();
+  signInNames.clear();
   for (const id of users) roster.set(id, id === guest ? "org:guest" : id === viewer ? "org:viewer" : "org:member");
 });
 afterEach(() => {
@@ -304,6 +307,33 @@ it("a reviewer who left no longer counts: the list, detail and panel agree nothi
   expect(await listed()).toBeNull();
   expect((await loadRequestDetail(auth, id))?.request.reviewState).toBeNull();
   expect(await panel()).toBeNull();
+});
+
+it("B6: reviewers are named by their sign-in name now, in the panel, the list, detail and the Edit warning; the name saved at pick time only once they've left", async () => {
+  const { loadRequestList, loadRequestDetail } = await import("@/lib/data/requests");
+  const api = await import("./reviewer-actions");
+  const id = await freshRequest();
+  await add(id, [member(designer), member(developer)]);
+  await answer(id, designer, "concern", "No API yet.");
+  await answer(id, developer, "looks_good");
+  signInNames.set(designer, "Dana Reyes");
+  signInNames.set(developer, "Dev Patel");
+  const auth = { userId: owner, orgId, role: "member" as const };
+  const named = async () => ({
+    panel: await api.readReviews(id, { orgId }),
+    listed: (await loadRequestList(auth)).rows.find((row) => row.id === id)?.reviewState,
+    detail: (await loadRequestDetail(auth, id))?.request,
+  });
+  let now = await named();
+  expect(now.panel).toMatchObject({ reviewers: [{ name: "Dana Reyes" }, { name: "Dev Patel" }] });
+  expect(now.listed).toEqual({ concerns: [{ name: "Dana Reyes", reason: "No API yet." }], unanswered: 0 });
+  expect(now.detail?.reviewState).toEqual({ concerns: [{ name: "Dana Reyes", reason: "No API yet." }], unanswered: 0 });
+  expect(now.detail?.answeredReviews).toEqual({ concerns: ["Dana Reyes"], others: 1 });
+  // Someone who left the workspace keeps the name saved when they were picked.
+  roster.delete(designer);
+  now = await named();
+  expect(now.panel).toMatchObject({ reviewers: [{ name: "agreement_design", active: false }, { name: "Dev Patel" }] });
+  expect(now.detail?.answeredReviews).toEqual({ concerns: ["agreement_design"], others: 1 });
 });
 
 it("pickup succeeds with an open concern and an unanswered review; afterwards nothing about reviews changes", async () => {
