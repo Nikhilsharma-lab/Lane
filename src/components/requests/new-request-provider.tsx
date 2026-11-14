@@ -2,14 +2,14 @@
 
 import { createPortal } from "react-dom";
 import { usePathname, useSearchParams } from "next/navigation";
-import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog";
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import type { IntakeCloseAttempt, RegisterIntakeCloseAttempt } from "./intake-navigation-guard";
 import { NewRequestContext } from "./new-request-context";
-import { listFiltersOf, listViewHref, revealRequest, useListViewSnapshot, useRequestListContext, useSetDetailSession, useSetRequestListView } from "./list-view-state";
+import { listFiltersOf, listViewHref, revealRequest, useListViewSnapshot, useRequestListContext, useSetRequestListView } from "./list-view-state";
 import { requestCreatedToast } from "./request-created-toast";
 import { matchesListFilters, type OverviewRequest } from "@/lib/request-overview";
 import { projectIdOrNull } from "@/lib/request-constants";
@@ -24,6 +24,7 @@ import { useShellOpener } from "@/components/shell/shell-openers";
 import { afterPageLoad } from "@/lib/after-page-load";
 import { Placeholder } from "@/components/loading/placeholder";
 import { useStableRouter } from "@/components/shell/stable-router";
+import { RequestNavigationContext } from "./request-navigation";
 
 export { NewRequestLink } from "./new-request-link";
 
@@ -84,7 +85,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   const projectId = projectIdOrNull(projectFilter);
   const listSnapshot = useListViewSnapshot();
   const setListView = useSetRequestListView();
-  const setDetailSession = useSetDetailSession();
+  // #285 (C22): the Request page takes an arrival only the workspace's navigation prepared.
+  const navigation = useContext(RequestNavigationContext);
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const [generation, setGeneration] = useState(0);
@@ -193,8 +195,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     setOpen(false);
     const href = requestDetailHref(requestId, returnContext.current.status, returnContext.current.project);
     if (openRequest) {
-      // #263 (C22): the new Request's page puts focus on its title, so it never drops to the page.
-      setDetailSession({ sequence: null, focusTitleOnArrival: true, focusOnArrival: null });
+      // #263, #285 (C22): an arrival the navigation prepared, so the new Request's page puts focus on its title.
+      navigation?.prepareDetail(requestId);
       router.push(href);
       return;
     }
@@ -202,7 +204,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
     // /intake page did, creating there opens the Request.
     if (pathname === "/intake") {
       toast(requestCreatedToast({}));
-      setDetailSession({ sequence: null, focusTitleOnArrival: true, focusOnArrival: null });
+      navigation?.prepareDetail(requestId);
       router.push(href);
       return;
     }
@@ -222,7 +224,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
         router.push(listViewHref(revealed));
       } : undefined,
     }));
-  }, [listSnapshot, pathname, router, setDetailSession, setListView, toast]);
+  }, [listSnapshot, navigation, pathname, router, setListView, toast]);
 
   // After hydration, the composer opens by itself for what this tab kept.
   // Plan item 2.3 (S3): a reload interrupted uploads after a Request was

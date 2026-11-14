@@ -27,7 +27,7 @@ async function openReviewedDraft(page: Page, user: TestUser, orgId: string, titl
       guardrails: [],
     },
   };
-  const triage = { classification: "solution" as const, reframedProblem: editedProblem, extractedSolution: "A save-card button at checkout." };
+  const triage = { classification: "hybrid" as const, reframedProblem: editedProblem, extractedSolution: "A save-card button at checkout." };
   const draft: IntakeDraft = {
     version: 2, savedAt: Date.now(), source,
     review: { triage, token: createTriageToken(source, triage, { orgId, userId: user.id }), editedProblem },
