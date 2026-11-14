@@ -59,8 +59,8 @@ async function loadNeedsYouRequests(auth: MemberAuth, only?: { requestId: string
   return rows.map((row) => ({ ...row, reviewers: (row.reviewers ?? []) as Reviewer[], reviewAskedAt: toDate(row.reviewAskedAt) }));
 }
 
-/** #204: the person's unread For-your-information notifications (the read model's kinds; a read item has cleared). */
-async function loadForYourInformation(auth: MemberAuth) {
+/** #204: the person's unread For-your-information notifications (the read model's kinds; a read item has cleared), and `keep`, read or not. */
+async function loadForYourInformation(auth: MemberAuth, keep?: string) {
   return db
     .select({
       id: notifications.id,
@@ -79,7 +79,7 @@ async function loadForYourInformation(auth: MemberAuth) {
     .from(notifications)
     .leftJoin(profiles, eq(notifications.actorId, profiles.id))
     .leftJoin(requests, eq(notifications.requestId, requests.id))
-    .where(and(notificationVisibility(auth), isNull(notifications.readAt), inArray(notifications.type, [...FOR_YOUR_INFORMATION_KINDS])))
+    .where(and(notificationVisibility(auth), keep ? or(isNull(notifications.readAt), eq(notifications.id, keep)) : isNull(notifications.readAt), inArray(notifications.type, [...FOR_YOUR_INFORMATION_KINDS])))
     .orderBy(desc(notifications.createdAt))
     .limit(INBOX_LIMIT);
 }
@@ -97,9 +97,9 @@ async function concernNames(rows: readonly InboxRequest[]): Promise<Map<string, 
  * they can see; For-your-information items come from their stored notifications, scoped like every
  * notification read so a historical delivery never grants access to a Request they can no longer see.
  */
-export async function loadInbox(auth: MemberAuth, now: Date = new Date()): Promise<Inbox> {
-  const [requestRows, notificationRows] = await Promise.all([loadNeedsYouRequests(auth), loadForYourInformation(auth)]);
-  return buildInbox({ userId: auth.userId, role: auth.role }, { notifications: notificationRows, requests: requestRows, names: await concernNames(requestRows) }, { now });
+export async function loadInbox(auth: MemberAuth, now: Date = new Date(), { keep }: { keep?: string } = {}): Promise<Inbox> {
+  const [requestRows, notificationRows] = await Promise.all([loadNeedsYouRequests(auth), loadForYourInformation(auth, keep)]);
+  return buildInbox({ userId: auth.userId, role: auth.role }, { notifications: notificationRows, requests: requestRows, names: await concernNames(requestRows) }, { now, keep });
 }
 
 /**

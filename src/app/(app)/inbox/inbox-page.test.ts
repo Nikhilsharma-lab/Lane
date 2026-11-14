@@ -26,10 +26,10 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const open = async (userId: string, role: typeof session.role) => {
+const open = async (userId: string, role: typeof session.role, query: { item?: string } = {}) => {
   Object.assign(session, { userId, role });
   const { default: InboxPage } = await import("./page");
-  return renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(AppProviders, { orgId: ORG }, await InboxPage())));
+  return renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(AppProviders, { orgId: ORG }, await InboxPage({ searchParams: Promise.resolve(query) }))));
 };
 const items = (html: string) => [...html.matchAll(/data-inbox-item="[^"]+"[^>]*>[\s\S]*?aria-label="([^"]+)"/g)].map(match => match[1]);
 
@@ -89,6 +89,18 @@ describe("the Inbox page", () => {
     expect(html).toContain('aria-label="1 needs you"');
   });
 
+  // #284: the address keeps the open item, so coming back to it (a reload, or Back to a page read afresh) finds it,
+  // read, in its place, though a read item has otherwise cleared.
+  it("keeps the item the address names, read, and no other read item", async () => {
+    const [done] = await connection`select id from notifications where org_id = ${ORG} and user_id = ${MEMBER} and type = 'request_done'`;
+    expect(items(await open(MEMBER, "member", { item: done.id }))).toContain(`${codes.mine} · Checkout copy, Priya Shah marked it Done`);
+    expect(items(await open(MEMBER, "member"))).not.toContain(`${codes.mine} · Checkout copy, Priya Shah marked it Done`);
+    const [guestsOwn] = await connection`select id from notifications where org_id = ${ORG} and user_id = ${GUEST} and type = 'comment_added'`;
+    // Never someone else's item, nor one the person may not see.
+    expect(items(await open(GUEST, "guest", { item: guestsOwn.id }))).toEqual([`${codes.guests} · Guest form, Priya Shah picked it up, unread`]);
+    expect(items(await open(MEMBER, "member", { item: guestsOwn.id }))).not.toContain(`${codes.mine} · Checkout copy, Priya Shah commented`);
+  });
+
   // #284 (#235 item 1): a Concern names its Reviewer by their sign-in name, not the name they were picked by.
   it("names the Reviewer who raised a Concern by their sign-in name", async () => {
     const [request] = await connection`insert into requests (org_id,title,description,created_by) values (${ORG},'Concern copy','Fixture',${MEMBER}) returning id`;
@@ -102,7 +114,7 @@ describe("the Inbox page", () => {
     }
   });
 
-  it("says all caught up once everything is read and nothing needs the Member", async () => {
+  it("says so once everything is read and nothing needs the Member", async () => {
     await connection`update notifications set read_at = now() where org_id = ${ORG} and user_id = ${MEMBER}`;
     const reading = await open(MEMBER, "member");
     expect(items(reading)).toEqual([`${codes.done} · Checkout total, Still Done. Record the release once it is live`]);
@@ -112,7 +124,8 @@ describe("the Inbox page", () => {
     await connection`update requests set status = 'in_progress' where org_id = ${ORG} and title = 'Checkout total'`;
     const html = await open(MEMBER, "member");
     expect(items(html)).toEqual([]);
-    expect(html).toContain("Nothing needs you right now.");
-    expect(html).toContain("You’re all caught up");
+    // #284 (C26): both sections empty is one message.
+    expect(html).toContain("Nothing needs you, and nothing new");
+    expect(html).not.toContain("Nothing needs you right now.");
   });
 });

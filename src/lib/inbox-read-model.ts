@@ -159,12 +159,13 @@ function needsYouOf(viewer: InboxViewer, request: InboxRequest, now: Date, names
   return items
 }
 
-export function buildInbox(viewer: InboxViewer, records: InboxRecords, { now }: { now: Date }): Inbox {
+/** `keep` (#284): the item the Inbox's address holds open; it stays in the list once read, until another is opened. */
+export function buildInbox(viewer: InboxViewer, records: InboxRecords, { now, keep }: { now: Date; keep?: string }): Inbox {
   const needsYou = getsNeedsYou(viewer)
     ? records.requests.flatMap(request => needsYouOf(viewer, request, now, records.names)).sort((a, b) => b.since.getTime() - a.since.getTime() || a.key.localeCompare(b.key))
     : []
   const forYourInformation = records.notifications
-    .filter(row => row.userId === viewer.userId && row.readAt === null && isForYourInformation(row.type) && visibleTo(viewer, row))
+    .filter(row => row.userId === viewer.userId && (row.readAt === null || row.id === keep) && isForYourInformation(row.type) && visibleTo(viewer, row))
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .map((row): ForYourInformationItem => ({
       id: row.id, type: row.type, requestId: row.requestId, readAt: row.readAt, createdAt: row.createdAt, actorName: row.actorName,
