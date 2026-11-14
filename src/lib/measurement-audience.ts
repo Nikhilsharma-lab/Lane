@@ -6,9 +6,12 @@ import type { MeasurementPlanDraft } from "./request-measurement"
 
 type Audience = Pick<MeasurementPlanDraft["measurement"], "audience" | "audienceName">
 
+/** The plan's audience choices in Lane's words, the one source for the plan's picker and every label. */
+export const AUDIENCE_LABELS = { all: "All users", new: "New users", returning: "Returning users" } as const
+const CUSTOM_AUDIENCE = "Custom audience"
+
 export function measurementAudienceLabel(measurement: Audience): string {
-  return measurement.audience === "custom" ? measurement.audienceName?.trim() || "Custom audience"
-    : { all: "All users", new: "New users", returning: "Returning users" }[measurement.audience]
+  return measurement.audience === "custom" ? measurement.audienceName?.trim() || CUSTOM_AUDIENCE : AUDIENCE_LABELS[measurement.audience]
 }
 
 /**
@@ -23,9 +26,9 @@ export function agreedAudience(request: { expectedImpact: unknown }): string {
     : "All users"
 }
 
-// Lane's own words for an audience (and the release record's older default) read lower-case mid-sentence.
-// A plain list, not a Set: a module with no work to do at load is left out of the pages that use none of it.
-const LANE_WORDS = ["All users", "New users", "Returning users", "Custom audience", "Everyone this Request is for"]
-
-/** An audience inside a sentence: Lane's own labels in lower case, a name someone typed exactly as typed. */
-export const audienceInSentence = (audience: string) => LANE_WORDS.includes(audience) ? audience[0].toLowerCase() + audience.slice(1) : audience
+/**
+ * An audience inside a sentence: Lane's own labels (and the release record's older default) in lower case, a name
+ * someone typed exactly as typed.
+ */
+export const audienceInSentence = (audience: string) =>
+  [...Object.values(AUDIENCE_LABELS), CUSTOM_AUDIENCE, "Everyone this Request is for"].includes(audience) ? audience[0].toLowerCase() + audience.slice(1) : audience

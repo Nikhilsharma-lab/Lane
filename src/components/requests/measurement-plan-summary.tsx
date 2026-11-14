@@ -1,7 +1,8 @@
 import { plannedDay } from "@/lib/dates";
 import { GUARDRAIL_COMPARISONS } from "@/lib/guardrail-comparison";
 import { goalText } from "@/lib/impact-presenter";
-import { measurementAudienceLabel, measurementMetricLabel, measurementPlatformLabel, measurementUnitLabel, type MeasurementPlan } from "@/lib/request-measurement";
+import { measurementAudienceLabel } from "@/lib/measurement-audience";
+import { measurementMetricLabel, measurementPlatformLabel, measurementUnitLabel, type MeasurementPlan } from "@/lib/request-measurement";
 import styles from "./measurement-plan-summary.module.css";
 import { passFailDetails } from "@/lib/pass-fail-check";
 import { SectionHeading } from "./section-heading";

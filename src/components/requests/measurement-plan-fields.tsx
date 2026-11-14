@@ -26,10 +26,11 @@ import { useMetricLibrary, type MetricLibrary } from "./use-metric-library"
 import styles from "./measurement-plan-fields.module.css"
 import { FieldError } from "@/components/forms/field-error"
 import { PASS_FAIL_EXAMPLES, PASS_FAIL_RESULT_MAX, PASS_FAIL_DETAIL_MAX, passFailDetails } from "@/lib/pass-fail-check"
+import { AUDIENCE_LABELS } from "@/lib/measurement-audience"
 
 type Metric = EditorMetric
 type Option = { value: string; label: string; disabled?: boolean; icon?: ReactNode; trailing?: ReactNode }
-const audiences = [{ value: "all", label: "All users" }, { value: "new", label: "New users" }, { value: "returning", label: "Returning users" }, { value: "custom", label: "Add custom audience…" }]
+const audiences = [...Object.entries(AUDIENCE_LABELS).map(([value, label]) => ({ value, label })), { value: "custom", label: "Add custom audience…" }]
 const platforms = [{ value: "all", label: "All platforms" }, { value: "web", label: "Web" }, { value: "ios", label: "iOS" }, { value: "android", label: "Android" }, { value: "custom", label: "Add custom platform…" }]
 const windows = [7, 14, 30, 90].map(days => ({ value: String(days), label: `${days} days after release` }))
 const boundaries = GUARDRAIL_COMPARISONS
