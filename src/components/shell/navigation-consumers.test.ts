@@ -32,7 +32,7 @@ function renderConsumer(children: ReactNode) {
     createElement(Probe), createElement(PickupConfirmationProvider, null, children)))))
   if (!read || !navigation) throw new Error("Workspace consumer did not mount")
   vi.stubGlobal("HTMLElement", class HTMLElement {})
-  vi.stubGlobal("window", { location: { pathname: "/", search: "" } })
+  vi.stubGlobal("window", { location: { pathname: "/", search: "" }, history: { replaceState: () => {} } })
   const snapshot = read()
   if (!snapshot) throw new Error("Workspace snapshot is missing")
   return { navigation, snapshot }
@@ -66,7 +66,7 @@ it("the actual palette status callback edits the named view, while Project/searc
 
 it.each(["comment_added", "invite_accepted"] as const)("the actual Inbox %s mobile callback invalidates pending presentation before routing", type => {
   const item: InboxItem = { id: "notification", type, requestId: type === "invite_accepted" ? null : "request", readAt: "2026-10-25T10:00:00Z", createdAt: "2026-10-25T09:00:00Z", actorName: "Alex", requestTitle: "Request", requestNumber: 1, reframedProblem: "Problem", detail: null }
-  const app = renderConsumer(createElement(InboxScreen, { orgId: "org", initialNeedsYou: [], showNeedsYou: false, initialItems: [item], initialUnread: 0, isGuest: false, viewer: { id: "person", name: "Alex", isAdmin: false }, requestLoading: null }))
+  const app = renderConsumer(createElement(InboxScreen, { orgId: "org", initialNeedsYou: [], showNeedsYou: false, initialItems: [item], initialUnread: 0, isGuest: false, viewer: { id: "person", name: "Alex", isAdmin: false }, requestLoading: null, allClear: null }))
   const current = app.navigation.continuation()
   if (!captured.inbox) throw new Error("Production Inbox did not render")
   captured.inbox.onSelect(item)

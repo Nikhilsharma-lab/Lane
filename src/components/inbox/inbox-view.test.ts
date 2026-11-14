@@ -7,14 +7,17 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch:
 import { InboxView, type InboxViewProps } from "./inbox-view"
 import { StableRouterProvider } from "@/components/shell/stable-router"
 import type { InboxItem, NeedsYouInboxItem } from "./inbox-item"
+import { inboxAllClear, inboxDeliveryLink } from "./inbox-empty"
 
 const item = (over: Partial<InboxItem> = {}): InboxItem => ({
   id: "n1", type: "comment_added", requestId: "req-1", readAt: null, createdAt: "2026-10-25T09:00:00.000Z", actorName: "Priya Shah",
   requestTitle: "Checkout copy", requestNumber: 12, reframedProblem: "Customers cannot find the delivery date", detail: null, ...over,
 })
 const noop = () => {}
+// As page.tsx draws them: for an Admin or Member unless `showNeedsYou` is false.
 const render = (over: Partial<InboxViewProps> = {}) => renderToStaticMarkup(createElement(StableRouterProvider, null, createElement(InboxView, {
   items: [item()], unread: 1, selectedId: null, preview: null,
+  allClear: inboxAllClear(over.showNeedsYou ?? true), delivery: over.showNeedsYou === false ? undefined : inboxDeliveryLink(),
   onSelect: noop, onToggleRead: noop, onMarkAllRead: noop, onRetry: noop, ...over,
 })))
 

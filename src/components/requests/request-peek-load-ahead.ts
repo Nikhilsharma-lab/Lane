@@ -32,8 +32,10 @@ export function useListLoadAhead(orgId: string | undefined, viewerId: string | u
  * and focus or the pointer resting on it for PREFETCH_INTENT_MS reads `requestId` into the preview, where
  * the list offers one. Moving on cancels both, so a held J reads only the row it stops on. `focus` goes on
  * the row's tab stop and `pointer` on the whole row; focus moving inside the tab stop is not a rest.
+ * `pageOnPointer` (#284, the Inbox): where no preview is offered, the pointer resting on the row prefetches `href`'s
+ * page too, as focus does, since that is what a click opens.
  */
-export function useRowLoadAhead(href: string, requestId: string | null | undefined) {
+export function useRowLoadAhead(href: string, requestId: string | null | undefined, pageOnPointer = false) {
   const prefetch = useIntentPrefetch(href)
   const load = useContext(RequestPeekLoadAhead)
   const timer = useRef<number | undefined>(undefined)
@@ -50,9 +52,9 @@ export function useRowLoadAhead(href: string, requestId: string | null | undefin
         onBlur: (event: FocusEvent) => { if (event.target !== event.currentTarget) return; prefetch.cancel(); cancel() },
       },
       pointer: {
-        onPointerEnter: (event: PointerEvent) => { if (event.pointerType !== "touch") schedule("pointer") },
-        onPointerLeave: cancel,
+        onPointerEnter: (event: PointerEvent) => { if (event.pointerType === "touch") return; schedule("pointer"); if (pageOnPointer && !load && href) prefetch.schedule() },
+        onPointerLeave: () => { cancel(); prefetch.cancel() },
       },
     }
-  }, [href, load, prefetch, requestId])
+  }, [href, load, prefetch, requestId, pageOnPointer])
 }
