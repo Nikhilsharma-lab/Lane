@@ -23,7 +23,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CheckIcon,
-  ChevronDown,
+  InfoIcon,
   PlusIcon,
   LightbulbIcon,
   PaperclipIcon,
@@ -36,7 +36,7 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Input } from "@/components/arc/input/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/arc/popover/popover";
 import { Textarea } from "@/components/arc/textarea/textarea";
-import { Select } from "@/components/arc/select/select";
+import { RadioCards } from "@/components/arc/radio-cards/radio-cards";
 import { savedFraming, storedShape } from "@/lib/request-framing";
 import { IntakeNavigationGuard, type RegisterIntakeCloseAttempt } from "@/components/requests/intake-navigation-guard";
 import { IntakeAttachmentList } from "@/components/requests/intake-attachment-list";
@@ -86,6 +86,7 @@ import { saveNewIntake, saveEditedIntake } from "./intake-save";
 import { useOptimisticAction, useServerRefresh } from "@/components/requests/use-optimistic-action";
 
 import styles from "./intake-form.module.css";
+import { LimitedTextarea } from "./limited-text";
 
 import {
   discardAttachmentUpload,
@@ -101,8 +102,8 @@ import {
 import { composerDraft, restoredComposer } from "./intake-session";
 import { createIntakeSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
-import { OFFLINE_ANSWER, TEXT_KEPT, isOfflineError } from "@/lib/failure-messages";
-import { isOffline } from "@/lib/connection-status";
+import { OFFLINE_LINE, TEXT_KEPT, isOfflineError } from "@/lib/failure-messages";
+import { isOffline, useOffline } from "@/lib/connection-status";
 import { callAction } from "@/lib/action-call";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Placeholder } from "@/components/loading/placeholder";
@@ -149,6 +150,12 @@ const emptyRequest: RequestInput = {
   priority: "none",
   expectedImpact: createEmptyMeasurementPlan(),
 };
+
+/** #285 (C20): the Goal section's two choices, each saying what it means. */
+const GOAL_CHOICES = [
+  { value: "measure", label: "Measure a result", description: "A metric or a pass/fail check, compared after release." },
+  { value: "none", label: "No measurable impact", description: "Operational work. Its reason is kept, and it is left out of every total." },
+];
 
 const earlierDraftFields = [
   { name: "affectedPeople", label: "Users" },
@@ -208,9 +215,15 @@ const aiAttribution: Record<Exclude<TriageResult["classification"], "problem">, 
 };
 
 
-/** #217: one line of the first-run guide, beside the part of the composer it explains. */
+/** #217: one line of the first-run guide, beside the part of the composer it explains. #285 (C25): it reads as a hint,
+ * muted with an info icon, across the form's full width. */
 function FirstRunHint({ children }: { children: React.ReactNode }) {
-  return <p className="max-w-[var(--lane-prose-width)] text-pretty text-sm leading-relaxed text-muted-foreground" data-first-run-hint="">{children}</p>;
+  return <p className={styles.hint} data-first-run-hint=""><InfoIcon data-icon-size="sm" aria-hidden="true" /><span>{children}</span></p>;
+}
+
+/** #285 (C1): the app frame's offline line, at the top of the composer, which covers the frame while it is open. */
+function ComposerOfflineLine() {
+  return <Alert open={useOffline()} tone="warning" title={OFFLINE_LINE} />;
 }
 
 function IntakeNotice({
@@ -823,9 +836,13 @@ export default function RequestEditor({
 
   /** A save that didn't land: the field it names, or the message on the step it was made from (`compose`). */
   function showSaveFailure(failure: IntakeFailure | null, thrown: unknown, compose: boolean) {
-    // #260 (C1): offline says so; nothing was sent and the text stays.
-    const message = isOfflineError(thrown) ? `${OFFLINE_ANSWER} ${TEXT_KEPT}`
-      : editing ? `Your changes couldn’t be saved. ${TEXT_KEPT} Try again.` : `Your Request couldn’t be created. ${TEXT_KEPT} Try again.`;
+    if (!failure && isOfflineError(thrown)) {
+      // #260 (C1): offline says so; nothing was sent and the text stays.
+      setFailure(thrownGateFailure(false));
+      setStage(compose ? "compose" : "framing");
+      return;
+    }
+    const message = editing ? `Your changes couldn’t be saved. ${TEXT_KEPT} Try again.` : `Your Request couldn’t be created. ${TEXT_KEPT} Try again.`;
     const result = { error: failure ?? { code: "save_failed" as const, message, field: undefined } };
     if (result.error.code === "validation" && (result.error.field === "projectId" || result.error.field === "requestType" || result.error.field === "expectedImpact")) {
       const field = result.error.field;
@@ -971,6 +988,7 @@ export default function RequestEditor({
         {active ? liveStatus : ""}
       </p>
       <div className={styles.scroll}>
+        {active && <ComposerOfflineLine />}
         {uploadState.error && <Alert tone="danger" title={uploadState.error} />}
         {composing && (
           <form
@@ -1005,14 +1023,15 @@ export default function RequestEditor({
             )}
             <div className={styles.context}>
             <div className="space-y-2">
-              <Textarea
+              <LimitedTextarea
+                control={control}
+                limit={TITLE_MAX}
                 rows={1}
                 label="Request title"
                 hideLabel
                 appearance="plain"
                 id="intake-title"
                 placeholder="Request title"
-                maxLength={TITLE_MAX}
                 readOnly={checking}
                 className={styles.title}
                 error={errors.title?.message}
@@ -1025,14 +1044,15 @@ export default function RequestEditor({
                 }}
                 {...register("title")}
               />
-              <Textarea
+              <LimitedTextarea
+                control={control}
+                limit={DESCRIPTION_MAX}
                 label="Description"
                 hideLabel
                 appearance="plain"
                 id="intake-description"
                 placeholder="Add a description…"
                 rows={3}
-                maxLength={DESCRIPTION_MAX}
                 readOnly={checking}
                 className={styles.description}
                 error={errors.description?.message}
@@ -1041,7 +1061,7 @@ export default function RequestEditor({
               {guided && <FirstRunHint>Describe the problem people have, not the fix. Lane checks the framing when you review.</FirstRunHint>}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2" aria-label="Request properties and supporting details">
+            <div className={styles.properties} aria-label="Request properties and supporting details">
               <ProjectPicker orgId={context.orgId} value={currentValues.projectId ?? null} onChange={(value) => { draftEdited.current = true; setValue("projectId", value, { shouldDirty: true, shouldValidate: true }); }} disabled={checking} state={projects} onBusyChange={onProjectBusyChange} error={errors.projectId?.message} />
               <RequestLabelsPicker orgId={context.orgId} project={projects.projects.find(project => project.id === currentValues.projectId)} value={requestLabelKeys(currentValues)} onChange={(keys) => {
                 const value = labelRequestType(keys);
@@ -1097,19 +1117,12 @@ export default function RequestEditor({
             </div>
             {!withoutPrediction && currentValues.expectedImpact && <div className={styles.impact}>
               {guided && <FirstRunHint>Set the goal: pick the metric from the Metrics library, where it is now and where you want it to go.</FirstRunHint>}
-              <div className={styles.impactHeading}>
-                <h2>Goal</h2>
-                <Select label="Goal" name="expected-impact-choice" disabled={checking || metricBusy}
-                  value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
-                  onValueChange={next => { if (next === "none" || next === "measure") chooseImpact(next); }}
-                  onContentKeyDown={event => event.stopPropagation()}
-                  options={[{ value: "measure", label: "Measure a result" }, { value: "none", label: "No measurable impact" }]}
-                  trigger={<Button type="button" variant="secondary" size="sm" disabled={checking || metricBusy}
-                    aria-label={`Goal: ${currentValues.expectedImpact.kind === "no_measurable_impact" ? "No measurable impact" : "Measure a result"}`}>
-                    {currentValues.expectedImpact.kind === "no_measurable_impact" ? "No measurable impact" : "Measure a result"}<ChevronDown data-icon-size="sm" aria-hidden="true" />
-                  </Button>} />
-              </div>
-              {currentValues.expectedImpact.kind === "no_measurable_impact" && <p className={styles.impactExplanation}>Operational work. Its reason is kept, and it is left out of every total.</p>}
+              <h2 id="intake-goal-heading" className={styles.impactHeading}>Goal</h2>
+              {/* #285 (C20): Arc radio cards, so the card that isn't chosen still reads as a choice. */}
+              <RadioCards aria-labelledby="intake-goal-heading" name="expected-impact-choice" disabled={checking || metricBusy}
+                value={currentValues.expectedImpact.kind === "no_measurable_impact" ? "none" : "measure"}
+                onValueChange={next => { if (next === "none" || next === "measure") chooseImpact(next); }}
+                options={GOAL_CHOICES} />
               {currentValues.expectedImpact.kind === "no_measurable_impact" ? (
                 <Textarea
                   label="Why there is no measurable impact"
@@ -1197,7 +1210,7 @@ export default function RequestEditor({
           <header className="space-y-2">
             <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Review Request</h2>
             {triage.classification !== "problem" && (
-              <p className="max-w-[var(--lane-prose-width)] text-pretty text-sm leading-relaxed text-muted-foreground">
+              <p className={styles.intro}>
                 {aiAttribution[triage.classification]}
               </p>
             )}
@@ -1215,13 +1228,13 @@ export default function RequestEditor({
           <div className="space-y-1">
             <h3 className="break-words text-lg font-medium">{source.title}</h3>
             {requestLabelKeys(source).length > 0 && <RequestLabels request={source} />}
-            {(source.projectId || requestLabelKeys(source).length > 0 || (source.priority && source.priority !== "none")) && (
-              <p className="text-sm text-muted-foreground">
+            {/* #285 (C21): each value on the line under the title says what it is. */}
+            {(source.projectId || (source.priority && source.priority !== "none")) && (
+              <p className="text-sm text-muted-foreground" data-review-properties="">
                 {[
-                  source.projectId ? projects.projects.find((project) => project.id === source.projectId)?.name ?? "Selected Project" : null,
-                  null,
-                  source.priority && source.priority !== "none" ? REQUEST_PRIORITY_LABELS[source.priority] : null,
-                ].filter((part): part is string => part !== null).map((part, index) => <Fragment key={part}>{index > 0 && ", "}<span>{part}</span></Fragment>)}
+                  source.priority && source.priority !== "none" ? `Priority: ${REQUEST_PRIORITY_LABELS[source.priority]}` : null,
+                  source.projectId ? `Project: ${projects.projects.find((project) => project.id === source.projectId)?.name ?? "Selected Project"}` : null,
+                ].filter((part): part is string => part !== null).map((part, index) => <Fragment key={part}>{index > 0 && " · "}<span>{part}</span></Fragment>)}
               </p>
             )}
             {offerReviewers && reviewers.length > 0 && (
@@ -1250,50 +1263,34 @@ export default function RequestEditor({
           )}
 
           {triage.classification === "problem" ? (
-            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{source.description}</p>
+            // #285 (C7): the typed title heads the review, and the problem it keeps is labelled as the Request's page labels it.
+            <section aria-labelledby="review-problem-heading" className="space-y-2">
+              <h3 id="review-problem-heading" className="text-sm font-medium">Problem to solve</h3>
+              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{source.description}</p>
+            </section>
           ) : (
             <div className="space-y-5">
               <section
                 aria-label="Problem to solve"
                 className="min-w-0"
               >
-                <div
-                  className="data-[invalid=true]:text-destructive"
-                  data-invalid={Boolean(problemError)}
-                >
-                  <Textarea
-                    label="Problem to solve"
-                    id="problem-framing"
-                    ref={problemRef}
-                    value={editedProblem}
-                    onChange={(event) => {
-                      setEditedProblem(event.target.value);
-                      if (problemError) setProblemError(null);
-                    }}
-                    rows={3}
-                    maxLength={DESCRIPTION_MAX}
-                    readOnly={creating}
-                    aria-invalid={Boolean(problemError) || undefined}
-                    aria-describedby={
-                      problemError
-                        ? "problem-framing-error"
-                        : "problem-framing-description"
-                    }
-                    className="min-h-24 resize-y text-sm leading-relaxed"
-                  />
-                  {problemError ? (
-                    <p
-                      className="text-destructive"
-                      id="problem-framing-error"
-                    >
-                      {problemError}
-                    </p>
-                  ) : (
-                    <p id="problem-framing-description">
-                      Your original description will also be saved.
-                    </p>
-                  )}
-                </div>
+                <Textarea
+                  label="Problem to solve"
+                  id="problem-framing"
+                  ref={problemRef}
+                  value={editedProblem}
+                  onChange={(event) => {
+                    setEditedProblem(event.target.value);
+                    if (problemError) setProblemError(null);
+                  }}
+                  rows={3}
+                  maxLength={DESCRIPTION_MAX}
+                  readOnly={creating}
+                  error={problemError ?? undefined}
+                  className="min-h-24 resize-y text-sm leading-relaxed"
+                />
+                {/* #285 (C21): a note about saving, set apart from the field so it doesn't read as part of it. */}
+                <p className={styles.note}><InfoIcon data-icon-size="sm" aria-hidden="true" /><span>Your original description will also be saved.</span></p>
               </section>
 
               <aside
@@ -1346,7 +1343,11 @@ export default function RequestEditor({
           )}
           <RequestReviewSupportingDetails relatedLink={source.usefulLink} files={attachments} />
 
-          {failure && (
+          {failure?.code === "offline" && (
+            // #285 (C1): one cause, one message, on the review step as on Review Request.
+            <div ref={reviewFailureRef}><Alert tone="warning" title={OFFLINE_LINE}>{failure.message}</Alert></div>
+          )}
+          {failure && failure.code !== "offline" && (
             <div ref={reviewFailureRef}><IntakeNotice error title={editing ? "Changes not saved" : "Request not created"}>
               <span>{failure.message}</span>
               {failure.code === "session_expired" && (
@@ -1445,7 +1446,7 @@ export default function RequestEditor({
           <div className={cn(reveal, "space-y-6")}>
             <header className="space-y-2">
               <h2 ref={headingRef} tabIndex={-1} className="text-lg font-medium" data-composer-autofocus="">Some files weren’t added</h2>
-              <p className="max-w-[var(--lane-prose-width)] text-pretty text-sm leading-relaxed text-muted-foreground">
+              <p className={styles.intro}>
                 Your Request is saved. These files did not finish uploading, and their contents are no longer available here. Check the Request before adding them again.
               </p>
             </header>
