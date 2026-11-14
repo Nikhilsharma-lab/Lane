@@ -200,7 +200,11 @@ export type RequestEntry = {
   followUps: RequestRef[];
 };
 
-export type MyWorkEntry = RequestEntry & { role: "requester" | "picker" | "both" };
+/**
+ * A row of My work or a teammate's list: the Request, the role the person had, and What we learned once it is closed
+ * (#283). Lists run closed results first, newest closing first, then open Requests (`entriesForPerson`).
+ */
+export type MyWorkEntry = RequestEntry & { role: "requester" | "picker" | "both"; learned: LearnedLine | null };
 
 /** The Impact page (#208): My work for everyone, and the Outcome report for everyone except a guest (null for a guest). */
 export type ImpactDashboard = {
@@ -468,15 +472,31 @@ function byRequestNumber<T extends { requestNumber: number }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.requestNumber - b.requestNumber);
 }
 
+/** When a Request was closed, with or without a result; null while it is open. */
+function closedAtOf(row: ImpactRow): string | null {
+  return row.outcomeClosure?.closedAt ?? row.exceptionClosure?.closedAt ?? null;
+}
+
+/**
+ * The order of every person's list (#283): closed Requests first, newest closing first, then open Requests, each part
+ * in Request number order where it ties. The read model is the only place that orders a list.
+ */
+function closedFirst(a: ImpactRow, b: ImpactRow): number {
+  const [closedA, closedB] = [closedAtOf(a), closedAtOf(b)];
+  if (closedA !== null && closedB !== null) return Date.parse(closedB) - Date.parse(closedA) || a.requestNumber - b.requestNumber;
+  if (closedA !== null || closedB !== null) return closedA === null ? 1 : -1;
+  return a.requestNumber - b.requestNumber;
+}
+
 /** The Requests one person requested or picked up, from the rows a viewer may see, marked by the role they had. */
 function entriesForPerson(visible: ImpactRow[], personId: string, now: Date): MyWorkEntry[] {
-  return byRequestNumber(visible.flatMap(row => {
+  const theirs = visible.filter(row => requesterOf(row) === personId || row.assignedTo === personId);
+  return theirs.sort(closedFirst).map(row => {
     const requester = requesterOf(row) === personId;
     const picker = row.assignedTo === personId;
-    if (!requester && !picker) return [];
     const role: MyWorkEntry["role"] = requester && picker ? "both" : requester ? "requester" : "picker";
-    return [{ ...entryOf(row, now, visible), role }];
-  }));
+    return { ...entryOf(row, now, visible), role, learned: learnedOf(row) };
+  });
 }
 
 /**

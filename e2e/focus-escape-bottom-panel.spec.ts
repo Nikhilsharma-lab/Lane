@@ -281,15 +281,17 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
     });
   });
 
-  test("Escape on the Quarter note editor asks before dropping a half-written note", async ({ page }) => {
+  test("Escape on the Quarter note popup asks before dropping a half-written note", async ({ page }) => {
     test.setTimeout(240_000);
     await page.setViewportSize({ width: 1440, height: 900 });
     await withWorkspace(page, "quarter-note", async () => {
       const now = new Date();
-      await page.goto(`/impact?period=${now.getUTCFullYear()}-q${Math.floor(now.getUTCMonth() / 3) + 1}`);
+      await page.goto(`/impact?tab=outcome-report&period=${now.getUTCFullYear()}-q${Math.floor(now.getUTCMonth() / 3) + 1}`);
       await behaviourReady(page);
       const write = page.getByRole("button", { name: /^Write the .+ note$/ });
       await write.click();
+      // #283: the editor is a popup now, as the Request page's forms are.
+      await expect(page.getByRole("dialog", { name: /^Quarter note, / })).toBeVisible();
       const note = page.getByRole("textbox", { name: /^Quarter note for / });
       await expect(note).toBeFocused({ timeout: 20_000 });
       await note.fill("Checkout errors fell after the redesign.");

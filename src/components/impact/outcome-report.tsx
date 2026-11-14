@@ -67,9 +67,16 @@ function PeriodPicker({ period, now, onPeriodChange }: { period: ImpactPeriod; n
   const choices = periodChoices(period.kind, now)
   const current = periodKey(period)
   const options = choices.some(choice => choice.key === current) ? choices : [{ key: current, label: periodLabel(period) }, ...choices]
+  // #283 (C29): "Show by" is visible and named once (the group carries the name, the shown word is hidden from screen
+  // readers), and sits level with the Period picker's own label.
   return <div className={styles.picker}>
-    <SegmentedControl label="Report by" value={period.kind} options={KINDS} onValueChange={kind => onPeriodChange?.(periodOfKind(kind as PeriodKind, period, now))} />
-    <Select label="Period" value={current} onValueChange={key => { const next = parsePeriodKey(key); if (next) onPeriodChange?.(next) }} options={options.map(choice => ({ value: choice.key, label: choice.label }))} />
+    <div className={styles.showBy}>
+      <span className={styles.pickerLabel} aria-hidden="true">Show by</span>
+      <SegmentedControl label="Show by" value={period.kind} options={KINDS} onValueChange={kind => onPeriodChange?.(periodOfKind(kind as PeriodKind, period, now))} />
+    </div>
+    <div className={styles.period}>
+      <Select label="Period" value={current} onValueChange={key => { const next = parsePeriodKey(key); if (next) onPeriodChange?.(next) }} options={options.map(choice => ({ value: choice.key, label: choice.label }))} />
+    </div>
   </div>
 }
 
@@ -150,12 +157,14 @@ function MeasuredFacts({ result }: { result: ResultView }) {
 function ReportRequest({ entry }: { entry: OutcomeReportEntry }) {
   const headingId = `report-request-${entry.requestId}`
   const { outcome, predicted } = entry
+  // #283 (C2-16): a pass/fail check has no metric, before or change, so its few facts sit as label and value lines.
+  const check = predicted?.form === "pass_fail" || (outcome.kind === "measured" && outcome.result.form === "pass_fail")
   return <li className={styles.entry}>
     <article aria-labelledby={headingId} className={styles.article}>
       <h4 id={headingId} className={styles.entryHead}><RequestLink {...entry} /> <Badge size="sm">{entry.journey}</Badge></h4>
       <Iteration requestId={entry.requestId} iteration={entry.iteration} />
       <p className={styles.problem}>{entry.problem}</p>
-      <dl className={styles.facts}>
+      <dl className={check ? styles.checkFacts : styles.facts}>
         <Fact label="Released"><time dateTime={entry.releaseDate}>{plannedDay(entry.releaseDate)}</time></Fact>
         {predicted && predicted.form === "numeric" && <Fact label="Metric">{predicted.metric} ({predicted.audience}, {predicted.window})</Fact>}
         {predicted && <Fact label="Goal">{goalText(predicted)}</Fact>}
