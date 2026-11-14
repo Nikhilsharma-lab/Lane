@@ -8,6 +8,7 @@ import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-p
 import { linkSameProblem, readSameProblem, removeSameProblemLink } from "@/app/(app)/requests/[id]/same-problem-actions"
 import { formatRequestCode } from "@/lib/request-code"
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
+import { offerUndo } from "./undo-toast"
 import { withoutIteration } from "./same-problem-changes"
 import { IterationsPlaceholder } from "./same-problem-placeholder"
 import type { LinkCandidate } from "./same-problem-link-model"
@@ -56,8 +57,6 @@ export const preloadSameProblemView = () => { void loadView().catch(() => undefi
 
 const LOAD_FAILED = "Couldn’t load the Iterations. Try again."
 const CHANGE_FAILED = "Couldn’t change the link. Try again."
-/** How long Remove's Undo stays, as Mark Done's does. */
-const UNDO_MS = 10_000
 
 /** The section's state from the read, or null when there is nothing to show this reader (a guest). Never throws. */
 async function readView(requestId: string, orgId: string): Promise<SameProblemState | null> {
@@ -85,7 +84,7 @@ export function SameProblemSection({ requestId, requestNumber, orgId, canLink }:
   const heading = useRef<HTMLHeadingElement>(null)
   const linkButton = useRef<HTMLButtonElement>(null)
   const generation = useRef(0)
-  const { toast, update } = useToastStack()
+  const toasts = useToastStack()
 
   const show = useCallback((next: SameProblemState | null) => {
     if (next) setState(next)
@@ -141,24 +140,22 @@ export function SameProblemSection({ requestId, requestNumber, orgId, canLink }:
       return
     }
     const code = formatRequestCode(entry.requestNumber)
-    const id = `same-problem-removed:${entry.requestId}`
-    toast({ id, type: "success", title: "Taken out of this group", description: `${code} is no longer linked as Same problem.`, duration: UNDO_MS,
-      action: rejoin ? { label: "Undo", onClick: () => { void undoRemove(id, code, entry.requestId, rejoin) } } : undefined })
+    offerUndo(toasts, `same-problem-removed:${entry.requestId}`, { title: "Taken out of this group", description: `${code} is no longer linked as Same problem.` }, rejoin ? {
+      undoing: { title: "Linking again", description: `${code} is going back in this group.` },
+      undone: { title: "Linked again", description: `${code} is back in this group.` },
+      run: async failed => {
+        try {
+          const result = await callAction(() => linkSameProblem({ requestId: entry.requestId, otherRequestId: rejoin }, { orgId }))
+          if ("error" in result) { failed(result.error); return false }
+        } catch (thrown) {
+          failed(thrownMessage(thrown, CHANGE_FAILED))
+          return false
+        }
+        void load()
+        return true
+      },
+    } : null)
     void load()
-  }
-
-  async function undoRemove(toastId: string, code: string, requestId: string, rejoin: string) {
-    update(toastId, { type: "loading", title: "Linking again", description: `${code} is going back in this group.`, action: undefined })
-    const failed = (message: string) => update(toastId, { type: "error", title: "Couldn’t undo", description: message, action: undefined })
-    try {
-      const result = await callAction(() => linkSameProblem({ requestId, otherRequestId: rejoin }, { orgId }))
-      if ("error" in result) { failed(result.error); return }
-    } catch (thrown) {
-      failed(thrownMessage(thrown, CHANGE_FAILED))
-      return
-    }
-    update(toastId, { type: "success", title: "Linked again", description: `${code} is back in this group.`, action: undefined })
-    await load()
   }
 
   const linkDialog = usePopupCode(linkDialogCode, linkOpen, () => couldNotOpen("same-problem-link", setLinkOpen))
