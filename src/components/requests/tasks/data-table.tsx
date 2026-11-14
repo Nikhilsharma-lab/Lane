@@ -344,7 +344,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
                   {collapsed ? <ChevronRight aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}<span>{group.label}</span>
                   <span className={styles.groupCount}>{count}</span>
                 </button></h2></div>
-                {presentation && !readOnly && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content={<>New Request<KeyCap className={styles.tipKey}>C</KeyCap></>}><NewRequestLink tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
+                {/* #285 (C24): while the Open header holds the grid's one tab stop, Tab goes on from it to its New Request. */}
+                {presentation && !readOnly && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content={<>New Request<KeyCap className={styles.tipKey}>C</KeyCap></>}><NewRequestLink tabIndex={grid.tabbable === headerKey ? 0 : -1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
               </div>
               <div id={id} hidden={collapsed}>{group.shown.map(request => renderRow(request, 2))}{renderMore(group, 2)}</div>
             </div>

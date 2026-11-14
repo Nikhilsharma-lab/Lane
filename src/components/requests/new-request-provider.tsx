@@ -14,7 +14,8 @@ import { requestCreatedToast } from "./request-created-toast";
 import { matchesListFilters, type OverviewRequest } from "@/lib/request-overview";
 import { projectIdOrNull } from "@/lib/request-constants";
 import { readLostUploads, unfinishedUploadsScope } from "@/lib/unfinished-uploads";
-import { hasIntakeDraft, intakeDraftScope } from "@/lib/intake-draft-key";
+import { hasIntakeDraft, intakeDraftScope, intakeDraftStorageKey } from "@/lib/intake-draft-key";
+import { hasTypedText } from "@/components/popup/typed-text";
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards";
 import { parseRequestListContext, requestDetailHref, type RequestListContext } from "@/lib/request-workspace";
 import { requestRowSelector } from "./list-focus";
@@ -53,7 +54,7 @@ function focusable(element: Element | null): HTMLElement | null {
   return element instanceof HTMLElement && element !== document.body && element !== document.documentElement ? element : null;
 }
 
-/** /intake's Create Request (intake-launcher.tsx). */
+/** /intake's New Request (intake-launcher.tsx). */
 const intakeLauncher = () => document.querySelector<HTMLElement>("[data-intake-launcher]");
 /** An automatic open on /intake returns focus to the launcher, which may still be streaming in when the composer opens. */
 const LAUNCHER = "intake-launcher";
@@ -162,7 +163,9 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   // Issue #102: the palette opens the composer as C does, naming the element that had focus before it.
   useShellOpener("composer", ({ returnFocus }) => openComposer(returnFocus ?? undefined));
 
-  const onBusyChange = useCallback((value: boolean) => { busy.current = value; }, []);
+  // #285: while the form is busy, X and Esc are holdOpen's; otherwise typed text asks "Discard what you typed?" first.
+  const [busyNow, setBusyNow] = useState(false);
+  const onBusyChange = useCallback((value: boolean) => { busy.current = value; setBusyNow(value); }, []);
   const onCancelCheckChange = useCallback((cancel: (() => void) | null) => { cancelCheck.current = cancel; }, []);
   /** X/Escape cancel a check, confirm leaving saved uploads, or hold other busy work open. */
   const holdOpen = useCallback(() => {
@@ -172,7 +175,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
         // Leave retires this saved generation without announcing completion.
         // Its owner keeps the in-flight transfer and recovery lease.
         completed.current = true;
-        busy.current = false;
+        busy.current = false; setBusyNow(false);
         setOpen(false);
       });
       return true;
@@ -186,7 +189,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   const onCreated = useCallback((requestId: string, { open: openRequest, created }: { open: boolean; created?: OverviewRequest }) => {
     createdId.current = requestId;
     completed.current = true;
-    busy.current = false;
+    busy.current = false; setBusyNow(false);
     setOpen(false);
     const href = requestDetailHref(requestId, returnContext.current.status, returnContext.current.project);
     if (openRequest) {
@@ -229,7 +232,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   // And /intake, a launcher since 2026-10-13, still restores this workspace's
   // draft or review as 2.3's page did, after a reload or Sign in again: each
   // arrival there with one opens the composer once, its restored step focused.
-  // Closing it returns focus to Create Request; a visit with no draft shows
+  // Closing it returns focus to New Request; a visit with no draft shows
   // the launcher only.
   const checkedLoad = useRef(false);
   const checkedIntake = useRef(false);
@@ -259,7 +262,17 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
           scope still unmount normally. */}
       {form && formHost && createPortal(<form.IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} registerCloseAttempt={registerCloseAttempt} />, formHost)}
       {hasOpened && formHost && <>
-        <Dialog open={open} onOpenChange={(next) => { if (!next && holdOpen()) return; setOpen(next); }}>
+        <Dialog guardTypedText={!busyNow} open={open} onOpenChange={(next) => {
+          if (!next && holdOpen()) return;
+          // #285: closing with typed text happens only after Discard. The draft goes with it, and the next open
+          // starts empty; any other close keeps the composer and this tab's draft as they are.
+          if (!next && hasTypedText(formHost)) {
+            try { window.sessionStorage.removeItem(intakeDraftStorageKey(intakeDraftScope(draftOwnerId, context.orgId))); } catch { /* storage unavailable */ }
+            completed.current = true;
+            setGeneration(value => value + 1);
+          }
+          setOpen(next);
+        }}>
           <DialogContent layout="composer" title="New Request" description="Describe your Request and the result you expect." canDismiss={() => !busy.current}
             onOpenAutoFocus={event => {
               // The title in the compose step, the step's heading otherwise. Until
@@ -279,7 +292,7 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
               // stop (plan item 2.4), or the detail pane's link to it. Mobile
               // navigation stays mounted while closed, and its compose link
               // cannot receive focus once navigation is inert, so its opener
-              // stands in. /intake's Create Request and the page's main region
+              // stands in. /intake's New Request and the page's main region
               // come last. The document itself is never a target.
               const opener = trigger.current === LAUNCHER ? intakeLauncher() : trigger.current;
               const id = createdId.current;
