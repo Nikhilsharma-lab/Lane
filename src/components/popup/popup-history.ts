@@ -2,6 +2,8 @@
 export type PopupEntryEnvironment = {
   history: { readonly state: unknown; pushState(state: unknown, unused: string): void; replaceState(state: unknown, unused: string): void; back(): void }
   onPopState(listener: () => void): () => void
+  /** The browser starts leaving the page on its own: a reload, the address bar, a bookmark (beforeunload). */
+  onLeave(listener: () => void): () => void
   defer(task: () => void): void
   /** When the last move to another page started (src/lib/navigation-intent.ts), on the `now` clock. */
   navigationStartedAt(): number
@@ -20,7 +22,7 @@ type Entry = { page: unknown; pushedAt: string | null; openedAfter: number; wait
 // entry the panel it replaces left.
 const entries = new Map<string, Entry>()
 
-export function createPopupEntry(marker: string, { history, onPopState, defer, navigationStartedAt, now, address }: PopupEntryEnvironment) {
+export function createPopupEntry(marker: string, { history, onPopState, onLeave, defer, navigationStartedAt, now, address }: PopupEntryEnvironment) {
   const ours = () => (history.state as { lanePopup?: string } | null)?.lanePopup === marker
   const entry = entries.get(marker) ?? { page: null, pushedAt: null, openedAfter: -Infinity, waiting: null }
   entries.set(marker, entry)
@@ -59,9 +61,14 @@ export function createPopupEntry(marker: string, { history, onPopState, defer, n
       if (movingAway()) { if (onTop()) history.replaceState(entry.page, ""); return }
       const release = { kept: false }
       entry.waiting = release
+      // A step back once the browser has started leaving (a reload straight after "Not yet" on "Is it live?") cancels
+      // that navigation; the page that loads next is at this address anyway, so the entry stays.
+      let leaving = false
+      const stopLeaving = onLeave(() => { leaving = true })
       defer(() => {
+        stopLeaving()
         if (entry.waiting === release) entry.waiting = null
-        if (!release.kept && onTop() && !movingAway()) history.back()
+        if (!release.kept && !leaving && onTop() && !movingAway()) history.back()
       })
     }
   }
