@@ -10,7 +10,7 @@
 import { plannedDay } from "@/lib/dates"
 import { audienceInSentence } from "@/lib/measurement-audience"
 import { reopenEndsAt } from "@/lib/reopen-window"
-import { FORMER_MEMBER, JOURNEY_STATUSES, journeyOf, NO_RELEASE_TO_RECORD, type ActionAvailability, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
+import { FORMER_MEMBER, JOURNEY_STATUSES, journeyOf, type Journey, type JourneyAction, type JourneyActions, type JourneyLabel, type JourneyStatus } from "@/lib/request-journey"
 import type { RequestStatus } from "@/lib/request-lifecycle"
 import { EXCEPTION_REASON_OPTIONS, type ExceptionReason } from "@/lib/request-outcome-options"
 import type { OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
@@ -146,10 +146,8 @@ function measuringFacts(fact: ReleaseFact, hasValueBefore: boolean, isCurrent: b
  * minutes after the saved Done time. Recording the release moves the Request on to Measuring, which ends it. A Request
  * with no measurable impact refuses its release to everyone that rule lets in, and only to them (#309).
  */
-function reopenAvailability(input: Pick<TimelineInput, "actions" | "doneAt" | "clock">): ActionAvailability {
-  const release = input.actions.release
-  if (!(release.allowed || release.reason === NO_RELEASE_TO_RECORD) || !input.doneAt) return { allowed: false, reason: "" }
-  return input.clock.getTime() < reopenEndsAt(input.doneAt) ? { allowed: true } : { allowed: false, reason: "" }
+function canReopen({ actions: { release }, doneAt, clock }: Pick<TimelineInput, "actions" | "doneAt" | "clock">): boolean {
+  return (release.allowed || release.code === "no_measurable_impact") && doneAt !== null && clock.getTime() < reopenEndsAt(doneAt)
 }
 
 type StepActionsInput = Pick<TimelineInput, "isGuest" | "readOnly" | "actions" | "hasAgreedResult" | "noMeasurableImpact"> & Partial<Pick<TimelineInput, "doneAt" | "clock">>
@@ -159,13 +157,15 @@ function stepActions(input: StepActionsInput, status: JourneyStatus): Pick<Timel
   const shown: TimelineAction[] = []
   const more: TimelineAction[] = []
   for (const { action, quiet, primary, more: behindMore, separated } of slotsFor(status, input.noMeasurableImpact)) {
-    let availability = action === "reopen"
-      ? input.clock ? reopenAvailability({ actions: input.actions, doneAt: input.doneAt ?? null, clock: input.clock }) : { allowed: false as const, reason: "" }
-      : input.actions[action]
+    // Reopen shows only while it can be used: it never says why not.
+    if (action === "reopen") {
+      if (input.clock && canReopen({ actions: input.actions, doneAt: input.doneAt ?? null, clock: input.clock })) shown.push({ action, label: REOPEN_LABEL, emphasis: "secondary", available: true })
+      continue
+    }
+    let availability = input.actions[action]
     if (action === "close" && availability.allowed && !input.hasAgreedResult)
       availability = { allowed: false, reason: "There is no agreed goal to measure against." }
-    const label = action === "reopen" ? REOPEN_LABEL : ACTION_LABELS[action]
-    const placed = { action, label, emphasis: primary && availability.allowed ? "primary" as const : "secondary" as const, ...(separated ? { separated } : {}) }
+    const placed = { action, label: ACTION_LABELS[action], emphasis: primary && availability.allowed ? "primary" as const : "secondary" as const, ...(separated ? { separated } : {}) }
     if (availability.allowed) { (behindMore ? more : shown).push({ ...placed, available: true }); continue }
     // One reason is enough: the same refusal twice in a step says nothing new. A refusal is never hidden in a menu.
     if (quiet || shown.some(a => !a.available && a.reason === availability.reason)) continue
