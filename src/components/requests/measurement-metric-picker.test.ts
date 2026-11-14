@@ -82,9 +82,15 @@ describe("the options", () => {
 
 // #199: a metric that isn't in the library is added from the picker.
 describe("what inline add offers to add", () => {
-  it("is the typed name, tidied, when no active definition has it", () => {
+  it("is the typed name, tidied, when no active definition matches it", () => {
     expect(inlineAddName(library, "  Checkout   completions ")).toBe("Checkout completions");
-    expect(inlineAddName(library, "Signup")).toBe("Signup");
+  });
+
+  // #285 (C11): "Add …" only when nothing in the library matches, so nobody adds a near-copy of a metric they can see.
+  it("is nothing while an active definition matches what's typed, even in part", () => {
+    expect(inlineAddName(library, "Signup")).toBeNull();
+    expect(inlineAddName(library, "completion")).toBeNull();
+    expect(inlineAddName(library, "satisfaction  ")).toBeNull();
   });
 
   it("is nothing while nothing is typed, or when an active definition has exactly that name", () => {
