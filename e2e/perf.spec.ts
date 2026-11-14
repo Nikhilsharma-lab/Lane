@@ -715,7 +715,7 @@ test("the composer dialog enters with at most 2 long animation frames at 4x CPU"
 
 test("/intake cold loads stay within the CLS budget at 1440 and 390", async ({ browser }) => {
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
-    // /intake is a launcher under the page strip (2026-10-13); its Create Request link is the loaded content.
+    // /intake is a launcher under the page strip (2026-10-13); its New Request link is the loaded content.
     const cls = await coldLoadCls(browser, "/intake", viewport, 'section[aria-label="Start a Request"] a[aria-haspopup="dialog"]')
     report(`/intake CLS, cold load at ${viewport.width}`, cls, "", BUDGET.cls)
     expect(p75(cls)).toBeLessThanOrEqual(BUDGET.cls * TOLERANCE)
