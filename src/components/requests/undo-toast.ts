@@ -1,7 +1,5 @@
 import type { ToastStackApi } from "@/components/arc/toast-stack/toast-stack"
-
-/** How long a change's message offers Undo: Mark Done, removing a reviewer, taking a Request out of a Same problem group. */
-export const UNDO_MS = 10_000
+import { UNDO_MS } from "./mark-done-undo"
 
 type Copy = { title: string; description: string }
 
