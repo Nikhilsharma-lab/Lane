@@ -32,6 +32,8 @@ async function openReviewedDraft(page: Page, user: TestUser, orgId: string, titl
     version: 2, savedAt: Date.now(), source,
     review: { triage, token: createTriageToken(source, triage, { orgId, userId: user.id }), editedProblem },
   };
+  // Nothing this tab kept earlier (the title typed above) may open the composer on /intake first.
+  await page.evaluate(() => sessionStorage.clear());
   await page.goto("/intake");
   // The form saves the (empty) draft it starts with once it loads; the reviewed one goes in after that.
   await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
@@ -73,11 +75,15 @@ test("the New Request composer: the Open group's +, an overflowing paste, × ask
       await page.evaluate(text => navigator.clipboard.writeText(text), "Checkout ".repeat(25));
       await page.keyboard.press("ControlOrMeta+V");
       await expect(title).toHaveValue("Checkout ".repeat(25).slice(0, 200));
-      await expect(composer.getByText("25 characters didn’t fit and were left out.")).toBeVisible();
+      // The title's own line says so, and it is announced.
+      const titleLine = composer.locator("#intake-title-description");
+      await expect(titleLine).toBeVisible();
+      await expect(titleLine).toContainText("25 characters didn’t fit and were left out.");
+      await expect(composer.getByRole("status").filter({ hasText: "25 characters didn’t fit and were left out." })).toHaveCount(1);
       // Back under the limit, the field says how much room is left instead.
       await page.keyboard.press("Backspace");
-      await expect(composer.getByText("1 character left", { exact: true })).toBeVisible();
-      await expect(composer.getByText(/left out/)).toHaveCount(0);
+      await expect(titleLine).toContainText("1 character left");
+      await expect(titleLine).not.toContainText("left out");
     });
 
     await test.step("× with typed text asks first; Keep editing keeps it", async () => {
