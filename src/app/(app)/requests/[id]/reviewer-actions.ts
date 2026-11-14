@@ -5,7 +5,7 @@ import * as z from "zod";
 import { and, desc, eq } from "drizzle-orm";
 import { db, requests, requestAgreements, requestAgreementEvents } from "@/db";
 import { guardActiveMember, guardCanChange, type MemberAuth } from "@/lib/auth-guard";
-import { addReviewersSchema, removeReviewerSchema, answerReviewSchema, restoreReviewerSchema } from "@/lib/request-reviewer-schemas";
+import { addReviewersSchema, answerReviewSchema, oneReviewerSchema } from "@/lib/request-reviewer-schemas";
 import {
   reviewerKey,
   reviewerPickRefusal,
@@ -131,7 +131,7 @@ export async function addReviewers(context: RequestChangeContext, input: unknown
 
 /** The requester or an admin takes someone off an Open Request. */
 export async function removeReviewer(context: RequestChangeContext, input: unknown) {
-  const parsed = removeReviewerSchema.safeParse(input);
+  const parsed = oneReviewerSchema.safeParse(input);
   if (!parsed.success) return { error: "Choose a reviewer to remove." };
   return changeReviewers(
     context,
@@ -160,14 +160,14 @@ export async function removeReviewer(context: RequestChangeContext, input: unkno
  * and only while that removal is still the Request's last change: anything since, and they're added again instead.
  */
 export async function restoreReviewer(context: RequestChangeContext, input: unknown) {
-  const parsed = restoreReviewerSchema.safeParse(input);
+  const parsed = oneReviewerSchema.safeParse(input);
   if (!parsed.success) return { error: "Choose a reviewer to put back." };
   return changeReviewers(
     context,
     parsed.data,
     "reviewers_added",
     async (tx, request, reviewersRow, auth) => {
-      insist(canChange(auth, request), "Only the Requester or a workspace admin can remove a reviewer.");
+      insist(canChange(auth, request), "Only the Requester or a workspace admin can undo removing a reviewer.");
       const [removal] = await tx
         .select()
         .from(requestAgreementEvents)

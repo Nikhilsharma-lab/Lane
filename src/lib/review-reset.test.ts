@@ -3,7 +3,7 @@ import { answeredReviewsOf, reviewResetWarning } from "./review-reset";
 
 // #280 (B9): an edit that changes the Request clears every review answer; the dialog says whose first.
 describe("answeredReviewsOf", () => {
-  const reviewer = (name: string, kind: "looks_good" | "concern" | null) => ({ displayNameAtSelection: name, decision: kind ? { kind, actorId: name, at: "2026-11-01T10:00:00Z", reason: kind === "concern" ? "Too vague" : "" } : null })
+  const reviewer = (name: string, kind: "looks_good" | "concern" | null) => ({ nominee: { kind: "member" as const, userId: name }, displayNameAtSelection: name, decision: kind ? { kind, actorId: name, at: "2026-11-01T10:00:00Z", reason: kind === "concern" ? "Too vague" : "" } : null })
   it("names the concerns and counts the other answers; unanswered reviews clear nothing", () => {
     expect(answeredReviewsOf([reviewer("Sam", "looks_good"), reviewer("Daniel", "concern"), reviewer("Ana", null)])).toEqual({ concerns: ["Daniel"], others: 1 })
     expect(answeredReviewsOf([reviewer("Ana", null)])).toBeNull()

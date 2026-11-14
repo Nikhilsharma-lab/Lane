@@ -47,9 +47,9 @@ describe("measurement pickup readiness", () => {
     const { loadRequestDetail, loadRequestList } = await import("@/lib/data/requests");
     const auth = { userId: MEMBER, orgId: ORG, role: "member" as const };
     const row = (await loadRequestList(auth)).rows.find(item => item.id === requestId)!;
-    expect(row.pickupBlockedReason).toMatch(/current value/i);
+    expect(row.pickupBlockedReason).toMatchObject({ code: "plan", reason: expect.stringMatching(/current value/i) });
     expect(row).not.toHaveProperty("expectedImpact");
-    expect((await loadRequestDetail(auth, requestId))?.request.pickupBlockedReason).toBe(row.pickupBlockedReason);
+    expect((await loadRequestDetail(auth, requestId))?.request.pickupBlockedReason).toEqual(row.pickupBlockedReason);
     await setPlan(plan(40));
     expect((await loadRequestList(auth)).rows.find(item => item.id === requestId)?.pickupBlockedReason).toBeNull();
   });

@@ -169,10 +169,10 @@ describe("taking on a Guest submission", () => {
     const id = await submission();
     const { pickUpRequest } = await import("./actions");
     as(MEMBER);
-    expect(await detailAs(MEMBER, id)).toMatchObject({ request: { guestSubmission: { state: "waiting" }, pickupBlockedReason: "Take this Guest submission on before picking it up." } });
+    expect(await detailAs(MEMBER, id)).toMatchObject({ request: { guestSubmission: { state: "waiting" }, pickupBlockedReason: { code: "take_on_first", reason: "Take this Guest submission on before picking it up." } } });
     expect(await pickUpRequest(id, { orgId: ORG })).toEqual({ error: "Take this Guest submission on before picking it up." });
     await takeOn(id, MEMBER);
-    expect(await detailAs(MEMBER, id)).toMatchObject({ request: { pickupBlockedReason: "Set the goal before picking up this Request." } });
+    expect(await detailAs(MEMBER, id)).toMatchObject({ request: { pickupBlockedReason: { code: "set_the_goal", reason: "Set the goal before picking up this Request." } } });
     as(OTHER);
     expect(await pickUpRequest(id, { orgId: ORG })).toEqual({ error: "Set the goal before picking up this Request." });
     // The Requester writes it; then the work can start.

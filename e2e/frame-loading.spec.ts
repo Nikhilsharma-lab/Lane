@@ -226,3 +226,41 @@ test("a Request page loaded in a tab that isn't drawing has one #request-title",
     await deleteTestUser(user.id);
   }
 });
+
+test("B27: while a Request loads, its skeleton holds the comments part, shaped like the Conversation section and on the shared placeholder timing", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const user = await createTestUser("frame-loading-comments");
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  try {
+    await provisionAndSignIn(page, user, { name: "Inbox Loading PM", workspaceName: "Lane E2E Loading comments", role: "pm" });
+    const [id] = await seedPreviewFixtures(user.id, ["Comments placeholder"]);
+    await page.goto("/inbox", { waitUntil: "domcontentloaded" });
+    const open = page.locator(`[data-inbox-item] button[data-inbox-open]`).filter({ hasText: "Comments placeholder" });
+    await expect(open).toBeVisible({ timeout: 60_000 });
+    await settle(page);
+
+    // The tap's own page read waits, so the Request's skeleton stays on screen.
+    const hold = holdUntilReleased();
+    await page.route(`**/requests/${id}**`, (route, req) => req.headers()["rsc"] === "1" && !req.headers()["next-router-prefetch"] ? hold.handler(route) : route.fallback());
+    await open.tap();
+    const part = page.locator('[data-skeleton="detail"] [data-skeleton-part="conversation"]');
+    await expect(part).toBeVisible({ timeout: 5_000 });
+    // Its heading, comments with their avatars, and the composer, hidden from screen readers like the rest of the
+    // skeleton, inside the shared placeholder that waits and fades (Build 2).
+    await expect(part.locator('[data-skeleton-part="comment"]')).toHaveCount(2);
+    await expect(part.locator('[data-skeleton-part="composer"]')).toHaveCount(1);
+    expect(await part.evaluate(node => Boolean(node.closest("[data-placeholder]")) && node.getAttribute("aria-hidden"))).toBe("true");
+    const column = (node: Element) => { const rect = node.getBoundingClientRect(); return { left: Math.round(rect.left), width: Math.round(rect.width) }; };
+    const box = await part.evaluate(column);
+    hold.release();
+    await expect(page.locator("#request-title")).toHaveText("Comments placeholder", { timeout: 30_000 });
+    // The loaded section sits in the same column.
+    expect(await page.locator("#conversation").evaluate(column)).toEqual(box);
+  } finally {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await context.close();
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});

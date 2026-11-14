@@ -14,8 +14,8 @@ describe("a Guest submission's state", () => {
   })
 
   it("can't be picked up while it waits, nor before its prediction is written", () => {
-    expect(guestPickupRefusal({ guestSubmission: "waiting", expectedImpact: null, noMeasurableImpactReason: null })).toBe("Take this Guest submission on before picking it up.")
-    expect(guestPickupRefusal({ guestSubmission: "taken_on", expectedImpact: null, noMeasurableImpactReason: null })).toBe("Set the goal before picking up this Request.")
+    expect(guestPickupRefusal({ guestSubmission: "waiting", expectedImpact: null, noMeasurableImpactReason: null })).toEqual({ code: "take_on_first", reason: "Take this Guest submission on before picking it up." })
+    expect(guestPickupRefusal({ guestSubmission: "taken_on", expectedImpact: null, noMeasurableImpactReason: null })).toEqual({ code: "set_the_goal", reason: "Set the goal before picking up this Request." })
     expect(guestPickupRefusal({ guestSubmission: "taken_on", expectedImpact: null, noMeasurableImpactReason: "Housekeeping" })).toBeNull()
     expect(guestPickupRefusal({ guestSubmission: null, expectedImpact: null, noMeasurableImpactReason: null })).toBeNull()
   })

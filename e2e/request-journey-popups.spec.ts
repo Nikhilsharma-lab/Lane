@@ -143,7 +143,8 @@ test.describe("#277 Journey popups and the one release form", () => {
       await page.keyboard.press("Escape");
       const prompt = discardPrompt(page);
       await expect(prompt.getByRole("button", { name: "Keep editing", exact: true })).toBeFocused();
-      await prompt.getByRole("button", { name: "Keep editing", exact: true }).click();
+      // Escape on the prompt backs out of it: back to the form, nothing lost.
+      await page.keyboard.press("Escape");
       await expect(prompt).toHaveCount(0);
       await expect(release).toBeVisible();
       await expect(evidence).toHaveValue("Rollout log: every shopper has the new checkout");

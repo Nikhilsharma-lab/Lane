@@ -4,6 +4,12 @@ import { useLayoutEffect, useSyncExternalStore } from "react"
 import { useToastStackState, type ToastStackApi, type ToastStackState } from "@/components/arc/toast-stack/toast-stack"
 import { createExternalStore } from "@/lib/external-store"
 
+/**
+ * How long a change's message offers Undo: Mark Done, removing a reviewer, taking a Request out of a Same problem
+ * group (undo-toast.ts). It lives here, with the app-wide Mark Done, so no page loads more to read it.
+ */
+export const UNDO_MS = 10_000
+
 /** How an undo of Mark Done was asked for: the toast's (or palette's) Undo, or the Done step's Reopen (#278). */
 export type UndoKind = "undo" | "reopen"
 
@@ -67,7 +73,7 @@ export function showMarkedDone(toast: ToastStackApi["toast"], request: { id: str
     store.clear(runUndo)
     return undo(id, requestId, name, kind)
   }
-  const show = (id?: string) => toast({ id, type: "success", title: "Marked Done", description: markedDoneDescription(name), duration: 10_000, action: { label: "Undo", onClick: runUndo } })
+  const show = (id?: string) => toast({ id, type: "success", title: "Marked Done", description: markedDoneDescription(name), duration: UNDO_MS, action: { label: "Undo", onClick: runUndo } })
   const toastId = show()
   store.set({ toastId, requestId, name, undo: (kind?: UndoKind) => runUndo(toastId, kind) }, runUndo)
   return {

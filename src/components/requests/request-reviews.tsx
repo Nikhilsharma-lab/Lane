@@ -5,10 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useOptimisticAction } from "./use-optimistic-action";
 import { Button } from "@/components/arc/button/button";
 import { useToastStack } from "@/components/arc/toast-stack/toast-stack";
+import { offerUndo } from "./undo-toast";
 import { MAX_REVIEWERS, reviewerKey as keyOf, reviewStateOf, type ReviewerOutline } from "@/lib/request-reviewer-rules";
 import * as actions from "@/app/(app)/requests/[id]/reviewer-actions";
 import { useReportReviewState } from "./pickup-confirmation";
-import { isPendingReviewer, withAnswer, withReviewerBack, withReviewersAdded, withoutReviewer, type RemovedReviewer } from "./reviewer-changes";
+import { isPendingReviewer, withAnswer, withReviewerBack, withReviewersAdded, withoutReviewer } from "./reviewer-changes";
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog";
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import { focusWithoutScroll } from "@/components/popup/focus";
@@ -24,8 +25,6 @@ type Reviewer = View["reviewers"][number];
 type Kind = "addReviewers" | "removeReviewer" | "answerReview" | "restoreReviewer";
 
 const OPTIONAL_LINE = "Optional. People who should look at this before work starts.";
-/** How long a removed reviewer's Undo stays, as Mark Done's does. */
-const UNDO_MS = 10_000;
 
 // The answer popup's form loads when it first opens, or a moment earlier, when the pointer or focus reaches an answer
 // button.
@@ -71,7 +70,7 @@ export function RequestReviews({
   deferred?: boolean;
 }) {
   const runAction = useOptimisticAction();
-  const { toast, update } = useToastStack();
+  const toasts = useToastStack();
   const [view, setShown] = useState<View | null>(null);
   // The list as shown, read by changes and Undo after the render that made them.
   const shown = useRef<View | null>(null);
@@ -177,17 +176,13 @@ export function RequestReviews({
     focusWithoutScroll(document.getElementById("reviewers-heading"));
     const saved = await change("removeReviewer", { reviewerId: reviewer.id }, (v) => withoutReviewer(v, reviewer.id).shown);
     if (!saved) return;
-    const id = `reviewer-removed:${reviewer.id}`;
-    toast({ id, type: "success", title: "Reviewer removed", description: `${reviewer.name} is no longer asked to review.`, duration: UNDO_MS, action: { label: "Undo", onClick: () => { void undoRemove(id, removed); } } });
-  }
-
-  /** Undo: the same entry back in its place (restoreReviewer), only if nothing changed since. */
-  async function undoRemove(toastId: string, removed: RemovedReviewer) {
+    // Undo: the same entry back in its place (restoreReviewer), only if nothing changed since.
     const name = removed.entry.name;
-    update(toastId, { type: "loading", title: "Putting reviewer back", description: `${name} is going back on the list.`, action: undefined });
-    const back = await change("restoreReviewer", { reviewerId: removed.entry.id }, (v) => withReviewerBack(v, removed),
-      (message) => update(toastId, { type: "error", title: "Couldn’t undo", description: message, action: undefined }));
-    if (back) update(toastId, { type: "success", title: "Reviewer back", description: `${name} is asked to review again, as before.`, action: undefined });
+    offerUndo(toasts, `reviewer-removed:${reviewer.id}`, { title: "Reviewer removed", description: `${reviewer.name} is no longer asked to review.` }, {
+      undoing: { title: "Putting reviewer back", description: `${name} is going back on the list.` },
+      undone: { title: "Reviewer back", description: `${name} is asked to review again, as before.` },
+      run: async (failed) => Boolean(await change("restoreReviewer", { reviewerId: removed.entry.id }, (v) => withReviewerBack(v, removed), failed)),
+    });
   }
 
   function answer(reviewer: Reviewer, given: ReviewAnswer, changing: boolean) {

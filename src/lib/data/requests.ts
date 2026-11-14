@@ -8,7 +8,7 @@ import { db, comments, profiles, projects, requestAgreements, requestAttachments
 import type { MemberAuth } from "@/lib/auth-guard"
 import type { Reviewer, ReviewerOutline, ReviewState } from "@/lib/request-reviewer-rules"
 import { answeredReviewsOf } from "@/lib/review-reset"
-import { reviewStatesOf } from "@/lib/request-reviewers"
+import { outstandingReviewers, reviewerStanding, reviewStateFrom, reviewStatesOf } from "@/lib/request-reviewers"
 import { measurementReadiness } from "@/lib/request-measurement"
 import { currentMetricNames } from "@/lib/metrics-library"
 import { FORMER_MEMBER, journeyActions, journeyStatus } from "@/lib/request-journey"
@@ -18,7 +18,7 @@ import { journeyOutline } from "@/components/requests/request-timeline-model"
 import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
 import type { FinishedView } from "@/lib/request-workspace"
 import type { FinishedCounts } from "@/lib/request-overview"
-import { guestPickupRefusal, type GuestSubmissionState } from "@/lib/guest-submission"
+import { guestPickupRefusal, type GuestSubmissionState, type PickupBlock } from "@/lib/guest-submission"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
 
 // Plan item 1.9: the Requests workspace reads moved here from
@@ -52,7 +52,7 @@ const isActive = (row: Parameters<typeof journeyStatus>[0]) => ["open", "in_prog
 type ListRowRecord = Awaited<ReturnType<ReturnType<typeof listRows>["execute"]>>[number]
 /** A list row carries why it can't be picked up yet and what its reviews leave
  * outstanding, never its measurement plan or its reviewers. */
-export type RequestListRow = Omit<ListRowRecord, "expectedImpact" | "reviewers" | "noMeasurableImpactReason" | "finishedCounts"> & { pickupBlockedReason: string | null; reviewState: ReviewState | null }
+export type RequestListRow = Omit<ListRowRecord, "expectedImpact" | "reviewers" | "noMeasurableImpactReason" | "finishedCounts"> & { pickupBlockedReason: PickupBlock | null; reviewState: ReviewState | null }
 
 /** Each saved reviewer's shape, at any status, so the Request page holds their rows while they load (#295): whether
  * they were asked with a note, raised a concern (each a line under the row) and are the reader (who answers on the row). */
@@ -68,8 +68,10 @@ const openReviewers = sql<Reviewer[] | null>`case when ${requests.status} = 'ope
 const guestSubmissionState = sql<GuestSubmissionState | null>`case when ${requests.guestSubmission} then case when ${requests.takenOnBy} is null then 'waiting' else 'taken_on' end end`
 
 /** The pickup readiness every surface shows and the server enforces (request-lifecycle.ts), a Guest submission's first (#212). */
-function pickupBlockedReason(request: { status: string; expectedImpact: unknown; requestType: string | null; guestSubmission: GuestSubmissionState | null; noMeasurableImpactReason: string | null }) {
-  return request.status === "open" ? guestPickupRefusal(request) ?? measurementReadiness(request.expectedImpact, request.requestType) : null
+function pickupBlockedReason(request: { status: string; expectedImpact: unknown; requestType: string | null; guestSubmission: GuestSubmissionState | null; noMeasurableImpactReason: string | null }): PickupBlock | null {
+  if (request.status !== "open") return null
+  const plan = measurementReadiness(request.expectedImpact, request.requestType)
+  return guestPickupRefusal(request) ?? (plan ? { code: "plan", reason: plan } : null)
 }
 
 /** The saved reviewers stay on the server; screens get the review state. */
@@ -325,16 +327,16 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
   ])
 
   if (!request) return null
-  const [states, metricNames] = await Promise.all([
-    reviewStatesOf(auth.orgId, [request]),
+  const [standing, metricNames] = await Promise.all([
+    reviewerStanding(auth.orgId, outstandingReviewers(request.reviewers)),
     // The definitions' current names (#198); no statement unless the prediction names one.
     currentMetricNames({ orgId: auth.orgId }, [request.expectedImpact]),
   ])
-  const reviewState = states.get(request.id) ?? null
+  const reviewState = reviewStateFrom(request.reviewers, standing)
   const { guestSubmissionState: state, takenOnByName, ...saved } = withoutReviewers(request)
   // #212: who filed it and who took it on, for the Request's Guest submission notice.
   const guestSubmission = state ? { state, submitterName: request.creatorName, takenOnBy: request.takenOnBy, takenOnByName } : null
   // #280 (B9): the answers an edit would clear, for the Edit dialog's warning.
-  const answeredReviews = answeredReviewsOf(request.reviewers)
+  const answeredReviews = answeredReviewsOf(request.reviewers, standing.name)
   return { request: { ...saved, guestSubmission, reviewState, answeredReviews, metricNames, journeyOutline: outlineFor(auth, request), pickupBlockedReason: pickupBlockedReason({ ...request, guestSubmission: state }) }, comments: requestComments, attachments }
 }
