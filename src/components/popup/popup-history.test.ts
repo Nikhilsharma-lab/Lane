@@ -7,6 +7,7 @@ function tab() {
   const addresses = ["/requests/a"]
   let index = 0
   const listeners = new Set<() => void>()
+  const leaving = new Set<() => void>()
   const tasks: (() => void)[] = []
   // Lane's own clock (performance.now()) and when the last move to another page started on it.
   let clock = 0
@@ -19,6 +20,7 @@ function tab() {
       back() { tasks.push(() => { if (index === 0) return; index -= 1; listeners.forEach(listener => listener()) }) },
     },
     onPopState(listener) { listeners.add(listener); return () => listeners.delete(listener) },
+    onLeave(listener) { leaving.add(listener); return () => leaving.delete(listener) },
     defer(task) { tasks.push(task) },
     navigationStartedAt: () => navigationStartedAt,
     now: () => clock,
@@ -32,6 +34,8 @@ function tab() {
     settle() { while (tasks.length) tasks.shift()!() },
     /** The person presses the browser's or phone's Back. */
     pressBack() { environment.history.back(); this.settle() },
+    /** The browser starts leaving the page on its own: reload, the address bar, a bookmark (beforeunload). */
+    leave() { leaving.forEach(listener => listener()) },
     /** A move to another page starts: a link, a router push. */
     navigate() { clock += 1; navigationStartedAt = clock },
     /** Time passes. */
@@ -154,6 +158,27 @@ describe("a phone panel's history entry", () => {
     const release = createPopupEntry("panel", browser.environment)(() => {})
     browser.navigate()
     browser.wait(5_000)
+    release()
+    browser.settle()
+    expect(browser.index).toBe(0)
+  })
+
+  it("leaves history alone when the tab starts reloading before its step back runs", () => {
+    const browser = tab()
+    const release = createPopupEntry("panel", browser.environment)(() => {})
+    // "Not yet" closes "Is it live?" and the reload starts before the release's timer: a step back now cancelled the
+    // reload (net::ERR_ABORTED). The page that loads next is the same address; its entry stays.
+    release()
+    browser.leave()
+    browser.settle()
+    expect(browser.index).toBe(1)
+  })
+
+  it("still steps back when the tab started leaving while it was open, and stayed", () => {
+    const browser = tab()
+    const release = createPopupEntry("panel", browser.environment)(() => {})
+    // A beforeunload the person answered by staying; only a step back already waiting when the tab starts leaving goes.
+    browser.leave()
     release()
     browser.settle()
     expect(browser.index).toBe(0)
