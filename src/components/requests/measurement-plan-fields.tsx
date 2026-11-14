@@ -300,10 +300,12 @@ function MeasurementFields({ value, onChange, requestType, disabled = false, sub
               ...(legacy && measurement.windowDays !== null && !windows.some(option => Number(option.value) === measurement.windowDays) ? [...windows, { value: String(measurement.windowDays), label: `${measurement.windowDays} days after release` }] : windows).map(option => ({
                 label: option.label,
                 icon: <CalendarDays className={styles.icon} aria-hidden="true" />,
+                checked: !measurement.exactDates && option.value === String(measurement.windowDays),
                 trailingIcon: <Check className={styles.menuCheck} data-selected={!measurement.exactDates && option.value === String(measurement.windowDays)} aria-hidden="true" />,
                 onSelect: () => changeMeasurement({ windowDays: Number(option.value) as typeof measurement.windowDays, exactDates: false }),
               })),
-              { label: "Custom date range…", separatorBefore: true, icon: <CalendarDays className={styles.icon} aria-hidden="true" />,
+              { label: "Custom date range…", separatorBefore: true, checked: measurement.exactDates, icon: <CalendarDays className={styles.icon} aria-hidden="true" />,
+                trailingIcon: <Check className={styles.menuCheck} data-selected={measurement.exactDates} aria-hidden="true" />,
                 onSelect: () => { openDatesAfterMenu.current = true } },
             ]} />
         </div>

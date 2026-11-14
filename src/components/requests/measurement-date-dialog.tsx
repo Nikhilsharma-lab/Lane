@@ -1,7 +1,8 @@
 "use client"
 
 import { useRef, useState, type RefObject } from "react"
-import { DateRangePicker } from "@/components/date-range-picker-lazy"
+import { DateRangePicker, type DateRange } from "@/components/date-range-picker-lazy"
+import { plannedDay } from "@/lib/dates"
 import { Dialog, DialogContent } from "@/components/popup/adaptive-dialog"
 import styles from "./measurement-date-dialog.module.css"
 
@@ -20,6 +21,12 @@ function formatDate(date: Date): string {
   return `${String(date.getFullYear()).padStart(4, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
 }
 
+/** #285 (C9): the calendar writes its range as the chip and the review step do. */
+const rangeText = ({ start, end }: DateRange) => {
+  const [from, to] = [plannedDay(formatDate(start)), plannedDay(formatDate(end))]
+  return from === to ? from : `${from} to ${to}`
+}
+
 export function MeasurementDateDialog({ open, startDate, endDate, onOpenChange, onApply, returnFocusRef }: {
   open: boolean
   startDate: string
@@ -36,6 +43,9 @@ export function MeasurementDateDialog({ open, startDate, endDate, onOpenChange, 
   const start = parseDate(startDate)
   const end = parseDate(endDate)
   const value = start && end && end >= start ? { start, end } : null
+  // #285 (C2): a measurement window can't start before today, and the calendar opens on this month.
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent title="Measurement date range" className={styles.dialog} overlayClassName={styles.overlay} aria-describedby={undefined}
@@ -52,7 +62,7 @@ export function MeasurementDateDialog({ open, startDate, endDate, onOpenChange, 
       onKeyDown={event => event.stopPropagation()}
       onEscapeKeyDown={event => event.stopPropagation()}>
       <div ref={bodyRef}>
-        <DateRangePicker key={session.version} embedded locale="en-GB" label="Measurement dates" value={value} presets={[]} boundary={() => bodyRef.current}
+        <DateRangePicker key={session.version} embedded locale="en-GB" label="Measurement dates" value={value} presets={[]} minDate={today} formatRange={rangeText} boundary={() => bodyRef.current}
           onCancel={() => onOpenChange(false)}
           onChange={range => {
             onApply(formatDate(range.start), formatDate(range.end))

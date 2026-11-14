@@ -53,6 +53,8 @@ export interface DateRangePickerProps {
   embedded?: boolean;
   /** Lane: discard the draft and dismiss the containing dialog in embedded mode. */
   onCancel?: () => void;
+  /** Lane (#285): writes a range (a single day has the same start and end) in the app's one date format. */
+  formatRange?: (range: DateRange) => string;
 }
 
 type Size = { w: number; h: number };
@@ -263,7 +265,7 @@ function Months({ children, direction, reduced }: { children: ReactNode; directi
     variants={reduced ? fade : slide} initial="enter" animate="center" exit="exit">{children}</m.div>;
 }
 
-export function DateRangePicker({ value, defaultValue = null, onChange, label = "Date range", placeholder = "Select dates", presets = defaultDateRangePresets, minDate, maxDate, weekStartsOn = 0, locale = "en-US", months = "auto", boundary, className, embedded = false, onCancel }: DateRangePickerProps) {
+export function DateRangePicker({ value, defaultValue = null, onChange, label = "Date range", placeholder = "Select dates", presets = defaultDateRangePresets, minDate, maxDate, weekStartsOn = 0, locale = "en-US", months = "auto", boundary, className, embedded = false, onCancel, formatRange }: DateRangePickerProps) {
   const reduced = useReducedFlag();
   const today = useToday();
   const uid = useId();
@@ -287,7 +289,7 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
     weekday: new Intl.DateTimeFormat(locale, { weekday: "short" }),
     weekdayLong: new Intl.DateTimeFormat(locale, { weekday: "long" }),
   }), [locale]);
-  const format = useCallback((range: DateRange | null) => !range ? placeholder : sameDay(range.start, range.end) ? formatters.label.format(range.start) : formatters.label.formatRange(range.start, range.end), [formatters, placeholder]);
+  const format = useCallback((range: DateRange | null) => !range ? placeholder : formatRange ? formatRange(range) : sameDay(range.start, range.end) ? formatters.label.format(range.start) : formatters.label.formatRange(range.start, range.end), [formatRange, formatters, placeholder]);
 
   const count = compact ? 1 : 2;
   const visible = useMemo(() => Array.from({ length: count }, (_, index) => addMonths(view, index)), [count, view]);
@@ -422,7 +424,9 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
 
   const viewFor = (range: DateRange | null, single: boolean, fallback: Date) => {
     const end = monthStart(range?.end ?? fallback);
-    return single ? end : addMonths(end, -1);
+    const first = single ? end : addMonths(end, -1);
+    // Lane (#285): never open on a month before the first one that can be picked.
+    return minDate && monthDiff(first, minDate) < 0 ? monthStart(minDate) : first;
   };
 
   const openPanel = () => {
@@ -582,7 +586,7 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
   const committedText = format(committed);
   const shownText = shown ? format(shown) : "No dates";
   const countText = shown ? `${days} ${days === 1 ? "day" : "days"}` : "";
-  const status = !open ? "" : anchor ? `Start ${formatters.label.format(anchor)}. Choose an end date.` : shown ? `${shownText}, ${countText}` : "";
+  const status = !open ? "" : anchor ? `Start ${formatRange ? formatRange({ start: anchor, end: anchor }) : formatters.label.format(anchor)}. Choose an end date.` : shown ? `${shownText}, ${countText}` : "";
   const layoutId = reduced || embedded ? undefined : `${uid}-value`;
 
 
