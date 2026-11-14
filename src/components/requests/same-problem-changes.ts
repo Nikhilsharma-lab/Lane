@@ -8,10 +8,9 @@ import { iterationLabel } from "@/lib/same-problem-rules"
  */
 export function withoutIteration(iterations: Iterations, requestId: string): { shown: Iterations | null; rejoin: string | null } {
   const left = iterations.iterations.filter(entry => entry.requestId !== requestId)
-  const rejoin = left.find(entry => entry.current)?.requestId ?? left[0]?.requestId ?? null
-  const current = left.find(entry => entry.current)
-  if (left.length < 2 || !current) return { shown: null, rejoin }
+  const at = left.findIndex(entry => entry.current)
+  const rejoin = left[Math.max(at, 0)]?.requestId ?? null
+  if (left.length < 2 || at < 0) return { shown: null, rejoin }
   const numbered = left.map((entry, index) => ({ ...entry, number: index + 1, label: iterationLabel(index + 1) }))
-  const shownCurrent = numbered.find(entry => entry.current)!
-  return { shown: { current: { number: shownCurrent.number, label: shownCurrent.label }, iterations: numbered }, rejoin }
+  return { shown: { current: { number: at + 1, label: iterationLabel(at + 1) }, iterations: numbered }, rejoin }
 }

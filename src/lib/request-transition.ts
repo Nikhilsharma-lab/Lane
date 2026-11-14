@@ -80,7 +80,7 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
         : moveRefusal({ ...row, pickupBlockedReason: null }, move)
           ?? (isMember ? null : MEMBERSHIP_UNVERIFIED)
           // #212: a Guest submission is taken on, and its prediction written, before anyone picks it up.
-          ?? (move === "pick-up" ? guestPickupRefusal({ ...row, guestSubmission: guestSubmissionOf(row) }) ?? measurementReadiness(row.expectedImpact, row.requestType) : null);
+          ?? (move === "pick-up" ? guestPickupRefusal({ ...row, guestSubmission: guestSubmissionOf(row) })?.reason ?? measurementReadiness(row.expectedImpact, row.requestType) : null);
       if (error) failed.push({ id, error });
       else eligible.push(id);
     }

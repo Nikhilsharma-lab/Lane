@@ -36,11 +36,8 @@ export const addReviewersSchema = z
     note: z.string().trim().max(REVIEW_NOTE_MAX),
   })
   .strict();
-export const removeReviewerSchema = z
-  .object({ reviewerId: z.uuid() })
-  .strict();
-/** #279: Undo after removing a reviewer names the reviewer the removal took off. */
-export const restoreReviewerSchema = z
+/** Removing a reviewer, and its Undo (#279), name the one reviewer. */
+export const oneReviewerSchema = z
   .object({ reviewerId: z.uuid() })
   .strict();
 export const answerReviewSchema = z

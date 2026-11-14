@@ -10,6 +10,7 @@ import { usePendingMutations } from "@/components/requests/pending-mutations-pro
 import { useRequestMoves } from "@/components/requests/request-moves";
 import styles from "./lifecycle-buttons.module.css";
 import { availableMove, pickupBlockedMessage, type LifecycleMove, type RequestStatus } from "@/lib/request-lifecycle";
+import type { PickupBlock } from "@/lib/guest-submission"
 
 const NETWORK_ERRORS: Record<LifecycleMove, string> = {
   "pick-up": "Couldn’t confirm pickup. Refreshing now. Try again if this Request is still Open.",
@@ -44,7 +45,7 @@ export function LifecycleButtons({
   /** A guest has no lifecycle move (plan item 2.4); detail also hides the slot for guests. */
   isGuest?: boolean;
   /** Why pickup isn't possible yet (the loader's measurementReadiness). */
-  pickupBlockedReason?: string | null;
+  pickupBlockedReason?: PickupBlock | null;
   /** Set for a viewer who cannot edit the requester's current values. */
   pickupRequester?: string | null;
 }) {

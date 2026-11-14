@@ -23,7 +23,8 @@
  */
 import { plannedDay } from "./dates";
 import { agreedResult, CORRECTION_FIELD_OPTIONS, EXCEPTION_REASON_OPTIONS, guardrailHeld, type ClosureCorrection, type ExceptionReason, type OutcomeClosure, type OutcomeException } from "./request-outcome";
-import { measurementAudienceLabel, measurementPlatformLabel, measurementUnitLabel } from "./request-measurement";
+import { measurementAudienceLabel } from "./measurement-audience";
+import { measurementPlatformLabel, measurementUnitLabel } from "./request-measurement";
 import type { MetricUnit } from "./metric-definition-rules";
 import type { GuardrailOperator } from "./guardrail-comparison";
 import { impactStateOf, type ExpectedImpact } from "./request-impact";

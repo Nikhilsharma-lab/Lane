@@ -92,7 +92,7 @@ describe("paletteEntries", () => {
       expect(actions({ request: { ...request, agreementBlocked: true } })).toEqual(["change-priority", "copy-link", "copy-code"])
     })
     it("hides Pick up while a pickup is blocked", () => {
-      expect(actions({ request: { ...request, pickupBlockedReason: "Add the current values first." } })).toEqual(["change-priority", "copy-link", "copy-code"])
+      expect(actions({ request: { ...request, pickupBlockedReason: { code: "plan", reason: "Add the current values first." } } })).toEqual(["change-priority", "copy-link", "copy-code"])
     })
     it("hides priority when the viewer can't edit the Request", () => {
       expect(actions({ request: { ...request, canEdit: false } })).toEqual(["pick-up", "copy-link", "copy-code"])

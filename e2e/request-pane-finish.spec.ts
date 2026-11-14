@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, getTestWorkspaceId } from "./helpers/cleanup";
 import { answerIsItLive, journey, journeyPopup, journeyStep, pickEarliestReleaseDay } from "./helpers/journey";
+import { focusInside, hiddenButFocusable } from "./helpers/menu-focus";
 import { toastRegion } from "./helpers/mark-done-undo";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
@@ -97,22 +98,6 @@ async function expectOpensInNewTab(page: Page, link: Locator, href: string) {
   await tab.close();
   expect(page.url()).toContain("/requests/");
 }
-
-/**
- * What axe's "aria-hidden-focus" rule finds: controls hidden from screen readers that Tab could still reach. Each is
- * named by its text or label.
- */
-const hiddenButFocusable = (page: Page) => page.evaluate(() => {
-  const focusable = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
-  return [...document.querySelectorAll('[aria-hidden="true"]')]
-    .flatMap(hidden => [hidden, ...hidden.querySelectorAll(focusable)])
-    // Radix's focus guards are the menu's own: empty, and they hand focus straight back into it.
-    .filter(element => element.matches(focusable) && !element.closest("[inert]") && !element.hasAttribute("data-radix-focus-guard") && element.getClientRects().length > 0)
-    .map(element => element.getAttribute("aria-label") ?? element.textContent?.trim() ?? element.tagName);
-});
-
-/** Where focus is: inside the open menu or list, or elsewhere. */
-const focusInside = (page: Page, role: "menu" | "listbox") => page.evaluate(role => Boolean(document.activeElement?.closest(`[role="${role}"]`)), role);
 
 /** With a menu open, Tab stays in it and nothing behind it (the sidebar, the skip link, the page) can take focus. */
 async function expectNothingReachableBehind(page: Page, role: "menu" | "listbox") {

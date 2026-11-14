@@ -4,6 +4,7 @@ import type { RequestPriority } from "@/lib/request-constants"
 import type { RequestStatus } from "@/lib/request-lifecycle"
 import type { OverviewRequest } from "@/lib/request-overview"
 import type { ReviewState } from "@/lib/request-reviewer-rules"
+import type { PickupBlock } from "@/lib/guest-submission"
 
 /**
  * #103: the one Request the app shell acts on (the ⌘K palette, #101). The
@@ -28,7 +29,7 @@ export type CurrentRequest = {
   /** Saved reviews, for "Pick up anyway?" (#77). */
   reviewState: ReviewState | null
   /** Request detail only: why its Pick up button is unavailable, else null. */
-  pickupBlockedReason: string | null
+  pickupBlockedReason: PickupBlock | null
 }
 
 export type CurrentRequestState = { open: CurrentRequest | null; highlightedId: string | null }

@@ -7,31 +7,19 @@ import { focusWithoutScroll } from "@/components/popup/focus"
 import { Placeholder } from "@/components/loading/placeholder"
 import { actionButton } from "./journey-step-actions"
 import type { FormProps } from "./request-timeline-forms"
-import type { TimelineStep } from "./request-timeline-model"
+import { ACTION_LABELS, type TimelineStep } from "./request-timeline-model"
 import type { Views } from "./request-timeline"
 
 // The forms, their checks and the date picker load when a Journey popup first opens, or a moment earlier, when the
 // pointer or focus reaches one of the Journey's action buttons or its More button.
 const formsCode = popupCode(() => import("./journey-popup-forms"))
 
-/** Each Journey popup is titled with its action's name; its final button is the form's own. */
-export const JOURNEY_POPUP_TITLES: Record<JourneyAction, string> = {
-  release: "Record release",
-  correctRelease: "Correct release",
-  voidRelease: "Void incorrect release",
-  close: "Close Request",
-  closeWithoutResult: "Close without a result",
-  correctClosure: "Add correction",
-  followUp: "Create follow-up Request",
-  handover: "Hand over to a new Requester",
-}
-
 /**
  * #277: the one Journey popup, on Lane's adaptive popup (#263): centred on desktop, the bottom panel on a phone. Every
- * Journey action opens its form here, while the action is still available on its step. Focus moves to the form's
- * first field and goes back to the action's button on Cancel, Escape or the ×; Escape, the × and a press outside ask
- * "Discard what you typed?" before dropping typed text. After a save, focus goes to the Journey's heading, which the
- * re-read Journey keeps.
+ * Journey action opens its form here, titled with the action's name, while the action is still available on its step.
+ * Focus moves to the form's first field and goes back to the action's button on Cancel, Escape or the ×; Escape, the ×
+ * and a press outside ask "Discard what you typed?" before dropping typed text. After a save, focus goes to the
+ * Journey's heading, which the re-read Journey keeps.
  */
 export function JourneyStepForm({ mode, steps, views, form }: { mode: JourneyAction | null; steps: Pick<TimelineStep, "actions" | "more">[]; views: Views; form: FormProps }) {
   const open = mode !== null && steps.some(step => [...step.actions, ...step.more].some(action => action.action === mode && action.available))
@@ -53,7 +41,7 @@ export function JourneyStepForm({ mode, steps, views, form }: { mode: JourneyAct
   const props: FormProps = { ...form, onSaved: () => { saved.current = true; form.onSaved() } }
 
   return <Dialog guardTypedText open={open} onOpenChange={next => { if (!next) form.onCancel() }}>
-    {shown && <DialogContent title={JOURNEY_POPUP_TITLES[shown]} aria-describedby={undefined} data-journey-popup={shown}
+    {shown && <DialogContent title={ACTION_LABELS[shown]} aria-describedby={undefined} data-journey-popup={shown}
       returnFocus={() => actionButton(shown)}
       onCloseAutoFocus={event => {
         if (!saved.current) return

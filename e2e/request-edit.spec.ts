@@ -6,6 +6,7 @@ import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 import { runningActionManifestPath } from "./helpers/server-action-identity";
+import { assertOwnedUser } from "./helpers/fixtures";
 
 /**
  * #280: an honest Edit Request. A title-only edit keeps "Problem to solve" and "Suggested change" (B8); before
@@ -158,6 +159,41 @@ test("the Edit Request title wraps on a phone (Z1)", async ({ page }) => {
     expect(fits.wide, "the title never scrolls sideways").toBe(true);
     expect(fits.lines, "the title shows on more than one line").toBeGreaterThan(1.5);
   } finally {
+    if (user) try { await cleanupTestWorkspace(user.id); } finally { await deleteTestUser(user.id); }
+  }
+});
+
+test("B6: the reviewers panel and the Edit warning name a reviewer by their sign-in name now; one who left keeps the name they were picked under", async ({ page }) => {
+  test.setTimeout(240_000);
+  let user: TestUser | undefined;
+  let id: string | undefined;
+  try {
+    user = await createTestUser("edit-names");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const orgId = await provisionAndSignIn(page, user, { name: "Edit Names", workspaceName: "Edit names" });
+    // The sign-in name now, as the workspace's people list gives it.
+    const clerkUser = await (await assertOwnedUser(user.id)).users.getUser(user.id);
+    const signInName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ");
+    expect(signInName).not.toBe("");
+    // Picked under an older name; Priya (seeded, not in the workspace) has left.
+    id = await seedHybrid(orgId, user.id, "Delivery costs appear late", [{ name: "Priya", kind: "looks_good" }]);
+    const sql = e2eDatabase();
+    try {
+      await sql`UPDATE request_agreements SET reviewers = reviewers || ${sql.json([{ id: randomUUID(), nominee: { kind: "member", userId: user.id }, displayNameAtSelection: "Name When Picked", addedBy: user.id, note: "",
+        decision: { kind: "concern", actorId: user.id, at: new Date().toISOString(), reason: "The basket is already crowded." } }])}::jsonb WHERE request_id = ${id}`;
+    } finally { await sql.end(); }
+
+    await page.goto(`/requests/${id}`);
+    const panel = page.getByRole("region", { name: "Reviewers", exact: true });
+    await expect(panel.getByRole("listitem").filter({ hasText: signInName })).toContainText("Concern: The basket is already crowded.", { timeout: 20_000 });
+    await expect(panel.getByRole("listitem").filter({ hasText: "Priya" })).toHaveCount(1);
+    await expect(panel).not.toContainText("Name When Picked");
+
+    await openEditor(page);
+    await editor(page).getByRole("textbox", { name: "Request title" }).fill("Delivery costs show only at payment");
+    await expect(editor(page).getByText(`Saving clears ${signInName}’s concern and 1 other answer. They’ll be told.`, { exact: true })).toBeVisible();
+  } finally {
+    if (id) await dropReviewers(id);
     if (user) try { await cleanupTestWorkspace(user.id); } finally { await deleteTestUser(user.id); }
   }
 });

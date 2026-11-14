@@ -481,7 +481,7 @@ export function ToastStack({ label = "Notifications", position = "bottom-right",
     if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setFocused(false);
   }
 
-  return <section ref={regionRef} className={[styles.viewport, styles[position], contained && styles.contained, className].filter(Boolean).join(" ")} aria-label={hotkey ? `${label} (Alt+T)` : label} aria-live="polite" aria-relevant="additions text" aria-atomic="false" onFocus={onFocus} onBlur={onBlur}>
+  return <section ref={regionRef} data-toast-stack="" className={[styles.viewport, styles[position], contained && styles.contained, className].filter(Boolean).join(" ")} aria-label={hotkey ? `${label} (Alt+T)` : label} aria-live="polite" aria-relevant="additions text" aria-atomic="false" onFocus={onFocus} onBlur={onBlur}>
     <ol ref={listRef} className={styles.list} style={{ height: listHeight }} data-expanded={expanded} onPointerEnter={event => { if (event.pointerType === "mouse") setHovered(true); }} onPointerMove={event => { if (event.pointerType === "mouse" && !hovered) setHovered(true); }} onPointerLeave={event => { if (event.pointerType === "mouse") setHovered(false); }}>
       <AnimatePresence onExitComplete={prune}>
         {toasts.map((item, index) => <ToastItem key={item.id} plain={morph === "plain"} toast={item} target={targets[index]} expanded={expanded} front={index === 0} hidden={index >= visibleToasts} paused={paused} reduce={reduce} store={store} onMeasure={measure} onDragChange={setDragging} onTap={toggleTap} onHandOff={handOff} />)}

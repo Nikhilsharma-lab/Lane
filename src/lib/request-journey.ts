@@ -130,12 +130,14 @@ export type JourneyAction =
  * Whether the viewer may take an action now and, when not, why in words to show beside it.
  * `opensOn` (UTC date) is set when the only thing missing is time, so a surface can render the date itself.
  */
-export type ActionAvailability = { allowed: true } | { allowed: false; reason: string; opensOn?: string }
+/** A refusal other code acts on, so nothing matches on its wording. */
+export type RefusalCode = "no_measurable_impact"
+export type ActionAvailability = { allowed: true } | { allowed: false; reason: string; opensOn?: string; code?: RefusalCode }
 
 export type JourneyActions = Record<JourneyAction, ActionAvailability>
 
 const ALLOWED = { allowed: true } as const
-const refuse = (reason: string): ActionAvailability => ({ allowed: false, reason })
+const refuse = (reason: string, code?: RefusalCode): ActionAvailability => ({ allowed: false, reason, ...(code ? { code } : {}) })
 /** The release the work reached at some point: the current one, or the one recorded on its closure. */
 function releasedOnce(facts: JourneyFacts) {
   if (facts.releaseState?.release) return true
@@ -184,7 +186,7 @@ export function journeyActions(facts: JourneyFacts & JourneyGoal & { createdBy: 
   // A void only takes back a release, so it needs no measured Goal.
   const releaseAction = (needsRelease: boolean, missing: string, measuredOnly = true): ActionAvailability => {
     if (status === "closed") return closedReason
-    if (measuredOnly && facts.noMeasurableImpactReason) return refuse(NO_RELEASE_TO_RECORD)
+    if (measuredOnly && facts.noMeasurableImpactReason) return refuse(NO_RELEASE_TO_RECORD, "no_measurable_impact")
     if (beforeDone) return refuse("Opens once the work is Done.")
     if (needsRelease !== (status === "measuring")) return refuse(missing)
     return ALLOWED

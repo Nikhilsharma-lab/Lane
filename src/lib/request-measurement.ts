@@ -58,7 +58,6 @@ export type MeasurementPlanDraft = z.infer<typeof measurementPlanDraftSchema>;
 export type MeasurementPrimaryDraft = MeasurementPlanDraft["primary"];
 export type MeasurementGuardrailDraft = MeasurementPlanDraft["guardrails"][number];
 
-export { measurementAudienceLabel } from "./measurement-audience";
 export function measurementPlatformLabel(measurement: Pick<MeasurementPlanDraft["measurement"], "platform" | "platformName">): string {
   return measurement.platform === "custom" ? measurement.platformName?.trim() || "Custom platform"
     : { all: "All platforms", web: "Web", ios: "iOS", android: "Android" }[measurement.platform];

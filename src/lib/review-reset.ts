@@ -7,11 +7,16 @@ const plural = (count: number, one: string, many: string) => `${count} ${count =
 /** The saved review answers an edit would clear: who raised each concern, and how many other answers there are. */
 export type AnsweredReviews = { concerns: string[]; others: number };
 
-/** The answers on an Open Request's saved reviewers (`reviewers` is null after pickup), or null when nobody answered. */
-export function answeredReviewsOf(reviewers: Pick<Reviewer, "displayNameAtSelection" | "decision">[] | null): AnsweredReviews | null {
+type Answered = Pick<Reviewer, "nominee" | "displayNameAtSelection" | "decision">;
+
+/**
+ * The answers on an Open Request's saved reviewers (`reviewers` is null after pickup), or null when nobody answered.
+ * `name` gives each person's current name (B6: `reviewerStanding`); by default, the name saved when they were picked.
+ */
+export function answeredReviewsOf(reviewers: Answered[] | null, name: (reviewer: Answered) => string = reviewer => reviewer.displayNameAtSelection): AnsweredReviews | null {
   const answered = (reviewers ?? []).filter(reviewer => reviewer.decision);
   if (!answered.length) return null;
-  const concerns = answered.filter(reviewer => reviewer.decision?.kind === "concern").map(reviewer => reviewer.displayNameAtSelection);
+  const concerns = answered.filter(reviewer => reviewer.decision?.kind === "concern").map(name);
   return { concerns, others: answered.length - concerns.length };
 }
 
