@@ -84,6 +84,14 @@ async function loadForYourInformation(auth: MemberAuth) {
     .limit(INBOX_LIMIT);
 }
 
+/** #284: the sign-in names (the profile's copy) of the Reviewers whose Concern an item names; nothing is read when there is none. */
+async function concernNames(rows: readonly InboxRequest[]): Promise<Map<string, string>> {
+  const ids = [...new Set(rows.flatMap((row) => row.reviewers.filter((r) => r.decision?.kind === "concern").map((r) => r.nominee.userId)))];
+  if (!ids.length) return new Map();
+  const people = await db.select({ id: profiles.id, name: profiles.fullName }).from(profiles).where(inArray(profiles.id, ids));
+  return new Map(people.map((person) => [person.id, person.name]));
+}
+
 /**
  * #204 / #205: a person's Inbox in this workspace at `now`. Needs-you items are worked out from the Requests
  * they can see; For-your-information items come from their stored notifications, scoped like every
@@ -91,7 +99,7 @@ async function loadForYourInformation(auth: MemberAuth) {
  */
 export async function loadInbox(auth: MemberAuth, now: Date = new Date()): Promise<Inbox> {
   const [requestRows, notificationRows] = await Promise.all([loadNeedsYouRequests(auth), loadForYourInformation(auth)]);
-  return buildInbox({ userId: auth.userId, role: auth.role }, { notifications: notificationRows, requests: requestRows }, { now });
+  return buildInbox({ userId: auth.userId, role: auth.role }, { notifications: notificationRows, requests: requestRows, names: await concernNames(requestRows) }, { now });
 }
 
 /**

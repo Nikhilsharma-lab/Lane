@@ -160,6 +160,13 @@ describe("Inbox read model: an open Concern on your Request", () => {
     }])
   })
 
+  // #284 (#235 item 1): one name per person, their sign-in name; the name they were picked by only when Lane has none.
+  it("names the Reviewer by their sign-in name", () => {
+    const named = (names: Map<string, string>) => buildInbox(REQUESTER, { notifications: [], requests: [raised], names }, NOW).needsYou[0].reviewerName
+    expect(named(new Map([[REVIEWER.userId, "Ravi Menon"]]))).toBe("Ravi Menon")
+    expect(named(new Map())).toBe("Ravi")
+  })
+
   it("is one item per Concern", () => {
     const two = request({ reviewers: [reviewer({ decision: concern() }), reviewer({ id: "rev_2", nominee: { kind: "member", userId: "user_lee" }, displayNameAtSelection: "Lee", decision: { ...concern("Too long", "2026-10-24T12:00:00.000Z"), actorId: "user_lee" } })] })
     expect(needsYou(REQUESTER, [two]).map(item => [item.reviewerName, item.detail])).toEqual([["Lee", "Too long"], ["Ravi", "The date is wrong for pre-orders"]])
