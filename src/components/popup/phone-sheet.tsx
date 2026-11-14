@@ -30,6 +30,7 @@ export default function PhoneSheet({ open, onDismiss, ...props }: PhoneSheetProp
 const browserTab: PopupEntryEnvironment = {
   history: { get state() { return window.history.state }, pushState: (state, unused) => window.history.pushState(state, unused), replaceState: (state, unused) => window.history.replaceState(state, unused), back: () => window.history.back() },
   onPopState(listener) { window.addEventListener("popstate", listener); return () => window.removeEventListener("popstate", listener) },
+  onLeave(listener) { window.addEventListener("beforeunload", listener); return () => window.removeEventListener("beforeunload", listener) },
   defer: task => { window.setTimeout(task, 0) },
   navigationStartedAt,
   now: () => performance.now(),
