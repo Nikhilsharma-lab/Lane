@@ -50,7 +50,7 @@
 .guardrailControls > .field { max-width: 100%; }
 .thresholdRow { display: grid; width: calc(var(--spacing) * 88); max-width: 100%; grid-template-columns: fit-content(55%) minmax(0, 1fr); gap: var(--space-2); align-items: center; }
 /* #285 (C18): wide enough for a metric's name and unit side by side; never wider than the window. */
-.metricPanel { width: calc(var(--spacing) * 112); max-width: calc(100vw - var(--space-6)); }
+.metricPanel { width: calc(var(--spacing) * 112); max-width: min(calc(100vw - var(--space-6)), var(--radix-popover-content-available-width)); }
 .metricOptions { display: grid; align-content: start; min-height: 0; max-height: min(calc(var(--spacing) * 80), 45dvh); overflow-y: auto; overscroll-behavior: contain; }
 .metricOption { width: 100%; justify-content: flex-start; gap: var(--space-2); }
 .metricCheck { width: var(--icon-size-md); height: var(--icon-size-md); flex: none; visibility: hidden; }
