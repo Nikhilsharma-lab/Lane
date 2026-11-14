@@ -537,6 +537,9 @@ it("#279: Undo only works while nothing else changed, only for whoever removed, 
   expect(await api.restoreReviewer(contextFor(id, removed.revision), { reviewerId: first.id })).toEqual({ error: "Request changed. Reload before trying again." });
   // Another admin can't undo someone else's removal; a reviewer who wasn't the one removed can't come back.
   const again = await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: second.id }) as { revision: number };
+  // A Member who is neither the Requester nor an admin is told what they can't do: undo the removal.
+  as(designer);
+  expect(await api.restoreReviewer(contextFor(id, again.revision), { reviewerId: second.id })).toEqual({ error: "Only the Requester or a workspace admin can undo removing a reviewer." });
   as(other, "org:admin");
   expect(await api.restoreReviewer(contextFor(id, again.revision), { reviewerId: second.id })).toEqual({ error: "The reviewers changed since. Add them again instead." });
   as(owner);

@@ -167,7 +167,7 @@ export async function restoreReviewer(context: RequestChangeContext, input: unkn
     parsed.data,
     "reviewers_added",
     async (tx, request, reviewersRow, auth) => {
-      insist(canChange(auth, request), "Only the Requester or a workspace admin can remove a reviewer.");
+      insist(canChange(auth, request), "Only the Requester or a workspace admin can undo removing a reviewer.");
       const [removal] = await tx
         .select()
         .from(requestAgreementEvents)
