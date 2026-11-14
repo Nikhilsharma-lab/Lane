@@ -29,7 +29,7 @@ describe("Inbox page", () => {
 
   it("gives each item a name that says what happened, and a read toggle naming its Request", () => {
     const html = render()
-    expect(html).toContain('aria-label="LAN-12 · Customers cannot find the delivery date, Priya Shah commented, unread"')
+    expect(html).toContain('aria-label="LAN-12 · Checkout copy, Priya Shah commented, unread"')
     expect(html).toContain('aria-label="Mark LAN-12 read"')
   })
 
@@ -88,7 +88,7 @@ describe("Inbox page: Needs you", () => {
 
   it("names each item by its Request and what is waiting, with no read toggle", () => {
     const html = render({ items: [], unread: 0, needsYou: [ask()] })
-    expect(html).toContain('aria-label="LAN-14 · Shoppers can&#x27;t tell if a return was received, Waiting for your review, Does this cover exchanges?"')
+    expect(html).toContain('aria-label="LAN-14 · Returns flow, Waiting for your review, Does this cover exchanges?"')
     expect(html).not.toContain("Mark LAN-14")
   })
 

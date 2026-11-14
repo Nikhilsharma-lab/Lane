@@ -13,8 +13,8 @@ const item = (over: Partial<NeedsYouInboxItem> = {}): NeedsYouInboxItem => ({
 
 describe("what a Needs-you row says", () => {
   it("names the Request on line 1, as every Inbox row does", () => {
-    expect(needsYouRow(item()).primary).toBe("LAN-12 · Customers cannot find the delivery date")
-    expect(needsYouRow(item({ reframedProblem: null })).primary).toBe("LAN-12 · Checkout copy")
+    expect(needsYouRow(item()).primary).toBe("LAN-12 · Checkout copy")
+    expect(needsYouRow(item({ requestTitle: null })).primary).toBe("LAN-12 · Customers cannot find the delivery date")
     expect(needsYouRow(item({ requestNumber: 0, reframedProblem: null, requestTitle: null })).primary).toBe("Request")
   })
 
@@ -23,7 +23,7 @@ describe("what a Needs-you row says", () => {
     expect(row.secondary).toBe("Waiting for your review")
     expect(row.detail).toBe("Is the copy right?")
     expect(row.showsTime).toBe(true)
-    expect(row.name).toBe("LAN-12 · Customers cannot find the delivery date, Waiting for your review, Is the copy right?, Oct 25, 9:00 AM")
+    expect(row.name).toBe("LAN-12 · Checkout copy, Waiting for your review, Is the copy right?, Oct 25, 9:00 AM")
   })
 
   it("names who raised a Concern and why", () => {
@@ -37,7 +37,7 @@ describe("what a Needs-you row says", () => {
     const row = needsYouRow(item({ kind: "record_release" }), "Oct 25, 9:00 AM")
     expect(row.secondary).toBe("Still Done. Record the release once it is live")
     expect(row.showsTime).toBe(false)
-    expect(row.name).toBe("LAN-12 · Customers cannot find the delivery date, Still Done. Record the release once it is live")
+    expect(row.name).toBe("LAN-12 · Checkout copy, Still Done. Record the release once it is live")
   })
 
   it("says the result is due, with the due date", () => {

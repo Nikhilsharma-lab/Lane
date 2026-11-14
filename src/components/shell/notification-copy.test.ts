@@ -8,18 +8,19 @@ const base: NotificationCopyInput = {
 }
 
 describe("notificationRow", () => {
-  it("reads the saved code and the reframed problem", () => {
-    expect(notificationRow(base).primary).toBe("LAN-12 · Customers cannot find the delivery date before checkout")
+  // #284 (#235 item 2): a Request goes by the title its submitter typed, as on the Requests list.
+  it("reads the saved code and the typed title, not the reframed problem", () => {
+    expect(notificationRow(base).primary).toBe("LAN-12 · Delivery date on checkout")
   })
 
-  it("falls back to the title, then to the bare code", () => {
-    expect(notificationRow({ ...base, reframedProblem: null }).primary).toBe("LAN-12 · Delivery date on checkout")
+  it("falls back to the reframed problem, then to the bare code", () => {
+    expect(notificationRow({ ...base, requestTitle: " " }).primary).toBe("LAN-12 · Customers cannot find the delivery date before checkout")
     expect(notificationRow({ ...base, reframedProblem: "  ", requestTitle: null }).primary).toBe("LAN-12")
   })
 
   it("says Request when the number is 0 or missing", () => {
-    expect(notificationRow({ ...base, requestNumber: 0 }).primary).toBe("Request · Customers cannot find the delivery date before checkout")
-    expect(notificationRow({ ...base, requestNumber: null }).primary).toBe("Request · Customers cannot find the delivery date before checkout")
+    expect(notificationRow({ ...base, requestNumber: 0 }).primary).toBe("Request · Delivery date on checkout")
+    expect(notificationRow({ ...base, requestNumber: null }).primary).toBe("Request · Delivery date on checkout")
   })
 
   it("capitalises Done and keeps the other event lines neutral", () => {
@@ -38,7 +39,7 @@ describe("notificationRow", () => {
   it("carries the review question or concern reason as its own line and in the accessible name", () => {
     const asked = notificationRow({ ...base, type: "review_requested", detail: "Can we build this with the current API?" }, "Jan 1, 8:00 AM")
     expect(asked.detail).toBe("Can we build this with the current API?")
-    expect(asked.name).toBe("LAN-12 · Customers cannot find the delivery date before checkout, Aditi Rao asked you to review, Can we build this with the current API?, Jan 1, 8:00 AM, unread")
+    expect(asked.name).toBe("LAN-12 · Delivery date on checkout, Aditi Rao asked you to review, Can we build this with the current API?, Jan 1, 8:00 AM, unread")
     expect(notificationRow({ ...base, type: "review_concern", detail: "  " }).detail).toBeNull()
     expect(notificationRow(base).detail).toBeNull()
   })
@@ -50,8 +51,8 @@ describe("notificationRow", () => {
   })
 
   it("ends the accessible name in unread only for unread rows, with the time before it", () => {
-    expect(notificationRow(base, "Jan 1, 8:00 AM").name).toBe("LAN-12 · Customers cannot find the delivery date before checkout, Aditi Rao commented, Jan 1, 8:00 AM, unread")
-    expect(notificationRow({ ...base, readAt: "2026-10-18T09:00:00.000Z" }, "Jan 1, 8:00 AM").name).toBe("LAN-12 · Customers cannot find the delivery date before checkout, Aditi Rao commented, Jan 1, 8:00 AM")
+    expect(notificationRow(base, "Jan 1, 8:00 AM").name).toBe("LAN-12 · Delivery date on checkout, Aditi Rao commented, Jan 1, 8:00 AM, unread")
+    expect(notificationRow({ ...base, readAt: "2026-10-18T09:00:00.000Z" }, "Jan 1, 8:00 AM").name).toBe("LAN-12 · Delivery date on checkout, Aditi Rao commented, Jan 1, 8:00 AM")
     expect(notificationRow({ ...base, readAt: "2026-10-18T09:00:00.000Z" }).name).not.toMatch(/unread$/)
     expect(notificationRow(base).name).toMatch(/unread$/)
   })

@@ -69,30 +69,30 @@ describe("the Inbox page", () => {
     expect(html).toMatch(/<h1[^>]*>Inbox<\/h1>/);
     expect(html).toContain(">For your information</h2>");
     expect(items(html)).toEqual([
-      `${codes.done} · Checkout total is unclear, Still Done. Record the release once it is live`,
+      `${codes.done} · Checkout total, Still Done. Record the release once it is live`,
       "Priya Shah accepted your invite, unread",
-      `${codes.mine} · Customers cannot find the delivery date, Priya Shah commented, unread`,
+      `${codes.mine} · Checkout copy, Priya Shah commented, unread`,
     ]);
     expect(html).toContain(">Mark all read<");
   });
 
   it("shows a Guest only the items about their own submissions, and no Needs you", async () => {
     const html = await open(GUEST, "guest");
-    expect(items(html)).toEqual([`${codes.guests} · Visitors give up on the contact form, Priya Shah picked it up, unread`]);
+    expect(items(html)).toEqual([`${codes.guests} · Guest form, Priya Shah picked it up, unread`]);
     expect(html).not.toContain(">Needs you</h2>");
   });
 
   it("lists what needs a Member above their updates, worked out from their Requests", async () => {
     const html = await open(MEMBER, "member");
     expect(html).toMatch(/<h2[^>]*id="inbox-needs-you"[^>]*>Needs you<\/h2>/);
-    expect(html).toContain(`aria-label="${codes.done} · Checkout total is unclear, Still Done. Record the release once it is live"`);
+    expect(html).toContain(`aria-label="${codes.done} · Checkout total, Still Done. Record the release once it is live"`);
     expect(html).toContain('aria-label="1 needs you"');
   });
 
   it("says all caught up once everything is read and nothing needs the Member", async () => {
     await connection`update notifications set read_at = now() where org_id = ${ORG} and user_id = ${MEMBER}`;
     const reading = await open(MEMBER, "member");
-    expect(items(reading)).toEqual([`${codes.done} · Checkout total is unclear, Still Done. Record the release once it is live`]);
+    expect(items(reading)).toEqual([`${codes.done} · Checkout total, Still Done. Record the release once it is live`]);
     expect(reading).toContain("Nothing new to read.");
     expect(reading).not.toContain(">Mark all read<");
     // Undo Done: the work is no longer Done, so Record the release clears itself.
