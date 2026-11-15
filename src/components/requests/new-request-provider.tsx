@@ -188,7 +188,9 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   // already carries the created Request; the composer has already put the row
   // in the Open group through the pending overlay (plan item 2.3). A router
   // refresh would render twice.
-  const onCreated = useCallback((requestId: string, { open: openRequest, created }: { open: boolean; created?: OverviewRequest }) => {
+  const onCreated = useCallback((requestId: string, { open: openRequest, created, sending }: { open: boolean; created?: OverviewRequest; sending?: boolean }) => {
+    // #286: Create with no files closes at once while the save runs; the composer keeps its draft, and reopens with it if the save fails.
+    if (sending) return setOpen(false);
     createdId.current = requestId;
     completed.current = true;
     busy.current = false; setBusyNow(false);

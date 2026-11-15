@@ -59,7 +59,7 @@ export function createCurrentRequestStore(): CurrentRequestStore {
 export function rowCurrentRequest(row: OverviewRequest): CurrentRequest {
   const code = requestCodeOrNull(row.requestNumber)
   return {
-    id: row.id, code, name: code ?? row.reframedProblem ?? row.title, status: row.status, priority: row.priority ?? "none", source: "list",
+    id: row.id, code, name: code ?? row.title, status: row.status, priority: row.priority ?? "none", source: "list",
     // The server's canEdit is the same rule on the saved status; a pending Pick up or Done ends it at once.
     canEdit: (row.canEdit ?? false) && row.status === "open", agreementBlocked: row.agreementBlocked ?? false, reviewState: row.reviewState ?? null, pickupBlockedReason: row.pickupBlockedReason ?? null,
   }

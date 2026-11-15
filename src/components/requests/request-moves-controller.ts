@@ -16,7 +16,7 @@ export type MoveTarget = { id: string; name: string; reviewState?: ReviewState |
 
 /** A list row as a MoveTarget: named by its saved code, else its title. */
 export function moveTarget(row: { id: string; requestNumber?: number; reframedProblem: string | null; title: string; reviewState?: ReviewState | null }): MoveTarget {
-  return { id: row.id, name: requestCodeOrNull(row.requestNumber) ?? row.reframedProblem ?? row.title, reviewState: row.reviewState }
+  return { id: row.id, name: requestCodeOrNull(row.requestNumber) ?? row.title, reviewState: row.reviewState }
 }
 
 export type MoveOptions = {
