@@ -267,9 +267,12 @@ export default function RequestEditor({
   canAddReviewers = false,
   withoutPrediction = false,
   guided = false,
+  keepsBackup = false,
 }: {
   /** #217: opened from the first-run guide, so each step says what it is for as the person goes. */
   guided?: boolean;
+  /** #285 (spec story 29): after Discard, start empty and leave the tab's draft as the backup until something is typed. */
+  keepsBackup?: boolean;
   context: { orgId: string };
   draftOwnerId: string;
   active?: boolean;
@@ -496,7 +499,7 @@ export default function RequestEditor({
       }
     }
     const lost = session.recoveryRecord();
-    const draft = lost ? null : readIntakeDraft(window.sessionStorage, draftScope);
+    const draft = lost || keepsBackup ? null : readIntakeDraft(window.sessionStorage, draftScope);
     const restoreTimer = window.setTimeout(() => {
       if (lost) {
         void session.recover();
@@ -542,7 +545,7 @@ export default function RequestEditor({
     return () => {
       window.clearTimeout(restoreTimer);
     };
-  }, [draftScope, refusedOnOpen, reset, session, setError, snapshot]);
+  }, [draftScope, keepsBackup, refusedOnOpen, reset, session, setError, snapshot]);
 
   useEffect(() => {
     if (!draftReady || !active || !initialProjectId || projectDefaultApplied.current) return;
@@ -563,7 +566,7 @@ export default function RequestEditor({
   const currentDraft = () => composerDraft({ stage, triage, token, editedProblem, source, values: getValues(), previousProblem, previousProblemSource, reviewers: reviewersDraft,
     framing: editing ? { reframedProblem: savedProblem, extractedSolution: savedSolution } : undefined });
   const persistDraft = useEffectEvent(() => {
-    if (!draftReady || session.getSnapshot().requestId || stage === "uploads_checking" || stage === "uploads_lost") return true;
+    if (!draftReady || (keepsBackup && !draftEdited.current) || session.getSnapshot().requestId || stage === "uploads_checking" || stage === "uploads_lost") return true;
     try {
       return session.persistDraft(() => writeIntakeDraft(window.sessionStorage, draftScope, currentDraft()));
     } catch { return false; }
