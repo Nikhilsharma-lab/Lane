@@ -664,3 +664,7 @@ Two adaptations of installed sources:
 
 - `src/components/arc/date-range-picker/date-range-picker.tsx`: it never opens on a month before `minDate`'s (with two months shown it opened on last month, C2), and an optional `formatRange(range)` writes the summary, the trigger and the spoken start in the app's own date format; the measurement dialog passes Lane's `plannedDay`, so the calendar, the chip and the review step read alike (C9). Without `formatRange` it formats as before.
 - `src/components/arc/dropdown-menu/dropdown-menu.tsx`: a menu with a checked `menuitemradio` puts focus on it once it opens, as Arc `select` does (C13). The Measurement window menu marks its choice that way; menus without a checked choice open as before.
+
+### Build 7 review fixes (2026-11-15)
+
+- `src/components/arc/empty-state/empty-state.tsx` and `empty-state.module.css`: `description` is optional. Without one the state is its title alone: the description's line is not shown (`.root p:has(> .line:only-child:empty)`), and while a leaving description fades out its line stays, so the copy still morphs in place. Impact's empty My work ("Requests you file or pick up show here.", #283) and the list's one-sentence status lines (#240 decision 8) use it, where they had hidden Arc's `<p>` with their own CSS.

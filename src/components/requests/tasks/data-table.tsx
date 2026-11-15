@@ -301,7 +301,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     if (filter !== "all" || projectFilter !== "all" || title || requestType) announce(`${matchCountText(matchCount)}.`, { key: "count", delay: 600 })
     else announce("Filters cleared.", { key: "count" })
   }, [announce, filter, filterSignature, matchCount, projectFilter, requestType, title, workspaceEmpty])
-  const emptyLine = listEmptyLine(model.filters, { workspaceEmpty, readOnly })
+  const emptyLine = listEmptyLine(model.filters, { workspaceEmpty, readOnly: !canCreate })
   const gridLabel = projectName ? `${projectName} Requests` : projectFilter === "none" ? "Requests without a Project" : isGuest ? "My Requests" : "Requests"
   const olderError = older?.error ?? null
   // A failed read says so under its group's Show more, or below the list when no shown group continues that read.

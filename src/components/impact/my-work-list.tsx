@@ -92,8 +92,8 @@ export function ImpactEntryList({ entries, subject }: { entries: MyWorkEntry[]; 
  */
 export function MyWorkTab({ entries, canFile = false, chooseSomeone = false }: { entries: MyWorkEntry[]; canFile?: boolean; chooseSomeone?: boolean }) {
   if (entries.length === 0) return chooseSomeone
-    ? <EmptyState title="Choose someone in Showing to see their Requests." description="" className={styles.oneLine} />
-    : <EmptyState title="Requests you file or pick up show here." description="" className={styles.oneLine}
+    ? <EmptyState title="Choose someone in Showing to see their Requests." />
+    : <EmptyState title="Requests you file or pick up show here."
       action={canFile ? <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>New Request</NewRequestLink> : undefined} />
   return <ImpactEntryList entries={entries} />
 }

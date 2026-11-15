@@ -8,7 +8,8 @@ import styles from "./empty-state.module.css";
 
 export interface EmptyStateProps {
   title: string;
-  description: string;
+  /** Lane: optional. Without one the state is its title alone. */
+  description?: string;
   action?: ReactNode;
   icon?: ReactNode;
   className?: string;
@@ -68,7 +69,7 @@ function HeightFrame({ reduce, morphKey, children }: { reduce: boolean | null; m
   </m.div>;
 }
 
-export function EmptyState({ title, description, action, icon, className, label }: EmptyStateProps) {
+export function EmptyState({ title, description = "", action, icon, className, label }: EmptyStateProps) {
   const reduce = useReducedMotion();
   const glyph = icon ?? <Folder data-icon-size="2xl" strokeWidth={1.5} />;
   const enter: Transition = reduce ? { duration: motionTokens.duration.instant } : { duration: motionTokens.duration.standard, ease: [...motionTokens.ease.enter] };

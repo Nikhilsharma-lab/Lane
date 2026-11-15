@@ -21,5 +21,3 @@
 .facts dt { color: var(--text-secondary); font-size: var(--text-xs); }
 .facts dd { margin: 0; color: var(--foreground); font-size: var(--text-sm); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); overflow-wrap: anywhere; }
-/* An empty list says one sentence (#283), with no second line under it. */
-.oneLine p { display: none; }

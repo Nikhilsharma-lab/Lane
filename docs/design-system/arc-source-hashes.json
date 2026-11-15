@@ -136,14 +136,14 @@
     "source": "https://uiarc.dev/r/empty-state.json",
     "file": "src/components/arc/empty-state/empty-state.module.css",
     "upstreamSha256": "e65e4c4b6e3bd31b8925cb6a5d58e8c4826ffca6efb100f786c70428f98afc1a",
-    "localSha256": "995a5a0d3f3fb646098eb254ff3be9797015e7a74af2b40455f59c7fb746b52f"
+    "localSha256": "5021037a8fe2af2924ad0fb34f3ab1eba0b0ecda6012dd9f026676d0406b6e22"
   },
   {
     "id": "empty-state",
     "source": "https://uiarc.dev/r/empty-state.json",
     "file": "src/components/arc/empty-state/empty-state.tsx",
     "upstreamSha256": "4a3d91c4fb7e2c4c316322854887a9e995e4e0343e41e64dbd6e3c505d7e3b5c",
-    "localSha256": "a262f45ee9f92cd40a4345291539ec91f87413f0191b680e131b43a4900c4fe9"
+    "localSha256": "d3c44281e75f3af26be453e97e5a1a975114bfd126d1b173b74f50e0061d46fd"
   },
   {
     "id": "filter-toolbar",
