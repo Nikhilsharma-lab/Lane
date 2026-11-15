@@ -358,6 +358,20 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   may be enough on their own. Trigger: Build 9's full re-measure still misses the speed targets after fixes
   1–6. — speed plan #231, recorded by Build 1 (#256, #259), 2026-10-28.
 
+## RELEASED OPERATIONAL WORK — when a team wants to report operational work as released
+
+- **Release No measurable impact work without a measurement window.** What: let a Request whose Goal is No
+  measurable impact record that it is live without a result due date, then close as released operational work,
+  so the Outcome report lists it with its reason as `REQUIREMENTS.md` §15 intends ("Released operational work is
+  listed with its reason"; operational work is never in a total). Why deferred: Build 6 took the smaller rule
+  (#309, Nikhil, 2026-11-12). These Requests offer no Record release, the server refuses one, and the Requester
+  closes them as Closed without a result, "Can’t be measured". Releasing them needs a migration, because 0029's
+  `valid_release_fact` requires `dueDate`, `startDate` and `windowKind` on every release record. It also needs a
+  way to close a released operational Request, since closing today means a measured result or Closed without a
+  result. Until then this work shows under Closed without a result, never as released. Trigger: the first Request
+  a team wants to report as released operational work, or Nikhil's decision, whichever comes first.
+  — #309, recorded by the Builds 5 and 6 handoff (#256), 2026-11-15.
+
 ## LOW PRIORITY / maybe never
 
 - **Auth form DRY.** login/signup are ~95% duplicated. Only worth extracting *if* a third auth screen
