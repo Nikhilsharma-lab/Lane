@@ -129,7 +129,7 @@
     "source": "https://uiarc.dev/r/dropdown-menu.json",
     "file": "src/components/arc/dropdown-menu/dropdown-menu.tsx",
     "upstreamSha256": "555391c3bd2a0a3ba9818240a34a53ce51be40d2b9f290a23569bf6cf2328704",
-    "localSha256": "4853520bea4fb8369a4ced7bd7537fc10aba3d0a55faa156c7fb1c20392ce2b4"
+    "localSha256": "9684d33b88c4b34bdf321896541b3cd73e23334149d3a8f4d38cde0fd6763623"
   },
   {
     "id": "empty-state",
@@ -436,7 +436,7 @@
     "source": "https://uiarc.dev/r/date-range-picker.json",
     "file": "src/components/arc/date-range-picker/date-range-picker.tsx",
     "upstreamSha256": "ca4172b1125a3ac22ff06e17b599a6dbbe496247a75f7be46fa340de20d54a2f",
-    "localSha256": "42fc0569978fc567198007846875a0e65238752767c9b5d03b8be5fe54df1201"
+    "localSha256": "f40bc0eb87840c399f945d1b22ec6021a601f180a2e242cd2f787525cb8a31c2"
   },
   {
     "id": "bottom-sheet",

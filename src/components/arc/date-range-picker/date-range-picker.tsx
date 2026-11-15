@@ -586,7 +586,7 @@ export function DateRangePicker({ value, defaultValue = null, onChange, label = 
   const committedText = format(committed);
   const shownText = shown ? format(shown) : "No dates";
   const countText = shown ? `${days} ${days === 1 ? "day" : "days"}` : "";
-  const status = !open ? "" : anchor ? `Start ${formatRange ? formatRange({ start: anchor, end: anchor }) : formatters.label.format(anchor)}. Choose an end date.` : shown ? `${shownText}, ${countText}` : "";
+  const status = !open ? "" : anchor ? `Start ${format({ start: anchor, end: anchor })}. Choose an end date.` : shown ? `${shownText}, ${countText}` : "";
   const layoutId = reduced || embedded ? undefined : `${uid}-value`;
 
 

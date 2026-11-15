@@ -5,6 +5,9 @@ import { parsePeriodKey, periodKey } from "./period-picker"
 export type ImpactTab = "my-work" | "outcome-report"
 const TABS: readonly ImpactTab[] = ["my-work", "outcome-report"]
 
+/** The tab a value names, or null for anything else. */
+export const impactTab = (value: string | null) => TABS.find(known => known === value) ?? null
+
 /**
  * What Impact's address holds (#283): the open tab, the Outcome report's period and the person My work shows. Each is
  * null when the address doesn't choose it. The person is only a request: the loader shows them only if they are on the
@@ -31,7 +34,7 @@ const single = (value: QueryValue) => typeof value === "string" && value !== "" 
 export function readImpactAddress(query: { tab?: QueryValue; period?: QueryValue; person?: QueryValue }): ImpactAddress {
   const tab = single(query.tab)
   return {
-    tab: TABS.find(known => known === tab) ?? null,
+    tab: impactTab(tab),
     period: parsePeriodKey(single(query.period)),
     person: single(query.person),
   }

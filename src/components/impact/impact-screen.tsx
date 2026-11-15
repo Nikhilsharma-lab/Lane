@@ -5,7 +5,7 @@ import { Select } from "@/components/arc/select/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/arc/tabs/tabs"
 import type { ImpactPeriod } from "@/lib/impact-period"
 import type { ImpactDashboard, Teammate, MyWorkEntry } from "@/lib/impact-read-model"
-import type { ImpactTab } from "./impact-href"
+import { impactTab, type ImpactTab } from "./impact-href"
 import { MyWorkTab, TeammateWorkList } from "./my-work-list"
 import { LazyOutcomeReport, preloadOutcomeReport } from "./outcome-report-lazy"
 import type { QuarterNoteEditorTarget } from "./quarter-notes"
@@ -67,7 +67,7 @@ export function ImpactScreen({ dashboard, teammates, person, tab, showing = pers
   </div>
 
   return <div className={styles.screen}>
-    <Tabs value={tab} onValueChange={value => onTabChange?.(value as ImpactTab)}>
+    <Tabs value={tab} onValueChange={value => { const next = impactTab(value); if (next) onTabChange?.(next) }}>
       <div className={styles.tablist}>
         <TabsList aria-label="Impact views">
           <TabsTrigger value="my-work">My work</TabsTrigger>
