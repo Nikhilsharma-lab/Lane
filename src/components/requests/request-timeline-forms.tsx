@@ -33,6 +33,8 @@ const RELEASE_FAILED = "Couldn’t save release. Your input is preserved; try ag
 const OUTCOME_FAILED = "Couldn’t save the outcome. Your input is preserved; try again."
 
 const PASS_FAIL_OPTIONS = [{ value: "passed", label: PASSED }, { value: "failed", label: DIDNT_PASS }]
+// C2-8: before a choice, the Result select asks in Lane's words, not Arc's default "Select an option".
+const RESULT_PLACEHOLDER = `Choose ${PASSED} or ${DIDNT_PASS}`
 
 /** Line breaks become spaces as they're typed: What we learned wraps on screen but is stored as one line (#209). */
 const oneLine = (text: string) => text.replace(/[\r\n]+/g, " ")
@@ -125,7 +127,7 @@ export function MeasuredCloseForm({ requestId, orgId, revision, onSaved, onCance
     <p className={styles.muted}>Record what happened. A result short of the goal closes too.</p>
     {agreed.form === "numeric"
       ? <Input label={`Actual ${agreed.label} (${agreed.unit})`} type="number" step="any" required value={actual} onChange={e => setActual(e.target.value)} disabled={busy} />
-      : <Select label="Result" options={PASS_FAIL_OPTIONS} value={passed} onValueChange={setPassed} disabled={busy} />}
+      : <Select label="Result" placeholder={RESULT_PLACEHOLDER} options={PASS_FAIL_OPTIONS} value={passed} onValueChange={setPassed} disabled={busy} />}
     {agreed.guardrails.map((g, i) => <Input key={i} label={`Actual ${g.metric} (${g.unit})`} type="number" step="any" required value={guardrails[i] ?? ""} onChange={e => setGuardrails(all => all.map((v, j) => j === i ? e.target.value : v))} disabled={busy} description={`Guardrail: stays ${guardrailComparisonPhrase[g.operator]} ${resultValue(g.limit, g.unit)}`} />)}
     <Textarea label="Evidence and source" required maxLength={4000} value={evidence} onChange={e => setEvidence(e.target.value)} disabled={busy} description="Where the actual result can be checked." />
     <div className={styles.fields}>

@@ -167,7 +167,11 @@ test.describe("#279 closing says it's permanent", () => {
       const form = journeyPopup(page, "Close Request");
       await expect(form.getByText("Goal: Complete the flow using only a keyboard", { exact: true })).toBeVisible();
       await expectPermanentClose(form, "Close Request");
-      await form.getByRole("combobox", { name: "Result" }).click();
+      // C2-8: the Result select asks in Lane's words, not Arc's default "Select an option".
+      const result = form.getByRole("combobox", { name: "Result" });
+      await expect(result).toContainText("Choose Passed or Didn’t pass");
+      await expect(result).not.toContainText("Select an option");
+      await result.click();
       await expect(page.getByRole("option")).toHaveText(["Passed", "Didn’t pass"]);
       await page.getByRole("option", { name: "Didn’t pass", exact: true }).click();
       await expect(page.getByRole("listbox")).toHaveCount(0);
