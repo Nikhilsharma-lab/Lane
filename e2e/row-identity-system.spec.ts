@@ -6,6 +6,10 @@ import {
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 
+// The Request seedRowIdentityFixtures files: its typed title, and the Problem to solve its page shows.
+const TYPED_TITLE = "Add a changelog panel to every workspace";
+const PROBLEM_TO_SOLVE = "Help customers understand why their Requests changed";
+
 const SURFACES = [
   {
     slug: "light-desktop",
@@ -108,11 +112,15 @@ test("rows and identities keep one contract on every surface", async ({
       await applySurface(page, surface);
       await page.goto("/");
       await hidePreviewChrome(page);
+      // #286 (C7): the list names a Request by its typed title; "Problem to solve" is only on its page.
       const requestRow = page.getByRole("row", {
-        name: /Help customers understand why their Requests changed/,
+        name: new RegExp(`^LAN-\\d+, ${TYPED_TITLE}\\. `),
       });
       await expect(requestRow).toBeVisible();
       await expectRequestLanes(requestRow);
+      await expect(requestRow.locator("a[data-request-title]")).toHaveText(TYPED_TITLE);
+      await expect(requestRow.getByRole("checkbox", { name: `Select ${TYPED_TITLE}`, exact: true })).toHaveCount(1);
+      await expect(requestRow).not.toContainText(PROBLEM_TO_SOLVE);
       await expect(requestRow).toHaveScreenshot(
         `request-row-${surface.slug}.png`,
         // Dates vary between runs; keep their layout but omit their painted text.
