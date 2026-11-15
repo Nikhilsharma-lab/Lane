@@ -59,6 +59,12 @@ test("Impact words results against the goal, and the chart shows Request numbers
     // A fixed, modest height, however wide the page.
     const height = (await chart.boundingBox())!.height;
     expect(height).toBeLessThan(260);
+    // #158: the bars grow in, and with motion turned down on the device they are simply there.
+    const bar = figure.locator("[data-series=result]").first();
+    expect(await bar.evaluate(node => getComputedStyle(node).animationName)).not.toBe("none");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    expect(await bar.evaluate(node => getComputedStyle(node).animationName)).toBe("none");
+    await page.emulateMedia({ reducedMotion: null });
 
     // Beside the line, each counted result reads against its goal.
     await expect(line).toContainText("Keep the card on file: Reached 75%, 5 points short of the goal");
