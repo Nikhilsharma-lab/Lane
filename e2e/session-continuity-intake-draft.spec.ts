@@ -189,7 +189,7 @@ test("an expired session signs back in to the exact Intake review without anothe
       await expect(
         page.getByRole("heading", { name: source.title, exact: true })
       ).toBeVisible();
-      await expect(page.getByRole("region", { name: "Problem", exact: true })).toContainText(editedProblem);
+      await expect(page.getByRole("region", { name: "Problem to solve", exact: true })).toContainText(editedProblem);
       expect(
         await page.evaluate(
           (key) => window.sessionStorage.getItem(key),

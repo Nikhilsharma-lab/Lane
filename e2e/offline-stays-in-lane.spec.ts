@@ -41,6 +41,26 @@ test("offline, list changes roll back, pages stay put, and Try again works once 
     await provisionAndSignIn(page, user, { name: "Offline PM", workspaceName: "Lane E2E Offline", role: "pm" });
     const pickUp = await seedTestRequest(user.id, "Offline pick up keeps its place");
     const priority = await seedTestRequest(user.id, "Offline priority keeps its place");
+
+    // B28: on the Request page, a link offline keeps the page: the sidebar's Inbox, and on a phone the strip's
+    // Back to Requests.
+    const requestPath = `/requests/${pickUp.id}`;
+    const desktop = page.viewportSize()!;
+    await page.goto(requestPath);
+    await expect(page.getByRole("region", { name: "Request detail: Offline pick up keeps its place", exact: true })).toBeVisible();
+    await markDocument(page);
+    await context.setOffline(true);
+    await expect(offlineLine(page)).toBeVisible();
+    await page.getByRole("link", { name: "Inbox" }).first().click();
+    await expectStillInLane(page, requestPath);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("link", { name: "Back to Requests", exact: true }).click();
+    await expectStillInLane(page, requestPath);
+    await expect(offlineLine(page)).toBeVisible();
+    await context.setOffline(false);
+    await expect(offlineLine(page)).toHaveCount(0);
+    await page.setViewportSize(desktop);
+
     await page.goto("/");
     await expect(row(page, pickUp.id)).toBeVisible();
     await expect(row(page, priority.id)).toBeVisible();
