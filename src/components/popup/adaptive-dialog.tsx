@@ -137,7 +137,10 @@ export function DialogContent({ returnFocus, sheetClassName, canDismiss, onOpenA
   }
 
   const body = <div ref={contentRef} className={styles.content} data-popup-content="">{children}</div>
-  const desktop = <ArcDialogContent {...props} onOpenAutoFocus={opened} onCloseAutoFocus={closed}>{body}</ArcDialogContent>
+  // The prompt is a layer of its own beside this one. Chrome sends a pointerdown with Enter on Keep editing, which this
+  // layer can still take as a press outside right after the prompt opens, and ask again.
+  const desktop = <ArcDialogContent {...props} onOpenAutoFocus={opened} onCloseAutoFocus={closed}
+    onPointerDownOutside={event => { props.onPointerDownOutside?.(event); if ((event.target as Element).closest("[data-discard-prompt]")) event.preventDefault() }}>{body}</ArcDialogContent>
   if (!Adaptive) return <>{desktop}{prompt}</>
   // The panel takes the dialog's content props except the centred dialog's own classes.
   const { title, description, layout, ...panelProps } = withoutKeys(props, ["className", "overlayClassName"])
