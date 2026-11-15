@@ -48,9 +48,9 @@ async function keepReviewedDraft(page: Page, user: TestUser, orgId: string, inpu
   await expect(page.locator('[role="row"][data-grid-row="g:status:open"]')).toBeVisible({ timeout: 30_000 });
 }
 
-/** The page's next saveRequest call, held until `answer` says what happens to it. */
-async function holdSave(page: Page) {
-  const action = await compiledActionId(ACTIONS, "saveRequest");
+/** The page's next call of one server action (saveRequest by default), held until `settle` says what happens to it. */
+async function holdSave(page: Page, filename = ACTIONS, exportedName = "saveRequest") {
+  const action = await compiledActionId(filename, exportedName);
   const seen = Promise.withResolvers<void>();
   const answer = Promise.withResolvers<"send" | "lose" | "offline">();
   const done = Promise.withResolvers<void>();
@@ -181,6 +181,38 @@ test("instant Create: the row shows at once, sending, under its typed title, tak
       await expect(composer.getByText(/This Project is unavailable/).first()).toBeVisible({ timeout: 20_000 });
       await expect(composer.getByRole("textbox", { name: "Request title" })).toHaveValue(title);
       await expect(sendingRows).toHaveCount(0);
+    });
+
+    await test.step("with files, Create keeps the visible upload step", async () => {
+      // Nothing was typed into the refused draft, so it closes without asking; a fresh page starts an empty composer.
+      await page.keyboard.press("Escape");
+      await expect(composer).toHaveCount(0);
+      await page.evaluate(() => sessionStorage.clear());
+      await page.goto("/");
+      await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
+      await page.keyboard.press("c");
+      const title = "Files upload before the composer closes";
+      await composer.getByRole("textbox", { name: "Request title", exact: true }).fill(title);
+      await composer.getByRole("textbox", { name: "Description", exact: true }).fill("Customers cannot find the receipts they uploaded after returning to checkout.");
+      await composer.getByRole("combobox", { name: "Metric", exact: true }).click();
+      await page.getByRole("option", { name: "Conversion rate", exact: true }).click();
+      await composer.getByRole("spinbutton", { name: "Current value", exact: true }).fill("62");
+      await composer.locator('input[type="file"]').setInputFiles({ name: "receipt.txt", mimeType: "text/plain", buffer: Buffer.from("A receipt") });
+      await expect(composer.getByRole("list", { name: "Files ready to upload" })).toContainText("receipt.txt");
+      // The existing gate runs as it does for everyone.
+      await composer.getByRole("button", { name: "Review Request", exact: true }).click();
+      await expect(create).toBeVisible({ timeout: 45_000 });
+      // The upload is held, then lost, so nothing reaches storage.
+      const upload = await holdSave(page, "src/app/(app)/intake/attachment-actions.ts", "prepareAttachmentUpload");
+      await create.click();
+      await upload.seen;
+      await expect(composer.getByRole("heading", { name: "Uploading files" })).toBeVisible();
+      await expect(sendingRows).toHaveCount(0);
+      await upload.settle("lose");
+      await expect(composer.getByRole("heading", { name: "Some files weren’t uploaded" })).toBeVisible({ timeout: 20_000 });
+      await composer.getByRole("button", { name: "Skip failed files", exact: true }).click();
+      await expect(composer).toHaveCount(0, { timeout: 20_000 });
+      await expect(page.getByRole("row", { name: new RegExp(`^LAN-\\d+, ${title}\\. Open`) })).toBeVisible({ timeout: 20_000 });
     });
   } finally {
     await context.setOffline(false);
