@@ -26,8 +26,7 @@ import { useShownSavedViews } from "@/components/requests/saved-views-store"
 import { openSavedView, savedViewChanged, type SavedView } from "@/lib/saved-view-rules"
 import { KeyCap } from "@/components/keyboard/key-caps";
 import { failureWords, ShownFailure } from "@/lib/failure-messages"
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+import { isUuid } from "@/lib/uuid"
 
 const OLDER_ERROR = "Older Requests couldn’t be loaded. Try again."
 
@@ -149,7 +148,7 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, canCreat
     : sharedProjects.projects.find(item => item.id === project)?.name ?? rows.find(row => row.projectId === project)?.projectName ?? undefined
   // A Project id that is malformed or not in this workspace's Projects never
   // falls back to all Requests.
-  const projectUnavailable = project !== "all" && project !== "none" && (!UUID_RE.test(project)
+  const projectUnavailable = project !== "all" && project !== "none" && (!isUuid(project)
     || !sharedProjects.projects.some(item => item.id === project))
   // #219: anyone may keep views, Viewers and Guests included; an empty workspace has nothing to filter yet.
   const viewTools = context && !workspaceEmpty ? <SavedViewMenu views={savedViews} orgId={context.orgId} /> : undefined

@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db, savedViews } from "@/db";
 import { guardActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { canUseProject } from "@/lib/project-access";
+import { isUuid } from "@/lib/uuid";
 import { parseSavedViewName, readSavedViewFilters, savedViewFilters, savedViewNameTaken, type SavedView, type SavedViewFilters } from "@/lib/saved-view-rules";
 
 /**
@@ -22,7 +23,6 @@ const selection = { id: savedViews.id, name: savedViews.name, filters: savedView
 const shaped = (row: { id: string; name: string; filters: unknown }): SavedView => ({ id: row.id, name: row.name, filters: readSavedViewFilters(row.filters) });
 const isDuplicate = (error: unknown) => (error as { code?: string; cause?: { code?: string } })?.code === "23505" || (error as { cause?: { code?: string } })?.cause?.code === "23505";
 const owned = (auth: MemberAuth, id: string) => and(eq(savedViews.id, id), eq(savedViews.orgId, auth.orgId), eq(savedViews.ownerId, auth.userId));
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Filters the list has, naming only a Project this person may see. */
 async function allowedFilters(auth: MemberAuth, input: unknown): Promise<SavedViewFilters | { error: string; sessionExpired?: true }> {
@@ -59,7 +59,7 @@ export async function renameSavedView(data: { id: string; name: string }, contex
   if ("error" in name) return name;
   const auth = await guardActiveMember(context.orgId, "You can’t change views in this workspace.");
   if ("error" in auth) return auth;
-  if (typeof data.id !== "string" || !UUID.test(data.id)) return { error: GONE };
+  if (!isUuid(data.id)) return { error: GONE };
   try {
     const [row] = await db.update(savedViews).set({ name: name.name }).where(owned(auth, data.id)).returning(selection);
     if (!row) return { error: GONE };
@@ -75,7 +75,7 @@ export async function renameSavedView(data: { id: string; name: string }, contex
 export async function updateSavedView(data: { id: string; filters: SavedViewFilters }, context: { orgId: string }): Promise<SavedViewResult> {
   const auth = await guardActiveMember(context.orgId, "You can’t change views in this workspace.");
   if ("error" in auth) return auth;
-  if (typeof data?.id !== "string" || !UUID.test(data.id)) return { error: GONE };
+  if (!isUuid(data?.id)) return { error: GONE };
   const filters = await allowedFilters(auth, data.filters);
   if ("error" in filters) return filters;
   const [row] = await db.update(savedViews).set({ filters }).where(owned(auth, data.id)).returning(selection);
@@ -87,7 +87,7 @@ export async function updateSavedView(data: { id: string; filters: SavedViewFilt
 export async function deleteSavedView(data: { id: string }, context: { orgId: string }): Promise<{ ok: true } | { error: string; sessionExpired?: true }> {
   const auth = await guardActiveMember(context.orgId, "You can’t change views in this workspace.");
   if ("error" in auth) return auth;
-  if (typeof data?.id !== "string" || !UUID.test(data.id)) return { error: GONE };
+  if (!isUuid(data?.id)) return { error: GONE };
   const [row] = await db.delete(savedViews).where(owned(auth, data.id)).returning({ id: savedViews.id });
   if (!row) return { error: GONE };
   changed();

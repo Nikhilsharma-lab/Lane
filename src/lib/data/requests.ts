@@ -20,6 +20,7 @@ import type { FinishedView } from "@/lib/request-workspace"
 import type { FinishedCounts } from "@/lib/request-overview"
 import { guestPickupRefusal, type GuestSubmissionState, type PickupBlock } from "@/lib/guest-submission"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
+import { isUuid } from "@/lib/uuid"
 
 // Plan item 1.9: the Requests workspace reads moved here from
 // src/app/(app)/requests-workspace.tsx without changing the SQL or the
@@ -37,7 +38,6 @@ import type { RequestAttachment, RequestComment, RequestDetail } from "@/compone
  */
 export const MAX_REQUESTS_QUERY = 200
 export const DONE_PAGE_SIZE = 50
-export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export { FINISHED_VIEWS, type FinishedView } from "@/lib/request-workspace"
 
@@ -208,7 +208,7 @@ export async function loadRequestList(auth: MemberAuth): Promise<RequestList> {
  * timestamp is compared at full precision and an invisible id yields no rows.
  */
 export async function loadOlderFinishedRequests(auth: MemberAuth, beforeId: string, view: FinishedView = "all", now: Date = new Date()): Promise<{ rows: RequestListRow[]; hasOlderFinished: boolean }> {
-  if (!UUID_RE.test(beforeId)) return { rows: [], hasOlderFinished: false }
+  if (!isUuid(beforeId)) return { rows: [], hasOlderFinished: false }
   const cursor = alias(requests, "older_finished_cursor")
   const rows = await toListRows(auth, await listRows(
     auth,
@@ -233,7 +233,7 @@ export async function loadOlderFinishedRequests(auth: MemberAuth, beforeId: stri
  * Request the member may not see.
  */
 export async function loadRequestDetail(auth: MemberAuth, requestId: string): Promise<RequestDetailData | null> {
-  if (!UUID_RE.test(requestId)) return null
+  if (!isUuid(requestId)) return null
   const creator = alias(profiles, "request_detail_creator")
   const selectedAssignee = alias(profiles, "request_detail_assignee")
   const taker = alias(profiles, "request_detail_taker")

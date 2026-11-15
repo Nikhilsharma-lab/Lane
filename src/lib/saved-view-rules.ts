@@ -1,5 +1,6 @@
 import { isRequestStatusFilter, REQUEST_TITLE_FILTER_MAX, type RequestListContext } from "./request-workspace";
 import type { SavedView, SavedViewFilters } from "./saved-view-nav";
+import { isUuid } from "./uuid";
 
 /**
  * #219: saved views, client-safe rules. Opening a view applies its filters through the normal list, so it never
@@ -10,9 +11,8 @@ export { inViewOrder, openSavedView, sameViewName, savedViewHref, viewInNavigati
 export const SAVED_VIEW_NAME_MAX = 60;
 export { REQUEST_TITLE_FILTER_MAX };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isProjectFilter = (value: unknown): value is string =>
-  value === "all" || value === "none" || (typeof value === "string" && UUID.test(value));
+  value === "all" || value === "none" || isUuid(value);
 
 type FilterInput = { status?: unknown; project?: unknown; title?: unknown };
 const isTitleFilter = (value: unknown): value is string | undefined | null =>

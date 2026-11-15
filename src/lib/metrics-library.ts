@@ -7,6 +7,7 @@ import { metricUnitName, STARTER_METRIC_KEYS, type MetricChoice, type MetricUnit
 import type { MetricDefinitionInput } from "@/lib/metric-definition-schema";
 import { savedMetricsOf, type SavedMetric } from "@/lib/saved-metrics";
 import type { WorkspaceScope } from "@/lib/auth-guard";
+import { isUuid } from "@/lib/uuid";
 
 /**
  * The Metrics library (#195 item 1, #196). The only module that reads or writes Metric definitions and
@@ -213,7 +214,7 @@ export async function predictionMetricChoices(workspace: MetricsWorkspace, impac
  * One statement, and none when nothing is named.
  */
 export async function currentMetricNames(workspace: MetricsWorkspace, impacts: readonly unknown[]): Promise<Record<string, string>> {
-  const ids = [...new Set(impacts.flatMap((impact) => definitionRefs(impact).map((ref) => ref.id)))].filter((id) => UUID.test(id));
+  const ids = [...new Set(impacts.flatMap((impact) => definitionRefs(impact).map((ref) => ref.id)))].filter((id) => isUuid(id));
   if (!ids.length) return {};
   const rows = await db.execute<{ id: string; name: string }>(sql`
     with recursive chain(id, at, hops) as (
@@ -294,7 +295,7 @@ export async function checkPredictionMetrics(workspace: MetricsWorkspace, impact
   }
   const refs = definitionRefs(impact);
   if (!refs.length) return { impact };
-  if (refs.some((ref) => !UUID.test(ref.id))) return { error: NOT_PICKABLE };
+  if (refs.some((ref) => !isUuid(ref.id))) return { error: NOT_PICKABLE };
   const rows = await db.select(definitionColumns).from(metricDefinitions)
     .where(and(eq(metricDefinitions.orgId, workspace.orgId), sql`${metricDefinitions.id} = any(${idArray(refs.map((ref) => ref.id))})`));
   const byId = new Map(rows.map((row) => [row.id, row]));
@@ -341,15 +342,13 @@ async function definitionInUse(executor: Pick<typeof db, "execute">, orgId: stri
 
 /** Whether a definition's unit is locked because a Request uses it (#198). The Metrics page says so beside the unit. */
 export async function metricDefinitionUnitLocked(workspace: MetricsWorkspace, id: string): Promise<boolean> {
-  if (!UUID.test(id)) return false;
+  if (!isUuid(id)) return false;
   return definitionInUse(db, workspace.orgId, id);
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /** One of the workspace's definitions, archived and merged ones included; null for any other id. */
 export async function readMetricDefinition(workspace: MetricsWorkspace, definitionId: string): Promise<MetricDefinition | null> {
-  if (!UUID.test(definitionId)) return null;
+  if (!isUuid(definitionId)) return null;
   const [row] = await db.select(definitionColumns).from(metricDefinitions)
     .where(and(eq(metricDefinitions.orgId, workspace.orgId), eq(metricDefinitions.id, definitionId)));
   return row ? definitionOf(row) : null;
@@ -357,7 +356,7 @@ export async function readMetricDefinition(workspace: MetricsWorkspace, definiti
 
 /** A definition's history, oldest first, with each author's profile name. Empty for an id that isn't one of this workspace's definitions. */
 export async function readMetricDefinitionHistory(workspace: MetricsWorkspace, definitionId: string): Promise<MetricDefinitionHistoryEntry[]> {
-  if (!UUID.test(definitionId)) return [];
+  if (!isUuid(definitionId)) return [];
   return db.select({
     revision: metricDefinitionHistory.revision,
     kind: metricDefinitionHistory.kind,
@@ -471,7 +470,7 @@ const MERGED = "This metric was merged into another one, so it can’t be change
 
 /** The definition, locked for the rest of the transaction; refuses an id that isn't one of this workspace's. */
 async function lockedDefinition(tx: LibraryTx, orgId: string, id: string) {
-  if (!UUID.test(id)) throw new Refused(NOT_HERE);
+  if (!isUuid(id)) throw new Refused(NOT_HERE);
   const [row] = await tx.select(definitionColumns).from(metricDefinitions)
     .where(and(eq(metricDefinitions.orgId, orgId), eq(metricDefinitions.id, id))).for("update");
   if (!row) throw new Refused(NOT_HERE);
@@ -527,7 +526,7 @@ export async function archiveMetricDefinition(workspace: MetricsWorkspace, autho
  */
 export async function mergeMetricDefinitions(workspace: MetricsWorkspace, authorId: string, ids: { keptId: string; mergedId: string }): Promise<{ changed: true } | MetricsLibraryRefusal> {
   return change(null, async (tx) => {
-    if (!UUID.test(ids.keptId) || !UUID.test(ids.mergedId)) throw new Refused(NOT_HERE);
+    if (!isUuid(ids.keptId) || !isUuid(ids.mergedId)) throw new Refused(NOT_HERE);
     if (ids.keptId.toLowerCase() === ids.mergedId.toLowerCase()) throw new Refused("Choose two different metrics to merge.");
     // Lock both in a fixed order, so two merges of the same pair at once can't deadlock.
     const locked = new Map<string, DefinitionRow>();
