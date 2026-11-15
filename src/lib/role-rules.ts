@@ -28,6 +28,14 @@ export function canContribute(role: WorkspacePermission): boolean {
   return role !== "viewer"
 }
 
+/**
+ * #285: who can create Requests, the one rule behind every New Request (the list's Open group, /intake, Impact, the
+ * sidebar, C and the palette). A Viewer files nothing. A Guest still files their own Requests until #314 changes it here.
+ */
+export function canCreateRequests(role: WorkspacePermission): boolean {
+  return role !== "viewer"
+}
+
 /** Everyone but a Guest reads the whole workspace (a Guest reads only their own Requests). */
 export function readsWholeWorkspace(role: WorkspacePermission): boolean {
   return role !== "guest"

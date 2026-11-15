@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
-import { canContribute } from "@/lib/role-rules";
+import { canCreateRequests } from "@/lib/role-rules";
 import { IntakeLauncher } from "@/components/requests/intake-launcher";
 import { PageStrip } from "@/components/shell/page-strip";
 import { firstRunSlot } from "@/components/first-run/first-run-slot";
@@ -18,7 +18,7 @@ export default async function IntakePage() {
   if (!result) return (await auth()).redirectToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
   // #210: a Viewer reads everything and files nothing. #285: the shared "can create Requests" rule decides.
-  if (!canContribute(result.role)) redirect("/");
+  if (!canCreateRequests(result.role)) redirect("/");
   // #217: the first Request guide also explains the steps here, beside the launcher, which files the Request.
   const member = await getMember();
   const firstRun = member ? await timed("data", () => firstRunSlot(member, result.workspaceName, "intake")) : null;

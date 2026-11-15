@@ -6,6 +6,7 @@ import { firstRunSlot } from "@/components/first-run/first-run-slot"
 import { RequestsOverview } from "./requests-overview"
 import { RequestsWelcome } from "./requests-welcome"
 import { timePage, timed } from "@/lib/request-timings"
+import { canCreateRequests } from "@/lib/role-rules"
 
 /**
  * The Requests list at "/". Request pages render request-detail-workspace.tsx:
@@ -43,6 +44,7 @@ export async function RequestsWorkspace() {
     finishedCounts={list.finishedCounts}
     isGuest={member.role === "guest"}
     readOnly={member.role === "viewer"}
+    canCreate={canCreateRequests(member.role)}
     // The welcome is about the workspace, never about the current filter. It renders here, on the server, so the
     // list's own code stays lighter (Build 4 size cut); the list still swaps it in and out in the browser.
     welcome={<RequestsWelcome canInvite={member.role === "admin"} isGuest={member.role === "guest"} readOnly={member.role === "viewer"} />}

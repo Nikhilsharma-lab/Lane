@@ -107,15 +107,17 @@ const noViews: SavedView[] = []
 export const WelcomeIcon = () => <Inbox data-icon-size="2xl" />
 export const WelcomeNewRequest = ({ className, children }: { className: string; children: ReactNode }) => <NewRequestLink className={className}>{children}</NewRequestLink>
 
-export function RequestsOverview({ requests, isGuest, readOnly = false, context, activeCapped = false, hasOlderFinished = false, finishedCounts, welcome: workspaceWelcome, viewer, firstRun, savedViews: pageViews = noViews }: {
+export function RequestsOverview({ requests, isGuest, readOnly = false, canCreate = false, context, activeCapped = false, hasOlderFinished = false, finishedCounts, welcome: workspaceWelcome, viewer, firstRun, savedViews: pageViews = noViews }: {
   /** #219: the person's own saved views; the strip saves, updates, renames and deletes them. */
   savedViews?: SavedView[]
   /** #217: the person's first run, rendered by the server. The first Request guide is an empty workspace's welcome. */
   firstRun?: { node: ReactNode; replacesWelcome: boolean }
   requests: OverviewRequest[]
   isGuest: boolean
-  /** A Viewer (#210): the whole workspace's list, with no New Request and no moves. */
+  /** A Viewer (#210): the whole workspace's list, with no moves. */
   readOnly?: boolean
+  /** #285: New Request in the strip and the Open group, by the shared rule (`canCreateRequests`). */
+  canCreate?: boolean
   /** The empty workspace's welcome (requests-welcome.tsx), rendered by the server so its code never ships to the browser. */
   welcome?: ReactNode
   context?: { orgId: string }
@@ -177,14 +179,14 @@ export function RequestsOverview({ requests, isGuest, readOnly = false, context,
         // The one labelled way in; the sidebar glyph and the Open group's plus share its name and the C shortcut.
         // An empty workspace has exactly one Intake link, the welcome's (docs/superpowers/plans/2026-09-29-requests-welcome.md):
         // this one keeps its box, hidden and inert, so the first Request shows it without moving the strip.
-        action={readOnly ? undefined : <Tooltip content={<>New Request<KeyCap className={styles.kbd}>C</KeyCap></>} side="bottom">
+        action={canCreate ? <Tooltip content={<>New Request<KeyCap className={styles.kbd}>C</KeyCap></>} side="bottom">
           <NewRequestLink inert={workspaceEmpty} className={`${buttonStyles.button} ${buttonStyles.secondary} ${buttonStyles.sm} ${styles.newRequest}`}><Plus aria-hidden="true" />New Request</NewRequestLink>
-        </Tooltip>} />
+        </Tooltip> : undefined} />
       {firstRun && !guideIsWelcome && <div className={firstRunStyles.slot}>{firstRun.node}</div>}
       {/* Plan item 2.4: the list's one polite region, mounted empty so its first message is heard. */}
       <ListAnnouncerProvider>
         {context
-          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest} readOnly={readOnly}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} viewer={viewer} finishedCounts={finishedCounts} older={older.reads} /></RequestRowActions>
+          ? <RequestRowActions requests={rows} context={context} isGuest={isGuest} readOnly={readOnly}><DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} canCreate={canCreate} footer={footer} welcome={welcome} viewer={viewer} finishedCounts={finishedCounts} older={older.reads} /></RequestRowActions>
           : <DataTable data={rows} columns={columns} projectName={projectName} context={context} isGuest={isGuest} footer={footer} welcome={welcome} finishedCounts={finishedCounts} />}
       </ListAnnouncerProvider>
     </div>

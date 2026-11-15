@@ -6,7 +6,7 @@ import { readImpactAddress, tabToOpen } from "@/components/impact/impact-href";
 import { getMember } from "@/lib/ensure-workspace";
 import { loadImpactPage } from "@/lib/data/impact";
 import { timePage, timed } from "@/lib/request-timings";
-import { canChangeThings } from "@/lib/role-rules";
+import { canCreateRequests } from "@/lib/role-rules";
 
 // #271 (A114): the tab reads "Impact · Lane".
 export const metadata: Metadata = { title: "Impact" };
@@ -22,8 +22,8 @@ export default async function ImpactPage({ searchParams }: { searchParams: Promi
 
   const address = readImpactAddress(await searchParams);
   const { dashboard, teammates, person } = await timed("data", () => loadImpactPage(member, { period: address.period, personId: address.person ?? undefined }));
-  // Admins and Members file Requests; a Viewer or Guest opens on the Outcome report (Nikhil, 2026-11-09).
-  const canFile = canChangeThings(member.role);
+  // #285: the shared "can create Requests" rule. Someone who can't file opens on the Outcome report (Nikhil, 2026-11-09).
+  const canFile = canCreateRequests(member.role);
 
   return <>
     <PageStrip title="Impact" heading />

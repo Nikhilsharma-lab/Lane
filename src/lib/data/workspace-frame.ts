@@ -6,7 +6,7 @@ import { loadProjects } from "@/lib/data/projects";
 import { loadLabels } from "@/lib/data/labels";
 import { loadSavedViews } from "@/lib/data/saved-views";
 import { countNeedsYou } from "@/lib/data/inbox";
-import { canChangeThings, canContribute, membersItemLabel } from "@/lib/role-rules";
+import { canChangeThings, canCreateRequests, membersItemLabel } from "@/lib/role-rules";
 import { timed } from "@/lib/request-timings";
 import type { WorkspaceFrameProps } from "@/components/shell/workspace-frame";
 
@@ -44,7 +44,7 @@ export async function loadWorkspaceFrame(member: MemberAuth): Promise<
       savedViews,
       projects,
       labels,
-      canContribute: canContribute(member.role),
+      canCreate: canCreateRequests(member.role),
       canAddReviewers: canChangeThings(member.role),
       withoutPrediction: member.role === "guest",
     },
