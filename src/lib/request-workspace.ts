@@ -1,5 +1,4 @@
 import type { RequestGrouping, RequestOrdering } from "./request-overview"
-import { isUuid } from "./uuid"
 
 /**
  * The list's status views (URL `?status=`): every Request, each of the five journey statuses
@@ -50,7 +49,8 @@ export function parseRequestProjectFilter(
   value: string | string[] | null | undefined
 ): RequestProjectFilter {
   const candidate = Array.isArray(value) ? value[0] : value
-  if (isUuid(candidate)) return candidate.toLowerCase()
+  // isUuid (uuid.ts) inline: this runs in every page's first load, where the shared helper costs more than the pattern.
+  if (candidate && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate)) return candidate.toLowerCase()
   return candidate ?? "all"
 }
 

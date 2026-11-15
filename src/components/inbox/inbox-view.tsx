@@ -61,11 +61,6 @@ const HEADING_ID = "inbox-for-your-information";
 const NEEDS_YOU_HEADING_ID = "inbox-needs-you";
 const noNeedsYou: NeedsYouInboxItem[] = [];
 const ignore = () => {};
-/**
- * #284: a row moved by a change to the list slides to its new place on the shared scale. With motion turned down it
- * takes the new place at once: Lane's instant animations alone would still hold it at the old place for a few frames.
- */
-const useSlide = () => ({ layout: useReducedMotion() ? false : "position", transition: motionTokens.spring.smooth } as const);
 export const inboxRowButton = (id: string) => `[data-inbox-item="${CSS.escape(id)}"] [data-inbox-open]`;
 
 /**
@@ -82,8 +77,11 @@ function InboxRow({ item, active, selected, pending, onSelect, onToggleRead }: {
   const live = useInBrowser();
   const copy = notificationRow(item, live ? momentLabel(item.createdAt, { time: true }) : undefined);
   // #258: resting on the item, by keyboard or pointer, also reads its Request into the preview (an accepted invite opens Members instead).
-  const rest = useRowLoadAhead(item.requestId ? requestDetailHref(item.requestId, "all") : "", item.type === "invite_accepted" ? null : item.requestId, true);
-  return <m.li {...useSlide()} className={styles.row} data-inbox-item={item.id} data-request-href={item.requestId && item.type !== "invite_accepted" ? requestDetailHref(item.requestId, "all") : undefined} data-unread={unread || undefined} aria-current={selected || undefined} {...rest.pointer}>
+  const href = item.requestId ? requestDetailHref(item.requestId, "all") : "";
+  const rest = useRowLoadAhead(href, item.type === "invite_accepted" ? null : item.requestId, true);
+  // #284: a row moved by a change to the list slides to its new place on the shared scale. With motion turned down it
+  // takes the new place at once: Lane's instant animations alone would still hold it at the old place for a few frames.
+  return <m.li layout={!useReducedMotion() && "position"} transition={motionTokens.spring.smooth} className={styles.row} data-inbox-item={item.id} data-request-href={item.type !== "invite_accepted" && href || undefined} data-unread={unread || undefined} aria-current={selected || undefined} {...rest.pointer}>
     <span className={styles.lead} aria-hidden="true">{unread && <span className={notificationStyles.unreadDot} />}</span>
     <button type="button" className={styles.open} data-inbox-open tabIndex={active ? 0 : -1} aria-label={copy.name}
       onClick={() => onSelect(item)} {...rest.focus}>
@@ -105,8 +103,10 @@ function NeedsYouRow({ item, active, selected, onSelect }: {
 }) {
   const live = useInBrowser();
   const copy = needsYouRow(item, live ? momentLabel(item.since, { time: true }) : undefined);
-  const rest = useRowLoadAhead(requestDetailHref(item.requestId, "all"), item.requestId, true);
-  return <m.li {...useSlide()} className={styles.row} data-inbox-item={item.key} data-request-href={requestDetailHref(item.requestId, "all")} data-needs-you="" aria-current={selected || undefined} {...rest.pointer}>
+  const href = requestDetailHref(item.requestId, "all");
+  const rest = useRowLoadAhead(href, item.requestId, true);
+  // Slides as an InboxRow does.
+  return <m.li layout={!useReducedMotion() && "position"} transition={motionTokens.spring.smooth} className={styles.row} data-inbox-item={item.key} data-request-href={href} data-needs-you="" aria-current={selected || undefined} {...rest.pointer}>
     <span className={styles.lead} aria-hidden="true" />
     <button type="button" className={styles.open} data-inbox-open tabIndex={active ? 0 : -1} aria-label={copy.name}
       onClick={() => onSelect(item)} {...rest.focus}>

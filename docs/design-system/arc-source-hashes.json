@@ -143,7 +143,7 @@
     "source": "https://uiarc.dev/r/empty-state.json",
     "file": "src/components/arc/empty-state/empty-state.tsx",
     "upstreamSha256": "4a3d91c4fb7e2c4c316322854887a9e995e4e0343e41e64dbd6e3c505d7e3b5c",
-    "localSha256": "d3c44281e75f3af26be453e97e5a1a975114bfd126d1b173b74f50e0061d46fd"
+    "localSha256": "3efd329f2131c0d226af2b925e1e24acea5d13b9d697e1914f5b2f229f1513da"
   },
   {
     "id": "filter-toolbar",

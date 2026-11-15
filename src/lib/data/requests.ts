@@ -17,10 +17,10 @@ import type { OutcomeClosure, OutcomeException } from "@/lib/request-outcome"
 import { journeyOutline } from "@/components/requests/request-timeline-model"
 import { dueSoonOrOverdueCondition, journeyStatusCondition } from "@/lib/request-journey-sql"
 import type { FinishedView } from "@/lib/request-workspace"
+import { isUuid } from "@/lib/uuid"
 import type { FinishedCounts } from "@/lib/request-overview"
 import { guestPickupRefusal, type GuestSubmissionState, type PickupBlock } from "@/lib/guest-submission"
 import type { RequestAttachment, RequestComment, RequestDetail } from "@/components/requests/detail-view"
-import { isUuid } from "@/lib/uuid"
 
 // Plan item 1.9: the Requests workspace reads moved here from
 // src/app/(app)/requests-workspace.tsx without changing the SQL or the

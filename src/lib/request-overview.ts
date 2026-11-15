@@ -114,7 +114,7 @@ export function filtersHiding(row: OverviewRequest, filters: ListFilters, now: D
   if (filters.project && filters.project !== "all" && (row.projectId ?? "none") !== filters.project) hiding.push("project")
   const query = filters.title.trim().toLocaleLowerCase()
   // #286 (C7): the row shows the typed title, and the search still finds a Request by its Problem to solve.
-  if (query && ![row.title, row.reframedProblem].some(text => text?.toLocaleLowerCase().includes(query))) hiding.push("title")
+  if (query && !row.title.toLocaleLowerCase().includes(query) && !row.reframedProblem?.toLocaleLowerCase().includes(query)) hiding.push("title")
   if (filters.requestType && !(filters.requestType === "none" ? requestLabelKeys(row).length === 0 : requestLabelKeys(row).includes(filters.requestType))) hiding.push("requestType")
   return hiding
 }

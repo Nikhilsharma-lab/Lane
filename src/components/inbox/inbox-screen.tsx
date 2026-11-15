@@ -139,7 +139,13 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
     window.addEventListener("popstate", back);
     return () => window.removeEventListener("popstate", back);
   }, [openingRequest, selectedId]);
-  const openRequestPage = (requestId: string) => { if (navigation.open(requestDetailHref(requestId, "all"))) setOpeningRequest(true); };
+  /** An item's Request opens in the preview where one is offered, else on its own page. */
+  const openItem = (id: string, requestId: string) => {
+    setSelectedId(id);
+    if (!peekAvailable) { if (navigation.open(requestDetailHref(requestId, "all"))) setOpeningRequest(true); return; }
+    navigation.previewChanged(requestId);
+    if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });
+  };
 
   const refreshCount = useCallback(async () => {
     const controller = replace(countRequest);
@@ -241,11 +247,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
     const token = item.readAt === null ? beginRead(item, readAt) : null;
     keepOpen(item.id);
     if (item.type === "invite_accepted") navigation.open("/settings/members");
-    else if (item.requestId && peekAvailable) {
-      navigation.previewChanged(item.requestId);
-      if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });
-      setSelectedId(item.id);
-    } else if (item.requestId) { setSelectedId(item.id); openRequestPage(item.requestId); }
+    else if (item.requestId) openItem(item.id, item.requestId);
     if (token !== null) runRead(item, readAt, token);
   };
 
@@ -253,11 +255,7 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   const handleSelectNeedsYou = (item: NeedsYouInboxItem) => {
     if (peekAvailable && selectedId === item.key) { closePreview(); return; }
     keepOpen(item.key);
-    if (peekAvailable) {
-      navigation.previewChanged(item.requestId);
-      if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });
-      setSelectedId(item.key);
-    } else { setSelectedId(item.key); openRequestPage(item.requestId); }
+    openItem(item.key, item.requestId);
   };
 
   const closePreview = () => {
