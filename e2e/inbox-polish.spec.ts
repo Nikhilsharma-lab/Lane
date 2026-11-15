@@ -175,3 +175,47 @@ test("the Inbox: its own placeholder, the open item kept in the address, one lef
     await deleteTestUser(user.id);
   }
 });
+
+type Moves = Window & { inboxMoves: string[]; inboxWatching: boolean };
+
+/** Whether a row slides in `mode`: every transform the existing rows carry while a new item pushes them down. */
+async function rowMovesWhenAnItemArrives(page: Page, userId: string, title: string) {
+  await page.evaluate(() => {
+    const view = window as unknown as Moves;
+    view.inboxMoves = [];
+    view.inboxWatching = true;
+    const rows = [...document.querySelectorAll<HTMLElement>("[data-inbox-item]")];
+    const sample = () => {
+      for (const element of rows) if (element.style.transform && element.style.transform !== "none") view.inboxMoves.push(element.style.transform);
+      if (view.inboxWatching) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+  await seedPreviewFixtures(userId, [title]);
+  // The Inbox reads its list again when the window takes focus.
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(row(page, title)).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(1_000);
+  return page.evaluate(() => { const view = window as unknown as Moves; view.inboxWatching = false; return view.inboxMoves; });
+}
+
+test("an Inbox row pushed down by a new item slides, and with motion turned down it moves at once (#284)", async ({ page }) => {
+  test.setTimeout(300_000);
+  const user = await createTestUser("inbox-slide");
+  try {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await provisionAndSignIn(page, user, { name: "Inbox Slide PM", workspaceName: "Lane E2E Inbox slide", role: "pm" });
+    await seedPreviewFixtures(user.id, ["Slide one", "Slide two"]);
+    await page.goto("/inbox", { waitUntil: "domcontentloaded" });
+    await expect(fyi(page).locator("[data-inbox-item]")).toHaveCount(2, { timeout: 60_000 });
+    await settle(page);
+    expect(await rowMovesWhenAnItemArrives(page, user.id, "Slide three")).not.toEqual([]);
+
+    // Polish bar §10: with motion turned down on the device, the rows take their new places without moving.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    expect(await rowMovesWhenAnItemArrives(page, user.id, "Slide four")).toEqual([]);
+  } finally {
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});
