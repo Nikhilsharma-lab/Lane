@@ -17,6 +17,7 @@ import type { ReviewAnswer } from "./review-answer-form";
 import styles from "./request-timeline.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 import { SectionHeading } from "./section-heading";
+import { afterPageLoad } from "@/lib/after-page-load";
 type View = Exclude<
   Awaited<ReturnType<typeof actions.readReviews>>,
   { error: string }
@@ -29,7 +30,8 @@ const OPTIONAL_LINE = "Optional. People who should look at this before work star
 // The answer popup's form loads when it first opens, or a moment earlier, when the pointer or focus reaches an answer
 // button.
 const answerCode = popupCode(() => import("./review-answer-form"));
-// Add reviewer's popover arrives on its own, fetched as the panel mounts, while the reviewers are read.
+// Add reviewer's popover loads when the pointer or focus reaches Add reviewer, or once the page is idle
+// (after-page-load.ts), never as the panel mounts: that would add its code to a Request preview's first opening (#259).
 const addCode = popupCode(() => import("./add-reviewer-popover"));
 
 function reviewStatusLabel(reviewer: Reviewer, open: boolean) {
@@ -204,7 +206,7 @@ export function RequestReviews({
   const held = busy || undefined;
   const answerForm = usePopupCode(answerCode, answerOpen, () => couldNotOpen("review-answer", setAnswerOpen));
   const [addPressed, setAddPressed] = useState(false);
-  useEffect(() => { if (!isGuest) addCode.preload(); }, [isGuest]);
+  useEffect(() => isGuest ? undefined : afterPageLoad(addCode.preload), [isGuest]);
   const addPopover = usePopupCode(addCode, addPressed, () => couldNotOpen("add-reviewer", setAddPressed), { ahead: true });
   const answeringReviewer = answering && view?.reviewers.find((r) => r.id === answering.id);
 
@@ -251,7 +253,7 @@ export function RequestReviews({
           addPopover
             ? <addPopover.AddReviewerPopover orgId={orgId} unavailable={view.unavailable} canInvite={view.canInvite} slots={MAX_REVIEWERS - view.reviewers.length}
               onAdd={add} triggerRef={addButton} className={styles.end} defaultOpen={addPressed} />
-            : <Button variant="ghost" className={styles.end} onClick={() => setAddPressed(true)}>Add reviewer</Button>
+            : <Button variant="ghost" className={styles.end} onPointerEnter={addCode.preload} onFocus={addCode.preload} onClick={() => setAddPressed(true)}>Add reviewer</Button>
         )}
       </div>
       {view.open && <p className={styles.muted}>{OPTIONAL_LINE}</p>}

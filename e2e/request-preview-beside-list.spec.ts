@@ -107,7 +107,7 @@ test("the preview and the summary sit beside the list (#273)", async ({ page, br
       await expect(rows.nth(1)).not.toHaveAttribute("aria-controls", /.+/);
       await expect(preview.getByRole("heading", { level: 2 })).toHaveCount(1);
       await expect(preview.getByRole("heading", { level: 2 })).toHaveText(TITLES[0]);
-      await expect(preview.getByRole("heading", { level: 3, name: "Problem", exact: true })).toBeAttached();
+      await expect(preview.getByRole("heading", { level: 3, name: "Problem to solve", exact: true })).toBeAttached();
       await preview.getByRole("tab", { name: /^Conversation/ }).click();
       await expect(preview.getByRole("heading", { level: 3, name: "Conversation", exact: true })).toBeVisible();
       await preview.getByRole("tab", { name: "Journey", exact: true }).click();
