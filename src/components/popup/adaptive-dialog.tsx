@@ -136,20 +136,17 @@ export function DialogContent({ returnFocus, sheetClassName, canDismiss, onOpenA
     if (target) { event.preventDefault(); focusWithoutScroll(target) }
   }
 
-  const body = <div ref={contentRef} className={styles.content} data-popup-content="">{children}</div>
-  // The prompt is a layer of its own beside this one. Chrome sends a pointerdown with Enter on Keep editing, which this
-  // layer can still take as a press outside right after the prompt opens, and ask again.
-  const desktop = <ArcDialogContent {...props} onOpenAutoFocus={opened} onCloseAutoFocus={closed}
-    onPointerDownOutside={event => { props.onPointerDownOutside?.(event); if ((event.target as Element).closest("[data-discard-prompt]")) event.preventDefault() }}>{body}</ArcDialogContent>
-  if (!Adaptive) return <>{desktop}{prompt}</>
+  // The prompt renders inside the popup's own tree (its dialog portals out), so a press in it is never a press outside
+  // this popup: Chrome sends a pointerdown with Enter on Keep editing, which, as a sibling, this popup could still take
+  // as one right after the prompt opened, and ask again.
+  const body = <div ref={contentRef} className={styles.content} data-popup-content="">{children}{prompt}</div>
+  const desktop = <ArcDialogContent {...props} onOpenAutoFocus={opened} onCloseAutoFocus={closed}>{body}</ArcDialogContent>
+  if (!Adaptive) return desktop
   // The panel takes the dialog's content props except the centred dialog's own classes.
   const { title, description, layout, ...panelProps } = withoutKeys(props, ["className", "overlayClassName"])
-  return <>
-    <Adaptive open={open} desktop={desktop} sheet={{
-      open, onDismiss: () => change(false), title, description, layout: layout === "composer" ? "composer" : "fit",
-      className: [styles.sheet, sheetClassName].filter(Boolean).join(" "), confirmDismiss: () => dismissible && !losesText() && (canDismiss?.() ?? true),
-      contentProps: { ...panelProps, onOpenAutoFocus: opened, onCloseAutoFocus: closed }, children: body,
-    }} />
-    {prompt}
-  </>
+  return <Adaptive open={open} desktop={desktop} sheet={{
+    open, onDismiss: () => change(false), title, description, layout: layout === "composer" ? "composer" : "fit",
+    className: [styles.sheet, sheetClassName].filter(Boolean).join(" "), confirmDismiss: () => dismissible && !losesText() && (canDismiss?.() ?? true),
+    contentProps: { ...panelProps, onOpenAutoFocus: opened, onCloseAutoFocus: closed }, children: body,
+  }} />
 }
