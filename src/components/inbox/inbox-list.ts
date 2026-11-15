@@ -18,6 +18,6 @@ export function refreshedItems<T extends Row>(shown: readonly T[], incoming: rea
  * own page (inbox-screen.tsx). Opening it read it, so it shows read and the count leaves it out until the re-read lands.
  */
 export function withOpenedRead<T extends Row>(items: readonly T[], unread: number, opened: string, at: string) {
-  const shown = items.map(row => row.id === opened && row.readAt === null ? (unread--, { ...row, readAt: at }) : row)
-  return { items: shown, unread }
+  const opening = items.find(row => row.id === opened && row.readAt === null)
+  return { items: items.map(row => row === opening ? { ...row, readAt: at } : row), unread: opening ? unread - 1 : unread }
 }
