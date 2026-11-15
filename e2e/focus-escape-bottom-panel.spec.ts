@@ -77,53 +77,38 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await openRequest(page, id);
       const reviewers = page.locator("#reviewers");
       const add = reviewers.getByRole("button", { name: "Add reviewer", exact: true });
+      // #279: Add reviewer is an Arc popover. Opening it moves focus in, to its search field (B3).
       await add.click();
-      // B3: opening the form moves focus into it.
-      const question = reviewers.getByRole("textbox");
-      await expect(reviewers.locator("[data-detail-form]")).toHaveCount(1);
-      await expect.poll(() => reviewers.locator("[data-detail-form]").evaluate(form => form.contains(document.activeElement))).toBe(true);
-
+      const popover = page.getByRole("dialog", { name: "Add reviewer", exact: true });
+      await expect(popover.getByRole("searchbox", { name: "Search people" }).or(popover.getByRole("textbox", { name: "Search people" }))).toBeFocused();
+      const question = popover.getByRole("textbox", { name: "Question (optional)" });
       await question.fill("Does the empty state read well on a phone?");
-      await blurToPage(page);
+      // Escape closes it and hands focus back to its button; the page stays, and nothing typed is lost: the question
+      // is still there when it opens again, so there is nothing to ask.
       await page.keyboard.press("Escape");
-      const prompt = discardPrompt(page);
-      await expect(prompt).toBeVisible();
-      await expect(prompt.getByRole("button", { name: "Keep editing", exact: true })).toBeFocused();
-      await page.keyboard.press("Enter");
-      await expect(prompt).toHaveCount(0);
-      await expect(page).toHaveURL(new RegExp(`/requests/${id}$`));
-      await expect(question).toHaveValue("Does the empty state read well on a phone?");
-
-      // Escape from inside the field asks too; Discard closes the form and focus goes back to its button.
-      await question.focus();
-      await page.keyboard.press("Escape");
-      await expect(prompt).toBeVisible();
-      await prompt.getByRole("button", { name: "Discard", exact: true }).click();
-      await expect(reviewers.locator("[data-detail-form]")).toHaveCount(0);
+      await expect(popover).toHaveCount(0);
+      await expect(discardPrompt(page)).toHaveCount(0);
       await expect(add).toBeFocused();
       await expect(page).toHaveURL(new RegExp(`/requests/${id}$`));
-
-      // With nothing typed, Escape just closes the form; the page stays.
       await add.click();
-      await expect(reviewers.locator("[data-detail-form]")).toHaveCount(1);
+      await expect(question).toHaveValue("Does the empty state read well on a phone?");
       await blurToPage(page);
       await page.keyboard.press("Escape");
-      await expect(reviewers.locator("[data-detail-form]")).toHaveCount(0);
-      await expect(prompt).toHaveCount(0);
-      await expect(add).toBeFocused();
+      await expect(popover).toHaveCount(0);
       await expect(page).toHaveURL(new RegExp(`/requests/${id}$`));
+      const prompt = discardPrompt(page);
 
-      // C2-1 and C2-3: a Journey step form. Opening moves focus into it, Cancel hands it back to its button.
+      // C2-1 and C2-3: a Journey action's popup (#277). Opening moves focus into it, Cancel hands it back to its button.
       const lifecycle = page.locator('[data-slot="request-lifecycle-actions"]:visible');
       await lifecycle.getByRole("button", { name: "Pick up", exact: true }).click();
-      // Wait for the saved pickup before reloading, as request-release.spec.ts does.
-      await expect(lifecycle.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible({ timeout: 20_000 });
+      // Wait for the saved pickup before reloading: Mark Done shows at once and is pressable once it is saved (#280).
+      await expect(lifecycle.getByRole("button", { name: "Mark Done", exact: true })).toBeEnabled({ timeout: 20_000 });
       await openRequest(page, id);
       const journey = page.getByRole("region", { name: "Journey", exact: true });
       const closeWithout = journey.getByRole("button", { name: /^Close without a result/ });
       await closeWithout.click({ timeout: 20_000 });
-      const form = journey.locator("[data-detail-form]");
-      await expect.poll(() => form.evaluate(element => element.contains(document.activeElement))).toBe(true);
+      const form = page.getByRole("dialog", { name: "Close without a result", exact: true });
+      await expect.poll(() => form.evaluate(element => element.contains(document.activeElement) && document.activeElement?.getAttribute("aria-label") !== "Close dialog")).toBe(true);
       await form.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(form).toHaveCount(0);
       await expect(closeWithout).toBeFocused();
@@ -230,20 +215,23 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
         // The held script may be one the page's load event waits for.
         await page.goto(`/requests/${id}`, { waitUntil: "domcontentloaded" });
         await expect(page.locator("#request-title")).toBeVisible({ timeout: 30_000 });
+        // #279: the Add reviewer popover opens on its search field before the behaviour arrives, and Escape closes it
+        // without leaving the page or dropping the question.
         const reviewers = page.locator("#reviewers");
-        await reviewers.getByRole("button", { name: "Add reviewer", exact: true }).click();
-        const question = reviewers.getByRole("textbox");
+        const add = reviewers.getByRole("button", { name: "Add reviewer", exact: true });
+        await add.click();
+        const popover = page.getByRole("dialog", { name: "Add reviewer", exact: true });
+        const question = popover.getByRole("textbox", { name: "Question (optional)" });
         await question.fill("Asked before the behaviour arrived");
         await expect(page.locator("html[data-popup-behaviour=ready]")).toHaveCount(0);
-        await blurToPage(page);
         await page.keyboard.press("Escape");
-        const prompt = discardPrompt(page);
-        await expect(prompt).toBeVisible();
-        await expect(prompt.getByRole("button", { name: "Keep editing", exact: true })).toBeFocused();
-        await page.keyboard.press("Enter");
-        await expect(prompt).toHaveCount(0);
+        await expect(popover).toHaveCount(0);
+        await expect(add).toBeFocused();
+        await add.click();
         await expect(question).toHaveValue("Asked before the behaviour arrived");
+        await page.keyboard.press("Escape");
         await expect(page).toHaveURL(new RegExp(`/requests/${id}$`));
+        const prompt = discardPrompt(page);
 
         // B31: the permanent-action confirmation opens on Cancel, never on the ×.
         await page.locator('[data-slot="page-strip"]').getByRole("button", { name: "Delete Request", exact: true }).click();

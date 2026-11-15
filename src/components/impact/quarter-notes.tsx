@@ -4,7 +4,7 @@ import { lazy, Suspense, useRef, useState } from "react"
 import { Button } from "@/components/arc/button/button"
 import { quarterStarted } from "@/lib/impact-period"
 import type { QuarterNoteSlot } from "@/lib/impact-read-model"
-import { noteSegments } from "@/lib/quarter-note-rules"
+import { LinkedText } from "@/components/linked-text"
 import { LocalTime } from "@/components/requests/local-time"
 import { Placeholder } from "@/components/loading/placeholder"
 import styles from "./outcome-report.module.css"
@@ -19,9 +19,7 @@ const QuarterNoteEditor = lazy(() => import("./quarter-note-editor"))
 export type QuarterNoteEditorTarget = { orgId: string } | null
 
 function NoteText({ text }: { text: string }) {
-  return <p className={styles.noteBody}>{noteSegments(text).map((segment, index) => segment.kind === "link"
-    ? <a key={index} href={segment.href} className={styles.noteLink} rel="noopener noreferrer" target="_blank">{segment.href}</a>
-    : <span key={index}>{segment.text}</span>)}</p>
+  return <p className={styles.noteBody}><LinkedText text={text} /></p>
 }
 
 function QuarterNote({ slot, editor, asOf, heading }: { slot: QuarterNoteSlot; editor: QuarterNoteEditorTarget; asOf: string; heading: "h2" | "h3" }) {

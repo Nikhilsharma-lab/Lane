@@ -2,7 +2,8 @@ import { plannedDay } from "@/lib/dates"
 import { formatGuardrail, type ExpectedImpact, type IncompleteMeasurement } from "@/lib/request-impact"
 import { goalText } from "@/lib/impact-presenter"
 import { MeasurementPlanSummary } from "./measurement-plan-summary"
-import { measurementAudienceLabel, measurementPlatformLabel } from "@/lib/request-measurement"
+import { measurementAudienceLabel } from "@/lib/measurement-audience"
+import { measurementPlatformLabel } from "@/lib/request-measurement"
 import { SectionHeading } from "./section-heading"
 
 /** A Request's Goal section (#261). Plan item 2.5: Request detail passes id="expected-impact", a stable region its strip and stories address; the heading takes `${id}-heading`. */

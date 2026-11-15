@@ -58,3 +58,15 @@
    every pressable row and link; :root lifts it over their own hover styles, since the pointer is still
    resting on what it clicked. */
 :root [data-pressable][data-pressed] { background-color: var(--interaction-pressed); }
+
+/* #277 (C2-12): while "Is it live?" is open, Lane's messages step aside, so the Marked Done toast never covers it on a
+   phone. The toast keeps its place in the stack: Not yet brings it back with its Undo and a fresh 10 seconds, and a
+   saved release turns it into "Release recorded" (src/components/requests/is-it-live-prompt.tsx). */
+:root:has([data-is-it-live]) [data-toast-stack] li { visibility: hidden; }
+
+/* #281 (B30): on a phone, while a popup or bottom panel is open, Lane's messages move to the top of the screen, so one
+   never covers it; they go back to the bottom when it closes. The stack is found by Arc toast-stack's
+   `data-toast-stack`, at Lane's phone width (640px, as the strip's). */
+@media (max-width: 640px) {
+  :root:has(:is([role="dialog"], [role="alertdialog"])[data-state="open"]) [data-toast-stack] { top: calc(env(safe-area-inset-top, 0px) + var(--space-4)); bottom: auto; }
+}

@@ -80,10 +80,11 @@ export async function prepareMoveCoordination(page: Page, orgId: string, fixture
   await capture("current-value-empty-without-ai");
   await page.goto(`/requests/${fixture.b.id}`);
   const panel = page.getByRole("region", { name: "Reviewers", exact: true });
+  // #279: Add reviewer is an Arc popover, portalled outside the section.
   await panel.getByRole("button", { name: "Add reviewer", exact: true }).click();
-  await panel.getByRole("combobox", { name: "Reviewer", exact: true }).click();
-  await page.getByRole("option", { name: fixture.reviewerName, exact: true }).click();
-  const change = await beginCoordinatedChange(page, orgId, "reviewers", [fixture.b.id], recorder, () => panel.getByRole("button", { name: "Add reviewer", exact: true }).press("Enter"));
+  const popover = page.getByRole("dialog", { name: "Add reviewer", exact: true });
+  await popover.getByRole("option").filter({ has: page.getByText(fixture.reviewerName, { exact: true }) }).click();
+  const change = await beginCoordinatedChange(page, orgId, "reviewers", [fixture.b.id], recorder, () => popover.getByRole("button", { name: "Add reviewer", exact: true }).press("Enter"));
   await change.finish();
   await expect(panel.getByRole("listitem").filter({ hasText: fixture.reviewerName })).toContainText("Waiting");
   await capture("existing-optional-reviewer-waiting");
@@ -198,10 +199,9 @@ export async function verifyPartialBulkUndo(page: Page, second: Page, orgId: str
   await palettePointer(page, true); await expect(doneToast(page, fixture.c).getByRole("button", { name: "Undo", exact: true })).toBeVisible(); await pauseStack(page);
   await second.goto(`/requests/${fixture.a.id}`);
   await second.getByRole("region", { name: "Journey", exact: true }).getByRole("button", { name: "Record release", exact: true }).press("Enter");
-  const form = second.getByRole("region", { name: "Journey", exact: true }).locator("form").filter({ has: second.getByLabel("Release evidence", { exact: true }) });
+  // #277: the release form opens in its Journey popup, dated today.
+  const form = second.getByRole("dialog", { name: "Record release", exact: true });
   await expect(form.getByLabel("Release evidence", { exact: true })).toBeVisible();
-  const exposure = form.getByLabel("Release date", { exact: true });
-  const today = await exposure.getAttribute("max"); expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/); await exposure.fill(today!);
   const current = form.getByLabel(/^Value before release/); if (await current.count()) await current.fill("62");
   await form.getByLabel("Release evidence", { exact: true }).fill("175 retained fixture: real Release before partial bulk Undo");
   await form.getByRole("checkbox", { name: "The agreed audience received this work", exact: true }).check();

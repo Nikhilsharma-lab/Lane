@@ -80,6 +80,10 @@ Someone has picked the Request up and is working on it.
 **Done**:
 The work is finished but has not reached its audience yet.
 
+**Reopen**:
+Taking a Done Request back to In progress, allowed for 15 minutes after it was marked Done, until the release is recorded. A Closed Request never reopens.
+_Avoid_: Undo Done
+
 **Release**:
 The recorded moment the work reached its agreed audience. A release starts Measuring.
 _Avoid_: Launch, ship, deploy
@@ -103,8 +107,8 @@ A fix the Requester adds to a closed Request. It sits beside the original record
 _Avoid_: Edit, amendment
 
 **Follow-up Request**:
-A new Request linked to a released one, for further work. It starts again at Open, and reviewers answer it again.
-_Avoid_: Reopen, child Request
+A new Request linked to a released one, for further work. It starts again at Open, and reviewers answer it again. It is not a **Reopen**: a released or Closed Request never goes back, so further work is a new Request.
+_Avoid_: Calling a follow-up a reopen, child Request
 
 ## Linking Requests
 

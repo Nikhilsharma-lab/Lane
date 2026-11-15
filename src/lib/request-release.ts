@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import type { ExpectedImpact } from './request-impact';
 import { agreedResult } from './request-outcome';
-import { utcDay } from './utc-day';
+import { dayNumber, dayOf, utcDay } from './utc-day';
 const text = z.string().trim().min(1).max(4000);
 export const releaseDateSchema = z.iso.date();
 /** The measured value just before release, in the agreed metric's unit (#151 decision 3). Required for a measured plan. */
@@ -59,15 +59,31 @@ export function releaseWindow(impact: ExpectedImpact | null, exposureDate: strin
  * Whether a release must record the value before release: a numeric result whose plan has a planning baseline.
  * A Verified check, a new capability and an unknown baseline never take one (#151 decision 3).
  */
-export function valueBeforeReleaseOf(impact: ExpectedImpact | null): { required: true; unit: string } | { required: false; unit: null } {
+export function valueBeforeReleaseOf(impact: ExpectedImpact | null): { required: true; unit: string; current: number } | { required: false; unit: null } {
     if (!impact) return { required: false, unit: null };
     const agreed = agreedResult(impact);
     if (agreed.form !== 'numeric') return { required: false, unit: null };
     const planned = impact.kind === 'measurement' ? !impact.primary.noBaseline && impact.primary.current !== null : impact.kind === 'metric' && impact.noBaseline !== true && agreed.baseline !== null;
-    return planned ? { required: true, unit: agreed.unit } : { required: false, unit: null };
+    // `current`: the goal's current value, where the release form starts (#277).
+    return planned && agreed.baseline !== null ? { required: true, unit: agreed.unit, current: agreed.baseline } : { required: false, unit: null };
 }
 
-/** Exposure cannot predate the Request itself (UTC date). */
-export function earliestExposure(request: { createdAt: Date }) {
-    return utcDay(request.createdAt);
+/**
+ * #277 (#235 item 8): the days a release can be recorded on. The earliest is the day the work was picked up, or the day
+ * the Request was filed for older work with no pickup time; the latest is today. The person picks a day in their own
+ * time zone while pickup and today are counted in UTC, so the server allows one day either side: a valid local choice is
+ * never refused. A correction may keep the date already saved, which an older rule allowed.
+ */
+export function releaseDateBounds(request: { pickedUpAt: Date | null; createdAt: Date }, now: Date, saved?: string | null) {
+    const startedOn = utcDay(request.pickedUpAt ?? request.createdAt);
+    const earliest = dayOf(dayNumber(startedOn) - 1);
+    return {
+        startedOn,
+        started: request.pickedUpAt ? 'picked up' as const : 'filed' as const,
+        earliest: saved && saved < earliest ? saved : earliest,
+        latest: dayOf(dayNumber(utcDay(now)) + 1),
+    };
 }
+
+/** The moment whose day, in the viewer's zone, is the earliest release day: the pickup, else the filing. */
+export const earliestReleaseAt = (request: { pickedUpAt: Date | null; createdAt: Date }) => (request.pickedUpAt ?? request.createdAt).toISOString();

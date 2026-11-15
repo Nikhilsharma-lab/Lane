@@ -132,12 +132,19 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
         name: "Pick up",
         exact: true,
       });
+      const markDone = lifecycle.getByRole("button", {
+        name: "Mark Done",
+        exact: true,
+      });
       await clickTwice(pickUp);
       await failedPickup.seen;
 
-      // #262: the busy button keeps its label.
-      await expect(pickUp).toHaveAttribute("aria-disabled", "true");
-      await expect(pickUp).toHaveAttribute("aria-busy", "true");
+      // #280: the next state shows at once. Mark Done can't be pressed until
+      // the pick up is confirmed, and looks busy once that takes a while.
+      await expect(pickUp).toHaveCount(0);
+      await expect(markDone).toHaveAttribute("aria-disabled", "true");
+      await expect(markDone).toHaveAttribute("aria-busy", "true");
+      await clickTwice(markDone);
       expect(failedPickup.count(), surface.name).toBe(1);
 
       failedPickup.release();
@@ -153,15 +160,12 @@ test("Pick up and Mark Done recover reliably across responsive themes", async ({
       await expectStatus("in_progress", "In progress", 20_000);
 
       const failedCompletion = await holdAndFailNextAction(page, actionPath);
-      const markDone = lifecycle.getByRole("button", {
-        name: "Mark Done",
-        exact: true,
-      });
+      await expect(markDone).toBeEnabled();
       await clickTwice(markDone);
       await failedCompletion.seen;
 
-      await expect(markDone).toHaveAttribute("aria-disabled", "true");
-      await expect(markDone).toHaveAttribute("aria-busy", "true");
+      // Done shows at once; Done has no next move, so the slot empties.
+      await expect(markDone).toHaveCount(0);
       expect(failedCompletion.count(), surface.name).toBe(1);
 
       failedCompletion.release();

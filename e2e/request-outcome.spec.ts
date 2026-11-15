@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from './helpers/reviewers';
 import { assertOwnedOrganization } from './helpers/fixtures';
 import { renewSessionToken } from './helpers/test-user';
-import { answerIsItLive, journey, journeyStep } from './helpers/journey';
+import { answerIsItLive, chooseJourneyMore, journey, journeyPopup, journeyStep } from './helpers/journey';
 import { expectOpenFormSurvivesReturn, observeJourneyReads } from './helpers/journey-refresh';
 
 // Hosted acceptance gate: requires verified backup and staging migrations 0028–0034 (#127 adds 0034).
@@ -16,7 +16,7 @@ async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   await page.goto(path);
   await page.getByRole('button', { name: 'Pick up', exact: true }).click();
   // Wait for the saved pickup before reloading, or the reload can cancel it.
-  await expect(page.getByRole('button', { name: 'Mark Done', exact: true })).toBeVisible({ timeout: 20_000 }); await page.reload();
+  await expect(page.getByRole('button', { name: 'Mark Done', exact: true })).toBeEnabled({ timeout: 20_000 }); await page.reload();
   await page.getByRole('button', { name: 'Mark Done', exact: true }).click();
   // "Is it live?" → Not yet: the Request stays Done, its Undo comes back, and the timeline's Done step
   // offers the release instead.
@@ -28,11 +28,12 @@ async function releasedRequest(team: ReviewTeam, page: Page, title: string) {
   await expect(done).toContainText('Anyone working on this Request can record it.');
   await expect(journeyStep(page, 'Measuring', 'not reached yet')).toBeVisible();
   await done.getByRole('button', { name: 'Record release', exact: true }).click();
-  await release.getByLabel('Release date', { exact: true }).fill(new Date().toISOString().slice(0, 10));
-  await release.getByLabel('Value before release (%)', { exact: true }).fill('62');
-  await release.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: agreed audience exposure log');
-  await release.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
-  await release.getByRole('button', { name: 'Mark as released' }).click();
+  // #277: the release form opens in its Journey popup, dated today and starting from the goal's current value.
+  const form = journeyPopup(page, 'Record release');
+  await expect(form.getByLabel('Value before release (%)', { exact: true })).toHaveValue('62');
+  await form.getByLabel('Release evidence', { exact: true }).fill('Staging acceptance: agreed audience exposure log');
+  await form.getByRole('checkbox', { name: 'The agreed audience received this work' }).check();
+  await form.getByRole('button', { name: 'Mark as released' }).click();
   await expect(release.getByText(/· Due in 14 days$/)).toBeVisible();
   await expect(release.getByRole('heading', { name: 'Journey', exact: true })).toBeFocused();
   return path;
@@ -49,9 +50,10 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await expect(outcome.getByRole('button', { name: 'Close Request', exact: true })).toBeDisabled();
       await expect(outcome.getByText(/^Opens on /)).toBeVisible();
       // Follow-up first: the original keeps its obligation and the follow-up is reviewed afresh.
-      await outcome.getByRole('button', { name: 'Create follow-up Request' }).click();
-      await outcome.getByLabel('What changed and why').fill('Acceptance: mobile checkout needs the same fix');
-      await outcome.getByRole('button', { name: 'Create follow-up Request' }).dblclick();
+      await chooseJourneyMore(page, 'Create follow-up Request');
+      const followUp = journeyPopup(page, 'Create follow-up Request');
+      await followUp.getByLabel('What changed and why').fill('Acceptance: mobile checkout needs the same fix');
+      await followUp.getByRole('button', { name: 'Create follow-up Request' }).dblclick();
       await page.waitForURL(url => !url.pathname.endsWith(path));
       await expect(page.getByRole('region', { name: 'Journey', exact: true })).toContainText('Follow-up of');
       await expect(page.getByRole('button', { name: 'Pick up', exact: true })).toBeVisible();
@@ -60,30 +62,37 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
       await expect(outcome.getByText(/· Due in 14 days$/)).toBeVisible();
       await expect(outcome.getByRole('link', { name: /outcome acceptance/ })).toHaveCount(1);
       // Closing without a result by keyboard, early, with a reason and no invented numbers.
-      await outcome.getByRole('button', { name: 'Close without a result…' }).focus(); await page.keyboard.press('Enter');
-      await outcome.getByRole('combobox', { name: 'Why' }).click();
+      // #278: it sits first in Measuring's More menu, which the keyboard opens onto it.
+      await outcome.getByRole('button', { name: 'More', exact: true }).focus(); await page.keyboard.press('Enter');
+      await expect(page.getByRole('menuitem', { name: 'Close without a result', exact: true })).toBeFocused(); await page.keyboard.press('Enter');
+      const closing = journeyPopup(page, 'Close without a result');
+      await closing.getByRole('combobox', { name: 'Why' }).click();
       await page.getByRole('option', { name: 'Rolled back' }).click();
-      await outcome.getByLabel('Details (optional)').fill('Acceptance: rolled back after payment errors');
-      await expectOpenFormSurvivesReturn(page, reads, outcome.getByLabel('Details (optional)'), 'Acceptance: rolled back after payment errors');
-      await outcome.getByRole('button', { name: 'Close without a result', exact: true }).press('Enter');
+      // In the phone panel the menu hands focus back to its button as it finishes leaving; type after that.
+      await expect(page.getByRole('listbox')).toHaveCount(0);
+      await closing.getByLabel('Details (optional)').fill('Acceptance: rolled back after payment errors');
+      await expectOpenFormSurvivesReturn(page, reads, closing.getByLabel('Details (optional)'), 'Acceptance: rolled back after payment errors');
+      await closing.getByRole('button', { name: 'Close without a result', exact: true }).press('Enter');
       // Wait for the saved closure before reloading; reloading earlier can cancel the save.
       await expect(outcome.getByText('Closed without a result at Measuring: Rolled back.')).toBeVisible({ timeout: 20_000 });
-      await expect(outcome.getByLabel('Details (optional)')).toHaveCount(0);
+      await expect(closing).toHaveCount(0);
       await expect(outcome.getByRole('heading', { name: 'Journey', exact: true })).toBeFocused();
       await page.reload();
       await expect(outcome.getByText('Closed without a result at Measuring: Rolled back.')).toBeVisible();
-      await expect(journeyStep(page, 'Closed without a result', 'current step')).toContainText('Closed Requests never reopen.');
+      await expect(journeyStep(page, 'Closed without a result', 'current step')).toContainText('Closed Requests can’t be reopened.');
       await expect(journeyStep(page, 'Measuring', 'finished')).toContainText('Released to ');
       await expect(outcome.getByRole('button', { name: 'Correct release' })).toHaveCount(0);
       await outcome.getByRole('button', { name: 'Add correction' }).click();
-      await outcome.getByRole('combobox', { name: 'What needs correcting' }).click();
+      const correcting = journeyPopup(page, 'Add correction');
+      await correcting.getByRole('combobox', { name: 'What needs correcting' }).click();
       await page.getByRole('option', { name: 'Reason', exact: true }).click();
-      await outcome.getByLabel('Correction', { exact: true }).fill('Rolled back after checkout timeouts');
-      await outcome.getByLabel('Correction reason').fill('Acceptance: wrong cause recorded');
-      await expectOpenFormSurvivesReturn(page, reads, outcome.getByLabel('Correction', { exact: true }), 'Rolled back after checkout timeouts');
-      await outcome.getByRole('button', { name: 'Save correction' }).press('Enter');
+      await expect(page.getByRole('listbox')).toHaveCount(0);
+      await correcting.getByLabel('Correction', { exact: true }).fill('Rolled back after checkout timeouts');
+      await correcting.getByLabel('Correction reason').fill('Acceptance: wrong cause recorded');
+      await expectOpenFormSurvivesReturn(page, reads, correcting.getByLabel('Correction', { exact: true }), 'Rolled back after checkout timeouts');
+      await correcting.getByRole('button', { name: 'Save correction' }).press('Enter');
       await expect(outcome.getByText('Reason: Rolled back after checkout timeouts')).toBeVisible({ timeout: 20_000 });
-      await expect(outcome.getByLabel('Correction', { exact: true })).toHaveCount(0);
+      await expect(correcting).toHaveCount(0);
       await expect(outcome.getByRole('heading', { name: 'Journey', exact: true })).toBeFocused();
       reads.stop();
       await page.reload();
@@ -99,22 +108,24 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
     await client.organizations.deleteOrganizationMembership({ organizationId: team.orgId, userId: team.users[0].id });
     // The new Admin's tab picks up the role change before it reads the Request.
     const admin = team.pages[1]; await renewSessionToken(admin); await admin.goto(path); await admin.reload();
-    await expect(admin.getByRole('region', { name: 'Journey', exact: true }).getByRole('button', { name: 'Close without a result…' })).toHaveCount(0);
+    await expect(admin.getByRole('region', { name: 'Journey', exact: true }).getByRole('button', { name: 'Close without a result', exact: true })).toHaveCount(0);
     const release = admin.getByRole('region', { name: 'Journey', exact: true });
-    await release.getByRole('button', { name: 'Hand over to a new Requester' }).click();
-    await release.getByRole('combobox', { name: 'New Requester' }).click();
+    await chooseJourneyMore(admin, 'Hand over to a new Requester');
+    const handover = journeyPopup(admin, 'Hand over to a new Requester');
+    await handover.getByRole('combobox', { name: 'New Requester' }).click();
     await admin.getByRole('option', { name: 'Review Developer' }).click();
-    await release.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
-    await release.getByRole('button', { name: 'Hand over' }).click();
+    await handover.getByLabel('Handover reason').fill('Original owner left the acceptance workspace');
+    await handover.getByRole('button', { name: 'Hand over' }).click();
     // Wait for the saved handover before the new Requester opens the Request.
     await expect(release).toContainText('Requester: Review Developer', { timeout: 20_000 });
     const developer = team.pages[2]; await developer.goto(path);
     const outcome = developer.getByRole('region', { name: 'Journey', exact: true });
-    await outcome.getByRole('button', { name: 'Close without a result…' }).click();
-    await outcome.getByRole('combobox', { name: 'Why' }).click();
+    await chooseJourneyMore(developer, 'Close without a result');
+    const closing = journeyPopup(developer, 'Close without a result');
+    await closing.getByRole('combobox', { name: 'Why' }).click();
     await developer.getByRole('option', { name: 'Can’t be measured' }).click();
-    await outcome.getByLabel('Details (optional)').fill('Acceptance: analytics unavailable after transfer');
-    await outcome.getByRole('button', { name: 'Close without a result', exact: true }).click();
+    await closing.getByLabel('Details (optional)').fill('Acceptance: analytics unavailable after transfer');
+    await closing.getByRole('button', { name: 'Close without a result', exact: true }).click();
     await expect(outcome).toContainText('Closed without a result at Measuring: Can’t be measured.', { timeout: 20_000 });
     await developer.reload(); await expect(outcome).toContainText('Closed without a result at Measuring: Can’t be measured.');
   } finally { await team.close(testInfo); }

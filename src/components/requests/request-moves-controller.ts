@@ -5,7 +5,7 @@ import { availableMove, pickupBlockedMessage, type LifecycleMove, type Lifecycle
 import type { ReviewState } from "@/lib/request-reviewer-rules"
 import type { AskIsItLive } from "./is-it-live"
 import type { Announce } from "./list-announcer"
-import { showMarkedDone, type MarkDoneUndoStore } from "./mark-done-undo"
+import { appMarkDoneUndo, showMarkedDone, type MarkDoneUndoStore, type UndoKind } from "./mark-done-undo"
 import type { ConfirmPickup } from "./pickup-confirmation"
 import { failureToast, type ActionResult, type BatchOutcome, type BatchResult, type OptimisticOptions, type OptimisticOutcome, type runOptimisticBatch } from "./use-optimistic-action"
 import { SAVE_FAILED_TITLE } from "@/lib/failure-messages"
@@ -40,7 +40,13 @@ export type BulkMoveOutcome = (BatchOutcome & {
 }) | { status: "busy" } | { status: "cancelled" }
 
 type Scope = { orgId: string }
+const noMeasurableImpact = (value: unknown) => typeof value === "object" && value !== null && "noMeasurableImpact" in value && value.noMeasurableImpact === true
 const EARLIER_CHANGE_FAILED = "An earlier change failed. Check this Request and try again."
+/** The undo of Mark Done's words, as the toast's Undo or the Done step's Reopen asked for it. Success reads the same. */
+const UNDO_WORDS: Record<UndoKind, { running: string; failed: string }> = {
+  undo: { running: "Undoing", failed: "Couldn’t undo" },
+  reopen: { running: "Reopening", failed: "Couldn’t reopen" },
+}
 
 /** The server actions the moves call (src/app/(app)/requests/[id]/actions.ts). */
 export type RequestMoveActions = {
@@ -93,9 +99,10 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
   }
   // Results reuse the toast's id: an update if it is still showing, a fresh toast if it was dismissed meanwhile.
   // Undo is sent only after the Done move it reverses has succeeded.
-  const undo = async (toastId: string, requestId: string, name: string, ended: () => boolean, originCurrent: () => boolean) => {
+  const undo = async (toastId: string, requestId: string, name: string, ended: () => boolean, originCurrent: () => boolean, kind: UndoKind = "undo") => {
     const current = continuation()
-    update(toastId, { type: "loading", title: "Undoing", description: `${name} is moving back to In progress.`, action: undefined })
+    const words = UNDO_WORDS[kind]
+    update(toastId, { type: "loading", title: words.running, description: `${name} is moving back to In progress.`, action: undefined })
     const outcome = await optimistic({
       id: requestId,
       patch: { kind: "undo", status: "in_progress" },
@@ -103,13 +110,13 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       waitForPending: true,
       // #260: Try again sends the same Undo again; offline it says so instead.
       onError: (description, { offline }) => {
-        const retry = () => undo(toastId, requestId, name, ended, originCurrent)
-        finishToast(toastId, { ...failureToast(description, { offline, retry }), ...(offline ? {} : { title: "Couldn’t undo" }) }, current)
+        const retry = () => undo(toastId, requestId, name, ended, originCurrent, kind)
+        finishToast(toastId, { ...failureToast(description, { offline, retry }), ...(offline ? {} : { title: words.failed }) }, current)
       },
     })
     // A failed Done already replaced this toast. A later failed Release may only have had inline feedback.
     if (outcome.status === "skipped" && !ended()) {
-      finishToast(toastId, { type: "error", title: "Couldn’t undo", description: EARLIER_CHANGE_FAILED, action: undefined }, current)
+      finishToast(toastId, { type: "error", title: words.failed, description: EARLIER_CHANGE_FAILED, action: undefined }, current)
       refresh()
     }
     if (outcome.status !== "success") return
@@ -122,7 +129,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
     const { name } = request
     // Done leaves the working views, so its confirmation carries the way back; the palette's Undo runs the same one (#103).
     const done: ReturnType<typeof showMarkedDone> | null = kind === "done"
-      ? showMarkedDone(toast, request, (id, requestId, name) => undo(id, requestId, name, () => done?.ended ?? true, current), undoStore)
+      ? showMarkedDone(toast, request, (id, requestId, name, how) => undo(id, requestId, name, () => done?.ended ?? true, current, how), undoStore)
       : null
     const toastId = done?.toastId
     // Done is acknowledged by its toast; a pick up is acknowledged here, in the same frame as the move.
@@ -148,8 +155,9 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
       }
       // The failure toast speaks for itself; the region drops the claim it made.
       if (result.status === "error" && kind === "pick-up" && current()) announce("", { key: "row-change" })
-      // #135: once the Done is saved, ask whether the work is live. "Not yet" brings this toast's Undo back.
-      if (result.status === "success" && done && !done.consumed && current()) isItLive?.({ id: request.id, name }, {
+      // #135: once the Done is saved, ask whether the work is live. "Not yet" brings this toast's Undo back. #309: a
+      // Request with no measurable impact has no release to record, so it isn't asked and the toast keeps its Undo.
+      if (result.status === "success" && done && !done.consumed && current() && !noMeasurableImpact(result.value)) isItLive?.({ id: request.id, name }, {
         reshow: done.restore,
         end: () => {
           done.end()
@@ -160,6 +168,17 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
     })
     afterMove?.(request.id, name)
     return outcome
+  }
+
+  /**
+   * #278: the Done step's Reopen. While that Request's "Marked Done" toast still offers Undo, Reopen is that same
+   * undo, so the toast stops offering it; otherwise it brings its own message. Either way it reads "Back to In progress".
+   */
+  const reopen = async (request: MoveTarget) => {
+    const pointer = (undoStore ?? appMarkDoneUndo).get()
+    if (pointer?.requestId === request.id) return void await pointer.undo("reopen")
+    const toastId = toast({ type: "loading", title: UNDO_WORDS.reopen.running, description: `${request.name} is moving back to In progress.` })
+    await undo(toastId, request.id, request.name, () => false, continuation(), "reopen")
   }
 
   // #77: a pick up with an open concern or an unanswered review asks "Pick up anyway?" first.
@@ -259,7 +278,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
 
   const copy = (value: string, label: string) => copyText(value, `${label} copied.`)
 
-  return { move, moveMany, setPriority, copy }
+  return { move, moveMany, reopen, setPriority, copy }
 }
 
 export type RequestMoves = ReturnType<typeof createRequestMoves>

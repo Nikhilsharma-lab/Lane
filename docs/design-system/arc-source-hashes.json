@@ -129,7 +129,7 @@
     "source": "https://uiarc.dev/r/dropdown-menu.json",
     "file": "src/components/arc/dropdown-menu/dropdown-menu.tsx",
     "upstreamSha256": "555391c3bd2a0a3ba9818240a34a53ce51be40d2b9f290a23569bf6cf2328704",
-    "localSha256": "9f480698cb6055f3bfe7a44fa22ea1899b1c0d96b3981e28eedca052c3e939b7"
+    "localSha256": "86be5f831193c07ef1c3e827638bddb81cc211b7152634be7026ac0e85d6c6bd"
   },
   {
     "id": "empty-state",
@@ -290,7 +290,7 @@
     "source": "https://uiarc.dev/r/select.json",
     "file": "src/components/arc/select/select.tsx",
     "upstreamSha256": "673dc0c887a255c87bfbabd1835606d87cfbf59ed6fd4909a28038f00f673eaa",
-    "localSha256": "7261f371ea5fea0d2467cf777e8ce8b9d8f0fd7fa7fca9641c4be956437615a1"
+    "localSha256": "14b5812ce68d236ea8052ec7d525361846f70c0da4756e6fafeba983e88f85d1"
   },
   {
     "id": "skeleton",
@@ -325,14 +325,14 @@
     "source": "https://uiarc.dev/r/toast-stack.json",
     "file": "src/components/arc/toast-stack/toast-stack.module.css",
     "upstreamSha256": "68ea14b271d2af559f90dd2e972b20591092b1dff9ef5e6a408f6082c015379a",
-    "localSha256": "30e80d560d147e8eb7f982f3a828a5663a6e6d0832cd8ec404a151a1bfac89ce"
+    "localSha256": "e6f89c57693ce10bfc8846826e93e10cc4be878b4012ddb669a5605e7a0180e3"
   },
   {
     "id": "toast-stack",
     "source": "https://uiarc.dev/r/toast-stack.json",
     "file": "src/components/arc/toast-stack/toast-stack.tsx",
     "upstreamSha256": "8dd2b0aa283f62b952deb6fd909e8c227251b6f04cb92b8aa0e37243672d6313",
-    "localSha256": "d611d2714354d5c66c47d44e2d1417e861f4ab3c4f8c44551a175144c1917e79"
+    "localSha256": "4251115a474b4d458a69e14a53965c6327935dfab6d16c333ab62d359c95bc71"
   },
   {
     "id": "tooltip",
@@ -499,7 +499,7 @@
     "source": "https://uiarc.dev/r/comment-thread.json",
     "file": "src/components/arc/comment-thread/comment-thread.tsx",
     "upstreamSha256": "cd6a270befb55c8190bec700e23170ce360586b09ee55d71b972b0e15a0fc442",
-    "localSha256": "d75a64c30537c7bc730a9746dbcdde43759bee2d45a82ad927dd76e2688f9b5d"
+    "localSha256": "473ae1c5c8fcd8896e5088d5294d2f70c65a0f1a6d097907b86e458abce2b5bc"
   },
   {
     "id": "comment-thread",
@@ -507,5 +507,33 @@
     "file": "src/components/arc/comment-thread/comment-thread.module.css",
     "upstreamSha256": "5bdcb52d70d94d701d77d20fcb020020007061888277c604abcfbc8c334d0829",
     "localSha256": "1de7aba58b7f5679b2c95a44287c0ba33ebde7599854be70ba30a7dca31f5007"
+  },
+  {
+    "id": "calendar",
+    "source": "https://uiarc.dev/r/calendar.json",
+    "file": "src/components/arc/calendar/calendar.tsx",
+    "upstreamSha256": "cf09873e5d895e46129159e62f7e494f448cfd247aaddd6c9a54de45a5d6c108",
+    "localSha256": "bae797e280c757d44e80b23d3784d136378802960f62eb2b851b0f42dfed8695"
+  },
+  {
+    "id": "calendar",
+    "source": "https://uiarc.dev/r/calendar.json",
+    "file": "src/components/arc/calendar/calendar.module.css",
+    "upstreamSha256": "2e019a6ca658f124c7ea0303aac46aa615a4e6bb3bc485c57d3b85acb0d26adc",
+    "localSha256": "d168bd64f994c8a5e190887753614bde275def3bbf9eb2a475beda8b43278367"
+  },
+  {
+    "id": "date-picker",
+    "source": "https://uiarc.dev/r/date-picker.json",
+    "file": "src/components/arc/date-picker/date-picker.tsx",
+    "upstreamSha256": "996d6b6703f7478c9ce286a3bbcd49a10aac0cb489b0d8915dfd89dad9c4efb8",
+    "localSha256": "6d44b6ed93f6ee3a62493136e0684cd93975f133b967904616e019f492c09310"
+  },
+  {
+    "id": "date-picker",
+    "source": "https://uiarc.dev/r/date-picker.json",
+    "file": "src/components/arc/date-picker/date-picker.module.css",
+    "upstreamSha256": "fc3907dc484832ef441b367dd16135bf081ec77894ea1ae7c9c59508a2abe95a",
+    "localSha256": "502fe250e56057c02fece3438244d6dca4d97e18a13733a9ffe79fc985dc3882"
   }
 ]

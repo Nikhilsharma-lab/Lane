@@ -164,7 +164,7 @@ it("mixed readiness asks once for ready Requests and keeps partial saved moves w
   const a = app()
   const targets = [
     { ...request, status: "open" as const, requester: null },
-    { ...request, id: "r2", name: "LAN-2", status: "open" as const, pickupBlockedReason: "Add a current value.", requester: "Ana" },
+    { ...request, id: "r2", name: "LAN-2", status: "open" as const, pickupBlockedReason: { code: "plan" as const, reason: "Add a current value." }, requester: "Ana" },
     { ...request, id: "r3", name: "LAN-3", status: "open" as const, requester: null },
   ]
   const onStart = vi.fn()
@@ -235,7 +235,7 @@ it("bulk Done owns one independent Undo for moved IDs and preserves partial reve
 
 it("all-unready bulk pickup explains what to complete without confirmation or optimistic changes", async () => {
   const a = app()
-  const result = await a.moves.moveMany([{ ...request, status: "open", requester: null, pickupBlockedReason: "Add a current value." }],
+  const result = await a.moves.moveMany([{ ...request, status: "open", requester: null, pickupBlockedReason: { code: "plan" as const, reason: "Add a current value." } }],
     "pick-up", { isGuest: false, current: () => true })
   expect(result).toEqual({ status: "success", moved: [], failed: [{ id: "r1", error: "LAN-1: Add a current value." }], notReadyOnly: true, detached: false })
   expect(a.asked()).toBeNull()
@@ -384,4 +384,51 @@ it.each([{ isGuest: true }, { isGuest: false, readOnly: true }])("offers no bulk
   expect(a.asked()).toBeNull()
   expect(a.calls).toEqual([])
   expect(a.shown().status).toBe("open")
+})
+
+// #278: the Done step's Reopen runs the same undo of Mark Done as the toast's Undo, and ends that Undo.
+it("Reopen while the Done toast still offers Undo runs that same undo and takes the Undo away", async () => {
+  const a = app()
+  const move = a.moves.move(request, "done")
+  ;(await a.sent()).response.resolve({ success: true })
+  await move
+  expect(a.undoStore.get()?.requestId).toBe("r1")
+  const reopened = a.moves.reopen(request)
+  const reverse = await a.sent(1)
+  expect(reverse.name).toBe("undoMarkDone")
+  expect(a.undoStore.get()).toBeNull()
+  expect(a.stack.toasts).toHaveLength(1)
+  expect(a.stack.toasts[0]).toMatchObject({ title: "Reopening", action: undefined })
+  reverse.response.resolve({ success: true })
+  await reopened
+  expect(a.stack.toasts[0]).toMatchObject({ type: "success", title: "Back to In progress", description: "LAN-1 is In progress again." })
+  expect(a.shown("r1", "done").status).toBe("in_progress")
+})
+
+it("Reopen after the Done toast has gone says so in its own message, and a refusal says why", async () => {
+  const a = app()
+  const reopened = a.moves.reopen(request)
+  expect(a.stack.toasts[0]).toMatchObject({ type: "loading", title: "Reopening", description: "LAN-1 is moving back to In progress." })
+  ;(await a.sent()).response.resolve({ error: "Undo is only offered right after a Request is marked Done. Further work needs a new Request." })
+  await reopened
+  expect(a.stack.toasts).toHaveLength(1)
+  expect(a.stack.toasts[0]).toMatchObject({ type: "error", title: "Couldn’t reopen", description: "Undo is only offered right after a Request is marked Done. Further work needs a new Request." })
+  expect(a.shown("r1", "done").status).toBe("done")
+})
+
+// #309: a Request whose Goal is No measurable impact has no release to record, so Mark Done doesn't ask "Is it live?"
+// and its Marked Done toast keeps Undo.
+it("Mark Done on a Request with no measurable impact skips Is it live? and keeps the toast's Undo", async () => {
+  const a = app()
+  const done = a.moves.move({ id: "op", name: "LAN-4" }, "done")
+  ;(await a.sent()).response.resolve({ success: true, noMeasurableImpact: true })
+  expect(await done).toMatchObject({ status: "success" })
+  expect(a.isItLive).not.toHaveBeenCalled()
+  expect(a.stack.toasts.at(-1)).toMatchObject({ title: "Marked Done", action: { label: "Undo" } })
+  expect(a.undoStore.get()?.requestId).toBe("op")
+
+  const measured = a.moves.move({ id: "m", name: "LAN-5" }, "done")
+  ;(await a.sent(1)).response.resolve({ success: true })
+  await measured
+  expect(a.isItLive).toHaveBeenCalledTimes(1)
 })

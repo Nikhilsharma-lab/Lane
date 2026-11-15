@@ -27,6 +27,8 @@ export type TransitionOutcome = {
   moved: string[];
   /** Ids it did not move, each with the reason a person can act on. */
   failed: { id: string; error: string }[];
+  /** #309: moved ids whose Goal is No measurable impact, so Mark Done asks no "Is it live?" (they have no release). */
+  noMeasurableImpactIds?: string[];
 };
 
 /**
@@ -78,7 +80,7 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
         : moveRefusal({ ...row, pickupBlockedReason: null }, move)
           ?? (isMember ? null : MEMBERSHIP_UNVERIFIED)
           // #212: a Guest submission is taken on, and its prediction written, before anyone picks it up.
-          ?? (move === "pick-up" ? guestPickupRefusal({ ...row, guestSubmission: guestSubmissionOf(row) }) ?? measurementReadiness(row.expectedImpact, row.requestType) : null);
+          ?? (move === "pick-up" ? guestPickupRefusal({ ...row, guestSubmission: guestSubmissionOf(row) })?.reason ?? measurementReadiness(row.expectedImpact, row.requestType) : null);
       if (error) failed.push({ id, error });
       else eligible.push(id);
     }
@@ -112,7 +114,8 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
     // The rows are locked and were checked above, so a miss here means the
     // database's readiness rule disagreed with Lane's: say so without guessing.
     for (const id of eligible) if (!moved.includes(id)) failed.push({ id, error: `This Request changed before Lane could ${transition.verb}. Refresh and try again.` });
-    return { moved, failed };
+    const noMeasurableImpactIds = move === "done" ? moved.filter((id) => rows.find((r) => r.id === id)?.noMeasurableImpactReason) : [];
+    return { moved, failed, ...(noMeasurableImpactIds.length ? { noMeasurableImpactIds } : {}) };
   });
 
   if (outcome.moved.length) {

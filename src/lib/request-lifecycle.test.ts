@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { availableMove, canEditRequest, moveRefusal, pickupBlockedMessage } from "./request-lifecycle"
+import { availableMove, canEditRequest, moveRefusal, pickupBlockedMessage, pickupRequester } from "./request-lifecycle"
+import { guestPickupRefusal } from "./guest-submission"
 
 describe("canEditRequest", () => {
   const viewer = { id: "u1" }
@@ -15,7 +16,7 @@ describe("canEditRequest", () => {
 })
 
 const member = { isGuest: false }
-const NOT_READY = "Add the current value before picking up this Request."
+const NOT_READY = { code: "plan" as const, reason: "Add the current value before picking up this Request." }
 const unlocked = { exceptionClosure: null, outcomeClosure: null, pickupBlockedReason: null }
 
 describe("availableMove", () => {
@@ -51,13 +52,42 @@ describe("moveRefusal", () => {
     expect(moveRefusal({ status: "done", ...unlocked }, "done")).toBe("This Request is no longer In progress. Refresh to see its current state.")
   })
   it("refuses a pickup that isn't ready with the reason the surfaces show", () => {
-    expect(moveRefusal({ status: "open", ...unlocked, pickupBlockedReason: NOT_READY }, "pick-up")).toBe(NOT_READY)
+    expect(moveRefusal({ status: "open", ...unlocked, pickupBlockedReason: NOT_READY }, "pick-up")).toBe(NOT_READY.reason)
   })
 })
 
 describe("pickupBlockedMessage", () => {
   it("tells someone who can edit the plan what to fix, and anyone else who can", () => {
-    expect(pickupBlockedMessage(NOT_READY, null)).toBe(NOT_READY)
+    expect(pickupBlockedMessage(NOT_READY, null)).toBe(NOT_READY.reason)
     expect(pickupBlockedMessage(NOT_READY, "Sam Lee")).toBe("Ask Sam Lee to add current values before pickup.")
+  })
+  // #280 (decisions.md item 6): a Guest submission's reasons never send a Member to the Guest.
+  it("says a waiting Guest submission's reason as it is: any Member can take it on", () => {
+    const waiting = guestPickupRefusal({ guestSubmission: "waiting", expectedImpact: null, noMeasurableImpactReason: null })!
+    expect(pickupBlockedMessage(waiting, "Sam Lee")).toBe("Take this Guest submission on before picking it up.")
+  })
+  it("sends someone else to whoever took the submission on to set the goal", () => {
+    const takenOn = guestPickupRefusal({ guestSubmission: "taken_on", expectedImpact: null, noMeasurableImpactReason: null })!
+    expect(pickupBlockedMessage(takenOn, null)).toBe("Set the goal before picking up this Request.")
+    expect(pickupBlockedMessage(takenOn, "Mo Taker")).toBe("Ask Mo Taker to set the goal before pickup.")
+  })
+})
+
+describe("pickupRequester", () => {
+  const filed = { guestSubmission: null, creatorName: "Sam Lee" }
+  it("names nobody for a viewer who can change the Request", () => {
+    expect(pickupRequester(filed, true)).toBeNull()
+  })
+  it("names the Requester who filed it, or says the Requester when the name is gone", () => {
+    expect(pickupRequester(filed, false)).toBe("Sam Lee")
+    expect(pickupRequester({ ...filed, creatorName: null }, false)).toBe("the Requester")
+  })
+  it("never names the Guest: nobody while it waits, and whoever took it on after", () => {
+    const guest = { creatorName: "Gita Guest" }
+    expect(pickupRequester({ ...guest, guestSubmission: "waiting" }, false)).toBeNull()
+    expect(pickupRequester({ ...guest, guestSubmission: "taken_on", takenOnByName: "Mo Taker" }, false)).toBe("Mo Taker")
+    expect(pickupRequester({ ...guest, guestSubmission: "taken_on", takenOnByName: null }, false)).toBe("the Requester")
+    // A list row doesn't carry the taker's name: its reason is said as it is.
+    expect(pickupRequester({ ...guest, guestSubmission: "taken_on" }, false)).toBeNull()
   })
 })

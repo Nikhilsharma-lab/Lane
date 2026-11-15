@@ -17,7 +17,8 @@ export const CORRECTION_FIELD_OPTIONS: { value: typeof CORRECTION_FIELDS[number]
 ];
 /** What we learned (#209): one line, at most this long. The database refuses anything else (migration 0043). */
 export const LEARNED_MAX_LENGTH = 280;
-/** Each closure kind only has its own parts to correct. */
-export function correctableFields(kind: 'measured' | 'exception'): readonly typeof CORRECTION_FIELDS[number][] {
-    return kind === 'measured' ? ['actual', 'guardrails', 'evidence', 'observation', 'learned'] : ['reason', 'learned'];
+/** Each closure kind only has its own parts to correct, and Guardrails only when some were agreed (#279). */
+export function correctableFields(kind: 'measured' | 'exception', { guardrails }: { guardrails: boolean }): readonly typeof CORRECTION_FIELDS[number][] {
+    if (kind === 'exception') return ['reason', 'learned'];
+    return guardrails ? ['actual', 'guardrails', 'evidence', 'observation', 'learned'] : ['actual', 'evidence', 'observation', 'learned'];
 }

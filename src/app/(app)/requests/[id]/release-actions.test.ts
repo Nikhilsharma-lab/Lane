@@ -37,7 +37,8 @@ it('records past exposure once and derives UTC measurement deadline from exposur
     expect(saved).toEqual({ success: true, revision: 1 });
     expect(await api.changeRequestRelease(ctx, release)).toEqual(saved);
     const view = await api.readRequestRelease(id, { orgId });
-    expect(view).toMatchObject({ release: { exposureDate: '2026-10-21', audience: 'All shoppers', dueDate: '2026-10-28', windowKind: 'relative' }, measurement: { label: 'Due in 3 days', due: false }, requesterId: 'release_owner' });
+    // #278: the release saves the agreed goal's audience in the plan's own words, not the Request's "Users" field.
+    expect(view).toMatchObject({ release: { exposureDate: '2026-10-21', audience: 'All users', dueDate: '2026-10-28', windowKind: 'relative' }, measurement: { label: 'Due in 3 days', due: false }, requesterId: 'release_owner' });
     const [row] = await connection `select status,priority,release_state from requests where id=${id}`;
     expect(row.status).toBe('done');
     expect(row.priority).toBe('high');
@@ -79,12 +80,46 @@ it('corrects relative exposure, requires reasons and explicit agreed-audience co
     vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
     const api = await import('./release-actions');
     const id = await fixture();
-    for (const invalid of [{ ...release, audienceConfirmed: false }, { ...release, exposureDate: '2026-02-30' }, { ...release, exposureDate: '2026-10-26' }, { ...release, evidence: '' }, { ...release, actorId: 'release_admin' }])
+    for (const invalid of [{ ...release, audienceConfirmed: false }, { ...release, exposureDate: '2026-02-30' }, { ...release, exposureDate: '2026-10-27' }, { ...release, evidence: '' }, { ...release, actorId: 'release_admin' }])
         expect(await api.changeRequestRelease(context(id), invalid)).toHaveProperty('error');
     await api.changeRequestRelease(context(id), release);
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', reason: '' })).toHaveProperty('error');
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-20', reason: 'Verified original exposure log' })).toHaveProperty('success', true);
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { dueDate: '2026-10-27' } });
+});
+// #309: a Request whose Goal is No measurable impact has no measurement window, so nothing is released or corrected.
+it('refuses to record or correct a release for a Request with no measurable impact, saving nothing', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T12:00:00Z'));
+    const api = await import('./release-actions');
+    const [row] = await connection `insert into requests(org_id,title,description,affected_people,created_by,status,priority,created_at,no_measurable_impact_reason) values (${orgId},'Rename tokens','Token rename','Engineers','release_owner','done','high','2026-10-01T00:00:00Z','Token rename with no user-facing change') returning id`;
+    const refusal = { error: 'This Request has no measurable impact, so there’s no release to record.' };
+    expect(await api.changeRequestRelease(context(row.id), release)).toEqual(refusal);
+    expect(await api.changeRequestRelease(context(row.id), { ...release, valueBeforeRelease: undefined })).toEqual(refusal);
+    expect(await api.changeRequestRelease(context(row.id), { ...release, kind: 'correct', reason: 'Release log had the wrong date' })).toEqual(refusal);
+    const [after] = await connection `select status,release_state,agreement_revision,exception_closure from requests where id=${row.id}`;
+    expect(after).toEqual({ status: 'done', release_state: null, agreement_revision: 0, exception_closure: null });
+    // Everyone sees the same reason the server gives.
+    expect(await api.readRequestRelease(row.id, { orgId })).toMatchObject({ noMeasurableImpactReason: 'Token rename with no user-facing change', actions: { release: { allowed: false, reason: refusal.error }, correctRelease: { allowed: false, reason: refusal.error }, closeWithoutResult: { allowed: true } } });
+});
+// #309: a released Request keeps its measured Goal: only an Open Request can be edited, so its Goal can't become No
+// measurable impact after the release.
+it('refuses to switch a released Request\'s Goal to No measurable impact', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T12:00:00Z'));
+    const api = await import('./release-actions');
+    const { saveRequestEdits } = await import('./edit-actions');
+    const { requestEditSnapshot } = await import('@/lib/request-edit');
+    const { db, requests } = await import('@/db');
+    const { eq } = await import('drizzle-orm');
+    const id = await fixture();
+    expect(await api.changeRequestRelease(context(id), release)).toEqual({ success: true, revision: 1 });
+    const [saved] = await db.select().from(requests).where(eq(requests.id, id));
+    const changes = { title: saved.title, description: saved.description, affectedPeople: saved.affectedPeople ?? '', desiredChange: '', observedEvidence: '', uncertainty: '', usefulLink: '',
+        projectId: null, requestType: null, priority: 'high', reframedProblem: null, extractedSolution: null, expectedImpact: { kind: 'no_measurable_impact', reason: 'Nothing to measure after all' } };
+    expect(await saveRequestEdits(id, { snapshot: requestEditSnapshot(saved as never), changes }, { orgId })).toEqual({ error: 'Only Open Requests can be edited. This Request has already been picked up.' });
+    const [row] = await connection `select expected_impact is not null as measured, no_measurable_impact_reason, release_state->'release'->>'exposureDate' as released from requests where id=${id}`;
+    expect(row).toEqual({ measured: true, no_measurable_impact_reason: null, released: '2026-10-21' });
 });
 it('blocks wrong lifecycle, guests and foreign workspace reads/writes', async () => {
     const api = await import('./release-actions');
@@ -161,20 +196,53 @@ it('lets the Requester correct and void a release after another member departs',
     roster.ids = roster.ids.filter(id => id !== 'release_designer');
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ actions: { correctRelease: { allowed: true } } });
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-20', reason: 'Verified original exposure log' })).toHaveProperty('success', true);
-    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { exposureDate: '2026-10-20', dueDate: '2026-10-27', audience: 'All shoppers' } });
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: { exposureDate: '2026-10-20', dueDate: '2026-10-27', audience: 'All users' } });
     expect(await api.changeRequestRelease(context(id, 2), { kind: 'void', reason: 'Only staging was exposed', neverExposed: true })).toHaveProperty('success', true);
 });
-it('rejects exposure before the Request was created, for releases and corrections alike', async () => {
+// #277 (#235 item 8): the earliest release date is the pickup day. Pickup and release are UTC days while the picker
+// offers the viewer's own days, so the server allows one day either side: UTC pickup day minus one to UTC today plus one.
+it('accepts a release date from the day before the UTC pickup day, and refuses earlier ones with the pickup day', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
     const api = await import('./release-actions');
     const id = await fixture();
-    // Created late on 20 October UTC; work cannot reach users before that day. Reviews play no part.
+    // Filed on 1 October, picked up late on 20 October UTC: still 20 October in London, already 21 October in Kolkata.
+    await connection `update requests set picked_up_at='2026-10-20T23:30:00Z' where id=${id}`;
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ earliestRelease: '2026-10-20T23:30:00.000Z' });
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-18' })).toEqual({ error: 'The release date can’t be before the work was picked up on 20 Oct.' });
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-19' })).toHaveProperty('success', true);
+    expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-18', reason: 'Wrong log' })).toEqual({ error: 'The release date can’t be before the work was picked up on 20 Oct.' });
+});
+it('falls back to the filed day for a Request with no recorded pickup time, with the same one-day tolerance', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
+    const api = await import('./release-actions');
+    const id = await fixture();
+    // Older work has no pickup time. Filed late on 20 October UTC; reviews play no part.
     await connection `update requests set created_at='2026-10-20T23:30:00Z' where id=${id}`;
-    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ earliestExposure: '2026-10-20' });
-    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-19' })).toEqual({ error: 'The release date cannot be before the Request was created on 20 Oct.' });
-    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-20' })).toHaveProperty('success', true);
-    expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-19', reason: 'Wrong log' })).toHaveProperty('error');
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ pickedUpAt: null, earliestRelease: '2026-10-20T23:30:00.000Z' });
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-18' })).toEqual({ error: 'The release date can’t be before the Request was filed on 20 Oct.' });
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-19' })).toHaveProperty('success', true);
+});
+it('accepts the day after UTC today, for a viewer east of UTC, and refuses any later day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // 22:00 UTC on 24 October is already 25 October east of UTC.
+    vi.setSystemTime(new Date('2026-10-24T22:00:00Z'));
+    const api = await import('./release-actions');
+    const id = await fixture();
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-26' })).toEqual({ error: 'The release date can’t be in the future.' });
+    expect(await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-25' })).toHaveProperty('success', true);
+});
+it('lets a correction keep a saved release date from before the pickup-day rule', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-25T00:00:00Z'));
+    const api = await import('./release-actions');
+    const id = await fixture();
+    // Recorded under the filed-day rule, before the pickup time was known.
+    await api.changeRequestRelease(context(id), { ...release, exposureDate: '2026-10-05' });
+    await connection `update requests set picked_up_at='2026-10-20T10:00:00Z' where id=${id}`;
+    expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-05', evidence: 'Corrected evidence link', reason: 'Wrong log' })).toHaveProperty('success', true);
+    expect(await api.changeRequestRelease(context(id, 2), { ...release, kind: 'correct', exposureDate: '2026-10-04', reason: 'Wrong log' })).toEqual({ error: 'The release date can’t be before the work was picked up on 20 Oct.' });
 });
 it('records release with no reviewers and with an open concern', async () => {
     const api = await import('./release-actions');
@@ -315,7 +383,8 @@ it('requires the value before release for a measured plan: never blank, never an
     expect(await api.changeRequestRelease(context(id), withoutValue)).toHaveProperty('error');
     expect(await api.changeRequestRelease(context(id), { ...release, valueBeforeRelease: { value: null, unit: '%' } })).toHaveProperty('error');
     expect(await api.changeRequestRelease(context(id), { ...release, valueBeforeRelease: { value: 50, unit: 'seconds' } })).toEqual({ error: 'Enter the value before release in %.' });
-    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: null, valueBefore: { required: true, unit: '%' } });
+    expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ release: null, valueBefore: { required: true, unit: '%', current: 50 } });
+    // #277: the release form starts from the goal's current value; the person changes it if the value moved.
     expect(await api.changeRequestRelease(context(id), release)).toEqual({ success: true, revision: 1 });
     expect(await api.changeRequestRelease(context(id, 1), { ...withoutValue, kind: 'correct', reason: 'Wrong log' })).toHaveProperty('error');
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', valueBeforeRelease: { value: 48, unit: '%' }, reason: 'Wrong log' })).toHaveProperty('success', true);

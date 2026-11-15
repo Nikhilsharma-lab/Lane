@@ -6,7 +6,7 @@ import type { ContextMenuItem } from "@/components/arc/context-menu/context-menu
 import { rowJourney, type OverviewRequest } from "@/lib/request-overview"
 import { formatRequestCode } from "@/lib/request-code"
 import { type RequestPriority } from "@/lib/request-constants"
-import { availableMove, pickupBlockedMessage, type AvailableMove, type LifecycleMove } from "@/lib/request-lifecycle"
+import { availableMove, pickupBlockedMessage, pickupRequester, type AvailableMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { usePendingRows } from "./pending-mutations-provider"
 import { useListAnnouncer } from "./list-announcer"
 import { restoreRequestFocus, rowIndexOf } from "./list-focus"
@@ -115,7 +115,7 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
       ] }
       if (readOnly) return [copyItem]
       const next = availableMove(request, { isGuest })
-      const reason = next?.blockedReason ? pickupBlockedMessage(next.blockedReason, request.canEdit ? null : request.creatorName || "the Requester") : undefined
+      const reason = next?.blockedReason ? pickupBlockedMessage(next.blockedReason, pickupRequester({ guestSubmission: request.guestSubmission ?? null, creatorName: request.creatorName }, Boolean(request.canEdit))) : undefined
       return [
         // The lifecycle verb sits at the top; the Status submenu keeps the full picture.
         ...(next ? [{ id: "lifecycle", label: next.label, icon: <StatusGlyph status={next.to} />, disabled: Boolean(reason), description: reason, onSelect: reason ? undefined : () => move(request, next.move) }] : []),

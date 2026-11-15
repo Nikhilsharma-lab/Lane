@@ -349,6 +349,10 @@ For a solution or hybrid, Lane proposes a problem-framed version and explains wh
 reframe and must confirm it before saving. The gate must preserve the submitter's meaning, expose uncertainty,
 and fail recoverably. It must not fabricate user evidence.
 
+Editing an Open Request runs the gate again only when its description changes (#280, 2026-11-09; code only, no
+schema change). A title-only edit keeps the saved classification, "Problem to solve" and "Suggested change". When a
+re-check would change or remove either, the review step shows them before and after saving.
+
 ### 4.3 Save and expose the Request — Current implementation; target constraint added
 
 An accepted Request appears on the shared board. Every non-guest member sees the same board and may open the
@@ -378,7 +382,8 @@ reviewers, which an admin could add before, are retired. Migration 0044 removes 
 - A reviewer answers **Looks good** or **Raise a concern** with a reason. A concern clears only when that
   reviewer changes their answer or the Request is edited.
 - Editing what the Request says (content, Goal, type, Project, labels) resets every answer and
-  tells reviewers who had answered; priority does not.
+  tells reviewers who had answered; priority does not. Before saving, the Edit dialog names the answers it
+  clears ("Saving clears Daniel’s concern and 1 other answer. They’ll be told.", #280).
 - Reviews never block pickup. Picking up with open concerns or unanswered reviews asks for confirmation
   (one combined confirmation for bulk pickup). After pickup the reviewer list is read-only; unanswered
   reviews read "No answer before pickup". A reviewer who leaves the workspace stays listed, greyed out,
@@ -495,6 +500,12 @@ limitations. A merged PR or deployment alone does not prove customer exposure. P
 and follow-through, engineering owns deployment in its tools, and design checks the implemented experience.
 Links do not imply automatic integrations or release automation. Partial-release representation and control
 details must be resolved in the release increment's plan before implementation.
+
+**Release date bounds, 2026-11-09 (#277, #235 item 8):** the release date can be no earlier than the day the work
+was picked up (the day the Request was filed, for older work with no pickup time) and no later than today, both in
+the person's own time zone. Pickup and today are stored as UTC days, so the server allows one day either side
+(UTC pickup day minus one to UTC today plus one) and never refuses a valid local choice. A correction may keep the
+date already saved.
 
 ### 4.10 Measure and close — Approved target
 
@@ -785,6 +796,12 @@ Reporting requirements for the bounded design:
   **Closed without a result before any Release, decided 2026-10-26:** it appears in the Outcome report under "Closed
   without a result" (and its At a glance count) in the period it was closed (UTC). It is never counted as shipped or
   in any total.
+  **No release for No measurable impact, decided 2026-11-12 (#309):** a Request whose Goal is No measurable impact
+  has no measurement window, so Record release isn't offered (the Done step says why) and the server refuses to record
+  or correct one. Mark Done asks no "Is it live?" for it and keeps the toast's Undo. Its Requester closes it as Closed
+  without a result, "Can’t be measured" chosen and the Goal's reason shown, so it appears under "Closed without a
+  result" as above. Releasing operational work without a window stays an open decision (it needs a migration).
+  Integration branch only.
   **What we learned, Quarter note and printing, approved 2026-10-25 (#195, #209):** both closing forms (with a
   measured result, and Closed without a result) have an optional one-line What we learned box (up to 280 characters),
   stored with the closure (migration 0043). After closing it changes only by a Correction ("What we learned"); the
@@ -1127,6 +1144,8 @@ increment at a time.
   migrated, 2026-10-10) for 15 minutes after the move: the Request returns to In Progress and its Done
   notification is withdrawn. This is the undo of Mark Done, offered to the same members who can mark Done,
   not a reverse lifecycle move; Closed outcomes never reopen this way.
+  2026-11-09 (#278): the 15 minutes count from the saved Done time, so an unrelated edit can't restart them,
+  and Request detail's Done step offers this undo as **Reopen** until the release is recorded.
 - **2026-10-09:** Saved priority (none, urgent, high, medium, low) is a triage signal members set from the
   list; it does not assign people or start work.
 - **2026-10-18:** Design review happens entirely in Figma. Lane retains design links and Request tracking;

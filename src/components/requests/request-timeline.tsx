@@ -2,7 +2,6 @@
 import { callAction } from "@/lib/action-call"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "@/components/link"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/arc/button/button"
 import { Timeline, type TimelineEvent } from "@/components/arc/timeline/timeline"
 import { Check, CirclePlus, Play, History } from "lucide-react"
@@ -10,33 +9,34 @@ import { useOptionalDetailRequest } from "./detail-context"
 import { useInBrowser } from "./local-time"
 import { readRequestJourney } from "@/app/(app)/requests/[id]/journey-actions"
 import { formatRequestCode } from "@/lib/request-code"
-import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison"
 import { plannedDay } from "@/lib/dates"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { canChange } from "@/lib/request-access-rules"
 import { FORMER_MEMBER, type JourneyAction } from "@/lib/request-journey"
-import { CORRECTION_FIELD_OPTIONS } from "@/lib/request-outcome-options"
+import { reopenEndsAt } from "@/lib/reopen-window"
+import { useToastStack } from "@/components/arc/toast-stack/toast-stack"
+import { useListAnnouncer } from "./list-announcer"
+import { usePendingMutationWriter } from "./pending-mutations-provider"
+import { useRequestMoves } from "./request-moves"
 import type { ReleaseEvent } from "@/lib/request-release"
 import type { RequestDetail } from "./detail-view"
-import { ReleaseForm } from "./release-form"
-import { InPageForm } from "@/components/popup/in-page-form"
 import { RequestReviews } from "./request-reviews"
-import { ClosureCorrectionForm, CloseWithoutResultForm, FollowUpForm, HandoverForm, MeasuredCloseForm, resultValue, VoidReleaseForm } from "./request-timeline-forms"
-import { DUE_DATE_LINE, evidenceLine, fixedWindowLine, learnedLine, observedLine, timelineSteps, type JourneyOutline, type OutlineLine, type TimelineStep } from "./request-timeline-model"
+import { JourneyStepActions } from "./journey-step-actions"
+import { JourneyStepForm } from "./journey-step-form"
+import { EvidenceLine, journeyStepDetails } from "./journey-step-details"
+import { liveJourney, timelineSteps, type JourneyOutline, type OutlineLine, type TimelineStep } from "./request-timeline-model"
 import { JourneyLine } from "./journey-line"
 import { LocalTime } from "./local-time"
-import { createJourneyRefresh, watchJourneyDate } from "./journey-refresh"
+import { createJourneyRefresh, viewerToday, watchJourneyDate } from "./journey-refresh"
 import styles from "./request-timeline.module.css"
 import { RequestPanePanel } from "./request-pane-tabs"
 import { Placeholder } from "@/components/loading/placeholder";
 import { SectionHeading } from "./section-heading";
 
-type Views = Exclude<Awaited<ReturnType<typeof readRequestJourney>>, { error: string }>
+export type Views = Exclude<Awaited<ReturnType<typeof readRequestJourney>>, { error: string }>
 
 const NO_OUTLINE: JourneyOutline = { steps: [], history: false }
 const LOAD_FAILED = "Couldn’t load the journey. Try again."
-/** #263: a step's action button, where focus goes back when its form closes. */
-const actionButton = (action: JourneyAction) => document.querySelector<HTMLElement>(`#journey [data-journey-action="${action}"]`)
 const STATE_WORDS: Record<TimelineStep["state"], string> = { finished: "finished", current: "current step", upcoming: "not reached yet", skipped: "skipped" }
 
 /** One shared projection through the explicit session-recovery path. */
@@ -92,47 +92,85 @@ export function RequestTimeline(props: Props) {
 }
 
 function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: Props) {
-  const peek = useOptionalDetailRequest()?.peek
-  const router = useRouter()
+  const detail = useOptionalDetailRequest()
+  const peek = detail?.peek
   const requestId = request.id
+  // B1: the live Request, as the strip and the properties show it (the server row with any move still on its way).
+  const live = detail?.request.id === requestId ? detail.request : request
   const revision = request.agreementRevision ?? 0
   const [views, setViews] = useState<Views | null>(null)
   const [error, setError] = useState("")
   const [mode, setMode] = useState<JourneyAction | null>(null)
+  // C2-4: a close this page saved, shown as Closed until the reads bring the closure back.
+  const [closedHere, setClosedHere] = useState<{ withoutResult: boolean } | null>(null)
+  // The viewer's clock as of the latest read, and when Reopen's minutes end: the day and Reopen are read against it.
+  const [clock, setClock] = useState(() => new Date(request.createdAt).getTime())
   const heading = useRef<HTMLHeadingElement>(null)
+  const { toast } = useToastStack()
+  const moves = useRequestMoves({ orgId, announce: useListAnnouncer() })
+  const overlay = usePendingMutationWriter()
   const [refresh] = useState(() => createJourneyRefresh({
     read: () => readViews(requestId, orgId),
     show: (next) => {
       if ("error" in next) setError(next.error)
-      else { setViews(next); setError("") }
+      else { setViews(next); setError(""); setClock(Date.now()) }
     },
   }))
   useEffect(() => {
     refresh.activate()
     return () => refresh.dispose()
   }, [refresh])
-  // Saved pickup/Done/Undo changes status without changing the journey revision.
-  // Keep those reads in the same lifetime, including deferral while a form is open.
-  useEffect(() => { void refresh.reload() }, [refresh, revision, request.status])
+  // Pickup, Done and Reopen change status without changing the journey revision. Read again whenever the shown status
+  // moves, once the move has answered (so the read sees it), in the same lifetime, deferred while a form is open.
+  const liveStatus = live.status
+  const serverStatus = request.status
+  useEffect(() => {
+    // Nothing on its way: read now, as the page loads.
+    if (liveStatus === serverStatus || !overlay) { void refresh.reload(); return }
+    let current = true
+    void overlay.settled(requestId).then(() => { if (current) void refresh.reload() })
+    return () => { current = false }
+  }, [refresh, overlay, requestId, revision, serverStatus, liveStatus])
   const today = views?.release.today
   useEffect(() => {
     if (today) return watchJourneyDate(today, () => { void refresh.reload() })
   }, [today, refresh])
+  // Reopen hides itself when its minutes end, without a reload.
+  const doneAt = views?.release.doneAt ?? null
+  useEffect(() => {
+    if (!doneAt || reopenEndsAt(doneAt) <= clock) return
+    const timer = window.setTimeout(() => setClock(Date.now()), reopenEndsAt(doneAt) - Date.now())
+    return () => window.clearTimeout(timer)
+  }, [doneAt, clock])
 
   function saved() {
+    // A close shows as Closed at once, and says so (C2-4).
+    if (mode === "close" || mode === "closeWithoutResult") {
+      setClosedHere({ withoutResult: mode === "closeWithoutResult" })
+      toast({ type: "success", title: "Request closed", description: `${detail?.name ?? "This Request"} is ${mode === "close" ? "Closed" : "Closed without a result"}.` })
+    }
     setMode(null)
     void refresh.saved(() => heading.current?.focus())
+  }
+  function reopen() {
+    // The Done step and its button go; the Journey keeps focus.
+    heading.current?.focus()
+    void moves.reopen({ id: requestId, name: detail?.name ?? request.title })
   }
   function cancel() {
     setMode(null)
     void refresh.closeForm()
+  }
+  function openForm(action: JourneyAction) {
+    refresh.openForm()
+    setMode(action)
   }
 
   if (!views && error) return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <SectionHeading level={2} id="journey-heading" className={styles.heading}>Journey</SectionHeading>
     <p role="alert">{error}</p><div className={styles.controls}><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></div>
   </section></RequestPanePanel>{peek && <RequestPanePanel value="activity"><p role="alert">{error}</p><Button variant="secondary" onClick={() => { void refresh.reload() }}>Try again</Button></RequestPanePanel>}</>
-  const open = request.status === "open"
+  const open = live.status === "open"
   // Drawn in the outline, read once the journey's reads are back: the reviewers' read would otherwise go ahead of them.
   const reviews = <RequestReviews requestId={requestId} orgId={orgId} isGuest={isGuest} revision={revision} deferred={!views}
     expected={{ reviewers: request.reviewerOutline ?? [], open, canAdd: open && !isGuest && !readOnly, canRemove: open && !!reader && canChange(reader, request) }} />
@@ -151,10 +189,11 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
       <ol className={styles.steps}>
         {outline.steps.map(step => stepItem(step, {
           happened: step.happened.map(outlineLine), details: step.reviews ? reviews : null, countdown: null, next: step.after.map(outlineLine),
-          actions: step.actions.length > 0 && <Placeholder><ul className={styles.actions} aria-hidden="true" data-pending="actions">
+          actions: step.actions.length + step.more.length > 0 && <Placeholder><ul className={styles.actions} aria-hidden="true" data-pending="actions">
             {step.actions.map(action => <li key={action.action} className={styles.action}>
               <HeldButton label={action.label} />{!action.available && <span className={styles.heldReason}>{action.reason}</span>}
             </li>)}
+            {step.more.length > 0 && <li className={styles.action}><HeldButton label="More" /></li>}
           </ul></Placeholder>, form: null,
         }))}
       </ol>
@@ -166,62 +205,15 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
   const names = { ...release.names, ...outcome.names }
   const name = (id: string) => names[id] ?? FORMER_MEMBER
   const steps = timelineSteps({
-    journey: release.journey, workStatus: release.workStatus, isGuest, readOnly, audience: release.audience,
+    ...liveJourney({ journey: release.journey, workStatus: release.workStatus, release: release.release }, { status: live.status, closed: closedHere }),
+    isGuest, readOnly, audience: release.audience,
     requesterName: release.requesterName, requestedBy: request.creatorName || FORMER_MEMBER, requestedAt: new Date(request.createdAt).toISOString(),
-    assigneeName: request.assigneeName, pickedUpAt: release.pickedUpAt, doneAt: release.doneAt, release: release.release, releaseHistory: release.history,
-    closure: outcome.closure, names, hasAgreedResult: Boolean(outcome.agreed),
-    actions: release.actions, now: new Date(`${release.today}T00:00:00Z`),
+    assigneeName: live.assigneeName, pickedUpAt: release.pickedUpAt, doneAt: release.doneAt, release: release.release, releaseHistory: release.history,
+    closure: outcome.closure, names, hasAgreedResult: Boolean(outcome.agreed), noMeasurableImpact: Boolean(release.noMeasurableImpactReason),
+    // The countdown counts the viewer's own day; the server decides when Close Request opens (its actions).
+    actions: release.actions, now: new Date(`${viewerToday(new Date(clock))}T00:00:00Z`), clock: new Date(clock),
   })
   const form = { requestId, orgId, revision: release.revision, onSaved: () => { void saved() }, onCancel: cancel }
-  const closure = outcome.closure
-  const agreed = outcome.agreed
-
-  function stepForm(action: JourneyAction) {
-    switch (action) {
-      case "release": return <ReleaseForm {...form} audience={release.audience} earliestExposure={release.earliestExposure} today={release.today} valueBefore={release.valueBefore} />
-      case "correctRelease": return release.release && <ReleaseForm {...form} audience={release.audience} earliestExposure={release.earliestExposure} today={release.today} valueBefore={release.valueBefore} correcting={{ ...release.release, valueBefore: release.recordedValueBefore }} />
-      case "voidRelease": return <VoidReleaseForm {...form} />
-      case "close": return agreed && <MeasuredCloseForm {...form} agreed={agreed} release={release.release} />
-      case "closeWithoutResult": return <CloseWithoutResultForm {...form} />
-      case "correctClosure": return closure && <ClosureCorrectionForm {...form} closureKind={closure.kind} result={closure.kind === "measured" ? closure.primary.kind === "numeric" ? { kind: "numeric", unit: closure.primary.unit } : { kind: "pass_fail" } : null} />
-      case "followUp": return <FollowUpForm {...form} onCreated={id => router.push(`/requests/${id}`)} />
-      case "handover": return <HandoverForm {...form} people={release.people} />
-    }
-  }
-
-  function details(step: TimelineStep) {
-    if (step.state !== "finished" && step.state !== "current") return null
-    if (step.status === "open") return reviews
-    if (step.status === "measuring") {
-      const fact = release.release ?? closure?.release
-      if (!fact) return null
-      return <div className={styles.facts}>
-        <p className={styles.muted}>{evidenceLine(fact.evidence)}</p>
-        {release.recordedValueBefore && <p className={styles.muted}>Value before release: {resultValue(release.recordedValueBefore.value, release.recordedValueBefore.unit)}.</p>}
-        {fact.windowKind === "fixed" && <p className={styles.muted}>{fixedWindowLine(fact)}</p>}
-        {step.state === "current" && <p className={styles.muted}>{DUE_DATE_LINE}</p>}
-      </div>
-    }
-    if (step.status !== "closed" || !closure) return null
-    return <div className={styles.facts}>
-      {agreed && closure.kind === "measured" && <dl className={styles.facts}>
-        <div><dt>Expected {agreed.form === "numeric" ? "metric" : "check"}</dt><dd>{agreed.label}{agreed.form === "numeric" && `: ${resultValue(agreed.baseline, agreed.unit)} → ${resultValue(agreed.target, agreed.unit)}`}</dd></div>
-        <div><dt>Actual</dt><dd>{closure.primary.kind === "numeric" ? resultValue(closure.primary.actual, closure.primary.unit) : closure.primary.passed ? "Passed" : "Did not pass"}</dd></div>
-        {closure.guardrails.map((g, i) => <div key={i}><dt>Guardrail: {g.metric}</dt><dd>Stays {guardrailComparisonPhrase[g.operator]} {resultValue(g.limit, g.unit)} · Actual {resultValue(g.actual, g.unit)} · {g.held ? "Held" : "Breached"}</dd></div>)}
-      </dl>}
-      {closure.kind === "measured" && <>
-        <p>{evidenceLine(closure.evidence)}</p>
-        <p className={styles.muted}>{observedLine(closure)}</p>
-      </>}
-      {closure.kind === "exception" && closure.reason && <p>{closure.reason}</p>}
-      {/* #209: the line as given at closing; a Correction below shows any new wording beside it. */}
-      {closure.learned && <p>{learnedLine(closure.learned)}</p>}
-      {!!outcome.corrections.length && <div className={styles.facts}><SectionHeading level={4}>Corrections</SectionHeading><ol className={styles.list}>{outcome.corrections.map(c => <li key={c.operationId}>
-        <p>{CORRECTION_FIELD_OPTIONS.find(o => o.value === c.field)?.label}: {c.value && <>{c.value.kind === "numeric" ? resultValue(c.value.actual, closure.kind === "measured" && closure.primary.kind === "numeric" ? closure.primary.unit : "") : c.value.passed ? "Passed" : "Did not pass"}. </>}{c.correction}</p>
-        <p className={styles.muted}>Reason: {c.reason}. Added by {name(c.actorId)} on <LocalTime iso={c.at} day />.</p>
-      </li>)}</ol></div>}
-    </div>
-  }
 
   return <><RequestPanePanel value="journey"><section id="journey" aria-labelledby="journey-heading" className={styles.timeline}>
     <div className={styles.header}>
@@ -236,27 +228,22 @@ function JourneyTimeline({ request, orgId, isGuest, readOnly = false, reader }: 
         const headingId = `journey-${step.status}`
         return stepItem(step, {
           happened: step.happened.map((line, index) => <JourneyLine key={index} line={line} />),
-          details: details(step),
-          countdown: step.countdown && <p role="status" className={styles.countdown}>{step.countdown}</p>,
+          details: journeyStepDetails(step, { views, reviews, name }),
+          countdown: step.countdown && <p role="status" className={styles.countdown} data-tone={step.countdownTone ?? undefined}>{step.countdown}</p>,
           next: step.next && <p className={styles.muted}>{step.next}</p>,
-          actions: !!step.actions.length && mode === null && <ul className={styles.actions} aria-label={`${step.label} actions`}>
-            {step.actions.map((action, index) => <li key={action.action} className={styles.action}>
-              {action.available
-                ? <Button variant={index === 0 ? "primary" : "secondary"} data-journey-action={action.action} onClick={() => { refresh.openForm(); setMode(action.action) }}>{action.label}</Button>
-                : <><Button variant="secondary" disabled aria-describedby={`${headingId}-${action.action}`}>{action.label}</Button><span id={`${headingId}-${action.action}`} className={styles.muted}>{action.reason}</span></>}
-            </li>)}
-          </ul>,
-          form: mode && step.actions.some(a => a.action === mode && a.available) && <InPageForm onDismiss={cancel} returnFocus={() => actionButton(mode)}>{stepForm(mode)}</InPageForm>,
+          actions: <JourneyStepActions step={step} headingId={headingId} onOpen={openForm} onReopen={reopen} />,
+          form: null,
         })
       })}
     </ol>
+    <JourneyStepForm mode={mode} steps={steps} views={views} form={form} />
     {!!release.history.length && <details className={styles.history}>
       <summary>Release and handover history ({release.history.length})</summary>
       <ol className={styles.list}>{release.history.map(event => <li key={event.revision}>
         <p>{historyLine(event)} by {name(event.actorId)} on <LocalTime iso={event.at} day />.</p>
         {"reason" in event.input && <p className={styles.muted}>{event.input.reason}</p>}
         {event.input.kind === "transfer" && <p className={styles.muted}>{name(event.previousOwnerId)} → {name(event.ownerId)}</p>}
-        {event.release && <p className={styles.muted}>Released: {plannedDay(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {plannedDay(event.release.dueDate)}. Evidence: {event.release.evidence}</p>}
+        {event.release && <p className={styles.muted}>Released: {plannedDay(event.release.exposureDate)}. Audience: {event.release.audience}. Due: {plannedDay(event.release.dueDate)}. <EvidenceLine evidence={event.release.evidence} /></p>}
       </li>)}</ol>
     </details>}
     {!!outcome.followUps.length && <div className={styles.facts}>
@@ -287,7 +274,7 @@ function RequestActivity({ request, views: { release, outcome } }: { request: Re
       title: historyLine(event).toLowerCase(), icon: <History data-icon-size="sm" />,
       detail: <div className={styles.facts}>
         {"reason" in event.input && <p>{event.input.reason}</p>}
-        {event.release && <p>Audience: {event.release.audience}. Evidence: {event.release.evidence}</p>}
+        {event.release && <p>Audience: {event.release.audience}. <EvidenceLine evidence={event.release.evidence} /></p>}
       </div>,
     })),
     ...(outcome.closure ? [{ id: "closed", at: outcome.closure.closedAt, title: "Request closed", icon: <Check data-icon-size="sm" /> }] : []),

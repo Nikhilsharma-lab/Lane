@@ -130,12 +130,14 @@ export type JourneyAction =
  * Whether the viewer may take an action now and, when not, why in words to show beside it.
  * `opensOn` (UTC date) is set when the only thing missing is time, so a surface can render the date itself.
  */
-export type ActionAvailability = { allowed: true } | { allowed: false; reason: string; opensOn?: string }
+/** A refusal other code acts on, so nothing matches on its wording. */
+export type RefusalCode = "no_measurable_impact"
+export type ActionAvailability = { allowed: true } | { allowed: false; reason: string; opensOn?: string; code?: RefusalCode }
 
 export type JourneyActions = Record<JourneyAction, ActionAvailability>
 
 const ALLOWED = { allowed: true } as const
-const refuse = (reason: string): ActionAvailability => ({ allowed: false, reason })
+const refuse = (reason: string, code?: RefusalCode): ActionAvailability => ({ allowed: false, reason, ...(code ? { code } : {}) })
 /** The release the work reached at some point: the current one, or the one recorded on its closure. */
 function releasedOnce(facts: JourneyFacts) {
   if (facts.releaseState?.release) return true
@@ -146,7 +148,8 @@ function releasedOnce(facts: JourneyFacts) {
  * Every journey action for this viewer, each allowed or refused with its reason. Server actions must refuse
  * exactly what this refuses, so the UI never offers what the server would turn down.
  *
- * Rules: release, correct and void by any active non-guest member while Done or Measuring and not closed;
+ * Rules: release, correct and void by any active non-guest member while Done or Measuring and not closed, and
+ * release and correct only when the Goal is measured (#309);
  * close, close without a result and corrections by the Requester only; handover by an admin from In progress
  * onwards when the Requester has lost access; a follow-up by any active member once the work was released.
  */
@@ -156,7 +159,16 @@ const READ_ONLY_REASONS: Partial<Record<WorkspacePermission, string>> = {
   viewer: "Viewers can read this Request but can’t change it.",
 }
 
-export function journeyActions(facts: JourneyFacts & { createdBy: string; takenOnBy: string | null }, viewer: JourneyViewer, people: JourneyPeople, now: Date): JourneyActions {
+/**
+ * #309: a Request whose Goal is No measurable impact has no measurement window, so it has no release to record or
+ * correct. Its Requester closes it without a result ("Can’t be measured"), as before any release.
+ */
+export const NO_RELEASE_TO_RECORD = "This Request has no measurable impact, so there’s no release to record."
+
+/** The Request's Goal, as far as the journey needs it: a reason here means No measurable impact. */
+export type JourneyGoal = { noMeasurableImpactReason: string | null }
+
+export function journeyActions(facts: JourneyFacts & JourneyGoal & { createdBy: string; takenOnBy: string | null }, viewer: JourneyViewer, people: JourneyPeople, now: Date): JourneyActions {
   const everything = (reason: string): JourneyActions => ({
     release: refuse(reason), correctRelease: refuse(reason), voidRelease: refuse(reason),
     close: refuse(reason), closeWithoutResult: refuse(reason), correctClosure: refuse(reason),
@@ -171,8 +183,10 @@ export function journeyActions(facts: JourneyFacts & { createdBy: string; takenO
   const closedReason = refuse("This Request is closed.")
   const beforeDone = status === "open" || status === "in_progress"
 
-  const releaseAction = (needsRelease: boolean, missing: string): ActionAvailability => {
+  // A void only takes back a release, so it needs no measured Goal.
+  const releaseAction = (needsRelease: boolean, missing: string, measuredOnly = true): ActionAvailability => {
     if (status === "closed") return closedReason
+    if (measuredOnly && facts.noMeasurableImpactReason) return refuse(NO_RELEASE_TO_RECORD, "no_measurable_impact")
     if (beforeDone) return refuse("Opens once the work is Done.")
     if (needsRelease !== (status === "measuring")) return refuse(missing)
     return ALLOWED
@@ -208,7 +222,7 @@ export function journeyActions(facts: JourneyFacts & { createdBy: string; takenO
   return {
     release: releaseAction(false, "The release is already recorded."),
     correctRelease: releaseAction(true, "There is no release to correct yet."),
-    voidRelease: releaseAction(true, "There is no release to void yet."),
+    voidRelease: releaseAction(true, "There is no release to void yet.", false),
     close: close(),
     closeWithoutResult: closeWithoutResult(),
     correctClosure: correctClosure(),

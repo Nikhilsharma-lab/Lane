@@ -158,6 +158,10 @@
 .countdown {
   font-weight: var(--weight-medium);
 }
+/* C2-11: an overdue result's countdown, in the warning tone at text contrast (Lane's warning ink on the page). */
+.countdown[data-tone="warning"] {
+  color: var(--request-warning-ink);
+}
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -227,4 +231,11 @@
 .holdsButton {
   min-block-size: var(--control-height-md);
   align-items: center;
+}
+/* #279: under a close form's red button, the line that says closing is permanent. The stack's gap sets it apart. */
+.permanent {
+  margin: 0;
+  text-align: end;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }

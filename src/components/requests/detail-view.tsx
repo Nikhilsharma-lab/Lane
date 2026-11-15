@@ -13,10 +13,14 @@ import { DetailProperties, DetailStateLine } from "./detail-properties"
 import { DetailStrip } from "./detail-strip"
 import { RequestPaneTabs, RequestPanePanel } from "./request-pane-tabs"
 import { RequestPaneHeader } from "./request-pane-header"
-import { RequestTitle } from "./request-title"
+import { RequestTitle, ShownTitle } from "./request-title"
 import detailStyles from "./detail.module.css"
 import styles from "./requests.module.css"
 import { SectionHeading } from "./section-heading"
+import { FoldedText } from "./folded-text"
+import { LinkedText } from "@/components/linked-text"
+import type { PickupBlock } from "@/lib/guest-submission"
+import type { AnsweredReviews } from "@/lib/review-reset"
 
 export type RequestStatus = "open" | "in_progress" | "done"
 
@@ -24,9 +28,11 @@ export type RequestDetail = {
   agreementRevision?: number
   agreementBlocked?: boolean
   /** Why it can't be picked up yet (measurementReadiness), from the loader. */
-  pickupBlockedReason?: string | null
+  pickupBlockedReason?: PickupBlock | null
   /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
+  /** #280 (B9): the review answers an edit would clear (concerns by name), or null. */
+  answeredReviews: AnsweredReviews | null
   /** Each saved reviewer's shape, so the reviewers' loading state holds their rows (#295). Optional only for older fixtures. */
   reviewerOutline?: import("@/lib/request-reviewer-rules").ReviewerOutline[]
   /** The journey as the saved Request and its reader draw it, decided on the server: shown until the journey's reads arrive (#295). */
@@ -112,7 +118,7 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
   peekStrip?: (slots: { action?: ReactNode; editAction?: ReactNode }) => ReactNode;
 }) {
   const problem = request.reframedProblem ?? request.description
-  const context = [{ label: "Users", value: request.affectedPeople }, { label: "Desired change", value: request.desiredChange }, { label: "Supporting information", value: request.observedEvidence }, { label: "Open questions", value: request.uncertainty }].filter(item => item.value)
+  const context = [{ label: "Users", value: request.affectedPeople }, { label: "Desired change", value: request.desiredChange }, { label: "Supporting information", value: request.observedEvidence }, { label: "Open questions", value: request.uncertainty }].filter((item): item is { label: string; value: string } => Boolean(item.value))
   const supportingLink = isFigmaLink(request.usefulLink) ? null : request.usefulLink
   const Title = peekStrip ? "h2" : "h1"
   const action = isGuest || viewer.readOnly ? undefined : lifecycleActions
@@ -124,22 +130,22 @@ export function RequestDetailView({ request, comments, attachments, isGuest, vie
         <div className={detailStyles.layout}>
           <div className={detailStyles.main} data-detail-main="">
             {!peekStrip && <header className={detailStyles.titleBlock} data-detail-title="">
-              <RequestTitle as={Title} className={detailStyles.title}>{request.title}</RequestTitle>
+              <RequestTitle as={Title} className={detailStyles.title}><ShownTitle saved={request.title} /></RequestTitle>
               <DetailStateLine />
             </header>}
             <RequestPanePanel value="overview"><section id="problem" aria-labelledby="problem-heading" className={detailStyles.section}>
-              <SectionHeading level={2} id="problem-heading" className="sr-only">Problem</SectionHeading>
-              <p className={detailStyles.description}>{problem}</p>
+              <SectionHeading level={2} id="problem-heading" className={detailStyles.blockHeading}>Problem to solve</SectionHeading>
+              <FoldedText className={detailStyles.description}><LinkedText text={problem} /></FoldedText>
               {supportingLink && <a href={supportingLink} target="_blank" rel="noopener noreferrer" className={styles.fileRow}><LinkIcon aria-hidden="true" /><span className="min-w-0 flex-1 break-all text-sm">{supportingLink}<span className="sr-only"> (opens in a new tab)</span></span><ExternalLink aria-hidden="true" /></a>}
               {request.reframedProblem && <details className={detailStyles.disclosure}>
                 <summary><SectionHeading level={3}>Original Request</SectionHeading></summary>
-                <div className={detailStyles.disclosureBody}><p className={detailStyles.secondaryText}>{request.description}</p></div>
+                <div className={detailStyles.disclosureBody}><p className={detailStyles.secondaryText}><LinkedText text={request.description} /></p></div>
               </details>}
               {request.extractedSolution && <div className={detailStyles.block}>
                 <SectionHeading level={3} className={detailStyles.blockHeading}>Suggested change</SectionHeading>
-                <p className={detailStyles.secondaryText}>{request.extractedSolution}</p>
+                <p className={detailStyles.secondaryText}><LinkedText text={request.extractedSolution} /></p>
               </div>}
-              {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
+              {context.length > 0 && <dl className={detailStyles.context}>{context.map(item => <div key={item.label}><dt>{item.label}</dt><dd><LinkedText text={item.value} /></dd></div>)}</dl>}
 
             </section>
             {guestSubmission}

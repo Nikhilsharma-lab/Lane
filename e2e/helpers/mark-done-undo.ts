@@ -374,12 +374,13 @@ export async function verifySavedStatusSkippedUndo(driver: UndoDriver, orgId: st
     await driver.pickUp();
     await expect(journeyStep(page, "In progress", "current step")).toBeVisible();
     phase("saved-pickup-visible");
-    expect(observer.count()).toBeGreaterThan(0);
+    // #278: the Journey shows the live step before its read; the read follows once the pickup has answered.
+    await expect.poll(() => observer.count(), { timeout: 20_000 }).toBeGreaterThan(0);
     const beforeDone = observer.count();
     await verifyPendingReleaseSkippedUndo(driver, capture);
     await expect(journeyStep(page, "Done", "current step")).toBeVisible();
     phase("saved-done-visible-after-skipped-undo");
-    expect(observer.count()).toBeGreaterThan(beforeDone);
+    await expect.poll(() => observer.count(), { timeout: 20_000 }).toBeGreaterThan(beforeDone);
     // No extra read is required for the unchanged-status refresh after skipped Undo.
   } finally {
     observer.stop();

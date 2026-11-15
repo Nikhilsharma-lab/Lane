@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
 import { toastStack } from "@/test/toast-stack"
 import { requestNavigation } from "@/test/request-navigation"
-import { createIsItLive, IS_IT_LIVE_COPY, promptCloseFocus, type IsItLiveView } from "./is-it-live"
+import { IS_IT_LIVE_COPY, promptCloseFocus, type IsItLiveView } from "./is-it-live"
+import { createIsItLive } from "./is-it-live-state"
 import { createMarkDoneUndoStore } from "./mark-done-undo"
 import { createRequestMoves, type RequestMoveActions } from "./request-moves-controller"
 import { createPendingMutationsStore } from "./pending-mutations-provider"
@@ -52,7 +53,7 @@ describe("Is it live? after Mark Done (#135)", () => {
       title: "Is it live?",
       yes: "Yes, record release",
       notYet: "Not yet",
-      endsUndo: "Once you record the release, you can’t undo Done.",
+      endsUndo: "Once you record the release, you can’t reopen this Request.",
     })
     expect(IS_IT_LIVE_COPY.question("LAN-12")).toBe("LAN-12 is Done. Has the agreed audience received it?")
   })

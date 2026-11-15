@@ -223,18 +223,21 @@ export async function createRequestThroughIntake(
   };
 }
 
-/** The requester asks a teammate to review the Request before work starts. */
-export async function addReviewerThroughUI(team: ReviewTeam, name: string) {
-  const panel = team.pages[0].getByRole("region", {
-    name: "Reviewers",
-    exact: true,
-  });
+/** The Add reviewer popover (#279), an Arc popover portalled outside the Reviewers section. */
+export const addReviewerPopover = (page: Page) => page.getByRole("dialog", { name: "Add reviewer", exact: true });
+
+/** The requester asks a teammate to review the Request before work starts (#279: from the Add reviewer popover). */
+export async function addReviewerThroughUI(team: ReviewTeam, name: string, question = "") {
+  const page = team.pages[0];
+  const panel = page.getByRole("region", { name: "Reviewers", exact: true });
   await panel.getByRole("button", { name: "Add reviewer", exact: true }).click();
-  await panel.getByRole("combobox", { name: "Reviewer", exact: true }).click();
-  await team.pages[0].getByRole("option", { name, exact: true }).click();
-  const submit = panel.getByRole("button", { name: "Add reviewer", exact: true });
+  const popover = addReviewerPopover(page);
+  await popover.getByRole("option").filter({ has: page.getByText(name, { exact: true }) }).click();
+  if (question) await popover.getByLabel("Question (optional)").fill(question);
+  const submit = popover.getByRole("button", { name: "Add reviewer", exact: true });
   await submit.focus();
   await expect(submit).toBeFocused();
   await submit.press("Enter");
+  await expect(popover).toHaveCount(0);
   await expect(panel.getByRole("listitem").filter({ hasText: name })).toContainText("Waiting");
 }

@@ -38,8 +38,8 @@ export function refineFraming(value: Framing & { classification: Classification 
   if (issue) context.addIssue({ code: "custom", message: issue })
 }
 
-export const KEEP_PROBLEM = "Keep the problem to solve, or change the title or description and review again."
-export const KEEP_SOLUTION = "Keep the suggested change, or change the title or description and review again."
+export const KEEP_PROBLEM = "Keep the problem to solve, or change the description and review again."
+export const KEEP_SOLUTION = "Keep the suggested change, or change the description and review again."
 
 export type SavedFraming =
   | { ok: true; framing: Framing }
@@ -78,3 +78,27 @@ export function storedShape(stored: Framing & { classification: Classification |
     ? framingShape(stored.classification)
     : { problem: stored.reframedProblem !== null, solution: stored.extractedSolution !== null }
 }
+
+/** One part of the saved framing an edit's re-check would change or remove: its label, the saved words and the new
+ * ones (null when the new judgement drops the part). */
+export type FramingChange = { label: "Problem to solve" | "Suggested change"; before: string; after: string | null }
+
+/**
+ * #280: what saving an edit's re-check does to the framing saved before it: each saved part it would change or
+ * remove, in reading order. The new judgement's shape decides what is kept (`framingShape`); a part that wasn't
+ * saved has nothing to compare.
+ */
+export function framingChanges(saved: Framing, next: Framing & { classification: Classification }): FramingChange[] {
+  const shape = framingShape(next.classification)
+  const parts = [
+    { label: "Problem to solve" as const, before: saved.reframedProblem, after: shape.problem ? next.reframedProblem : null },
+    { label: "Suggested change" as const, before: saved.extractedSolution, after: shape.solution ? next.extractedSolution : null },
+  ]
+  return parts.flatMap(({ label, before, after }) => {
+    const kept = before?.trim()
+    if (!kept) return []
+    const now = after?.trim() || null
+    return now === kept ? [] : [{ label, before: kept, after: now }]
+  })
+}
+

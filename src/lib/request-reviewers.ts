@@ -110,29 +110,38 @@ export async function notifyReviewers(
  * Worked out at read time from the identity provider; if it is unreachable,
  * everyone counts and nobody is greyed out. Asks the provider only when there
  * is a reviewer.
+ *
+ * `name` (B6): each person has one name, their sign-in name now. The name
+ * saved when they were picked shows only once they've left the workspace, or
+ * while the provider can't be reached.
  */
 export async function reviewerStanding(orgId: string, reviewers: Reviewer[]) {
-  let active: Set<string> | null = null;
+  let active: Map<string, string> | null = null;
   if (reviewers.length)
     try {
-      active = new Set((await workspaceRoster(orgId)).map((p) => p.nominee.userId));
+      active = new Map((await workspaceRoster(orgId)).map((p) => [p.nominee.userId, p.name]));
     } catch {
       active = null;
     }
   return {
     counts: (r: Reviewer) => !active || active.has(r.nominee.userId),
+    name: (r: Pick<Reviewer, "nominee" | "displayNameAtSelection">) => active?.get(r.nominee.userId) ?? r.displayNameAtSelection,
   };
 }
+export type ReviewerStanding = Awaited<ReturnType<typeof reviewerStanding>>;
+
+/** The reviewers whose standing decides a review state: unanswered, or with a concern. */
+export const outstandingReviewers = (reviewers: Reviewer[] | null) =>
+  (reviewers ?? []).filter((r) => r.decision === null || r.decision.kind === "concern");
+
+/** One Request's review state, its reviewers read through `standing`. */
+export const reviewStateFrom = (reviewers: Reviewer[] | null, standing: ReviewerStanding) =>
+  reviewStateOf((reviewers ?? []).map((r) => ({ name: standing.name(r), decision: r.decision, counts: standing.counts(r) })));
 
 /** The review state of saved reviewers: only reviewers who still count. */
 export async function reviewStatesOf(orgId: string, rows: { id: string; reviewers: Reviewer[] | null }[]) {
-  const outstanding = rows.flatMap((row) => (row.reviewers ?? []).filter((r) => r.decision === null || r.decision.kind === "concern"));
-  const standing = outstanding.length ? await reviewerStanding(orgId, outstanding) : null;
-  return new Map(rows.map((row) => [row.id, reviewStateOf((row.reviewers ?? []).map((r) => ({
-    name: r.displayNameAtSelection,
-    decision: r.decision,
-    counts: standing ? standing.counts(r) : true,
-  })))]));
+  const standing = await reviewerStanding(orgId, rows.flatMap((row) => outstandingReviewers(row.reviewers)));
+  return new Map(rows.map((row) => [row.id, reviewStateFrom(row.reviewers, standing)]));
 }
 
 /**
@@ -154,7 +163,7 @@ export async function reviewerViews(saved: Reviewer[], auth: MemberAuth, open: b
     const role = roles.find((p) => p.id === userId)?.role;
     return {
       id: r.id,
-      name: r.displayNameAtSelection,
+      name: standing.name(r),
       note: r.note,
       decision: r.decision,
       active: standing.counts(r),

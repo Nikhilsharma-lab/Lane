@@ -25,12 +25,12 @@ const inProgress = { ...open, status: "in_progress", assignedTo: "user_dev", ass
 
 /** The outline arrives with the Request, drawn on the server for its reader (loadRequestDetail); here, for the reader below. */
 function withOutline(request: RequestDetail, reader: { readOnly?: boolean; isGuest?: boolean }): RequestDetail {
-  const facts = { ...journeyFactsOf(request), createdBy: request.createdBy, takenOnBy: request.takenOnBy ?? null }
+  const facts = { ...journeyFactsOf(request), createdBy: request.createdBy, takenOnBy: request.takenOnBy ?? null, noMeasurableImpactReason: request.noMeasurableImpactReason ?? null }
   const role = reader.readOnly ? "viewer" : reader.isGuest ? "guest" : "member"
   return { ...request, journeyOutline: journeyOutline({
     journey: journeyStatus(facts), workStatus: request.status, isGuest: !!reader.isGuest, readOnly: !!reader.readOnly,
     requestedBy: request.creatorName!, requestedAt: request.createdAt.toISOString(), assigneeName: request.assigneeName, audience: "Everyone this Request is for",
-    hasAgreedResult: false, releaseState: null, closure: null,
+    hasAgreedResult: false, noMeasurableImpact: Boolean(request.noMeasurableImpactReason), releaseState: null, closure: null,
     actions: journeyActions(facts, { id: "user_reader", role, active: true }, { requesterName: "Robin", requesterActive: true }, new Date()),
   }) }
 }
@@ -100,7 +100,10 @@ describe("the Request page before its reads arrive (#295)", () => {
 
   it("holds the Iterations at the height of their empty state, with room for Link a Request", () => {
     const iterations = section(render(open), "iterations")
-    expect(iterations).toMatch(/role="status"[^>]*>Loading Iterations…/)
+    // #279 (story 69): shaped like the section: its heading, then placeholder lines where its words will be.
+    expect(iterations).toMatch(/<h\d[^>]*>Iterations of this problem</)
+    expect(iterations).toMatch(/role="status" aria-label="Loading Iterations" aria-busy="true"/)
+    expect(iterations).not.toContain("Loading Iterations…")
     expect(iterations).toMatch(/aria-hidden="true"[^>]*>No other Request is linked as Same problem yet. Link Requests that tackle the same problem to see each attempt and its result together.</)
     expect(iterations).toMatch(/data-holds-button/)
     // A Viewer sees the section only when the Request is linked, which is rare: nothing is held for them.

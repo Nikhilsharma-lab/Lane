@@ -20,17 +20,22 @@ export function guestSubmissionOf(request: GuestSubmissionFacts): GuestSubmissio
 /** The words a waiting Guest submission is tagged with, on its row and in its name. */
 export const WAITING_TO_BE_TAKEN_ON = "Waiting to be taken on"
 
-export const TAKE_ON_FIRST = "Take this Guest submission on before picking it up."
-export const WRITE_THE_PREDICTION = "Set the goal before picking up this Request."
+/**
+ * Why pickup is blocked, said once for everyone (`reason`), with a code for code that words it per viewer
+ * (`pickupBlockedMessage`): a Guest submission to take on first, its goal to set, or the measurement plan to finish.
+ */
+export type PickupBlock = { code: "take_on_first" | "set_the_goal" | "plan"; reason: string }
+const TAKE_ON_FIRST: PickupBlock = { code: "take_on_first", reason: "Take this Guest submission on before picking it up." }
+const SET_THE_GOAL: PickupBlock = { code: "set_the_goal", reason: "Set the goal before picking up this Request." }
 
 /**
  * Why a Guest submission can't be picked up yet, or null: nobody picks it up while it waits, and the Member who took
  * it on writes the prediction (a measured result, or No measurable impact with its reason) first. Every surface
  * shows this and the server refuses with it.
  */
-export function guestPickupRefusal(request: { guestSubmission: GuestSubmissionState | null; expectedImpact: unknown; noMeasurableImpactReason: string | null }): string | null {
+export function guestPickupRefusal(request: { guestSubmission: GuestSubmissionState | null; expectedImpact: unknown; noMeasurableImpactReason: string | null }): PickupBlock | null {
   if (request.guestSubmission === "waiting") return TAKE_ON_FIRST
-  if (request.guestSubmission === "taken_on" && !request.expectedImpact && !request.noMeasurableImpactReason) return WRITE_THE_PREDICTION
+  if (request.guestSubmission === "taken_on" && !request.expectedImpact && !request.noMeasurableImpactReason) return SET_THE_GOAL
   return null
 }
 

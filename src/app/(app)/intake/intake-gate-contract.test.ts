@@ -18,6 +18,8 @@ const TRIAGE = source("src/lib/ai/triage.ts");
 const TOKEN = source("src/lib/triage-token.ts");
 // The draft's scope and age live in the schema-free key module the composer provider also reads.
 const DRAFT = source("src/lib/intake-draft.ts") + source("src/lib/intake-draft-key.ts");
+const EDIT_FORM = source("src/app/(app)/requests/[id]/edit-request-form.tsx");
+const NEW_REQUEST = source("src/components/requests/new-request-provider.tsx");
 
 describe("Intake Gate contract", () => {
   it("uses shared icons without custom SVG markup", () => {
@@ -97,5 +99,16 @@ describe("Intake Gate contract", () => {
     expect(DRAFT).toContain("userId: string, orgId: string");
     expect(DRAFT).toContain("24 * 60 * 60 * 1000");
     expect(DRAFT).not.toContain("localStorage");
+  });
+
+  it("names the review step's way back for each editor: Back to editing on Edit Request, Edit Request on New Request (#280, B26)", () => {
+    const back = /\{editing\?\.backLabel \?\? "([^"]+)"\}<\/Button>/.exec(FORM);
+    expect(back?.[1]).toBe("Edit Request");
+    expect(EDIT_FORM).toMatch(/editing=\{\{[^}]*backLabel: "Back to editing"/);
+    const composer = /<form\.IntakeForm\b[^>]*\/>/.exec(NEW_REQUEST)?.[0];
+    expect(composer).toBeDefined();
+    expect(composer).not.toContain("editing=");
+    expect(composer).not.toContain("backLabel");
+    expect(NEW_REQUEST).not.toContain("Back to editing");
   });
 });

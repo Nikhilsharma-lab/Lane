@@ -19,6 +19,12 @@ export function RequestDetailSkeleton() {
             <div aria-hidden="true" className={detailStyles.skeletonStateLine} />
           </div>
           <div aria-hidden="true" className={detailStyles.skeletonBlocks}><Skeleton lines={3} /><Skeleton lines={4} /></div>
+          {/* #281 (B27): the comments part, shaped like the Conversation section: its heading, comments, the composer. */}
+          <div aria-hidden="true" className={detailStyles.section} data-skeleton-part="conversation">
+            <div className={detailStyles.skeletonHeading}><Skeleton lines={1} /></div>
+            {[0, 1].map(index => <div key={index} data-skeleton-part="comment"><Skeleton lines={2} avatar /></div>)}
+            <div className={detailStyles.skeletonComposer} data-skeleton-part="composer" />
+          </div>
         </div>
         <div aria-hidden="true" className={detailStyles.panel} data-detail-panel="">
           <div className={detailStyles.properties}>

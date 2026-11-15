@@ -3,11 +3,12 @@ import { JOURNEY_STATUSES, dueSignal, journeyFactsOf, journeyStatus, type DueSig
 import type { ReleaseState } from "./request-release"
 import type { RequestPriority, RequestType } from "./request-properties"
 import type { RequestProjectFilter, RequestStatusFilter } from "./request-workspace"
+import type { PickupBlock } from "@/lib/guest-submission"
 
 export type OverviewRequest = {
   agreementBlocked?: boolean
   /** Why it can't be picked up yet (measurementReadiness), from the loader. */
-  pickupBlockedReason?: string | null
+  pickupBlockedReason?: PickupBlock | null
   /** Saved reviews: open concerns and the unanswered count (#77). Optional only for older fixtures. */
   reviewState?: import("@/lib/request-reviewer-rules").ReviewState | null
   id: string

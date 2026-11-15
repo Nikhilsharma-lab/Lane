@@ -21,6 +21,8 @@ const users = vi.hoisted(() => [
 ]);
 /** Clerk roster roles; a user missing from it has left the workspace. */
 const roster = vi.hoisted(() => new Map<string, string>());
+/** Sign-in names changed since a reviewer was picked; everyone else is named by their user id. */
+const signInNames = vi.hoisted(() => new Map<string, string>());
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({
   auth: async () => ({ ...session }),
@@ -34,7 +36,7 @@ vi.mock("@clerk/nextjs/server", () => ({
           publicUserData: {
             userId,
             identifier: userId + "@example.test",
-            firstName: userId,
+            firstName: signInNames.get(userId) ?? userId,
           },
         })),
       }),
@@ -134,6 +136,7 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   roster.clear();
+  signInNames.clear();
   for (const id of users) roster.set(id, id === guest ? "org:guest" : id === viewer ? "org:viewer" : "org:member");
 });
 afterEach(() => {
@@ -306,6 +309,33 @@ it("a reviewer who left no longer counts: the list, detail and panel agree nothi
   expect(await panel()).toBeNull();
 });
 
+it("B6: reviewers are named by their sign-in name now, in the panel, the list, detail and the Edit warning; the name saved at pick time only once they've left", async () => {
+  const { loadRequestList, loadRequestDetail } = await import("@/lib/data/requests");
+  const api = await import("./reviewer-actions");
+  const id = await freshRequest();
+  await add(id, [member(designer), member(developer)]);
+  await answer(id, designer, "concern", "No API yet.");
+  await answer(id, developer, "looks_good");
+  signInNames.set(designer, "Dana Reyes");
+  signInNames.set(developer, "Dev Patel");
+  const auth = { userId: owner, orgId, role: "member" as const };
+  const named = async () => ({
+    panel: await api.readReviews(id, { orgId }),
+    listed: (await loadRequestList(auth)).rows.find((row) => row.id === id)?.reviewState,
+    detail: (await loadRequestDetail(auth, id))?.request,
+  });
+  let now = await named();
+  expect(now.panel).toMatchObject({ reviewers: [{ name: "Dana Reyes" }, { name: "Dev Patel" }] });
+  expect(now.listed).toEqual({ concerns: [{ name: "Dana Reyes", reason: "No API yet." }], unanswered: 0 });
+  expect(now.detail?.reviewState).toEqual({ concerns: [{ name: "Dana Reyes", reason: "No API yet." }], unanswered: 0 });
+  expect(now.detail?.answeredReviews).toEqual({ concerns: ["Dana Reyes"], others: 1 });
+  // Someone who left the workspace keeps the name saved when they were picked.
+  roster.delete(designer);
+  now = await named();
+  expect(now.panel).toMatchObject({ reviewers: [{ name: "agreement_design", active: false }, { name: "Dev Patel" }] });
+  expect(now.detail?.answeredReviews).toEqual({ concerns: ["agreement_design"], others: 1 });
+});
+
 it("pickup succeeds with an open concern and an unanswered review; afterwards nothing about reviews changes", async () => {
   const api = await import("./reviewer-actions");
   const lifecycle = await import("./actions");
@@ -472,4 +502,51 @@ it("malformed review changes are refused as before and change nothing", async ()
 
   expect(await revisionOf(id)).toBe(revision);
   expect((await reviewersOf(id)).map(r => [r.nominee.userId, r.decision])).toEqual([[designer, null]]);
+});
+
+it("#279: Undo puts a removed reviewer back exactly, note and answer, in their place, telling nobody", async () => {
+  const api = await import("./reviewer-actions");
+  const id = await freshRequest();
+  as(owner);
+  expect(await api.addReviewers(contextFor(id, 0), { nominees: [member(designer), member(developer), member(other)], note: "Is the API ready?" })).toMatchObject({ success: true });
+  await answer(id, developer, "concern", "The API cannot do this yet");
+  const saved = await reviewersOf(id);
+  await connection`delete from notifications where request_id=${id}`;
+  const removed = await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: saved[1].id });
+  expect(removed).toMatchObject({ success: true });
+  const revision = (removed as { revision: number }).revision;
+  const undo = contextFor(id, revision);
+  expect(await api.restoreReviewer(undo, { reviewerId: saved[1].id })).toEqual({ success: true, revision: revision + 1 });
+  // A lost response replays; nothing is put back twice.
+  expect(await api.restoreReviewer(undo, { reviewerId: saved[1].id })).toEqual({ success: true, revision: revision + 1 });
+  expect(await reviewersOf(id)).toEqual(saved);
+  expect(await notificationsFor(id)).toEqual([]);
+  as(developer);
+  expect(await api.readReviews(id, { orgId })).toMatchObject({ reviewers: [{ id: saved[0].id }, { id: saved[1].id, note: "Is the API ready?", decision: { kind: "concern", reason: "The API cannot do this yet" }, canAnswer: true }, { id: saved[2].id }] });
+});
+
+it("#279: Undo only works while nothing else changed, only for whoever removed, and only while the Request is Open", async () => {
+  const api = await import("./reviewer-actions");
+  const id = await freshRequest();
+  await add(id, [member(designer), member(developer)]);
+  const [first, second] = await reviewersOf(id);
+  const removed = await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: first.id }) as { revision: number };
+  // Someone else's change in between: the list is no longer the one the removal left.
+  await answer(id, developer, "looks_good");
+  expect(await api.restoreReviewer(contextFor(id, await revisionOf(id)), { reviewerId: first.id })).toEqual({ error: "The reviewers changed since. Add them again instead." });
+  expect(await api.restoreReviewer(contextFor(id, removed.revision), { reviewerId: first.id })).toEqual({ error: "Request changed. Reload before trying again." });
+  // Another admin can't undo someone else's removal; a reviewer who wasn't the one removed can't come back.
+  const again = await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: second.id }) as { revision: number };
+  // A Member who is neither the Requester nor an admin is told what they can't do: undo the removal.
+  as(designer);
+  expect(await api.restoreReviewer(contextFor(id, again.revision), { reviewerId: second.id })).toEqual({ error: "Only the Requester or a workspace admin can undo removing a reviewer." });
+  as(other, "org:admin");
+  expect(await api.restoreReviewer(contextFor(id, again.revision), { reviewerId: second.id })).toEqual({ error: "The reviewers changed since. Add them again instead." });
+  as(owner);
+  expect(await api.restoreReviewer(contextFor(id, again.revision), { reviewerId: first.id })).toEqual({ error: "The reviewers changed since. Add them again instead." });
+  expect(await api.restoreReviewer(contextFor(id, again.revision), { reviewerId: "not-a-reviewer" })).toEqual({ error: "Choose a reviewer to put back." });
+  expect(await reviewersOf(id)).toEqual([]);
+  // Picked up: reviews are a record.
+  await connection`update requests set status='in_progress', assigned_to=${owner} where id=${id}`;
+  expect(await api.restoreReviewer(contextFor(id, await revisionOf(id)), { reviewerId: second.id })).toEqual({ error: "Work has started. Reviews can no longer change." });
 });

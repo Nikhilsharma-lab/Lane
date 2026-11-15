@@ -33,10 +33,14 @@ test("a reviewer added while creating raises a concern; pickup confirms, then go
         const developer = team.pages[2];
         await developer.goto(path);
         const developerPanel = developer.getByRole("region", { name: "Reviewers", exact: true });
+        // #279: Raise a concern opens in the Journey popup; the answer shows at once, labelled, and the button becomes Change answer.
         await developerPanel.getByRole("button", { name: "Raise a concern" }).click();
-        await developerPanel.getByLabel("What concerns you?").fill("Recovery API is unavailable");
-        await developerPanel.getByRole("button", { name: "Raise concern", exact: true }).click();
-        await expect(developerPanel).toContainText("Recovery API is unavailable");
+        const concern = developer.getByRole("dialog", { name: "Raise a concern", exact: true });
+        await concern.getByLabel("What concerns you?").fill("Recovery API is unavailable");
+        await concern.getByRole("button", { name: "Raise concern", exact: true }).click();
+        await expect(concern).toHaveCount(0);
+        await expect(developerPanel).toContainText("Concern: Recovery API is unavailable");
+        await expect(developerPanel.getByRole("button", { name: "Change answer", exact: true })).toBeFocused();
         const designer = team.pages[1];
         await designer.goto(path);
         const designerPanel = designer.getByRole("region", { name: "Reviewers", exact: true });
@@ -45,14 +49,27 @@ test("a reviewer added while creating raises a concern; pickup confirms, then go
 
         // Reviews never block pickup: the picker sees the open concern first, then picks up anyway.
         await page.goto(path);
-        await page.getByRole("button", { name: "Pick up", exact: true }).click();
+        const pickUp = page.getByRole("button", { name: "Pick up", exact: true });
+        await pickUp.click();
         const confirmation = page.getByRole("dialog", { name: "Pick up anyway?" });
         await expect(confirmation).toContainText("Review Developer raised a concern");
         await expect(confirmation).toContainText("Recovery API is unavailable");
+        // B4, B31: it opens on Cancel, and Escape and Cancel each hand focus back to Pick up.
+        const cancel = confirmation.getByRole("button", { name: "Cancel", exact: true });
+        await expect(cancel).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(confirmation).toHaveCount(0);
+        await expect(pickUp).toBeFocused();
+        await pickUp.click();
+        await expect(cancel).toBeFocused();
+        await cancel.click();
+        await expect(confirmation).toHaveCount(0);
+        await expect(pickUp).toBeFocused();
+        await pickUp.click();
         await confirmation.getByRole("button", { name: "Pick up anyway", exact: true }).click();
         await expect(confirmation).toHaveCount(0);
         // Wait for the saved pickup before reloading, or the reload can cancel it.
-        await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByRole("button", { name: "Mark Done", exact: true })).toBeEnabled({ timeout: 20_000 });
         // Afterwards the list is a record.
         await page.reload();
         const reviewers = page.getByRole("region", { name: "Reviewers", exact: true });

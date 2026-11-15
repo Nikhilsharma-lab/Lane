@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Fragment, forwardRef, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { AnimatePresence, animate, m, useMotionValue, useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
@@ -136,6 +136,8 @@ export interface CommentThreadProps {
   composer?: ReactNode;
   /** Lane: semantic, hydration-safe timestamps without changing the stored display-label API. */
   renderTimestamp?: (comment: ThreadComment) => ReactNode;
+  /** Lane: draws a body's plain text between @mentions, such as web addresses as links. Without it the text shows as is. */
+  renderText?: (text: string) => ReactNode;
   comments?: ThreadComment[];
   defaultComments?: ThreadComment[];
   onCommentsChange?: (comments: ThreadComment[], event: CommentThreadEvent) => void;
@@ -216,14 +218,14 @@ export function CommentThreadAvatar({ author, size = 28 }: { author: CommentAuth
     : <span className={styles.avatar} data-size={size} aria-hidden="true">{initials(author.name)}</span>;
 }
 
-/** Highlights "@Full Name" for known people. */
-function Body({ text, people }: { text: string; people: CommentAuthor[] }) {
+/** Highlights "@Full Name" for known people. Lane: `renderText` draws the plain text between mentions. */
+function Body({ text, people, renderText }: { text: string; people: CommentAuthor[]; renderText?: (text: string) => ReactNode }) {
   const parts = useMemo(() => {
     const names = people.map(person => person.name).sort((a, b) => b.length - a.length).map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     if (!names.length) return [text];
     return text.split(new RegExp(`(@(?:${names.join("|")}))`, "g"));
   }, [people, text]);
-  return <p className={styles.body}>{parts.map((part, index) => index % 2 ? <span key={index} className={styles.mention}>{part}</span> : part)}</p>;
+  return <p className={styles.body}>{parts.map((part, index) => index % 2 ? <span key={index} className={styles.mention}>{part}</span> : renderText ? <Fragment key={index}>{renderText(part)}</Fragment> : part)}</p>;
 }
 
 const roll: Variants = {
@@ -380,7 +382,7 @@ function StaticHeight({ children }: { children: ReactNode; reduced: boolean; mor
 type Ui = { editing: string | null; confirming: string | null; picker: string | null; collapsed: Record<string, boolean> };
 
 export const CommentThread = forwardRef<HTMLElement, CommentThreadProps>(function CommentThread({
-  readOnly = false, composer, renderTimestamp, comments, defaultComments = [], onCommentsChange, currentUser, people, resolved, defaultResolved = false, onResolvedChange,
+  readOnly = false, composer, renderTimestamp, renderText, comments, defaultComments = [], onCommentsChange, currentUser, people, resolved, defaultResolved = false, onResolvedChange,
   title, reactions = DEFAULT_REACTIONS, placeholder = "Reply, or @mention someone", maxDepth = 2, nowLabel = "Just now", labels, className,
 }, forwardedRef) {
   const t = withDefaults(DEFAULT_LABELS, labels);
@@ -478,7 +480,7 @@ export const CommentThread = forwardRef<HTMLElement, CommentThreadProps>(functio
                 {editing
                 ? <m.div key="edit" {...swap}><Composer people={mentionable} initial={comment.body} placeholder={t.editComment} submitLabel={t.save} cancelLabel={t.cancel} mentionsLabel={t.mentions} autoFocus compact onSubmit={body => edit(comment.id, body)} onCancel={() => setUi(current => ({ ...current, editing: null }))} /></m.div>
                 : <m.div key="view" {...swap}>
-                <Body text={comment.body} people={mentionable} />
+                <Body text={comment.body} people={mentionable} renderText={renderText} />
 
               {!readOnly && <div className={styles.footer}>
                 {(comment.reactions ?? []).length > 0 && <div className={styles.reactions}>

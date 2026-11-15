@@ -322,3 +322,21 @@ it('#209: records an optional one-line What we learned with either closure, and 
     expect(await api.changeRequestOutcome(context(blank, 2), { ...fix, correction: 'Added later' })).toHaveProperty('success', true);
     expect(await api.changeRequestOutcome(context(rolledBack, 2), { ...fix, correction: 'Test on every browser first' })).toHaveProperty('success', true);
 });
+it('#279: a measured result is observed from the release date on, never before it', async () => {
+    const api = await import('./outcome-actions');
+    await at('2026-10-28T00:00:00Z');
+    const id = await fixture();
+    expect(await api.changeRequestOutcome(context(id, 1), { ...measured, observedFrom: '2026-10-20' })).toEqual({ error: 'The observation can’t start before the release on 21 Oct.' });
+    expect(await api.changeRequestOutcome(context(id, 1), { ...measured, observedFrom: '2026-10-21' })).toEqual({ success: true, revision: 2 });
+});
+it('#279: a correction offers only the parts the closure has: no Guardrails when none were agreed', async () => {
+    const api = await import('./outcome-actions');
+    await at('2026-10-28T00:00:00Z');
+    const plain = await fixture({ impact: { ...conversion, guardrails: [] } });
+    await api.changeRequestOutcome(context(plain, 1), { ...measured, guardrails: [] });
+    const fix = { kind: 'correction', field: 'guardrails', correction: 'Error rate was 2.6%', reason: 'Wrong export' };
+    expect(await api.changeRequestOutcome(context(plain, 2), fix)).toEqual({ error: 'Choose a part of this closure to correct.' });
+    const guarded = await fixture();
+    await api.changeRequestOutcome(context(guarded, 1), measured);
+    expect(await api.changeRequestOutcome(context(guarded, 2), fix)).toEqual({ success: true, revision: 3 });
+});
