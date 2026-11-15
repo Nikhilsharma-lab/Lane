@@ -167,6 +167,10 @@ test("rows and identities keep one contract on every surface", async ({
         ).backgroundColor,
       }));
       expect(iconContrast.color).not.toBe(iconContrast.background);
+      // The pointer is still where it chose Inbox; on a phone the two-line row (#284) now lies under it, and this
+      // device has a fine pointer, so the row would show its hover. The shot is of the row at rest, untinted.
+      await page.mouse.move(0, 0);
+      await expect(notificationRow).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
       await expect(notificationRow).toHaveScreenshot(
         `notification-row-${surface.slug}.png`,
         { animations: "disabled" }
