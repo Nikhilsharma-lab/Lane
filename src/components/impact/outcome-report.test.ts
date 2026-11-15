@@ -221,8 +221,9 @@ describe("Outcome report: Projects and Requests", () => {
   })
 
   it("labels an unknown or new-capability start Before release, the spec's word, never Baseline (#282)", () => {
-    const unknown = { ...plan(), primary: { ...plan().primary, current: null } } as unknown as ExpectedImpact
-    const fresh = { ...plan(), primary: { ...plan().primary, noBaseline: true } } as ExpectedImpact
+    const base = plan() as Extract<ExpectedImpact, { kind: "measurement" }>
+    const unknown: ExpectedImpact = { ...base, primary: { ...base.primary, current: null } }
+    const fresh: ExpectedImpact = { ...base, primary: { ...base.primary, noBaseline: true } }
     const unknownText = section(html(Q3, [row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Checkout", outcomeClosure: closure(unknown, 46, "e1") })]), "Checkout", 3)
     expect(unknownText).toContain("Before release Unknown")
     const freshText = section(html(Q3, [row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Checkout", outcomeClosure: closure(fresh, 46, "e1") })]), "Checkout", 3)
