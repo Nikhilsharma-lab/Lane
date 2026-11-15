@@ -651,3 +651,15 @@ Impact's My work and Outcome report tabs are the official free [Arc Tabs](https:
 
 - `src/components/arc/tabs/tabs.tsx`: `motion.*` becomes `m.*` (Build 3, `LazyMotion`); the scroll buttons' numeric Lucide sizes become `data-icon-size="md"`.
 - `src/components/arc/tabs/tabs.module.css`: `1px` borders become `--border-width`; the 35px edge fades `calc(var(--space-1) * 9)`; the 33px scroll buttons `calc(var(--space-1) * 8)`; the 5.5rem trigger minimum `calc(var(--space-1) * 22)`; the trigger corner `calc(var(--radius-control) - var(--radius-sm))`; weight 500 `--weight-medium`; opacity .5 `--lane-opacity-disabled`; the ±3px focus offsets `calc(var(--space-1) * ±0.75)`; z-index -1 and 2 `--lane-layer-underlay` and `--lane-layer-raised`.
+
+### Build 7.4: the New Request composer (#285, 2026-11-14)
+
+The composer's Goal / No measurable impact choice is the official free [Arc Radio cards](https://uiarc.dev/components/radio-cards), read through Arc MCP and installed with the shadcn CLI from `https://uiarc.dev/r/radio-cards.json` (ticket #285 and spec #242 name it). The installer's offers to overwrite `motion-tokens.ts` and `lib/motion-tokens.ts` were declined, so Lane's motion scale stays. Each card says what its choice means, so the card that isn't chosen still reads as a choice (C20). API, keyboard operation and reduced-motion branches are unchanged:
+
+- `src/components/arc/radio-cards/radio-cards.tsx`: `motion.*` becomes `m.*` (Build 3, `LazyMotion`); the ring's hand-built stiffness/damping glide becomes the no-bounce `motionTokens.spring.morph` it was derived from.
+- `src/components/arc/radio-cards/radio-cards.module.css`: pixel gaps, paddings and sizes become `--space-*` steps (or `calc` multiples of `--space-1`), `1px` and `1.5px` borders `--border-width` (×1.5), the 20px corners `--radius-surface`, the 18px glyph slot `--icon-size-md`, weight 500 `--weight-medium`, the ring's layer `--lane-layer-raised`, and the checked card's colour mix the theme's `--control-on-subtle`.
+
+Two adaptations of installed sources:
+
+- `src/components/arc/date-range-picker/date-range-picker.tsx`: it never opens on a month before `minDate`'s (with two months shown it opened on last month, C2), and an optional `formatRange(range)` writes the summary, the trigger and the spoken start in the app's own date format; the measurement dialog passes Lane's `plannedDay`, so the calendar, the chip and the review step read alike (C9). Without `formatRange` it formats as before.
+- `src/components/arc/dropdown-menu/dropdown-menu.tsx`: a menu with a checked `menuitemradio` puts focus on it once it opens, as Arc `select` does (C13). The Measurement window menu marks its choice that way; menus without a checked choice open as before.

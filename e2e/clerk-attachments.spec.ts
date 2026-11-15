@@ -113,7 +113,7 @@ test("private attachments survive Clerk upload and download but reject anonymous
     });
 
     await pageA.goto("/intake");
-    await pageA.getByRole("link", { name: "Create Request", exact: true }).click();
+    await pageA.locator("[data-intake-launcher]").click();
     await pageA.getByRole("textbox", { name: "Request title", exact: true }).fill(
       "Customers cannot find saved drafts after returning to their workspace"
     );

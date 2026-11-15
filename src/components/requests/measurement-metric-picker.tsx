@@ -22,6 +22,9 @@ const GuidedMetricForm = dynamic(() => import("@/components/metrics/guided-metri
 /** The Metrics page, which the prediction form links to (#198). */
 export const METRICS_PAGE = "/settings/metrics"
 
+/** The share of the window the metric panel wants below its field (#285, C18). */
+const ROOM_BELOW = 0.45
+
 const plain = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCase()
 
 /**
@@ -43,11 +46,11 @@ export function activeMetricNamed(metrics: readonly MetricChoice[], name: string
 
 /**
  * What inline add offers to add for what's typed (#199): the typed name, tidied. Nothing while nothing is typed, or
- * when an active definition already has exactly that name (the list shows that one).
+ * while any active definition matches it (#285, C11): the list shows those, so nobody adds a near-copy of one.
  */
 export function inlineAddName(metrics: readonly MetricChoice[], query: string): string | null {
   const name = query.trim().replace(/\s+/g, " ")
-  return name && !activeMetricNamed(metrics, name) ? name : null
+  return name && !metrics.some(metric => !metric.archived && plain(metric.name).includes(plain(name))) ? name : null
 }
 
 /** The listbox: library options, then the Pass/fail check, then adding what's typed, each as its own group. Roving focus is the picker's. */
@@ -71,8 +74,9 @@ export function MetricOptionList({ id, options, selectedId, passFail, passFailSe
           aria-label={option.archived ? `${option.name}, archived` : option.name} aria-describedby={`${id}-${option.id}-details`} onClick={() => onPick(option)}>
           <Check className={styles.metricCheck} data-selected={selected} aria-hidden="true"/>
           <span className={styles.optionText}>
-            <span className={styles.optionName}>{option.name}{option.archived && <span className={styles.optionTag}>Archived</span>}</span>
-            <span id={`${id}-${option.id}-details`} className={styles.optionDetails}>{metricUnitName(option.unit)}</span>
+            {/* #285 (C18): cut text ends in "…" with the whole of it on hover; on phones it wraps instead. */}
+            <span className={styles.optionName}><span className={styles.optionCut} title={option.name}>{option.name}</span>{option.archived && <span className={styles.optionTag}>Archived</span>}</span>
+            <span id={`${id}-${option.id}-details`} className={styles.optionDetails} title={metricUnitName(option.unit)}>{metricUnitName(option.unit)}</span>
           </span>
         </Button>
       })}
@@ -86,7 +90,7 @@ export function MetricOptionList({ id, options, selectedId, passFail, passFailSe
     {addName && <div role="group" aria-label="Add to the Metrics library" className={styles.metricGroup}>
       <Button {...focusProps("add")} morph="plain" role="option" aria-selected={false} type="button" size="sm" variant="ghost" className={`${layout.row} ${styles.metricOption} ${styles.libraryOption}`} onClick={onAdd}>
         <Plus className={styles.icon} aria-hidden="true"/>
-        <span className={styles.optionName}>{`Add “${addName}”`}</span>
+        <span className={styles.optionName}><span className={styles.optionCut} title={`Add “${addName}”`}>{`Add “${addName}”`}</span></span>
       </Button>
     </div>}
   </>
@@ -148,14 +152,21 @@ export function MeasurementMetricPicker({ id, label, selectedId, passFailSelecte
     return {ok:true as const}
   }
 
+  const trigger = useRef<HTMLButtonElement>(null)
+  // #285 (C18): the panel opens below the field. Too near the bottom of the composer, the field first scrolls up to
+  // the top of the composer's scrolling body, under its header, so the panel has room below it and covers neither.
+  const makeRoom = () => {
+    const field = trigger.current
+    if (field && window.innerHeight - field.getBoundingClientRect().bottom < window.innerHeight * ROOM_BELOW) field.scrollIntoView({ block: "start" })
+  }
   const typed = query.trim().replace(/\s+/g, " ")
   return <div className={styles.field}>
-    <Popover open={open} onOpenChange={next => { if (pending) return; setOpen(next); if (!next) { setQuery(""); stopAdding() } }}>
-      <PopoverTrigger asChild><Button role="combobox" aria-haspopup="dialog" id={id} type="button" size="sm" variant="secondary" className={styles.compactButton} disabled={disabled}
+    <Popover open={open} onOpenChange={next => { if (pending) return; if (next) makeRoom(); setOpen(next); if (!next) { setQuery(""); stopAdding() } }}>
+      <PopoverTrigger asChild><Button ref={trigger} role="combobox" aria-haspopup="dialog" id={id} type="button" size="sm" variant="secondary" className={styles.compactButton} disabled={disabled}
         aria-label={guardrail ? "Guardrail metric" : "Metric"} aria-invalid={!!error || undefined} aria-describedby={`${id}-value${error ? ` ${id}-error` : ""}`}>
         <ChartNoAxesColumnIncreasing className={styles.icon} aria-hidden="true"/><span id={`${id}-value`} className={styles.triggerText}>{label ?? "Choose a metric"}</span>
       </Button></PopoverTrigger>
-      <PopoverContent {...pickerPopoverProps} inert={open ? undefined : true} className={`${layout.panel} ${styles.metricPanel}`} aria-label={isAdding ? "Add a metric" : guardrail ? "Choose a guardrail metric" : "Choose a metric"}
+      <PopoverContent {...pickerPopoverProps} side="bottom" avoidCollisions={false} inert={open ? undefined : true} className={`${layout.panel} ${styles.metricPanel}`} aria-label={isAdding ? "Add a metric" : guardrail ? "Choose a guardrail metric" : "Choose a metric"}
         onOpenAutoFocus={event => { event.preventDefault(); search.current?.focus() }}
         // Escape while adding goes back to the search; the place in the form is kept either way.
         onEscapeKeyDown={event => { if (isAdding) { event.preventDefault(); if (!pending) stopAdding() } }}>

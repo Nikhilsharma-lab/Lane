@@ -33,9 +33,7 @@
 .form { gap: var(--space-6); }
 .form[hidden] { display: none; }
 .impact { border-top: var(--border-width) solid var(--border-subtle); padding-top: var(--space-5); }
-.impactHeading { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.impactHeading h2 { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); }
-.impactExplanation { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
+.impactHeading { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .composer .title { field-sizing: content; min-height: calc(var(--lane-line-unit) * 1); max-height: calc(var(--lane-line-unit) * 4); overflow-y: auto; overflow-wrap: anywhere; }
 .footer { padding-bottom: max(var(--space-3), env(safe-area-inset-bottom)); }
 @media (pointer: coarse), (max-width: 640px) {
@@ -49,3 +47,13 @@
 .framingChange { display: grid; gap: var(--space-1); min-width: 0; }
 .framingChange dd { display: grid; grid-template-columns: calc(var(--spacing) * 14) minmax(0, 1fr); gap: var(--space-2); margin: 0; font-size: var(--text-sm); line-height: var(--leading-body); }
 .framingChangeWhen { color: var(--text-secondary); }
+/* #285 (C12): the properties row; every chip in it is one touch target tall on touch screens. */
+.properties { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+@media (pointer: coarse) { .properties button { min-height: var(--size-inner-xlarge); } }
+/* #285 (C25): a first-run hint reads as a hint: muted, with an info icon, across the form's full width. The review
+ * step's saving note uses the same look, set apart from the field above it. */
+.hint, .note { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0; color: var(--text-muted); font-size: var(--text-sm); line-height: var(--leading-body); text-wrap: pretty; }
+.hint > svg, .note > svg { flex: none; width: var(--icon-size-sm); height: calc(var(--text-sm) * var(--leading-body)); }
+.note { margin-top: var(--space-3); }
+/* A step's opening line keeps to a readable measure. */
+.intro { max-width: var(--lane-prose-width); margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); text-wrap: pretty; }
