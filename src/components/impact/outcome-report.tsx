@@ -97,7 +97,7 @@ function TotalLine({ line }: { line: ResultLine }) {
     <p className={styles.note}>{line.audience} · {line.platform} · {line.window} · {results(line.count)}</p>
     {chart && <MetricChart chart={chart} />}
     {line.summed?.change !== null && line.summed?.change !== undefined && <p className={styles.total}>{totalText(line.summed.change, line.unit, line.summed.count)}</p>}
-    {line.unit === "%" && <p className={styles.note}>Changes are in percentage points. They are never added together or averaged.</p>}
+    {line.unit === "%" && <p className={styles.note}>Changes are in points. They are never added together or averaged.</p>}
     {line.verdicts && <p className={styles.total}>{passFailTotalText(line.verdicts)}. Counted, not summed.</p>}
     <ul className={styles.lineRequests} aria-label={`Requests counted in ${line.metric}`}>
       {line.results.map(result => <li key={result.requestId}>
@@ -147,8 +147,8 @@ function MeasuredFacts({ result }: { result: ResultView }) {
   const before = beforeReleaseText(result)
   return <>
     {before !== null && <Fact label={BEFORE_RELEASE}>{before}</Fact>}
-    {result.baselineState === "unknown" && <Fact label="Baseline">Unknown</Fact>}
-    {result.baselineState === "new_capability" && <Fact label="Baseline">New capability, no change</Fact>}
+    {result.baselineState === "unknown" && <Fact label={BEFORE_RELEASE}>Unknown</Fact>}
+    {result.baselineState === "new_capability" && <Fact label={BEFORE_RELEASE}>New capability, no change</Fact>}
     <Fact label="Result"><CountedResult result={result} /></Fact>
     {result.change !== null && <Fact label="Change">{changeText(result.change, result.unit)}</Fact>}
   </>

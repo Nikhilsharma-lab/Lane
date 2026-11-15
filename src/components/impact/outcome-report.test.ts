@@ -112,7 +112,8 @@ describe("Outcome report: at a glance and totals", () => {
     expect(totals).toContain("Users who adopted")
     expect(totals).toContain("+30 from 1 result")
     expect(totals).not.toContain("in total")
-    expect(totals).toContain("Changes are in percentage points. They are never added together or averaged.")
+    // #282: percentages change in "points", the word the result lines use.
+    expect(totals).toContain("Changes are in points. They are never added together or averaged.")
     expect(totals).not.toMatch(/\+6 (points )?(in total )?from/)
   })
 
@@ -217,6 +218,16 @@ describe("Outcome report: Projects and Requests", () => {
     expect(legacy).toContain("Goal 50% (from 40%)")
     expect(legacy).toContain("Change +6 points")
     expect(legacy).not.toMatch(/planning baseline|Before release/i)
+  })
+
+  it("labels an unknown or new-capability start Before release, the spec's word, never Baseline (#282)", () => {
+    const unknown = { ...plan(), primary: { ...plan().primary, current: null } } as unknown as ExpectedImpact
+    const fresh = { ...plan(), primary: { ...plan().primary, noBaseline: true } } as ExpectedImpact
+    const unknownText = section(html(Q3, [row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Checkout", outcomeClosure: closure(unknown, 46, "e1") })]), "Checkout", 3)
+    expect(unknownText).toContain("Before release Unknown")
+    const freshText = section(html(Q3, [row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Checkout", outcomeClosure: closure(fresh, 46, "e1") })]), "Checkout", 3)
+    expect(freshText).toContain("Before release New capability, no change")
+    expect(`${unknownText} ${freshText}`).not.toMatch(/Baseline/)
   })
 
   it("lists each Request's Follow-up Requests as links", () => {
