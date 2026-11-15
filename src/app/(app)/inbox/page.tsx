@@ -9,11 +9,10 @@ import { loadInbox } from "@/lib/data/inbox";
 import { getsNeedsYou } from "@/lib/inbox-read-model";
 import { countInboxUnread } from "@/lib/data/notifications";
 import { timePage, timed } from "@/lib/request-timings";
+import { isUuid } from "@/lib/uuid";
 
 // #271 (A114): the tab reads "Inbox · Lane".
 export const metadata: Metadata = { title: "Inbox" };
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // #204 / #205: the Inbox, one page of what needs a person and their updates. Identity, workspace and role come from the Clerk session
 // through getMember; the read model decides what the Inbox holds (a Guest sees only their own submissions).
@@ -23,7 +22,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const member = await getMember();
   if (!member) redirect("/login");
   const { item } = await searchParams;
-  const keep = typeof item === "string" && UUID.test(item) ? item : undefined;
+  const keep = isUuid(item) ? item : undefined;
 
   const [inbox, unread, workspace] = await Promise.all([timed("data", () => loadInbox(member, undefined, { keep })), timed("data", () => countInboxUnread(member)), getWorkspace()]);
   const name = workspace && !workspace.needsOnboarding ? workspace.fullName : "";

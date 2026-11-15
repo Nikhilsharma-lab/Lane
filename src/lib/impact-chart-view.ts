@@ -1,5 +1,6 @@
 import type { ResultLine, ResultView } from "@/lib/impact-read-model"
-import { BEFORE_RELEASE, beforeReleaseText, goalText, NOTHING_MEASURED, valueText } from "@/lib/impact-presenter"
+import { BEFORE_RELEASE, beforeReleaseText, goalText, NOTHING_MEASURED } from "@/lib/impact-presenter"
+import { resultValueText } from "@/lib/result-phrasing"
 import { formatRequestCode } from "@/lib/request-code"
 
 // The chart presenter (#158, #282). It takes one ResultLine from the read model and shapes its recorded values for
@@ -40,7 +41,7 @@ function describeGroup(result: ResultView): string {
   else if (result.baselineState === "new_capability") parts.push("new capability, nothing before release")
   const before = beforeReleaseText(result)
   if (before !== null) parts.push(`before release ${before}`)
-  if (result.actual !== null) parts.push(`result ${valueText(result.actual, result.unit)}`)
+  if (result.actual !== null) parts.push(`result ${resultValueText(result.actual, result.unit)}`)
   if (result.predictedTarget !== null) parts.push(`goal ${goalText({ form: result.form, metric: result.metric, unit: result.unit, baseline: result.plannedBaseline, target: result.predictedTarget })}`)
   return `${formatRequestCode(result.requestNumber)} ${result.title}: ${parts.join(", ")}.`
 }
@@ -54,7 +55,7 @@ export function metricChart(line: ResultLine): MetricChart | null {
     code: formatRequestCode(result.requestNumber),
     title: result.title,
     bars: values.map(({ series, value }) => ({
-      series, label: labelOf(series), value, valueLabel: valueText(value, result.unit), height: scaleMax === 0 ? 0 : (value / scaleMax) * 100,
+      series, label: labelOf(series), value, valueLabel: resultValueText(value, result.unit), height: scaleMax === 0 ? 0 : (value / scaleMax) * 100,
     })),
   }))
   const head = `${line.metric}, ${line.window}.`

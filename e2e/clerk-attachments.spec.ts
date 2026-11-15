@@ -113,7 +113,8 @@ test("private attachments survive Clerk upload and download but reject anonymous
     });
 
     await pageA.goto("/intake");
-    await pageA.locator("[data-intake-launcher]").click();
+    // #285 (C23): /intake's launcher is named New Request, as every other way to start one is.
+    await pageA.getByRole("region", { name: "Start a Request" }).getByRole("link", { name: "New Request", exact: true }).click();
     await pageA.getByRole("textbox", { name: "Request title", exact: true }).fill(
       "Customers cannot find saved drafts after returning to their workspace"
     );

@@ -49,6 +49,7 @@ export function parseRequestProjectFilter(
   value: string | string[] | null | undefined
 ): RequestProjectFilter {
   const candidate = Array.isArray(value) ? value[0] : value
+  // isUuid (uuid.ts) inline: this runs in every page's first load, where the shared helper costs more than the pattern.
   if (candidate && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate)) return candidate.toLowerCase()
   return candidate ?? "all"
 }

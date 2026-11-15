@@ -128,16 +128,18 @@ describe("List filters for the list and the composer (plan item 2.3)", () => {
     expect(filtersHiding({ ...created, projectId: null }, { ...all, project: "p1" })).toEqual(["project"])
   })
 
-  it("matches the title text the way the list does: trimmed, case-insensitive, on the typed title (#286, C7)", () => {
+  it("matches the title text the way the list does: trimmed, case-insensitive, on the typed title and the Problem to solve (#286, C7)", () => {
     expect(matchesListFilters(created, { ...all, title: "  PHONE " })).toBe(true)
     expect(matchesListFilters({ ...created, reframedProblem: "Customers abandon signup" }, { ...all, title: "phone" })).toBe(true)
-    expect(matchesListFilters({ ...created, reframedProblem: "Customers abandon signup" }, { ...all, title: "signup" })).toBe(false)
+    // The row shows the typed title, and the search still finds a Request by its Problem to solve.
+    expect(matchesListFilters({ ...created, reframedProblem: "Customers abandon signup" }, { ...all, title: "ABANDON" })).toBe(true)
+    expect(matchesListFilters({ ...created, reframedProblem: "Customers abandon signup" }, { ...all, title: "billing" })).toBe(false)
   })
 
-  it("selects by status view and by the displayed title, as the list does", () => {
+  it("selects by status view and by the typed title or the Problem to solve, as the list does", () => {
     const expected = {
-      all: { "": ["a", "b", "c"], signup: [], progress: ["a"], PRICING: ["b"] },
-      open: { "": ["a"], signup: [], progress: ["a"], PRICING: [] },
+      all: { "": ["a", "b", "c"], signup: ["a"], progress: ["a"], PRICING: ["b"] },
+      open: { "": ["a"], signup: ["a"], progress: ["a"], PRICING: [] },
       in_progress: { "": ["b"], signup: [], progress: [], PRICING: ["b"] },
       done: { "": ["c"], signup: [], progress: [], PRICING: [] },
     } as const

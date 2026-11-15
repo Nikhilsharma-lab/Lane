@@ -5,7 +5,7 @@ import { REQUEST_PRIORITIES, REQUEST_PRIORITY_LABELS, type RequestPriority } fro
 import { availableMove, type LifecycleMove } from "@/lib/request-lifecycle"
 import { REQUEST_STATUS_FILTERS, REQUEST_STATUS_FILTER_LABELS, type RequestStatusFilter } from "@/lib/request-workspace"
 import type { WorkspacePermission } from "@/lib/auth-guard"
-import { canContribute } from "@/lib/role-rules"
+import { canCreateRequests } from "@/lib/role-rules"
 import type { ShellSurface } from "./shell-openers"
 
 /**
@@ -98,7 +98,7 @@ export function paletteEntries({ role, request, undo, projects }: PaletteInput):
   }))
   return [
     ...requestEntries(request, undo, role),
-    ...(canContribute(role) ? [{ id: "new-request", label: "New Request", group: "Actions", keys: anywhereKeys("New Request"), action: { kind: "open", surface: "composer" } } satisfies PaletteEntry] : []),
+    ...(canCreateRequests(role) ? [{ id: "new-request", label: "New Request", group: "Actions", keys: anywhereKeys("New Request"), action: { kind: "open", surface: "composer" } } satisfies PaletteEntry] : []),
     { id: "search", label: "Search workspace", group: "Actions", keys: anywhereKeys("Search workspace"), action: { kind: "open", surface: "search" } },
     ...views, ...places, ...settings,
     { id: "inbox", label: "Inbox", group: "Go to", keys: [], action: { kind: "go", href: "/inbox" } },

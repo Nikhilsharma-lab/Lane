@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
@@ -7,8 +5,8 @@ import type { ResultLine, ResultView } from "@/lib/impact-read-model"
 import { MetricChart } from "./metric-chart"
 import { metricChart } from "@/lib/impact-chart-view"
 
-// The metric chart component (#158). Tests render the markup and read the stylesheet; they assert what a reader and a
-// screen reader receive, not how the SVG is built.
+// The metric chart component (#158). Tests render the markup; they assert what a reader and a screen reader receive,
+// not how the SVG is built.
 
 function result(over: Partial<ResultView> & Pick<ResultView, "requestNumber">): ResultView {
   return {
@@ -31,8 +29,6 @@ const render = (value: ResultLine) => {
   return renderToStaticMarkup(createElement(MetricChart, { chart }))
 }
 
-const css = readFileSync(join(process.cwd(), "src/components/impact/metric-chart.module.css"), "utf8")
-const reduced = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? ""
 
 describe("metric chart: one chart per metric (#158)", () => {
   it("draws one chart for one metric and gives it a text description for screen readers", () => {
@@ -76,22 +72,6 @@ describe("metric chart: numbers a reader can see (#282)", () => {
     expect(markup).not.toMatch(/planning/i)
   })
 
-  it("has a fixed, modest height, not a ratio to its width", () => {
-    expect(css).not.toMatch(/aspect-ratio/)
-    expect(css).toMatch(/\.bars\s*\{[^}]*height:\s*calc\(var\(--space-/)
-  })
-
-  it("leaves a gap between groups", () => {
-    expect(css).toMatch(/\.plot\s*\{[^}]*gap:\s*var\(--space-/)
-  })
-})
-
-describe("metric chart: reduced motion (#158)", () => {
-  it("animates the bars growing in by default", () => {
-    expect(css).toMatch(/\.bar\s*\{[^}]*animation:/)
-  })
-
-  it("removes the bar animation under prefers-reduced-motion", () => {
-    expect(reduced).toMatch(/\.bar\s*\{[^}]*animation:\s*none/)
-  })
+  // Its fixed height, the gap between groups and the bars' reduced-motion branch are checked in the browser
+  // (e2e/impact-results.spec.ts), where the stylesheet applies.
 })

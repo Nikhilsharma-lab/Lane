@@ -12,9 +12,7 @@ import { requestPrioritySchema } from "@/lib/request-properties";
 import { removeObjects, signDownload } from "@/lib/attachment-storage";
 import { callTimings } from "@/lib/request-timings";
 import { REOPEN_WINDOW_MS } from "@/lib/reopen-window";
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { isUuid } from "@/lib/uuid";
 
 /** One Request's move: the same rules, copy and statement as a bulk move. */
 async function transitionOne(
@@ -22,7 +20,7 @@ async function transitionOne(
   requestId: string,
   context: { orgId: string }
 ): Promise<{success?: boolean; error?: string; sessionExpired?: true; noMeasurableImpact?: true}> {
-  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+  if (!isUuid(requestId)) return { error: "Not found" };
   const outcome = await transitionRequests(move, [requestId], context);
   if (outcome.error) return { error: outcome.error, ...(outcome.sessionExpired ? { sessionExpired: true as const } : {}) };
   if (!outcome.moved.length) return { error: outcome.failed[0]?.error ?? "Not found" };
@@ -68,7 +66,7 @@ export async function undoMarkDone(
   requestId: string,
   context: { orgId: string }
 ) {
-  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+  if (!isUuid(requestId)) return { error: "Not found" };
   const auth = await guardCanChange(context.orgId, CANNOT_CHANGE_REQUESTS);
   if ("error" in auth) return auth;
 
@@ -139,7 +137,7 @@ export async function addComment(
   formData: FormData,
   context: { orgId: string }
 ) {
-  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+  if (!isUuid(requestId)) return { error: "Not found" };
   const auth = await guardCanContribute(context.orgId, "Not found");
   if ("error" in auth) return auth;
 
@@ -184,7 +182,7 @@ export async function getAttachmentDownloadUrl(
   attachmentId: string,
   context: { orgId: string }
 ) {
-  if (!UUID_RE.test(attachmentId)) return { error: "File not found" };
+  if (!isUuid(attachmentId)) return { error: "File not found" };
   // #265: the private-attachment read, timed as "Attachment download" (a log line; an action has no header).
   const timings = callTimings("Attachment download");
   try {
@@ -237,7 +235,7 @@ export async function setRequestPriority(
   priority: unknown,
   context: { orgId: string }
 ) {
-  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+  if (!isUuid(requestId)) return { error: "Not found" };
   const parsed = requestPrioritySchema.safeParse(priority);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const auth = await guardCanContribute(context.orgId, CANNOT_CHANGE_REQUESTS);
@@ -263,7 +261,7 @@ export async function deleteRequest(
   requestId: string,
   context: { orgId: string }
 ): Promise<{ success: true } | { error: string; sessionExpired?: true }> {
-  if (!UUID_RE.test(requestId)) return { error: "Not found" };
+  if (!isUuid(requestId)) return { error: "Not found" };
   const auth = await guardCanContribute(context.orgId, "Not found");
   if ("error" in auth) return auth;
 

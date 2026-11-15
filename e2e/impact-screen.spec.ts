@@ -180,6 +180,8 @@ test("Impact keeps its tab and person in the address, swaps a teammate in place 
       await developerPage.goto("/impact");
       const empty = panel(developerPage, "My work");
       await expect(empty.getByRole("heading", { name: "Requests you file or pick up show here.", exact: true })).toBeVisible();
+      // One sentence, with no second line under it (#283): Arc's empty state without a description.
+      await expect(empty.locator("section p")).toBeHidden();
       await expect(showing(developerPage)).toMatchAriaSnapshot(`- combobox "Showing": You`);
       await developerPage.screenshot({ path: testInfo.outputPath("empty-my-work-1440.png") });
       await empty.getByRole("link", { name: "New Request", exact: true }).click();

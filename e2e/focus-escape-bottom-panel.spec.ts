@@ -484,6 +484,12 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await expect(launcher).toBeFocused();
       await launcher.click();
       await expect(title).toHaveValue("");
+      await page.keyboard.press("Escape");
+      await expect(composer).toHaveCount(0);
+      // Spec story 29: the tab-only draft stays as the backup, so a mistaken Discard comes back as any kept draft does.
+      await page.reload();
+      await expect(title).toHaveValue("Phone filing asks first", { timeout: 30_000 });
+      await expect(page.getByText("Your unsaved Request was restored.")).toBeAttached();
     });
   });
 });

@@ -33,8 +33,8 @@ export type WorkspaceFrameProps = {
   savedViews: SavedView[];
   projects: ProjectOption[];
   labels: LabelCatalogue;
-  /** #210: a Viewer files nothing, so no composer, no C shortcut and no palette entry open one. */
-  canContribute: boolean;
+  /** #210, #285 (`canCreateRequests`): a Viewer files nothing, so no composer, no C shortcut and no palette entry open one. */
+  canCreate: boolean;
   canAddReviewers: boolean;
   withoutPrediction: boolean;
   /** #271: "Page not found" draws the frame for an address no page answers (see Sidebar's `pageAddress`). */
@@ -52,7 +52,7 @@ export const useInWorkspaceFrame = () => useContext(InWorkspaceFrame);
  * data and renders it around each page. #271: the root not-found renders the same frame around "Page not found"
  * for a signed-in person, through lazy-workspace-frame.tsx, so it never joins every route's first load.
  */
-export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceName, fullName, email, needsYouCount, savedViews, projects, labels, canContribute, canAddReviewers, withoutPrediction, pageAddress, children }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceName, fullName, email, needsYouCount, savedViews, projects, labels, canCreate, canAddReviewers, withoutPrediction, pageAddress, children }: WorkspaceFrameProps) {
   const shell = (
     <Sidebar
       workspaceName={workspaceName}
@@ -94,7 +94,7 @@ export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceNam
         <WorkspaceLabelsProvider orgId={orgId} initial={labels}>
       {/* #276: the sidebar's "Your views" and the list show a saved-view change in the same moment. */}
       <SavedViewsProvider key={`${orgId}:${userId}`} views={savedViews}>
-        {canContribute
+        {canCreate
           ? <NewRequestProvider context={{ orgId }} draftOwnerId={userId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction}>{shell}</NewRequestProvider>
           : shell}
       </SavedViewsProvider>

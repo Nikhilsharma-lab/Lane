@@ -14,7 +14,7 @@ import { requestCreatedToast } from "./request-created-toast";
 import { matchesListFilters, type OverviewRequest } from "@/lib/request-overview";
 import { projectIdOrNull } from "@/lib/request-constants";
 import { readLostUploads, unfinishedUploadsScope } from "@/lib/unfinished-uploads";
-import { hasIntakeDraft, intakeDraftScope, intakeDraftStorageKey } from "@/lib/intake-draft-key";
+import { hasIntakeDraft, intakeDraftScope } from "@/lib/intake-draft-key";
 import { hasTypedText } from "@/components/popup/typed-text";
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards";
 import { parseRequestListContext, requestDetailHref, type RequestListContext } from "@/lib/request-workspace";
@@ -93,6 +93,8 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
   const [initialProjectId, setInitialProjectId] = useState<string | null>(null);
   // #217: a composer opened from the first-run guide explains each step, for that draft.
   const [guided, setGuided] = useState(false);
+  // #285 (spec story 29): after Discard the composer starts empty, and the tab's draft stays as the backup.
+  const [backup, setBackup] = useState(false);
   // Read when a Request is created, never rendered: the composer's form keeps its props across an open (#296).
   const returnContext = useRef<RequestListContext>({ status: "all", project: "all" });
   // #296: the form wakes up (its Metrics library, its shortcuts) in a transition after the dialog opens, so the
@@ -250,10 +252,12 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
       if (onIntake) checkedIntake.current = true;
       const lostUploads = firstCheck && readLostUploads(window.sessionStorage, unfinishedUploadsScope(draftOwnerId, context.orgId));
       const draft = onIntake && hasIntakeDraft(window.sessionStorage, intakeDraftScope(draftOwnerId, context.orgId));
+      // A backup kept by Discard comes back here too, in a new composer.
+      if (draft && backup) { completed.current = true; setBackup(false); }
       if (lostUploads || draft) openComposer(onIntake ? LAUNCHER : undefined);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [context.orgId, draftOwnerId, openComposer, pathname]);
+  }, [backup, context.orgId, draftOwnerId, openComposer, pathname]);
 
   const value = useMemo(() => ({ openComposer, preload }), [openComposer, preload]);
   return (
@@ -264,14 +268,14 @@ export function NewRequestProvider({ children, context, draftOwnerId, canAddRevi
       {/* Keep the controller and File objects alive in a detached host while the
           Arc dialog is closed, before the first open too. Its overlay and focus
           scope still unmount normally. */}
-      {form && formHost && createPortal(<form.IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} registerCloseAttempt={registerCloseAttempt} />, formHost)}
+      {form && formHost && createPortal(<form.IntakeForm key={`${draftOwnerId}:${context.orgId}:${generation}`} context={context} draftOwnerId={draftOwnerId} canAddReviewers={canAddReviewers} withoutPrediction={withoutPrediction} guided={guided} keepsBackup={backup} initialProjectId={initialProjectId} active={open && formActive} onCreated={onCreated} onBusyChange={onBusyChange} onCancelCheckChange={onCancelCheckChange} registerCloseAttempt={registerCloseAttempt} />, formHost)}
       {hasOpened && formHost && <>
         <Dialog guardTypedText={!busyNow} open={open} onOpenChange={(next) => {
           if (!next && holdOpen()) return;
-          // #285: closing with typed text happens only after Discard. The draft goes with it, and the next open
-          // starts empty; any other close keeps the composer and this tab's draft as they are.
+          // #285: closing with typed text happens only after Discard. The next open starts empty, and the tab's
+          // draft stays as the backup (spec story 29); any other close keeps the composer as it is.
           if (!next && hasTypedText(formHost)) {
-            try { window.sessionStorage.removeItem(intakeDraftStorageKey(intakeDraftScope(draftOwnerId, context.orgId))); } catch { /* storage unavailable */ }
+            setBackup(true);
             completed.current = true;
             setGeneration(value => value + 1);
           }
