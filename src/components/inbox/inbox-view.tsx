@@ -33,7 +33,7 @@ export type InboxViewProps = {
   selectedId: string | null;
   /** #284: nothing in the Inbox (inbox-empty.tsx), drawn on the server: one message in place of both sections. */
   allClear?: ReactNode;
-  /** #284 (C28): the strip's link to Inbox delivery, for people who have that section. */
+  /** #284 (C28): the strip's link to Inbox delivery, for people who have that section; left out while the empty message carries it. */
   delivery?: ReactNode;
   /** The Request preview's mount (it animates in and out inside it). */
   preview: ReactNode;
@@ -163,7 +163,7 @@ export function InboxView({
   const empty = showNeedsYou && !needsYou.length && !items.length && !error;
   const trackActive = (event: { target: EventTarget }) => { const id = (event.target as HTMLElement).closest<HTMLElement>("[data-inbox-item]")?.dataset.inboxItem; if (id) setActiveId(id); };
   return <>
-    <PageStrip title="Inbox" heading tools={unread > 0 || delivery ? <>{delivery}{unread > 0 && <Button variant="ghost" size="sm" disabled={allReadPending}
+    <PageStrip title="Inbox" heading tools={unread > 0 || delivery ? <>{!empty && delivery}{unread > 0 && <Button variant="ghost" size="sm" disabled={allReadPending}
       // The button goes once nothing is unread, so focus moves to the list's tab stop first.
       onClick={() => { focusTabStop(); onMarkAllRead(); }}><CheckCheck aria-hidden="true" />Mark all read</Button>}</> : undefined} />
     <div className={styles.body} data-inbox="" data-empty={empty || undefined}>

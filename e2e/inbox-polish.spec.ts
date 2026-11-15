@@ -166,7 +166,9 @@ test("the Inbox: its own placeholder, the open item kept in the address, one lef
       await expect(page.locator("#lane-main").getByRole("heading", { level: 2 })).toHaveCount(1);
       await expect(page.locator("[data-inbox-preview]")).toHaveCount(0);
       await expect(page.getByText("Select an item to see its Request here.")).toHaveCount(0);
-      await expect(page.locator("#lane-main").getByRole("link", { name: "Choose what reaches you" })).toHaveCount(2);
+      // The link shows once, under the message; the strip leaves its own out.
+      await expect(page.locator("#lane-main").getByRole("link", { name: "Choose what reaches you" })).toHaveCount(1);
+      await expect(page.locator('[data-slot="page-strip"]').getByRole("link", { name: "Choose what reaches you" })).toHaveCount(0);
       await page.screenshot({ path: test.info().outputPath("inbox-empty-1440.png") });
     });
   } finally {

@@ -126,7 +126,8 @@ describe("Inbox page: Needs you", () => {
     expect(reading).toContain("Select an item to see its Request here.")
   })
 
-  // #284 (C26): with both sections empty, one message and the delivery link, and no empty preview pane beside it.
+  // #284 (C26): with both sections empty, one message with the delivery link under it (spec story 54), and no empty
+  // preview pane beside it. The link shows once: the strip leaves its own out.
   it("shows one message when nothing needs the person and nothing is new, with no preview pane", () => {
     const clear = render({ needsYou: [], items: [], unread: 0 })
     expect(clear.match(/<h2[^>]*>/g)).toHaveLength(1)
@@ -134,7 +135,8 @@ describe("Inbox page: Needs you", () => {
     expect(clear).not.toContain("Nothing needs you right now.")
     expect(clear).not.toContain("Select an item to see its Request here.")
     expect(clear).not.toContain("data-inbox-preview")
-    expect(clear.match(/Choose what reaches you/g)).toHaveLength(2)
+    expect(clear.match(/Choose what reaches you/g)).toHaveLength(1)
+    expect(clear.indexOf("Choose what reaches you")).toBeGreaterThan(clear.indexOf("Nothing needs you, and nothing new"))
   })
 
   it("leaves Needs you out for someone who is never asked to act", () => {
