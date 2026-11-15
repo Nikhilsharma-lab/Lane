@@ -213,8 +213,12 @@ test("an Inbox row pushed down by a new item slides, and with motion turned down
     await settle(page);
     expect(await rowMovesWhenAnItemArrives(page, user.id, "Slide three")).not.toEqual([]);
 
-    // Polish bar §10: with motion turned down on the device, the rows take their new places without moving.
+    // Polish bar §10: with motion turned down on the device, the rows take their new places without moving. Motion reads
+    // the setting as a row first renders, so the page loads again with it.
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(fyi(page).locator("[data-inbox-item]")).toHaveCount(3, { timeout: 60_000 });
+    await settle(page);
     expect(await rowMovesWhenAnItemArrives(page, user.id, "Slide four")).toEqual([]);
   } finally {
     await cleanupTestWorkspace(user.id);
