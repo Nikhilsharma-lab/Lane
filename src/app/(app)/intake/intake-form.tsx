@@ -67,6 +67,7 @@ import type { OverviewRequest } from "@/lib/request-overview";
 import { WORKSPACE_SWITCH_EVENT } from "@/lib/workspace-switch-guard";
 import { clearUnfinishedUploads, readUnfinishedUploads, writeUnfinishedUploads } from "@/lib/unfinished-uploads";
 import { usePendingMutationWriter } from "@/components/requests/pending-mutations-provider";
+import { openShellSurface } from "@/components/shell/shell-openers";
 import { requestCreatedToast } from "@/components/requests/request-created-toast";
 import { ProjectPicker, RequestPriorityPicker, useWorkspaceProjects, pickerPopoverProps } from "@/components/requests/request-property-pickers";
 import { RequestReviewersPicker, reviewerSummary, type ReviewerChoice } from "@/components/requests/request-reviewers-picker";
@@ -99,7 +100,7 @@ import {
   type SaveResponse,
   type TriageResponse,
 } from "./actions";
-import { composerDraft, restoredComposer } from "./intake-session";
+import { composerDraft, restoredComposer, reviewedRequestId } from "./intake-session";
 import { createIntakeSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
 import { OFFLINE_LINE, TEXT_KEPT, isOfflineError } from "@/lib/failure-messages";
@@ -272,8 +273,9 @@ export default function RequestEditor({
   context: { orgId: string };
   draftOwnerId: string;
   active?: boolean;
-  /** The Request exists and the composer is done. `open` asks to go to it now; `created` is its list row. */
-  onCreated?: (requestId: string, options: { open: boolean; created?: OverviewRequest }) => void;
+  /** The Request exists and the composer is done. `open` asks to go to it now; `created` is its list row. #286:
+   * `sending` closes the composer while the save runs; the composer stays this draft's until it lands. */
+  onCreated?: (requestId: string, options: { open: boolean; created?: OverviewRequest; sending?: boolean }) => void;
   onBusyChange?: (busy: boolean) => void;
   /** Decision 2026-10-21 (critique 2.3): a way to abandon the problem check while it runs, null otherwise. The composer's X and Esc use it. */
   onCancelCheckChange?: (cancel: (() => void) | null) => void;
@@ -340,6 +342,8 @@ export default function RequestEditor({
   // Where focus goes when the compose step shows again: the title by default,
   // the primary button after a gate failure, nowhere when a field takes it.
   const focusAfterCompose = useRef<"title" | "submit" | "none">("title");
+  // #286: a save refused after Create closed the composer names a field to go to once the composer shows again.
+  const focusOnShow = useRef<(() => void) | null>(null);
   const formId = useId();
   const problemRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -587,6 +591,12 @@ export default function RequestEditor({
 
   useEffect(() => {
     if (!active || !draftReady) return;
+    const focusField = focusOnShow.current;
+    focusOnShow.current = null;
+    if (focusField) {
+      focusField();
+      return;
+    }
     if (stage !== "compose") {
       headingRef.current?.focus();
       return;
@@ -604,8 +614,8 @@ export default function RequestEditor({
   }, [active, draftReady, setFocus, stage]);
 
   useEffect(() => {
-    if (failure && stage === "framing") reviewFailureRef.current?.scrollIntoView({ block: "nearest" });
-  }, [failure, stage]);
+    if (active && failure && stage === "framing") reviewFailureRef.current?.scrollIntoView({ block: "nearest" });
+  }, [active, failure, stage]);
 
   useEffect(() => {
     if (!checking) return;
@@ -821,6 +831,21 @@ export default function RequestEditor({
       return;
     }
 
+    // #286: with no files to upload, Create closes the composer at once. The list shows the Request, sending, under
+    // the id its signed review gave it, so the row keeps its place when the saved one, with its number, replaces it.
+    // A save that doesn't land reopens the composer with everything typed and says why. Offline, Create answers in
+    // place (#285, C1); with files, the visible upload step stays.
+    const sendingId = !editing && !attachments.length && onCreated && !isOffline() ? reviewedRequestId(token) : null;
+    let answered = false;
+    if (sendingId) {
+      pendingWriter?.insert(sendingRow(sendingId, savingSource));
+      onCreated?.(sendingId, { open: false, sending: true });
+    }
+    const reopen = () => {
+      if (!sendingId) return;
+      pendingWriter?.withdraw(sendingId);
+      openShellSurface("composer");
+    };
     await session.save({
       title: savingSource.title, attachments,
       run: () => editing && original && snapshot
@@ -829,14 +854,34 @@ export default function RequestEditor({
           unchanged: Boolean(unchangedSource), savedProblem, savedSolution, snapshot,
           token, triage, editedProblem }, context, optimistic)
         : saveNewIntake({ token, triage, editedProblem, offerReviewers, reviewers, reviewQuestion }, context),
-      saved: result => showCreatedInList(result.created),
-      failed: (failure, thrown) => showSaveFailure(failure, thrown, Boolean(unchangedSource)),
+      saved: result => { answered = true; showCreatedInList(result.created); },
+      failed: (failure, thrown) => {
+        answered = true;
+        showSaveFailure(failure, thrown, Boolean(unchangedSource), Boolean(sendingId));
+        reopen();
+      },
     });
+    // The save stopped before it was sent (another form's unfinished files): the composer says so.
+    if (!answered) reopen();
   }
 
-  /** A save that didn't land: the field it names, or the message on the step it was made from (`compose`). */
-  function showSaveFailure(failure: IntakeFailure | null, thrown: unknown, compose: boolean) {
-    if (!failure && isOfflineError(thrown)) {
+  /** #286: the Request as the list shows it while it sends: its typed title, Open, with no number yet. */
+  function sendingRow(id: string, data: RequestInput): OverviewRequest {
+    return { id, sending: true, title: data.title, reframedProblem: triage?.classification === "problem" ? null : editedProblem.trim(),
+      status: "open", createdAt: new Date().toISOString(), creatorName: null, assigneeName: null, assignedTo: null,
+      projectId: data.projectId ?? null, projectName: projects.projects.find(project => project.id === data.projectId)?.name ?? null,
+      requestType: data.requestType ?? null, labelKeys: requestLabelKeys(data), priority: data.priority ?? "none" };
+  }
+
+  /** A save that didn't land: the field it names, or the message on the step it was made from (`compose`). `closed`:
+   * the composer closed at Create (#286), so the field takes focus once it shows again. */
+  function showSaveFailure(failure: IntakeFailure | null, thrown: unknown, compose: boolean, closed = false) {
+    const focusSoon = (focus: () => void) => {
+      if (closed) focusOnShow.current = focus;
+      else window.setTimeout(session.guard(focus), 0);
+    };
+    // #286: a connection lost while the save was on its way reads as offline too.
+    if (!failure && (isOfflineError(thrown) || isOffline())) {
       // #260 (C1): offline says so; nothing was sent and the text stays.
       setFailure(thrownGateFailure(false));
       setStage(compose ? "compose" : "framing");
@@ -849,24 +894,24 @@ export default function RequestEditor({
       setError(field, { type: "server", message: result.error.message });
       focusAfterCompose.current = "none";
       setStage("compose");
-      const focusTimeout = window.setTimeout(session.guard(() => focusRequestField(field)), 0);
-      return () => window.clearTimeout(focusTimeout);
+      focusSoon(() => focusRequestField(field));
+      return;
     }
     if (result.error.field === "reviewers") {
       // Nothing was created: back to the compose step, where the picker shows why.
       setReviewersError(result.error.message);
       focusAfterCompose.current = "none";
       setStage("compose");
-      const focusTimeout = window.setTimeout(session.guard(() => document.getElementById("intake-reviewers")?.focus()), 0);
-      return () => window.clearTimeout(focusTimeout);
+      focusSoon(() => document.getElementById("intake-reviewers")?.focus());
+      return;
     }
     if (
       result.error.code === "validation" &&
       result.error.field === "editedProblemText"
     ) {
       setProblemError(result.error.message);
-      const focusTimeout = window.setTimeout(session.guard(() => problemRef.current?.focus()), 0);
-      return () => window.clearTimeout(focusTimeout);
+      focusSoon(() => problemRef.current?.focus());
+      return;
     } else {
       setFailure(result.error);
     }

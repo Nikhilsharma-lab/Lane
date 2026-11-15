@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { IntakeDraft } from "@/lib/intake-draft";
 import type { RequestInput } from "@/lib/request-schema";
-import { composerDraft, restoredComposer, settleLostUploads } from "./intake-session";
+import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
+import { composerDraft, restoredComposer, reviewedRequestId, settleLostUploads } from "./intake-session";
 
 const plan = { kind: "measurement" as const, version: 2 as const, primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 80, noBaseline: false, check: "" as const }, measurement: { audience: "all" as const, platform: "web" as const, windowDays: 30 as const, exactDates: false, startDate: "", endDate: "" }, guardrails: [] };
 const source = (title: string): RequestInput => ({ title, description: "Customers abandon checkout at delivery.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: null, priority: "none", expectedImpact: plan });
@@ -57,5 +58,22 @@ describe("settleLostUploads", () => {
   it("keeps a reservation it could not clear", async () => {
     const kept = await settleLostUploads(lost, async ({ attachmentId }) => { if (attachmentId === "res-b") throw new Error("offline"); return { success: false }; });
     expect(kept.map((file) => file.attachmentId)).toEqual(["res-a", "res-b", null]);
+  });
+});
+
+describe("reviewedRequestId (#286)", () => {
+  it("reads the id the signed review gives the new Request, the one saving it uses", () => {
+    vi.stubEnv("TRIAGE_TOKEN_SECRET", "intake-session-test-secret".repeat(2));
+    const context = { orgId: "org_reviewed", userId: "user_reviewed" };
+    const token = createTriageToken(source("Saved cards at checkout — ünïcode"), hybrid, context);
+    const verified = verifyTriageToken(token, context);
+    if (!verified.valid) throw new Error("the review should verify");
+    expect(reviewedRequestId(token)).toBe(verified.payload.requestId);
+    vi.unstubAllEnvs();
+  });
+  it("is null for no review or one it can't read", () => {
+    expect(reviewedRequestId(null)).toBeNull();
+    expect(reviewedRequestId("not a token")).toBeNull();
+    expect(reviewedRequestId(`${btoa(JSON.stringify({ requestId: 7 }))}.sig`)).toBeNull();
   });
 });

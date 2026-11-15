@@ -97,3 +97,14 @@ export async function settleLostUploads(
   }));
   return settled.filter((file): file is UnfinishedUpload => file !== null);
 }
+
+/** #286: the id the signed review gives the new Request (triage-token.ts), which saving it uses, so the list's row
+ * keeps one identity from sending to saved. Null without a review the browser can read. */
+export function reviewedRequestId(token: string | null): string | null {
+  try {
+    const { requestId } = JSON.parse(atob(token!.split(".")[0].replaceAll("-", "+").replaceAll("_", "/")));
+    return typeof requestId === "string" ? requestId : null;
+  } catch {
+    return null;
+  }
+}
