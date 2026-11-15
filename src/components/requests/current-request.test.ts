@@ -39,11 +39,11 @@ describe("the current Request (#103)", () => {
     expect(resolveCurrentRequest(store.get(), [row({ id: "other" })])).toBeNull()
   })
 
-  it("names an unnumbered row by its title and treats a missing edit flag as no edit", () => {
+  it("names an unnumbered row by its typed title, not its problem to solve (#286, C7), and treats a missing edit flag as no edit", () => {
     const store = createCurrentRequestStore()
     store.setHighlighted("r1")
     expect(resolveCurrentRequest(store.get(), [row({ requestNumber: undefined, canEdit: undefined, priority: undefined, reframedProblem: "Clearer checkout" })]))
-      .toMatchObject({ code: null, name: "Clearer checkout", canEdit: false, priority: "none" })
+      .toMatchObject({ code: null, name: "Checkout copy", canEdit: false, priority: "none" })
   })
 
   it("may no longer be edited once a pending Pick up or Done moves it on", () => {
