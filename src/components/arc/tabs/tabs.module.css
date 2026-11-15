@@ -14,9 +14,10 @@
 .scrollButton:focus-visible { --focus-outline-offset: calc(var(--space-1) * -0.75); }
 .trigger { position: relative; -webkit-tap-highlight-color: transparent; display: inline-grid; min-width: calc(var(--space-1) * 22); place-items: center; flex: 0 0 auto; min-height: var(--control-height-sm); border: 0; border-radius: calc(var(--radius-control) - var(--radius-sm)); padding: 0 var(--space-3); background: transparent; color: var(--text-muted); font: inherit; font-size: var(--text-sm); font-weight: var(--weight-medium); white-space: nowrap; cursor: pointer; transition: color var(--duration-fast) var(--ease-standard); }
 @media (hover: hover) and (pointer: fine) { .trigger:hover { color: var(--foreground); } }
-.trigger:active { color: var(--foreground); }.trigger[data-state="active"] { color: var(--accent-strong); }
+.trigger:active { color: var(--foreground); }
+.trigger[data-state="active"] { color: var(--accent-strong); }
 .selection { position: absolute; z-index: var(--lane-layer-underlay); inset: 0; border: var(--border-width) solid var(--border); border-radius: inherit; background: var(--surface); box-shadow: var(--shadow-resting); will-change: transform; }
-.triggerLabel { position: relative; z-index: 1; }
+.triggerLabel { position: relative; z-index: var(--lane-layer-raised); }
 .trigger:disabled { cursor: not-allowed; opacity: var(--lane-opacity-disabled); }
 .content { margin-top: var(--space-4); color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 /* The outgoing panel is lifted out of flow by the presence animation; drop its margin so it stays in place and ignore stray clicks. */

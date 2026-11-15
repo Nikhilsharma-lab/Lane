@@ -548,7 +548,7 @@
     "source": "https://uiarc.dev/r/tabs.json",
     "file": "src/components/arc/tabs/tabs.module.css",
     "upstreamSha256": "89c6cb2ae4fa5be61cc3dbe7f196cc495da06d0f61c538a562ecffd7b05cf6f5",
-    "localSha256": "180641628e85ae952646473c9492158a8d1e70d7d60c2f23682ced3a4d165c70"
+    "localSha256": "2958a3ba2ead0b41c3fa6b81b6d25f59cf7afd6abf8776ba2101133d45eafb8e"
   },
   {
     "id": "radio-cards",
