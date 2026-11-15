@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { ResultView } from "./impact-read-model"
-import { beforeReleaseText, changeText, goalText, passFailTotalText, resultText, totalText, valueText, verdictText } from "./impact-presenter"
+import { beforeReleaseText, goalText, passFailTotalText, resultText, totalText, verdictText } from "./impact-presenter"
+import { changeAmountText, resultValueText } from "./result-phrasing"
 
 // #282: the Impact presenter words every goal, result and total the views show. Expected words are literals from the
 // spec (#256 Build 7, "Impact result wording"; #242 decisions 2 and 3), never recomputed the way the code does it.
@@ -102,14 +103,14 @@ describe("totals", () => {
 
 describe("values and changes", () => {
   it("write a percentage with no space: 62%", () => {
-    expect(valueText(62, "%")).toBe("62%")
+    expect(resultValueText(62, "%")).toBe("62%")
   })
 
   it("write a change with a true minus sign, a percentage's in points", () => {
-    expect(changeText(6, "%")).toBe("+6 points")
-    expect(changeText(-5, "seconds")).toBe("−5 seconds")
-    expect(changeText(10, "count")).toBe("+10")
-    expect(changeText(0, "%")).toBe("No change")
+    expect(changeAmountText(6, "%")).toBe("+6 points")
+    expect(changeAmountText(-5, "seconds")).toBe("−5 seconds")
+    expect(changeAmountText(10, "count")).toBe("+10")
+    expect(changeAmountText(0, "%")).toBe("No change")
   })
 
   it("show the value before release only when it was recorded at release; a legacy planning baseline reads in the goal", () => {

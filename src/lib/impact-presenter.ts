@@ -12,15 +12,6 @@ import { changeAmountText, goalValueText, passFailCountText, passFailText, resul
 export const NOTHING_MEASURED = "Nothing measured this period yet";
 export const NOT_RECORDED = "Not recorded";
 
-/** A value with its unit: "40%", "12" for a count, "30 seconds". Every view formats a value this way. */
-export const valueText = resultValueText
-
-/**
- * A signed change in its own unit, with a true minus sign: "+6 points" (a difference of percentages), "−5 seconds",
- * "+10" for a count. Zero reads "No change" everywhere. The words are the shared result phrasing's (#282).
- */
-export const changeText = changeAmountText
-
 const resultsText = (count: number) => `${count} ${count === 1 ? "result" : "results"}`
 
 /**
@@ -28,7 +19,7 @@ const resultsText = (count: number) => `${count} ${count === 1 ? "result" : "res
  * result", "+30 in total from 2 results". "In total" only when more than one result is counted (#282).
  */
 export function totalText(change: number, unit: string, count: number): string {
-  return `${changeText(change, unit)}${count > 1 ? " in total" : ""} from ${resultsText(count)}`
+  return `${changeAmountText(change, unit)}${count > 1 ? " in total" : ""} from ${resultsText(count)}`
 }
 
 /** The one set of verdict labels: Passed, Didn’t pass, or Not recorded. */
@@ -44,7 +35,7 @@ export function passFailTotalText(verdicts: { good: number; bad: number }): stri
 /** The actual value: a verdict for a Verified result, else the value with its unit. */
 export function actualText(result: ResultView): string {
   if (result.form === "pass_fail") return verdictText(result.verdict)
-  return result.actual !== null ? valueText(result.actual, result.unit) : NOT_RECORDED
+  return result.actual !== null ? resultValueText(result.actual, result.unit) : NOT_RECORDED
 }
 
 /**
@@ -65,7 +56,7 @@ export const BEFORE_RELEASE = "Before release"
  */
 export function beforeReleaseText(result: Pick<ResultView, "form" | "unit" | "baseline" | "baselineSource">): string | null {
   if (result.form !== "numeric" || result.baselineSource !== "release" || result.baseline === null) return null
-  return valueText(result.baseline, result.unit)
+  return resultValueText(result.baseline, result.unit)
 }
 
 export const NO_GOAL = "No goal set"
@@ -80,7 +71,7 @@ export const NO_GOAL = "No goal set"
 export function goalText(goal: Pick<Prediction, "form" | "metric" | "unit" | "baseline" | "target"> & { predictedChange?: number | null }): string {
   if (goal.form === "pass_fail") return goal.metric
   const change = goal.predictedChange ?? null
-  if (goal.target === null && change !== null && goal.baseline === null) return changeText(change, goal.unit)
+  if (goal.target === null && change !== null && goal.baseline === null) return changeAmountText(change, goal.unit)
   const target = goal.target ?? (change !== null && goal.baseline !== null ? goal.baseline + change : null)
   return goalValueText({ unit: goal.unit, baseline: goal.baseline, target })
 }

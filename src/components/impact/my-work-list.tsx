@@ -2,7 +2,8 @@ import { plannedDay } from "@/lib/dates"
 import Link from "@/components/link"
 import type { MyWorkEntry } from "@/lib/impact-read-model"
 import type { ResultView } from "@/lib/impact-read-model"
-import { BEFORE_RELEASE, beforeReleaseText, changeText, entryKindOf, goalText, resultText } from "@/lib/impact-presenter"
+import { BEFORE_RELEASE, beforeReleaseText, entryKindOf, goalText, resultText } from "@/lib/impact-presenter"
+import { changeAmountText } from "@/lib/result-phrasing"
 import { formatRequestCode } from "@/lib/request-code"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { Badge } from "@/components/arc/badge/badge"
@@ -51,7 +52,7 @@ function MeasuredFacts({ result }: { result: ResultView }) {
       {goal !== null ? <div><dt>Goal</dt><dd>{goal}</dd></div> : null}
       {before !== null ? <div><dt>{BEFORE_RELEASE}</dt><dd>{before}</dd></div> : null}
       {form === "pass_fail" || actual !== null ? <div><dt>Result</dt><dd>{resultText(result)}{corrected}</dd></div> : null}
-      {change !== null ? <div><dt>Change</dt><dd>{changeText(change, unit)}</dd></div> : null}
+      {change !== null ? <div><dt>Change</dt><dd>{changeAmountText(change, unit)}</dd></div> : null}
       <div><dt>Window</dt><dd>{window}</dd></div>
       {evidence ? <div><dt>Evidence</dt><dd>{evidence}</dd></div> : null}
     </dl>

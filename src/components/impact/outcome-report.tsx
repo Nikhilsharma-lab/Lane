@@ -10,7 +10,8 @@ import { Select } from "@/components/arc/select/select"
 import { guardrailComparisonPhrase, type GuardrailOperator } from "@/lib/guardrail-comparison"
 import { metricChart } from "@/lib/impact-chart-view"
 import { periodLabel, type ImpactPeriod } from "@/lib/impact-period"
-import { actualText, BEFORE_RELEASE, beforeReleaseText, changeText, goalText, NOTHING_MEASURED, passFailTotalText, resultText, totalText, valueText } from "@/lib/impact-presenter"
+import { actualText, BEFORE_RELEASE, beforeReleaseText, goalText, NOTHING_MEASURED, passFailTotalText, resultText, totalText } from "@/lib/impact-presenter"
+import { changeAmountText, resultValueText } from "@/lib/result-phrasing"
 import { iterationsHref } from "@/lib/same-problem-rules"
 import type { CorrectedValue, IterationNote, LearnedLine, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
@@ -123,7 +124,7 @@ function Totals({ report }: { report: OutcomeReport }) {
 }
 
 function guardrailText(guardrail: Pick<ReportGuardrail, "metric" | "operator" | "limit" | "unit">): string {
-  return `${guardrail.metric} ${guardrailComparisonPhrase[guardrail.operator as GuardrailOperator] ?? guardrail.operator} ${valueText(guardrail.limit, guardrail.unit)}`
+  return `${guardrail.metric} ${guardrailComparisonPhrase[guardrail.operator as GuardrailOperator] ?? guardrail.operator} ${resultValueText(guardrail.limit, guardrail.unit)}`
 }
 
 function Guardrails({ guardrails }: { guardrails: ReportGuardrail[] }) {
@@ -131,7 +132,7 @@ function Guardrails({ guardrails }: { guardrails: ReportGuardrail[] }) {
   return <div className={styles.group}>
     <h5 className={styles.subheading}>Guardrails</h5>
     <ul className={styles.plain}>{guardrails.map((guardrail, index) => <li key={index}>
-      {guardrailText(guardrail)}: {guardrail.actual === null ? "not measured yet" : `measured ${valueText(guardrail.actual, guardrail.unit)}, ${guardrail.held ? "held" : "not held"}`}
+      {guardrailText(guardrail)}: {guardrail.actual === null ? "not measured yet" : `measured ${resultValueText(guardrail.actual, guardrail.unit)}, ${guardrail.held ? "held" : "not held"}`}
     </li>)}</ul>
   </div>
 }
@@ -150,7 +151,7 @@ function MeasuredFacts({ result }: { result: ResultView }) {
     {result.baselineState === "unknown" && <Fact label={BEFORE_RELEASE}>Unknown</Fact>}
     {result.baselineState === "new_capability" && <Fact label={BEFORE_RELEASE}>New capability, no change</Fact>}
     <Fact label="Result"><CountedResult result={result} /></Fact>
-    {result.change !== null && <Fact label="Change">{changeText(result.change, result.unit)}</Fact>}
+    {result.change !== null && <Fact label="Change">{changeAmountText(result.change, result.unit)}</Fact>}
   </>
 }
 
