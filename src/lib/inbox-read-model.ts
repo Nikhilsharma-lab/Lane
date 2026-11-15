@@ -87,7 +87,7 @@ export type NeedsYouItem = {
   reframedProblem: string | null
   /** When it began needing the person. */
   since: Date
-  /** The Reviewer who raised a Concern (the name they were picked by); null for the other kinds. */
+  /** The Reviewer who raised a Concern, by their sign-in name (the name they were picked by when Lane has none); null for the other kinds. */
   reviewerName: string | null
   /** The review question, or the Concern's reason. */
   detail: string | null
@@ -96,7 +96,12 @@ export type NeedsYouItem = {
 }
 
 export type Inbox = { needsYou: NeedsYouItem[]; forYourInformation: ForYourInformationItem[] }
-export type InboxRecords = { notifications: readonly StoredNotification[]; requests: readonly InboxRequest[] }
+export type InboxRecords = {
+  notifications: readonly StoredNotification[]
+  requests: readonly InboxRequest[]
+  /** #284: people's sign-in names (the copy on their profile) by user id, for the Reviewers the items name. */
+  names?: ReadonlyMap<string, string>
+}
 
 const FYI = new Set<string>(FOR_YOUR_INFORMATION_KINDS)
 
@@ -114,7 +119,7 @@ function visibleTo(viewer: InboxViewer, row: StoredNotification) {
 /** Record the release appears this long after the work reached Done (an exact instant, not a calendar day). */
 export const RECORD_RELEASE_AFTER_DAYS = 3
 
-function needsYouOf(viewer: InboxViewer, request: InboxRequest, now: Date): NeedsYouItem[] {
+function needsYouOf(viewer: InboxViewer, request: InboxRequest, now: Date, names?: ReadonlyMap<string, string>): NeedsYouItem[] {
   const item = (kind: NeedsYouKind, occurrence: string, since: Date, extra: Partial<Pick<NeedsYouItem, "reviewerName" | "detail" | "dueDate">> = {}): NeedsYouItem => ({
     key: `${kind}:${request.id}:${occurrence}`, kind, requestId: request.id, requestNumber: request.requestNumber, requestTitle: request.title,
     reframedProblem: request.reframedProblem, since, reviewerName: null, detail: null, dueDate: null, ...extra,
@@ -132,7 +137,7 @@ function needsYouOf(viewer: InboxViewer, request: InboxRequest, now: Date): Need
       for (const reviewer of request.reviewers) {
         if (reviewer.decision?.kind !== "concern") continue
         const { at, reason } = reviewer.decision
-        items.push(item("concern", `${reviewer.id}:${at}`, new Date(at), { reviewerName: reviewer.displayNameAtSelection, detail: reason.trim() || null }))
+        items.push(item("concern", `${reviewer.id}:${at}`, new Date(at), { reviewerName: names?.get(reviewer.nominee.userId) ?? reviewer.displayNameAtSelection, detail: reason.trim() || null }))
       }
     }
   }
@@ -154,12 +159,13 @@ function needsYouOf(viewer: InboxViewer, request: InboxRequest, now: Date): Need
   return items
 }
 
-export function buildInbox(viewer: InboxViewer, records: InboxRecords, { now }: { now: Date }): Inbox {
+/** `keep` (#284): the item the Inbox's address holds open; it stays in the list once read, until another is opened. */
+export function buildInbox(viewer: InboxViewer, records: InboxRecords, { now, keep }: { now: Date; keep?: string }): Inbox {
   const needsYou = getsNeedsYou(viewer)
-    ? records.requests.flatMap(request => needsYouOf(viewer, request, now)).sort((a, b) => b.since.getTime() - a.since.getTime() || a.key.localeCompare(b.key))
+    ? records.requests.flatMap(request => needsYouOf(viewer, request, now, records.names)).sort((a, b) => b.since.getTime() - a.since.getTime() || a.key.localeCompare(b.key))
     : []
   const forYourInformation = records.notifications
-    .filter(row => row.userId === viewer.userId && row.readAt === null && isForYourInformation(row.type) && visibleTo(viewer, row))
+    .filter(row => row.userId === viewer.userId && (row.readAt === null || row.id === keep) && isForYourInformation(row.type) && visibleTo(viewer, row))
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .map((row): ForYourInformationItem => ({
       id: row.id, type: row.type, requestId: row.requestId, readAt: row.readAt, createdAt: row.createdAt, actorName: row.actorName,

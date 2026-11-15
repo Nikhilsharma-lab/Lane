@@ -16,7 +16,8 @@ import { afterPageLoad } from "@/lib/after-page-load";
 import { useStableRouter } from "@/components/shell/stable-router";
 import { markAllNotificationsRead, markNotificationRead, markNotificationUnread } from "@/app/(app)/notifications/actions";
 import type { InboxItem, NeedsYouInboxItem } from "./inbox-item";
-import { refreshedItems } from "./inbox-list";
+import { useInBrowser } from "@/components/requests/local-time";
+import { refreshedItems, withOpenedRead } from "./inbox-list";
 import { InboxView, inboxRowButton } from "./inbox-view";
 
 /**
@@ -49,6 +50,10 @@ function useReadAheadOnScreen(active: boolean, rows: number) {
 
 const LOAD_FAILED = "Your Inbox couldn’t be loaded. Try again.";
 
+/** #284: the open item is the address's `?item=`, so coming back to the Inbox reopens it (page.tsx keeps it listed). */
+const keepOpen = (id: string | null) => window.history.replaceState(null, "", id ? `?item=${encodeURIComponent(id)}` : location.pathname);
+const focusItem = (id: string) => requestAnimationFrame(() => document.querySelector<HTMLElement>(inboxRowButton(id))?.focus());
+
 function read(path: string, orgId: string, controller: AbortController) {
   return fetch(`${path}?${new URLSearchParams({ org: orgId })}`, { signal: controller.signal, headers: { accept: "application/json" }, credentials: "same-origin" });
 }
@@ -76,6 +81,9 @@ export type InboxScreenProps = {
    * as a preview's skeleton does: a slow connection may not have read the Request's own loading frame ahead yet.
    */
   requestLoading: ReactNode;
+  /** #284: the empty Inbox and the strip's delivery link, drawn on the server (inbox-empty.tsx). */
+  allClear: ReactNode;
+  delivery?: ReactNode;
 };
 
 /**
@@ -86,11 +94,19 @@ export type InboxScreenProps = {
  * available; elsewhere the Request's page opens). A window focus re-reads the list and the count; items read
  * on this visit stay in place until the next one (inbox-list.ts).
  */
-export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems, initialUnread, isGuest, viewer, requestLoading }: InboxScreenProps) {
+export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems, initialUnread, isGuest, viewer, requestLoading, allClear, delivery }: InboxScreenProps) {
   const navigation = useRequestNavigation();
-  const [state, setState] = useState<ReadState<InboxItem>>(() => receiveList(initialReadState<InboxItem>(initialUnread), initialItems, 0));
+  // #284: the address's open item. Read in the browser only; it shows only once the preview is offered, after hydration.
+  const [selectedId, setSelectedId] = useState<string | null>(() => typeof window === "undefined" ? null : new URLSearchParams(location.search).get("item"));
+  // #284 (C5): mounted in the browser, not hydrated: the Inbox is shown again in this tab (Back, or a move here), maybe
+  // from a copy older than opening that item, which read it. It re-reads at once (below).
+  const live = useInBrowser();
+  const shownAgain = useRef(live);
+  const [state, setState] = useState<ReadState<InboxItem>>(() => {
+    const shown = live && selectedId ? withOpenedRead(initialItems, initialUnread, selectedId, new Date().toISOString()) : { items: initialItems, unread: initialUnread };
+    return receiveList(initialReadState<InboxItem>(shown.unread), shown.items, 0);
+  });
   const [needsYou, setNeedsYou] = useState(initialNeedsYou);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -116,13 +132,13 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   useEffect(() => () => { countRequest.current?.abort(); listRequest.current?.abort(); }, []);
   useEffect(() => { if (peekAvailable) preloadRequestPeek(); }, [peekAvailable]);
   useReadAheadOnScreen(!peekAvailable, items.length + needsYou.length);
-  // Back or forward before the Request arrives cancels the move, and the Inbox is back.
+  // Back or forward before the Request arrives cancels the move, and the Inbox is back with focus on the item.
   useEffect(() => {
     if (!openingRequest) return;
-    const back = () => setOpeningRequest(false);
+    const back = () => { setOpeningRequest(false); if (selectedId) focusItem(selectedId); };
     window.addEventListener("popstate", back);
     return () => window.removeEventListener("popstate", back);
-  }, [openingRequest]);
+  }, [openingRequest, selectedId]);
   const openRequestPage = (requestId: string) => { if (navigation.open(requestDetailHref(requestId, "all"))) setOpeningRequest(true); };
 
   const refreshCount = useCallback(async () => {
@@ -165,6 +181,13 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
 
   // Decision 8.15: a window focus or a tab becoming visible re-reads the list and the count.
   const onWindowFocus = useEffectEvent(() => { void refreshList(); void refreshCount(); });
+  // #284: shown again, the page re-reads at once (a page the server drew for this load is fresh), and the address's
+  // open item opens again, with focus.
+  const opened = useRef(selectedId);
+  useLayoutEffect(() => {
+    if (shownAgain.current) onWindowFocus();
+    if (opened.current) focusItem(opened.current);
+  }, []);
   useEffect(() => {
     const onFocus = () => onWindowFocus();
     const onVisibility = () => { if (document.visibilityState === "visible") onWindowFocus(); };
@@ -216,29 +239,32 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
     // Opening an item reads it. The patch and the opening happen now; the action follows.
     const readAt = new Date().toISOString();
     const token = item.readAt === null ? beginRead(item, readAt) : null;
+    keepOpen(item.id);
     if (item.type === "invite_accepted") navigation.open("/settings/members");
     else if (item.requestId && peekAvailable) {
       navigation.previewChanged(item.requestId);
       if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });
       setSelectedId(item.id);
-    } else if (item.requestId) openRequestPage(item.requestId);
+    } else if (item.requestId) { setSelectedId(item.id); openRequestPage(item.requestId); }
     if (token !== null) runRead(item, readAt, token);
   };
 
   // A Needs-you item clears itself once the thing is done, so opening it changes nothing but the preview.
   const handleSelectNeedsYou = (item: NeedsYouInboxItem) => {
     if (peekAvailable && selectedId === item.key) { closePreview(); return; }
+    keepOpen(item.key);
     if (peekAvailable) {
       navigation.previewChanged(item.requestId);
       if (!selectedId) announce("Preview open. Esc closes it.", { key: "preview" });
       setSelectedId(item.key);
-    } else openRequestPage(item.requestId);
+    } else { setSelectedId(item.key); openRequestPage(item.requestId); }
   };
 
   const closePreview = () => {
     const id = selectedId;
     navigation.previewChanged(null);
     setSelectedId(null);
+    keepOpen(null);
     if (!id) return;
     announce("Preview closed.", { key: "preview" });
     navigation.deferFocus(() => document.querySelector<HTMLElement>(inboxRowButton(id))?.focus({ preventScroll: true }));
@@ -278,6 +304,8 @@ export function InboxScreen({ orgId, initialNeedsYou, showNeedsYou, initialItems
   return <RequestPeekLoadAhead value={loadAhead}><InboxView
     needsYou={needsYou}
     showNeedsYou={showNeedsYou}
+    allClear={allClear}
+    delivery={delivery}
     items={items}
     unread={unread}
     selectedId={previewId ? selectedId : null}

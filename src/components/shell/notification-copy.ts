@@ -1,7 +1,7 @@
 /**
  * Plan item 2.7: what a notification row says. Line 1 names the Request by
- * its saved code and reframed problem ("LAN-12 · Customers cannot find the
- * delivery date before checkout"), line 2 is the event with "Done" as a
+ * its saved code and the title its submitter typed ("LAN-12 · Delivery date on
+ * checkout", #284), as the Requests list does; line 2 is the event with "Done" as a
  * status, and the accessible name joins them with the local time and ends in
  * "unread" only for unread rows. The read toggle names the same Request, so each
  * row's toggle is told apart. Pure, so the view and the tests share it.
@@ -60,7 +60,7 @@ export function notificationEvent(type: string, actor: string): string | null {
 export function notificationRow(item: NotificationCopyInput, time?: string): NotificationRowCopy {
   const actor = item.actorName?.trim() || ACTOR_FALLBACK
   const code = requestCode(item.requestNumber) ?? "Request"
-  const subject = item.reframedProblem?.trim() || item.requestTitle?.trim() || null
+  const subject = item.requestTitle?.trim() || item.reframedProblem?.trim() || null
   const primary = item.type === "invite_accepted" ? `${actor} accepted your invite` : subject ? `${code} · ${subject}` : code
   const secondary = notificationEvent(item.type, actor)
   const detail = item.detail?.trim() || null
