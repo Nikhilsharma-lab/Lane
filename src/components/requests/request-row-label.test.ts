@@ -21,9 +21,13 @@ describe("requestRowLabel", () => {
     expect(requestRowLabel({ ...request, status: "open", priority: undefined, projectId: null, projectName: null, requestType: null, assignedTo: null, assigneeName: null }, null))
       .toBe("Signup drops at the phone step. Open, No priority, No Project, No assignee")
   })
-  it("prefers the reframed problem and the overlay's priority", () => {
+  it("names the Request by its typed title, never the problem to solve (#286, C7), with the overlay's priority", () => {
     expect(requestRowLabel({ ...request, reframedProblem: "People cannot finish signup" }, { code: "LAN-12", priority: "urgent" }))
-      .toBe("LAN-12, People cannot finish signup. In progress, Urgent priority, Website, Bug, Assignee Sam Lee")
+      .toBe("LAN-12, Signup drops at the phone step. In progress, Urgent priority, Website, Bug, Assignee Sam Lee")
+  })
+  it("says a Request the composer is still sending is sending, with no number yet (#286)", () => {
+    expect(requestRowLabel({ ...request, requestNumber: undefined, status: "open", assignedTo: null, assigneeName: null, sending: true }, { code: "", priority: "none" }))
+      .toBe("Sending, Signup drops at the phone step. Open, No priority, Website, Bug, No assignee")
   })
   it("reads the concern marker only on an Open Request with a concern open (#77)", () => {
     const concern = { name: "Priya", reason: "No API yet." }
