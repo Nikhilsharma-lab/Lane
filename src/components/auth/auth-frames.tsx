@@ -6,9 +6,10 @@ import { AuthShell, AuthTrust } from "./auth-shell";
 // Plan item 2.11: each auth page, its loading state and Clerk's own fallback
 // render inside one frame, so only the card changes while Clerk loads.
 
-/** The header action is passed in, so the frame stays free of Clerk: /login passes its reset link, gated by `HiddenDuringSessionTask`. */
-export function LoginFrame({ headerAction, children }: { headerAction: ReactNode; children: ReactNode }) {
-  return <AuthShell footer={headerAction}>{children}</AuthShell>;
+/** The actions are passed in, so the frame stays free of Clerk: /login passes its reset link, gated by `HiddenDuringSessionTask`,
+ * and (#289) the create-workspace step's sign-out for the header. */
+export function LoginFrame({ headerAction, taskAction, children }: { headerAction: ReactNode; taskAction?: ReactNode; children: ReactNode }) {
+  return <AuthShell headerAction={taskAction} footer={headerAction}>{children}</AuthShell>;
 }
 
 export function SignupFrame({ children }: { children: ReactNode }) {

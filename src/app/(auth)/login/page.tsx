@@ -6,6 +6,7 @@ import {
 } from "@/components/auth/clerk-sign-in";
 import { LoginResetLink } from "@/components/auth/login-reset-link";
 import { HiddenDuringSessionTask } from "@/components/auth/session-task-gate";
+import { WorkspaceTaskSignOut } from "@/components/auth/workspace-task-sign-out";
 
 // #271 (A114): the tab reads "Sign in · Lane".
 export const metadata: Metadata = { title: "Sign in" };
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Sign in" };
 // Clerk's card and the session check ship as client code.
 export default function LoginPage() {
   return (
-    <LoginFrame headerAction={<HiddenDuringSessionTask><LoginResetLink /></HiddenDuringSessionTask>}>
+    <LoginFrame headerAction={<HiddenDuringSessionTask><LoginResetLink /></HiddenDuringSessionTask>} taskAction={<WorkspaceTaskSignOut />}>
       <ClerkSessionTasks fallback={<ClerkHashSignIn />} />
     </LoginFrame>
   );

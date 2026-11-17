@@ -11,13 +11,13 @@ import {
 import { Suspense, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { clerkEmbeddedAppearance } from "./clerk-appearance";
+import { clerkEmbeddedAppearance, clerkWorkspaceTaskAppearance } from "./clerk-appearance";
 import { AuthCardSkeleton } from "./auth-card-skeleton";
 import { ClerkUnavailable } from "./clerk-unavailable";
 export { clerkEmbeddedAppearance } from "./clerk-appearance";
 
 export function ClerkHashSignIn() {
-  return <Suspense fallback={<AuthCardSkeleton label="Loading sign in" />}><HashSignInWithReturn /></Suspense>;
+  return <Suspense fallback={<AuthCardSkeleton label="Loading sign in" subtitle={false} />}><HashSignInWithReturn /></Suspense>;
 }
 
 function HashSignInWithReturn() {
@@ -30,7 +30,7 @@ function HashSignInWithReturn() {
       signUpUrl="/signup"
       fallbackRedirectUrl={returnUrl}
       appearance={clerkEmbeddedAppearance}
-      fallback={<><ClerkLoading><AuthCardSkeleton label="Loading sign in" /></ClerkLoading><ClerkFailed><ClerkUnavailable title="Sign in is unavailable right now" href="/login" /></ClerkFailed></>}
+      fallback={<><ClerkLoading><AuthCardSkeleton label="Loading sign in" subtitle={false} /></ClerkLoading><ClerkFailed><ClerkUnavailable title="Sign in is unavailable right now" href="/login" /></ClerkFailed></>}
     />
   );
 }
@@ -46,7 +46,7 @@ export function ClerkSessionTasks({
     return (
       <TaskChooseOrganization
         redirectUrlComplete="/onboarding"
-        appearance={clerkEmbeddedAppearance}
+        appearance={clerkWorkspaceTaskAppearance}
         fallback={<AuthCardSkeleton label="Loading workspaces" fields={0} social={false} />}
       />
     );

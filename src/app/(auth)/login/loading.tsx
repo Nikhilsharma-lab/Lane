@@ -8,6 +8,6 @@ import { LoginResetLink } from "@/components/auth/login-reset-link";
 // no session check here, so this state ships no Clerk code of its own.
 export default function LoginLoading() {
   return <LoginFrame headerAction={<AuthHeaderSlot concealed><LoginResetLink /></AuthHeaderSlot>}>
-    <AuthCardSkeleton label="Loading sign in" />
+    <AuthCardSkeleton label="Loading sign in" subtitle={false} />
   </LoginFrame>;
 }
