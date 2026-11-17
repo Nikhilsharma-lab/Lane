@@ -78,7 +78,7 @@ describe("production action guard signals", () => {
     boundary.session = { userId: null, orgId: null, orgRole: null };
     expect(await saveOnboardingRole({ role: "designer" })).toEqual({ error: "Sign in to continue.", sessionExpired: true });
     boundary.session = { userId: "signed_in", orgId: null, orgRole: null };
-    expect(await saveOnboardingRole({ role: "designer" })).toEqual({ error: "Create or join a workspace before choosing your role." });
+    expect(await saveOnboardingRole({ role: "designer" })).toEqual({ error: "Create or join a workspace before choosing your role.", needsWorkspace: true });
     expect(await saveOnboardingRole({ role: "invalid" })).toEqual({ error: "Choose a valid role." });
   });
 });
