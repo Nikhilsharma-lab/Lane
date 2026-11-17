@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { fontVariables } from "@/lib/fonts";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ui } from "@clerk/ui";
+import { clerkLocalization } from "@/components/auth/clerk-localization";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import { SpeedInsights } from "@/components/speed-insights";
@@ -94,9 +95,11 @@ export default function RootLayout({
             (#257; e2e/clerk-member-windows.spec.ts is the guard). */}
         {/* #266: Motion's renderer, animations and gestures come with every page; the (app) layout adds layout and drag. */}
         <MotionFeatures>
+        {/* #289: Lane's words on every Clerk screen and popup (src/components/auth/clerk-localization.ts). */}
         <ClerkProvider
           ui={ui}
           prefetchUI={false}
+          localization={clerkLocalization}
           signInUrl={SIGN_IN_URL}
           signUpUrl={SIGN_UP_URL}
           signInFallbackRedirectUrl="/"
