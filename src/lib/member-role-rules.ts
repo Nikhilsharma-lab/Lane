@@ -1,6 +1,6 @@
 import * as z from "zod"
 import type { WorkspacePermission } from "./auth-guard"
-import { ROLE_NAMES } from "./role-rules"
+import { canChangeThings, canContribute, canCreateRequests, readsWholeWorkspace, ROLE_NAMES } from "./role-rules"
 
 /**
  * Settings → Members (#210), safe in the browser: the roles an Admin can give, what each one means, and the
@@ -52,10 +52,55 @@ export function paidSeatSummary(change: PaidSeatChange): string {
     : `${change.name} becomes ${withArticle(change.role)}. Their seat starts today.`
 }
 
+/** #288 (D27): the invite field's two mistakes get two messages, in the browser and on the server alike. */
+export const EMAIL_MISSING = "Enter an email address."
+export const EMAIL_INVALID = "Enter a valid email address."
+const inviteEmailSchema = z.string().trim().toLowerCase().min(1, EMAIL_MISSING).pipe(z.email({ error: EMAIL_INVALID }).max(320, EMAIL_INVALID))
+
+/** What's wrong with an invite address, or null when it can be sent. */
+export function inviteEmailProblem(value: string): string | null {
+  const parsed = inviteEmailSchema.safeParse(value)
+  return parsed.success ? null : parsed.error.issues[0]?.message ?? EMAIL_INVALID
+}
+
+const PAID_ROLES = WORKSPACE_ROLES.filter(isPaidSeat)
+const FREE_ROLES = WORKSPACE_ROLES.filter(role => !isPaidSeat(role))
+const plural = (roles: WorkspacePermission[]) => roles.map(role => `${ROLE_NAMES[role]}s`).join(" and ")
+
+/**
+ * #288 (D28): the invite's seat note. The free roles are named only while they can be given (`offered`), so the note
+ * never calls a role free right above saying it isn't available.
+ */
+export function inviteSeatNote(offered: readonly WorkspacePermission[]): string {
+  const free = FREE_ROLES.filter(role => offered.includes(role))
+  return `${plural(PAID_ROLES)} are paid seats.${free.length ? ` ${plural(free)} are free.` : ""}`
+}
+
+/** The roles that exist but can't be given in this workspace yet (Clerk custom roles are off), or null for none. */
+export function unavailableRolesNote(offered: readonly WorkspacePermission[]): string | null {
+  const off = WORKSPACE_ROLES.filter(role => !offered.includes(role))
+  if (!off.length) return null
+  return `${off.length === 1 ? plural(off) : off.map(role => ROLE_NAMES[role]).join(" and ")} aren’t available in this workspace yet.`
+}
+
+const yesNo = (allowed: boolean) => allowed ? "Yes" : "No"
+/**
+ * #288: "What each role can do" in Settings → Members, read-only. Each answer comes from the shared rules in
+ * role-rules.ts, which the server guards enforce too, so the guide can't promise what Lane doesn't grant.
+ */
+export const ROLE_GUIDE: { label: string; answer: (role: WorkspacePermission) => string }[] = [
+  { label: "Read Requests", answer: role => readsWholeWorkspace(role) ? "All" : "Their own" },
+  { label: "File Requests", answer: role => yesNo(canCreateRequests(role)) },
+  { label: "Comment on Requests", answer: role => !canContribute(role) ? "No" : readsWholeWorkspace(role) ? "All" : "Their own" },
+  { label: "Pick up work", answer: role => yesNo(canChangeThings(role)) },
+  { label: "See Members", answer: role => yesNo(canChangeThings(role)) },
+  { label: "Invite people and change roles", answer: role => yesNo(role === "admin") },
+]
+
 const roleSchema = z.enum(WORKSPACE_ROLES, { error: "Choose Admin, Member, Guest or Viewer." })
 
 export const inviteInputSchema = z.object({
-  email: z.string().trim().toLowerCase().pipe(z.email({ error: "Enter an email address." }).max(320, "Enter an email address.")),
+  email: inviteEmailSchema,
   role: roleSchema,
   confirmedPaidSeat: z.boolean().optional(),
 }).strict()

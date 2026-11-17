@@ -9,8 +9,8 @@ const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).j
  * each set apart by a hairline. There is no footer: what a footer said is a row's hint, or it is gone.
  */
 export function SettingsGroup({ label, labelId, description, children, className, as: Tag = "section", ...props }: {
-  /** The small group label, smaller than the section heading. */
-  label?: string;
+  /** The small group label, smaller than the section heading (with a count beside it, for a list). */
+  label?: ReactNode;
   /** The label's id: it names the group, or a form around it. */
   labelId?: string;
   /** A line under the label, for what the whole group is about. */
