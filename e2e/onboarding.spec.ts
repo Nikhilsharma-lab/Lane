@@ -129,6 +129,49 @@ test("a Clerk user chooses a Lane role and enters their active workspace", async
   }
 });
 
+// #290 (D9, D10): the role step names only its own keys, and only where there is a keyboard.
+test("the role step names its 1, 2 and 3 keys on desktop and no keys on a phone", async ({
+  page,
+  browser,
+}) => {
+  const user = await createTestUser("onboarding-role-keys");
+  const orgId = await createClerkTestOrganization(user.id, "Lane E2E Role Keys Workspace");
+
+  try {
+    await signInTestUser(page, user, orgId);
+    await page.goto("/onboarding");
+    await expect(page.getByRole("heading", { name: "Choose your role" })).toBeVisible();
+    await expect(page.getByText("C to create")).toHaveCount(0);
+    await expect(page.getByText("to search")).toHaveCount(0);
+    await expect(page.getByText("Press 1, 2 or 3 to choose", { exact: true })).toBeVisible();
+
+    await page.keyboard.press("2");
+    await expect(page.getByRole("radio", { name: "Designer" })).toBeChecked();
+    await expect(page.getByRole("radio", { name: "Designer" })).toBeFocused();
+
+    const touch = await browser.newContext({
+      storageState: await page.context().storageState(),
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    try {
+      const phone = await touch.newPage();
+      await setupClerkTestingToken({ page: phone });
+      await phone.goto("/onboarding");
+      await expect(phone.getByRole("heading", { name: "Choose your role" })).toBeVisible();
+      await expect(phone.getByText("Press 1, 2 or 3 to choose", { exact: true })).toBeHidden();
+      await expect(phone.locator("kbd").filter({ visible: true })).toHaveCount(0);
+      await expect(phone.getByText("C to create")).toHaveCount(0);
+    } finally {
+      await touch.close();
+    }
+  } finally {
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});
+
 // Risk 1 in the 2.1/2.2 spec: signing in soft-navigates to /, which redirects to
 // /onboarding and can sit in the client router cache for 30 s. Choosing a role
 // inside that window must still land on / and stay there.
