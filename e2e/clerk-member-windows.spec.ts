@@ -9,9 +9,9 @@ import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-u
 // light and dark, at every width DESIGN.md asks for, then removes a teammate. Clerk's windows used to squeeze their
 // page into the empty column left by the hidden navigation, cutting off names, emails and the organization actions.
 // Manage account keeps Clerk's own side navigation and must look as it did. The teammate, a Member, sees their own
-// Manage workspace window with Leave organization in full (story 15) before the Admin removes them.
+// Manage workspace window with Leave workspace in full (story 15) before the Admin removes them.
 const WIDTHS = [1440, 1024, 768, 390] as const;
-// At 390 the windows are only checked to fit without sideways scrolling: Clerk's "≡ Organization" menu row and the
+// At 390 the windows are only checked to fit without sideways scrolling: Clerk's "≡ Workspace" menu row and the
 // Role column wrapping letter by letter are Build 8 work (#256).
 const PHONE = 390;
 // Clerk folds Manage account's side navigation into a menu below laptop widths, as it always has.
@@ -19,7 +19,7 @@ const SIDE_NAVIGATION_WIDTHS: readonly number[] = [1440, 1024];
 const NARROW_LAPTOP = { width: 1024, height: 640 };
 
 for (const colorScheme of ["light", "dark"] as const) {
-  test(`an Admin sees Clerk's member, workspace and account windows in full and removes a member, and a Member sees Leave organization in full (${colorScheme})`, async ({ page, browser }) => {
+  test(`an Admin sees Clerk's member, workspace and account windows in full and removes a member, and a Member sees Leave workspace in full (${colorScheme})`, async ({ page, browser }) => {
     test.setTimeout(360_000);
     const admin = await createTestUser(`clerk-windows-admin-${colorScheme}`);
     const member = await createTestUser(`clerk-windows-member-${colorScheme}`);

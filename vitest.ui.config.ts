@@ -12,6 +12,8 @@ export default defineConfig({
       "src/components/settings/*.test.ts",
       "src/components/metrics/*.test.ts",
       "src/components/auth/clerk-appearance.test.ts",
+      "src/components/auth/clerk-localization.test.ts",
+      "src/components/auth/workspace-task-sign-out.test.ts",
       "src/test/theme-parity-contrast.test.ts",
       "src/test/theme-parity-clerk-colours.test.ts",
       "src/components/auth/auth-frames.test.ts",

@@ -2,19 +2,20 @@ import styles from "./auth.module.css";
 import { PlaceholderFrame } from "@/components/loading/placeholder-frame";
 
 /**
- * Plan item 2.11: Clerk's card as `clerkEmbeddedAppearance` lays it out (centred
- * header, an optional social button and "or" divider, labelled fields, the
- * primary button, the footer action). It is Clerk's `fallback` and the content of
+ * Plan item 2.11: Clerk's card as `clerkEmbeddedAppearance` lays it out (the header,
+ * with a subtitle line unless `subtitle` is false, as on sign-in since #289; an
+ * optional social button and "or" divider, labelled fields, the primary button,
+ * the footer action). It is Clerk's `fallback` and the content of
  * the auth loading states, so the card arrives in a block of its own shape. The
  * wait is announced once and the bars are decorative. Plain markup with no client
  * code: /login loads it twice (its loading state and Clerk's fallback), and the
  * Arc Skeleton would bring its motion code along both times.
  */
-export function AuthCardSkeleton({ label, fields = 1, social = true }: { label: string; fields?: number; social?: boolean }) {
+export function AuthCardSkeleton({ label, fields = 1, social = true, subtitle = true }: { label: string; fields?: number; social?: boolean; subtitle?: boolean }) {
   return <PlaceholderFrame><div role="status" aria-label={label} aria-busy="true" data-skeleton="auth-card" className={styles.cardSkeleton}>
     <div aria-hidden="true" className={styles.heading}>
       <span className={styles.skeletonTitle}><span className={styles.skeletonTitleBar} /></span>
-      <span className={styles.skeletonText}><span className={styles.skeletonBar} /></span>
+      {subtitle && <span className={styles.skeletonText}><span className={styles.skeletonBar} /></span>}
     </div>
     <div aria-hidden="true" className={styles.skeletonBody}>
       {social && <>
