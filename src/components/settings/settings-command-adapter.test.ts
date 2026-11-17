@@ -148,3 +148,21 @@ describe("Settings headings over row groups (#287)", () => {
     expect(open).not.toMatch(/<h3[^>]*>Requests<\/h3>(?:(?!<h3)[\s\S])*>Labels</);
   });
 });
+
+describe("A section this role can't open (#288, D30)", () => {
+  const visibleSections = (html: string) => [...html.matchAll(/<section id="settings-([\w-]+)"([^>]*)>/g)].filter(match => !match[2].includes("hidden")).map(match => match[1]);
+  it("shows a Member the default section with a quiet line saying who Billing is for", () => {
+    const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "member", workspaceName: "Lane Studio", initialSection: "billing" }));
+    expect(html).toContain("Billing is for Admins of this workspace.");
+    expect(visibleSections(html)).toEqual(["profile"]);
+    expect(html.indexOf("Billing is for Admins")).toBeLessThan(html.indexOf('id="settings-profile"'));
+  });
+  it("tells a Viewer who Members is for", () => {
+    expect(renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "viewer", workspaceName: "Lane Studio", initialSection: "members" })))
+      .toContain("Members is for Admins and Members of this workspace.");
+  });
+  it("says nothing when the section opens, or was never asked for", () => {
+    expect(renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "admin", workspaceName: "Lane Studio", initialSection: "billing" }))).not.toContain("is for Admins");
+    expect(renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "member", workspaceName: "Lane Studio" }))).not.toContain("of this workspace.");
+  });
+});

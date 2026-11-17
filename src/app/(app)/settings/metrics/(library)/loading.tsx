@@ -1,5 +1,5 @@
 import { SettingsLoading } from "@/components/settings/settings-loading";
 
 export default function MetricsLoading() {
-  return <SettingsLoading title="Metrics" label="Loading Metrics" />;
+  return <SettingsLoading section="metrics" label="Loading Metrics" />;
 }
