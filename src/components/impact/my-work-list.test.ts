@@ -134,6 +134,16 @@ describe("My work rows (#155)", () => {
     expect(out).toContain("Closed without a result: No event data for this release")
   })
 
+  it("names the reason a Request closed without a result when the close has no details", () => {
+    const exception: OutcomeException = {
+      version: 1, kind: "exception", reasonCode: "rolled_back", reason: "", actorId: ME, ownerId: ME,
+      closedAt: "2026-09-10T09:00:00.000Z", operationId: "op-x", fingerprint: "fp", release: RELEASE_AUG, revision: 1,
+    }
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), exceptionClosure: exception })]
+    const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
+    expect(out).toContain("Closed without a result: Rolled back")
+  })
+
   it("shows operational work with its reason", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, expectedImpact: null, noMeasurableImpactReason: "Token rename" })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))

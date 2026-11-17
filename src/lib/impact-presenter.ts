@@ -88,7 +88,8 @@ export type EntryKind =
 export function entryKindOf(entry: Pick<RequestEntry, "result" | "stillDue" | "closedWithoutResult" | "operationalReason" | "predicted">): EntryKind {
   if (entry.result) return { kind: "result", result: entry.result };
   if (entry.stillDue) return { kind: "still_due", due: entry.stillDue };
-  if (entry.closedWithoutResult) return { kind: "closed_without_result", reason: entry.closedWithoutResult.reason };
+  // A close with no details still has its reason: "Closed without a result: Rolled back", never a bare colon.
+  if (entry.closedWithoutResult) return { kind: "closed_without_result", reason: entry.closedWithoutResult.reason.trim() || entry.closedWithoutResult.label };
   if (entry.operationalReason) return { kind: "operational", reason: entry.operationalReason };
   if (entry.predicted) return { kind: "predicted", predicted: entry.predicted };
   return { kind: "none" };

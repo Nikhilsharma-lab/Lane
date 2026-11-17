@@ -193,7 +193,8 @@ export type RequestEntry = {
   predicted: Prediction | null;
   result: ResultView | null;
   stillDue: DueItem | null;
-  closedWithoutResult: { reasonCode: string; reason: string } | null;
+  /** `label` names the closing form's reason (Rolled back); `reason` is its details, which may be empty. */
+  closedWithoutResult: { reasonCode: string; label: string; reason: string } | null;
   corrections: CorrectionView[];
   releaseDate: string | null;
   followUpOf: string | null;
@@ -303,6 +304,9 @@ function correctedResultOf(row: ImpactRow, closure: OutcomeClosure): ClosureCorr
     .sort((a, b) => a.revision - b.revision).at(-1) ?? null;
 }
 
+/** The closing form's name for a Closed without a result reason (Rolled back). */
+const exceptionReasonLabel = (reasonCode: string) => EXCEPTION_REASON_OPTIONS.find(option => option.value === reasonCode)?.label ?? "Closed without a result";
+
 const verdictOf = (passed: boolean | null): Verdict | null => passed === null ? null : passed ? "good" : "bad";
 
 function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
@@ -393,7 +397,7 @@ function entryOf(row: ImpactRow, now: Date, visible: ImpactRow[]): RequestEntry 
     predicted: source ? predictionOf(source, row.definitions) : null,
     result: measured,
     stillDue: dueItemOf(row, now),
-    closedWithoutResult: row.exceptionClosure ? { reasonCode: row.exceptionClosure.reasonCode, reason: row.exceptionClosure.reason } : null,
+    closedWithoutResult: row.exceptionClosure ? { reasonCode: row.exceptionClosure.reasonCode, label: exceptionReasonLabel(row.exceptionClosure.reasonCode), reason: row.exceptionClosure.reason } : null,
     corrections: correctionsOf(row),
     releaseDate: releaseDateOf(row),
     followUpOf: row.followUpOf,
@@ -880,7 +884,7 @@ function iterationOutcome(row: ImpactRow, now: Date): IterationOutcome {
   if (row.outcomeClosure) return { kind: "measured", result: measuredResult(row, row.outcomeClosure) };
   if (row.exceptionClosure) {
     const { reasonCode, reason } = row.exceptionClosure;
-    return { kind: "closed_without_result", reasonCode, label: EXCEPTION_REASON_OPTIONS.find(option => option.value === reasonCode)?.label ?? "Closed without a result", reason };
+    return { kind: "closed_without_result", reasonCode, label: exceptionReasonLabel(reasonCode), reason };
   }
   const state = impactStateOf(row);
   if (state.kind === "operational") return { kind: "operational", reason: state.reason };
