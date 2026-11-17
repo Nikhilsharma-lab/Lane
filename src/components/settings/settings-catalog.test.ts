@@ -72,3 +72,35 @@ describe("Settings → Metrics (#196)", () => {
     expect(settingsSectionAt("/settings/profile")).toBeNull();
   });
 });
+
+describe("Settings catalog cleanup (#287)", () => {
+  const soon = (role: string) => settingsEntries(role).filter(entry => entry.soon).map(entry => `${entry.group} → ${entry.label}`);
+
+  it("has one Manage account entry, which the connected-account words find (D32)", () => {
+    for (const role of ["admin", "member", "viewer", "guest"]) {
+      const entries = settingsEntries(role);
+      expect(entries.map(entry => entry.label)).not.toContain("Connected accounts");
+      for (const query of ["google", "Google", "connected accounts", "login"]) {
+        expect(searchSettings(entries, query)[0].def, `${role}: ${query}`).toMatchObject({ id: "manage-account", label: "Manage account", section: "profile", target: "manage-account" });
+      }
+    }
+  });
+
+  it("no longer plans Display names or Request labels; Project labels stay planned (D25)", () => {
+    for (const role of ["admin", "member"]) {
+      expect(soon(role)).not.toContain("Preferences → Display names");
+      expect(soon(role)).not.toContain("Requests → Labels");
+      expect(soon(role)).toContain("Projects → Labels");
+      expect(soon(role)).toEqual(expect.arrayContaining(["Preferences → Send comments on", "Requests → Intake templates", "Projects → Templates"]));
+    }
+    expect(searchSettings(settingsEntries("member"), "display names")).toEqual([]);
+    expect(searchSettings(settingsEntries("member"), "labels").map(result => result.def.id)).toEqual(["project-labels"]);
+  });
+
+  it("describes Members by what each person can do there (D29)", () => {
+    const members = (role: string) => settingsNavigation(role).find(entry => entry.id === "members")?.description;
+    expect(members("member")).toBe("People in this workspace and their roles.");
+    expect(members("admin")).toBe("Manage workspace members and invitations.");
+    expect(settingsEntries("member").find(entry => entry.id === "members")?.description).toBe("People in this workspace and their roles.");
+  });
+});
