@@ -68,7 +68,7 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
   const { copy, setPriority: setRequestPriority } = moves
   const startMove = moves.move
   const move = useCallback((request: OverviewRequest, kind: Move) => {
-    void startMove({ id: request.id, name: identities[request.id]?.code || (request.reframedProblem ?? request.title), reviewState: request.reviewState }, kind)
+    void startMove({ id: request.id, name: identities[request.id]?.code || request.title, reviewState: request.reviewState }, kind)
   }, [identities, startMove])
   const setPriority = useCallback((request: OverviewRequest, priority: RequestPriority) => { void setRequestPriority(request.id, priority) }, [setRequestPriority])
 
@@ -110,7 +110,7 @@ export function RequestRowActions({ requests, context, isGuest, readOnly = false
       // and a pickup that isn't ready shows why instead of failing on the server.
       const copyItem: ContextMenuItem = { id: "copy", label: "Copy", separatorBefore: !readOnly, icon: <Copy />, children: [
         ...(identity.code ? [{ id: "code", label: "Copy code", icon: <Hash />, onSelect: () => void copy(identity.code, "Code") }] : []),
-        { id: "title", label: "Copy title", icon: <Type />, onSelect: () => void copy(request.reframedProblem ?? request.title, "Title") },
+        { id: "title", label: "Copy title", icon: <Type />, onSelect: () => void copy(request.title, "Title") },
         { id: "link", label: "Copy link", icon: <Link2 />, onSelect: () => void copy(new URL(`/requests/${request.id}`, window.location.origin).href, "Link") },
       ] }
       if (readOnly) return [copyItem]

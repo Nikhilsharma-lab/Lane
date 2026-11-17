@@ -7,7 +7,7 @@ import { Placeholder } from "@/components/loading/placeholder";
 // Plan item 2.3: /intake is a launcher under the strip, and the composer opens
 // over it as a centred dialog (2026-10-13). The skeleton draws the launcher as
 // intake-launcher.tsx lays it out, centred in the pane: the glyph, the title
-// line (its one status), one line of description and the Create Request pill.
+// line (its one status), one line of description and the New Request pill.
 // Everything after the status is decorative.
 export default function IntakeLoading() {
   return <>

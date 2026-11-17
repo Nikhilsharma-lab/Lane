@@ -8,8 +8,8 @@ import { MOVES, moveRefusal, type LifecycleMove } from "@/lib/request-lifecycle"
 import { measurementReadiness } from "@/lib/request-measurement";
 import { guestPickupRefusal, guestSubmissionOf } from "@/lib/guest-submission";
 import { workspaceRoster } from "@/lib/workspace-roster";
+import { isUuid } from "@/lib/uuid";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Members and admins change Requests; guests and anyone outside the
  * workspace get this instead of "Not found", which is kept for a Request that
@@ -47,7 +47,7 @@ export async function transitionRequests(move: LifecycleMove, requestIds: unknow
   const transition = MOVES[move];
   // Never trust the client's ids: anything but a string is dropped.
   const unique = [...new Set((Array.isArray(requestIds) ? requestIds : []).filter((id): id is string => typeof id === "string"))];
-  const valid = unique.filter((id) => UUID_RE.test(id)).slice(0, BULK_LIMIT);
+  const valid = unique.filter(isUuid).slice(0, BULK_LIMIT);
   const invalid = unique.filter((id) => !valid.includes(id)).map((id) => ({ id, error: "Not found" }));
   const auth = await guardCanChange(context.orgId, CANNOT_CHANGE_REQUESTS);
   if ("error" in auth) {

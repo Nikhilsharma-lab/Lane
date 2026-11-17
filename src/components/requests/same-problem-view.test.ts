@@ -52,7 +52,7 @@ describe("Iterations of this problem", () => {
     expect(body).toContain("Closed without a result")
     expect(body).toContain("Rolled back: Broke Safari checkout")
     expect(body).toContain("Goal Checkout conversion: 50% (from 40%)")
-    expect(body).toMatch(/Result 46%.*\+6 percentage points/)
+    expect(body).toMatch(/Result 46%.*\+6 points/)
     expect(body).toContain("Result due 31 Oct (Due in 8 days)")
     expect(body).toContain("Not Released yet")
   })

@@ -1,114 +1,83 @@
 "use client"
 
-import Link from "@/components/link"
-import { useRef, useState, type KeyboardEvent } from "react"
+import { useState } from "react"
+import { Select } from "@/components/arc/select/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/arc/tabs/tabs"
 import type { ImpactPeriod } from "@/lib/impact-period"
 import type { ImpactDashboard, Teammate, MyWorkEntry } from "@/lib/impact-read-model"
-import { impactHref } from "./impact-href"
+import { impactTab, type ImpactTab } from "./impact-href"
 import { MyWorkTab, TeammateWorkList } from "./my-work-list"
-import { OutcomeReportView } from "./outcome-report"
+import { LazyOutcomeReport, preloadOutcomeReport } from "./outcome-report-lazy"
 import type { QuarterNoteEditorTarget } from "./quarter-notes"
 import styles from "./impact-screen.module.css"
 
-// The Impact screen (#159, #208): My work and the Outcome report for a non-guest, My work alone for a guest. It
-// renders the read model's output and computes no totals. Read only: no add, edit, notify or export controls.
+// The Impact screen (#159, #208, #283): My work and the Outcome report in Arc tabs, held in the page address. It
+// renders the read model's output and computes no totals. Read only: no add, edit, notify or export controls. Tabs and
+// Showing come from what the read model returns: no Outcome report means My work alone, no teammates means no Showing.
 
-export type TabId = "my-work" | "outcome-report";
-const TABS: { id: TabId; label: string }[] = [
-  { id: "my-work", label: "My work" },
-  { id: "outcome-report", label: "Outcome report" },
-];
-
-/** Where a tab key moves the selection: arrows wrap, Home and End jump to the ends. Null for any other key. */
-export function nextTab(current: TabId, key: string): TabId | null {
-  const index = TABS.findIndex(tab => tab.id === current);
-  const last = TABS.length - 1;
-  const target = key === "ArrowRight" || key === "ArrowDown" ? (index === last ? 0 : index + 1)
-    : key === "ArrowLeft" || key === "ArrowUp" ? (index === 0 ? last : index - 1)
-      : key === "Home" ? 0 : key === "End" ? last : -1;
-  return target < 0 ? null : TABS[target].id;
-}
+/** Showing's value for the viewer's own list. Clerk user ids start "user_", so it never names a person. */
+const YOU = "you"
 
 export type ImpactScreenProps = {
   dashboard: ImpactDashboard;
-  /** The period chosen in the URL, kept on teammate links. Null when none is chosen (the report shows the current quarter). */
+  /** The period chosen in the address. Null when none is chosen (the report shows the current quarter). */
   period: ImpactPeriod | null;
-  /** The people a non-guest may open a list for. Empty for a guest. */
+  /** The people the viewer may show a list for: their own teammates, from the read model. */
   teammates: Teammate[];
-  /** The teammate chosen in the URL, with their Requests. Null when none is chosen. */
+  /** The teammate chosen in the address, with their Requests. Null when none is chosen, or the address named someone else. */
   person: { id: string; name: string; entries: MyWorkEntry[] } | null;
+  /** The open tab, from the address (impact-href.ts). */
+  tab: ImpactTab;
+  /** Showing's value while a choice is on its way (Live): the person chosen, null for You. Defaults to `person`. */
+  showing?: string | null;
+  /** Admins and Members file Requests: they get New Request on an empty My work. */
+  canFile?: boolean;
+  onTabChange?: (tab: ImpactTab) => void;
   onPeriodChange?: (period: ImpactPeriod) => void;
-  /** The tab open first. The page opens the Outcome report when the address names a period and no teammate. */
-  initialTab?: TabId;
+  /** Called with a teammate's id, or null for You. */
+  onPersonChange?: (personId: string | null) => void;
   /** Set for an Admin only (#209): where Quarter note edits go. The server refuses anyone else. */
   quarterNoteEditor?: QuarterNoteEditorTarget;
 };
 
-export function ImpactScreen({ dashboard, period, teammates, person, onPeriodChange, initialTab = "my-work", quarterNoteEditor = null }: ImpactScreenProps) {
-  const [selected, setSelected] = useState<TabId>(initialTab);
-  const tabs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
-  // The read model returns no Outcome report for a guest, so a guest sees My work alone, with no tabs.
-  const report = dashboard.outcomeReport;
+export function ImpactScreen({ dashboard, teammates, person, tab, showing = person?.id ?? null, canFile = false, onTabChange, onPeriodChange, onPersonChange, quarterNoteEditor = null }: ImpactScreenProps) {
+  const report = dashboard.outcomeReport
+  // Opened on the report, the page renders it on the server; otherwise its code follows the page (outcome-report-lazy.tsx).
+  const [reportFirst] = useState(tab === "outcome-report")
 
-  const onKeyDown = (current: TabId) => (event: KeyboardEvent<HTMLButtonElement>) => {
-    const next = nextTab(current, event.key);
-    if (!next) return;
-    event.preventDefault();
-    setSelected(next);
-    tabs.current[next]?.focus();
-  };
+  // Showing (#283, C4): You first, then the viewer's teammates. A choice swaps the list below in place.
+  const picker = teammates.length > 0 && <div className={styles.showing}>
+    <Select label="Showing" value={showing ?? YOU} onValueChange={value => onPersonChange?.(value === YOU ? null : value)}
+      description="Lists show results only, never totals or rankings."
+      options={[{ value: YOU, label: "You" }, ...teammates.map(teammate => ({ value: teammate.id, label: teammate.name }))]} />
+  </div>
 
-  const myWork = <MyWorkTab entries={dashboard.myWork.requests} />;
-  // Teammates are for a non-guest only; the read model returns no Outcome report, and no teammates, for a guest.
-  const teammateLists = <>
-    {teammates.length > 0 && <section className={styles.people} aria-labelledby="impact-teammates-heading">
-      <h2 id="impact-teammates-heading" className={styles.heading}>Teammates</h2>
-      <p className={styles.note}>Open a teammate’s Requests to see their results. Lists show results only, never totals or rankings.</p>
-      <ul className={styles.peopleList}>
-        {teammates.map(teammate => <li key={teammate.id}>
-          <Link href={impactHref({ period, person: teammate.id })} className={styles.person} aria-current={person?.id === teammate.id ? "true" : undefined}>{teammate.name}</Link>
-        </li>)}
-      </ul>
-    </section>}
-    {person && <section className={styles.personList} aria-labelledby="impact-person-heading">
-      <h2 id="impact-person-heading" className={styles.heading}>Requests by {person.name}</h2>
-      <TeammateWorkList name={person.name} entries={person.entries} />
-    </section>}
-  </>;
+  const myWork = <div className={styles.myWork}>
+    {picker}
+    {person
+      ? <section className={styles.personList} aria-labelledby="impact-person-heading">
+        <h2 id="impact-person-heading" className={styles.heading}>Requests by {person.name}</h2>
+        <TeammateWorkList name={person.name} entries={person.entries} />
+      </section>
+      : <MyWorkTab entries={dashboard.myWork.requests} canFile={canFile} chooseSomeone={!canFile && teammates.length > 0} />}
+  </div>
 
   if (report === null) return <div className={styles.screen}>
     <section aria-label="My work">{myWork}</section>
-  </div>;
-
-  const panels: Record<TabId, React.ReactNode> = {
-    "my-work": <>{myWork}{teammateLists}</>,
-    "outcome-report": <OutcomeReportView report={report} onPeriodChange={onPeriodChange} quarterNoteEditor={quarterNoteEditor} />,
-  };
+  </div>
 
   return <div className={styles.screen}>
-    <div role="tablist" aria-label="Impact views" className={styles.tablist}>
-      {TABS.map(tab => <button
-        key={tab.id}
-        ref={element => { tabs.current[tab.id] = element; }}
-        id={`impact-tab-${tab.id}`}
-        type="button"
-        role="tab"
-        aria-selected={selected === tab.id}
-        aria-controls={`impact-panel-${tab.id}`}
-        tabIndex={selected === tab.id ? 0 : -1}
-        className={styles.tab}
-        onClick={() => setSelected(tab.id)}
-        onKeyDown={onKeyDown(tab.id)}
-      >{tab.label}</button>)}
-    </div>
-    {TABS.map(tab => <section
-      key={tab.id}
-      id={`impact-panel-${tab.id}`}
-      role="tabpanel"
-      aria-labelledby={`impact-tab-${tab.id}`}
-      tabIndex={0}
-      hidden={selected !== tab.id}
-      className={styles.panel}
-    >{panels[tab.id]}</section>)}
-  </div>;
+    <Tabs value={tab} onValueChange={value => { const next = impactTab(value); if (next) onTabChange?.(next) }}>
+      <div className={styles.tablist}>
+        <TabsList aria-label="Impact views">
+          <TabsTrigger value="my-work">My work</TabsTrigger>
+          <TabsTrigger value="outcome-report" onPointerEnter={preloadOutcomeReport} onFocus={preloadOutcomeReport}>Outcome report</TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="my-work" className={styles.panel}>{myWork}</TabsContent>
+      <TabsContent value="outcome-report" className={styles.panel}>
+        <LazyOutcomeReport openedFirst={reportFirst} report={report} onPeriodChange={onPeriodChange} quarterNoteEditor={quarterNoteEditor} />
+      </TabsContent>
+    </Tabs>
+  </div>
 }

@@ -2,7 +2,7 @@
 
 Arc UI supplies Lane's product components and the current production visual theme. The approved Linear primitives preview is documented below. [The official docs](https://uiarc.dev/docs/introduction), [theming guide](https://uiarc.dev/docs/theming), and [AI/MCP guide](https://uiarc.dev/docs/ai) govern future changes. The marketing repository is outside this migration.
 
-`src/components/arc/` contains official `@uiarc` registry source and licensed `@uiarc-pro` source retrieved through MCP. `arc-source-hashes.json` records the source URL, installed file, and upstream SHA-256. Changed local files are explicit adaptations. Free install IDs are `arc-foundation`, `alert`, `avatar`, `badge`, `button`, `checkbox`, `chip-group`, `floating-button-group`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `empty-state`, `filter-toolbar`, `input`, `notification-center`, `pagination`, `password-field`, `popover`, `progress`, `radio-group`, `search-field`, `segmented-control`, `select`, `shortcut-recorder`, `skeleton`, `textarea`, `toast-stack`, `tooltip`, and `user-menu`. The Pro block is `workspace-sidebar`. Free source docs are at `https://uiarc.dev/components/<id>`; the sidebar reference is `https://uiarc.dev/components/blocks/sidebar?variant=workspace-sidebar`.
+`src/components/arc/` contains official `@uiarc` registry source and licensed `@uiarc-pro` source retrieved through MCP. `arc-source-hashes.json` records the source URL, installed file, and upstream SHA-256. Changed local files are explicit adaptations. Free install IDs are `arc-foundation`, `alert`, `avatar`, `badge`, `button`, `checkbox`, `chip-group`, `floating-button-group`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `empty-state`, `filter-toolbar`, `input`, `notification-center`, `pagination`, `password-field`, `popover`, `progress`, `radio-group`, `search-field`, `segmented-control`, `select`, `shortcut-recorder`, `skeleton`, `tabs`, `textarea`, `toast-stack`, `tooltip`, and `user-menu`. The Pro block is `workspace-sidebar`. Free source docs are at `https://uiarc.dev/components/<id>`; the sidebar reference is `https://uiarc.dev/components/blocks/sidebar?variant=workspace-sidebar`.
 
 | Lane surface | Arc source actually used | Lane adaptation |
 | --- | --- | --- |
@@ -644,3 +644,27 @@ Lane, not Arc, handles Escape inside a popup: Radix hears Escape on the document
 ### Build 6 review fixes (#256, 2026-11-14)
 
 - `src/components/arc/toast-stack/toast-stack.tsx`: the stack's `section` carries `data-toast-stack`, a stable hook for Lane's two app-wide rules in `src/app/globals.css` (the messages step aside while "Is it live?" is open, C2-12, and move to the top on a phone while a popup is open, B30), which had found the stack by its accessible name. Markup, behaviour, motion and the public API are otherwise unchanged; the installed upstream hash is retained.
+
+### Build 7.2: Impact's tabs (#283, 2026-11-13)
+
+Impact's My work and Outcome report tabs are the official free [Arc Tabs](https://uiarc.dev/components/tabs), read through Arc MCP and installed with the shadcn CLI from `https://uiarc.dev/r/tabs.json` (ticket #283 and spec #256 name it). The installer's offers to overwrite `motion-tokens.ts` and `lib/motion-tokens.ts` were declined, so the selection pill's `spring.morph` and the panels' `spring.smooth` are Lane's no-bounce scale (Build 2). The tab is controlled by the page address (`src/components/impact/impact-screen-live.tsx`). The adaptation, with the API, keyboard operation (arrows, Home, End), inert outgoing panel and reduced-motion branches unchanged:
+
+- `src/components/arc/tabs/tabs.tsx`: `motion.*` becomes `m.*` (Build 3, `LazyMotion`); the scroll buttons' numeric Lucide sizes become `data-icon-size="md"`.
+- `src/components/arc/tabs/tabs.module.css`: `1px` borders become `--border-width`; the 35px edge fades `calc(var(--space-1) * 9)`; the 33px scroll buttons `calc(var(--space-1) * 8)`; the 5.5rem trigger minimum `calc(var(--space-1) * 22)`; the trigger corner `calc(var(--radius-control) - var(--radius-sm))`; weight 500 `--weight-medium`; opacity .5 `--lane-opacity-disabled`; the ±3px focus offsets `calc(var(--space-1) * ±0.75)`; z-index -1 `--lane-layer-underlay`, and the scroll buttons' 2 and the labels' 1 `--lane-layer-raised` (the labels only need to sit above the -1 selection).
+- `package.json` pins `@radix-ui/react-tabs` to `1.1.21`, as `react-checkbox@1.3.11` is pinned above. Tabs 1.2.1 brought its own newer copies of Radix's shared parts (presence, roving focus, primitive); 1.1.21 uses the copies Dialog, Select and Menu already ship, which keeps Impact within its page budget and takes about 5 KB off Request detail's first load. A newer tabs needs the other Radix packages moved with it.
+
+### Build 7.4: the New Request composer (#285, 2026-11-14)
+
+The composer's Goal / No measurable impact choice is the official free [Arc Radio cards](https://uiarc.dev/components/radio-cards), read through Arc MCP and installed with the shadcn CLI from `https://uiarc.dev/r/radio-cards.json` (ticket #285 and spec #242 name it). The installer's offers to overwrite `motion-tokens.ts` and `lib/motion-tokens.ts` were declined, so Lane's motion scale stays. Each card says what its choice means, so the card that isn't chosen still reads as a choice (C20). API, keyboard operation and reduced-motion branches are unchanged:
+
+- `src/components/arc/radio-cards/radio-cards.tsx`: `motion.*` becomes `m.*` (Build 3, `LazyMotion`); the ring's hand-built stiffness/damping glide becomes the no-bounce `motionTokens.spring.morph` it was derived from.
+- `src/components/arc/radio-cards/radio-cards.module.css`: pixel gaps, paddings and sizes become `--space-*` steps (or `calc` multiples of `--space-1`), `1px` and `1.5px` borders `--border-width` (×1.5), the 20px corners `--radius-surface`, the 18px glyph slot `--icon-size-md`, weight 500 `--weight-medium`, the ring's layer `--lane-layer-raised`, and the checked card's colour mix the theme's `--control-on-subtle`.
+
+Two adaptations of installed sources:
+
+- `src/components/arc/date-range-picker/date-range-picker.tsx`: it never opens on a month before `minDate`'s (with two months shown it opened on last month, C2), and an optional `formatRange(range)` writes the summary, the trigger and the spoken start in the app's own date format; the measurement dialog passes Lane's `plannedDay`, so the calendar, the chip and the review step read alike (C9). Without `formatRange` it formats as before.
+- `src/components/arc/dropdown-menu/dropdown-menu.tsx`: a menu with a checked `menuitemradio` puts focus on it once it opens, as Arc `select` does (C13). The Measurement window menu marks its choice that way; menus without a checked choice open as before.
+
+### Build 7 review fixes (2026-11-15)
+
+- `src/components/arc/empty-state/empty-state.tsx` and `empty-state.module.css`: `description` is optional. Without one the state is its title alone: the description's line is not shown (`.root p:has(> .line:only-child:empty)`), and while a leaving description fades out its line stays, so the copy still morphs in place. Impact's empty My work ("Requests you file or pick up show here.", #283) and the list's one-sentence status lines (#240 decision 8) use it, where they had hidden Arc's `<p>` with their own CSS.

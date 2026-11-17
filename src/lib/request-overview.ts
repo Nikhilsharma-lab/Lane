@@ -29,6 +29,8 @@ export type OverviewRequest = {
   requestType?: RequestType | null
   /** Saved triage signal. Optional only for older illustrative fixtures. */
   priority?: RequestPriority
+  /** #286: shown by the composer while saveRequest runs; the saved row, with its number, replaces it. */
+  sending?: boolean
   /** #212: a Guest submission waiting to be taken on, or taken on. Absent or null: not a Guest submission. */
   guestSubmission?: import("./guest-submission").GuestSubmissionState | null
   /** The journey facts (#133): the release record and the closures. Absent means none saved. */
@@ -63,7 +65,7 @@ export function sortRequestRows(rows: OverviewRequest[], order: RequestOrdering)
   return [...rows].sort((a, b) => {
     let difference: number
     if (order === "status") difference = journeyOrder(a) - journeyOrder(b)
-    else if (order === "title" || order === "title_desc") difference = compareText(a.reframedProblem ?? a.title, b.reframedProblem ?? b.title) * (order === "title_desc" ? -1 : 1)
+    else if (order === "title" || order === "title_desc") difference = compareText(a.title, b.title) * (order === "title_desc" ? -1 : 1)
     else difference = (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) * (order === "oldest" ? -1 : 1)
     return difference || compareText(a.id, b.id)
   })
@@ -111,7 +113,8 @@ export function filtersHiding(row: OverviewRequest, filters: ListFilters, now: D
   if (!matchesStatusView(row, filters.status, now)) hiding.push("status")
   if (filters.project && filters.project !== "all" && (row.projectId ?? "none") !== filters.project) hiding.push("project")
   const query = filters.title.trim().toLocaleLowerCase()
-  if (query && !(row.reframedProblem ?? row.title).toLocaleLowerCase().includes(query)) hiding.push("title")
+  // #286 (C7): the row shows the typed title, and the search still finds a Request by its Problem to solve.
+  if (query && !row.title.toLocaleLowerCase().includes(query) && !row.reframedProblem?.toLocaleLowerCase().includes(query)) hiding.push("title")
   if (filters.requestType && !(filters.requestType === "none" ? requestLabelKeys(row).length === 0 : requestLabelKeys(row).includes(filters.requestType))) hiding.push("requestType")
   return hiding
 }

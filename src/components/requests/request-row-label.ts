@@ -13,7 +13,8 @@ import { WAITING_TO_BE_TAKEN_ON } from "@/lib/guest-submission"
  */
 export function requestRowLabel(request: OverviewRequest, identity?: { code: string; priority: RequestPriority } | null, labelNames?: string[], now: Date = new Date()) {
   const code = identity?.code || ""
-  const title = request.reframedProblem ?? request.title
+  // #286 (C7): a Request goes by its typed title; "Problem to solve" is the Request page's.
+  const title = request.title
   const priority = identity?.priority ?? request.priority ?? "none"
   const due = rowDue(request, now)
   const facts = [
@@ -28,7 +29,8 @@ export function requestRowLabel(request: OverviewRequest, identity?: { code: str
     // #77: "2 concerns" on an Open row with a reviewer's concern open, as the row's marker shows.
     ...[concernMarker(request)].filter((marker): marker is string => marker !== null),
   ]
-  return `${code ? `${code}, ` : ""}${title}. ${facts.join(", ")}`
+  // #286: a Request the composer is still sending has no number yet.
+  return `${request.sending ? "Sending, " : code ? `${code}, ` : ""}${title}. ${facts.join(", ")}`
 }
 
 /** "1 Request matches" or "{n} Requests match". The toolbar shows it; the list announces it with a full stop. */

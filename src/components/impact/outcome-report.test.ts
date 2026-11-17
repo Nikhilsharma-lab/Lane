@@ -92,9 +92,10 @@ describe("Outcome report: period and freshness", () => {
     expect(body).not.toContain("UTC")
   })
 
-  it("lets the reader pick a month, quarter or year, with the chosen one pressed and named", () => {
+  it("lets the reader pick a month, quarter or year under a visible Show by, with the chosen one pressed and named", () => {
     const markup = html(AUGUST)
-    expect(markup).toMatch(/role="group" aria-label="Report by"/)
+    // C29: Show by is shown, and spoken once, as the group's name.
+    expect(markup).toMatch(/<span[^>]*aria-hidden="true">Show by<\/span><div[^>]*role="group" aria-label="Show by"/)
     expect([...markup.matchAll(/aria-pressed="true"[^>]*>(?:<[^>]+>)*([^<]+)</g)].map(match => match[1])).toEqual(["Month"])
     expect(markup).toContain(">Period</label>")
     expect(text(markup)).toContain("August 2026")
@@ -109,9 +110,48 @@ describe("Outcome report: at a glance and totals", () => {
   it("shows totals for a quarter: a count adds up, a percentage never does", () => {
     const totals = section(html(Q3), "Totals")
     expect(totals).toContain("Users who adopted")
-    expect(totals).toContain("+30 in total")
-    expect(totals).toContain("Changes are in percentage points. They are never added together or averaged.")
-    expect(totals).not.toMatch(/\+6 in total/)
+    expect(totals).toContain("+30 from 1 result")
+    expect(totals).not.toContain("in total")
+    // #282: percentages change in "points", the word the result lines use.
+    expect(totals).toContain("Changes are in points. They are never added together or averaged.")
+    expect(totals).not.toMatch(/\+6 (points )?(in total )?from/)
+  })
+
+  it("words each counted result against its goal beside the total (#282)", () => {
+    const totals = section(html(Q3), "Totals")
+    expect(totals).toMatch(/LAN-1 Shorter checkout ?: Reached 46%, 4 points short of the goal/)
+    expect(totals).toMatch(/LAN-2 Request 2 ?: Reached 130, 20 short of the goal/)
+  })
+
+  it("says in total, with a true minus sign, only when more than one result is counted (#282)", () => {
+    const faster = plan({ key: "adoption", unit: "count", current: 240, target: 90 })
+    const rows = [
+      row({ id: "a", requestNumber: 1, expectedImpact: faster, outcomeClosure: closure(faster, 75, "e1") }),
+      row({ id: "b", requestNumber: 2, expectedImpact: faster, outcomeClosure: closure(faster, 240, "e2") }),
+    ]
+    const totals = section(html(Q3, rows), "Totals")
+    expect(totals).toContain("−165 in total from 2 results")
+    expect(totals).toMatch(/LAN-1 Request 1 ?: Reached 75, 15 past the goal/)
+    expect(totals).toMatch(/LAN-2 Request 2 ?: Reached 240, 150 short of the goal/)
+  })
+
+  it("counts pass/fail results as passed and didn’t pass (#282)", () => {
+    const check = { ...plan(), primary: { ...(plan() as Extract<ExpectedImpact, { kind: "measurement" }>).primary, key: "check", unit: "", current: null, target: null, check: "keyboard" } } as ExpectedImpact
+    const passFail = (passed: boolean, evidence: string) => closure(check, 0, evidence, { primary: { kind: "pass_fail", passed } } as Partial<OutcomeClosure>)
+    const rows = [
+      row({ id: "a", requestNumber: 1, expectedImpact: check, outcomeClosure: passFail(true, "e1") }),
+      row({ id: "b", requestNumber: 2, expectedImpact: check, outcomeClosure: passFail(false, "e2") }),
+    ]
+    const markup = html(Q3, rows)
+    const totals = section(markup, "Totals")
+    expect(totals).toContain("1 passed, 1 didn’t pass")
+    expect(totals).not.toMatch(/good|bad|Verified:/)
+    expect(totals).toMatch(/LAN-1 Request 1 ?: Passed/)
+    expect(totals).toMatch(/LAN-2 Request 2 ?: Didn’t pass/)
+    const request = section(markup, "No Project", 3)
+    expect(request).toContain("Goal Complete the flow using only a keyboard")
+    expect(request).toContain("Result Passed")
+    expect(request).toContain("Result Didn’t pass")
   })
 
   it("shows no totals for a month, and says why", () => {
@@ -122,7 +162,7 @@ describe("Outcome report: at a glance and totals", () => {
   })
 
   it("draws one chart per metric line", () => {
-    expect(html(Q3).match(/<svg viewBox="0 0 100 100"/g)).toHaveLength(2)
+    expect(html(Q3).match(/role="img"/g)).toHaveLength(2)
   })
 })
 
@@ -138,7 +178,8 @@ describe("Outcome report: Projects and Requests", () => {
     expect(checkout).toContain("LAN-1 Shorter checkout")
     expect(checkout).toContain("Shoppers abandon checkout at the address step")
     expect(checkout).toContain("Goal 50% (from 40%)")
-    expect(checkout).toContain("Actual 46%")
+    expect(checkout).toContain("Result Reached 46%, 4 points short of the goal")
+    expect(checkout).not.toContain("Actual 46%")
     expect(markup).toContain('href="/requests/a"')
   })
 
@@ -146,25 +187,48 @@ describe("Outcome report: Projects and Requests", () => {
     const due = section(html(Q3), "No Project", 3)
     expect(due).toContain("Result due 18 Nov (Due in 26 days)")
     expect(due).toContain("Support contact rate at or below 5%: not measured yet")
-    expect(due).not.toContain("Actual")
+    expect(due).not.toContain("Reached")
   })
 
   it("marks a corrected value as corrected, beside the original result", () => {
     const checkout = section(html(Q3), "Checkout", 3)
     expect(checkout).toContain("Actual result: 48% Corrected")
-    expect(checkout).toContain("Actual 46%")
+    expect(checkout).toContain("Result Reached 46%")
   })
 
   it("counts a result corrected to a new value at that value, marked Corrected, with the value recorded at closing", () => {
     const fixed: ClosureCorrection = { ...correction, operationId: "op-v", correction: "The export missed a day", value: { kind: "numeric", actual: 140 } }
     const rows = [row({ id: "b", requestNumber: 2, projectId: "p1", projectName: "Checkout", expectedImpact: ADOPTION, outcomeClosure: closure(ADOPTION, 130, "e2"), closureCorrections: [fixed] })]
     const markup = html(Q3, rows)
-    expect(section(markup, "Checkout", 3)).toContain("Actual 140 Corrected (130 at closing)")
+    expect(section(markup, "Checkout", 3)).toContain("Result Reached 140, 10 short of the goal Corrected (130 at closing)")
     expect(section(markup, "Checkout", 3)).not.toContain("The export missed a day")
     const totals = section(markup, "Totals")
-    expect(totals).toContain("+40 in total")
+    expect(totals).toContain("+40 from 1 result")
     expect(totals).toContain("A result corrected after closing counts at its corrected value")
     expect(totals).toContain("LAN-2 Request 2 Corrected")
+  })
+
+  it("shows the value before release under that name, and a legacy planning baseline only as the goal's start (#282)", () => {
+    const input = { kind: "release" as const, exposureDate: AUG.exposureDate, evidence: AUG.evidence, audienceConfirmed: true as const, valueBeforeRelease: { value: 42, unit: "%" } }
+    const recorded: ReleaseState = { version: 1, ownerId: MEMBER_ID, release: AUG, history: [{ operationId: "op-r", fingerprint: "fp", actorId: MEMBER_ID, at: "2026-08-10T09:00:00.000Z", input, previousRelease: null, release: AUG, previousOwnerId: MEMBER_ID, ownerId: MEMBER_ID, revision: 1 }] }
+    const withValue = section(html(Q3, [row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Checkout", releaseState: recorded, outcomeClosure: closure(plan(), 46, "e1") })]), "Checkout", 3)
+    expect(withValue).toContain("Before release 42%")
+    expect(withValue).toContain("Change +4 points")
+    const legacy = section(html(Q3, [row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Checkout", outcomeClosure: closure(plan(), 46, "e1") })]), "Checkout", 3)
+    expect(legacy).toContain("Goal 50% (from 40%)")
+    expect(legacy).toContain("Change +6 points")
+    expect(legacy).not.toMatch(/planning baseline|Before release/i)
+  })
+
+  it("labels an unknown or new-capability start Before release, the spec's word, never Baseline (#282)", () => {
+    const base = plan() as Extract<ExpectedImpact, { kind: "measurement" }>
+    const unknown: ExpectedImpact = { ...base, primary: { ...base.primary, current: null } }
+    const fresh: ExpectedImpact = { ...base, primary: { ...base.primary, noBaseline: true } }
+    const unknownText = section(html(Q3, [row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Checkout", outcomeClosure: closure(unknown, 46, "e1") })]), "Checkout", 3)
+    expect(unknownText).toContain("Before release Unknown")
+    const freshText = section(html(Q3, [row({ id: "a", requestNumber: 1, projectId: "p1", projectName: "Checkout", outcomeClosure: closure(fresh, 46, "e1") })]), "Checkout", 3)
+    expect(freshText).toContain("Before release New capability, no change")
+    expect(`${unknownText} ${freshText}`).not.toMatch(/Baseline/)
   })
 
   it("lists each Request's Follow-up Requests as links", () => {

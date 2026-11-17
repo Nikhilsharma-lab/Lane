@@ -101,9 +101,9 @@ export const RequestRow = memo(function RequestRow({ request, columns, visibilit
   const row = <div ref={rowRef} role="row" aria-level={level} aria-selected={checked} aria-current={previewed || undefined} aria-controls={previewed ? REQUEST_PREVIEW_ID : undefined} aria-label={requestRowLabel(request, identity, labels.map(label => label.name), now)} tabIndex={tabbable ? 0 : -1}
     id={`request-row-${request.id}`} data-grid-row={`r:${request.id}`} data-request-id={request.id}
     className={styles.row} data-pressable="" data-compact-row={presentation ? "true" : undefined} data-selected={checked || undefined} data-previewed={previewed || undefined} data-menu-open={menuOpen || undefined}
-    {...rest.focus} {...rest.pointer}>
+    data-sending={request.sending || undefined} {...rest.focus} {...rest.pointer}>
     <div role="gridcell" className={styles.selectCell}>
-      <Checkbox tabIndex={-1} checked={checked} disabled={disabled} onCheckedChange={value => onCheckedChange(value === true)} aria-label={`Select ${request.reframedProblem ?? request.title}`} />
+      <Checkbox tabIndex={-1} checked={checked} disabled={disabled} onCheckedChange={value => onCheckedChange(value === true)} aria-label={`Select ${request.title}`} />
     </div>
     <div role="gridcell" className={styles.rowContent}>
     {code && <span className={styles.requestCode} data-request-code>{code}</span>}

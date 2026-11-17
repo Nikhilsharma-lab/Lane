@@ -26,10 +26,10 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const open = async (userId: string, role: typeof session.role) => {
+const open = async (userId: string, role: typeof session.role, query: { item?: string } = {}) => {
   Object.assign(session, { userId, role });
   const { default: InboxPage } = await import("./page");
-  return renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(AppProviders, { orgId: ORG }, await InboxPage())));
+  return renderToStaticMarkup(createElement(ToastStackProvider, null, createElement(AppProviders, { orgId: ORG }, await InboxPage({ searchParams: Promise.resolve(query) }))));
 };
 const items = (html: string) => [...html.matchAll(/data-inbox-item="[^"]+"[^>]*>[\s\S]*?aria-label="([^"]+)"/g)].map(match => match[1]);
 
@@ -69,37 +69,63 @@ describe("the Inbox page", () => {
     expect(html).toMatch(/<h1[^>]*>Inbox<\/h1>/);
     expect(html).toContain(">For your information</h2>");
     expect(items(html)).toEqual([
-      `${codes.done} · Checkout total is unclear, Still Done. Record the release once it is live`,
+      `${codes.done} · Checkout total, Still Done. Record the release once it is live`,
       "Priya Shah accepted your invite, unread",
-      `${codes.mine} · Customers cannot find the delivery date, Priya Shah commented, unread`,
+      `${codes.mine} · Checkout copy, Priya Shah commented, unread`,
     ]);
     expect(html).toContain(">Mark all read<");
   });
 
   it("shows a Guest only the items about their own submissions, and no Needs you", async () => {
     const html = await open(GUEST, "guest");
-    expect(items(html)).toEqual([`${codes.guests} · Visitors give up on the contact form, Priya Shah picked it up, unread`]);
+    expect(items(html)).toEqual([`${codes.guests} · Guest form, Priya Shah picked it up, unread`]);
     expect(html).not.toContain(">Needs you</h2>");
   });
 
   it("lists what needs a Member above their updates, worked out from their Requests", async () => {
     const html = await open(MEMBER, "member");
     expect(html).toMatch(/<h2[^>]*id="inbox-needs-you"[^>]*>Needs you<\/h2>/);
-    expect(html).toContain(`aria-label="${codes.done} · Checkout total is unclear, Still Done. Record the release once it is live"`);
+    expect(html).toContain(`aria-label="${codes.done} · Checkout total, Still Done. Record the release once it is live"`);
     expect(html).toContain('aria-label="1 needs you"');
   });
 
-  it("says all caught up once everything is read and nothing needs the Member", async () => {
+  // #284: the address keeps the open item, so coming back to it (a reload, or Back to a page read afresh) finds it,
+  // read, in its place, though a read item has otherwise cleared.
+  it("keeps the item the address names, read, and no other read item", async () => {
+    const [done] = await connection`select id from notifications where org_id = ${ORG} and user_id = ${MEMBER} and type = 'request_done'`;
+    expect(items(await open(MEMBER, "member", { item: done.id }))).toContain(`${codes.mine} · Checkout copy, Priya Shah marked it Done`);
+    expect(items(await open(MEMBER, "member"))).not.toContain(`${codes.mine} · Checkout copy, Priya Shah marked it Done`);
+    const [guestsOwn] = await connection`select id from notifications where org_id = ${ORG} and user_id = ${GUEST} and type = 'comment_added'`;
+    // Never someone else's item, nor one the person may not see.
+    expect(items(await open(GUEST, "guest", { item: guestsOwn.id }))).toEqual([`${codes.guests} · Guest form, Priya Shah picked it up, unread`]);
+    expect(items(await open(MEMBER, "member", { item: guestsOwn.id }))).not.toContain(`${codes.mine} · Checkout copy, Priya Shah commented`);
+  });
+
+  // #284 (#235 item 1): a Concern names its Reviewer by their sign-in name, not the name they were picked by.
+  it("names the Reviewer who raised a Concern by their sign-in name", async () => {
+    const [request] = await connection`insert into requests (org_id,title,description,created_by) values (${ORG},'Concern copy','Fixture',${MEMBER}) returning id`;
+    const reviewer = { id: "8f6d1c3e-5b2a-4c1d-9e7f-0a1b2c3d4e5f", nominee: { kind: "member", userId: ACTOR }, displayNameAtSelection: "Priya", addedBy: MEMBER, note: "",
+      decision: { kind: "concern", actorId: ACTOR, at: "2026-10-25T09:50:00.000Z", reason: "The date is wrong" } };
+    await connection`insert into request_agreements (request_id,org_id,reviewers) values (${request.id},${ORG},${connection.json([reviewer])})`;
+    try {
+      expect(await open(MEMBER, "member")).toContain("Priya Shah raised a concern");
+    } finally {
+      await connection`delete from requests where id = ${request.id}`;
+    }
+  });
+
+  it("says so once everything is read and nothing needs the Member", async () => {
     await connection`update notifications set read_at = now() where org_id = ${ORG} and user_id = ${MEMBER}`;
     const reading = await open(MEMBER, "member");
-    expect(items(reading)).toEqual([`${codes.done} · Checkout total is unclear, Still Done. Record the release once it is live`]);
+    expect(items(reading)).toEqual([`${codes.done} · Checkout total, Still Done. Record the release once it is live`]);
     expect(reading).toContain("Nothing new to read.");
     expect(reading).not.toContain(">Mark all read<");
     // Undo Done: the work is no longer Done, so Record the release clears itself.
     await connection`update requests set status = 'in_progress' where org_id = ${ORG} and title = 'Checkout total'`;
     const html = await open(MEMBER, "member");
     expect(items(html)).toEqual([]);
-    expect(html).toContain("Nothing needs you right now.");
-    expect(html).toContain("You’re all caught up");
+    // #284 (C26): both sections empty is one message.
+    expect(html).toContain("Nothing needs you, and nothing new");
+    expect(html).not.toContain("Nothing needs you right now.");
   });
 });

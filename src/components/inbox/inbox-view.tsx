@@ -3,9 +3,10 @@
 // #204 / #205: the Inbox page. Needs you above For your information: Arc rows, toolbar and empty state on
 // Lane's controlled server state; the adapter (inbox-screen.tsx) owns reads, actions and the Request preview.
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { CheckCheck, Inbox as InboxIcon, Mail, MailOpen, RotateCw } from "lucide-react";
+import { CheckCheck, Mail, MailOpen, RotateCw } from "lucide-react";
+import { m, useReducedMotion } from "motion/react";
+import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { Button } from "@/components/arc/button/button";
-import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { Tooltip } from "@/components/arc/tooltip/tooltip";
 import notificationStyles from "@/components/arc/notification-center/notification-center.module.css";
 import { LocalTime, useInBrowser } from "@/components/requests/local-time";
@@ -30,6 +31,10 @@ export type InboxViewProps = {
   unread: number;
   /** The item (a Needs-you key or a For-your-information id) whose Request is open beside the list. */
   selectedId: string | null;
+  /** #284: nothing in the Inbox (inbox-empty.tsx), drawn on the server: one message in place of both sections. */
+  allClear?: ReactNode;
+  /** #284 (C28): the strip's link to Inbox delivery, for people who have that section; left out while the empty message carries it. */
+  delivery?: ReactNode;
   /** The Request preview's mount (it animates in and out inside it). */
   preview: ReactNode;
   /** A Request is open in the preview; until then its column holds a short note (wide screens only). */
@@ -72,13 +77,16 @@ function InboxRow({ item, active, selected, pending, onSelect, onToggleRead }: {
   const live = useInBrowser();
   const copy = notificationRow(item, live ? momentLabel(item.createdAt, { time: true }) : undefined);
   // #258: resting on the item, by keyboard or pointer, also reads its Request into the preview (an accepted invite opens Members instead).
-  const rest = useRowLoadAhead(item.requestId ? requestDetailHref(item.requestId, "all") : "", item.type === "invite_accepted" ? null : item.requestId);
-  return <li className={styles.row} data-inbox-item={item.id} data-request-href={item.requestId && item.type !== "invite_accepted" ? requestDetailHref(item.requestId, "all") : undefined} data-unread={unread || undefined} aria-current={selected || undefined} {...rest.pointer}>
+  const href = item.requestId ? requestDetailHref(item.requestId, "all") : "";
+  const rest = useRowLoadAhead(href, item.type === "invite_accepted" ? null : item.requestId, true);
+  // #284: a row moved by a change to the list slides to its new place on the shared scale. With motion turned down it
+  // takes the new place at once: Lane's instant animations alone would still hold it at the old place for a few frames.
+  return <m.li layout={!useReducedMotion() && "position"} transition={motionTokens.spring.smooth} className={styles.row} data-inbox-item={item.id} data-request-href={item.type !== "invite_accepted" && href || undefined} data-unread={unread || undefined} aria-current={selected || undefined} {...rest.pointer}>
     <span className={styles.lead} aria-hidden="true">{unread && <span className={notificationStyles.unreadDot} />}</span>
     <button type="button" className={styles.open} data-inbox-open tabIndex={active ? 0 : -1} aria-label={copy.name}
       onClick={() => onSelect(item)} {...rest.focus}>
       <span className={styles.primary}>{copy.primary}</span>
-      <span className={styles.secondary}>{copy.secondary && `${copy.secondary} · `}<LocalTime iso={item.createdAt} time />{copy.detail && ` · “${copy.detail}”`}</span>
+      <span className={styles.secondary}>{copy.secondary}{live && <>{copy.secondary && " · "}<LocalTime iso={item.createdAt} time /></>}{copy.detail && ` · “${copy.detail}”`}</span>
     </button>
     {/* aria-disabled while the row's own action is pending: a disabled button would drop the focus that pressed it. */}
     <Tooltip morph="plain" content={unread ? "Mark read" : "Mark unread"}>
@@ -86,7 +94,7 @@ function InboxRow({ item, active, selected, pending, onSelect, onToggleRead }: {
         {unread ? <MailOpen aria-hidden="true" /> : <Mail aria-hidden="true" />}
       </button>
     </Tooltip>
-  </li>;
+  </m.li>;
 }
 
 /** A Needs-you row: the Request over what is waiting on the person (and when, for an ask or a Concern). No read toggle. */
@@ -95,20 +103,22 @@ function NeedsYouRow({ item, active, selected, onSelect }: {
 }) {
   const live = useInBrowser();
   const copy = needsYouRow(item, live ? momentLabel(item.since, { time: true }) : undefined);
-  const rest = useRowLoadAhead(requestDetailHref(item.requestId, "all"), item.requestId);
-  return <li className={styles.row} data-inbox-item={item.key} data-request-href={requestDetailHref(item.requestId, "all")} data-needs-you="" aria-current={selected || undefined} {...rest.pointer}>
+  const href = requestDetailHref(item.requestId, "all");
+  const rest = useRowLoadAhead(href, item.requestId, true);
+  // Slides as an InboxRow does.
+  return <m.li layout={!useReducedMotion() && "position"} transition={motionTokens.spring.smooth} className={styles.row} data-inbox-item={item.key} data-request-href={href} data-needs-you="" aria-current={selected || undefined} {...rest.pointer}>
     <span className={styles.lead} aria-hidden="true" />
     <button type="button" className={styles.open} data-inbox-open tabIndex={active ? 0 : -1} aria-label={copy.name}
       onClick={() => onSelect(item)} {...rest.focus}>
       <span className={styles.primary}>{copy.primary}</span>
-      <span className={styles.secondary}>{copy.secondary}{copy.showsTime && <> · <LocalTime iso={item.since} time /></>}{copy.detail && ` · “${copy.detail}”`}</span>
+      <span className={styles.secondary}>{copy.secondary}{copy.showsTime && live && <> · <LocalTime iso={item.since} time /></>}{copy.detail && ` · “${copy.detail}”`}</span>
     </button>
-  </li>;
+  </m.li>;
 }
 
 export function InboxView({
   needsYou = noNeedsYou, showNeedsYou = true,
-  items, unread, selectedId, preview, previewOpen = false, reading = false, pendingIds = noPending, allReadPending = false, error, sessionExpired = false,
+  items, unread, selectedId, preview, allClear, delivery, previewOpen = false, reading = false, pendingIds = noPending, allReadPending = false, error, sessionExpired = false,
   onSelect, onSelectNeedsYou = ignore, onToggleRead, onMarkAllRead, onRetry, onRefresh = reloadPage,
 }: InboxViewProps) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -149,18 +159,21 @@ export function InboxView({
 
   const count = unread > 99 ? "99+" : unread;
   const needsYouCount = needsYou.length > 99 ? "99+" : needsYou.length;
+  // #284 (C26): nothing in either section is one message, with no preview pane beside it.
+  const empty = showNeedsYou && !needsYou.length && !items.length && !error;
   const trackActive = (event: { target: EventTarget }) => { const id = (event.target as HTMLElement).closest<HTMLElement>("[data-inbox-item]")?.dataset.inboxItem; if (id) setActiveId(id); };
   return <>
-    <PageStrip title="Inbox" heading tools={unread > 0 ? <Button variant="ghost" size="sm" disabled={allReadPending}
+    <PageStrip title="Inbox" heading tools={unread > 0 || delivery ? <>{!empty && delivery}{unread > 0 && <Button variant="ghost" size="sm" disabled={allReadPending}
       // The button goes once nothing is unread, so focus moves to the list's tab stop first.
-      onClick={() => { focusTabStop(); onMarkAllRead(); }}><CheckCheck aria-hidden="true" />Mark all read</Button> : undefined} />
-    <div className={styles.body} data-inbox="">
+      onClick={() => { focusTabStop(); onMarkAllRead(); }}><CheckCheck aria-hidden="true" />Mark all read</Button>}</> : undefined} />
+    <div className={styles.body} data-inbox="" data-empty={empty || undefined}>
       <div ref={listRef} className={styles.list} tabIndex={-1} onKeyDown={onKeyDown}>
+        {empty && allClear}
         {/* A failed re-read keeps both lists as last read; the line says so above them. */}
         {error && <div className={styles.error}><p role="alert">{error}</p>{sessionExpired
           ? <Button variant="secondary" size="sm" onClick={onRefresh}><RotateCw aria-hidden="true" />Refresh</Button>
           : <Button variant="secondary" size="sm" disabled={reading} onClick={() => { focusTabStop(); onRetry(); }}>Try again</Button>}</div>}
-        {showNeedsYou && <section className={styles.section} aria-labelledby={NEEDS_YOU_HEADING_ID}>
+        {showNeedsYou && !empty && <section className={styles.section} aria-labelledby={NEEDS_YOU_HEADING_ID}>
           <div className={styles.heading}>
             <h2 id={NEEDS_YOU_HEADING_ID}>Needs you</h2>
             {needsYou.length > 0 && <span className={notificationStyles.count} aria-label={`${needsYou.length} need${needsYou.length === 1 ? "s" : ""} you`}>{needsYouCount}</span>}
@@ -171,7 +184,7 @@ export function InboxView({
               {needsYou.map(item => <NeedsYouRow key={item.key} item={item} active={item.key === tabbable} selected={item.key === selectedId} onSelect={onSelectNeedsYou} />)}
             </ul>}
         </section>}
-        <section className={styles.section} aria-labelledby={HEADING_ID}>
+        {!empty && <section className={styles.section} aria-labelledby={HEADING_ID}>
           <div className={styles.heading}>
             <h2 id={HEADING_ID}>For your information</h2>
             {unread > 0 && <span className={notificationStyles.count} aria-label={`${unread} unread`}>{count}</span>}
@@ -179,16 +192,16 @@ export function InboxView({
           {items.length === 0
             ? !error && (showNeedsYou && needsYou.length > 0
               ? <p className={styles.quiet}>Nothing new to read.</p>
-              : <EmptyState icon={<InboxIcon />} title="You’re all caught up" description="Pickups, Done, comments, Looks good and accepted invites about your work show here until you read them." />)
+              : allClear)
             : <ul className={styles.items} role="list" onFocus={trackActive}>
               {items.map(item => <InboxRow key={item.id} item={item} active={item.id === tabbable} selected={item.id === selectedId} pending={pendingIds.has(item.id)} onSelect={onSelect} onToggleRead={onToggleRead} />)}
             </ul>}
-        </section>
+        </section>}
       </div>
-      <div className={styles.preview} data-inbox-preview="" data-preview-open={previewOpen || undefined}>
+      {!empty && <div className={styles.preview} data-inbox-preview="" data-preview-open={previewOpen || undefined}>
         {!previewOpen && <p className={styles.previewNote}>Select an item to see its Request here.</p>}
         {preview}
-      </div>
+      </div>}
     </div>
   </>;
 }

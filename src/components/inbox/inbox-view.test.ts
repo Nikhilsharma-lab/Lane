@@ -7,14 +7,17 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch:
 import { InboxView, type InboxViewProps } from "./inbox-view"
 import { StableRouterProvider } from "@/components/shell/stable-router"
 import type { InboxItem, NeedsYouInboxItem } from "./inbox-item"
+import { inboxAllClear, inboxDeliveryLink } from "./inbox-empty"
 
 const item = (over: Partial<InboxItem> = {}): InboxItem => ({
   id: "n1", type: "comment_added", requestId: "req-1", readAt: null, createdAt: "2026-10-25T09:00:00.000Z", actorName: "Priya Shah",
   requestTitle: "Checkout copy", requestNumber: 12, reframedProblem: "Customers cannot find the delivery date", detail: null, ...over,
 })
 const noop = () => {}
+// As page.tsx draws them: for an Admin or Member unless `showNeedsYou` is false.
 const render = (over: Partial<InboxViewProps> = {}) => renderToStaticMarkup(createElement(StableRouterProvider, null, createElement(InboxView, {
   items: [item()], unread: 1, selectedId: null, preview: null,
+  allClear: inboxAllClear(over.showNeedsYou ?? true), delivery: over.showNeedsYou === false ? undefined : inboxDeliveryLink(),
   onSelect: noop, onToggleRead: noop, onMarkAllRead: noop, onRetry: noop, ...over,
 })))
 
@@ -29,7 +32,7 @@ describe("Inbox page", () => {
 
   it("gives each item a name that says what happened, and a read toggle naming its Request", () => {
     const html = render()
-    expect(html).toContain('aria-label="LAN-12 · Customers cannot find the delivery date, Priya Shah commented, unread"')
+    expect(html).toContain('aria-label="LAN-12 · Checkout copy, Priya Shah commented, unread"')
     expect(html).toContain('aria-label="Mark LAN-12 read"')
   })
 
@@ -52,9 +55,24 @@ describe("Inbox page", () => {
   })
 
   it("says the Inbox is clear when there is nothing to read", () => {
-    const html = render({ items: [], unread: 0 })
+    const html = render({ items: [], unread: 0, showNeedsYou: false })
     expect(html).toContain("You’re all caught up")
     expect(html).not.toContain('role="list"')
+  })
+
+  // #284 (C15): the server and the hydrating render can't know the person's time zone, so no day is drawn until
+  // the browser can draw it in that zone; a UTC day never changes in front of them.
+  it("draws no date before the page is in the browser", () => {
+    const html = render({ items: [item({ createdAt: "2026-10-25T23:30:00.000Z" })], needsYou: [ask({ since: "2026-10-25T23:30:00.000Z" })] })
+    expect(html).not.toContain("<time")
+    expect(html).not.toMatch(/2[56] Oct/)
+  })
+
+  // #284 (C28): Admins and Members, who have the Inbox delivery section, are led to it from the strip.
+  it("links the strip to Choose what reaches you, for people who have the Inbox delivery section", () => {
+    const link = /<a[^>]*href="\/settings\/profile\?section=inbox-delivery"[^>]*>[^<]*(<svg[\s\S]*?<\/svg>)?Choose what reaches you<\/a>/
+    expect(render()).toMatch(link)
+    expect(render({ showNeedsYou: false })).not.toContain("Choose what reaches you")
   })
 
   it("says when a refresh failed, with a retry, and asks for a reload when the session changed", () => {
@@ -88,7 +106,7 @@ describe("Inbox page: Needs you", () => {
 
   it("names each item by its Request and what is waiting, with no read toggle", () => {
     const html = render({ items: [], unread: 0, needsYou: [ask()] })
-    expect(html).toContain('aria-label="LAN-14 · Shoppers can&#x27;t tell if a return was received, Waiting for your review, Does this cover exchanges?"')
+    expect(html).toContain('aria-label="LAN-14 · Returns flow, Waiting for your review, Does this cover exchanges?"')
     expect(html).not.toContain("Mark LAN-14")
   })
 
@@ -98,15 +116,27 @@ describe("Inbox page: Needs you", () => {
     expect(html).toMatch(new RegExp(`data-inbox-item="${ask().key}"[^>]*aria-current="true"`))
   })
 
-  it("says when nothing needs the person, and is all caught up only when nothing is unread either", () => {
+  // #284 (C26): one empty section says so in a short line, in the same style for both sections.
+  it("says in one short line when one section is empty", () => {
     const quiet = render({ needsYou: [] })
-    expect(quiet).toContain("Nothing needs you right now.")
-    expect(quiet).not.toContain("You’re all caught up")
-    const clear = render({ needsYou: [], items: [], unread: 0 })
-    expect(clear).toContain("You’re all caught up")
+    expect(quiet).toMatch(/<p class="[^"]*">Nothing needs you right now.<\/p>/)
     const reading = render({ needsYou: [ask()], items: [], unread: 0 })
-    expect(reading).not.toContain("You’re all caught up")
-    expect(reading).toContain("Nothing new to read.")
+    expect(reading).toMatch(/<p class="[^"]*">Nothing new to read.<\/p>/)
+    expect(quiet.match(/<p class="([^"]*)">Nothing needs you/)![1]).toBe(reading.match(/<p class="([^"]*)">Nothing new to read/)![1])
+    expect(reading).toContain("Select an item to see its Request here.")
+  })
+
+  // #284 (C26): with both sections empty, one message with the delivery link under it (spec story 54), and no empty
+  // preview pane beside it. The link shows once: the strip leaves its own out.
+  it("shows one message when nothing needs the person and nothing is new, with no preview pane", () => {
+    const clear = render({ needsYou: [], items: [], unread: 0 })
+    expect(clear.match(/<h2[^>]*>/g)).toHaveLength(1)
+    expect(clear).toContain("Nothing needs you, and nothing new")
+    expect(clear).not.toContain("Nothing needs you right now.")
+    expect(clear).not.toContain("Select an item to see its Request here.")
+    expect(clear).not.toContain("data-inbox-preview")
+    expect(clear.match(/Choose what reaches you/g)).toHaveLength(1)
+    expect(clear.indexOf("Choose what reaches you")).toBeGreaterThan(clear.indexOf("Nothing needs you, and nothing new"))
   })
 
   it("leaves Needs you out for someone who is never asked to act", () => {

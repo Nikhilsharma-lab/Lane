@@ -302,6 +302,27 @@ test("the Request preview loads ahead on the Requests list and the Inbox", async
       expect(reads).toEqual([await preview.getAttribute("data-request-id")]);
     });
 
+    // #284: where the Inbox opens a Request's own page (no preview), the pointer resting on an item loads that page
+    // ahead, as keyboard focus does: the page, not the preview's read.
+    await test.step("Inbox, narrower window with a mouse: resting on an item loads its Request's page ahead", async () => {
+      await page.setViewportSize({ width: 1024, height: 900 });
+      await openLive(page, "/inbox");
+      const item = page.getByRole("region", { name: "For your information" }).locator("[data-inbox-item]").first();
+      await expect(item).toBeVisible();
+      // What the Inbox reads ahead by itself, once loaded and idle (the pages of the items on screen), is done first.
+      await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+      const href = (await item.getAttribute("data-request-href"))!;
+      const pageReads: string[] = [];
+      page.on("request", request => { if (new URL(request.url()).pathname === href && request.headers()["rsc"] === "1") pageReads.push(request.url()); });
+      reads.length = 0;
+      await page.waitForTimeout(NO_READ_WINDOW_MS);
+      expect(pageReads).toEqual([]);
+      await item.hover();
+      await expect.poll(() => pageReads.length).toBeGreaterThan(0);
+      expect(reads).toEqual([]);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+    });
+
     await test.step("a narrow window does not load ahead", async () => {
       await page.setViewportSize({ width: 700, height: 1000 });
       await openLive(page, "/");

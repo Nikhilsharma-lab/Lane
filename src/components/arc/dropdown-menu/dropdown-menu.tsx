@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ComponentPropsWithoutRef, CSSProperties, FocusEvent, ReactElement, ReactNode } from "react";
 import * as DropdownPrimitive from "@radix-ui/react-dropdown-menu";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
@@ -65,9 +65,15 @@ export function DropdownMenu({ label, items, icon, trigger, onCloseAutoFocus, on
     const glide = pointer.current;
     setHighlight(current => ({ ...next, glide: glide && current !== null }));
   }
-  return <DropdownPrimitive.Root onOpenChange={open => { if (open) { window.clearTimeout(clearTimer.current); setHighlight(null); } }}>
+  // Lane adaptation (#285, C13): a menu of choices opens on the chosen one, as Arc select does, once Radix has focused the menu.
+  const content = useRef<HTMLDivElement | null>(null);
+  const contentRef = useCallback((node: HTMLDivElement | null) => { content.current = node; return inertBehind(node); }, []);
+  const focusChosen = () => content.current?.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]')?.focus();
+  // Closing before that frame cancels it.
+  const chosenFrame = useRef(0);
+  return <DropdownPrimitive.Root onOpenChange={open => { cancelAnimationFrame(chosenFrame.current); if (open) { window.clearTimeout(clearTimer.current); setHighlight(null); chosenFrame.current = requestAnimationFrame(focusChosen); } }}>
     <DropdownPrimitive.Trigger asChild={Boolean(trigger)} className={trigger ? undefined : styles.trigger} type="button">{trigger ?? <>{icon && <span className={styles.triggerIcon} aria-hidden="true">{icon}</span>}<TriggerLabel text={label}/><ChevronDown className={styles.chevron} strokeWidth={1.8} aria-hidden="true"/></>}</DropdownPrimitive.Trigger>
-    <DropdownPrimitive.Portal><DropdownPrimitive.Content ref={inertBehind} aria-label={label} className={styles.menu} sideOffset={6} align="end" collisionPadding={12} loop onCloseAutoFocus={onCloseAutoFocus} onKeyDown={onContentKeyDown} onFocus={onMenuFocus} onPointerMoveCapture={() => { pointer.current = true; }} onKeyDownCapture={() => { pointer.current = false; }}>
+    <DropdownPrimitive.Portal><DropdownPrimitive.Content ref={contentRef} aria-label={label} className={styles.menu} sideOffset={6} align="end" collisionPadding={12} loop onCloseAutoFocus={onCloseAutoFocus} onKeyDown={onContentKeyDown} onFocus={onMenuFocus} onPointerMoveCapture={() => { pointer.current = true; }} onKeyDownCapture={() => { pointer.current = false; }}>
       {/* One highlight glides between items for the pointer and jumps instantly for the keyboard. */}
       <m.span className={styles.highlight} data-tone={highlight?.danger ? "danger" : undefined} aria-hidden="true" initial={false} animate={highlight ? { y: highlight.top, height: highlight.height, opacity: 1 } : { opacity: 0 }} transition={{ default: highlight?.glide && !reduced ? motionTokens.spring.snappy : { duration: 0 }, opacity: { duration: reduced ? 0 : motionTokens.duration.instant } }}/>
       {items.map((item, index) => <Fragment key={item.label}>{item.separatorBefore && <DropdownPrimitive.Separator className={styles.separator}/>}<DropdownPrimitive.Item className={[styles.item, item.destructive ? styles.destructive : ""].filter(Boolean).join(" ")} data-tone={item.destructive ? "danger" : undefined} style={{ "--i": index } as CSSProperties} disabled={item.disabled} onSelect={item.onSelect} {...item.checked !== undefined && { role: "menuitemradio", "aria-checked": item.checked }}>{item.icon && <span className={styles.icon} aria-hidden="true">{item.icon}</span>}{item.label}{item.trailingIcon && <span className={styles.trailingIcon} aria-hidden="true">{item.trailingIcon}</span>}</DropdownPrimitive.Item></Fragment>)}

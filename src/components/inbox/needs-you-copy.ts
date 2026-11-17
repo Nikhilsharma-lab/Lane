@@ -1,6 +1,6 @@
 /**
- * #205: what a Needs-you row says. Line 1 names the Request the way every Inbox row does ("LAN-12 · reframed
- * problem"); line 2 says what is waiting on the person. Record the release and Result due come from Lane, not a
+ * #205: what a Needs-you row says. Line 1 names the Request the way every Inbox row does ("LAN-12 · Checkout
+ * copy"); line 2 says what is waiting on the person. Record the release and Result due come from Lane, not a
  * person, so they never name one and carry no time (they are dated by Done and the due date). Pure, so the view
  * and the tests share it.
  */

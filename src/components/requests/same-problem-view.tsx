@@ -2,7 +2,8 @@ import { useEffect, useRef, type Ref } from "react"
 import Link from "@/components/link"
 import { Badge } from "@/components/arc/badge/badge"
 import { Button } from "@/components/arc/button/button"
-import { actualText, changeText, goalText } from "@/lib/impact-presenter"
+import { actualText, goalText } from "@/lib/impact-presenter"
+import { changeAmountText } from "@/lib/result-phrasing"
 import type { IterationEntry, Iterations } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
 import { plannedDay } from "@/lib/dates"
@@ -48,7 +49,7 @@ function Outcome({ entry }: { entry: IterationEntry }) {
   switch (outcome.kind) {
     case "measured": {
       const { result } = outcome
-      return <div><dt>Result</dt><dd>{actualText(result)}{result.change !== null && ` (${changeText(result.change, result.unit, result.changeUnit)})`}</dd></div>
+      return <div><dt>Result</dt><dd>{actualText(result)}{result.change !== null && ` (${changeAmountText(result.change, result.unit)})`}</dd></div>
     }
     case "closed_without_result": return <div><dt>Reason</dt><dd>{outcome.label}{outcome.reason && `: ${outcome.reason}`}</dd></div>
     case "operational": return <div><dt>Not measured</dt><dd>Operational work: {outcome.reason}</dd></div>

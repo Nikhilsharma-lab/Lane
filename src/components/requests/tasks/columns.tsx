@@ -29,7 +29,7 @@ export const columns: RequestColumn[] = [
   // Canonical /requests/[id] (plan item 1.7): the list context to return to lives in the layout's list view state.
   // Plan item 2.4: the row is the list's one tab stop, so its title and pills leave the Tab order.
   // Enter opens through the title (data-request-title); the pills' values are in the row's name.
-  { key: "title", label: "Request", value: row => row.reframedProblem ?? row.title, render: row => <RequestTitleLink id={`request-${row.id}`} href={requestDetailHref(row.id, "all")} title={row.reframedProblem ?? row.title} className={styles.title} tabIndex={-1} data-request-title="">{row.reframedProblem ?? row.title}</RequestTitleLink> },
+  { key: "title", label: "Request", value: row => row.title, render: row => <RequestTitleLink id={`request-${row.id}`} href={requestDetailHref(row.id, "all")} title={row.title} className={styles.title} tabIndex={-1} data-request-title="">{row.title}</RequestTitleLink> },
   { key: "status", label: "Status", value: row => row.status, render: row => <RequestProperty request={row} property="status" tabIndex={-1} /> },
   { key: "project", label: "Project", value: row => row.projectName ?? "", render: row => <RequestProperty request={row} property="project" tabIndex={-1} /> },
   { key: "pickedUpBy", label: "Assignee", value: row => row.assigneeName ?? "", render: row => <RequestProperty request={row} property="pickedUpBy" tabIndex={-1} /> },

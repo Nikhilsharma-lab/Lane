@@ -1,10 +1,12 @@
 /* The Inbox and Requests share the same in-flow detail pane. */
 .body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
-.list { display: grid; align-content: start; gap: var(--space-6); min-width: 0; padding: var(--space-4) var(--space-6) var(--space-6); outline: none; }
+/* #284: section headings, empty lines and row text start at one left edge, the rows' text column:
+   the row's padding, the unread dot's column and the gap after it. */
+.list { --inbox-text-start: calc(var(--space-2) + var(--space-4) + var(--space-1)); display: grid; align-content: start; gap: var(--space-6); min-width: 0; padding: var(--space-4) var(--space-6) var(--space-6); outline: none; }
 /* #205: Needs you over For your information, each a heading and its rows. */
 .section { display: grid; align-content: start; gap: var(--space-2); min-width: 0; }
-.quiet { margin: 0; padding-inline: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--text-sm--line-height); }
-.heading { display: flex; align-items: center; gap: var(--space-2); min-height: var(--size-inner-medium); }
+.quiet { margin: 0; padding-inline: var(--inbox-text-start) var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--text-sm--line-height); }
+.heading { display: flex; align-items: center; gap: var(--space-2); min-height: var(--size-inner-medium); padding-inline-start: var(--inbox-text-start); }
 .heading h2 { margin: 0; color: var(--foreground); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--text-sm--line-height); }
 .items { display: grid; margin: 0; padding: 0; list-style: none; }
 /* The bell's 44px two-line row on the 2.4 row tokens: [dot] [Request and event] [toggle]. */
@@ -39,5 +41,20 @@
   /* A closing preview slides out over the note (#240 motion). */
   .preview { position: relative; }
   .preview[data-inbox-preview] > [data-leaving] { position: absolute; inset: 0; width: auto; }
+  /* #284 (C26): an empty Inbox has no preview pane; its one message takes the page. */
+  .body[data-empty] { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 640px) { .list { padding-inline: var(--space-4); } }
+@media (max-width: 640px) {
+  .list { padding-inline: var(--space-4); }
+  /* Build 7 check page: the Inbox strip's two tools (Choose what reaches you, Mark all read) don't fit beside the
+     trail on a phone. The trail keeps room for "Inbox" and a few letters of the workspace; when the tools don't fit
+     beside that, they take the next line, end-aligned, and wrap again at 320px, so the title and both tools show whole. */
+  :global([data-slot="page-strip"]):has(+ .body) { flex-wrap: wrap; row-gap: var(--space-1); padding-block: var(--space-1); }
+  :global([data-slot="page-strip"]):has(+ .body) > nav { flex: 1 1 calc(var(--space-1) * 24); }
+  :global([data-slot="page-strip"]):has(+ .body) > div { flex-shrink: 1; min-width: 0; }
+  :global([data-slot="page-strip"]):has(+ .body) > div > div { flex-wrap: wrap; justify-content: flex-end; }
+  /* #284 (C27): on phones each line wraps to two lines instead of being cut to one. */
+  .primary, .secondary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
+}
+/* #284 (C27): a touch-sized read toggle on phones and touch screens. */
+@media (max-width: 640px), (pointer: coarse) { .toggle { width: var(--size-inner-xlarge); height: var(--size-inner-xlarge); } }

@@ -281,15 +281,17 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
     });
   });
 
-  test("Escape on the Quarter note editor asks before dropping a half-written note", async ({ page }) => {
+  test("Escape on the Quarter note popup asks before dropping a half-written note", async ({ page }) => {
     test.setTimeout(240_000);
     await page.setViewportSize({ width: 1440, height: 900 });
     await withWorkspace(page, "quarter-note", async () => {
       const now = new Date();
-      await page.goto(`/impact?period=${now.getUTCFullYear()}-q${Math.floor(now.getUTCMonth() / 3) + 1}`);
+      await page.goto(`/impact?tab=outcome-report&period=${now.getUTCFullYear()}-q${Math.floor(now.getUTCMonth() / 3) + 1}`);
       await behaviourReady(page);
       const write = page.getByRole("button", { name: /^Write the .+ note$/ });
       await write.click();
+      // #283: the editor is a popup now, as the Request page's forms are.
+      await expect(page.getByRole("dialog", { name: /^Quarter note, / })).toBeVisible();
       const note = page.getByRole("textbox", { name: /^Quarter note for / });
       await expect(note).toBeFocused({ timeout: 20_000 });
       await note.fill("Checkout errors fell after the redesign.");
@@ -447,7 +449,7 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
     }
   });
 
-  test("on a phone the New Request composer is the bottom panel and keeps its draft without asking", async ({ page }) => {
+  test("on a phone the New Request composer is the bottom panel, and Escape asks before dropping typed text (#285)", async ({ page }) => {
     test.setTimeout(240_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ colorScheme: "dark" });
@@ -455,21 +457,39 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await page.goto("/intake");
       await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
       await behaviourReady(page);
-      const launcher = page.getByRole("link", { name: "Create Request", exact: true });
+      // #285 (C23): /intake's launcher says New Request, as every other way to start one does.
+      const launcher = page.locator("[data-intake-launcher]");
+      await expect(launcher).toHaveAccessibleName("New Request");
       await launcher.click();
       const composer = page.getByRole("dialog", { name: "New Request", exact: true });
       const title = composer.getByRole("textbox", { name: "Request title" });
       await expect(title).toBeFocused({ timeout: 20_000 });
       await expect.poll(async () => { const box = await dialogBox(composer); return box.left <= 1 && box.right >= box.width - 1 && box.bottom >= box.height - 1; }).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      // The composer keeps its draft, so closing with typed text asks nothing and loses nothing.
-      await title.fill("Phone filing keeps the draft");
+      // Escape with typed text asks first; Keep editing keeps every character and the place.
+      await title.pressSequentially("Phone filing asks first");
       await page.keyboard.press("Escape");
+      const prompt = discardPrompt(page);
+      await expect(prompt).toBeVisible();
+      await expect(prompt.getByRole("button", { name: "Keep editing", exact: true })).toBeFocused();
+      await prompt.getByRole("button", { name: "Keep editing", exact: true }).click();
+      await expect(prompt).toHaveCount(0);
+      await expect(composer).toBeVisible();
+      await expect(title).toHaveValue("Phone filing asks first");
+      await expect(title).toBeFocused();
+      // Discard closes it, focus goes back to the launcher, and the next New Request starts empty.
+      await page.keyboard.press("Escape");
+      await prompt.getByRole("button", { name: "Discard", exact: true }).click();
       await expect(composer).toHaveCount(0);
-      await expect(discardPrompt(page)).toHaveCount(0);
       await expect(launcher).toBeFocused();
       await launcher.click();
-      await expect(title).toHaveValue("Phone filing keeps the draft");
+      await expect(title).toHaveValue("");
+      await page.keyboard.press("Escape");
+      await expect(composer).toHaveCount(0);
+      // Spec story 29: the tab-only draft stays as the backup, so a mistaken Discard comes back as any kept draft does.
+      await page.reload();
+      await expect(title).toHaveValue("Phone filing asks first", { timeout: 30_000 });
+      await expect(page.getByText("Your unsaved Request was restored.")).toBeAttached();
     });
   });
 });

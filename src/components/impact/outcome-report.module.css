@@ -2,13 +2,18 @@
 .report { display: grid; gap: var(--space-8); min-width: 0; }
 .toolbar { display: grid; gap: var(--space-3); min-width: 0; }
 .picker { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3) var(--space-4); min-width: 0; }
+/* #283 (C29): "Show by" and "Period" are labelled alike, and both controls stand the same height. */
+.showBy { display: grid; gap: var(--space-2); min-width: 0; }
+.pickerLabel { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+.showBy [role="group"] button { min-height: calc(var(--control-height-md) - var(--segment-padding) * 2); }
+.period { width: calc(var(--space-1) * 40); min-width: 0; }
 .asOf { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .periodName { color: var(--foreground); font-weight: var(--weight-medium); }
 .block { display: grid; gap: var(--space-3); min-width: 0; }
 .heading { margin: 0; color: var(--foreground); font-size: var(--text-lg); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 .note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--spacing) * 36), 1fr)); gap: var(--space-3); margin: 0; }
-.glanceItem { display: grid; gap: var(--space-1); min-width: 0; padding: var(--space-3) var(--space-4); border: var(--border-width) solid var(--border-subtle); border-radius: var(--radius-md); background: var(--card); color: var(--card-foreground); }
+.glanceItem { display: grid; grid-template-rows: 1fr auto; gap: var(--space-1); min-width: 0; padding: var(--space-3) var(--space-4); border: var(--border-width) solid var(--border-subtle); border-radius: var(--radius-md); background: var(--card); color: var(--card-foreground); }
 .glanceItem dt { color: var(--text-secondary); font-size: var(--text-sm); overflow-wrap: anywhere; }
 .glanceItem dd { margin: 0; color: var(--foreground); font-size: var(--text-2xl); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
 .lines { display: grid; gap: var(--space-4); min-width: 0; }
@@ -30,9 +35,12 @@
 .title { font-weight: var(--weight-medium); }
 .problem { margin: 0; color: var(--foreground); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(var(--spacing) * 40), 1fr)); gap: var(--space-2) var(--space-6); margin: 0; }
-.fact { display: grid; gap: var(--space-1); min-width: 0; font-size: var(--text-sm); line-height: var(--leading-body); }
+.fact { display: grid; align-content: start; gap: var(--space-1); min-width: 0; font-size: var(--text-sm); line-height: var(--leading-body); }
 .fact dt { color: var(--text-secondary); font-size: var(--text-xs); }
 .fact dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+/* #283 (C2-16): a pass/fail Request's facts as label and value lines, not a grid of mostly empty columns. */
+.checkFacts { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: var(--space-1) var(--space-4); margin: 0; }
+.checkFacts .fact { display: contents; }
 .group { display: grid; gap: var(--space-1); min-width: 0; }
 .subheading { margin: 0; color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--weight-medium); }
 /* #209: the toolbar row, What we learned and the Quarter notes. */
@@ -44,6 +52,13 @@
 .noteBody { margin: 0; color: var(--foreground); font-size: var(--text-sm); line-height: var(--leading-body); white-space: pre-line; overflow-wrap: anywhere; }
 .noteForm { display: grid; gap: var(--space-3); min-width: 0; }
 .noteControls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* #283: on a phone the period controls are 44px taps. */
+@media (max-width: 640px) {
+  .showBy [role="group"] button { min-height: var(--size-inner-xlarge); }
+  .period { width: 100%; }
+  .period [role="combobox"] { min-height: calc(var(--size-inner-xlarge) + var(--segment-padding) * 2); }
+}
 
 /* Print and save as PDF (#209): the report alone, with its title, period and as-of date; no controls. */
 @media print {

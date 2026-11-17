@@ -58,8 +58,10 @@ export type PendingMutations = {
   confirm(id: string, token: number): void
   /** The action failed: the patch goes and the server rows show through. */
   rollback(id: string, token: number): void
-  /** A Request the composer just created, shown until the server rows include it. */
+  /** A Request the composer just created, shown until the server rows include it. #286: or is still sending (`sending`). */
   insert(row: OverviewRequest): void
+  /** #286: a sending Request the server didn't save goes from the list. */
+  withdraw(id: string): void
   /** Records the outcome (true = succeeded) of the latest action on a Request. */
   track(id: string, outcome: Promise<boolean>): void
   /** Resolves with whether the latest action on this Request succeeded; true when none is in flight. */
@@ -255,6 +257,7 @@ export function createPendingMutationsStore({ now = () => performance.now(), clo
       confirm,
       rollback,
       insert,
+      withdraw,
       track,
       settled,
       appendComment,
@@ -315,6 +318,12 @@ export function createPendingMutationsStore({ now = () => performance.now(), clo
     set({ ...snapshot, inserts: { ...snapshot.inserts, [row.id]: { row, since: clock() } } })
   }
 
+  function withdraw(id: string) {
+    const inserts = { ...snapshot.inserts }
+    delete inserts[id]
+    set({ ...snapshot, inserts })
+  }
+
   function track(id: string, outcome: Promise<boolean>) {
     const settledOutcome = outcome.catch(() => false)
     inflight.set(id, settledOutcome)
@@ -349,7 +358,7 @@ export type PendingMutationsStore = ReturnType<typeof createPendingMutationsStor
 const PendingMutationsContext = createContext<PendingMutations | null>(null)
 
 /** The overlay's write side. Its functions keep their identity for the provider's life. */
-export type PendingMutationWriter = Pick<PendingMutations, "begin" | "confirm" | "rollback" | "insert" | "track" | "settled" | "appendComment" | "confirmComment" | "dropComment">
+export type PendingMutationWriter = Pick<PendingMutations, "begin" | "confirm" | "rollback" | "insert" | "withdraw" | "track" | "settled" | "appendComment" | "confirmComment" | "dropComment">
 const PendingMutationWriterContext = createContext<PendingMutationWriter | null>(null)
 
 export function PendingMutationsProvider({ children }: { children: ReactNode }) {
@@ -358,8 +367,8 @@ export function PendingMutationsProvider({ children }: { children: ReactNode }) 
   const value = useMemo(() => store.view(snapshot), [store, snapshot])
   // Components that only start mutations read this one and never re-render on a patch.
   const [writer] = useState<PendingMutationWriter>(() => {
-    const { begin, confirm, rollback, insert, track, settled, appendComment, confirmComment, dropComment } = store.view(store.getSnapshot())
-    return { begin, confirm, rollback, insert, track, settled, appendComment, confirmComment, dropComment }
+    const { begin, confirm, rollback, insert, withdraw, track, settled, appendComment, confirmComment, dropComment } = store.view(store.getSnapshot())
+    return { begin, confirm, rollback, insert, withdraw, track, settled, appendComment, confirmComment, dropComment }
   })
   return <PendingMutationWriterContext.Provider value={writer}>
     <PendingMutationsContext.Provider value={value}>{children}</PendingMutationsContext.Provider>

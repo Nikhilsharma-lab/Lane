@@ -8,7 +8,8 @@ import styles from "./empty-state.module.css";
 
 export interface EmptyStateProps {
   title: string;
-  description: string;
+  /** Lane: optional. Without one the state is its title alone. */
+  description?: string;
   action?: ReactNode;
   icon?: ReactNode;
   className?: string;

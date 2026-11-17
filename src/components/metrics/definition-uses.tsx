@@ -5,7 +5,8 @@ import { ListChecks } from "lucide-react";
 import { Badge } from "@/components/arc/badge/badge";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
 import { guardrailComparisonPhrase } from "@/lib/guardrail-comparison";
-import { actualText, changeText, goalText, valueText } from "@/lib/impact-presenter";
+import { actualText, goalText } from "@/lib/impact-presenter";
+import { changeAmountText, resultValueText } from "@/lib/result-phrasing";
 import type { DefinitionGuardrailUse, DefinitionMainUse, DefinitionUseGroup, DefinitionUseOutcome, DefinitionUses } from "@/lib/impact-read-model";
 import { formatRequestCode } from "@/lib/request-code";
 import { requestDetailHref } from "@/lib/request-workspace";
@@ -18,7 +19,8 @@ const requests = (count: number) => `${count} ${count === 1 ? "Request" : "Reque
 
 /** A result still waiting reads "Still due", with its due date once released: never zero. */
 function waitingText(outcome: Exclude<DefinitionUseOutcome<object>, { kind: "measured" }>): string {
-  if (outcome.kind === "closed_without_result") return `Closed without a result: ${outcome.reason}`;
+  // A close with no details still has its reason: "Closed without a result: Rolled back", never a bare colon.
+  if (outcome.kind === "closed_without_result") return `Closed without a result: ${outcome.reason.trim() || outcome.label}`;
   return outcome.due ? `Still due (${outcome.due.dueLabel}, ${plannedDay(outcome.due.dueDate)})` : "Still due (not released yet)";
 }
 
@@ -43,7 +45,7 @@ function MainUse({ use }: { use: DefinitionMainUse }) {
     <dl className={styles.facts}>
       <Fact label="Goal">{goalText(use.predicted)}</Fact>
       <Fact label="Actual">{outcome.kind === "measured" ? actualText(outcome.result) : waitingText(outcome)}</Fact>
-      {result && result.change !== null && <Fact label="Change">{changeText(result.change, result.unit, result.changeUnit)}</Fact>}
+      {result && result.change !== null && <Fact label="Change">{changeAmountText(result.change, result.unit)}</Fact>}
     </dl>
   </li>;
 }
@@ -53,12 +55,12 @@ function GuardrailUse({ use }: { use: DefinitionGuardrailUse }) {
   const phrase = guardrailComparisonPhrase[limit.operator];
   const measured = outcome.kind !== "measured" ? waitingText(outcome)
     : outcome.actual === null ? "Not recorded"
-    : `${valueText(outcome.actual, limit.unit)}, ${outcome.held ? "within the limit" : "outside the limit"}`;
+    : `${resultValueText(outcome.actual, limit.unit)}, ${outcome.held ? "within the limit" : "outside the limit"}`;
   return <li className={styles.use}>
     <RequestHead use={use} />
     <dl className={styles.facts}>
       {use.mainMetric && <Fact label="Guarding">{use.mainMetric}</Fact>}
-      <Fact label="Limit">{`${phrase[0].toUpperCase()}${phrase.slice(1)} ${valueText(limit.limit, limit.unit)}`}</Fact>
+      <Fact label="Limit">{`${phrase[0].toUpperCase()}${phrase.slice(1)} ${resultValueText(limit.limit, limit.unit)}`}</Fact>
       <Fact label="Measured">{measured}</Fact>
     </dl>
   </li>;

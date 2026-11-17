@@ -106,7 +106,7 @@ test("offline, list changes roll back, pages stay put, and Try again works once 
     await page.getByRole("link", { name: "Impact", exact: true }).click();
     await page.waitForURL("**/impact**");
     await page.getByRole("tab", { name: "Outcome report" }).click();
-    const reportBy = page.getByRole("radiogroup", { name: "Report by" }).or(page.getByRole("group", { name: "Report by" })).first();
+    const reportBy = page.getByRole("group", { name: "Show by", exact: true });
     await expect(reportBy).toBeVisible();
     await markDocument(page);
     const impactPath = new URL(page.url()).pathname + new URL(page.url()).search;

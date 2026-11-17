@@ -193,7 +193,8 @@ export type RequestEntry = {
   predicted: Prediction | null;
   result: ResultView | null;
   stillDue: DueItem | null;
-  closedWithoutResult: { reasonCode: string; reason: string } | null;
+  /** `label` names the closing form's reason (Rolled back); `reason` is its details, which may be empty. */
+  closedWithoutResult: { reasonCode: string; label: string; reason: string } | null;
   corrections: CorrectionView[];
   releaseDate: string | null;
   followUpOf: string | null;
@@ -201,7 +202,11 @@ export type RequestEntry = {
   followUps: RequestRef[];
 };
 
-export type MyWorkEntry = RequestEntry & { role: "requester" | "picker" | "both" };
+/**
+ * A row of My work or a teammate's list: the Request, the role the person had, and What we learned once it is closed
+ * (#283). Lists run closed results first, newest closing first, then open Requests (`entriesForPerson`).
+ */
+export type MyWorkEntry = RequestEntry & { role: "requester" | "picker" | "both"; learned: LearnedLine | null };
 
 /** The Impact page (#208): My work for everyone, and the Outcome report for everyone except a guest (null for a guest). */
 export type ImpactDashboard = {
@@ -299,6 +304,9 @@ function correctedResultOf(row: ImpactRow, closure: OutcomeClosure): ClosureCorr
     .sort((a, b) => a.revision - b.revision).at(-1) ?? null;
 }
 
+/** The closing form's name for a Closed without a result reason (Rolled back). */
+const exceptionReasonLabel = (reasonCode: string) => EXCEPTION_REASON_OPTIONS.find(option => option.value === reasonCode)?.label ?? "Closed without a result";
+
 const verdictOf = (passed: boolean | null): Verdict | null => passed === null ? null : passed ? "good" : "bad";
 
 function measuredResult(row: ImpactRow, closure: OutcomeClosure): ResultView {
@@ -389,7 +397,7 @@ function entryOf(row: ImpactRow, now: Date, visible: ImpactRow[]): RequestEntry 
     predicted: source ? predictionOf(source, row.definitions) : null,
     result: measured,
     stillDue: dueItemOf(row, now),
-    closedWithoutResult: row.exceptionClosure ? { reasonCode: row.exceptionClosure.reasonCode, reason: row.exceptionClosure.reason } : null,
+    closedWithoutResult: row.exceptionClosure ? { reasonCode: row.exceptionClosure.reasonCode, label: exceptionReasonLabel(row.exceptionClosure.reasonCode), reason: row.exceptionClosure.reason } : null,
     corrections: correctionsOf(row),
     releaseDate: releaseDateOf(row),
     followUpOf: row.followUpOf,
@@ -469,15 +477,31 @@ function byRequestNumber<T extends { requestNumber: number }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.requestNumber - b.requestNumber);
 }
 
+/** When a Request was closed, with or without a result; null while it is open. */
+function closedAtOf(row: ImpactRow): string | null {
+  return row.outcomeClosure?.closedAt ?? row.exceptionClosure?.closedAt ?? null;
+}
+
+/**
+ * The order of every person's list (#283): closed Requests first, newest closing first, then open Requests, each part
+ * in Request number order where it ties. The read model is the only place that orders a list.
+ */
+function closedFirst(a: ImpactRow, b: ImpactRow): number {
+  const [closedA, closedB] = [closedAtOf(a), closedAtOf(b)];
+  if (closedA !== null && closedB !== null) return Date.parse(closedB) - Date.parse(closedA) || a.requestNumber - b.requestNumber;
+  if (closedA !== null || closedB !== null) return closedA === null ? 1 : -1;
+  return a.requestNumber - b.requestNumber;
+}
+
 /** The Requests one person requested or picked up, from the rows a viewer may see, marked by the role they had. */
 function entriesForPerson(visible: ImpactRow[], personId: string, now: Date): MyWorkEntry[] {
-  return byRequestNumber(visible.flatMap(row => {
+  const theirs = visible.filter(row => requesterOf(row) === personId || row.assignedTo === personId);
+  return theirs.sort(closedFirst).map(row => {
     const requester = requesterOf(row) === personId;
     const picker = row.assignedTo === personId;
-    if (!requester && !picker) return [];
     const role: MyWorkEntry["role"] = requester && picker ? "both" : requester ? "requester" : "picker";
-    return [{ ...entryOf(row, now, visible), role }];
-  }));
+    return { ...entryOf(row, now, visible), role, learned: learnedOf(row) };
+  });
 }
 
 /**
@@ -511,7 +535,7 @@ export function teammateIdsOf(viewer: ImpactViewer, rows: ImpactRow[]): string[]
 export type DefinitionUseOutcome<Measured> =
   | ({ kind: "measured" } & Measured)
   | { kind: "still_due"; due: { dueDate: string; dueLabel: string } | null }
-  | { kind: "closed_without_result"; reason: string };
+  | { kind: "closed_without_result"; label: string; reason: string };
 
 /** A Request whose main metric counts under the definition: what it predicted beside what happened. */
 export type DefinitionMainUse = RequestRef & {
@@ -543,7 +567,7 @@ export type DefinitionUses = {
 
 /** A use with no measured result: closed without one, else still due (from its release's due date, once released). */
 function waitingOutcome(row: ImpactRow, now: Date): Exclude<DefinitionUseOutcome<object>, { kind: "measured" }> {
-  if (row.exceptionClosure) return { kind: "closed_without_result", reason: row.exceptionClosure.reason };
+  if (row.exceptionClosure) return { kind: "closed_without_result", label: exceptionReasonLabel(row.exceptionClosure.reasonCode), reason: row.exceptionClosure.reason };
   const release = row.releaseState?.release ?? null;
   const due = releaseMeasurement(release, now);
   return { kind: "still_due", due: release && due ? { dueDate: release.dueDate, dueLabel: due.label } : null };
@@ -860,7 +884,7 @@ function iterationOutcome(row: ImpactRow, now: Date): IterationOutcome {
   if (row.outcomeClosure) return { kind: "measured", result: measuredResult(row, row.outcomeClosure) };
   if (row.exceptionClosure) {
     const { reasonCode, reason } = row.exceptionClosure;
-    return { kind: "closed_without_result", reasonCode, label: EXCEPTION_REASON_OPTIONS.find(option => option.value === reasonCode)?.label ?? "Closed without a result", reason };
+    return { kind: "closed_without_result", reasonCode, label: exceptionReasonLabel(reasonCode), reason };
   }
   const state = impactStateOf(row);
   if (state.kind === "operational") return { kind: "operational", reason: state.reason };

@@ -129,9 +129,10 @@ test("Lane paints the same theme on every page in light and dark", async ({
     await record(captured, page, "requests", async () => {
       await page.goto("/");
       await expect(page.getByRole("heading", { name: "Requests", exact: true })).toBeVisible();
+      // #286 (C7): the list names the seeded Request by its typed title, not its Problem to solve.
       await expect(
         page.getByRole("row", {
-          name: /Help customers understand why their Requests changed/,
+          name: /^LAN-\d+, Add a changelog panel to every workspace\. /,
         })
       ).toBeVisible();
     });

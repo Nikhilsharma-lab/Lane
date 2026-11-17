@@ -61,6 +61,8 @@
 /* The Open group's New Request tip shows its C key in Lane's key cap (#274). */
 .tipKey { margin-inline-start: var(--space-3); }
 .groupAddCell { display: flex; flex: none; align-items: center; justify-content: center; width: var(--table-head-height); }
+/* #285 (C24): one touch target on touch screens. */
+@media (pointer: coarse) { .groupAddCell { width: var(--size-inner-xlarge); } .groupAddCell > a { min-width: var(--size-inner-xlarge); min-height: var(--size-inner-xlarge); } }
 .groupRow + div:not([hidden]) { padding-block-start: var(--request-group-gap); }
 .groupButton { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--table-head-height); padding: var(--space-2); border: 0; border-radius: var(--radius-control); background: var(--surface-muted); color: var(--foreground); text-align: left; cursor: pointer; }
 .groupButton > svg { flex-shrink: 0; }
@@ -115,12 +117,14 @@
 /* #240 decision 6: a priority this person can't change is the glyph alone, with no button behind it. */
 .identityControl[data-readonly] { cursor: inherit; }
 /* Touch (#256 story 41): the row shows it's pressed as the finger lands. While its page is on the way
-   ([data-pressed], loading-feel-listeners.ts), a working line rises along its foot after 0.15s. */
+   ([data-pressed], loading-feel-listeners.ts), a working line rises along its foot after 0.15s. #286: a Request the
+   composer is still sending ([data-sending]) carries the same faint line, and waits for its page until it is saved. */
 .row { position: relative; }
 @media (pointer: coarse) {
   .row:active { background: var(--interaction-pressed); }
 }
-.row[data-pressed]::after { content: ""; position: absolute; inset-inline: var(--space-2); bottom: 0; height: calc(var(--border-width) * 2); border-radius: var(--radius-pill); background: var(--accent); pointer-events: none; animation: row-working-in var(--duration-standard) var(--ease-enter) var(--duration-fast) both, row-working calc(var(--duration-standard) * 4) var(--ease-in-out) calc(var(--duration-fast) + var(--duration-standard)) infinite alternate; }
+.row[data-sending] { pointer-events: none; }
+.row:is([data-pressed], [data-sending])::after { content: ""; position: absolute; inset-inline: var(--space-2); bottom: 0; height: calc(var(--border-width) * 2); border-radius: var(--radius-pill); background: var(--accent); pointer-events: none; animation: row-working-in var(--duration-standard) var(--ease-enter) var(--duration-fast) both, row-working calc(var(--duration-standard) * 4) var(--ease-in-out) calc(var(--duration-fast) + var(--duration-standard)) infinite alternate; }
 @keyframes row-working-in { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
 @keyframes row-working { to { opacity: var(--lane-opacity-subtle); } }
 @media (max-width: 640px) {

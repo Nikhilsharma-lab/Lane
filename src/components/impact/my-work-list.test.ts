@@ -85,16 +85,22 @@ describe("My work rows (#155)", () => {
     expect(out).not.toContain("by you")
   })
 
-  it("shows the predicted and actual result with baseline, change, predicted change and window", () => {
+  it("shows the goal, the result against it, the change and the window (#282)", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: measured(46) })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
     expect(out).toContain("Conversion rate")
-    expect(out).toContain("Planning baseline 40%")
-    expect(out).toContain("Actual 46%")
-    expect(out).toContain("Change +6 percentage points")
     expect(out).toContain("Goal 50% (from 40%)")
+    expect(out).toContain("Result Reached 46%, 4 points short of the goal")
+    expect(out).toContain("Change +6 points")
+    expect(out).not.toMatch(/Actual|percentage points/)
     expect(out).not.toMatch(/predict/i)
     expect(out).toContain("Window 30 days after release")
+  })
+
+  it("shows What we learned under a closed result (#283)", () => {
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: { ...measured(46), learned: "Shoppers trust a saved card" } })]
+    const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
+    expect(out).toContain("What we learned Shoppers trust a saved card")
   })
 
   it("shows the evidence text beside a measured result, as text only", () => {
@@ -115,7 +121,7 @@ describe("My work rows (#155)", () => {
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
     expect(out).toContain("Still due")
     expect(out).toContain("Due 31 Oct")
-    expect(out).not.toContain("Actual")
+    expect(out).not.toContain("Reached")
   })
 
   it("shows a Request closed without a result with its reason", () => {
@@ -128,6 +134,16 @@ describe("My work rows (#155)", () => {
     expect(out).toContain("Closed without a result: No event data for this release")
   })
 
+  it("names the reason a Request closed without a result when the close has no details", () => {
+    const exception: OutcomeException = {
+      version: 1, kind: "exception", reasonCode: "rolled_back", reason: "", actorId: ME, ownerId: ME,
+      closedAt: "2026-09-10T09:00:00.000Z", operationId: "op-x", fingerprint: "fp", release: RELEASE_AUG, revision: 1,
+    }
+    const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), exceptionClosure: exception })]
+    const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
+    expect(out).toContain("Closed without a result: Rolled back")
+  })
+
   it("shows operational work with its reason", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, expectedImpact: null, noMeasurableImpactReason: "Token rename" })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
@@ -138,7 +154,7 @@ describe("My work rows (#155)", () => {
     const correction: ClosureCorrection = { operationId: "op-c", fingerprint: "fc", actorId: ME, at: "2026-09-12T09:00:00.000Z", field: "evidence", correction: "Re-checked", reason: "Wrong source", revision: 2 }
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: measured(46), closureCorrections: [correction] })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
-    expect(out).toContain("Actual 46%")
+    expect(out).toContain("Result Reached 46%")
     expect(out).toContain("Correction to evidence: Re-checked. Reason: Wrong source")
   })
 
@@ -161,9 +177,9 @@ describe("My work rows (#155)", () => {
 })
 
 describe("My work states (#155)", () => {
-  it("says so when the viewer has no Requests yet", () => {
+  it("says so when the viewer has no Requests yet (#283)", () => {
     const out = text(renderToStaticMarkup(createElement(MyWorkTab, { entries: [] })))
-    expect(out).toContain("Nothing requested or picked up yet")
+    expect(out).toBe("Requests you file or pick up show here.")
   })
 
   it("says so when a teammate has no Requests yet, by name", () => {
@@ -182,15 +198,30 @@ describe("My work: value before release (#151 decision 3)", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: recordedState(ME, RELEASE_AUG, 42), outcomeClosure: measured(46) })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
     expect(out).toContain("Before release 42%")
-    expect(out).toContain("Change +4 percentage points")
+    expect(out).toContain("Change +4 points")
     expect(out).toContain("Goal 50% (from 40%)")
     expect(out).not.toContain("Planning baseline")
   })
 
-  it("labels a release recorded before this change as the planning baseline, never as before release", () => {
+  it("shows a release recorded before this change with its planning baseline as the goal's start, never as before release (#282)", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: measured(46) })]
     const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
-    expect(out).toContain("Planning baseline 40%")
-    expect(out).not.toContain("Before release")
+    expect(out).toContain("Goal 50% (from 40%)")
+    expect(out).not.toMatch(/planning baseline|Before release/i)
+  })
+})
+
+describe("My work: pass/fail results (#282)", () => {
+  it("reads Result: Passed or Didn’t pass, with the check's own words as its goal", () => {
+    const check: ExpectedImpact = { ...plan(), primary: { ...plan().primary, key: "check", unit: "", current: null, target: null, check: "keyboard" } } as ExpectedImpact
+    const closed = (passed: boolean): OutcomeClosure => ({ ...measured(0), expected: check, primary: { kind: "pass_fail", passed } } as OutcomeClosure)
+    const rows = [
+      row({ id: "a", requestNumber: 1, createdBy: ME, status: "done", expectedImpact: check, releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: closed(true) }),
+      row({ id: "b", requestNumber: 2, createdBy: ME, status: "done", expectedImpact: check, releaseState: releaseState(ME, RELEASE_AUG), outcomeClosure: { ...closed(false), operationId: "op-b" } }),
+    ]
+    const out = text(renderToStaticMarkup(createElement(ImpactEntryList, { entries: myEntries(rows) })))
+    expect(out).toContain("Goal Complete the flow using only a keyboard Result Passed")
+    expect(out).toContain("Goal Complete the flow using only a keyboard Result Didn’t pass")
+    expect(out).not.toMatch(/Good|Bad/)
   })
 })

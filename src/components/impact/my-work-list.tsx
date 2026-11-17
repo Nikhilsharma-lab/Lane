@@ -2,11 +2,14 @@ import { plannedDay } from "@/lib/dates"
 import Link from "@/components/link"
 import type { MyWorkEntry } from "@/lib/impact-read-model"
 import type { ResultView } from "@/lib/impact-read-model"
-import { actualText, baselineLabelOf, changeText, entryKindOf, goalText, valueText } from "@/lib/impact-presenter"
+import { BEFORE_RELEASE, beforeReleaseText, entryKindOf, goalText, resultText } from "@/lib/impact-presenter"
+import { changeAmountText } from "@/lib/result-phrasing"
 import { formatRequestCode } from "@/lib/request-code"
 import { requestDetailHref } from "@/lib/request-workspace"
 import { Badge } from "@/components/arc/badge/badge"
 import { EmptyState } from "@/components/arc/empty-state/empty-state"
+import buttonStyles from "@/components/arc/button/button.module.css"
+import { NewRequestLink } from "@/components/requests/new-request-link"
 import styles from "./my-work-list.module.css"
 import { Placeholder } from "@/components/loading/placeholder";
 
@@ -37,17 +40,19 @@ function ResultDetail({ entry }: { entry: MyWorkEntry }) {
 }
 
 function MeasuredFacts({ result }: { result: ResultView }) {
-  const { baselineState, baselineSource, baseline, plannedBaseline, actual, change, predictedTarget, unit, changeUnit, window, metric, corrections, evidence } = result
+  const { form, baselineState, plannedBaseline, actual, change, predictedTarget, unit, window, metric, corrections, evidence } = result
   // A Correction that stated another value is what counts; the Correction itself is listed below.
   const corrected = result.correctedFrom ? " (corrected)" : ""
+  const before = beforeReleaseText(result)
+  // #282: a pass/fail check's own words are its goal, so it needs no metric line above them.
+  const goal = form === "pass_fail" || predictedTarget !== null ? goalText({ form, metric, unit, baseline: plannedBaseline, target: predictedTarget }) : null
   return <div className={styles.result}>
-    <p className={styles.metric}>{metric}</p>
+    {form === "numeric" ? <p className={styles.metric}>{metric}</p> : null}
     <dl className={styles.facts}>
-      {result.form === "pass_fail" ? <div><dt>Result</dt><dd>{actualText(result)}{corrected}</dd></div> : null}
-      {result.form === "numeric" && baselineSource !== null && baseline !== null ? <div><dt>{baselineLabelOf(baselineSource)}</dt><dd>{valueText(baseline, unit)}</dd></div> : null}
-      {result.form === "numeric" && actual !== null ? <div><dt>Actual</dt><dd>{valueText(actual, unit)}{corrected}</dd></div> : null}
-      {change !== null && changeUnit !== null ? <div><dt>Change</dt><dd>{changeText(change, unit, changeUnit)}</dd></div> : null}
-      {predictedTarget !== null && result.form === "numeric" ? <div><dt>Goal</dt><dd>{goalText({ form: result.form, metric, unit, baseline: plannedBaseline, target: predictedTarget })}</dd></div> : null}
+      {goal !== null ? <div><dt>Goal</dt><dd>{goal}</dd></div> : null}
+      {before !== null ? <div><dt>{BEFORE_RELEASE}</dt><dd>{before}</dd></div> : null}
+      {form === "pass_fail" || actual !== null ? <div><dt>Result</dt><dd>{resultText(result)}{corrected}</dd></div> : null}
+      {change !== null ? <div><dt>Change</dt><dd>{changeAmountText(change, unit)}</dd></div> : null}
       <div><dt>Window</dt><dd>{window}</dd></div>
       {evidence ? <div><dt>Evidence</dt><dd>{evidence}</dd></div> : null}
     </dl>
@@ -63,21 +68,33 @@ export function ImpactEntryList({ entries, subject }: { entries: MyWorkEntry[]; 
     {entries.map(entry => <li key={entry.requestId} className={styles.item}>
       <Link href={requestDetailHref(entry.requestId, "all")} className={styles.row} data-pressable="" data-request-id={entry.requestId}>
         <span className={styles.head}>
-          <span className={styles.code}>{formatRequestCode(entry.requestNumber)}</span>
-          <span className={styles.title}>{entry.title}</span>
-          <Badge size="sm">{roleLabel(entry.role, subject)}</Badge>
-          <Badge size="sm">{entry.journey}</Badge>
+          {/* C32: the number and title share a line, and the title wraps beside the number. */}
+          <span className={styles.name}>
+            <span className={styles.code}>{formatRequestCode(entry.requestNumber)}</span>
+            <span className={styles.title}>{entry.title}</span>
+          </span>
+          <span className={styles.badges}>
+            <Badge size="sm">{roleLabel(entry.role, subject)}</Badge>
+            <Badge size="sm">{entry.journey}</Badge>
+          </span>
         </span>
         <ResultDetail entry={entry} />
+        {entry.learned && <span className={styles.learned}><span className={styles.learnedLabel}>What we learned</span> {entry.learned.text}{entry.learned.corrected && " (corrected)"}</span>}
         {entry.followUps.length > 0 && <span className={styles.note}>Follow-up Requests: {entry.followUps.map(followUp => `${formatRequestCode(followUp.requestNumber)} ${followUp.title}`).join(", ")}</span>}
       </Link>
     </li>)}
   </ul>
 }
 
-/** The My work tab's content: the viewer's own Requests, or an empty state. */
-export function MyWorkTab({ entries }: { entries: MyWorkEntry[] }) {
-  if (entries.length === 0) return <EmptyState title="Nothing requested or picked up yet" description="Requests you request or pick up show here, with their goals and results." />
+/**
+ * The My work tab's content: the viewer's own Requests, or an empty state (#283). Someone who can file gets New Request,
+ * which opens the composer; someone who can't, with teammates to choose from, is pointed to Showing.
+ */
+export function MyWorkTab({ entries, canFile = false, chooseSomeone = false }: { entries: MyWorkEntry[]; canFile?: boolean; chooseSomeone?: boolean }) {
+  if (entries.length === 0) return chooseSomeone
+    ? <EmptyState title="Choose someone in Showing to see their Requests." />
+    : <EmptyState title="Requests you file or pick up show here."
+      action={canFile ? <NewRequestLink className={`${buttonStyles.button} ${buttonStyles.primary} ${buttonStyles.md}`}>New Request</NewRequestLink> : undefined} />
   return <ImpactEntryList entries={entries} />
 }
 

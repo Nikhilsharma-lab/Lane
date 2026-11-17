@@ -173,6 +173,20 @@ describe("pending-mutation overlay: clearing", () => {
     expect(view().apply(server)).toEqual([created, server[0]])
   })
 
+  it("#286: a sending Request takes its saved row under the same id, or goes when the save is refused", () => {
+    const { view } = setup()
+    const server = [row("a")]
+    view().insert(row("new", { status: "open", sending: true }))
+    expect(view().apply(server)).toEqual([row("new", { status: "open", sending: true }), server[0]])
+    view().insert(row("new", { status: "open", requestNumber: 7 }))
+    expect(view().apply(server)).toEqual([row("new", { status: "open", requestNumber: 7 }), server[0]])
+    view().insert(row("refused", { status: "open", sending: true }))
+    view().withdraw("refused")
+    expect(view().apply(server).map(item => item.id)).toEqual(["new", "a"])
+    view().withdraw("new")
+    expect(view().apply(server)).toBe(server)
+  })
+
   it("expires an unseen composer insert even when no mutations are pending", () => {
     let clock = 0
     const store = createPendingMutationsStore({ clock: () => clock })

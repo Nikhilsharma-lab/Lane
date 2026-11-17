@@ -129,21 +129,21 @@
     "source": "https://uiarc.dev/r/dropdown-menu.json",
     "file": "src/components/arc/dropdown-menu/dropdown-menu.tsx",
     "upstreamSha256": "555391c3bd2a0a3ba9818240a34a53ce51be40d2b9f290a23569bf6cf2328704",
-    "localSha256": "86be5f831193c07ef1c3e827638bddb81cc211b7152634be7026ac0e85d6c6bd"
+    "localSha256": "9684d33b88c4b34bdf321896541b3cd73e23334149d3a8f4d38cde0fd6763623"
   },
   {
     "id": "empty-state",
     "source": "https://uiarc.dev/r/empty-state.json",
     "file": "src/components/arc/empty-state/empty-state.module.css",
     "upstreamSha256": "e65e4c4b6e3bd31b8925cb6a5d58e8c4826ffca6efb100f786c70428f98afc1a",
-    "localSha256": "995a5a0d3f3fb646098eb254ff3be9797015e7a74af2b40455f59c7fb746b52f"
+    "localSha256": "5021037a8fe2af2924ad0fb34f3ab1eba0b0ecda6012dd9f026676d0406b6e22"
   },
   {
     "id": "empty-state",
     "source": "https://uiarc.dev/r/empty-state.json",
     "file": "src/components/arc/empty-state/empty-state.tsx",
     "upstreamSha256": "4a3d91c4fb7e2c4c316322854887a9e995e4e0343e41e64dbd6e3c505d7e3b5c",
-    "localSha256": "a262f45ee9f92cd40a4345291539ec91f87413f0191b680e131b43a4900c4fe9"
+    "localSha256": "3efd329f2131c0d226af2b925e1e24acea5d13b9d697e1914f5b2f229f1513da"
   },
   {
     "id": "filter-toolbar",
@@ -436,7 +436,7 @@
     "source": "https://uiarc.dev/r/date-range-picker.json",
     "file": "src/components/arc/date-range-picker/date-range-picker.tsx",
     "upstreamSha256": "ca4172b1125a3ac22ff06e17b599a6dbbe496247a75f7be46fa340de20d54a2f",
-    "localSha256": "6d9da0acb81ca27f58066f1015e894d869eea9e214eab152b07569cdd7cb3dc6"
+    "localSha256": "f40bc0eb87840c399f945d1b22ec6021a601f180a2e242cd2f787525cb8a31c2"
   },
   {
     "id": "bottom-sheet",
@@ -535,5 +535,33 @@
     "file": "src/components/arc/date-picker/date-picker.module.css",
     "upstreamSha256": "fc3907dc484832ef441b367dd16135bf081ec77894ea1ae7c9c59508a2abe95a",
     "localSha256": "502fe250e56057c02fece3438244d6dca4d97e18a13733a9ffe79fc985dc3882"
+  },
+  {
+    "id": "tabs",
+    "source": "https://uiarc.dev/r/tabs.json",
+    "file": "src/components/arc/tabs/tabs.tsx",
+    "upstreamSha256": "c37859cd1549cd44ca59d4e33e31fe18248919cc870d578439035c687716c7f9",
+    "localSha256": "8d379bfa06367eb210d04978eccce75c86fc6552fc0c36ec7208271b9d4bcbbe"
+  },
+  {
+    "id": "tabs",
+    "source": "https://uiarc.dev/r/tabs.json",
+    "file": "src/components/arc/tabs/tabs.module.css",
+    "upstreamSha256": "89c6cb2ae4fa5be61cc3dbe7f196cc495da06d0f61c538a562ecffd7b05cf6f5",
+    "localSha256": "2958a3ba2ead0b41c3fa6b81b6d25f59cf7afd6abf8776ba2101133d45eafb8e"
+  },
+  {
+    "id": "radio-cards",
+    "source": "https://uiarc.dev/r/radio-cards.json",
+    "file": "src/components/arc/radio-cards/radio-cards.tsx",
+    "upstreamSha256": "6c4e726871ba4e6ea90c0d4fe634a2b0bcecab1500a32bfa2574c7c5dce8c72a",
+    "localSha256": "57259121ad1a8675c3f44af2dd2b4a15062437dd76176234d7e4063c9b3842fb"
+  },
+  {
+    "id": "radio-cards",
+    "source": "https://uiarc.dev/r/radio-cards.json",
+    "file": "src/components/arc/radio-cards/radio-cards.module.css",
+    "upstreamSha256": "5f6e5cd90a57fd7c31f301d6c1a9172b3386b2e4afdd0526573c4736836eca7a",
+    "localSha256": "ec0d43035f6e962156e1e61580296182a492b5059b2c83d366a19177f014bc3b"
   }
 ]

@@ -10,7 +10,8 @@ import { Select } from "@/components/arc/select/select"
 import { guardrailComparisonPhrase, type GuardrailOperator } from "@/lib/guardrail-comparison"
 import { metricChart } from "@/lib/impact-chart-view"
 import { periodLabel, type ImpactPeriod } from "@/lib/impact-period"
-import { actualText, baselineLabelOf, changeText, goalText, NOTHING_MEASURED, totalText, valueText } from "@/lib/impact-presenter"
+import { actualText, BEFORE_RELEASE, beforeReleaseText, goalText, NOTHING_MEASURED, passFailTotalText, resultText, totalText } from "@/lib/impact-presenter"
+import { changeAmountText, resultValueText } from "@/lib/result-phrasing"
 import { iterationsHref } from "@/lib/same-problem-rules"
 import type { CorrectedValue, IterationNote, LearnedLine, OutcomeReport, OutcomeReportEntry, OutcomeReportSection, ReportClosedGroup, ReportGuardrail, ResultLine, ResultView } from "@/lib/impact-read-model"
 import { formatRequestCode } from "@/lib/request-code"
@@ -67,9 +68,16 @@ function PeriodPicker({ period, now, onPeriodChange }: { period: ImpactPeriod; n
   const choices = periodChoices(period.kind, now)
   const current = periodKey(period)
   const options = choices.some(choice => choice.key === current) ? choices : [{ key: current, label: periodLabel(period) }, ...choices]
+  // #283 (C29): "Show by" is visible and named once (the group carries the name, the shown word is hidden from screen
+  // readers), and sits level with the Period picker's own label.
   return <div className={styles.picker}>
-    <SegmentedControl label="Report by" value={period.kind} options={KINDS} onValueChange={kind => onPeriodChange?.(periodOfKind(kind as PeriodKind, period, now))} />
-    <Select label="Period" value={current} onValueChange={key => { const next = parsePeriodKey(key); if (next) onPeriodChange?.(next) }} options={options.map(choice => ({ value: choice.key, label: choice.label }))} />
+    <div className={styles.showBy}>
+      <span className={styles.pickerLabel} aria-hidden="true">Show by</span>
+      <SegmentedControl label="Show by" value={period.kind} options={KINDS} onValueChange={kind => onPeriodChange?.(periodOfKind(kind as PeriodKind, period, now))} />
+    </div>
+    <div className={styles.period}>
+      <Select label="Period" value={current} onValueChange={key => { const next = parsePeriodKey(key); if (next) onPeriodChange?.(next) }} options={options.map(choice => ({ value: choice.key, label: choice.label }))} />
+    </div>
   </div>
 }
 
@@ -89,13 +97,13 @@ function TotalLine({ line }: { line: ResultLine }) {
     <h3 className={styles.lineTitle}>{line.metric}</h3>
     <p className={styles.note}>{line.audience} · {line.platform} · {line.window} · {results(line.count)}</p>
     {chart && <MetricChart chart={chart} />}
-    {line.summed?.change !== null && line.summed?.change !== undefined && <p className={styles.total}>{totalText(line.summed.change, line.unit, line.changeUnit)} from {results(line.summed.count)}</p>}
-    {line.unit === "%" && <p className={styles.note}>Changes are in percentage points. They are never added together or averaged.</p>}
-    {line.verdicts && <p className={styles.total}>Verified: {line.verdicts.good} good, {line.verdicts.bad} bad. Counted, not summed.</p>}
+    {line.summed?.change !== null && line.summed?.change !== undefined && <p className={styles.total}>{totalText(line.summed.change, line.unit, line.summed.count)}</p>}
+    {line.unit === "%" && <p className={styles.note}>Changes are in points. They are never added together or averaged.</p>}
+    {line.verdicts && <p className={styles.total}>{passFailTotalText(line.verdicts)}. Counted, not summed.</p>}
     <ul className={styles.lineRequests} aria-label={`Requests counted in ${line.metric}`}>
       {line.results.map(result => <li key={result.requestId}>
         {result.requests.map((request, index) => <span key={request.requestId}>{index > 0 && ", "}<RequestLink {...request} /></span>)}
-        {result.correctedFrom && <> <Badge size="sm" tone="warning">Corrected</Badge></>}
+        {result.correctedFrom && <> <Badge size="sm" tone="warning">Corrected</Badge></>}: {resultText(result)}
       </li>)}
     </ul>
   </article>
@@ -116,7 +124,7 @@ function Totals({ report }: { report: OutcomeReport }) {
 }
 
 function guardrailText(guardrail: Pick<ReportGuardrail, "metric" | "operator" | "limit" | "unit">): string {
-  return `${guardrail.metric} ${guardrailComparisonPhrase[guardrail.operator as GuardrailOperator] ?? guardrail.operator} ${valueText(guardrail.limit, guardrail.unit)}`
+  return `${guardrail.metric} ${guardrailComparisonPhrase[guardrail.operator as GuardrailOperator] ?? guardrail.operator} ${resultValueText(guardrail.limit, guardrail.unit)}`
 }
 
 function Guardrails({ guardrails }: { guardrails: ReportGuardrail[] }) {
@@ -124,40 +132,43 @@ function Guardrails({ guardrails }: { guardrails: ReportGuardrail[] }) {
   return <div className={styles.group}>
     <h5 className={styles.subheading}>Guardrails</h5>
     <ul className={styles.plain}>{guardrails.map((guardrail, index) => <li key={index}>
-      {guardrailText(guardrail)}: {guardrail.actual === null ? "not measured yet" : `measured ${valueText(guardrail.actual, guardrail.unit)}, ${guardrail.held ? "held" : "not held"}`}
+      {guardrailText(guardrail)}: {guardrail.actual === null ? "not measured yet" : `measured ${resultValueText(guardrail.actual, guardrail.unit)}, ${guardrail.held ? "held" : "not held"}`}
     </li>)}</ul>
   </div>
 }
 
-/** The result counted, marked Corrected with the value recorded at closing when a Correction stated another one. */
-function ActualResult({ result }: { result: ResultView }) {
+/** The result against its goal, marked Corrected with the value recorded at closing when a Correction stated another one. */
+function CountedResult({ result }: { result: ResultView }) {
   const original = result.correctedFrom
-  return <>{actualText(result)}{original && <> <Badge size="sm" tone="warning">Corrected</Badge> ({actualText({ ...result, ...original })} at closing)</>}</>
+  return <>{resultText(result)}{original && <> <Badge size="sm" tone="warning">Corrected</Badge> ({actualText({ ...result, ...original })} at closing)</>}</>
 }
 
 function MeasuredFacts({ result }: { result: ResultView }) {
-  if (result.form === "pass_fail") return <Fact label="Result"><ActualResult result={result} /></Fact>
+  if (result.form === "pass_fail") return <Fact label="Result"><CountedResult result={result} /></Fact>
+  const before = beforeReleaseText(result)
   return <>
-    {result.baselineSource !== null && result.baseline !== null && <Fact label={baselineLabelOf(result.baselineSource)}>{valueText(result.baseline, result.unit)}</Fact>}
-    {result.baselineState === "unknown" && <Fact label="Baseline">Unknown</Fact>}
-    {result.baselineState === "new_capability" && <Fact label="Baseline">New capability, no change</Fact>}
-    <Fact label="Actual"><ActualResult result={result} /></Fact>
-    {result.change !== null && <Fact label="Change">{changeText(result.change, result.unit, result.changeUnit)}</Fact>}
+    {before !== null && <Fact label={BEFORE_RELEASE}>{before}</Fact>}
+    {result.baselineState === "unknown" && <Fact label={BEFORE_RELEASE}>Unknown</Fact>}
+    {result.baselineState === "new_capability" && <Fact label={BEFORE_RELEASE}>New capability, no change</Fact>}
+    <Fact label="Result"><CountedResult result={result} /></Fact>
+    {result.change !== null && <Fact label="Change">{changeAmountText(result.change, result.unit)}</Fact>}
   </>
 }
 
 function ReportRequest({ entry }: { entry: OutcomeReportEntry }) {
   const headingId = `report-request-${entry.requestId}`
   const { outcome, predicted } = entry
+  // #283 (C2-16): a pass/fail check has no metric, before or change, so its few facts sit as label and value lines.
+  const check = predicted?.form === "pass_fail" || (outcome.kind === "measured" && outcome.result.form === "pass_fail")
   return <li className={styles.entry}>
     <article aria-labelledby={headingId} className={styles.article}>
       <h4 id={headingId} className={styles.entryHead}><RequestLink {...entry} /> <Badge size="sm">{entry.journey}</Badge></h4>
       <Iteration requestId={entry.requestId} iteration={entry.iteration} />
       <p className={styles.problem}>{entry.problem}</p>
-      <dl className={styles.facts}>
+      <dl className={check ? styles.checkFacts : styles.facts}>
         <Fact label="Released"><time dateTime={entry.releaseDate}>{plannedDay(entry.releaseDate)}</time></Fact>
-        {predicted && <Fact label="Metric">{predicted.metric}{predicted.form === "numeric" ? ` (${predicted.audience}, ${predicted.window})` : ""}</Fact>}
-        {predicted && predicted.form === "numeric" && <Fact label="Goal">{goalText(predicted)}</Fact>}
+        {predicted && predicted.form === "numeric" && <Fact label="Metric">{predicted.metric} ({predicted.audience}, {predicted.window})</Fact>}
+        {predicted && <Fact label="Goal">{goalText(predicted)}</Fact>}
         {outcome.kind === "measured" && <MeasuredFacts result={outcome.result} />}
         {outcome.kind === "still_due" && <Fact label="Result due"><time dateTime={outcome.dueDate}>{plannedDay(outcome.dueDate)}</time> ({outcome.dueLabel})</Fact>}
         {outcome.kind === "operational" && <Fact label="Not measured">Operational work: {outcome.reason}</Fact>}

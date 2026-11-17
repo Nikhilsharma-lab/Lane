@@ -60,7 +60,9 @@ export type OlderReads = {
  * sort and the in-list filter) re-renders here with no network request. The
  * "/" URL mirrors that state through useRequestListUrlSync.
  */
-export function DataTable({ columns, data: serverRows, projectName, context, isGuest = false, footer, welcome, viewer, finishedCounts, older }: { columns: RequestColumn[]; data: OverviewRequest[]; projectName?: string; context?: { orgId: string }; isGuest?: boolean; footer?: ReactNode;
+export function DataTable({ columns, data: serverRows, projectName, context, isGuest = false, canCreate = false, footer, welcome, viewer, finishedCounts, older }: { columns: RequestColumn[]; data: OverviewRequest[]; projectName?: string; context?: { orgId: string }; isGuest?: boolean; footer?: ReactNode;
+  /** #285: the Open group's New Request, by the shared rule (`canCreateRequests`). */
+  canCreate?: boolean
   /** A212: every finished Request's count by status, for the group headers; without it, groups count what is loaded. */
   finishedCounts?: FinishedCounts
   /** A212: the older-finished reads behind Show more; without them, Show more shows loaded rows only. */
@@ -299,7 +301,7 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
     if (filter !== "all" || projectFilter !== "all" || title || requestType) announce(`${matchCountText(matchCount)}.`, { key: "count", delay: 600 })
     else announce("Filters cleared.", { key: "count" })
   }, [announce, filter, filterSignature, matchCount, projectFilter, requestType, title, workspaceEmpty])
-  const emptyLine = listEmptyLine(model.filters, { workspaceEmpty, readOnly })
+  const emptyLine = listEmptyLine(model.filters, { workspaceEmpty, readOnly: !canCreate })
   const gridLabel = projectName ? `${projectName} Requests` : projectFilter === "none" ? "Requests without a Project" : isGuest ? "My Requests" : "Requests"
   const olderError = older?.error ?? null
   // A failed read says so under its group's Show more, or below the list when no shown group continues that read.
@@ -344,7 +346,8 @@ export function DataTable({ columns, data: serverRows, projectName, context, isG
                   {collapsed ? <ChevronRight aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}<span>{group.label}</span>
                   <span className={styles.groupCount}>{count}</span>
                 </button></h2></div>
-                {presentation && !readOnly && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content={<>New Request<KeyCap className={styles.tipKey}>C</KeyCap></>}><NewRequestLink tabIndex={-1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
+                {/* #285 (C24): while the Open header holds the grid's one tab stop, Tab goes on from it to its New Request. */}
+                {presentation && canCreate && group.key === "status:open" && <div role="gridcell" className={styles.groupAddCell}><Tooltip morph="plain" content={<>New Request<KeyCap className={styles.tipKey}>C</KeyCap></>}><NewRequestLink tabIndex={grid.tabbable === headerKey ? 0 : -1} className={`${buttonStyles.button} ${buttonStyles.ghost} ${buttonStyles.iconCircle}`} aria-label="New Request"><Plus aria-hidden="true" /></NewRequestLink></Tooltip></div>}
               </div>
               <div id={id} hidden={collapsed}>{group.shown.map(request => renderRow(request, 2))}{renderMore(group, 2)}</div>
             </div>

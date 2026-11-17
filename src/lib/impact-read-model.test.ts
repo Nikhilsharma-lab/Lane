@@ -166,6 +166,53 @@ describe("impact read model: viewers", () => {
   });
 });
 
+describe("impact read model: the order of My work and a teammate's list (#283)", () => {
+  const closedAt = (closure: OutcomeClosure, at: string, learned?: string): OutcomeClosure => ({ ...closure, closedAt: at, learned });
+  const exception = (at: string, learned?: string): OutcomeException => ({
+    version: 1, kind: "exception", reasonCode: "cannot_measure", reason: "No event data", actorId: MEMBER, ownerId: MEMBER,
+    closedAt: at, operationId: `op-${at}`, fingerprint: "fp", release: RELEASE_AUG, revision: 1, learned,
+  });
+  const closed = (id: string, requestNumber: number, at: string, learned?: string) => row({
+    id, requestNumber, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG),
+    outcomeClosure: closedAt(measuredClosure(plan(), RELEASE_AUG, 46), at, learned),
+  });
+  const rows = [
+    row({ id: "open-1", requestNumber: 1, createdBy: MEMBER }),
+    closed("closed-sep", 2, "2026-09-10T09:00:00.000Z", "Shoppers trust a saved card"),
+    row({ id: "measuring", requestNumber: 3, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_OCT) }),
+    row({ id: "without", requestNumber: 4, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), exceptionClosure: exception("2026-10-02T09:00:00.000Z", "Tracking broke in the release") }),
+    closed("closed-oct", 5, "2026-10-12T09:00:00.000Z"),
+    row({ id: "open-6", requestNumber: 6, createdBy: MEMBER, assignedTo: MEMBER, status: "in_progress" }),
+  ];
+
+  it("puts closed results first, newest closing first, then the open Requests in number order", () => {
+    const mine = buildImpactDashboard(MEMBER_VIEWER, rows, { now: NOW }).myWork.requests;
+    expect(requestIds(mine)).toEqual([5, 4, 2, 1, 3, 6]);
+  });
+
+  it("gives each closed result its What we learned, and the open Requests none", () => {
+    const mine = buildImpactDashboard(MEMBER_VIEWER, rows, { now: NOW }).myWork.requests;
+    expect(mine.map(entry => [entry.requestNumber, entry.learned?.text ?? null])).toEqual([
+      [5, null], [4, "Tracking broke in the release"], [2, "Shoppers trust a saved card"], [1, null], [3, null], [6, null],
+    ]);
+  });
+
+  it("reads What we learned at its latest Correction, marked corrected", () => {
+    const correction: ClosureCorrection = { operationId: "op-c", fingerprint: "fp", actorId: MEMBER, at: "2026-10-20T09:00:00.000Z", field: "learned", correction: "Shoppers trust a saved card on mobile", reason: "Typo", revision: 2 };
+    const corrected = [{ ...rows[1], closureCorrections: [correction] }];
+    expect(buildImpactDashboard(MEMBER_VIEWER, corrected, { now: NOW }).myWork.requests[0].learned).toEqual({ text: "Shoppers trust a saved card on mobile", corrected: true });
+  });
+
+  it("orders a teammate's list the same way", () => {
+    expect(requestIds(buildTeammateWork(ADMIN_VIEWER, rows, MEMBER, { now: NOW })!)).toEqual([5, 4, 2, 1, 3, 6]);
+  });
+
+  it("breaks a tie in closing time by Request number", () => {
+    const tied = [closed("b", 8, "2026-09-10T09:00:00.000Z"), closed("a", 7, "2026-09-10T09:00:00.000Z")];
+    expect(requestIds(buildImpactDashboard(MEMBER_VIEWER, tied, { now: NOW }).myWork.requests)).toEqual([7, 8]);
+  });
+});
+
 describe("impact read model: measured results", () => {
   it("shows baseline, actual, change, predicted change and window, with percentages in percentage points", () => {
     const rows = [row({ id: "a", requestNumber: 1, createdBy: MEMBER, status: "done", releaseState: releaseState(MEMBER, RELEASE_AUG), outcomeClosure: measuredClosure(plan(), RELEASE_AUG, 46) })];
@@ -530,7 +577,7 @@ describe("impact read model: Requests that used a Metric definition (#203)", () 
     expect(group.uses.map(use => use.outcome)).toEqual([
       { kind: "still_due", due: { dueDate: "2026-10-31", dueLabel: "Due in 8 days" } },
       { kind: "still_due", due: null },
-      { kind: "closed_without_result", reason: "Rolled back after a day" },
+      { kind: "closed_without_result", label: "Rolled back", reason: "Rolled back after a day" },
     ]);
     expect(group.uses[0].predicted).toMatchObject({ metric: "Trials started", target: 150 });
   });

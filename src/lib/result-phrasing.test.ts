@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DIDNT_PASS, PASSED, goalDirection, goalValueText, passFailText, resultAgainstGoal, resultValueText } from "./result-phrasing";
+import { DIDNT_PASS, PASSED, changeAmountText, goalDirection, goalValueText, passFailCountText, passFailText, resultAgainstGoal, resultValueText } from "./result-phrasing";
 
 // #279 (decision 8, from #242 item 3): a result reads against the goal in the goal's own direction, worked out from
 // its start and end. Build 7's Impact (#282) reuses these words.
@@ -72,5 +72,27 @@ describe("a numeric goal's value", () => {
     expect(goalValueText({ unit: "minutes", baseline: 240, target: 90 })).toBe("90 minutes (from 240 minutes)");
     expect(goalValueText({ unit: "count", baseline: null, target: 12 })).toBe("12");
     expect(goalValueText({ unit: "%", baseline: 62, target: null })).toBe("No goal set");
+  });
+});
+
+// #282: Impact's changes, totals and pass/fail tallies use the same words as the results.
+describe("a signed change in its unit", () => {
+  it.each([
+    [6, "%", "+6 points"],
+    [1, "%", "+1 point"],
+    [-8, "%", "−8 points"],
+    [-165, "minutes", "−165 minutes"],
+    [30, "count", "+30"],
+    [-2.5, "seconds", "−2.5 seconds"],
+    [0, "%", "No change"],
+  ])("%s %s reads %s, with a true minus sign", (change, unit, words) => {
+    expect(changeAmountText(change, unit)).toBe(words);
+  });
+});
+
+describe("pass/fail checks counted together", () => {
+  it("reads as passed and didn’t pass, never good and bad", () => {
+    expect(passFailCountText({ passed: 1, didntPass: 0 })).toBe("1 passed, 0 didn’t pass");
+    expect(passFailCountText({ passed: 3, didntPass: 2 })).toBe("3 passed, 2 didn’t pass");
   });
 });
