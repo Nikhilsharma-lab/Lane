@@ -5,16 +5,25 @@ import { AuthInputField, AuthPasswordField } from "./auth-field";
 import { AuthFormCard } from "./auth-form-card";
 import { Alert } from "@/components/arc/alert/alert";
 import styles from "./auth.module.css";
+import type { RecoveryFieldErrors } from "./password-recovery-flow";
+
+/** D12 (#290): the seconds change on screen only. The button's name stays the action, unavailable until the wait ends. */
+function Countdown({ action, waiting, seconds }: { action: string; waiting: string; seconds: number }) {
+  if (seconds === 0) return action;
+  return <><span aria-hidden="true">{`${waiting} in ${seconds}s`}</span><span className="sr-only">{action}</span></>;
+}
 
 export type PasswordRecoveryViewProps = {
   step: "request" | "code" | "activate" | "continue";
-  email: string; code: string; password: string; error: string | null; notice: string | null;
+  email: string; code: string; password: string; error: string | null; fieldErrors: RecoveryFieldErrors; notice: string | null;
+  /** A code was sent, so a resend wait has started (it may have ended). */
+  coolingDown: boolean;
   sending: boolean; pending: boolean; isLoaded: boolean; resendIn: number;
   setEmail: (value: string) => void; setCode: (value: string) => void; setPassword: (value: string) => void;
   performAction: (sendCode?: boolean) => Promise<void>; onChangeEmail: () => void;
 };
 
-export function PasswordRecoveryView({ step, email, code, password, error, notice, pending, isLoaded, resendIn,
+export function PasswordRecoveryView({ step, email, code, password, error, fieldErrors, notice, coolingDown, pending, isLoaded, resendIn,
   setEmail, setCode, setPassword, performAction, onChangeEmail }: PasswordRecoveryViewProps) {
   return (
       <AuthFormCard
@@ -37,6 +46,8 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
       >
     <form
       className={styles.recoveryForm}
+      // D11 (#290): Lane's own form says empty and bad-format input on the field, not in the browser's tooltip.
+      noValidate
       onSubmit={async (event) => {
         event.preventDefault();
         await performAction(step === "request");
@@ -56,6 +67,7 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
               disabled={pending}
               autoFocus
               value={email}
+              error={fieldErrors.email}
               onChange={(event) => setEmail(event.target.value)}
             />
           )}
@@ -71,6 +83,7 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
                 disabled={pending}
                 autoFocus
                 value={code}
+                error={fieldErrors.code}
                 onChange={(event) => setCode(event.target.value)}
               />
               <AuthPasswordField
@@ -81,6 +94,7 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
                 required
                 disabled={pending}
                 value={password}
+                error={fieldErrors.password}
                 onChange={(event) => setPassword(event.target.value)}
               />
             </>
@@ -105,7 +119,7 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
           loading={pending}
         >
           {step === "request"
-            ? resendIn > 0 ? `Send code in ${resendIn}s` : "Send reset code"
+            ? <Countdown action="Send reset code" waiting="Send code" seconds={resendIn} />
             : step === "code"
               ? "Save new password"
               : step === "continue"
@@ -123,7 +137,7 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
               aria-disabled={pending || resendIn > 0 || undefined}
               onClick={() => { if (!pending && resendIn === 0) void performAction(true); }}
             >
-              {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
+              <Countdown action="Resend code" waiting="Resend code" seconds={resendIn} />
             </AuthAction>
             <AuthAction
               type="button"
@@ -137,6 +151,8 @@ export function PasswordRecoveryView({ step, email, code, password, error, notic
             </AuthAction>
           </div>
         )}
+        {/* D12 (#290): the wait is announced once, when it ends, not every second. */}
+        <p role="status" className="sr-only">{coolingDown && resendIn === 0 ? "You can send a new code now." : ""}</p>
       </div>
     </form>
     </AuthFormCard>

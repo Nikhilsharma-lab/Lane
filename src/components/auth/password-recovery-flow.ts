@@ -11,6 +11,40 @@ type ActivateSession = (params: { session: string; navigate: (context: RecoveryN
 
 type RecoveryStep = "request" | "code" | "activate" | "continue";
 
+const RESEND_COOLDOWN_MS = 30_000;
+
+export type RecoveryField = "email" | "code" | "password";
+export type RecoveryFieldErrors = Partial<Record<RecoveryField, string>>;
+
+// The browser's own rule for type="email" (HTML's valid e-mail address), so the
+// inline message accepts and refuses what its tooltip did.
+const EMAIL = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+/** D11 (#290): the step's empty and bad-format fields, said on the field instead of in the browser's tooltip. */
+export function recoveryInputErrors(step: RecoveryStep, values: { email: string; code: string; password: string }): RecoveryFieldErrors {
+  const errors: RecoveryFieldErrors = {};
+  if (step === "request") {
+    const email = values.email.trim();
+    if (!email) errors.email = "Enter an email address.";
+    else if (!EMAIL.test(email)) errors.email = "Enter a valid email address.";
+  }
+  if (step === "code") {
+    if (!values.code.trim()) errors.code = "Enter the reset code.";
+    if (!values.password) errors.password = "Enter a new password.";
+  }
+  return errors;
+}
+
+/** D16 (#290): the field a Clerk error names (its `paramName`), so the message sits on that field. */
+export function recoveryErrorField(error: unknown): RecoveryField | null {
+  const first = error && typeof error === "object" && "errors" in error && Array.isArray(error.errors) ? error.errors[0] : null;
+  const param: unknown = first && typeof first === "object" && "meta" in first ? first.meta?.paramName : null;
+  if (param === "identifier" || param === "email_address") return "email";
+  if (param === "code") return "code";
+  if (param === "password") return "password";
+  return null;
+}
+
 // These are the existing hash-routed Clerk SignIn screens at /login. Additional
 // factors stay inside Clerk rather than being reimplemented or skipped here.
 function clerkContinuation(status: string | null) {
@@ -52,16 +86,18 @@ export function createPasswordRecoveryFlow(now = Date.now) {
     async sendCode(signIn: RecoverySignIn, email: string) {
       if (busy || now() < nextSendAt || (step !== "request" && step !== "code")) return false;
       busy = true;
-      // An uncertain network failure may still have sent an email. Keep the
-      // cooldown on failures and identity changes; Clerk enforces server limits.
-      nextSendAt = now() + 30_000;
       try {
         const result = await signIn.create({
           strategy: "reset_password_email_code",
           identifier: email.trim(),
         });
-        if (result.status === "needs_first_factor") step = "code";
-        else acceptResult(result);
+        // D12 (#290): the cooldown starts only once Clerk says a code was sent, so
+        // "Couldn't find your account." or a failed request leaves Send usable at
+        // once. It outlives Change email; Clerk enforces its own limits on top.
+        if (result.status === "needs_first_factor") {
+          step = "code";
+          nextSendAt = now() + RESEND_COOLDOWN_MS;
+        } else acceptResult(result);
         return true;
       } finally {
         busy = false;

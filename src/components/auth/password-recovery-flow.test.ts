@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createPasswordRecoveryFlow } from "./password-recovery-flow";
+import { createPasswordRecoveryFlow, recoveryErrorField, recoveryInputErrors } from "./password-recovery-flow";
 
 function signIn(result = { status: "complete", createdSessionId: "session_fixture" as string | null }) {
   return {
@@ -40,16 +40,35 @@ describe("password recovery boundaries", () => {
     expect(provider.create).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a failed send retryable without flooding the provider", async () => {
-    let now = 0;
+  // D12 (#290): the cooldown starts only once a code was sent.
+  it("leaves Send usable at once after a send that sent no code", async () => {
     const provider = signIn();
     provider.create.mockRejectedValueOnce(new Error("offline"));
-    const flow = createPasswordRecoveryFlow(() => now);
+    const flow = createPasswordRecoveryFlow(() => 0);
     await expect(flow.sendCode(provider, "fixture@example.com")).rejects.toThrow("offline");
-    expect(flow.snapshot().step).toBe("request");
-    expect(await flow.sendCode(provider, "fixture@example.com")).toBe(false);
-    now = 30_000;
+    expect(flow.snapshot()).toMatchObject({ step: "request", nextSendAt: 0 });
     expect(await flow.sendCode(provider, "fixture@example.com")).toBe(true);
+    expect(provider.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets someone try another address straight after Couldn't find your account", async () => {
+    const provider = signIn();
+    const notFound = { errors: [{ code: "form_identifier_not_found", longMessage: "Couldn't find your account.", meta: { paramName: "identifier" } }] };
+    provider.create.mockRejectedValueOnce(notFound);
+    const flow = createPasswordRecoveryFlow(() => 0);
+    await expect(flow.sendCode(provider, "typo@example.com")).rejects.toBe(notFound);
+    expect(recoveryErrorField(notFound)).toBe("email");
+    expect(flow.snapshot()).toMatchObject({ step: "request", nextSendAt: 0 });
+    expect(await flow.sendCode(provider, "fixture@example.com")).toBe(true);
+    expect(flow.snapshot()).toMatchObject({ step: "code", nextSendAt: 30_000 });
+  });
+
+  it("starts no cooldown when the send hands over to Clerk instead of sending a code", async () => {
+    const provider = signIn();
+    provider.create.mockResolvedValueOnce({ status: "needs_protect_check", createdSessionId: null });
+    const flow = createPasswordRecoveryFlow(() => 0);
+    await flow.sendCode(provider, "fixture@example.com");
+    expect(flow.snapshot().nextSendAt).toBe(0);
   });
 
   it("hands a send-time security challenge to the managed Clerk flow", async () => {
@@ -156,5 +175,41 @@ describe("password recovery boundaries", () => {
     resolve();
     await first;
     expect(activate).toHaveBeenCalledTimes(1);
+  });
+});
+
+// D11, D16 (#290): Lane's own recovery form says what to fix on the field.
+describe("password recovery field messages", () => {
+  it.each([
+    ["", "Enter an email address."],
+    ["   ", "Enter an email address."],
+    ["not-an-email", "Enter a valid email address."],
+    ["name@", "Enter a valid email address."],
+    ["two words@example.com", "Enter a valid email address."],
+  ])("refuses the address %j with %j", (email, message) => {
+    expect(recoveryInputErrors("request", { email, code: "", password: "" })).toEqual({ email: message });
+  });
+
+  it("accepts an address in the email format, with spaces around it", () => {
+    expect(recoveryInputErrors("request", { email: " fixture@example.com ", code: "", password: "" })).toEqual({});
+  });
+
+  it("asks for the code and the new password on the code step", () => {
+    expect(recoveryInputErrors("code", { email: "fixture@example.com", code: " ", password: "" }))
+      .toEqual({ code: "Enter the reset code.", password: "Enter a new password." });
+    expect(recoveryInputErrors("code", { email: "", code: "123456", password: "fixture-only" })).toEqual({});
+  });
+
+  it.each([
+    ["identifier", "email"],
+    ["email_address", "email"],
+    ["code", "code"],
+    ["password", "password"],
+  ])("puts a Clerk error about %s on the %s field", (paramName, field) => {
+    expect(recoveryErrorField({ errors: [{ code: "any", meta: { paramName } }] })).toBe(field);
+  });
+
+  it.each([[new Error("offline")], [{ errors: [{ code: "too_many_requests" }] }], [null], ["text"]])("leaves %j off the fields", (error) => {
+    expect(recoveryErrorField(error)).toBeNull();
   });
 });
