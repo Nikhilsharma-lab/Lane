@@ -32,6 +32,46 @@ function recordRscNavigations(page: Page) {
   return { paths, actions, stop: () => page.off("request", listener) };
 }
 
+/** #289 (D8): Clerk's create-workspace step speaks Lane's words, and signing out is the header's "Wrong account? Sign
+ * out", as on the role step after it, not Clerk's "Signed in as … Sign out" inside the card. */
+async function expectWorkspaceStepInLaneWords(page: Page) {
+  await expect(page.getByRole("heading", { name: "Name your workspace" })).toBeVisible();
+  await expect(page.getByText("You can change it later in Settings.", { exact: true })).toBeVisible();
+  const header = page.getByRole("banner");
+  await expect(header.getByText("Wrong account?", { exact: true })).toBeVisible();
+  await expect(header.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+  await expect(page.getByText(/^Signed in as /)).toBeHidden();
+  await expect(page.getByText("Sign in to access your Lane workspace.")).toHaveCount(0);
+}
+
+/** #289 (D2): on a 390px phone the step has no sideways scroll, the name field and Continue are fully on screen, and
+ * the name starts empty. */
+async function expectWorkspaceStepFitsPhone(page: Page) {
+  const desktop = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  try {
+    const name = page.locator('input[name="name"]');
+    const proceed = page.getByRole("button", { name: "Continue", exact: true });
+    await expect(name).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.scrollingElement!.scrollWidth - document.scrollingElement!.clientWidth)).toBe(0);
+    for (const part of [name, proceed]) {
+      const box = (await part.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(390);
+      await expect(part).toBeInViewport({ ratio: 1 });
+    }
+    // D7: Clerk fills the name (and a logo) from the email's domain when the instance's "organization creation
+    // defaults" are on. That is a Clerk Dashboard setting; @clerk/ui 1.33.1's TaskChooseOrganization has no option for
+    // it. While it is on, the gap is recorded on the run instead of failing it; once it is off, the name must be empty.
+    const guessed = await page.evaluate(() => (window.Clerk as unknown as { __internal_environment?: { organizationSettings?: { organizationCreationDefaults?: { enabled?: boolean } } } })
+      .__internal_environment?.organizationSettings?.organizationCreationDefaults?.enabled === true);
+    if (guessed) test.info().annotations.push({ type: "known gap (#289 D7)", description: `Clerk prefilled the workspace name "${await name.inputValue()}": organization creation defaults are on in the Clerk Dashboard.` });
+    else await expect(name).toHaveValue("");
+  } finally {
+    if (desktop) await page.setViewportSize(desktop);
+  }
+}
+
 /** Every scroller on the empty Requests page fits: the list pane, the shell's
  * content region and the document. */
 async function expectNoVerticalScroll(page: Page) {
@@ -210,6 +250,9 @@ test("workspace membership comes before a Lane role, including after an interrup
     await page.reload();
     await expect(page.locator('input[name="name"]')).toBeVisible();
     await expect(page.getByRole("radio", { name: "PM", exact: true })).toHaveCount(0);
+
+    await expectWorkspaceStepInLaneWords(page);
+    await expectWorkspaceStepFitsPhone(page);
 
     await page.locator('input[name="name"]').fill(workspaceName);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
