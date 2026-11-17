@@ -2,7 +2,7 @@ import { Alert } from "@/components/arc/alert/alert";
 import { Badge, type BadgeTone } from "@/components/arc/badge/badge";
 import { BILLING_PAGES_UNAVAILABLE, PAID_SEAT_MINIMUM } from "@/lib/billing-plan-rules";
 import type { PlanState } from "@/lib/free-request-rules";
-import styles from "./settings.module.css";
+import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowList } from "./settings-group";
 import account from "./billing-account-card.module.css";
 
 export type InvoiceStatus = "open" | "paid" | "void" | "uncollectible";
@@ -42,48 +42,30 @@ function nextBillText(props: BillingAccountCardProps, nextBill: { amount: string
  */
 export function BillingAccountCard(props: BillingAccountCardProps) {
   const { seats, account: reading } = props;
-  return <section className={styles.card} aria-labelledby="billing-account-title">
-    <div className={styles.cardBody}>
-      <h3 id="billing-account-title">Seats and invoices</h3>
-      {reading === "failed" && <Alert role="alert" tone="danger" title={FAILED} />}
-      <div className={styles.rows}>
-        <div className={styles.row}>
-          <div>
-            <strong>Paid seats</strong>
-            <p>{seats && seats.adminsAndMembers < PAID_SEAT_MINIMUM
-              ? `${seats.adminsAndMembers} ${seats.adminsAndMembers === 1 ? "Admin or Member" : "Admins and Members"}, billed as the ${PAID_SEAT_MINIMUM}-seat minimum.`
-              : ABOUT_SEATS}</p>
-          </div>
-          <span className={styles.value}>{seats ? seats.paid : "Couldn’t count this workspace’s seats. Reload the page to try again."}</span>
-        </div>
-        {typeof reading === "object" && <div className={styles.row}>
-          <div><strong>Next bill</strong></div>
-          <span className={styles.value}>{nextBillText(props, reading.nextBill)}</span>
-        </div>}
-      </div>
-      {reading === "unavailable" && <p className={styles.note}>{BILLING_PAGES_UNAVAILABLE}</p>}
-      {typeof reading === "object" && <>
-        <h4 className={account.heading}>Invoices</h4>
-        {reading.invoices.length === 0
-          ? <p className={styles.note}>No invoices yet.</p>
-          : <ul className={styles.rows} aria-label="Invoices">
-            {reading.invoices.map((invoice) => {
-              const name = invoice.number ?? "Invoice";
-              return <li key={invoice.id} className={styles.row}>
-                <div>
-                  <strong>{invoice.issuedOn}</strong>
-                  <p className={account.number}>{name}</p>
-                </div>
-                <div className={account.line}>
-                  <span className={account.amount}>{invoice.amount}</span>
-                  <Badge tone={STATUS[invoice.status].tone} size="sm">{STATUS[invoice.status].label}</Badge>
-                  {invoice.url && <a className={account.link} href={invoice.url} target="_blank" rel="noopener noreferrer"
-                    aria-label={`View invoice ${name} on the payment provider’s page`}>View</a>}
-                </div>
-              </li>;
-            })}
-          </ul>}
-      </>}
-    </div>
-  </section>;
+  return <SettingsGroup label="Seats and invoices" labelId="billing-account-title">
+    {reading === "failed" && <SettingsBlock><Alert role="alert" tone="danger" title={FAILED} /></SettingsBlock>}
+    <SettingsRow label="Paid seats"
+      hint={seats && seats.adminsAndMembers < PAID_SEAT_MINIMUM
+        ? `${seats.adminsAndMembers} ${seats.adminsAndMembers === 1 ? "Admin or Member" : "Admins and Members"}, billed as the ${PAID_SEAT_MINIMUM}-seat minimum.`
+        : ABOUT_SEATS}
+      control={seats ? seats.paid : "Couldn’t count this workspace’s seats. Reload the page to try again."} />
+    {typeof reading === "object" && <SettingsRow label="Next bill" control={nextBillText(props, reading.nextBill)} />}
+    {reading === "unavailable" && <SettingsBlock><p>{BILLING_PAGES_UNAVAILABLE}</p></SettingsBlock>}
+    {typeof reading === "object" && <SettingsBlock>
+      <h4 className={account.heading}>Invoices</h4>
+      {reading.invoices.length === 0 && <p>No invoices yet.</p>}
+    </SettingsBlock>}
+    {typeof reading === "object" && reading.invoices.length > 0 && <SettingsRowList label="Invoices">
+      {reading.invoices.map((invoice) => {
+        const name = invoice.number ?? "Invoice";
+        return <SettingsRow as="li" key={invoice.id} label={invoice.issuedOn} hint={name}
+          control={<>
+            <span className={account.amount}>{invoice.amount}</span>
+            <Badge tone={STATUS[invoice.status].tone} size="sm">{STATUS[invoice.status].label}</Badge>
+            {invoice.url && <a className={account.link} href={invoice.url} target="_blank" rel="noopener noreferrer"
+              aria-label={`View invoice ${name} on the payment provider’s page`}>View</a>}
+          </>} />;
+      })}
+    </SettingsRowList>}
+  </SettingsGroup>;
 }

@@ -7,8 +7,9 @@
 
 export type BillingPeriod = "yearly" | "monthly";
 
-/** Why there is nothing to pay: billing isn't enforced yet, or there is no payment provider. */
-export const NOT_CHARGING = "Lane isn’t charging yet, so there’s nothing to pay.";
+/** #287: Settings → Billing says this once, at the top, while billing isn't enforced (`LANE_BILLING_ENFORCED`). */
+export const BILLING_PILOT_LINE = "Lane is free during the pilot. These are the prices once paying starts.";
+/** Why there is nothing to pay while there is no payment provider. */
 export const PAYING_UNAVAILABLE = "Paying by card isn’t available yet.";
 /** #216: without a payment provider there are no hosted billing pages, invoices or next bill to show. */
 export const BILLING_PAGES_UNAVAILABLE = "The payment provider’s billing pages aren’t available yet.";

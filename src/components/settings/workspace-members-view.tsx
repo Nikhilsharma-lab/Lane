@@ -15,6 +15,7 @@ import {
   addsPaidSeat, ROLE_DESCRIPTIONS, type PaidSeatChange, type PendingInvitation, type WorkspaceMember,
 } from "@/lib/member-role-rules";
 import { ROLE_NAMES } from "@/lib/role-rules";
+import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowList } from "./settings-group";
 import styles from "./settings.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 
@@ -114,64 +115,55 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
   </>;
   const roleOptions = roles.map(role => ({ value: role, label: ROLE_NAMES[role], description: ROLE_DESCRIPTIONS[role] }));
 
+  // #287: the same cards as row groups. The invite form's own fixes (full-width field, its messages) are #288's.
   return <>
-    {canManage && <form className={styles.card} onSubmit={event => { void invite(event); }} noValidate aria-labelledby="invite-heading">
-      <div className={styles.cardBody}>
-        <h3 id="invite-heading">Invite someone</h3>
-        <p>Clerk emails them an invitation to this workspace. Admins and Members are paid seats. Guests and Viewers are free.{confirmPaidSeats && " You’ll confirm each paid seat before it’s added."}</p>
-        <Input label="Email address" type="email" name="email" autoComplete="off" spellCheck={false} value={email} onChange={event => setEmail(event.target.value)} disabled={busy === "invite"} />
-        <RadioGroup label="Role" name="invite-role" value={inviteRole} onValueChange={value => setInviteRole(value as WorkspacePermission)} options={roleOptions} />
-        {roles.length < 4 && <p className={styles.note}>Guest and Viewer aren’t available in this workspace yet.</p>}
-        {feedback("invite")}
-      </div>
-      <div className={styles.cardFooter}>
-        <span>PM, Designer and Developer are profile labels. They don’t change what anyone can do.</span>
-        <Button type="submit" loading={busy === "invite"} data-seat-return="invite">Send invitation</Button>
-      </div>
+    {canManage && <form onSubmit={event => { void invite(event); }} noValidate aria-labelledby="invite-heading">
+      <SettingsGroup as="div" label="Invite someone" labelId="invite-heading"
+        description={`Clerk emails them an invitation to this workspace. Admins and Members are paid seats. Guests and Viewers are free.${confirmPaidSeats ? " You’ll confirm each paid seat before it’s added." : ""}`}>
+        <SettingsBlock>
+          <Input label="Email address" type="email" name="email" autoComplete="off" spellCheck={false} value={email} onChange={event => setEmail(event.target.value)} disabled={busy === "invite"} />
+          <RadioGroup label="Role" name="invite-role" value={inviteRole} onValueChange={value => setInviteRole(value as WorkspacePermission)} options={roleOptions} />
+          {roles.length < 4 && <p className={styles.note}>Guest and Viewer aren’t available in this workspace yet.</p>}
+          <p className={styles.note}>PM, Designer and Developer are profile labels. They don’t change what anyone can do.</p>
+          {feedback("invite")}
+          <Button type="submit" loading={busy === "invite"} data-seat-return="invite">Send invitation</Button>
+        </SettingsBlock>
+      </SettingsGroup>
     </form>}
 
-    <section className={styles.card} aria-labelledby="people-heading">
-      <div className={styles.cardBody}>
-        <h3 id="people-heading">People</h3>
-        <p>{canManage ? "Everyone in this workspace. Change someone’s role to change what they can do." : "Everyone in this workspace and their role. Only Admins invite people or change roles."}</p>
-        {state === "loading" && <div className={styles.rows}><Placeholder label="Loading people…" lines={3} /></div>}
-        {state === "error" && <div className={styles.rows}><Alert role="alert" tone="danger" title="People couldn’t be loaded" /><Button variant="secondary" size="sm" onClick={onRetry}>Try again</Button></div>}
-        {state === "ready" && <ul className={styles.rows} aria-label="People in this workspace">
-          {people.map(person => {
-            const self = person.userId === selfId;
-            const label = `Role for ${person.name}`;
-            // A role that can't be given right now (a Guest while the switch is off) still shows as the current value.
-            const options = [...roleOptions, ...(person.role && !roles.includes(person.role) ? [{ value: person.role, label: ROLE_NAMES[person.role], disabled: true }] : [])];
-            return <li key={person.userId} className={`${styles.row} ${styles.person}`}>
-              <div><strong>{person.name}{self && " (you)"}</strong><p>{person.email}</p></div>
-              {canManage && !self && person.role
-                ? <Select label={label} value={person.role} options={options} disabled={busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
-                    onValueChange={next => { if (next !== person.role) changeRole(person, next as WorkspacePermission); }}
-                    trigger={<Button type="button" variant="secondary" size="sm" loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
-                : <Badge>{roleName(person.role)}</Badge>}
-            </li>;
-          })}
-        </ul>}
-        {canManage && feedback("people")}
-      </div>
-    </section>
+    <SettingsGroup label="People" labelId="people-heading"
+      description={canManage ? "Everyone in this workspace. Change someone’s role to change what they can do." : "Everyone in this workspace and their role. Only Admins invite people or change roles."}>
+      {state === "loading" && <SettingsBlock><Placeholder label="Loading people…" lines={3} /></SettingsBlock>}
+      {state === "error" && <SettingsBlock><Alert role="alert" tone="danger" title="People couldn’t be loaded" /><Button variant="secondary" size="sm" onClick={onRetry}>Try again</Button></SettingsBlock>}
+      {state === "ready" && <SettingsRowList label="People in this workspace">
+        {people.map(person => {
+          const self = person.userId === selfId;
+          const label = `Role for ${person.name}`;
+          // A role that can't be given right now (a Guest while the switch is off) still shows as the current value.
+          const options = [...roleOptions, ...(person.role && !roles.includes(person.role) ? [{ value: person.role, label: ROLE_NAMES[person.role], disabled: true }] : [])];
+          return <SettingsRow as="li" key={person.userId} label={<>{person.name}{self && " (you)"}</>} hint={person.email}
+            control={canManage && !self && person.role
+              ? <Select label={label} value={person.role} options={options} disabled={busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
+                  onValueChange={next => { if (next !== person.role) changeRole(person, next as WorkspacePermission); }}
+                  trigger={<Button type="button" variant="secondary" size="sm" loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
+              : <Badge>{roleName(person.role)}</Badge>} />;
+        })}
+      </SettingsRowList>}
+      {canManage && <SettingsBlock className={styles.feedbackBlock}>{feedback("people")}</SettingsBlock>}
+    </SettingsGroup>
 
-    {canManage && <section className={styles.card} aria-labelledby="invitations-heading">
-      <div className={styles.cardBody}>
-        <h3 id="invitations-heading">Pending invitations</h3>
-        {state === "ready" && (invitations.length
-          ? <ul className={styles.rows} aria-label="Pending invitations">
-              {invitations.map(invitation => <li key={invitation.id} className={`${styles.row} ${styles.person}`}>
-                <div><strong>{invitation.email}</strong><p>Invited as {invitation.role ? withArticle(invitation.role) : "another role"}</p></div>
-                <Button variant="ghost" size="sm" loading={busy === invitation.id} aria-label={`Revoke the invitation for ${invitation.email}`}
-                  onClick={() => { void run("invitations", invitation.id, () => onRevoke(invitation.id), `The invitation for ${invitation.email} was revoked.`); }}>Revoke</Button>
-              </li>)}
-            </ul>
-          : <p className={styles.note}>No invitations are waiting.</p>)}
-        {state === "loading" && <Placeholder label="Loading invitations…" lines={1} />}
-        {feedback("invitations")}
-      </div>
-    </section>}
+    {/* While the lists can't be loaded, People says so and offers Try again; there are no invitations to show. */}
+    {canManage && state !== "error" && <SettingsGroup label="Pending invitations" labelId="invitations-heading">
+      {state === "ready" && (invitations.length
+        ? <SettingsRowList label="Pending invitations">
+            {invitations.map(invitation => <SettingsRow as="li" key={invitation.id} label={invitation.email} hint={`Invited as ${invitation.role ? withArticle(invitation.role) : "another role"}`}
+              control={<Button variant="ghost" size="sm" loading={busy === invitation.id} aria-label={`Revoke the invitation for ${invitation.email}`}
+                onClick={() => { void run("invitations", invitation.id, () => onRevoke(invitation.id), `The invitation for ${invitation.email} was revoked.`); }}>Revoke</Button>} />)}
+          </SettingsRowList>
+        : <SettingsBlock><p>No invitations are waiting.</p></SettingsBlock>)}
+      {state === "loading" && <SettingsBlock><Placeholder label="Loading invitations…" lines={1} /></SettingsBlock>}
+      <SettingsBlock className={styles.feedbackBlock}>{feedback("invitations")}</SettingsBlock>
+    </SettingsGroup>}
 
     {seat && seatDialog && <seatDialog.PaidSeatDialog change={seat.change} open={seatOpen} onOpenChange={setSeatOpen} returnTo={seat.returnTo}
       onConfirm={() => { setSeatOpen(false); seat.add(); }} />}

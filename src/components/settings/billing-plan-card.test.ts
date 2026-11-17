@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { PAID_SEAT_MINIMUM } from "@/lib/billing-plan-rules";
 import { BillingPlanCard, type BillingPlanCardProps } from "./billing-plan-card";
 
 /** #214 Settings → Billing, for Admins: the one Lane plan, yearly first, the founding discount, and Enterprise. */
@@ -41,8 +42,12 @@ describe("the Lane plan card", () => {
 
   it("offers nothing to pay while Lane isn't charging, or paying isn't set up", () => {
     const off = text(render({ checkout: "not_charging" }));
-    expect(off).toContain("Lane isn’t charging yet, so there’s nothing to pay.");
+    // #287: the prices, and no Pay buttons; the Billing section's pilot line says Lane is free, once.
+    expect(off).toMatch(/Yearly .*\$30 per seat per month .*Monthly .*\$36 per seat per month/);
     expect(off).not.toContain("Pay yearly");
+    expect(off).not.toContain("Pay monthly");
+    expect(off).not.toContain("charging");
+    expect(off).not.toContain("checkout page");
     const unavailable = text(render({ checkout: "unavailable" }));
     expect(unavailable).toContain("Paying by card isn’t available yet.");
     expect(unavailable).not.toContain("Pay monthly");
@@ -71,6 +76,12 @@ describe("the Lane plan card", () => {
     const html = text(render({ planState: "lapsed", period: "yearly" }));
     expect(html).toContain("This workspace’s plan has lapsed. Pay again to create new Requests; everything already filed keeps working.");
     expect(html).toContain("Pay yearly");
+  });
+});
+
+describe("the plan text (#287)", () => {
+  it("names the seat minimum from the shared rule", () => {
+    expect(text(render({ checkout: "not_charging" }))).toContain(`One plan with all of Lane. You pay for each Admin and Member, with at least ${PAID_SEAT_MINIMUM} seats. Guests and Viewers are free.`);
   });
 });
 

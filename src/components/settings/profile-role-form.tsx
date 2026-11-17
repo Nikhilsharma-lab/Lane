@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/arc/button/button";
 import { Select } from "@/components/arc/select/select";
 import { ChevronDown } from "lucide-react";
-import settingsStyles from "./settings.module.css";
+import { SettingsRow } from "./settings-group";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { useToastStack, type ToastOptions } from "@/components/arc/toast-stack/toast-stack";
 import { Alert } from "@/components/arc/alert/alert";
@@ -19,6 +19,7 @@ type SaveRole = (role: ProductRole) => Promise<{ error?: string; success?: boole
 const options = [{ value: "pm", label: "PM" }, { value: "designer", label: "Designer" }, { value: "developer", label: "Developer" }];
 const isRole = (value: string): value is ProductRole => value === "pm" || value === "designer" || value === "developer";
 const roleLabel = (role: ProductRole) => options.find(option => option.value === role)?.label ?? role;
+const HINT = "Your discipline in the team. This doesn’t change your permissions.";
 
 export function ProfileRoleForm({
   initialRole,
@@ -127,14 +128,10 @@ function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductR
     <RadioGroup label="Role" value={role} onValueChange={changeRole} options={options} />
     <p className={styles.description}>This is a profile label only. It does not change what you can see or do.</p>
   </div>;
-  return <div className={settingsStyles.card}>
-    <div className={settingsStyles.cardBody}>
-      <h3>Role</h3><p>Your discipline in the team. This doesn’t change your permissions.</p>
-      <Select label="Role" value={role} onValueChange={changeRole} options={options}
-        trigger={<Button type="button" variant="secondary" size="sm">{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />
-    </div>
-    <div className={settingsStyles.cardFooter}><span>Your role is saved automatically.</span></div>
-  </div>;
+  // #287: a row of Profile's group; the row is the "role" search target.
+  return <SettingsRow id="role" label="Role" hint={HINT}
+    control={<Select label="Role" value={role} onValueChange={changeRole} options={options}
+      trigger={<Button type="button" variant="secondary" size="sm">{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />} />;
 }
 
 function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: ProductRole; onSave: SaveRole; compact: boolean }) {
@@ -180,19 +177,16 @@ function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: Produ
   };
 
   return (
-    <form onSubmit={handleSubmit} className={compact ? settingsStyles.card : styles.form}>
-      {compact ? <div className={settingsStyles.cardBody}>
-        <h3>Role</h3><p>Your discipline in the team. This doesn’t change your permissions.</p>
-        <Select label="Role" value={role} onValueChange={changeRole} options={options} disabled={isPending}
-          trigger={<Button type="button" variant="secondary" size="sm" disabled={isPending}>{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />
-      </div> : <>
+    <form onSubmit={handleSubmit} className={styles.form}>
+      {compact ? <SettingsRow label="Role" hint={HINT}
+        control={<Select label="Role" value={role} onValueChange={changeRole} options={options} disabled={isPending}
+          trigger={<Button type="button" variant="secondary" size="sm" disabled={isPending}>{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />} /> : <>
         <fieldset disabled={isPending} className={styles.disabled}>
           <RadioGroup label="Role" value={role} onValueChange={changeRole} options={options} />
         </fieldset>
         <p className={styles.description}>This is a profile label only. It does not change what you can see or do.</p>
       </>}
-      <div className={compact ? settingsStyles.cardFooter : styles.actions}>
-        {compact && !feedback && !isPending && <span>Save your role to update your profile.</span>}
+      <div className={styles.actions}>
         <Button
           type="submit"
           loading={isPending}

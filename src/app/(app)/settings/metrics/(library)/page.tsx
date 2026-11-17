@@ -5,7 +5,7 @@ import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { canChangeThings } from "@/lib/role-rules";
 import { membersPanel } from "../../members/members-panel";
 import { MetricDefinitionList } from "@/components/metrics/metric-definition-list";
-import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsBlock, SettingsGroup } from "@/components/settings/settings-group";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { listMetricDefinitions } from "@/lib/metrics-library";
@@ -36,10 +36,12 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   // #210: a Viewer reads the library and adds or edits nothing.
   const canEdit = canChangeThings(workspace.role);
   return <SettingsCommandAdapter page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
-    metrics={<SettingsCard title="Metric definitions" footer="Pass/fail checks are chosen on each Request and aren’t part of the library.">
-      <div className={styles.toolbar}><MetricLibraryFilter show={view} />{canEdit && <AddMetricDialog orgId={workspace.orgId} />}</div>
-      <MetricDefinitionList definitions={definitions} view={view} canEdit={canEdit} />
-    </SettingsCard>}
+    metrics={<SettingsGroup label="Metric definitions" labelId="metric-definitions" description="Pass/fail checks are chosen on each Request and aren’t part of the library.">
+      <SettingsBlock className={styles.library}>
+        <div className={styles.toolbar}><MetricLibraryFilter show={view} />{canEdit && <AddMetricDialog orgId={workspace.orgId} />}</div>
+        <MetricDefinitionList definitions={definitions} view={view} canEdit={canEdit} />
+      </SettingsBlock>
+    </SettingsGroup>}
     members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}

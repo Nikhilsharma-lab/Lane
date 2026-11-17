@@ -9,7 +9,7 @@ import { canChangeThings } from "@/lib/role-rules";
 import { membersPanel } from "../../members/members-panel";
 import { DefinitionUsesList } from "@/components/metrics/definition-uses";
 import { MetricDefinitionHistory } from "@/components/metrics/metric-definition-history";
-import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsBlock, SettingsGroup, SettingsRow } from "@/components/settings/settings-group";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { loadDefinitionUses } from "@/lib/data/impact";
 import { readMetricPage } from "@/lib/data/metric-page";
@@ -60,30 +60,38 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
 
   const panel = <>
     <Link href="/settings/metrics" className={styles.backLink}><ArrowLeft data-icon-size="sm" aria-hidden="true" />All metrics</Link>
-    <SettingsCard title={definition.name}
+    <SettingsGroup label={definition.name} labelId="metric-definition"
       description={merged ? undefined : archived ? "Archived. It isn’t offered for new goals, and stays on the Requests that already use it." : undefined}>
-      {merged && <p className={styles.note}>
-        Merged into {keptDefinition ? <Link href={`/settings/metrics/${keptDefinition.id}`} className={styles.keptLink}>{keptDefinition.name}</Link> : "another metric"}. Requests that used it now count under that one.
-      </p>}
-      {!merged && !canEdit && <MetricDefinitionFacts definition={definition} canEdit={false} />}
-      {!merged && canEdit && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
-    </SettingsCard>
-    {isAdmin && !merged && <SettingsCard title={archived ? "Restore" : "Archive"}
-      description={archived ? "Restoring offers it for new goals again." : "Archiving stops it being offered for new goals. Requests that already use it keep it, and their results still add up."}
-      action={<ArchiveMetricControl orgId={workspace.orgId} id={definition.id} archived={archived} />} />}
-    {isAdmin && !merged && <SettingsCard title="Merge"
+      <SettingsBlock className={styles.library}>
+        {merged && <p className={styles.note}>
+          Merged into {keptDefinition ? <Link href={`/settings/metrics/${keptDefinition.id}`} className={styles.keptLink}>{keptDefinition.name}</Link> : "another metric"}. Requests that used it now count under that one.
+        </p>}
+        {!merged && !canEdit && <MetricDefinitionFacts definition={definition} canEdit={false} />}
+        {!merged && canEdit && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
+      </SettingsBlock>
+    </SettingsGroup>
+    {isAdmin && !merged && <SettingsGroup>
+      <SettingsRow label={archived ? "Restore" : "Archive"}
+        hint={archived ? "Restoring offers it for new goals again." : "Archiving stops it being offered for new goals. Requests that already use it keep it, and their results still add up."}
+        control={<ArchiveMetricControl orgId={workspace.orgId} id={definition.id} archived={archived} />} />
+    </SettingsGroup>}
+    {isAdmin && !merged && <SettingsGroup label="Merge" labelId="metric-merge"
       description="If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can’t be undone.">
-      {candidates.length
-        ? <MergeMetricControl orgId={workspace.orgId} current={{ id: definition.id, name: definition.name }} candidates={candidates} />
-        : <p className={styles.note}>No other metric is counted in {metricUnitName(definition.unit).toLowerCase()}, so there’s nothing to merge it with.</p>}
-    </SettingsCard>}
-    {uses && <SettingsCard title="Requests that used it"
+      <SettingsBlock className={styles.library}>
+        {candidates.length
+          ? <MergeMetricControl orgId={workspace.orgId} current={{ id: definition.id, name: definition.name }} candidates={candidates} />
+          : <p className={styles.note}>No other metric is counted in {metricUnitName(definition.unit).toLowerCase()}, so there’s nothing to merge it with.</p>}
+      </SettingsBlock>
+    </SettingsGroup>}
+    {uses && <SettingsGroup label="Requests that used it" labelId="metric-uses"
       description="Grouped by Project, with each goal beside what happened. Uses as the main metric and as a guardrail are listed apart.">
-      <DefinitionUsesList uses={uses} />
-    </SettingsCard>}
-    <SettingsCard title="History">
-      <MetricDefinitionHistory entries={history.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() }))} />
-    </SettingsCard>
+      <SettingsBlock className={styles.library}><DefinitionUsesList uses={uses} /></SettingsBlock>
+    </SettingsGroup>}
+    <SettingsGroup label="History" labelId="metric-history">
+      <SettingsBlock className={styles.library}>
+        <MetricDefinitionHistory entries={history.map(entry => ({ ...entry, createdAt: entry.createdAt.toISOString() }))} />
+      </SettingsBlock>
+    </SettingsGroup>
   </>;
 
   return <SettingsCommandAdapter page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}

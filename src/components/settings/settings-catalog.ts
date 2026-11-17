@@ -3,7 +3,8 @@ import type { SettingDefinition, Result } from "@/components/arc/blocks/settings
 
 /** `href` marks a section with a page of its own (it loads its own data); every other section shows on Profile's page. */
 /** `membersOnly` hides a section from Guests; `changersOnly` also from Viewers (#210), who manage no people and get no Needs-you items. */
-export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOnly?: boolean; changersOnly?: boolean; href?: string };
+/** `nonAdminDescription` is what anyone but an Admin reads instead, where the Admin's words promise what only an Admin can do (#287). */
+export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOnly?: boolean; changersOnly?: boolean; href?: string; nonAdminDescription?: string };
 export const settingsCatalog: SettingsEntry[] = [
   { id: "profile", section: "profile", group: "Personal", label: "Profile", description: "Your personal details and role.", keywords: ["account", "name", "email", "photo", "avatar"] },
   { id: "role", section: "profile", group: "Personal", label: "Role", description: "Your PM, Designer, or Developer label.", target: "role", keywords: ["designer", "developer", "pm"] },
@@ -12,15 +13,15 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: "inbox-delivery", section: "inbox-delivery", group: "Personal", label: "Inbox delivery", description: "How items that need you reach you outside Lane, in this workspace.", membersOnly: true, changersOnly: true, keywords: ["inbox", "notifications", "email", "alerts", "needs you", "off"] },
   { id: "account-security", section: "account-security", group: "Personal", label: "Security & access", description: "Manage sign-in methods and active sessions.", keywords: ["password", "sessions", "sign in"] },
   { id: "connections", section: "connections", group: "Personal", label: "Personal integrations", description: "Connect external work tools to your personal Lane account. Sign-in connections are already managed in Profile.", soon: true, keywords: ["connected accounts", "slack", "calendar"] },
-  { id: "sign-in-connections", section: "profile", group: "Personal", label: "Connected accounts", description: "Manage accounts used to sign in through Clerk.", target: "connected-accounts", keywords: ["google", "login"] },
+  // #287 (D32): one row for the account, connected sign-in accounts included, so "Google" lands on it.
+  { id: "manage-account", section: "profile", group: "Personal", label: "Manage account", description: "Name, photo, email and connected accounts such as Google.", target: "manage-account", keywords: ["google", "connected accounts", "login"] },
   { id: "ai-data", section: "account-security", group: "Personal", label: "AI data use", description: "What Lane sends for the Request AI check.", target: "ai-data", keywords: ["privacy", "anthropic"] },
   { id: "leave-workspace", section: "workspace", group: "Workspace", label: "Leave workspace", description: "Review the Leave organization option in Clerk.", target: "workspace-management", membersOnly: true },
-  { id: "request-labels", section: "request-labels", group: "Requests", label: "Labels", description: "Organize Requests with shared labels.", soon: true },
   { id: "intake-templates", section: "intake-templates", group: "Requests", label: "Intake templates", description: "Reusable starting points for a clear Request.", soon: true },
   { id: "project-labels", section: "project-labels", group: "Projects", label: "Labels", description: "Organize Projects with shared labels.", soon: true },
   { id: "project-templates", section: "project-templates", group: "Projects", label: "Templates", description: "Reusable starting points for Projects.", soon: true },
   { id: "workspace", section: "workspace", group: "Workspace", label: "Workspace details", description: "Your workspace and membership.", membersOnly: true },
-  { id: "members", section: "members", group: "Workspace", label: "Members", description: "Manage workspace members and invitations.", membersOnly: true, changersOnly: true, keywords: ["invite", "teammates"] },
+  { id: "members", section: "members", group: "Workspace", label: "Members", description: "Manage workspace members and invitations.", nonAdminDescription: "People in this workspace and their roles.", membersOnly: true, changersOnly: true, keywords: ["invite", "teammates"] },
   { id: "metrics", section: "metrics", group: "Workspace", label: "Metrics", description: "What your workspace measures, and how each metric is counted.", membersOnly: true, href: "/settings/metrics", keywords: ["metrics library", "metric definitions", "units", "conversion rate", "adoption", "customer satisfaction"] },
   { id: "slack", section: "slack", group: "Workspace", label: "Slack", description: "Connect Slack so people here can choose Slack DM for items that need them.", adminOnly: true, keywords: ["slack", "slack dm", "direct message", "connect", "disconnect", "integrations", "inbox delivery"] },
   { id: "security", section: "security", group: "Workspace", label: "Security", description: "Additional workspace access policies.", soon: true, adminOnly: true },
@@ -32,8 +33,9 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: "api", section: "api", group: "Connections", label: "API", description: "Developer access for future Lane integrations.", soon: true, adminOnly: true },
 ];
 
-export function availableSettings(role: string) {
-  return settingsCatalog.filter(entry => (!entry.adminOnly || role === "admin") && (!entry.membersOnly || role !== "guest") && (!entry.changersOnly || role === "admin" || role === "member"));
+export function availableSettings(role: string): SettingsEntry[] {
+  return settingsCatalog.filter(entry => (!entry.adminOnly || role === "admin") && (!entry.membersOnly || role !== "guest") && (!entry.changersOnly || role === "admin" || role === "member"))
+    .map(entry => role !== "admin" && entry.nonAdminDescription ? { ...entry, description: entry.nonAdminDescription } : entry);
 }
 
 /** Arc SettingsCommand's word matching and ranking, with Lane availability ordering. */
@@ -52,7 +54,6 @@ export function searchSettings(entries: SettingsEntry[], query: string): Result[
 }
 
 export const futurePreferences = [
-  ["Display names", "Choose how names appear in Lane."],
   ["Send comments on", "Choose Enter or Command / Control + Enter."],
   ["First day of the week", "Set the week start for date pickers."],
   ["App sidebar", "Customize navigation visibility and ordering."],

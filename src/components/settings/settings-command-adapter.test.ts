@@ -120,3 +120,31 @@ describe("Settings → Members loads with Members (#258)", () => {
     expect(html).toMatch(/<section id="settings-members"(?![^>]*hidden)[^>]*>(?:(?!<\/section>)[\s\S])*The member list/);
   });
 });
+
+describe("Settings headings over row groups (#287)", () => {
+  const visible = (html: string) => /<section id="settings-[\w-]+"(?![^>]*hidden)[^>]*>([\s\S]*?)<\/section>\s*(?=<section id="settings-|<\/div>)/.exec(html)?.[1] ?? "";
+  const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+  it("heads the open section with its name and one purpose line, above the groups", () => {
+    const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "member", workspaceName: "Lane Studio", initialSection: "workspace" }));
+    const open = visible(html);
+    expect(open).toMatch(/^<header[^>]*><h2[^>]*>Workspace details<\/h2><p>Your workspace and membership\.<\/p><\/header>/);
+    expect(text(open)).toContain("Workspace name Lane Studio");
+    expect(text(open)).toContain("Your access Workspace access is separate from your profile role. Member");
+  });
+
+  it("tells a Member that Members is the people and their roles; an Admin keeps the management wording", () => {
+    const head = (membership: string) => text(/<section id="settings-members"[^>]*><header[^>]*>([\s\S]*?)<\/header>/.exec(renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership, workspaceName: "Lane Studio", initialSection: "members" })))?.[1] ?? "");
+    expect(head("member")).toBe("Members People in this workspace and their roles.");
+    expect(head("admin")).toBe("Members Manage workspace members and invitations.");
+  });
+
+  it("marks each planned setting with a quiet Coming soon tag, not a disabled button (D24)", () => {
+    const open = visible(renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "admin", workspaceName: "Lane Studio", initialSection: "coming-soon" })));
+    expect(open).not.toMatch(/<button[^>]*disabled/);
+    expect(open).toContain("Coming soon");
+    expect(text(open)).not.toContain("Display names");
+    expect(open).toMatch(/<h3[^>]*>Projects<\/h3>[\s\S]*Labels/);
+    expect(open).not.toMatch(/<h3[^>]*>Requests<\/h3>(?:(?!<h3)[\s\S])*>Labels</);
+  });
+});

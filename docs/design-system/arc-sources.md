@@ -668,3 +668,14 @@ Two adaptations of installed sources:
 ### Build 7 review fixes (2026-11-15)
 
 - `src/components/arc/empty-state/empty-state.tsx` and `empty-state.module.css`: `description` is optional. Without one the state is its title alone: the description's line is not shown (`.root p:has(> .line:only-child:empty)`), and while a leaving description fades out its line stays, so the copy still morphs in place. Impact's empty My work ("Requests you file or pick up show here.", #283) and the list's one-sentence status lines (#240 decision 8) use it, where they had hidden Arc's `<p>` with their own CSS.
+
+### Build 8.1: Settings headings over row groups (#287, 2026-11-17)
+
+Licensed Arc Pro [`settings-page`](https://uiarc.dev/components/blocks/settings-page) and [`settings-command`](https://uiarc.dev/components/blocks/settings-command) read through Arc MCP. The settings card (title, description, footer, action) is replaced by Lane's row group composition in `src/components/settings/settings-group.tsx` and `settings.module.css`, after `settings-page`'s `Group` and `settings-command`'s `Row`: `SettingsGroup` (an optional small label and a line under it, over the rows), `SettingsRow` (label and hint on the left, the control on the right; an optional leading avatar), `SettingsRowList` (named `ul` of rows for people, invitations and invoices) and `SettingsBlock` (content under the rows: alerts, forms, lists). There is no footer slot. Controls inside stay Arc (`button`, `select`, `segmented-control`, `radio-group`, `input`, `alert`, `badge`). This supersedes the 2026-10-18 card and footer description above. Adaptations, all on theme names:
+
+- Rows sit in one bordered box on `--surface` with `--radius-surface` (the ticket's "bordered row group"); Arc's `Group` draws rows with hairlines and no box. Hairlines between rows are `--border-subtle`, as Arc's.
+- The section heading is `--text-xl` medium, the largest type in the content (D23); Arc's pane heading is `--text-base`. Group labels keep Arc's small secondary label (`--text-sm`, medium, `--text-secondary`).
+- Row hints keep Settings' current `--text-sm` and `--text-secondary`, not Arc's `--text-xs` and `--text-muted`, so today's sizes and colours stay.
+- Arc's save bar, `Switch` rows, section-pane motion and gliding nav highlight are not used: Lane's settings save on change, and the frame's own navigation is unchanged.
+- Recorded functional gap: Billing's "How Free Requests work" is a native `details`/`summary` styled as a row (chevron on `--duration-fast`, none under reduced motion, keyboard ring drawn inside the box). Arc's `accordion` is built on Radix Accordion and would add a new Radix dependency to every Settings page's first load for one fold.
+- Coming soon rows carry Arc `badge` (`size="sm"`) instead of a disabled Arc `button` (D24).
