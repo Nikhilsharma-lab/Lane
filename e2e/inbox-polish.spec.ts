@@ -44,6 +44,36 @@ test("on a phone, an Inbox item opened and left with Back shows read, with the r
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
 
+    await test.step("the strip shows Inbox, Choose what reaches you and Mark all read whole, at 390px and 320px", async () => {
+      for (const width of [390, 320]) {
+        await page.setViewportSize({ width, height: 844 });
+        const strip = page.locator('[data-slot="page-strip"]');
+        const parts = [
+          strip.getByRole("heading", { name: "Inbox", exact: true }),
+          strip.getByRole("link", { name: "Choose what reaches you", exact: true }),
+          strip.getByRole("button", { name: "Mark all read", exact: true }),
+        ];
+        const boxes = [];
+        for (const part of parts) {
+          await expect(part).toBeVisible();
+          // Whole: inside the strip and the window, and its text not cut.
+          boxes.push(await part.evaluate(node => {
+            const box = node.getBoundingClientRect();
+            const edge = node.closest('[data-slot="page-strip"]')!.getBoundingClientRect();
+            const inside = box.width > 0 && box.left >= edge.left - 0.5 && box.right <= Math.min(edge.right, innerWidth) + 0.5;
+            return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, whole: inside && node.scrollWidth <= node.clientWidth + 1 };
+          }));
+        }
+        expect(boxes.map(box => box.whole), `${width}px: Inbox, Choose what reaches you, Mark all read whole`).toEqual([true, true, true]);
+        // None covers another.
+        for (const [index, box] of boxes.entries()) for (const other of boxes.slice(index + 1)) {
+          expect(box.right <= other.left + 0.5 || other.right <= box.left + 0.5 || box.bottom <= other.top + 0.5 || other.bottom <= box.top + 0.5).toBe(true);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+    });
+
     await test.step("C5: open an item, go Back: it is read, the count leaves it out and focus is on its row", async () => {
       const opened = row(page, "Phone Back two");
       const id = await opened.getAttribute("data-inbox-item");
