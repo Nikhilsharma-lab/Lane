@@ -6,8 +6,9 @@ import { Button } from "@/components/arc/button/button";
 import { SUPPORT_EMAIL } from "@/app/support-contact";
 import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
-import { BILLING_PAGES_UNAVAILABLE, BILLING_PERIODS, FOUNDING_DISCOUNT, NOT_CHARGING, PAYING_UNAVAILABLE, seatPrice, type BillingPeriod, type PortalFlow } from "@/lib/billing-plan-rules";
+import { BILLING_PAGES_UNAVAILABLE, BILLING_PERIODS, FOUNDING_DISCOUNT, PAID_SEAT_MINIMUM, PAYING_UNAVAILABLE, seatPrice, type BillingPeriod, type PortalFlow } from "@/lib/billing-plan-rules";
 import type { PlanState } from "@/lib/free-request-rules";
+import { SettingsBlock, SettingsGroup, SettingsRow } from "./settings-group";
 import styles from "./settings.module.css";
 import plan from "./billing-plan-card.module.css";
 
@@ -100,31 +101,34 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
   const description = paying
     ? `This workspace pays for Lane, billed ${period ?? "yearly"}.`
     : waiting ? `This workspace’s plan is billed ${period ?? "yearly"}.`
-    : "One plan with all of Lane. You pay for each Admin and Member, with at least 3 seats. Guests and Viewers are free.";
+    : `One plan with all of Lane. You pay for each Admin and Member, with at least ${PAID_SEAT_MINIMUM} seats. Guests and Viewers are free.`;
   const back = result === "cancelled" ? "Checkout was cancelled. Nothing was charged."
     : result === "done" ? paying ? "Thanks. This workspace now pays for Lane." : "Thanks. Your payment is being confirmed; this page shows your plan once it is."
     : null;
+  // #287: while Lane is free the Billing section's pilot line says so, so the plan adds nothing of its own.
   const footer = open && (paying || waiting) ? "Changes and cancelling happen on the payment provider’s secure pages, then you come back here."
     : pages === "unavailable" && paying ? BILLING_PAGES_UNAVAILABLE
     : paying ? "Lane bills by card through its payment provider."
     : checkout === "available" ? "You pay by card on a secure checkout page, then come back here."
-    : checkout === "not_charging" ? NOT_CHARGING : PAYING_UNAVAILABLE;
+    : checkout === "not_charging" ? null : PAYING_UNAVAILABLE;
+  const foundingNote = founding.endsOn
+    ? founding.offered && `Founding discount: ${FOUNDING_DISCOUNT.percentOff}% off until ${founding.endsOn}.`
+    : !paying && !waiting && founding.offered && `The first ${FOUNDING_DISCOUNT.workspaces} workspaces to pay get ${FOUNDING_DISCOUNT.percentOff}% off for two years.`;
+  const notices = planState === "lapsed" || (paying && !!endsOn) || !!back || !!foundingNote;
 
-  return <section className={styles.card} aria-labelledby="billing-plan-title">
-    <div className={styles.cardBody}>
-      <h3 id="billing-plan-title">Lane plan</h3>
-      <p>{description}</p>
+  return <SettingsGroup label="Lane plan" labelId="billing-plan-title" description={description}>
+    {notices && <SettingsBlock>
       {planState === "lapsed" && <Alert role="status" tone="warning" title={waiting
         ? "This workspace’s plan has lapsed because a payment didn’t go through. Update the card to pay what’s due and create new Requests again; everything already filed keeps working."
         : "This workspace’s plan has lapsed. Pay again to create new Requests; everything already filed keeps working."} />}
       {paying && endsOn && <Alert role="status" tone="info" title={`This plan is cancelled and ends on ${endsOn}. After that, only creating new Requests waits for payment; nothing is deleted.`} />}
       {back && <Alert role="status" tone={result === "cancelled" ? "warning" : "success"} title={back} />}
-      {founding.endsOn
-        ? founding.offered && <p className={styles.note}>Founding discount: {FOUNDING_DISCOUNT.percentOff}% off until {founding.endsOn}.</p>
-        : !paying && !waiting && founding.offered && <p className={styles.note}>The first {FOUNDING_DISCOUNT.workspaces} workspaces to pay get {FOUNDING_DISCOUNT.percentOff}% off for two years.</p>}
-      {paying || waiting
-        ? <div className={styles.rows}><div className={styles.row}><strong>Price</strong><div className={styles.value}><Price period={period ?? "yearly"} founding={foundingPrice} /></div></div></div>
-        : <ul className={plan.periods} aria-label="Billing periods">
+      {foundingNote && <p className={styles.note}>{foundingNote}</p>}
+    </SettingsBlock>}
+    {paying || waiting
+      ? <SettingsRow label="Price" control={<Price period={period ?? "yearly"} founding={foundingPrice} />} />
+      : <SettingsBlock>
+        <ul className={plan.periods} aria-label="Billing periods">
           {BILLING_PERIODS.map((each, index) => <li key={each} className={plan.period}>
             <h4 className={plan.name}>{NAMES[each]}</h4>
             <Price period={each} founding={foundingPrice} />
@@ -132,24 +136,19 @@ export function BillingPlanCard({ planState, period, founding, checkout, result,
             {checkout === "available" && <Button className={plan.pay} variant={index === 0 ? "primary" : "secondary"} loading={busy === each} disabled={busy !== null && busy !== each}
               onClick={() => { void pay(each); }}>Pay {each}</Button>}
           </li>)}
-        </ul>}
-      {flows.length > 0 && <div className={plan.actions}>
+        </ul>
+      </SettingsBlock>}
+    {flows.length > 0 && <SettingsBlock>
+      <div className={plan.actions}>
         {flows.map((flow) => <Button key={flow} variant={waiting ? "primary" : "secondary"} loading={busy === flow} disabled={busy !== null && busy !== flow}
           onClick={() => { void openPage(flow); }}>{PAGE_NAMES[flow]}</Button>)}
-      </div>}
-      <div className={styles.rows}>
-        <div className={styles.row}>
-          <div><strong>Enterprise</strong><p>For larger companies that need more than one plan gives.</p></div>
-          <a className={plan.link} href={ENTERPRISE}>Talk to us</a>
-        </div>
       </div>
+    </SettingsBlock>}
+    <SettingsRow label="Enterprise" hint="For larger companies that need more than one plan gives." control={<a className={plan.link} href={ENTERPRISE}>Talk to us</a>} />
+    <SettingsBlock className={styles.feedbackBlock}>
       {error && <Alert role="alert" tone="danger" title={error} />}
-    </div>
-    <div className={styles.cardFooter}>
-      <div>
-        <span>{footer}</span>
-        <p role="status" className={styles.feedback}>{status}</p>
-      </div>
-    </div>
-  </section>;
+      {footer && <p>{footer}</p>}
+      <p role="status" className={styles.feedback}>{status}</p>
+    </SettingsBlock>
+  </SettingsGroup>;
 }
