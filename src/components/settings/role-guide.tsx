@@ -4,6 +4,7 @@ import { ROLE_GUIDE, unavailableRolesNote, WORKSPACE_ROLES } from "@/lib/member-
 import { ROLE_NAMES } from "@/lib/role-rules";
 import { SettingsGroup } from "./settings-group";
 import styles from "./settings.module.css";
+import members from "./members.module.css";
 
 /**
  * #288 (#325, accepted design A): "What each role can do", read-only and folded at the bottom of Members. The roles
@@ -16,9 +17,9 @@ export function RoleGuide({ offered }: { offered: readonly WorkspacePermission[]
   return <SettingsGroup as="div">
     <details className={styles.fold}>
       <summary><span>What each role can do</span><ChevronDown data-icon-size="sm" aria-hidden="true" /></summary>
-      <div className={styles.roleGuide}>
-        <div className={styles.roleTableScroll} role="region" aria-label="What each role can do" tabIndex={0}>
-          <table className={styles.roleTable}>
+      <div className={members.roleGuide}>
+        <div className={members.roleTableScroll} role="region" aria-label="What each role can do" tabIndex={0}>
+          <table className={members.roleTable}>
             <thead><tr><th scope="col">Permission</th>{WORKSPACE_ROLES.map(role => <th key={role} scope="col">{ROLE_NAMES[role]}</th>)}</tr></thead>
             <tbody>{ROLE_GUIDE.map(row => <tr key={row.label}><th scope="row">{row.label}</th>{WORKSPACE_ROLES.map(role => <td key={role}>{row.answer(role)}</td>)}</tr>)}</tbody>
           </table>

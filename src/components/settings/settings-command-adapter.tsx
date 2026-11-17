@@ -93,15 +93,8 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
       void node.offsetWidth;
       node.setAttribute("data-landed", "");
       node.addEventListener("animationend", () => node.removeAttribute("data-landed"), { once: true });
-      if (keyboard) {
-        node.setAttribute("data-landed-keyboard", "");
-        const left = (event: FocusEvent) => {
-          if (node.contains(event.relatedTarget as Node | null)) return;
-          node.removeAttribute("data-landed-keyboard");
-          node.removeEventListener("focusout", left);
-        };
-        node.addEventListener("focusout", left);
-      }
+      // Drawn only while the row itself has focus (a row with nothing inside to focus).
+      node.toggleAttribute("data-landed-keyboard", keyboard);
     }
   }
   useEffect(() => {
@@ -149,11 +142,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
   const strip = useRef(false);
   useEffect(() => {
     const nav = navigation.current;
-    const item = nav?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!nav || !item || nav.scrollWidth <= nav.clientWidth) return;
-    const box = nav.getBoundingClientRect(), at = item.getBoundingClientRect();
-    const left = nav.scrollLeft + at.left - box.left - (box.width - at.width) / 2;
-    nav.scrollTo({ left, behavior: reduce || !strip.current ? "instant" : "smooth" });
+    if (nav && nav.scrollWidth > nav.clientWidth) nav.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "center", behavior: reduce || !strip.current ? "instant" : "smooth" });
     strip.current = true;
   }, [current, reduce]);
   useEffect(() => {

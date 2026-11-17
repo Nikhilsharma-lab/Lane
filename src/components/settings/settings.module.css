@@ -101,36 +101,6 @@
 @media (hover: hover) and (pointer: fine) { .fold > summary:hover { color: var(--foreground); } }
 @media (prefers-reduced-motion: reduce) { .fold > summary > svg { transition: none; } }
 
-/* #288 Members (#325, accepted design A after Arc Pro team-members): the search field fills the bar beside Invite people. */
-.membersBar { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
-.membersBar > :first-child { flex: 1; min-width: 0; }
-.membersBar > button { flex: none; }
-.groupCount { margin-left: var(--space-1); color: var(--text-muted); font-size: var(--text-xs); font-weight: var(--weight-normal); font-variant-numeric: tabular-nums; }
-.you { color: var(--text-muted); font-weight: var(--weight-normal); }
-/* A failed change on a row, under its hint: what happened and Try again. */
-.rowFailure { display: grid; justify-items: start; gap: var(--space-3); margin-top: var(--space-3); }
-.membersStatus { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
-.section > .membersStatus:empty { display: none; }
-.inviteForm { display: grid; gap: var(--space-4); min-width: 0; }
-.inviteForm > * { min-width: 0; }
-.inviteNotes { display: grid; gap: var(--space-2); }
-.inviteNotes p { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
-.inviteForm .dialogActions { margin-block-start: 0; }
-/* "What each role can do": the table scrolls inside its own region; the permission column stays put. */
-.roleGuide { display: grid; gap: var(--space-3); padding: 0 var(--space-4) var(--space-4); min-width: 0; }
-.roleGuide > p { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
-.roleTableScroll { max-width: 100%; overflow-x: auto; border: var(--border-width) solid var(--border-subtle); border-radius: var(--radius-control); scrollbar-width: thin; }
-.roleTable { width: 100%; min-width: calc(var(--spacing) * 128); border-collapse: separate; border-spacing: 0; font-size: var(--text-sm); line-height: var(--leading-body); }
-.roleTable th, .roleTable td { padding: var(--space-2) var(--space-3); text-align: left; font-weight: var(--weight-normal); white-space: nowrap; }
-.roleTable thead th { color: var(--text-secondary); font-weight: var(--weight-medium); }
-.roleTable tbody > tr > * { border-top: var(--border-width) solid var(--border-subtle); }
-.roleTable td { color: var(--text-secondary); }
-.roleTable tr > :first-child { position: sticky; left: 0; background: var(--surface); color: var(--foreground); }
-@media (max-width: 480px) {
-  .membersBar { flex-wrap: wrap; }
-  .membersBar > :first-child { flex-basis: 100%; }
-}
-
 /* #288 (D30): the quiet line above the default section when the one asked for isn't this person's to open. */
 .notForRole { margin: 0 0 var(--space-6); color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 /* #288 (D21): the row a search lands on is washed in the accent for a moment; from the keyboard a row with nothing to
@@ -140,15 +110,5 @@
 @keyframes settings-landed { from, 40% { background-color: var(--accent-subtle); } }
 @media (prefers-reduced-motion: reduce) { .section [data-landed] { animation-timing-function: steps(1, end); } }
 
-/* #288 (D22): the loading frame's placeholders, shaped like the sidebar and the opening section's row groups. */
-.loadingNav { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
-.loadingNav > span { display: block; height: var(--space-4); width: 70%; border-radius: var(--radius-control); background: var(--skeleton-fill); }
-.loadingNav > span:nth-child(odd) { width: 55%; }
-.loadingGroups { display: grid; gap: var(--space-6); }
-.loadingPurpose { margin-top: calc(var(--space-6) * -1 + var(--space-1)); }
-.loadingLabel { display: block; width: calc(var(--spacing) * 24); height: var(--space-3); margin-bottom: var(--space-3); border-radius: var(--radius-control); background: var(--skeleton-fill); }
-.loadingControl { display: block; width: calc(var(--spacing) * 20); height: var(--control-height-sm); border-radius: var(--radius-control); background: var(--skeleton-fill); }
-@media (max-width: 720px) {
-  .loadingNav { display: flex; gap: var(--space-4); overflow: hidden; }
-  .loadingNav > span, .loadingNav > span:nth-child(odd) { flex: none; width: calc(var(--spacing) * 20); }
-}
+/* #288: a failed change on a row (Role, a person, an invitation), under its hint: what happened and Try again. */
+.rowFailure { display: grid; justify-items: start; gap: var(--space-3); margin-top: var(--space-3); }

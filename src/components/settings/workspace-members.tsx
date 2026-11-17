@@ -7,7 +7,7 @@ import type { WorkspacePermission } from "@/lib/auth-guard";
 import { clerkWorkspacePermission } from "@/lib/role-rules";
 import type { PendingInvitation, WorkspaceMember } from "@/lib/member-role-rules";
 import { WorkspaceMembersView } from "./workspace-members-view";
-import { ClerkMembersProfile } from "@/components/auth/clerk-members-profile";
+import { ClerkMembersProfile } from "@/components/auth/clerk-members-remove";
 
 const PAGE = { infinite: true, pageSize: 100, keepPreviousData: true } as const;
 

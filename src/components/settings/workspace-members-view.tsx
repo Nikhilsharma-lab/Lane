@@ -22,6 +22,7 @@ import { ROLE_NAMES } from "@/lib/role-rules";
 import { RoleGuide } from "./role-guide";
 import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowList } from "./settings-group";
 import styles from "./settings.module.css";
+import members from "./members.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 
 /** #215: loaded the first time a paid seat is confirmed, so the confirmation adds nothing to any first load. */
@@ -156,10 +157,10 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
   const roleOptions = roles.map(role => ({ value: role, label: ROLE_NAMES[role], description: ROLE_DESCRIPTIONS[role] }));
   const needle = query.trim().toLowerCase();
   const shown = people.filter(person => matches(person, needle));
-  const count = (n: number) => <>{" "}<span className={styles.groupCount} aria-hidden="true">{n}</span></>;
+  const count = (n: number) => <>{" "}<span className={members.groupCount} aria-hidden="true">{n}</span></>;
 
   return <>
-    <div className={styles.membersBar}>
+    <div className={members.membersBar}>
       <SearchField ref={searchRef} label="Search people" hideLabel placeholder="Search name or email" value={query} onValueChange={setQuery} autoComplete="off" spellCheck={false} />
       {canManage && <Button type="button" disabled={state !== "ready"} onClick={() => { setInviteError(null); setInviteOpen(true); }}>Invite people</Button>}
     </div>
@@ -175,7 +176,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
           // A role that can't be given right now (a Guest while the switch is off) still shows as the current value.
           const options = [...roleOptions, ...(person.role && !roles.includes(person.role) ? [{ value: person.role, label: ROLE_NAMES[person.role], disabled: true }] : [])];
           return <SettingsRow as="li" key={person.userId} leading={<Avatar name={person.name} src={person.imageUrl} size="sm" unoptimized />}
-            label={<>{person.name}{self && <span className={styles.you}> (you)</span>}</>} hint={person.email}
+            label={<>{person.name}{self && <span className={members.you}> (you)</span>}</>} hint={person.email}
             control={canManage && !self && person.role
               ? <Select label={label} value={person.role} options={options} disabled={busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
                   onValueChange={next => { if (next !== person.role) changeRole(person, next as WorkspacePermission); }}
@@ -205,7 +206,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
       {state === "loading" && <SettingsBlock><Placeholder label="Loading invitations…" lines={1} /></SettingsBlock>}
     </SettingsGroup>}
 
-    <p role="status" className={styles.membersStatus}>{status}</p>
+    <p role="status" className={members.membersStatus}>{status}</p>
     {manage}
     {canManage && <p className={styles.note}>Your own role can’t be changed here. Ask another Admin to change it.</p>}
     <RoleGuide offered={roles} />
@@ -232,18 +233,18 @@ export function InvitePeopleForm({ email, role, roles, confirmPaidSeats, busy, f
   onEmail: (value: string) => void; onRole: (role: WorkspacePermission) => void; onSubmit: (event: FormEvent) => void;
 }) {
   const unavailable = unavailableRolesNote(roles);
-  return <form className={styles.inviteForm} onSubmit={onSubmit} noValidate aria-label="Invite people" aria-busy={busy || undefined}>
+  return <form className={members.inviteForm} onSubmit={onSubmit} noValidate aria-label="Invite people" aria-busy={busy || undefined}>
     <Input ref={emailRef} label="Email address" type="email" name="email" autoComplete="off" spellCheck={false} value={email} readOnly={busy} error={fieldError ?? undefined}
       onChange={event => onEmail(event.target.value)} />
     <RadioGroup label="Role" name="invite-role" value={role} onValueChange={value => onRole(value as WorkspacePermission)}
       options={roles.map(value => ({ value, label: ROLE_NAMES[value], description: ROLE_DESCRIPTIONS[value] }))} />
-    <div className={styles.inviteNotes}>
+    <div className={members.inviteNotes}>
       <p>{inviteSeatNote(roles)}{confirmPaidSeats ? " You’ll confirm each paid seat before it’s added." : ""}</p>
       {unavailable && <p>{unavailable}</p>}
       <p>PM, Designer and Developer are profile labels. They don’t change what anyone can do.</p>
     </div>
     {error && <Alert role="alert" tone="danger" title={error} />}
-    <div className={styles.dialogActions}>
+    <div className={members.inviteActions}>
       <DialogClose asChild><Button type="button" variant="secondary" disabled={busy}>Cancel</Button></DialogClose>
       <Button type="submit" loading={busy} data-seat-return="invite">Send invitation</Button>
     </div>

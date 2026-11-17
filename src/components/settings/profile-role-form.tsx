@@ -44,7 +44,8 @@ export function ProfileRoleForm({ initialRole, onSave }: { initialRole: ProductR
   const reverted = useRef(false);
   // The role the server sent while a save was in flight, and how many saves had been confirmed then.
   const postponed = useRef<{ role: ProductRole; at: number } | null>(null);
-  const pick = usePointerPickFocus();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const pick = usePointerPickFocus(trigger);
 
   useEffect(() => {
     if (inFlight.current > 0) { postponed.current = { role: initialRole, at: confirmations.current }; return; }
@@ -105,10 +106,10 @@ export function ProfileRoleForm({ initialRole, onSave }: { initialRole: ProductR
   return <SettingsRow id="role" label="Role" hint={HINT}
     control={<Select label="Role" value={role} options={options} onContentKeyDown={pick.keyboard}
       onValueChange={value => { pick.settle(); if (isRole(value)) choose(value); }}
-      trigger={<Button ref={pick.trigger} type="button" variant="secondary" size="sm">{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />}>
+      trigger={<Button ref={trigger} type="button" variant="secondary" size="sm">{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />}>
     {failed && <div className={styles.rowFailure}>
       <Alert role="alert" tone="danger" title={`Couldn’t save ${roleLabel(failed.role)} as your role`}>{failed.message}</Alert>
-      <Button variant="secondary" size="sm" onClick={() => { choose(failed.role); pick.trigger.current?.focus({ preventScroll: true }); }}>{TRY_AGAIN}</Button>
+      <Button variant="secondary" size="sm" onClick={() => { choose(failed.role); trigger.current?.focus({ preventScroll: true }); }}>{TRY_AGAIN}</Button>
     </div>}
   </SettingsRow>;
 }
