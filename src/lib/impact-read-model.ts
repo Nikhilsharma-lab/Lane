@@ -535,7 +535,7 @@ export function teammateIdsOf(viewer: ImpactViewer, rows: ImpactRow[]): string[]
 export type DefinitionUseOutcome<Measured> =
   | ({ kind: "measured" } & Measured)
   | { kind: "still_due"; due: { dueDate: string; dueLabel: string } | null }
-  | { kind: "closed_without_result"; reason: string };
+  | { kind: "closed_without_result"; label: string; reason: string };
 
 /** A Request whose main metric counts under the definition: what it predicted beside what happened. */
 export type DefinitionMainUse = RequestRef & {
@@ -567,7 +567,7 @@ export type DefinitionUses = {
 
 /** A use with no measured result: closed without one, else still due (from its release's due date, once released). */
 function waitingOutcome(row: ImpactRow, now: Date): Exclude<DefinitionUseOutcome<object>, { kind: "measured" }> {
-  if (row.exceptionClosure) return { kind: "closed_without_result", reason: row.exceptionClosure.reason };
+  if (row.exceptionClosure) return { kind: "closed_without_result", label: exceptionReasonLabel(row.exceptionClosure.reasonCode), reason: row.exceptionClosure.reason };
   const release = row.releaseState?.release ?? null;
   const due = releaseMeasurement(release, now);
   return { kind: "still_due", due: release && due ? { dueDate: release.dueDate, dueLabel: due.label } : null };

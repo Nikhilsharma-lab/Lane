@@ -577,7 +577,7 @@ describe("impact read model: Requests that used a Metric definition (#203)", () 
     expect(group.uses.map(use => use.outcome)).toEqual([
       { kind: "still_due", due: { dueDate: "2026-10-31", dueLabel: "Due in 8 days" } },
       { kind: "still_due", due: null },
-      { kind: "closed_without_result", reason: "Rolled back after a day" },
+      { kind: "closed_without_result", label: "Rolled back", reason: "Rolled back after a day" },
     ]);
     expect(group.uses[0].predicted).toMatchObject({ metric: "Trials started", target: 150 });
   });

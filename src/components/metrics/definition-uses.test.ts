@@ -74,6 +74,12 @@ describe("Requests that used a Metric definition", () => {
     expect(closed).toContain("Actual Closed without a result: Rolled back after a day");
   });
 
+  it("names the reason a use closed without a result when the close has no details", () => {
+    const html = render([row("a", 1, { status: "done", releaseState: released(AUG), exceptionClosure: { ...exception, reason: "" } })]);
+    const [closed] = items(html);
+    expect(closed).toContain("Actual Closed without a result: Rolled back");
+  });
+
   it("lists guardrail uses separately, each limit beside what was measured", () => {
     const html = render([
       row("a", 1, { definitions: [ORDERS, { ...TRIALS, position: 1 }], expectedImpact: plan(20), status: "done", releaseState: released(AUG), outcomeClosure: closure(plan(20), 50, 25) }),

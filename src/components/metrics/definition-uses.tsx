@@ -19,7 +19,8 @@ const requests = (count: number) => `${count} ${count === 1 ? "Request" : "Reque
 
 /** A result still waiting reads "Still due", with its due date once released: never zero. */
 function waitingText(outcome: Exclude<DefinitionUseOutcome<object>, { kind: "measured" }>): string {
-  if (outcome.kind === "closed_without_result") return `Closed without a result: ${outcome.reason}`;
+  // A close with no details still has its reason: "Closed without a result: Rolled back", never a bare colon.
+  if (outcome.kind === "closed_without_result") return `Closed without a result: ${outcome.reason.trim() || outcome.label}`;
   return outcome.due ? `Still due (${outcome.due.dueLabel}, ${plannedDay(outcome.due.dueDate)})` : "Still due (not released yet)";
 }
 
