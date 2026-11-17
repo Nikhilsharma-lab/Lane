@@ -35,4 +35,14 @@ describe("error screens", () => {
     renderToStaticMarkup(createElement(AppProviders, null, createElement(Screen, { error, retry: () => {}, reset: () => {} })))
     expect(reportClientError).toHaveBeenCalledWith(error, { boundary, digest: "abc123" })
   })
+
+  // D36 (#290): a failure in sign-in or onboarding isn't always the database, and one button says what to do.
+  it("the sign-in error names no cause and offers one Try again", () => {
+    const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(AuthError, { error: new Error("Illustrative"), retry: () => {} })))
+    expect(html).toContain("Lane can’t load this page right now")
+    expect(html).not.toMatch(/database/i)
+    expect(html.match(/<button[\s>]/g)).toHaveLength(1)
+    expect(html).toMatch(/<button[^>]*>.*Try again.*<\/button>/)
+    expect(html).not.toContain("Reload")
+  })
 })
