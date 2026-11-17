@@ -54,6 +54,6 @@ export function GuidedMetricForm({initialName = '', onSubmit, onSaved, onCancel,
       <p className={styles.note}>No numbers needed yet. Save what you want to measure, then enter your measured values on a Request. Lane does not track these events for you.</p>
     </div>
     {error&&<p className={styles.error} role="alert">{error}</p>}
-    <div className={styles.actions}><Button type="button" variant="ghost" disabled={pending} onClick={step===1?onCancel:()=>{setStep(1);setError('');focus('kind');}}> {step===1?'Cancel':'Back'} </Button><Button type="submit" loading={pending}>{step===1?'Continue':'Create metric'}</Button></div>
+    <div className={styles.actions}><Button type="button" variant="secondary" disabled={pending} onClick={step===1?onCancel:()=>{setStep(1);setError('');focus('kind');}}> {step===1?'Cancel':'Back'} </Button><Button type="submit" loading={pending}>{step===1?'Continue':'Create metric'}</Button></div>
   </form>;
 }

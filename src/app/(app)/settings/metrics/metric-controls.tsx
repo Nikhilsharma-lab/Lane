@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
-import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
+import { PermanentActionConfirmation } from "@/components/popup/permanent-action-confirmation";
+import { offerUndo } from "@/components/requests/undo-toast";
 import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import SegmentedControl from "@/components/arc/segmented-control/segmented-control";
 import { Select } from "@/components/arc/select/select";
@@ -52,17 +54,34 @@ export function EditMetricForm({ orgId, definition, unitLocked = false }: { orgI
     onSubmit={values => callAction(() => editMetricDefinition({ id, ...values }, { orgId }))} />;
 }
 
-/** Archive or restore, for Admins only (the page doesn't render it for anyone else; the server refuses them too). */
-export function ArchiveMetricControl({ orgId, id, archived }: { orgId: string; id: string; archived: boolean }) {
+/**
+ * Archive or restore, for Admins only (the page doesn't render it for anyone else; the server refuses them too).
+ * #288 (D31): Archive happens at once, and its message offers Undo, which restores it; Restore stays as it was.
+ */
+export function ArchiveMetricControl({ orgId, id, name, archived }: { orgId: string; id: string; name: string; archived: boolean }) {
+  const stack = useToastStack();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const restore = () => callAction(() => restoreMetricDefinition({ id }, { orgId }));
   async function toggle() {
     setPending(true); setError(null);
     try {
-      const result = archived
-        ? await callAction(() => restoreMetricDefinition({ id }, { orgId }))
-        : await callAction(() => archiveMetricDefinition({ id }, { orgId }));
-      if ("error" in result) setError(result.error);
+      const result = archived ? await restore() : await callAction(() => archiveMetricDefinition({ id }, { orgId }));
+      if ("error" in result) { setError(result.error); return; }
+      if (!archived) offerUndo(stack, `metric-archived-${id}`, { title: "Metric archived", description: `${name} isn’t offered for new goals.` }, {
+        undoing: { title: "Restoring the metric", description: name },
+        undone: { title: "Metric restored", description: `${name} is offered for new goals again.` },
+        run: async failed => {
+          try {
+            const back = await restore();
+            if ("error" in back) { failed(back.error); return false; }
+            return true;
+          } catch (thrown) {
+            failed(thrownMessage(thrown, "We couldn’t restore this metric. Check your connection and try again."));
+            return false;
+          }
+        },
+      });
     } catch (thrown) {
       setError(thrownMessage(thrown, `We couldn’t ${archived ? "restore" : "archive"} this metric. Check your connection and try again.`));
     } finally {
@@ -93,7 +112,6 @@ export function MergeMetricControl({ orgId, current, candidates }: { orgId: stri
   const merged = keep === "this" ? other : current;
 
   function review(next: boolean) {
-    if (pending) return;
     if (next && !other) { setError("Choose the metric to merge with."); return; }
     setError(null);
     setOpen(next);
@@ -126,17 +144,14 @@ export function MergeMetricControl({ orgId, current, candidates }: { orgId: stri
       ? `${merged.name} leaves the picker and the metric list, and the Requests that used it count under ${kept.name}. ${kept.name} stays as it is.`
       : "Choose the metric to merge with, then which one to keep."}</p>
     {error && !open && <p className={styles.error} role="alert">{error}</p>}
-    <Dialog open={open} onOpenChange={review}>
-      <DialogTrigger asChild><Button variant="secondary" className={styles.mergeButton}>Review merge</Button></DialogTrigger>
-      {merged && <DialogContent title={`Merge ${merged.name} into ${kept.name}?`}
-        description={`${merged.name} will leave the picker and the metric list. Requests that used it will count under ${kept.name} from now on, and their results add up together. No Request is changed. This can’t be undone.`}>
-        {error && <p className={styles.error} role="alert">{error}</p>}
-        <div className={styles.dialogActions}>
-          <DialogClose asChild><Button variant="ghost" disabled={pending}>Cancel</Button></DialogClose>
-          <Button loading={pending} onClick={() => void confirm()}>Merge metrics</Button>
-        </div>
-      </DialogContent>}
-    </Dialog>
+    {/* #288: Lane's shared confirmation for what can't be undone: red Merge metrics, opening on Cancel. */}
+    <PermanentActionConfirmation open={open} onOpenChange={review} busy={pending}
+      trigger={<Button variant="secondary" className={styles.mergeButton}>Review merge</Button>}
+      title={merged ? `Merge ${merged.name} into ${kept.name}?` : "Merge metrics?"}
+      description={merged ? `${merged.name} will leave the picker and the metric list. Requests that used it will count under ${kept.name} from now on, and their results add up together. No Request is changed. This can’t be undone.` : ""}
+      confirmLabel="Merge metrics" onConfirm={() => void confirm()}>
+      {error && <p className={styles.error} role="alert">{error}</p>}
+    </PermanentActionConfirmation>
   </div>;
 }
 
