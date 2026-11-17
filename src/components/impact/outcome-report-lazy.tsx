@@ -48,7 +48,9 @@ function useReportCode(): ReportModule | null {
 export function LazyOutcomeReport({ openedFirst, ...props }: ComponentProps<ReportModule["OutcomeReportView"]> & { openedFirst: boolean }) {
   const code = useReportCode()
   // Chosen once, so the report never remounts (and drops what it holds) when its code arrives after the first render.
-  const [Opened] = useState(() => reportHere?.OutcomeReportView ?? (openedFirst ? ServerRenderedReport : null))
+  // Opened first, it is always the server-rendered one: the server keeps the report's code once any page has loaded it,
+  // and the browser's first render has none, so choosing by `reportHere` here made the two differ (React's #418).
+  const [Opened] = useState(() => openedFirst ? ServerRenderedReport : reportHere?.OutcomeReportView ?? null)
   const Report = Opened ?? code?.OutcomeReportView
   return Report ? <Report {...props} /> : <ReportLoading />
 }
