@@ -16,7 +16,7 @@ export const settingsCatalog: SettingsEntry[] = [
   // #287 (D32): one row for the account, connected sign-in accounts included, so "Google" lands on it.
   { id: "manage-account", section: "profile", group: "Personal", label: "Manage account", description: "Name, photo, email and connected accounts such as Google.", target: "manage-account", keywords: ["google", "connected accounts", "login"] },
   { id: "ai-data", section: "account-security", group: "Personal", label: "AI data use", description: "What Lane sends for the Request AI check.", target: "ai-data", keywords: ["privacy", "anthropic"] },
-  { id: "leave-workspace", section: "workspace", group: "Workspace", label: "Leave workspace", description: "Review the Leave organization option in Clerk.", target: "workspace-management", membersOnly: true },
+  { id: "leave-workspace", section: "workspace", group: "Workspace", label: "Leave workspace", description: "Review the Leave workspace option in Clerk.", target: "workspace-management", membersOnly: true },
   { id: "intake-templates", section: "intake-templates", group: "Requests", label: "Intake templates", description: "Reusable starting points for a clear Request.", soon: true },
   { id: "project-labels", section: "project-labels", group: "Projects", label: "Labels", description: "Organize Projects with shared labels.", soon: true },
   { id: "project-templates", section: "project-templates", group: "Projects", label: "Templates", description: "Reusable starting points for Projects.", soon: true },
