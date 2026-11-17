@@ -25,8 +25,11 @@ describe("Inbox delivery choice", () => {
     expect(html).toContain("For your information");
   });
 
-  it("has a polite status region for the save result, empty until something is saved", () => {
-    expect(render("email")).toMatch(/<p[^>]*role="status"[^>]*><\/p>/);
+  it("says what the chosen option means, with no \"Saved.\" status: the choice is the confirmation (#288, D31)", () => {
+    expect(render("off")).toContain("Only Result due reaches you by email. Saved as soon as you choose, for this workspace only.");
+    expect(render("email")).toContain("Items that need you reach you by email.");
+    expect(render("email")).not.toContain("Saved.");
+    expect(render("email")).not.toContain('role="status"');
   });
 
   it("offers Slack DM only while Slack is connected (#207)", () => {
