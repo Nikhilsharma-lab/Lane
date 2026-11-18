@@ -12,6 +12,6 @@ export function ClerkWorkspaceProfile() {
   const { isLoaded, organization, membership } = useOrganization();
   // #287: the last row of Workspace details' group, and the "Leave workspace" search target.
   return <SettingsRow id="workspace-management" label="Workspace settings"
-    hint={membership?.role === "org:admin" ? "As a workspace admin, you can update the workspace profile. To leave, open Manage workspace and choose Leave workspace. Clerk checks which actions are available." : "Only workspace admins can update the workspace profile. To leave, open Manage workspace and choose Leave workspace. Clerk handles the confirmation and eligibility."}
+    hint={membership?.role === "org:admin" ? "As an Admin, you can update the workspace profile. To leave, open Manage workspace and choose Leave workspace. Clerk checks which actions are available." : "Only Admins can update the workspace profile. To leave, open Manage workspace and choose Leave workspace. Clerk handles the confirmation and eligibility."}
     control={<Button variant="secondary" size="sm" disabled={!isLoaded || !organization} onClick={() => clerk.openOrganizationProfile({ appearance: clerkOrganizationAppearance })}>Manage workspace</Button>} />;
 }

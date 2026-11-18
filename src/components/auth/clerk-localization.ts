@@ -114,7 +114,7 @@ export const clerkLocalization = {
     verifiedDomainPage: {
       enrollmentTab: {
         subtitle: "Choose how users from this domain can join the workspace.",
-        automaticInvitationOption__description: "Users are automatically invited to join the workspace when they sign-up and can join anytime.",
+        automaticInvitationOption__description: "Users are automatically invited to join the workspace when they sign up and can join anytime.",
         automaticSuggestionOption__description: "Users receive a suggestion to request to join, but must be approved by an Admin before they are able to join the workspace.",
         manualInvitationOption__description: "Users can only be invited manually to the workspace.",
       },
@@ -126,7 +126,7 @@ export const clerkLocalization = {
       subtitle__editing: "This workspace has {{count}} SSO connections. Changes here apply only to this connection.",
     },
     missingManageEnterpriseConnectionsPermission: {
-      subtitle: "Contact your workspace's administrator to upgrade your permissions.",
+      subtitle: "Contact your workspace Admin to upgrade your permissions.",
     },
     organizationDomainsStep: {
       subtitle: "Add and verify ownership of the domains your workspace uses to sign in.",
