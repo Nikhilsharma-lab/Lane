@@ -5,7 +5,7 @@ import * as z from "zod";
 import { db, profiles } from "@/db";
 import { guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { openBillingPage as openProviderPage, startCheckout } from "@/lib/billing";
-import { BILLING_PAGES_UNAVAILABLE, PAYING_UNAVAILABLE, paidSeats } from "@/lib/billing-plan-rules";
+import { BILLING_PAGES_UNAVAILABLE, NOTHING_TO_PAY, PAYING_UNAVAILABLE, paidSeats } from "@/lib/billing-plan-rules";
 import { appOrigin, billingEnforced } from "@/lib/feature-switches";
 import { PORTAL_FLOWS, paymentProvider, type PortalFlow } from "@/lib/payment-provider";
 import { workspaceRoster } from "@/lib/workspace-roster";
@@ -25,7 +25,7 @@ export async function startPlanCheckout(data: { period: "yearly" | "monthly" }, 
   const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can pay for Lane in this workspace.");
   if ("error" in auth) return auth;
   // Settings offers no Pay button while billing isn't enforced; this refuses a call made anyway.
-  if (!billingEnforced()) return { error: "Lane isn’t charging yet, so there’s nothing to pay." };
+  if (!billingEnforced()) return { error: NOTHING_TO_PAY };
   const provider = paymentProvider();
   if (!provider) return { error: PAYING_UNAVAILABLE };
 

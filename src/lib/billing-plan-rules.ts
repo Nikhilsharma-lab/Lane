@@ -9,6 +9,8 @@ export type BillingPeriod = "yearly" | "monthly";
 
 /** #287: Settings → Billing says this once, at the top, while billing isn't enforced (`LANE_BILLING_ENFORCED`). */
 export const BILLING_PILOT_LINE = "Lane is free during the pilot. These are the prices once paying starts.";
+/** The refusal of a checkout asked for anyway while billing isn't enforced (Settings offers no Pay button then). */
+export const NOTHING_TO_PAY = "Lane is free during the pilot, so there’s nothing to pay.";
 /** Why there is nothing to pay while there is no payment provider. */
 export const PAYING_UNAVAILABLE = "Paying by card isn’t available yet.";
 /** #216: without a payment provider there are no hosted billing pages, invoices or next bill to show. */
