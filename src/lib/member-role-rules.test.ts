@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { addsPaidSeat, inviteInputSchema, inviteSeatNote, paidSeatSummary, ROLE_GUIDE, unavailableRolesNote } from "./member-role-rules"
+import { addsPaidSeat, freeRolesNote, inviteInputSchema, inviteSeatNote, paidSeatSummary, ROLE_GUIDE, unavailableRolesNote } from "./member-role-rules"
 
 /** #215: which role changes add a paid seat, and what the Admin is asked to confirm. */
 describe("Paid seats", () => {
@@ -36,6 +36,11 @@ describe("Inviting", () => {
     expect(issue("   ")).toEqual({ path: ["email"], message: "Enter an email address." })
     expect(issue("not-an-email")).toEqual({ path: ["email"], message: "Enter a valid email address." })
     expect(inviteInputSchema.parse({ email: "  New.Person@Example.test ", role: "member" }).email).toBe("new.person@example.test")
+  })
+
+  it("names the free roles that can be given, for Billing's seats too", () => {
+    expect(freeRolesNote(["admin", "member"])).toBe("")
+    expect(freeRolesNote(["admin", "member", "guest", "viewer"])).toBe("Guests and Viewers are free.")
   })
 
   it("calls Guests and Viewers free only while they can be given", () => {

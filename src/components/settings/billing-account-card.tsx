@@ -1,7 +1,9 @@
 import { Alert } from "@/components/arc/alert/alert";
 import { Badge, type BadgeTone } from "@/components/arc/badge/badge";
 import { BILLING_PAGES_UNAVAILABLE, PAID_SEAT_MINIMUM } from "@/lib/billing-plan-rules";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import type { PlanState } from "@/lib/free-request-rules";
+import { freeRolesNote } from "@/lib/member-role-rules";
 import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowList } from "./settings-group";
 import account from "./billing-account-card.module.css";
 
@@ -17,6 +19,8 @@ export type BillingAccountCardProps = {
   seats: { adminsAndMembers: number; paid: number } | null;
   /** What the payment provider says, or why it can't: not set up, or not reachable. */
   account: { nextBill: { amount: string; on: string } | null; invoices: InvoiceLine[] } | "unavailable" | "failed";
+  /** The roles an Admin can give now: the free ones are named only while they can be (D28). */
+  roles: readonly WorkspacePermission[];
 };
 
 const STATUS: Record<InvoiceStatus, { label: string; tone: BadgeTone }> = {
@@ -25,7 +29,7 @@ const STATUS: Record<InvoiceStatus, { label: string; tone: BadgeTone }> = {
   uncollectible: { label: "Not paid", tone: "danger" },
   void: { label: "Void", tone: "neutral" },
 };
-const ABOUT_SEATS = `Admins and Members, at least ${PAID_SEAT_MINIMUM}. Guests and Viewers are free.`;
+const aboutSeats = (roles: readonly WorkspacePermission[]) => [`Admins and Members, at least ${PAID_SEAT_MINIMUM}.`, freeRolesNote(roles)].filter(Boolean).join(" ");
 const FAILED = "Couldn’t load the next bill and invoices from the payment provider. Reload the page to try again.";
 
 function nextBillText(props: BillingAccountCardProps, nextBill: { amount: string; on: string } | null): string {
@@ -47,7 +51,7 @@ export function BillingAccountCard(props: BillingAccountCardProps) {
     <SettingsRow label="Paid seats"
       hint={seats && seats.adminsAndMembers < PAID_SEAT_MINIMUM
         ? `${seats.adminsAndMembers} ${seats.adminsAndMembers === 1 ? "Admin or Member" : "Admins and Members"}, billed as the ${PAID_SEAT_MINIMUM}-seat minimum.`
-        : ABOUT_SEATS}
+        : aboutSeats(props.roles)}
       control={seats ? seats.paid : "Couldn’t count this workspace’s seats. Reload the page to try again."} />
     {typeof reading === "object" && <SettingsRow label="Next bill" control={nextBillText(props, reading.nextBill)} />}
     {reading === "unavailable" && <SettingsBlock><p>{BILLING_PAGES_UNAVAILABLE}</p></SettingsBlock>}

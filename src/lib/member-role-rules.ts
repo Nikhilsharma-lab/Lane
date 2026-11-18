@@ -68,8 +68,14 @@ const plural = (roles: WorkspacePermission[]) => roles.map(role => `${ROLE_NAMES
  * never calls a role free right above saying it isn't available.
  */
 export function inviteSeatNote(offered: readonly WorkspacePermission[]): string {
+  const free = freeRolesNote(offered)
+  return `${plural(PAID_ROLES)} are paid seats.${free ? ` ${free}` : ""}`
+}
+
+/** #288 (D28): "Guests and Viewers are free.", for the invite note and Billing's seats, or "" while neither can be given. */
+export function freeRolesNote(offered: readonly WorkspacePermission[]): string {
   const free = FREE_ROLES.filter(role => offered.includes(role))
-  return `${plural(PAID_ROLES)} are paid seats.${free.length ? ` ${plural(free)} are free.` : ""}`
+  return free.length ? `${plural(free)} are free.` : ""
 }
 
 /** The roles that exist but can't be given in this workspace yet (Clerk custom roles are off), or null for none. */
