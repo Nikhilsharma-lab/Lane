@@ -60,13 +60,9 @@ async function expectWorkspaceStepFitsPhone(page: Page) {
       expect(box.x + box.width).toBeLessThanOrEqual(390);
       await expect(part).toBeInViewport({ ratio: 1 });
     }
-    // D7: Clerk fills the name (and a logo) from the email's domain when the instance's "organization creation
-    // defaults" are on. That is a Clerk Dashboard setting; @clerk/ui 1.33.1's TaskChooseOrganization has no option for
-    // it. While it is on, the gap is recorded on the run instead of failing it; once it is off, the name must be empty.
-    const guessed = await page.evaluate(() => (window.Clerk as unknown as { __internal_environment?: { organizationSettings?: { organizationCreationDefaults?: { enabled?: boolean } } } })
-      .__internal_environment?.organizationSettings?.organizationCreationDefaults?.enabled === true);
-    if (guessed) test.info().annotations.push({ type: "known gap (#289 D7)", description: `Clerk prefilled the workspace name "${await name.inputValue()}": organization creation defaults are on in the Clerk Dashboard.` });
-    else await expect(name).toHaveValue("");
+    // D7: the name starts empty, with no guess from the email's domain. Clerk's "organization creation defaults" are
+    // off on the instance (Nikhil, 2026-11-18); @clerk/ui 1.33.1's TaskChooseOrganization has no option of its own.
+    await expect(name).toHaveValue("");
   } finally {
     if (desktop) await page.setViewportSize(desktop);
   }
