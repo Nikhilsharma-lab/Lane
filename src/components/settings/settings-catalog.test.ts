@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { settingsEntries, settingsHref, settingsNavigation, searchSettings, settingsSectionAt, showsSettingsInPlace } from "./settings-catalog";
+import { sectionNotForRole, settingsEntries, settingsHref, settingsNavigation, searchSettings, settingsSectionAt, showsSettingsInPlace } from "./settings-catalog";
 describe("Settings search availability", () => {
   it("does not reveal member or administrative destinations to a guest", () => {
     for (const query of ["invite", "billing", "api", "workspace security"]) expect(searchSettings(settingsEntries("guest"), query)).toEqual([]);
@@ -102,5 +102,23 @@ describe("Settings catalog cleanup (#287)", () => {
     expect(members("member")).toBe("People in this workspace and their roles.");
     expect(members("admin")).toBe("Manage workspace members and invitations.");
     expect(settingsEntries("member").find(entry => entry.id === "members")?.description).toBe("People in this workspace and their roles.");
+  });
+});
+
+describe("A section someone's role can't open (#288, D30)", () => {
+  it("says who it is for, from the catalog", () => {
+    expect(sectionNotForRole("billing", "member")).toBe("Billing is for Admins of this workspace.");
+    expect(sectionNotForRole("slack", "viewer")).toBe("Slack is for Admins of this workspace.");
+    expect(sectionNotForRole("members", "viewer")).toBe("Members is for Admins and Members of this workspace.");
+    expect(sectionNotForRole("inbox-delivery", "guest")).toBe("Inbox delivery is for Admins and Members of this workspace.");
+    expect(sectionNotForRole("workspace", "guest")).toBe("Workspace details is for Admins, Members and Viewers of this workspace.");
+  });
+  it("says nothing when the section opens, doesn't exist, or is only planned", () => {
+    expect(sectionNotForRole("billing", "admin")).toBeNull();
+    expect(sectionNotForRole("members", "member")).toBeNull();
+    expect(sectionNotForRole("nonsense", "member")).toBeNull();
+    expect(sectionNotForRole("api", "member")).toBeNull();
+    expect(sectionNotForRole("role", "member")).toBeNull();
+    expect(sectionNotForRole(null, "member")).toBeNull();
   });
 });

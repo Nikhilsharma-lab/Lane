@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { addsPaidSeat, paidSeatSummary } from "./member-role-rules"
+import { addsPaidSeat, inviteEmailProblem, inviteSeatNote, paidSeatSummary, ROLE_GUIDE, unavailableRolesNote } from "./member-role-rules"
 
 /** #215: which role changes add a paid seat, and what the Admin is asked to confirm. */
 describe("Paid seats", () => {
@@ -23,5 +23,34 @@ describe("Paid seats", () => {
     expect(paidSeatSummary({ kind: "invite", email: "new@example.test", role: "member" })).toBe("new@example.test is invited as a Member. Their seat starts when they join.")
     expect(paidSeatSummary({ kind: "invite", email: "boss@example.test", role: "admin" })).toBe("boss@example.test is invited as an Admin. Their seat starts when they join.")
     expect(paidSeatSummary({ kind: "role", name: "Vic Leader", role: "member" })).toBe("Vic Leader becomes a Member. Their seat starts today.")
+  })
+})
+
+/** #288 (D27, D28): the invite's messages and notes, shared by the browser and the server. */
+describe("Inviting", () => {
+  it("tells an empty address from a wrong one", () => {
+    expect(inviteEmailProblem("")).toBe("Enter an email address.")
+    expect(inviteEmailProblem("   ")).toBe("Enter an email address.")
+    expect(inviteEmailProblem("not-an-email")).toBe("Enter a valid email address.")
+    expect(inviteEmailProblem(`${"a".repeat(320)}@example.test`)).toBe("Enter a valid email address.")
+    expect(inviteEmailProblem("  New.Person@Example.test ")).toBeNull()
+  })
+
+  it("calls Guests and Viewers free only while they can be given", () => {
+    expect(inviteSeatNote(["admin", "member"])).toBe("Admins and Members are paid seats.")
+    expect(inviteSeatNote(["admin", "member", "guest", "viewer"])).toBe("Admins and Members are paid seats. Guests and Viewers are free.")
+    expect(unavailableRolesNote(["admin", "member"])).toBe("Guest and Viewer aren’t available in this workspace yet.")
+    expect(unavailableRolesNote(["admin", "member", "guest", "viewer"])).toBeNull()
+    expect(unavailableRolesNote(["admin", "member", "viewer"])).toBe("Guests aren’t available in this workspace yet.")
+  })
+})
+
+describe("What each role can do", () => {
+  const answers = (role: "admin" | "member" | "guest" | "viewer") => Object.fromEntries(ROLE_GUIDE.map(row => [row.label, row.answer(role)]))
+  it("follows the shared role rules", () => {
+    expect(answers("admin")).toMatchObject({ "Read Requests": "All", "Pick up work": "Yes", "See Members": "Yes", "Invite people and change roles": "Yes" })
+    expect(answers("member")).toMatchObject({ "Read Requests": "All", "File Requests": "Yes", "Pick up work": "Yes", "Invite people and change roles": "No" })
+    expect(answers("guest")).toMatchObject({ "Read Requests": "Their own", "File Requests": "Yes", "Comment on Requests": "Their own", "Pick up work": "No", "See Members": "No" })
+    expect(answers("viewer")).toMatchObject({ "Read Requests": "All", "File Requests": "No", "Comment on Requests": "No", "Pick up work": "No", "See Members": "No" })
   })
 })

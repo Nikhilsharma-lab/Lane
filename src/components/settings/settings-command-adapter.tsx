@@ -3,20 +3,21 @@
 // Used as part of Lane under the Arc Pro license, not this repository's license; not for reuse outside Lane.
 
 import Link from "@/components/link";
-import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AnimatePresence, LayoutGroup, m, useReducedMotion } from "motion/react";
 import { ArrowLeft, Search, UserRound, Palette, ShieldCheck, Building2, Users, Clock, ChartLine, Mail, MessageSquare, CreditCard } from "lucide-react";
 import { SettingsCommandPalette, relativeRect, type Rect, type Closing, type Result } from "@/components/arc/blocks/settings-command/settings-command";
 import { motionTokens } from "@/components/arc/lib/motion-tokens";
 import { WorkspaceIdentifier } from "./workspace-identifier";
 import { Badge } from "@/components/arc/badge/badge";
-import { settingsHref, settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection, showsSettingsInPlace, settingsSectionAt } from "./settings-catalog";
+import { sectionNotForRole, settingsHref, settingsNavigation, searchSettings, settingsEntries, SETTINGS_SECTION_EVENT as sectionEvent, showSettingsSection, showsSettingsInPlace, settingsSectionAt } from "./settings-catalog";
 import { SettingsGroup, SettingsRow } from "./settings-group";
 import { FutureSettings } from "./coming-soon-panel";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 import { ROLE_NAMES } from "@/lib/role-rules";
 import styles from "./settings.module.css";
 import { KeyCap } from "@/components/keyboard/key-caps";
+import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards";
 
 function subscribe(listener: () => void) {
   window.addEventListener("popstate", listener);
@@ -65,6 +66,9 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
   const content = useRef<HTMLElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const destination = useRef<string | null>(null);
+  const navigation = useRef<HTMLElement>(null);
+  // How the last search pick was made: a pick from the keyboard lands with the keyboard ring (D21).
+  const fromKeyboard = useRef(false);
   const [palette, setPalette] = useState<{ origin: Rect; width: number } | null>(null);
   const [closing, setClosing] = useState<Closing>(null);
   const [query, setQuery] = useState("");
@@ -80,8 +84,19 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     const target = destination.current;
     destination.current = null;
     const node = target ? document.getElementById(target) : null;
-    (node?.querySelector<HTMLElement>("input:not(:disabled),button:not(:disabled),[tabindex]:not(:disabled)") ?? node ?? content.current?.querySelector<HTMLElement>("h1"))?.focus({ preventScroll: true });
+    const keyboard = fromKeyboard.current;
+    (node?.querySelector<HTMLElement>("input:not(:disabled),button:not(:disabled),[tabindex]:not(:disabled)") ?? node ?? content.current?.querySelector<HTMLElement>("h1"))?.focus({ preventScroll: true, focusVisible: keyboard } as FocusOptions);
     node?.scrollIntoView({ block: "center", behavior: reduce ? "instant" : "smooth" });
+    // #288 (D21): the row a search lands on is briefly marked; from the keyboard it also keeps a ring while focused.
+    if (node && !node.matches("section")) {
+      node.removeAttribute("data-landed");
+      void node.offsetWidth;
+      node.setAttribute("data-landed", "");
+      // With reduced motion the wash doesn't fade (Lane cuts every animation to nothing); it stays until focus leaves.
+      node.addEventListener(reduce ? "focusout" : "animationend", () => node.removeAttribute("data-landed"), { once: true });
+      // Drawn only while the row itself has focus (a row with nothing inside to focus).
+      node.toggleAttribute("data-landed-keyboard", keyboard);
+    }
   }
   useEffect(() => {
     // Restore focus to the destination once the search overlay is removed.
@@ -110,6 +125,27 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     select(result.def.section);
     if (frame.current && trigger.current) setClosing({ to: relativeRect(trigger.current, frame.current), mode: "row" });
   }
+  // #288 (D20): "/" opens search from the moment the page is ready, wherever focus is, under the shared typing guards.
+  const shortcut = useEffectEvent((event: KeyboardEvent) => {
+    if (palette || event.defaultPrevented || event.repeat || event.isComposing) return;
+    if (!opensSettingsSearch(event, isTypingTarget(event.target)) || overlayOpen()) return;
+    event.preventDefault();
+    openPalette();
+  });
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => { fromKeyboard.current = true; shortcut(event); };
+    const pointerdown = () => { fromKeyboard.current = false; };
+    window.addEventListener("keydown", keydown);
+    window.addEventListener("pointerdown", pointerdown, true);
+    return () => { window.removeEventListener("keydown", keydown); window.removeEventListener("pointerdown", pointerdown, true); };
+  }, []);
+  // #288 (D19): on a phone the section strip scrolls sideways; the open section's item is kept in view.
+  const strip = useRef(false);
+  useEffect(() => {
+    const nav = navigation.current;
+    if (nav && nav.scrollWidth > nav.clientWidth) nav.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "center", behavior: reduce || !strip.current ? "instant" : "smooth" });
+    strip.current = true;
+  }, [current, reduce]);
   useEffect(() => {
     content.current?.scrollTo({ top: 0 });
     const target = window.location.hash.slice(1);
@@ -137,20 +173,16 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     "coming-soon": <FutureSettings entries={entries.filter(entry => entry.soon)} />,
   };
 
-  return <div ref={frame} className={styles.frame} data-settings-frame onKeyDown={event => {
-    const target = event.target as HTMLElement;
-    if (event.defaultPrevented || event.repeat || target.closest('[role="dialog"]')) return;
-    const typing = target.isContentEditable || target.closest('input,textarea,select,[role="textbox"]');
-    if (opensSettingsSearch(event, !!typing)) {
-      event.preventDefault(); event.stopPropagation(); openPalette();
-    }
-  }}>
+  // #288 (D30): a section that exists but this person's role can't open shows the default section, with why.
+  const notForRole = sectionNotForRole(section, membership);
+
+  return <div ref={frame} className={styles.frame} data-settings-frame>
     <header className={styles.header} inert={!!palette}>
       <div className={styles.heading}><Link href="/" className={styles.back} aria-label="Back to Requests"><ArrowLeft aria-hidden="true" /></Link><h1>Settings</h1></div>
       <button ref={trigger} className={styles.searchTrigger} type="button" onClick={openPalette} aria-haspopup="dialog" aria-keyshortcuts="/"><Search aria-hidden="true" /><span>Search settings</span><KeyCap className={styles.searchKey}>/</KeyCap></button>
     </header>
     <aside className={styles.sidebar} inert={!!palette}>
-      <nav aria-label="Settings" className={styles.navigation}><LayoutGroup id={`${uid}-nav`}>{[...new Set(nav.map(entry => entry.group))].map(group => <div key={group} className={styles.navGroup}><h2 className={styles.navGroupTitle}>{group}</h2><ul>
+      <nav ref={navigation} aria-label="Settings" className={styles.navigation}><LayoutGroup id={`${uid}-nav`}>{[...new Set(nav.map(entry => entry.group))].map(group => <div key={group} className={styles.navGroup}><h2 className={styles.navGroupTitle}>{group}</h2><ul>
         {nav.filter(entry => entry.group === group).map(entry => { const Icon = icons[entry.id as keyof typeof icons]; return <li key={entry.id}>
           <Link className={styles.navItem} data-pressable="" href={settingsHref(entry.id)} aria-current={current === entry.id ? "page" : undefined}
             onClick={event => {
@@ -168,6 +200,7 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
     </aside>
     <section ref={content} className={styles.content} inert={!!palette} tabIndex={0} role="region" aria-label="Settings content">
       <div className={styles.page}>
+        {notForRole && <p className={styles.notForRole}>{notForRole}</p>}
         {nav.map(entry => <section key={entry.id} id={`settings-${entry.id}`} hidden={selected.id !== entry.id} className={styles.section} tabIndex={-1} aria-labelledby={`${uid}-${entry.id}`}>
           <header className={styles.sectionHead}><h2 id={`${uid}-${entry.id}`}>{entry.label}</h2><p>{entry.description}</p></header>
           {panels[entry.id]}

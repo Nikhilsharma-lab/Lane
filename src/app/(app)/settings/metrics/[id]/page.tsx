@@ -70,10 +70,12 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
         {!merged && canEdit && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
       </SettingsBlock>
     </SettingsGroup>
+    {/* #288 (D29): a Member, who edits but doesn't archive or merge, is told why those aren't here. */}
+    {workspace.role === "member" && !merged && <p className={styles.note}>Only Admins can archive or merge metrics.</p>}
     {isAdmin && !merged && <SettingsGroup>
       <SettingsRow label={archived ? "Restore" : "Archive"}
         hint={archived ? "Restoring offers it for new goals again." : "Archiving stops it being offered for new goals. Requests that already use it keep it, and their results still add up."}
-        control={<ArchiveMetricControl orgId={workspace.orgId} id={definition.id} archived={archived} />} />
+        control={<ArchiveMetricControl orgId={workspace.orgId} id={definition.id} name={definition.name} archived={archived} />} />
     </SettingsGroup>}
     {isAdmin && !merged && <SettingsGroup label="Merge" labelId="metric-merge"
       description="If another metric counts the same thing in the same unit, merge the two so their results add up together. Merging can’t be undone.">
