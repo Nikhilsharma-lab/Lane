@@ -100,21 +100,44 @@ describe("Adding a Metric definition", () => {
 });
 
 describe("Editing a Metric definition", () => {
-  it.each(["member", "admin"] as const)("lets a %s change the name, link and how-it's-counted line, with the before and after in history", async (role) => {
+  it.each(["member", "admin"] as const)("lets a %s change the name and link, keeping the saved definition, with the before and after in history", async (role) => {
     actAs("admin");
     const id = await add();
     actAs(role);
-    const result = await (await actions()).editMetricDefinition({ id, name: "Trials started", unit: "count", link: "https://analytics.example.test/trials-v2", howCounted: "" }, context());
+    const result = await (await actions()).editMetricDefinition({ id, name: "Trials started", unit: "count", link: "https://analytics.example.test/trials-v2", howCounted: trialStarts.howCounted }, context());
     expect(result).toEqual({ ok: true });
-    expect(await named("Trials started")).toMatchObject({ id, link: "https://analytics.example.test/trials-v2", howCounted: null });
+    expect(await named("Trials started")).toMatchObject({ id, link: "https://analytics.example.test/trials-v2", howCounted: trialStarts.howCounted });
     const history = await historyOf(id);
     expect(history).toHaveLength(2);
     expect(history[1]).toMatchObject({
       revision: 2, kind: "edited", authorId: ROLES[role][0],
       before: { name: "Trial starts", unit: "count", link: "https://analytics.example.test/trials", howCounted: "Trials started per week." },
-      after: { name: "Trials started", unit: "count", link: "https://analytics.example.test/trials-v2", howCounted: null },
+      after: { name: "Trials started", unit: "count", link: "https://analytics.example.test/trials-v2", howCounted: "Trials started per week." },
     });
     expect(history[1].createdAt.getTime()).toBeGreaterThanOrEqual(history[0].createdAt.getTime());
+  });
+
+  // #318, #288: a saved definition is read-only; a metric saved without one gets one once ("Add how it's counted").
+  it("refuses to replace or clear a saved definition, and changes nothing", async () => {
+    const id = await add();
+    const { editMetricDefinition } = await actions();
+    for (const howCounted of ["Trials started per day.", ""]) {
+      expect(await editMetricDefinition({ ...trialStarts, id, howCounted }, context())).toEqual({
+        error: "This metric’s definition is saved and can’t change. To measure something different, create a new metric.",
+        fields: { howCounted: "This metric’s definition is saved and can’t change. To measure something different, create a new metric." },
+      });
+    }
+    expect(await named("Trial starts")).toMatchObject({ id, howCounted: trialStarts.howCounted });
+    expect(await historyOf(id)).toHaveLength(1);
+  });
+
+  it("adds how it's counted to a metric saved without it, once", async () => {
+    const id = await add({ ...trialStarts, howCounted: "" });
+    const { editMetricDefinition } = await actions();
+    expect(await editMetricDefinition({ ...trialStarts, id, howCounted: "Number of times “Trial started” happens during the measurement period." }, context())).toEqual({ ok: true });
+    expect(await named("Trial starts")).toMatchObject({ id, howCounted: "Number of times “Trial started” happens during the measurement period." });
+    expect((await historyOf(id))[1]).toMatchObject({ kind: "edited", before: { howCounted: null }, after: { howCounted: "Number of times “Trial started” happens during the measurement period." } });
+    expect(await editMetricDefinition({ ...trialStarts, id, howCounted: "Something else." }, context())).toHaveProperty("fields.howCounted");
   });
 
   it("changes the unit of a definition no Request uses", async () => {
@@ -229,7 +252,7 @@ describe("Archiving and restoring a Metric definition", () => {
     await archiveMetricDefinition({ id }, context());
     expect(await archiveMetricDefinition({ id }, context())).toEqual({ ok: true });
     actAs("member");
-    expect(await editMetricDefinition({ ...trialStarts, id, howCounted: "Trials started per day." }, context())).toEqual({ ok: true });
+    expect(await editMetricDefinition({ ...trialStarts, id, name: "Trials started" }, context())).toEqual({ ok: true });
     actAs("admin");
     await restoreMetricDefinition({ id }, context());
     expect(await restoreMetricDefinition({ id }, context())).toEqual({ ok: true });

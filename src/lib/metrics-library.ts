@@ -467,6 +467,8 @@ const NOT_HERE = "That metric isn’t in this workspace.";
 /** Why a definition's unit can't change (#198). */
 export const UNIT_LOCKED = "The unit can’t change because a Request uses this metric. A metric in another unit needs a new definition.";
 const MERGED = "This metric was merged into another one, so it can’t be changed.";
+/** #318: a saved definition is read-only; a metric without one can be given one once. */
+export const DEFINITION_KEPT = "This metric’s definition is saved and can’t change. To measure something different, create a new metric.";
 
 /** The definition, locked for the rest of the transaction; refuses an id that isn't one of this workspace's. */
 async function lockedDefinition(tx: LibraryTx, orgId: string, id: string) {
@@ -487,6 +489,7 @@ export async function editMetricDefinition(workspace: MetricsWorkspace, authorId
   return change(input.name, async (tx) => {
     const current = await lockedDefinition(tx, workspace.orgId, id);
     if (current.mergedIntoId) throw new Refused(MERGED);
+    if (current.howCounted !== null && input.howCounted !== current.howCounted) throw new Refused(DEFINITION_KEPT, "howCounted");
     const before = snapshotOf(current);
     if (sameSnapshot(before, snapshotOf({ ...current, ...input }))) return { changed: false };
     if (input.unit !== current.unit && await definitionInUse(tx, workspace.orgId, id)) throw new Refused(UNIT_LOCKED, "unit");
