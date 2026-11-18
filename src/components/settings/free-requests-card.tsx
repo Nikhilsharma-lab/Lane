@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { Alert } from "@/components/arc/alert/alert";
-import { FREE_REQUESTS, freeRequestsBlock, freeRequestsSharedNote, freeRequestsUsedReason, type FreeRequests, type PlanState } from "@/lib/free-request-rules";
+import { afterFreeRequestsLine, FREE_REQUESTS, freeRequestsBlock, freeRequestsSharedNote, freeRequestsUsedReason, type FreeRequests, type PlanState } from "@/lib/free-request-rules";
 import { SettingsBlock, SettingsGroup, SettingsRow } from "./settings-group";
 import styles from "./settings.module.css";
 
@@ -29,7 +29,7 @@ export function FreeRequestsCard({ planState, free, enforced }: FreeRequestsCard
   const block = freeRequestsBlock(planState, free, { enforced });
   const note = block ?? (free.usedElsewhere ? freeRequestsSharedNote(free) ?? freeRequestsUsedReason(free) : null);
   return <SettingsGroup label="Free Requests" labelId="free-requests-title">
-    <SettingsRow label="Free Requests left" hint="After these, only creating Requests waits for payment." control={`${free.left} of ${FREE_REQUESTS}`} />
+    <SettingsRow label="Free Requests left" hint={afterFreeRequestsLine({ enforced })} control={`${free.left} of ${FREE_REQUESTS}`} />
     {note && <SettingsBlock><Alert role="status" tone={block ? "warning" : "info"} title={note} /></SettingsBlock>}
     <details className={styles.fold}>
       <summary><span>How Free Requests work</span><ChevronDown data-icon-size="sm" aria-hidden="true" /></summary>

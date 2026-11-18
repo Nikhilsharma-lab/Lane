@@ -3,7 +3,7 @@
  * (or taking on a Guest submission) is blocked with "an Admin needs to pay", but only while billing is enforced.
  */
 import { describe, expect, it } from "vitest";
-import { allowanceKeyOf, creationBlock, freeRequestsOf, freeRequestsSharedNote, type FreeRequestsState } from "./free-request-rules";
+import { afterFreeRequestsLine, allowanceKeyOf, creationBlock, freeRequestsOf, freeRequestsSharedNote, type FreeRequestsState } from "./free-request-rules";
 
 const held = { kind: "company_domain" as const, domain: "acme.com", usedElsewhere: 0 };
 /** The same allowance, with `used` of its 4 used by other workspaces (decision 2026-10-26: shared per company domain). */
@@ -34,6 +34,13 @@ describe("Free Requests left", () => {
 
   it("gives 4 while the allowance isn't decided yet, so nobody is blocked on Lane's own uncertainty", () => {
     expect(freeRequestsOf(state({ allowance: null }))).toMatchObject({ total: 4, left: 4, usedElsewhere: null });
+  });
+});
+
+describe("what waits for payment after the Free Requests (#287)", () => {
+  it("names taking on Guest submissions only while billing is enforced and Guests still file them", () => {
+    expect(afterFreeRequestsLine({ enforced: true })).toBe("After these, only creating Requests and taking on Guest submissions wait for payment.");
+    expect(afterFreeRequestsLine({ enforced: false })).toBe("After these, only creating Requests waits for payment.");
   });
 });
 

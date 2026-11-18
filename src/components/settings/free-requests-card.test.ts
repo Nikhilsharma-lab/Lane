@@ -40,6 +40,8 @@ describe("Free Requests card", () => {
     expect(html).toContain('role="status"');
     expect(text(html)).toContain("This workspace has used its 4 Free Requests. An Admin needs to pay for Lane");
         expect(text(render({ enforced: true }))).not.toContain("An Admin needs to pay");
+    // While Guests still file Requests (#316 ends it), taking theirs on waits for payment too.
+    expect(text(html)).toContain("Free Requests left After these, only creating Requests and taking on Guest submissions wait for payment. 0 of 4");
   });
 
   it("tells a second workspace from the same company domain that the Free Requests were already used", () => {
