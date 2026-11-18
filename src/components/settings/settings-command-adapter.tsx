@@ -35,6 +35,8 @@ export function opensSettingsSearch(event: { key: string; metaKey: boolean; ctrl
 
 export type SettingsCommandAdapterProps = {
   membership: string; workspaceName: string; workspaceId?: string; initialSection?: string; page?: "profile" | "members" | "metrics";
+  /** `billingEnforced()` on the server: search then finds Billing's seats, bills and paying too (#287). */
+  billingEnforced?: boolean;
   account?: ReactNode; role?: ReactNode; appearance?: ReactNode; security?: ReactNode; members?: ReactNode; workspaceManagement?: ReactNode;
   /** Rendered only by the Metrics page (/settings/metrics), which loads the library. */
   metrics?: ReactNode;
@@ -47,9 +49,9 @@ export type SettingsCommandAdapterProps = {
 };
 
 /** Arc SettingsCommand frame, section navigation and search composition; Lane supplies permission-filtered rows and immediate saves. */
-export function SettingsCommandAdapter({ membership, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
+export function SettingsCommandAdapter({ membership, billingEnforced = false, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
   const section = useSyncExternalStore(subscribe, snapshot, () => initialSection);
-  const entries = useMemo(() => settingsEntries(membership), [membership]);
+  const entries = useMemo(() => settingsEntries(membership, { billingEnforced }), [membership, billingEnforced]);
   const nav = useMemo(() => settingsNavigation(membership), [membership]);
   const requested = entries.find(entry => entry.id === section);
   const resolvedSection = requested?.soon ? "coming-soon" : section;

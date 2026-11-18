@@ -284,9 +284,6 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   update payment methods, see invoice history, switch between the yearly and monthly prices (same product), and
   cancel at the end of the billing period; and under subscription retries, cancel the subscription when all retries
   fail (an unpaid plan stays lapsed until the card is updated otherwise).
-  In Lane's copy: Billing's purpose line in `settings-catalog.ts` names only "The Lane plan and the Free Requests
-  left." while seats and invoices are hidden in the pilot (Build 8, Nikhil 2026-11-18); name seats, next bill and
-  invoices again when they show.
 
 - **Notification tabs (All/Mentions).** What: tabbed notification panel with separate unread counts
   per tab. Why: without @mentions there's only one category. Plane ref: `NOTIFICATION_TABS` constant,

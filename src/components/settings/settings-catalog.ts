@@ -5,7 +5,10 @@ import { canChangeThings, isWorkspacePermission, managesWorkspace, ROLE_NAMES, W
 /** `href` marks a section with a page of its own (it loads its own data); every other section shows on Profile's page. */
 /** `membersOnly` hides a section from Guests; `changersOnly` also from Viewers (#210), who manage no people and get no Needs-you items. */
 /** `nonAdminDescription` is what anyone but an Admin reads instead, where the Admin's words promise what only an Admin can do (#287). */
-export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOnly?: boolean; changersOnly?: boolean; href?: string; nonAdminDescription?: string };
+/** `whenBillingEnforced` is what search reads once billing is enforced: words for what the pilot hides, and the keywords they add. */
+export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOnly?: boolean; changersOnly?: boolean; href?: string; nonAdminDescription?: string; whenBillingEnforced?: { description: string; keywords: string[] } };
+/** The server's switches the catalog follows, passed down like the role; the catalog reads no environment itself. */
+export type SettingsSwitches = { billingEnforced?: boolean };
 export const settingsCatalog: SettingsEntry[] = [
   { id: "profile", section: "profile", group: "Personal", label: "Profile", description: "Your personal details and role.", keywords: ["account", "name", "email", "photo", "avatar"] },
   { id: "role", section: "profile", group: "Personal", label: "Role", description: "Your PM, Designer, or Developer label.", target: "role", keywords: ["designer", "developer", "pm"] },
@@ -27,18 +30,22 @@ export const settingsCatalog: SettingsEntry[] = [
   { id: "slack", section: "slack", group: "Workspace", label: "Slack", description: "Connect Slack so people here can choose Slack DM for items that need them.", adminOnly: true, keywords: ["slack", "slack dm", "direct message", "connect", "disconnect", "integrations", "inbox delivery"] },
   { id: "security", section: "security", group: "Workspace", label: "Security", description: "Additional workspace access policies.", soon: true, adminOnly: true },
   { id: "applications", section: "applications", group: "Workspace", label: "Applications", description: "Review applications connected to your workspace.", soon: true, adminOnly: true },
-  { id: "billing", section: "billing", group: "Workspace", label: "Billing", description: "The Lane plan and the Free Requests left.", adminOnly: true, keywords: ["free requests", "plan", "pay", "payment", "subscription", "pricing", "invoices", "card", "checkout", "yearly", "monthly", "founding discount", "enterprise", "seats", "next bill", "billing period", "update card", "cancel", "lapsed"] },
+  // #287: in the pilot, Billing shows the plan and Free Requests only, so search doesn't promise seats, bills or paying.
+  { id: "billing", section: "billing", group: "Workspace", label: "Billing", description: "The Lane plan and the Free Requests left.", adminOnly: true, keywords: ["free requests", "plan", "subscription", "pricing", "card", "yearly", "monthly", "founding discount", "enterprise"],
+    whenBillingEnforced: { description: "The Lane plan, seats, next bill, invoices and the Free Requests left.", keywords: ["pay", "payment", "invoices", "checkout", "seats", "next bill", "billing period", "update card", "cancel", "lapsed"] } },
   { id: "usage", section: "usage", group: "Workspace", label: "Usage & limits", description: "Workspace-level capacity and limits.", soon: true, adminOnly: true },
   { id: "import-export", section: "import-export", group: "Workspace", label: "Import & export", description: "Bring your data into Lane or take a copy with you.", soon: true, adminOnly: true },
   { id: "integrations", section: "integrations", group: "Integrations", label: "Integrations", description: "Workspace integrations are not available yet. No external tools are connected here.", soon: true, membersOnly: true },
   { id: "api", section: "api", group: "Connections", label: "API", description: "Developer access for future Lane integrations.", soon: true, adminOnly: true },
 ];
 
-export function availableSettings(role: string): SettingsEntry[] {
+export function availableSettings(role: string, { billingEnforced = false }: SettingsSwitches = {}): SettingsEntry[] {
   const known = isWorkspacePermission(role) ? role : null;
   const admin = !!known && managesWorkspace(known);
   return settingsCatalog.filter(entry => (!entry.adminOnly || admin) && (!entry.membersOnly || role !== "guest") && (!entry.changersOnly || (!!known && canChangeThings(known))))
-    .map(entry => !admin && entry.nonAdminDescription ? { ...entry, description: entry.nonAdminDescription } : entry);
+    .map(entry => !admin && entry.nonAdminDescription ? { ...entry, description: entry.nonAdminDescription } : entry)
+    .map(({ whenBillingEnforced, ...entry }) => billingEnforced && whenBillingEnforced
+      ? { ...entry, description: whenBillingEnforced.description, keywords: [...(entry.keywords ?? []), ...whenBillingEnforced.keywords] } : entry);
 }
 
 /**
@@ -78,7 +85,7 @@ export const futurePreferences = [
   ["Interface motion", "Set a personal motion preference. Lane already respects reduced motion on your device."],
 ] as const;
 
-export function settingsEntries(role: string): SettingsEntry[] {
+export function settingsEntries(role: string, switches: SettingsSwitches = {}): SettingsEntry[] {
   const planned: SettingsEntry[] = [
     ...futurePreferences.map(([label, description], i) => ({ id: `preference-${i}`, section: "preferences", group: "Preferences", label, description, soon: true })),
     ...[
@@ -91,7 +98,7 @@ export function settingsEntries(role: string): SettingsEntry[] {
       { id: "member-onboarding", section: "workspace", group: "Workspace", label: "Member onboarding", description: "A welcome message and starting points for teammates.", soon: true },
     ]),
   ];
-  return [...availableSettings(role), ...planned].map(entry => entry.soon ? { ...entry, section: "coming-soon", target: `future-${entry.id}` } : entry);
+  return [...availableSettings(role, switches), ...planned].map(entry => entry.soon ? { ...entry, section: "coming-soon", target: `future-${entry.id}` } : entry);
 }
 
 export function settingsNavigation(role: string): SettingsEntry[] {

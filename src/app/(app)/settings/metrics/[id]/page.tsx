@@ -11,6 +11,7 @@ import { DefinitionUsesList } from "@/components/metrics/definition-uses";
 import { MetricDefinitionHistory } from "@/components/metrics/metric-definition-history";
 import { SettingsBlock, SettingsGroup, SettingsRow } from "@/components/settings/settings-group";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
+import { billingEnforced } from "@/lib/feature-switches";
 import { loadDefinitionUses } from "@/lib/data/impact";
 import { readMetricPage } from "@/lib/data/metric-page";
 import { getWorkspace } from "@/lib/ensure-workspace";
@@ -96,7 +97,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
     </SettingsGroup>
   </>;
 
-  return <SettingsCommandAdapter page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
+  return <SettingsCommandAdapter billingEnforced={billingEnforced()} page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
     metrics={panel}
     members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}

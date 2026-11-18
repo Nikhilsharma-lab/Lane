@@ -39,6 +39,22 @@ describe("Settings → Billing (#213)", () => {
     for (const query of ["billing", "free requests", "plan"]) expect(searchSettings(settingsEntries("admin"), query)[0].def.id).toBe("billing");
     expect(searchSettings(settingsEntries("member"), "free requests")).toEqual([]);
   });
+
+  // #287: in the pilot Billing shows the plan and Free Requests, so search names only those and finds nothing it hides.
+  const PILOT_HIDDEN = ["seats", "next bill", "invoices", "billing period", "update card", "cancel", "lapsed", "checkout", "pay", "payment"];
+  it("names only the plan and Free Requests while billing isn't enforced, and isn't found by what the pilot hides", () => {
+    for (const entries of [settingsEntries("admin"), settingsEntries("admin", { billingEnforced: false })]) {
+      expect(entries.find(entry => entry.id === "billing")?.description).toBe("The Lane plan and the Free Requests left.");
+      for (const query of PILOT_HIDDEN) expect(searchSettings(entries, query).map(result => result.def.id), query).not.toContain("billing");
+    }
+  });
+
+  it("names seats, the next bill and invoices once billing is enforced, and is found by them", () => {
+    const entries = settingsEntries("admin", { billingEnforced: true });
+    expect(entries.find(entry => entry.id === "billing")?.description).toBe("The Lane plan, seats, next bill, invoices and the Free Requests left.");
+    for (const query of [...PILOT_HIDDEN, "free requests", "plan"]) expect(searchSettings(entries, query).map(result => result.def.id), query).toContain("billing");
+    expect(searchSettings(settingsEntries("member", { billingEnforced: true }), "invoices")).toEqual([]);
+  });
 });
 
 describe("Settings → Metrics (#196)", () => {
