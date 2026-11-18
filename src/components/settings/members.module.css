@@ -7,6 +7,8 @@
 .you { color: var(--text-muted); font-weight: var(--weight-normal); }
 .membersStatus { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .membersStatus:empty { display: none; }
+/* D26: wide enough that an ordinary work address shows whole (the phone panel takes the screen's width). */
+.inviteDialog.inviteDialog { width: min(calc(100vw - var(--space-8)), calc(var(--space-1) * 140)); }
 .inviteForm { display: grid; gap: var(--space-4); min-width: 0; }
 .inviteForm > * { min-width: 0; }
 .inviteNotes { display: grid; gap: var(--space-2); }

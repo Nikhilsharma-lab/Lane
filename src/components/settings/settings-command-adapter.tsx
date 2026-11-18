@@ -92,7 +92,8 @@ export function SettingsCommandAdapter({ membership, workspaceName, workspaceId,
       node.removeAttribute("data-landed");
       void node.offsetWidth;
       node.setAttribute("data-landed", "");
-      node.addEventListener("animationend", () => node.removeAttribute("data-landed"), { once: true });
+      // With reduced motion the wash doesn't fade (Lane cuts every animation to nothing); it stays until focus leaves.
+      node.addEventListener(reduce ? "focusout" : "animationend", () => node.removeAttribute("data-landed"), { once: true });
       // Drawn only while the row itself has focus (a row with nothing inside to focus).
       node.toggleAttribute("data-landed-keyboard", keyboard);
     }

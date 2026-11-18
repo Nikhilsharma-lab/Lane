@@ -213,7 +213,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
     <RoleGuide offered={roles} />
 
     {canManage && <Dialog open={inviteOpen} dismissible={busy !== "invite"} onOpenChange={setInviteOpen}>
-      <DialogContent title="Invite people" description="Clerk emails them an invitation to this workspace.">
+      <DialogContent className={members.inviteDialog} title="Invite people" description="Clerk emails them an invitation to this workspace.">
         <InvitePeopleForm email={email} role={inviteRole} roles={roles} confirmPaidSeats={confirmPaidSeats} busy={busy === "invite"} fieldError={fieldError} error={inviteError} emailRef={emailRef}
           onEmail={value => { setEmail(value); setFieldError(null); }} onRole={setInviteRole} onSubmit={invite} />
       </DialogContent>
