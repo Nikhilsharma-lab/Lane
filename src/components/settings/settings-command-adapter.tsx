@@ -53,7 +53,7 @@ export type SettingsCommandAdapterProps = {
 export function SettingsCommandAdapter({ membership, billingEnforced = false, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
   const section = useSyncExternalStore(subscribe, snapshot, () => initialSection);
   const entries = useMemo(() => settingsEntries(membership, { billingEnforced }), [membership, billingEnforced]);
-  const nav = useMemo(() => settingsNavigation(membership), [membership]);
+  const nav = useMemo(() => settingsNavigation(membership, { billingEnforced }), [membership, billingEnforced]);
   const requested = entries.find(entry => entry.id === section);
   const resolvedSection = requested?.soon ? "coming-soon" : section;
   const selected = nav.find(e => e.id === resolvedSection) ?? nav[0];

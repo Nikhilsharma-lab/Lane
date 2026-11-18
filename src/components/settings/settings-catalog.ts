@@ -101,8 +101,9 @@ export function settingsEntries(role: string, switches: SettingsSwitches = {}): 
   return [...availableSettings(role, switches), ...planned].map(entry => entry.soon ? { ...entry, section: "coming-soon", target: `future-${entry.id}` } : entry);
 }
 
-export function settingsNavigation(role: string): SettingsEntry[] {
-  return [...availableSettings(role).filter(entry => !entry.soon && entry.id === entry.section),
+/** The sections in the sidebar, each with the purpose line its heading shows (Billing's follows `billingEnforced`). */
+export function settingsNavigation(role: string, switches: SettingsSwitches = {}): SettingsEntry[] {
+  return [...availableSettings(role, switches).filter(entry => !entry.soon && entry.id === entry.section),
     { id: "coming-soon", section: "coming-soon", group: "More", label: "Coming soon", description: "Planned settings, together in one place. These options aren’t available yet." }];
 }
 

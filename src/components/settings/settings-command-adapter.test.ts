@@ -139,6 +139,12 @@ describe("Settings headings over row groups (#287)", () => {
     expect(head("admin")).toBe("Members Manage workspace members and invitations.");
   });
 
+  it("heads Billing with the pilot's purpose line, and names seats, the next bill and invoices once billing is enforced", () => {
+    const head = (billingEnforced: boolean) => text(/<section id="settings-billing"[^>]*><header[^>]*>([\s\S]*?)<\/header>/.exec(renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "admin", billingEnforced, workspaceName: "Lane Studio", initialSection: "billing" })))?.[1] ?? "");
+    expect(head(false)).toBe("Billing The Lane plan and the Free Requests left.");
+    expect(head(true)).toBe("Billing The Lane plan, seats, next bill, invoices and the Free Requests left.");
+  });
+
   it("marks each planned setting with a quiet Coming soon tag, not a disabled button (D24)", () => {
     const open = visible(renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "admin", workspaceName: "Lane Studio", initialSection: "coming-soon" })));
     expect(open).not.toMatch(/<button[^>]*disabled/);
