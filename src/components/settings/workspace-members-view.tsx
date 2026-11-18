@@ -54,6 +54,7 @@ export type WorkspaceMembersViewProps = {
 };
 
 const FAILED = "Couldn’t reach Lane. Try again.";
+const OWN_ROLE = "Your own role can’t be changed here. Ask another Admin to change it.";
 const roleName = (role: WorkspacePermission | null) => role ? ROLE_NAMES[role] : "Another role";
 /** The roles an Admin can give, as the role picker and the invite's Role choice list them. */
 const roleOptions = (roles: WorkspacePermission[]) => roles.map(role => ({ value: role, label: ROLE_NAMES[role], description: ROLE_DESCRIPTIONS[role] }));
@@ -177,13 +178,17 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
           const label = `Role for ${person.name}`;
           // A role that can't be given right now (a Guest while the switch is off) still shows as the current value.
           const options = [...offered, ...(person.role && !roles.includes(person.role) ? [{ value: person.role, label: ROLE_NAMES[person.role], disabled: true }] : [])];
+          // An Admin's own role shows greyed, and its row says why (#325: no one changes their own role).
+          const ownNote = canManage && self ? `own-role-${person.userId}` : undefined;
           return <SettingsRow as="li" key={person.userId} leading={<Avatar name={person.name} src={person.imageUrl} size="sm" unoptimized />}
             label={<>{person.name}{self && <span className={members.you}> (you)</span>}</>} hint={person.email}
-            control={canManage && !self && person.role
-              ? <Select label={label} value={person.role} options={options} disabled={busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
+            control={canManage && person.role
+              ? <Select label={label} value={person.role} options={options} disabled={self || busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
                   onValueChange={next => { if (next !== person.role && isWorkspacePermission(next)) changeRole(person, next); }}
-                  trigger={<Button type="button" variant="secondary" size="sm" loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
+                  trigger={<Button type="button" variant="secondary" size="sm" disabled={self} loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`}
+                    aria-describedby={ownNote} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
               : <Badge>{roleName(person.role)}</Badge>}>
+            {ownNote && <p id={ownNote} className={styles.note}>{OWN_ROLE}</p>}
             {failure(person.userId)}
           </SettingsRow>;
         })}
@@ -210,7 +215,6 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
 
     <p role="status" className={members.membersStatus}>{status}</p>
     {manage}
-    {canManage && <p className={styles.note}>Your own role can’t be changed here. Ask another Admin to change it.</p>}
     <RoleGuide offered={roles} />
 
     {canManage && <Dialog open={inviteOpen} dismissible={busy !== "invite"} onOpenChange={setInviteOpen}>

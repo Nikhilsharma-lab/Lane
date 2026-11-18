@@ -35,11 +35,22 @@ describe("Settings → Members (#210, #288)", () => {
     for (const person of people) expect(html).toContain(person.name)
     expect(html).toContain("Role for Morgan Member")
     expect(html).toContain("Role for Vic Leader")
-    expect(html).not.toContain("Role for Avery Admin")
     expect(html).toMatch(/Avery Admin[\s\S]*\(you\)/)
     // The group is named "People"; the count beside it is for the eye only.
     expect(html).toMatch(/<section[^>]*aria-labelledby="people-heading"[^>]*><header[^>]*><h3><span id="people-heading">People<\/span> <span[^>]*aria-hidden="true">3<\/span>/)
-    expect(text(html)).toContain("Your own role can’t be changed here.")
+  })
+
+  it("greys an Admin's own role and says why on that row only, tied to the role (#325)", () => {
+    const html = render()
+    const own = /<button[^>]*aria-label="Role for Avery Admin: Admin"[^>]*>/.exec(html)?.[0] ?? ""
+    expect(own).toMatch(/\bdisabled=""/)
+    const noteId = /aria-describedby="([^"]+)"/.exec(own)?.[1]
+    expect(noteId).toBeTruthy()
+    expect(html).toMatch(new RegExp(`<p id="${noteId}"[^>]*>Your own role can’t be changed here\\. Ask another Admin to change it\\.</p>`))
+    expect(html.match(/Your own role can’t be changed here/g)).toHaveLength(1)
+    expect(html).not.toMatch(/<button[^>]*aria-label="Role for Morgan Member[^"]*"[^>]*disabled/)
+    // The note sits in the Admin's own row, before the next person's.
+    expect(html.indexOf(noteId!)).toBeLessThan(html.indexOf("Role for Morgan Member"))
   })
 
   it("stacks Pending invitations under People, each with Revoke", () => {
