@@ -204,11 +204,17 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await page.setViewportSize({ width: 1440, height: 1000 });
     });
 
-    await test.step("Metrics: Add metric has Cancel", async () => {
+    await test.step("Metrics: Add metric has Cancel on both steps, Back on the second, and ends on Add metric", async () => {
       await page.goto("/settings/metrics");
       const add = page.getByRole("button", { name: "Add metric" });
       await add.click();
       const dialog = page.getByRole("dialog", { name: "Create metric" });
+      await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Back" })).toHaveCount(0);
+      await dialog.getByRole("radio", { name: /How many in total/ }).check();
+      await dialog.getByRole("button", { name: "Continue" }).click();
+      await expect(dialog.getByRole("button", { name: "Back" })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Add metric" })).toBeVisible();
       await dialog.getByRole("button", { name: "Cancel" }).click();
       await expect(dialog).toBeHidden();
       await expect(add).toBeFocused();

@@ -9,8 +9,10 @@ import { blankGuide, buildMetricDefinition, guideKinds, type GuideField } from '
 import type { MetricDefinitionValues, MetricFormResult } from './metric-definition-form';
 import styles from './metric-definition-form.module.css';
 
-export function GuidedMetricForm({initialName = '', onSubmit, onSaved, onCancel, onPendingChange}: {
+export function GuidedMetricForm({initialName = '', submitLabel = 'Add metric', onSubmit, onSaved, onCancel, onPendingChange}: {
   initialName?: string;
+  /** Step 2's primary action: "Add metric", as the button that opens the guide says. */
+  submitLabel?: string;
   onSubmit: (values: MetricDefinitionValues) => Promise<MetricFormResult>;
   onSaved?: () => void;
   onCancel: () => void;
@@ -54,6 +56,11 @@ export function GuidedMetricForm({initialName = '', onSubmit, onSaved, onCancel,
       <p className={styles.note}>No numbers needed yet. Save what you want to measure, then enter your measured values on a Request. Lane does not track these events for you.</p>
     </div>
     {error&&<p className={styles.error} role="alert">{error}</p>}
-    <div className={styles.actions}><Button type="button" variant="secondary" disabled={pending} onClick={step===1?onCancel:()=>{setStep(1);setError('');focus('kind');}}> {step===1?'Cancel':'Back'} </Button><Button type="submit" loading={pending}>{step===1?'Continue':'Create metric'}</Button></div>
+    {/* #288 (story 34): Cancel (secondary) on every step beside the step's primary; Back on step 2 at the start, quieter. */}
+    <div className={styles.actions}>
+      {step===2&&<Button type="button" variant="ghost" className={styles.back} disabled={pending} onClick={()=>{setStep(1);setError('');focus('kind');}}>Back</Button>}
+      <Button type="button" variant="secondary" disabled={pending} onClick={onCancel}>Cancel</Button>
+      <Button type="submit" loading={pending}>{step===1?'Continue':submitLabel}</Button>
+    </div>
   </form>;
 }
