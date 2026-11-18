@@ -50,5 +50,5 @@ test("an unknown email on Forgot password leaves Send usable, with the error on 
   await expect(email).toHaveAccessibleDescription(/Couldn.t find your account\./);
   await expect(send).toBeEnabled();
   await expect(send).toHaveText("Send reset code");
-  await expect(page.getByText(/Send code in \d+s/)).toHaveCount(0);
+  await expect(page.getByText(/Send reset code in \d+s/)).toHaveCount(0);
 });

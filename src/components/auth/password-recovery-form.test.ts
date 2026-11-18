@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { withoutHidden } from "@/test/exposed-markup";
 import { createPasswordRecoveryFlow } from "./password-recovery-flow";
 import { PasswordRecoveryForm } from "./password-recovery-form";
 import { PasswordRecoveryView, type PasswordRecoveryViewProps } from "./password-recovery-view";
@@ -13,6 +14,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("./password-recovery-flow", () => ({ createPasswordRecoveryFlow: vi.fn() }));
 
 const actual = await vi.importActual<typeof import("./password-recovery-flow")>("./password-recovery-flow");
+/** The words in the markup; with `withoutHidden`, the words assistive technology reads. */
+const words = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 const provider = {
   create: async () => ({ status: "needs_first_factor", createdSessionId: null }),
   attemptFirstFactor: async () => ({ status: "complete", createdSessionId: "fixture" }),
@@ -42,9 +45,10 @@ describe("password recovery screen states", () => {
     expect(html).toContain('autoComplete="one-time-code"');
     expect(html).toContain('autoComplete="new-password"');
     expect(html).toContain("Save new password");
-    expect(html).toContain("Resend code in 30s");
-    // D12 (#290): the seconds are on screen only; the button's name stays the action.
-    expect(html).toContain('<span aria-hidden="true">Resend code in 30s</span><span class="sr-only">Resend code</span>');
+    expect(words(html)).toContain("Resend code in 30s");
+    // D12 (#290): the seconds are on screen only; the button's name stays the action, which the waiting words start with.
+    expect(words(withoutHidden(html))).toContain(" Resend code ");
+    expect(words(withoutHidden(html))).not.toContain("in 30s");
     expect(html).toContain("Change email");
     expect(html).not.toContain('type="email"');
   });
@@ -109,9 +113,17 @@ describe("password recovery field errors", () => {
   });
 
   it("announces the end of the resend wait once, and nothing while it counts", () => {
-    const status = (html: string) => html.match(/<p role="status" class="sr-only">(.*?)<\/p>/)?.[1];
-    expect(status(view({ step: "code", coolingDown: true, resendIn: 12 }))).toBe("");
-    expect(status(view({ step: "code", coolingDown: true, resendIn: 0 }))).toBe("You can send a new code now.");
-    expect(status(view({ step: "request", coolingDown: false, resendIn: 0 }))).toBe("");
+    // Every status message on the screen, as it is read out.
+    const statuses = (html: string) => [...withoutHidden(html).matchAll(/<[^>]*\brole="status"[^>]*>(.*?)<\//g)].map(([, text]) => text);
+    expect(statuses(view({ step: "code", coolingDown: true, resendIn: 12 }))).toEqual([""]);
+    expect(statuses(view({ step: "code", coolingDown: true, resendIn: 0 }))).toEqual(["You can send a new code now."]);
+    expect(statuses(view({ step: "request", coolingDown: false, resendIn: 0 }))).toEqual([""]);
+  });
+
+  it("starts the waiting words with the action's name, and reads only the name", () => {
+    const html = view({ step: "request", coolingDown: true, resendIn: 30 });
+    expect(words(html)).toContain("Send reset code in 30s");
+    expect(words(withoutHidden(html))).toContain(" Send reset code ");
+    expect(words(withoutHidden(html))).not.toContain("in 30s");
   });
 });

@@ -7,10 +7,13 @@ import { Alert } from "@/components/arc/alert/alert";
 import styles from "./auth.module.css";
 import type { RecoveryFieldErrors } from "./password-recovery-flow";
 
-/** D12 (#290): the seconds change on screen only. The button's name stays the action, unavailable until the wait ends. */
-function Countdown({ action, waiting, seconds }: { action: string; waiting: string; seconds: number }) {
+/**
+ * D12 (#290): the seconds change on screen only. The button's name stays the action, unavailable until the wait ends,
+ * and the words on screen start with that name (WCAG 2.5.3), so saying what's shown still finds the button.
+ */
+function Countdown({ action, seconds }: { action: string; seconds: number }) {
   if (seconds === 0) return action;
-  return <><span aria-hidden="true">{`${waiting} in ${seconds}s`}</span><span className="sr-only">{action}</span></>;
+  return <><span aria-hidden="true">{`${action} in ${seconds}s`}</span><span className="sr-only">{action}</span></>;
 }
 
 export type PasswordRecoveryViewProps = {
@@ -119,7 +122,7 @@ export function PasswordRecoveryView({ step, email, code, password, error, field
           loading={pending}
         >
           {step === "request"
-            ? <Countdown action="Send reset code" waiting="Send code" seconds={resendIn} />
+            ? <Countdown action="Send reset code" seconds={resendIn} />
             : step === "code"
               ? "Save new password"
               : step === "continue"
@@ -137,7 +140,7 @@ export function PasswordRecoveryView({ step, email, code, password, error, field
               aria-disabled={pending || resendIn > 0 || undefined}
               onClick={() => { if (!pending && resendIn === 0) void performAction(true); }}
             >
-              <Countdown action="Resend code" waiting="Resend code" seconds={resendIn} />
+              <Countdown action="Resend code" seconds={resendIn} />
             </AuthAction>
             <AuthAction
               type="button"
