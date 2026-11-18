@@ -51,6 +51,7 @@ const ALLOWED: (keyof typeof KNOWN_EXCEPTIONS)[] = [
   "wide-gamut destructive text",
   "pre-Geist fallback font",
   "retired destructive-foreground meaning",
+  "sign-in without a subtitle",
 ];
 
 async function settle(page: Page, mode: Mode) {

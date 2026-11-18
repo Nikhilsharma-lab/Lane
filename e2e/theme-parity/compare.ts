@@ -29,7 +29,7 @@ function oklch(l: number, c: number, h: number): Colour {
   return [l, c * Math.cos(radians), c * Math.sin(radians), 1];
 }
 
-type Difference = { key: string; mode: Mode; expected: string; actual: string };
+type Difference = { page: string; key: string; mode: Mode; expected: string; actual: string };
 
 /**
  * The only differences the theme switch may make (spec #87, Further Notes).
@@ -50,6 +50,10 @@ export const KNOWN_EXCEPTIONS: Record<string, (d: Difference) => boolean> = {
     const actual = split(d.actual);
     return actual.shape === "<colour>" && distance(actual.colours[0], oklch(0.99, 0.0112, 25)) <= 0.003;
   },
+  // #289 (Build 8): sign-in has no subtitle, so its first visible paragraph is now Clerk's "or" divider, the same
+  // size and colour with Clerk's own line height. Only that one value on sign-in may differ.
+  "sign-in without a subtitle": (d) =>
+    d.page === "sign-in" && d.key === "paragraph line-height" && d.expected === "20px" && d.actual === "19.3846px",
   // Before Geist loads, the stack falls back to plain sans-serif instead of
   // next/font's size-matched "Geist Fallback". Geist itself must still lead.
   "pre-Geist fallback font": (d) => {
@@ -128,7 +132,7 @@ export function compareThemes(
           continue;
         }
         if (samePaint(e, a)) continue;
-        const difference = { key, mode, expected: e, actual: a };
+        const difference = { page: pageName, key, mode, expected: e, actual: a };
         const exception = allowed.find((name) => KNOWN_EXCEPTIONS[name](difference));
         if (exception) excused.push(`${where} (${exception})`);
         else failures.push(`${where}: expected ${e}, got ${a}`);
