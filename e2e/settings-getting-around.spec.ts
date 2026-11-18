@@ -54,6 +54,25 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await expect(searchDialog(page)).toBeHidden();
     });
 
+    await test.step("D20: / pressed before Settings' code has run still opens search once it has", async () => {
+      // Hold the page's code back, so the key is pressed while the page is only its HTML.
+      const held = async (route: import("@playwright/test").Route) => { await new Promise(resolve => setTimeout(resolve, 3_000)); await route.continue(); };
+      await page.route("**/_next/static/chunks/**", held);
+      try {
+        await page.goto("/settings/profile", { waitUntil: "domcontentloaded" });
+        const trigger = page.getByRole("button", { name: /Search settings/ });
+        await expect(trigger).toBeVisible();
+        expect(await trigger.evaluate(node => Object.keys(node).some(key => key.startsWith("__reactFiber"))), "React hasn't taken over yet").toBe(false);
+        await page.keyboard.press("/");
+      } finally {
+        await page.unroute("**/_next/static/chunks/**", held);
+      }
+      await expect(searchDialog(page)).toBeVisible({ timeout: 30_000 });
+      await expect(searchDialog(page).getByRole("combobox")).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(searchDialog(page)).toBeHidden();
+    });
+
     await test.step("D21: a search jump marks the row it lands on; Google lands on Manage account", async () => {
       await settled(page);
       for (const [query, target] of [["dark mode", "theme"], ["Google", "manage-account"]] as const) {

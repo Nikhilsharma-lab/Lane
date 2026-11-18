@@ -3,6 +3,7 @@ import { ArrowLeft, Search } from "lucide-react";
 import { KeyCap } from "@/components/keyboard/key-caps";
 import { Placeholder } from "@/components/loading/placeholder";
 import { settingsCatalog, settingsNavigation } from "./settings-catalog";
+import { SettingsEarlySearch } from "./settings-early-search";
 import { SettingsLoadingSection } from "./settings-loading-section";
 import styles from "./settings.module.css";
 import loading from "./settings-loading.module.css";
@@ -42,5 +43,6 @@ export function SettingsLoading({ section, label }: { section: string; label: st
     <div className={styles.content}><div className={styles.page}>
       <SettingsLoadingSection section={section} label={label} titles={TITLES} planned={PLANNED} shapes={SHAPES} classes={CLASSES} />
     </div></div>
+    <SettingsEarlySearch />
   </div>;
 }

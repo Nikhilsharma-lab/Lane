@@ -18,6 +18,7 @@ import { ROLE_NAMES } from "@/lib/role-rules";
 import styles from "./settings.module.css";
 import { KeyCap } from "@/components/keyboard/key-caps";
 import { isTypingTarget, overlayOpen } from "@/lib/keyboard-guards";
+import { takeEarlySearch } from "./settings-early-search-flag";
 
 function subscribe(listener: () => void) {
   window.addEventListener("popstate", listener);
@@ -134,7 +135,10 @@ export function SettingsCommandAdapter({ membership, billingEnforced = false, wo
     event.preventDefault();
     openPalette();
   });
+  // "/" pressed before this code ran (settings-early-search.tsx) opens search now.
+  const early = useEffectEvent(() => { if (takeEarlySearch()) { fromKeyboard.current = true; openPalette(); } });
   useEffect(() => {
+    early();
     const keydown = (event: KeyboardEvent) => { fromKeyboard.current = true; shortcut(event); };
     const pointerdown = () => { fromKeyboard.current = false; };
     window.addEventListener("keydown", keydown);
