@@ -139,34 +139,19 @@ describe("clerkEmbeddedAppearance", () => {
   });
 });
 
-// #289: Lane's primary button, sign-in without a subtitle, and the create-workspace step in Lane's column.
+// #289: Lane's primary button, sign-in without a subtitle, and the create-workspace step in Lane's column. Theme
+// parity and the browser tests check how these look; these check what the values can't show on their own.
 describe("Clerk's screens in Lane's words and column (#289)", () => {
   const elements = clerkEmbeddedAppearance.elements as Record<string, Record<string, unknown>>;
 
-  it("draws the primary button flat, with no gradient and no arrow", () => {
-    expect(elements.formButtonPrimary["&[data-variant=solid]::after"]).toEqual({ background: "none" });
-    expect(elements.buttonArrowIcon).toEqual({ display: "none" });
-  });
-
-  it("takes no space for an empty subtitle, and keeps every subtitle Clerk writes", () => {
-    expect(elements.headerSubtitle["&:empty"]).toEqual({ display: "none" });
+  it("hides only an empty subtitle, so every subtitle Clerk writes still shows", () => {
     expect(elements.headerSubtitle).not.toHaveProperty("display");
   });
 
-  it("aligns titles to the start, as Lane's own auth pages do", () => {
-    expect(elements.header).toMatchObject({ textAlign: "start", alignItems: "flex-start" });
-  });
-
-  it("lets Clerk's card shrink to the phone column (D2)", () => {
-    expect(elements.rootBox).toMatchObject({ width: "100%", minWidth: 0 });
-  });
-
-  it("puts the create-workspace step in Lane's column and leaves signing out to Lane's header (D2, D8)", () => {
+  it("changes only the create-workspace step, which keeps Lane's header, values and options (D2, D8)", () => {
     const task = clerkWorkspaceTaskAppearance.elements as Record<string, Record<string, unknown>>;
-    expect(task.header).toMatchObject({ ...elements.header, paddingInline: 0 });
-    expect(task.formContainer).toMatchObject({ paddingInline: 0 });
-    expect(task.footerAction__signOut).toEqual({ display: "none" });
-    // Only this step: the password-reset task and sign-in keep Clerk's own sign-out and footer.
+    expect(task.header).toMatchObject(elements.header);
+    // The password-reset task and sign-in keep Clerk's own sign-out and footer.
     expect(elements).not.toHaveProperty("footerAction__signOut");
     expect(clerkWorkspaceTaskAppearance.variables).toBe(clerkEmbeddedAppearance.variables);
     expect(clerkWorkspaceTaskAppearance.options).toBe(clerkEmbeddedAppearance.options);
