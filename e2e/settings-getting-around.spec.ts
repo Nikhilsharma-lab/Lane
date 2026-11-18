@@ -263,7 +263,7 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await page.goto("/settings/metrics");
       const add = page.getByRole("button", { name: "Add metric" });
       await add.click();
-      const dialog = page.getByRole("dialog", { name: "Create metric" });
+      const dialog = page.getByRole("dialog", { name: "Add metric" });
       await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
       await expect(dialog.getByRole("button", { name: "Back" })).toHaveCount(0);
       await dialog.getByText("How many in total?", { exact: true }).click();

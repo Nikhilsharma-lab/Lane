@@ -33,7 +33,7 @@ export function AddMetricDialog({ orgId }: { orgId: string }) {
   return <>
     <Dialog guardTypedText dismissible={!pending} open={open} onOpenChange={next => { if (pending) return; setOpen(next); if (next) setAdded(""); }}>
       <DialogTrigger asChild><Button><Plus data-icon-size="sm" aria-hidden="true" />Add metric</Button></DialogTrigger>
-      <DialogContent className={styles.createDialog} title="Create metric" description="Define it once so your team can reuse it on Requests.">
+      <DialogContent className={styles.createDialog} title="Add metric" description="Define it once so your team can reuse it on Requests.">
         <GuidedMetricForm onPendingChange={setPending} onCancel={() => setOpen(false)}
           onSubmit={async values => {
             const result = await callAction(() => addMetricDefinition(values, { orgId }));

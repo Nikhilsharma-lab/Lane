@@ -40,14 +40,14 @@ async function expectOnlyTheMenu(page: Page, role: "menu" | "listbox") {
 }
 
 test.describe("#281 menus outside the Request page (B37)", () => {
-  test("a Select inside the Create metric popup: open, nothing behind takes Tab; closed, the popup is usable again", async ({ page }) => {
+  test("a Select inside the Add metric popup: open, nothing behind takes Tab; closed, the popup is usable again", async ({ page }) => {
     test.setTimeout(240_000);
     await page.setViewportSize({ width: 1440, height: 900 });
     await withWorkspace(page, "select-in-popup", async () => {
       await page.goto("/settings/metrics");
       await behaviourReady(page);
       await page.getByRole("button", { name: "Add metric", exact: true }).click();
-      const create = page.getByRole("dialog", { name: "Create metric", exact: true });
+      const create = page.getByRole("dialog", { name: "Add metric", exact: true });
       await create.getByText("How long does it take?", { exact: true }).click();
       await create.getByRole("button", { name: "Continue", exact: true }).click();
       const name = create.getByRole("textbox", { name: "Name this metric" });
