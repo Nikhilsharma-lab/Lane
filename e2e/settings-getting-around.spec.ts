@@ -58,11 +58,46 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
         await page.keyboard.press("/");
         await expect(searchDialog(page)).toBeVisible();
         await page.keyboard.type(query);
+        // The wash lasts a moment (it fades by 1.6 s), so it is watched on every frame from the jump on, for 3 s
+        // after the row shows: its background as focus arrives, its neighbour's, its own once the wash is over,
+        // and whether the focused control (or the row itself) paints the keyboard ring.
+        await page.evaluate(id => {
+          const seen = { done: false, focusInside: false, ring: false, washed: "", neighbour: null as string | null, rest: "" };
+          (window as unknown as { landing: typeof seen }).landing = seen;
+          let shown = 0;
+          const frame = (now: number) => {
+            const node = document.getElementById(id);
+            if (node?.checkVisibility()) {
+              shown ||= now;
+              const background = getComputedStyle(node).backgroundColor;
+              const focused = document.activeElement;
+              if (focused && node.contains(focused)) {
+                if (!seen.focusInside) seen.washed = background;
+                seen.focusInside = true;
+                const style = getComputedStyle(focused);
+                // A row with nothing to focus inside draws its ring as an inset shadow; a control, as Arc's outline.
+                if (focused === node ? style.boxShadow.includes("inset") : style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0) seen.ring = true;
+              }
+              const sibling = node.previousElementSibling ?? node.nextElementSibling;
+              seen.neighbour = sibling && getComputedStyle(sibling).backgroundColor;
+              seen.rest = background;
+            }
+            if (shown && now - shown > 3000) seen.done = true;
+            else requestAnimationFrame(frame);
+          };
+          requestAnimationFrame(frame);
+        }, target);
         await page.keyboard.press("Enter");
-        const row = page.locator(`#${target}`);
-        await expect(row).toHaveAttribute("data-landed", "");
-        await expect(row).toHaveAttribute("data-landed-keyboard", "");
-        await expect.poll(() => row.evaluate(node => node.contains(document.activeElement))).toBe(true);
+        await page.waitForFunction(() => (window as unknown as { landing: { done: boolean } }).landing.done, undefined, { timeout: 15_000 });
+        const seen = await page.evaluate(() => (window as unknown as { landing: { focusInside: boolean; ring: boolean; washed: string; neighbour: string | null; rest: string } }).landing);
+        expect(seen.focusInside, `focus lands inside #${target}`).toBe(true);
+        expect(seen.ring, `the keyboard ring shows in #${target}`).toBe(true);
+        // Washed as it lands: unlike its neighbour (Theme's row has none in its group) and unlike itself afterwards.
+        expect(seen.washed, `#${target} is washed as it lands`).not.toBe(seen.rest);
+        if (seen.neighbour !== null) {
+          expect(seen.washed).not.toBe(seen.neighbour);
+          expect(seen.rest, `#${target} looks like its neighbour once the wash is over`).toBe(seen.neighbour);
+        }
       }
     });
 
@@ -183,7 +218,7 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await page.getByRole("link", { name: "Conversion rate", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Conversion rate", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Archive metric" }).click();
-      const message = page.locator("[data-toast-stack]");
+      const message = page.getByRole("region", { name: /^Messages/ });
       await expect(message.getByText("Metric archived")).toBeVisible();
       await expect(page.getByRole("button", { name: "Restore metric" })).toBeVisible();
       await message.getByRole("button", { name: "Undo" }).click();
