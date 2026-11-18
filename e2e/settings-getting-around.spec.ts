@@ -55,19 +55,24 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
     });
 
     await test.step("D20: / pressed before Settings' code has run still opens search once it has", async () => {
-      // Hold the page's code back, so the key is pressed while the page is only its HTML.
-      const held = async (route: import("@playwright/test").Route) => { await new Promise(resolve => setTimeout(resolve, 3_000)); await route.continue(); };
-      await page.route("**/_next/static/chunks/**", held);
+      // Hold the page's code (not its styles, which inline scripts wait for) until the key is pressed, so the page
+      // is only its HTML and styles when it is. A request the page drops meanwhile can't be continued, and needn't be.
+      let release = () => {};
+      const pressed = new Promise<void>(resolve => { release = resolve; });
+      const held = async (route: import("@playwright/test").Route) => { await pressed; await route.continue().catch(() => undefined); };
+      await page.route("**/_next/static/chunks/*.js", held);
       try {
         await page.goto("/settings/profile", { waitUntil: "domcontentloaded" });
-        const trigger = page.getByRole("button", { name: /Search settings/ });
+        const trigger = page.getByRole("button", { name: /Search settings/ }).first();
         await expect(trigger).toBeVisible();
         expect(await trigger.evaluate(node => Object.keys(node).some(key => key.startsWith("__reactFiber"))), "React hasn't taken over yet").toBe(false);
         await page.keyboard.press("/");
+        release();
+        await expect(searchDialog(page)).toBeVisible({ timeout: 30_000 });
       } finally {
-        await page.unroute("**/_next/static/chunks/**", held);
+        release();
+        await page.unroute("**/_next/static/chunks/*.js", held);
       }
-      await expect(searchDialog(page)).toBeVisible({ timeout: 30_000 });
       await expect(searchDialog(page).getByRole("combobox")).toBeFocused();
       await page.keyboard.press("Escape");
       await expect(searchDialog(page)).toBeHidden();
@@ -232,7 +237,7 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       const dialog = page.getByRole("dialog", { name: "Add how it’s counted" });
       // Asked only what measures in its unit (a count).
       await expect(dialog.getByRole("radio")).toHaveCount(1);
-      await dialog.getByRole("radio", { name: /How many in total/ }).check();
+      await dialog.getByText("How many in total?", { exact: true }).click();
       await dialog.getByRole("button", { name: "Continue" }).click();
       await expect(dialog.getByRole("textbox", { name: "Name this metric" })).toHaveValue("Trials started");
       await dialog.getByRole("textbox", { name: "What happens for the count to go up by one?" }).fill("A trial is started");
@@ -246,11 +251,12 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await expect(item.getByRole("link", { name: "Trials started", exact: true })).toBeFocused();
       // On its page the definition is read-only: shown, with nothing to add and its unit fixed.
       await item.getByRole("link", { name: "Trials started", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "Trials started", exact: true })).toBeVisible();
-      await expect(page.getByText("Saved definition", { exact: true })).toBeVisible();
-      await expect(page.getByText(counted)).toBeVisible();
-      await expect(page.getByRole("button", { name: /Add how it’s counted/ })).toHaveCount(0);
-      await expect(page.getByRole("combobox", { name: "Unit" })).toHaveCount(0);
+      const metric = page.getByRole("region", { name: "Trials started", exact: true });
+      await expect(metric.getByText("Saved definition", { exact: true })).toBeVisible();
+      await expect(metric.getByText(counted)).toBeVisible();
+      await expect(metric.getByRole("button", { name: /Add how it’s counted/ })).toHaveCount(0);
+      await expect(metric.getByRole("combobox", { name: "Unit" })).toHaveCount(0);
+      await expect(metric.getByRole("textbox", { name: "Name" })).toBeEditable();
     });
 
     await test.step("Metrics: Add metric has Cancel on both steps, Back on the second, and ends on Add metric", async () => {
@@ -260,7 +266,7 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       const dialog = page.getByRole("dialog", { name: "Create metric" });
       await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
       await expect(dialog.getByRole("button", { name: "Back" })).toHaveCount(0);
-      await dialog.getByRole("radio", { name: /How many in total/ }).check();
+      await dialog.getByText("How many in total?", { exact: true }).click();
       await dialog.getByRole("button", { name: "Continue" }).click();
       await expect(dialog.getByRole("button", { name: "Back" })).toBeVisible();
       await expect(dialog.getByRole("button", { name: "Add metric" })).toBeVisible();
