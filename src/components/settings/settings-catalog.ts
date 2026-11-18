@@ -1,6 +1,6 @@
 /* Search ranking adapted from licensed Arc Pro Settings Command, for Lane only. */
 import type { SettingDefinition, Result } from "@/components/arc/blocks/settings-command/settings-command";
-import { ROLE_NAMES } from "@/lib/role-rules";
+import { canChangeThings, isWorkspacePermission, managesWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "@/lib/role-rules";
 
 /** `href` marks a section with a page of its own (it loads its own data); every other section shows on Profile's page. */
 /** `membersOnly` hides a section from Guests; `changersOnly` also from Viewers (#210), who manage no people and get no Needs-you items. */
@@ -35,11 +35,11 @@ export const settingsCatalog: SettingsEntry[] = [
 ];
 
 export function availableSettings(role: string): SettingsEntry[] {
-  return settingsCatalog.filter(entry => (!entry.adminOnly || role === "admin") && (!entry.membersOnly || role !== "guest") && (!entry.changersOnly || role === "admin" || role === "member"))
-    .map(entry => role !== "admin" && entry.nonAdminDescription ? { ...entry, description: entry.nonAdminDescription } : entry);
+  const known = isWorkspacePermission(role) ? role : null;
+  const admin = !!known && managesWorkspace(known);
+  return settingsCatalog.filter(entry => (!entry.adminOnly || admin) && (!entry.membersOnly || role !== "guest") && (!entry.changersOnly || (!!known && canChangeThings(known))))
+    .map(entry => !admin && entry.nonAdminDescription ? { ...entry, description: entry.nonAdminDescription } : entry);
 }
-
-const ROLES = ["admin", "member", "viewer", "guest"] as const;
 
 /**
  * #288 (D30): the quiet line when the section someone asked for (from the address or a shared link) exists but their
@@ -49,7 +49,7 @@ const ROLES = ["admin", "member", "viewer", "guest"] as const;
 export function sectionNotForRole(section: string | null | undefined, role: string): string | null {
   const entry = settingsCatalog.find(item => item.id === section && item.section === section && !item.soon);
   if (!entry || availableSettings(role).some(item => item.id === entry.id)) return null;
-  const who = ROLES.filter(each => availableSettings(each).some(item => item.id === entry.id)).map(each => `${ROLE_NAMES[each]}s`);
+  const who = WORKSPACE_ROLES.filter(each => availableSettings(each).some(item => item.id === entry.id)).map(each => `${ROLE_NAMES[each]}s`);
   if (!who.length) return null;
   return `${entry.label} is for ${who.length > 1 ? `${who.slice(0, -1).join(", ")} and ${who.at(-1)}` : who[0]} of this workspace.`;
 }

@@ -1,14 +1,14 @@
 import * as z from "zod"
 import type { WorkspacePermission } from "./auth-guard"
 import { emailAddressProblem } from "./email-address-rules"
-import { canChangeThings, canContribute, canCreateRequests, readsWholeWorkspace, ROLE_NAMES } from "./role-rules"
+import { canChangeThings, canContribute, canCreateRequests, managesWorkspace, readsWholeWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "./role-rules"
 
 /**
  * Settings → Members (#210), safe in the browser: the roles an Admin can give, what each one means, and the
  * shapes the invite and role actions accept. Clerk stores every membership and invitation; Lane only asks it.
  */
 
-export const WORKSPACE_ROLES = ["admin", "member", "guest", "viewer"] as const satisfies readonly WorkspacePermission[]
+export { WORKSPACE_ROLES }
 
 /** Admin and Member always; Guest and Viewer only while the custom roles switch is on (Clerk Enhanced B2B). */
 export function rolesOffered(customRolesOn: boolean): WorkspacePermission[] {
@@ -90,7 +90,7 @@ export const ROLE_GUIDE: { label: string; answer: (role: WorkspacePermission) =>
   { label: "Comment on Requests", answer: role => !canContribute(role) ? "No" : readsWholeWorkspace(role) ? "All" : "Their own" },
   { label: "Pick up work", answer: role => yesNo(canChangeThings(role)) },
   { label: "See Members", answer: role => yesNo(canChangeThings(role)) },
-  { label: "Invite people and change roles", answer: role => yesNo(role === "admin") },
+  { label: "Invite people and change roles", answer: role => yesNo(managesWorkspace(role)) },
 ]
 
 const roleSchema = z.enum(WORKSPACE_ROLES, { error: "Choose Admin, Member, Guest or Viewer." })
