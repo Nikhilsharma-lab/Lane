@@ -3,6 +3,12 @@
 import { useRef, type RefObject } from "react";
 
 /**
+ * How long a pointer pick waits for the list to hand focus back. The hand-back follows the list's exit animation,
+ * well under a second; after this the listener goes, so a later, unrelated focus of the trigger keeps its ring.
+ */
+const HAND_BACK_WAIT_MS = 1000;
+
+/**
  * #288 (D35): after a pick with the pointer, a select's trigger gets focus back without the keyboard ring (Arc: no ring
  * on pointer focus). A pick from the keyboard keeps the shared ring. Pass the select's trigger, give `keyboard` to
  * its list's onKeyDown, and call `settle` when a value is picked.
@@ -24,7 +30,7 @@ export function usePointerPickFocus(trigger: RefObject<HTMLButtonElement | null>
         node.focus({ preventScroll: true, focusVisible: false } as FocusOptions);
       });
       node.addEventListener("focus", unring, { once: true });
-      setTimeout(() => node.removeEventListener("focus", unring), 1000);
+      setTimeout(() => node.removeEventListener("focus", unring), HAND_BACK_WAIT_MS);
     },
   };
 }

@@ -18,6 +18,8 @@
 .link { color: var(--foreground); font-weight: var(--weight-medium); text-decoration: none; border-radius: var(--radius-control); }
 .link:focus-visible { text-decoration: underline; }
 @media (hover: hover) and (pointer: fine) { .link:hover { text-decoration: underline; } }
+/* A link inside an alert's text (onboarding's role error), underlined like running text. */
+.alertLink { color: var(--foreground); font-weight: var(--weight-medium); text-decoration: underline; text-underline-offset: var(--space-1); border-radius: var(--radius-control); }
 /* A button that reads as the header's text links (onboarding's Sign out). */
 .textButton { padding: 0; border: 0; background: none; font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
 .textButton[aria-disabled] { cursor: default; }

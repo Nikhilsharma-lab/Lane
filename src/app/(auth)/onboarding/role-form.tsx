@@ -107,7 +107,7 @@ export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
         <form ref={formRef} onSubmit={submit} className="grid gap-6" noValidate>
           <RoleSelection value={role} disabled={busy} invalid={Boolean(error)} onValueChange={(value) => { setRole(value); setError(null); }} />
           {error && <Alert tone="danger" title={error.message}>
-            {error.link && <Link href={error.link.href} className="font-medium text-foreground underline underline-offset-4">{error.link.label}</Link>}
+            {error.link && <Link href={error.link.href} className={styles.alertLink}>{error.link.label}</Link>}
           </Alert>}
           <AuthAction type="submit" loading={busy}>Continue</AuthAction>
           {/* D10: the rows show 1, 2 and 3 as key caps; fine pointers get this line naming them, phones neither. */}
