@@ -1,3 +1,5 @@
+import { emailAddressProblem } from "@/lib/email-address-rules";
+
 type RecoveryResult = { status: string | null; createdSessionId: string | null };
 type RecoverySignIn = {
   create: (params: { strategy: "reset_password_email_code"; identifier: string }) => Promise<RecoveryResult>;
@@ -9,24 +11,19 @@ type RecoveryNavigation = {
 };
 type ActivateSession = (params: { session: string; navigate: (context: RecoveryNavigation) => Promise<void> }) => Promise<void>;
 
-type RecoveryStep = "request" | "code" | "activate" | "continue";
+export type RecoveryStep = "request" | "code" | "activate" | "continue";
 
 const RESEND_COOLDOWN_MS = 30_000;
 
 export type RecoveryField = "email" | "code" | "password";
 export type RecoveryFieldErrors = Partial<Record<RecoveryField, string>>;
 
-// The browser's own rule for type="email" (HTML's valid e-mail address), so the
-// inline message accepts and refuses what its tooltip did.
-const EMAIL = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-
 /** D11 (#290): the step's empty and bad-format fields, said on the field instead of in the browser's tooltip. */
 export function recoveryInputErrors(step: RecoveryStep, values: { email: string; code: string; password: string }): RecoveryFieldErrors {
   const errors: RecoveryFieldErrors = {};
   if (step === "request") {
-    const email = values.email.trim();
-    if (!email) errors.email = "Enter an email address.";
-    else if (!EMAIL.test(email)) errors.email = "Enter a valid email address.";
+    const problem = emailAddressProblem(values.email);
+    if (problem) errors.email = problem;
   }
   if (step === "code") {
     if (!values.code.trim()) errors.code = "Enter the reset code.";

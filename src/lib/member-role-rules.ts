@@ -1,5 +1,6 @@
 import * as z from "zod"
 import type { WorkspacePermission } from "./auth-guard"
+import { emailAddressProblem } from "./email-address-rules"
 import { canChangeThings, canContribute, canCreateRequests, readsWholeWorkspace, ROLE_NAMES } from "./role-rules"
 
 /**
@@ -53,15 +54,10 @@ export function paidSeatSummary(change: PaidSeatChange): string {
 }
 
 /** #288 (D27): the invite field's two mistakes get two messages, in the browser and on the server alike. */
-export const EMAIL_MISSING = "Enter an email address."
-export const EMAIL_INVALID = "Enter a valid email address."
-const inviteEmailSchema = z.string().trim().toLowerCase().min(1, EMAIL_MISSING).pipe(z.email({ error: EMAIL_INVALID }).max(320, EMAIL_INVALID))
-
-/** What's wrong with an invite address, or null when it can be sent. */
-export function inviteEmailProblem(value: string): string | null {
-  const parsed = inviteEmailSchema.safeParse(value)
-  return parsed.success ? null : parsed.error.issues[0]?.message ?? EMAIL_INVALID
-}
+const inviteEmailSchema = z.string().trim().toLowerCase().superRefine((email, context) => {
+  const problem = emailAddressProblem(email)
+  if (problem) context.addIssue({ code: "custom", message: problem })
+})
 
 const PAID_ROLES = WORKSPACE_ROLES.filter(isPaidSeat)
 const FREE_ROLES = WORKSPACE_ROLES.filter(role => !isPaidSeat(role))

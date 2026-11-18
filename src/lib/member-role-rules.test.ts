@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { addsPaidSeat, inviteEmailProblem, inviteSeatNote, paidSeatSummary, ROLE_GUIDE, unavailableRolesNote } from "./member-role-rules"
+import { addsPaidSeat, inviteInputSchema, inviteSeatNote, paidSeatSummary, ROLE_GUIDE, unavailableRolesNote } from "./member-role-rules"
 
 /** #215: which role changes add a paid seat, and what the Admin is asked to confirm. */
 describe("Paid seats", () => {
@@ -28,12 +28,14 @@ describe("Paid seats", () => {
 
 /** #288 (D27, D28): the invite's messages and notes, shared by the browser and the server. */
 describe("Inviting", () => {
-  it("tells an empty address from a wrong one", () => {
-    expect(inviteEmailProblem("")).toBe("Enter an email address.")
-    expect(inviteEmailProblem("   ")).toBe("Enter an email address.")
-    expect(inviteEmailProblem("not-an-email")).toBe("Enter a valid email address.")
-    expect(inviteEmailProblem(`${"a".repeat(320)}@example.test`)).toBe("Enter a valid email address.")
-    expect(inviteEmailProblem("  New.Person@Example.test ")).toBeNull()
+  it("refuses an address on the server as the field does, and sends it trimmed and lower-case", () => {
+    const issue = (email: string) => {
+      const parsed = inviteInputSchema.safeParse({ email, role: "member" })
+      return parsed.success ? null : { path: parsed.error.issues[0]?.path, message: parsed.error.issues[0]?.message }
+    }
+    expect(issue("   ")).toEqual({ path: ["email"], message: "Enter an email address." })
+    expect(issue("not-an-email")).toEqual({ path: ["email"], message: "Enter a valid email address." })
+    expect(inviteInputSchema.parse({ email: "  New.Person@Example.test ", role: "member" }).email).toBe("new.person@example.test")
   })
 
   it("calls Guests and Viewers free only while they can be given", () => {

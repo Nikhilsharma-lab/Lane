@@ -12,10 +12,11 @@ import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { SearchField } from "@/components/arc/search-field/search-field";
 import { Select } from "@/components/arc/select/select";
 import { callAction } from "@/lib/action-call";
+import { emailAddressProblem } from "@/lib/email-address-rules";
 import { thrownMessage, TRY_AGAIN } from "@/lib/failure-messages";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 import {
-  addsPaidSeat, EMAIL_INVALID, EMAIL_MISSING, inviteEmailProblem, inviteSeatNote, ROLE_DESCRIPTIONS, unavailableRolesNote,
+  addsPaidSeat, inviteSeatNote, ROLE_DESCRIPTIONS, unavailableRolesNote,
   type PaidSeatChange, type PendingInvitation, type WorkspaceMember,
 } from "@/lib/member-role-rules";
 import { ROLE_NAMES } from "@/lib/role-rules";
@@ -29,7 +30,8 @@ import { Placeholder } from "@/components/loading/placeholder";
 // If it can't load, Lane says so and nobody is added.
 const seatDialogCode = popupCode(() => import("./paid-seat-dialog"));
 
-type Answer = { success?: true; error?: string };
+/** `field: "email"`: the refusal is about the invite's address, so it belongs on the field. */
+type Answer = { success?: true; error?: string; field?: "email" };
 
 export type WorkspaceMembersViewProps = {
   people: WorkspaceMember[];
@@ -61,7 +63,7 @@ const matches = (person: WorkspaceMember, needle: string) => !needle || `${perso
 async function attempt(run: () => Promise<Answer>): Promise<Answer> {
   try {
     const answer = await callAction(run);
-    return answer.success ? answer : { error: answer.error || FAILED };
+    return answer.success ? answer : { error: answer.error || FAILED, field: answer.field };
   } catch (thrown) {
     return { error: thrownMessage(thrown, FAILED) };
   }
@@ -126,8 +128,8 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
       setStatus(`Invitation sent to ${address} as ${withArticle(role)}.`);
       return;
     }
-    // The address's own problems (a duplicate names it) belong on the field; anything else is about the sending.
-    if (answer.error === EMAIL_MISSING || answer.error === EMAIL_INVALID || answer.error.startsWith(address)) {
+    // The address's own problems (its format, or a duplicate) belong on the field; anything else is about the sending.
+    if (answer.field === "email") {
       setFieldError(answer.error);
       emailRef.current?.focus();
     } else setInviteError(answer.error);
@@ -137,7 +139,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
     event.preventDefault();
     if (busy) return;
     setInviteError(null);
-    const problem = inviteEmailProblem(email);
+    const problem = emailAddressProblem(email);
     if (problem) { setFieldError(problem); emailRef.current?.focus(); return; }
     const address = email.trim().toLowerCase();
     const role = inviteRole;
