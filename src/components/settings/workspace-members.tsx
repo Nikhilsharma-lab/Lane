@@ -7,7 +7,7 @@ import type { WorkspacePermission } from "@/lib/auth-guard";
 import { clerkWorkspacePermission } from "@/lib/role-rules";
 import type { PendingInvitation, WorkspaceMember } from "@/lib/member-role-rules";
 import { WorkspaceMembersView } from "./workspace-members-view";
-import { ClerkMembersProfile } from "@/components/auth/clerk-members-remove";
+import { ClerkMembersRemove } from "@/components/auth/clerk-members-remove";
 
 const PAGE = { infinite: true, pageSize: 100, keepPreviousData: true } as const;
 
@@ -39,7 +39,7 @@ export function WorkspaceMembers({ orgId, selfId, canManage, roles, confirmPaidS
 
   const after = <T extends { success?: true; error?: string }>(answer: T) => { if (answer.success) reload(); return answer; };
 
-  return <WorkspaceMembersView people={people} invitations={pending} selfId={selfId} canManage={canManage} roles={roles} manage={canManage ? <ClerkMembersProfile /> : undefined}
+  return <WorkspaceMembersView people={people} invitations={pending} selfId={selfId} canManage={canManage} roles={roles} manage={canManage ? <ClerkMembersRemove /> : undefined}
     state={failed ? "error" : loading ? "loading" : "ready"} onRetry={reload} confirmPaidSeats={confirmPaidSeats}
     onInvite={async (email, role, confirmedPaidSeat) => after(await inviteToWorkspace({ email, role, confirmedPaidSeat }, { orgId }))}
     onChangeRole={async (userId, role, confirmedPaidSeat) => after(await changeMemberRole({ userId, role, confirmedPaidSeat }, { orgId }))}

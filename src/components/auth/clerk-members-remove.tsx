@@ -5,9 +5,9 @@ import { Button } from "@/components/arc/button/button";
 import { clerkOrganizationAppearance } from "./clerk-appearance";
 import { SettingsGroup, SettingsRow } from "@/components/settings/settings-group";
 
-/** #288: its own module, so it loads with the Members section rather than with every Settings page. Clerk retains the membership list, invitations and all authorization. Lane's own Members cards invite people
- * and change roles (#210); removing someone from the workspace stays in Clerk's members page, for Admins. */
-export function ClerkMembersProfile() {
+/** #288: its own module, so it loads with the Members section rather than with every Settings page. Clerk retains the membership list, invitations and all authorization. Lane's Members section invites people
+ * and changes roles (#210); removing someone from the workspace stays in Clerk's members page, for Admins. */
+export function ClerkMembersRemove() {
   const clerk = useClerk();
   const { isLoaded, organization } = useOrganization();
   return <SettingsGroup>
