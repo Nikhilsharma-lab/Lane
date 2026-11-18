@@ -1,4 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { Alert } from "@/components/arc/alert/alert";
+import { Button } from "@/components/arc/button/button";
+import { TRY_AGAIN } from "@/lib/failure-messages";
 import styles from "./settings.module.css";
 
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ");
@@ -62,4 +65,12 @@ export function SettingsRowList({ label, children }: { label: string; children: 
 /** Content under the rows: alerts, forms, lists and longer text, padded like a row. */
 export function SettingsBlock({ children, className, ...props }: { children: ReactNode } & HTMLAttributes<HTMLDivElement>) {
   return <div {...props} className={cx(styles.groupBlock, className)}>{children}</div>;
+}
+
+/** A row's failed change, under its hint: what went wrong (`children` for more), and Try again, which sends it once more. */
+export function SettingsRowFailure({ title, children, onRetry }: { title: string; children?: ReactNode; onRetry: () => void }) {
+  return <div className={styles.rowFailure}>
+    <Alert role="alert" tone="danger" title={title}>{children}</Alert>
+    <Button variant="secondary" size="sm" onClick={onRetry}>{TRY_AGAIN}</Button>
+  </div>;
 }

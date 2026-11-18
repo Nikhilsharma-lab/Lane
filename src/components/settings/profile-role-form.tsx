@@ -2,14 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { Alert } from "@/components/arc/alert/alert";
 import { Button } from "@/components/arc/button/button";
 import { Select } from "@/components/arc/select/select";
 import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
-import { TRY_AGAIN } from "@/lib/failure-messages";
 import { usePointerPickFocus } from "./pointer-pick-focus";
-import { SettingsRow } from "./settings-group";
-import styles from "./settings.module.css";
+import { SettingsRow, SettingsRowFailure } from "./settings-group";
 
 export type ProductRole = "pm" | "designer" | "developer";
 type SaveRole = (role: ProductRole) => Promise<{ error?: string; success?: boolean }>;
@@ -107,9 +104,7 @@ export function ProfileRoleForm({ initialRole, onSave }: { initialRole: ProductR
     control={<Select label="Role" value={role} options={options} onContentKeyDown={pick.keyboard}
       onValueChange={value => { pick.settle(); if (isRole(value)) choose(value); }}
       trigger={<Button ref={trigger} type="button" variant="secondary" size="sm">{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />}>
-    {failed && <div className={styles.rowFailure}>
-      <Alert role="alert" tone="danger" title={`Couldn’t save ${roleLabel(failed.role)} as your role`}>{failed.message}</Alert>
-      <Button variant="secondary" size="sm" onClick={() => { choose(failed.role); trigger.current?.focus({ preventScroll: true }); }}>{TRY_AGAIN}</Button>
-    </div>}
+    {failed && <SettingsRowFailure title={`Couldn’t save ${roleLabel(failed.role)} as your role`}
+      onRetry={() => { choose(failed.role); trigger.current?.focus({ preventScroll: true }); }}>{failed.message}</SettingsRowFailure>}
   </SettingsRow>;
 }

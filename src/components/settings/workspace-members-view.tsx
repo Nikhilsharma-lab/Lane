@@ -19,9 +19,9 @@ import {
   addsPaidSeat, inviteSeatNote, ROLE_DESCRIPTIONS, unavailableRolesNote,
   type PaidSeatChange, type PendingInvitation, type WorkspaceMember,
 } from "@/lib/member-role-rules";
-import { ROLE_NAMES } from "@/lib/role-rules";
+import { isWorkspacePermission, ROLE_NAMES } from "@/lib/role-rules";
 import { RoleGuide } from "./role-guide";
-import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowList } from "./settings-group";
+import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowFailure, SettingsRowList } from "./settings-group";
 import styles from "./settings.module.css";
 import members from "./members.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
@@ -55,6 +55,8 @@ export type WorkspaceMembersViewProps = {
 
 const FAILED = "Couldn’t reach Lane. Try again.";
 const roleName = (role: WorkspacePermission | null) => role ? ROLE_NAMES[role] : "Another role";
+/** The roles an Admin can give, as the role picker and the invite's Role choice list them. */
+const roleOptions = (roles: WorkspacePermission[]) => roles.map(role => ({ value: role, label: ROLE_NAMES[role], description: ROLE_DESCRIPTIONS[role] }));
 const withArticle = (role: WorkspacePermission) => `${role === "admin" ? "an" : "a"} ${ROLE_NAMES[role]}`;
 /** The accepted prototype's matching (#325): a person's shown name or address contains what was typed. */
 const matches = (person: WorkspaceMember, needle: string) => !needle || `${person.name} ${person.email}`.toLowerCase().includes(needle);
@@ -152,11 +154,8 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
     });
   }
 
-  const failure = (id: string) => rowError?.id === id && <div className={styles.rowFailure}>
-    <Alert role="alert" tone="danger" title={rowError.message} />
-    <Button variant="secondary" size="sm" onClick={rowError.retry}>{TRY_AGAIN}</Button>
-  </div>;
-  const roleOptions = roles.map(role => ({ value: role, label: ROLE_NAMES[role], description: ROLE_DESCRIPTIONS[role] }));
+  const failure = (id: string) => rowError?.id === id && <SettingsRowFailure title={rowError.message} onRetry={rowError.retry} />;
+  const offered = roleOptions(roles);
   const needle = query.trim().toLowerCase();
   const shown = people.filter(person => matches(person, needle));
   // The count sits beside the group's name, outside what names the group.
@@ -177,12 +176,12 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
           const self = person.userId === selfId;
           const label = `Role for ${person.name}`;
           // A role that can't be given right now (a Guest while the switch is off) still shows as the current value.
-          const options = [...roleOptions, ...(person.role && !roles.includes(person.role) ? [{ value: person.role, label: ROLE_NAMES[person.role], disabled: true }] : [])];
+          const options = [...offered, ...(person.role && !roles.includes(person.role) ? [{ value: person.role, label: ROLE_NAMES[person.role], disabled: true }] : [])];
           return <SettingsRow as="li" key={person.userId} leading={<Avatar name={person.name} src={person.imageUrl} size="sm" unoptimized />}
             label={<>{person.name}{self && <span className={members.you}> (you)</span>}</>} hint={person.email}
             control={canManage && !self && person.role
               ? <Select label={label} value={person.role} options={options} disabled={busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
-                  onValueChange={next => { if (next !== person.role) changeRole(person, next as WorkspacePermission); }}
+                  onValueChange={next => { if (next !== person.role && isWorkspacePermission(next)) changeRole(person, next); }}
                   trigger={<Button type="button" variant="secondary" size="sm" loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
               : <Badge>{roleName(person.role)}</Badge>}>
             {failure(person.userId)}
@@ -239,8 +238,8 @@ export function InvitePeopleForm({ email, role, roles, confirmPaidSeats, busy, f
   return <form className={members.inviteForm} onSubmit={onSubmit} noValidate aria-label="Invite people" aria-busy={busy || undefined}>
     <Input ref={emailRef} label="Email address" type="email" name="email" autoComplete="off" spellCheck={false} value={email} readOnly={busy} error={fieldError ?? undefined}
       onChange={event => onEmail(event.target.value)} />
-    <RadioGroup label="Role" name="invite-role" value={role} onValueChange={value => onRole(value as WorkspacePermission)}
-      options={roles.map(value => ({ value, label: ROLE_NAMES[value], description: ROLE_DESCRIPTIONS[value] }))} />
+    <RadioGroup label="Role" name="invite-role" value={role} onValueChange={value => { if (isWorkspacePermission(value)) onRole(value); }}
+      options={roleOptions(roles)} />
     <div className={members.inviteNotes}>
       <p>{inviteSeatNote(roles)}{confirmPaidSeats ? " You’ll confirm each paid seat before it’s added." : ""}</p>
       {unavailable && <p>{unavailable}</p>}
