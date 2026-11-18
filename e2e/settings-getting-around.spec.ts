@@ -43,6 +43,8 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       });
       await page.goto("/settings/profile", { waitUntil: "load" });
       await expect.poll(() => page.evaluate(() => (window as unknown as { firstIdle?: boolean }).firstIdle === true)).toBe(true);
+      // And React has taken over the page (a shortcut listens from then on; before it, no key does anything).
+      await expect.poll(() => page.getByRole("button", { name: /Search settings/ }).evaluate(node => Object.keys(node).some(key => key.startsWith("__reactFiber")))).toBe(true);
       expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
       await page.keyboard.press("/");
       await expect(searchDialog(page)).toBeVisible();
@@ -130,11 +132,12 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       const field = dialog.getByLabel("Email address");
       await expect(field).toBeFocused();
       await dialog.getByRole("button", { name: "Send invitation" }).click();
-      await expect(dialog.getByText("Enter an email address.")).toBeVisible();
+      // The message is the field's own (D26): it describes the field, which is marked invalid.
+      await expect(field).toHaveAccessibleDescription(/Enter an email address\./);
       await expect(field).toHaveAttribute("aria-invalid", "true");
       await field.fill("not-an-email");
       await dialog.getByRole("button", { name: "Send invitation" }).click();
-      await expect(dialog.getByText("Enter a valid email address.")).toBeVisible();
+      await expect(field).toHaveAccessibleDescription(/Enter a valid email address\./);
       await expect(dialog).not.toContainText("Guests and Viewers are free.");
       await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
       await page.keyboard.press("Escape");
@@ -150,11 +153,12 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
 
     await test.step("Members: search, and the role guide scrolls inside its own region on a phone", async () => {
       const people = page.getByRole("list", { name: "People in this workspace" });
-      await page.getByRole("searchbox", { name: "Search people" }).fill("lane e2e member");
+      // People are listed as Clerk knows them; an address is unique to the Member.
+      await page.getByRole("searchbox", { name: "Search people" }).fill(member!.email.slice(0, 24).toUpperCase());
       await expect(people.getByRole("listitem")).toHaveCount(1);
       await page.getByRole("searchbox", { name: "Search people" }).fill("nobody-like-this");
       await expect(page.getByText("No one matches “nobody-like-this”.")).toBeVisible();
-      await page.getByRole("button", { name: "Clear search" }).click();
+      await page.getByRole("button", { name: "Show everyone" }).click();
       await expect(people.getByRole("listitem")).toHaveCount(2);
       await page.setViewportSize({ width: 390, height: 844 });
       await page.getByText("What each role can do", { exact: true }).click();

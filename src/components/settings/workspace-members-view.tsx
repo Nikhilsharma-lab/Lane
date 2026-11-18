@@ -157,6 +157,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
   const roleOptions = roles.map(role => ({ value: role, label: ROLE_NAMES[role], description: ROLE_DESCRIPTIONS[role] }));
   const needle = query.trim().toLowerCase();
   const shown = people.filter(person => matches(person, needle));
+  // The count sits beside the group's name, outside what names the group.
   const count = (n: number) => <>{" "}<span className={members.groupCount} aria-hidden="true">{n}</span></>;
 
   return <>
@@ -165,7 +166,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
       {canManage && <Button type="button" disabled={state !== "ready"} onClick={() => { setInviteError(null); setInviteOpen(true); }}>Invite people</Button>}
     </div>
 
-    <SettingsGroup label={<>People{state === "ready" && count(shown.length)}</>} labelId="people-heading"
+    <SettingsGroup label={<><span id="people-heading">People</span>{state === "ready" && count(shown.length)}</>} aria-labelledby="people-heading"
       description={canManage ? "Everyone in this workspace. Change someone’s role to change what they can do." : "Everyone in this workspace and their role. Only Admins invite people or change roles."}>
       {state === "loading" && <SettingsBlock><Placeholder label="Loading people…" lines={3} avatar /></SettingsBlock>}
       {state === "error" && <SettingsBlock><Alert role="alert" tone="danger" title="People couldn’t be loaded" /><Button variant="secondary" size="sm" onClick={onRetry}>{TRY_AGAIN}</Button></SettingsBlock>}
@@ -187,12 +188,12 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
         })}
       </SettingsRowList> : <SettingsBlock>
         <p>{needle ? `No one matches “${query.trim()}”.` : "No one is in this workspace yet."}</p>
-        {needle && <Button variant="secondary" size="sm" onClick={() => { setQuery(""); searchRef.current?.focus(); }}>Clear search</Button>}
+        {needle && <Button variant="secondary" size="sm" onClick={() => { setQuery(""); searchRef.current?.focus(); }}>Show everyone</Button>}
       </SettingsBlock>)}
     </SettingsGroup>
 
     {/* While the lists can't be loaded, People says so and offers Try again; there are no invitations to show. */}
-    {canManage && state !== "error" && <SettingsGroup label={<>Pending invitations{state === "ready" && count(invitations.length)}</>} labelId="invitations-heading">
+    {canManage && state !== "error" && <SettingsGroup label={<><span id="invitations-heading">Pending invitations</span>{state === "ready" && count(invitations.length)}</>} aria-labelledby="invitations-heading">
       {state === "ready" && (invitations.length
         ? <SettingsRowList label="Pending invitations">
             {invitations.map(invitation => <SettingsRow as="li" key={invitation.id} leading={<Avatar name={invitation.email} size="sm" />} label={invitation.email}

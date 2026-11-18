@@ -37,6 +37,8 @@ describe("Settings → Members (#210, #288)", () => {
     expect(html).toContain("Role for Vic Leader")
     expect(html).not.toContain("Role for Avery Admin")
     expect(html).toMatch(/Avery Admin[\s\S]*\(you\)/)
+    // The group is named "People"; the count beside it is for the eye only.
+    expect(html).toMatch(/<section[^>]*aria-labelledby="people-heading"[^>]*><header[^>]*><h3><span id="people-heading">People<\/span> <span[^>]*aria-hidden="true">3<\/span>/)
     expect(text(html)).toContain("Your own role can’t be changed here.")
   })
 
