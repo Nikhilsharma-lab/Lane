@@ -5,7 +5,7 @@ import { AuthInputField, AuthPasswordField } from "./auth-field";
 import { AuthFormCard } from "./auth-form-card";
 import { Alert } from "@/components/arc/alert/alert";
 import styles from "./auth.module.css";
-import type { RecoveryFieldErrors } from "./password-recovery-flow";
+import type { RecoveryFieldErrors, RecoveryStep } from "./password-recovery-flow";
 
 /**
  * D12 (#290): the seconds change on screen only. The button's name stays the action, unavailable until the wait ends,
@@ -17,7 +17,7 @@ function Countdown({ action, seconds }: { action: string; seconds: number }) {
 }
 
 export type PasswordRecoveryViewProps = {
-  step: "request" | "code" | "activate" | "continue";
+  step: RecoveryStep;
   email: string; code: string; password: string; error: string | null; fieldErrors: RecoveryFieldErrors; notice: string | null;
   /** A code was sent, so a resend wait has started (it may have ended). */
   coolingDown: boolean;

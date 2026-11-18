@@ -4,7 +4,7 @@ import { useSignIn } from "@clerk/nextjs/legacy";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { createPasswordRecoveryFlow, recoveryErrorField, recoveryInputErrors, type RecoveryField, type RecoveryFieldErrors } from "@/components/auth/password-recovery-flow";
+import { createPasswordRecoveryFlow, recoveryErrorField, recoveryInputErrors, type RecoveryField, type RecoveryFieldErrors, type RecoveryStep } from "@/components/auth/password-recovery-flow";
 import { PasswordRecoveryView } from "./password-recovery-view";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
 
@@ -22,7 +22,7 @@ function recoveryErrorMessage(error: unknown) {
 }
 
 const FIELD_IDS: Record<RecoveryField, string> = { email: "recovery-email", code: "recovery-code", password: "recovery-password" };
-const STEP_FIELDS: Record<string, readonly RecoveryField[]> = { request: ["email"], code: ["code", "password"] };
+const STEP_FIELDS: Record<RecoveryStep, readonly RecoveryField[]> = { request: ["email"], code: ["code", "password"], activate: [], continue: [] };
 
 export function PasswordRecoveryForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
@@ -61,7 +61,7 @@ export function PasswordRecoveryForm() {
     if (!isLoaded || !signIn || !setActive || pending) return;
     // D11 (#290): a resend sends the address already accepted; every other submit checks its step's fields first.
     const invalid = sendCode && step === "code" ? {} : recoveryInputErrors(step, { email, code, password });
-    const firstInvalid = (STEP_FIELDS[step] ?? []).find(field => invalid[field]);
+    const firstInvalid = STEP_FIELDS[step].find(field => invalid[field]);
     setFieldErrors(invalid);
     setError(null);
     if (firstInvalid) {
@@ -106,7 +106,7 @@ export function PasswordRecoveryForm() {
       }
       // D16 (#290): an error Clerk ties to a field on this step sits on that field.
       const field = recoveryErrorField(outcome.error);
-      if (field && STEP_FIELDS[after]?.includes(field)) setFieldErrors({ [field]: recoveryErrorMessage(outcome.error) });
+      if (field && STEP_FIELDS[after].includes(field)) setFieldErrors({ [field]: recoveryErrorMessage(outcome.error) });
       else setError(recoveryErrorMessage(outcome.error));
     }
   }
