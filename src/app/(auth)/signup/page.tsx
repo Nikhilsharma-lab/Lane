@@ -18,7 +18,7 @@ export default function SignupPage() {
         fallbackRedirectUrl="/onboarding"
         appearance={clerkEmbeddedAppearance}
         // Decision 2026-10-21: the skeleton while Clerk loads, a way out once Clerk reports it could not.
-        fallback={<><ClerkLoading><AuthCardSkeleton label="Loading account creation" fields={2} /></ClerkLoading><ClerkFailed><ClerkUnavailable title="Sign up is unavailable right now" href="/signup" /></ClerkFailed></>}
+        fallback={<><ClerkLoading><AuthCardSkeleton label="Loading account creation" fields={2} subtitle={false} /></ClerkLoading><ClerkFailed><ClerkUnavailable title="Sign up is unavailable right now" href="/signup" /></ClerkFailed></>}
       />
     </SignupFrame>
   );

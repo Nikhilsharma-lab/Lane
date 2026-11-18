@@ -18,6 +18,7 @@ const outsideTokens = (text: string) => text.replace(/\{\{[^}]*\}\}/g, "");
 describe("Clerk's words in Lane (#289)", () => {
   it("names the sign-in, sign-up and create-workspace screens in Lane's words", () => {
     expect(clerkLocalization.signIn.start).toEqual({ title: "Sign in to Lane", subtitle: "" });
+    expect(clerkLocalization.signUp.start).toEqual({ title: "Create your Lane account", subtitle: "" });
     expect(clerkLocalization.signUp.start.title).toBe("Create your Lane account");
     expect(clerkLocalization.taskChooseOrganization.createOrganization).toMatchObject({ title: "Name your workspace", subtitle: "You can change it later in Settings." });
   });

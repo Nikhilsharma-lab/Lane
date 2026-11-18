@@ -68,4 +68,11 @@ describe("Plan item L1: the Privacy policy page", () => {
     expect(privacyText).toContain("When you run the Request AI check,");
     expect(privacyText).not.toContain("Intake AI check");
   });
+
+  // Nikhil, 2026-11-18: Terms use the same name.
+  it("Terms call it the Request AI check too", () => {
+    const termsText = renderToStaticMarkup(createElement(TermsPage)).replace(/<[^>]+>/g, "");
+    expect(termsText).toContain("5. The Request AI check");
+    expect(termsText).not.toContain("Intake AI check");
+  });
 });

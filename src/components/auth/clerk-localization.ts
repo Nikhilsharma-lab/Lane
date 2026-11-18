@@ -5,7 +5,7 @@ import type { LocalizationResource } from "@clerk/nextjs/types";
  * every Clerk popup share them. Only keys of the installed @clerk/localizations (the bundled @clerk/ui's
  * English) are overridden; everything else stays Clerk's copy.
  *
- * - Sign-in has no subtitle: the empty value draws an empty line, which `clerkEmbeddedAppearance` hides.
+ * - Sign-in and sign-up have no subtitle: the empty value draws an empty line, which `clerkEmbeddedAppearance` hides.
  * - Create workspace says what to do and that the name isn't final.
  * - Every string Clerk exposes with "organization" says "workspace" (vocabulary: "workspace" wherever Lane
  *   controls the word). `{{organizationName}}`-style tokens are Clerk's placeholders and stay as they are.
@@ -20,7 +20,7 @@ export const clerkLocalization = {
     ssoFallback: { notice: "Your workspace requires single sign-on. Continuing without it is recorded." },
   },
   signUp: {
-    start: { title: "Create your Lane account" },
+    start: { title: "Create your Lane account", subtitle: "" },
   },
   taskChooseOrganization: {
     alerts: {
