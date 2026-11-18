@@ -389,10 +389,10 @@ async function recordHistory(tx: LibraryTx, entry: {
 }
 
 /** A change the library refuses, with the sentence to show the person. Nothing was saved. */
-export type MetricsLibraryRefusal = { error: string; /** The field the refusal is about, when there is one. */ field?: "name" | "unit" };
+export type MetricsLibraryRefusal = { error: string; /** The field the refusal is about, when there is one. */ field?: "name" | "unit" | "howCounted" };
 
 class Refused extends Error {
-  constructor(message: string, readonly field?: "name" | "unit") { super(message); }
+  constructor(message: string, readonly field?: "name" | "unit" | "howCounted") { super(message); }
 }
 
 const nameTaken = (name: string) => new Refused(`A metric called “${name}” already exists. Use that one, or choose another name.`, "name");
