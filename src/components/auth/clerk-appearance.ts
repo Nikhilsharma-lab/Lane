@@ -39,6 +39,8 @@ const authControl = {
 };
 
 const controlFocus = { "&:focus, &:focus-visible, &:focus:not(:focus-visible)": { boxShadow: "none" } };
+/** The edge of Clerk's outline buttons, visible on a dark page too. */
+const outlineEdge = { border: "var(--border-width) solid var(--border-strong)", boxShadow: "var(--button-default-shadow)", ...controlFocus };
 const inputFocus = { "&:focus-within, &[data-focus-within=true]": { boxShadow: "none", borderColor: "var(--input-border-hover)" } };
 
 /**
@@ -93,10 +95,12 @@ export const clerkEmbeddedAppearance = {
     buttonArrowIcon: { display: "none" },
     socialButtonsBlockButton: {
       ...authControl, color: "var(--foreground)", backgroundColor: "var(--button-secondary-background)",
-      "&[data-variant=outline]": { border: "var(--border-width) solid var(--border-strong)", boxShadow: "var(--button-default-shadow)", ...controlFocus },
+      "&[data-variant=outline]": outlineEdge,
       "@media (hover: hover) and (pointer: fine)": { "&:hover": { backgroundColor: "var(--button-secondary-hover)" } },
     },
     socialButtonsBlockButtonText: { color: "var(--foreground)", fontWeight: "var(--weight-medium)" },
+    // The create-workspace step's logo Upload (Clerk's outline button) takes the edge "Continue with Google" has.
+    avatarImageActionsUpload: { "&[data-variant=outline]": outlineEdge },
     footer: { gap: "var(--space-4)" },
     footerActionLink: authLink,
     formResendCodeLink: authLink,
