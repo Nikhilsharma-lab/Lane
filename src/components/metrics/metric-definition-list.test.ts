@@ -26,6 +26,14 @@ describe("The Metrics page list", () => {
     expect(item).not.toContain('target="_blank"');
   });
 
+  it("offers what the page gives for adding how it's counted under each definition, and nothing without it (#288)", () => {
+    const offer = (definition: MetricDefinitionListItem) => definition.howCounted ? null : createElement("button", null, `Add how it’s counted for ${definition.name}`);
+    const [counted, uncounted] = items(renderToStaticMarkup(createElement(MetricDefinitionList, { definitions: [conversion, trials], addDefinition: offer })));
+    expect(text(uncounted)).toContain("Add how it’s counted for Trial starts");
+    expect(text(counted)).not.toContain("Add how it’s counted");
+    expect(text(render([trials]))).not.toContain("Add how it’s counted");
+  });
+
   it("explains an empty Archived view (#197)", () => {
     const html = renderToStaticMarkup(createElement(MetricDefinitionList, { definitions: [], view: "archived" }));
     expect(text(html)).toContain("No archived metrics");

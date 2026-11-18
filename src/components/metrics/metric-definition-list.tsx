@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "@/components/link";
 import { ArrowUpRight, ChartLine } from "lucide-react";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
@@ -13,20 +14,21 @@ const EMPTY = {
 
 /**
  * The Metrics page's list (#196): each definition's name, unit, how it's counted and where it lives.
- * Each name opens the definition's own page (#197), where it is edited; so does "Add dashboard link". A Viewer
- * (`canEdit` false, #210) reads the same facts with nothing to add.
+ * Each name opens the definition's own page (#197), where it is edited. `addDefinition` is what a definition without
+ * how it's counted offers someone who can edit (#288); a Viewer (#210) reads the same facts with nothing to add.
  */
-export function MetricDefinitionList({ definitions, view = "active" }: { definitions: MetricDefinitionListItem[]; view?: "active" | "archived"; canEdit?: boolean }) {
+export function MetricDefinitionList({ definitions, view = "active", addDefinition }: { definitions: MetricDefinitionListItem[]; view?: "active" | "archived"; addDefinition?: (definition: MetricDefinitionListItem) => ReactNode }) {
   if (!definitions.length) {
     return <EmptyState icon={<ChartLine data-icon-size="2xl" aria-hidden="true" />} {...EMPTY[view]} />;
   }
   return <ul className={styles.list} aria-label={view === "archived" ? "Archived metric definitions" : "Metric definitions"}>
-    {definitions.map(definition => <li key={definition.id} className={styles.definition}>
+    {definitions.map(definition => <li key={definition.id} className={styles.definition} data-metric-definition="">
       <div className={styles.heading}>
         <h4 className={styles.name}><Link className={styles.open} href={`/settings/metrics/${definition.id}`}>{definition.name}</Link></h4>
         <span className={styles.unit}>{metricUnitName(definition.unit)}</span>
       </div>
       {definition.howCounted && <p className={styles.summary}>{definition.howCounted}</p>}
+      {addDefinition?.(definition)}
       {definition.link
         ? <a className={styles.source} href={definition.link} target="_blank" rel="noopener noreferrer">View source<ArrowUpRight data-icon-size="sm" aria-hidden="true" /><span className="sr-only"> for {definition.name} (opens in a new tab)</span></a>
         : null}

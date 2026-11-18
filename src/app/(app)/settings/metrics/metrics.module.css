@@ -14,3 +14,7 @@
 .keptLink { color: var(--foreground); text-decoration: underline; text-underline-offset: var(--space-1); border-radius: var(--corner-sm); }
 
 .createDialog.createDialog { width: min(calc(100vw - var(--space-8)), calc(var(--space-1) * 150)); }
+/* #288: "Add how it's counted" reads as Lane's other in-text links (link ink, underline on hover), though it opens the guide. */
+.addDefinition { justify-self: start; }
+.addDefinitionLink { padding: 0; border: 0; background: none; color: var(--link-ink); font: inherit; font-size: var(--text-sm); line-height: var(--leading-body); text-align: start; cursor: pointer; border-radius: var(--corner-sm); }
+@media (hover: hover) and (pointer: fine) { .addDefinitionLink:hover { text-decoration: underline; text-underline-offset: var(--space-1); } }

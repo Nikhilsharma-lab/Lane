@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
@@ -15,6 +15,7 @@ import dynamic from "next/dynamic";
 import { MetricDefinitionForm, type MetricDefinitionValues } from "@/components/metrics/metric-definition-form";
 import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
+import type { MetricUnit } from "@/lib/metric-definition-rules";
 import { addMetricDefinition, archiveMetricDefinition, editMetricDefinition, mergeMetricDefinitions, restoreMetricDefinition } from "./actions";
 import styles from "./metrics.module.css";
 
@@ -44,6 +45,43 @@ export function AddMetricDialog({ orgId }: { orgId: string }) {
     </Dialog>
     <span className="sr-only" role="status">{added}</span>
   </>;
+}
+
+/**
+ * #288 (#318): "Add how it's counted", for a metric saved without a definition, on the list and the metric's page
+ * (Members and Admins; the pages render it for no one else). It opens the guide's questions in the metric's own unit;
+ * once saved the definition is read-only, and the server refuses to replace it. Focus then goes to the first control
+ * of what it sits in (`data-metric-definition`): the metric's name on the list, its Name field on its page.
+ */
+export function AddHowCountedDialog({ orgId, definition }: { orgId: string; definition: { id: string; name: string; unit: MetricUnit; link: string | null; howCounted: string | null } }) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [saved, setSaved] = useState("");
+  const anchor = useRef<HTMLSpanElement>(null);
+  const justSaved = useRef(false);
+  const after = () => anchor.current?.closest("[data-metric-definition]")?.querySelector<HTMLElement>("a[href], input:not([disabled]):not([readonly])") ?? null;
+  // The link goes once the page shows the saved definition; focus moves on then, not to where the link was.
+  useEffect(() => {
+    if (!definition.howCounted || !justSaved.current) return;
+    justSaved.current = false;
+    after()?.focus({ preventScroll: true });
+  }, [definition.howCounted]);
+  return <span ref={anchor} className={styles.addDefinition}>
+    {!definition.howCounted && <Dialog guardTypedText dismissible={!pending} open={open} onOpenChange={next => { if (!pending) setOpen(next); }}>
+      <DialogTrigger asChild><button type="button" className={styles.addDefinitionLink}>Add how it’s counted<span className="sr-only"> for {definition.name}</span></button></DialogTrigger>
+      <DialogContent className={styles.createDialog} title="Add how it’s counted" description={`Answer a few questions about ${definition.name}. Once saved, its definition can’t change.`}
+        onCloseAutoFocus={event => { if (justSaved.current) event.preventDefault(); }}>
+        <GuidedMetricForm initialName={definition.name} unit={definition.unit} submitLabel="Save definition" onPendingChange={setPending} onCancel={() => setOpen(false)}
+          onSubmit={async values => {
+            const result = await callAction(() => editMetricDefinition({ id: definition.id, name: values.name, unit: definition.unit, link: definition.link ?? "", howCounted: values.howCounted }, { orgId }));
+            if ("ok" in result) { justSaved.current = true; setSaved(`Saved how ${values.name.trim()} is counted.`); }
+            return result;
+          }}
+          onSaved={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>}
+    <span className="sr-only" role="status">{saved}</span>
+  </span>;
 }
 
 /** The definition page's form: change the name, unit and dashboard link; retain saved calculation notes. */

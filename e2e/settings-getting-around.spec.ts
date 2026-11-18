@@ -28,6 +28,8 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await sql`insert into profiles(id,full_name,email,role) values (${member.id},'Lane E2E Member',${member.email},'designer')
         on conflict (id) do update set full_name = excluded.full_name, email = excluded.email, role = excluded.role`;
       await finishFirstRuns(sql, orgId, [member.id], "joined");
+      // #288: a metric saved before definitions were guided, with no "how it's counted" yet.
+      await sql`insert into metric_definitions(org_id,name,unit,created_by) values (${orgId},'Trials started','count',${admin.id})`;
     } finally {
       await sql.end();
     }
@@ -202,6 +204,34 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       expect(await region.evaluate(node => node.scrollWidth > node.clientWidth)).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await page.setViewportSize({ width: 1440, height: 1000 });
+    });
+
+    await test.step("Metrics: a metric without how it's counted gets it from the guide, and then it's read-only (#288, #318)", async () => {
+      await page.goto("/settings/metrics");
+      const item = page.getByRole("listitem").filter({ has: page.getByRole("link", { name: "Trials started", exact: true }) });
+      await item.getByRole("button", { name: "Add how it’s counted for Trials started" }).click();
+      const dialog = page.getByRole("dialog", { name: "Add how it’s counted" });
+      // Asked only what measures in its unit (a count).
+      await expect(dialog.getByRole("radio")).toHaveCount(1);
+      await dialog.getByRole("radio", { name: /How many in total/ }).check();
+      await dialog.getByRole("button", { name: "Continue" }).click();
+      await expect(dialog.getByRole("textbox", { name: "Name this metric" })).toHaveValue("Trials started");
+      await dialog.getByRole("textbox", { name: "What happens for the count to go up by one?" }).fill("A trial is started");
+      await dialog.getByRole("combobox", { name: "If one person does it twice, count…" }).click();
+      await page.getByRole("option", { name: "Both times" }).click();
+      await dialog.getByRole("button", { name: "Save definition" }).click();
+      await expect(dialog).toBeHidden();
+      const counted = "Number of times “A trial is started” happens during the measurement period. Include repeat occurrences.";
+      await expect(item.getByText(counted)).toBeVisible();
+      await expect(item.getByRole("button", { name: /Add how it’s counted/ })).toHaveCount(0);
+      await expect(item.getByRole("link", { name: "Trials started", exact: true })).toBeFocused();
+      // On its page the definition is read-only: shown, with nothing to add and its unit fixed.
+      await item.getByRole("link", { name: "Trials started", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Trials started", exact: true })).toBeVisible();
+      await expect(page.getByText("Saved definition", { exact: true })).toBeVisible();
+      await expect(page.getByText(counted)).toBeVisible();
+      await expect(page.getByRole("button", { name: /Add how it’s counted/ })).toHaveCount(0);
+      await expect(page.getByRole("combobox", { name: "Unit" })).toHaveCount(0);
     });
 
     await test.step("Metrics: Add metric has Cancel on both steps, Back on the second, and ends on Add metric", async () => {

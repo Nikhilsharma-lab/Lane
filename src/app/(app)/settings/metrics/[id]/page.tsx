@@ -20,7 +20,7 @@ import { listMetricDefinitions, metricDefinitionUnitLocked, readMetricDefinition
 import { ProfileForm } from "../../profile/profile-form";
 import { ThemePreference } from "../../profile/theme-preference";
 import { sharedPanels } from "../../profile/shared-panels";
-import { ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
+import { AddHowCountedDialog, ArchiveMetricControl, EditMetricForm, MergeMetricControl } from "../metric-controls";
 import styles from "../metrics.module.css";
 import { settingsMetadata } from "../../settings-metadata";
 
@@ -63,12 +63,14 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
     <Link href="/settings/metrics" className={styles.backLink}><ArrowLeft data-icon-size="sm" aria-hidden="true" />All metrics</Link>
     <SettingsGroup label={definition.name} labelId="metric-definition"
       description={merged ? undefined : archived ? "Archived. It isn’t offered for new goals, and stays on the Requests that already use it." : undefined}>
-      <SettingsBlock className={styles.library}>
+      <SettingsBlock className={styles.library} data-metric-definition="">
         {merged && <p className={styles.note}>
           Merged into {keptDefinition ? <Link href={`/settings/metrics/${keptDefinition.id}`} className={styles.keptLink}>{keptDefinition.name}</Link> : "another metric"}. Requests that used it now count under that one.
         </p>}
         {!merged && !canEdit && <MetricDefinitionFacts definition={definition} canEdit={false} />}
-        {!merged && canEdit && <EditMetricForm orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
+        {!merged && canEdit && <AddHowCountedDialog orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link, howCounted: definition.howCounted }} />}
+        {/* Keyed by the definition, so the form shows it read-only as soon as it's added. */}
+        {!merged && canEdit && <EditMetricForm key={definition.howCounted ?? ""} orgId={workspace.orgId} definition={{ id: definition.id, name: definition.name, unit: definition.unit, link: definition.link ?? "", howCounted: definition.howCounted ?? "" }} unitLocked={unitLocked} />}
       </SettingsBlock>
     </SettingsGroup>
     {/* #288 (D29): a Member, who edits but doesn't archive or merge, is told why those aren't here. */}

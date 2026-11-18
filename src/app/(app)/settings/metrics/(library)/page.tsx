@@ -13,7 +13,7 @@ import { listMetricDefinitions } from "@/lib/metrics-library";
 import { ProfileForm } from "../../profile/profile-form";
 import { ThemePreference } from "../../profile/theme-preference";
 import { sharedPanels } from "../../profile/shared-panels";
-import { AddMetricDialog, MetricLibraryFilter } from "../metric-controls";
+import { AddHowCountedDialog, AddMetricDialog, MetricLibraryFilter } from "../metric-controls";
 import styles from "../metrics.module.css";
 import { settingsMetadata } from "../../settings-metadata";
 
@@ -40,7 +40,8 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
     metrics={<SettingsGroup label="Metric definitions" labelId="metric-definitions" description="Pass/fail checks are chosen on each Request and aren’t part of the library.">
       <SettingsBlock className={styles.library}>
         <div className={styles.toolbar}><MetricLibraryFilter show={view} />{canEdit && <AddMetricDialog orgId={workspace.orgId} />}</div>
-        <MetricDefinitionList definitions={definitions} view={view} canEdit={canEdit} />
+        <MetricDefinitionList definitions={definitions} view={view}
+          addDefinition={canEdit ? ({ id, name, unit, link, howCounted }) => <AddHowCountedDialog orgId={workspace.orgId} definition={{ id, name, unit, link, howCounted }} /> : undefined} />
       </SettingsBlock>
     </SettingsGroup>}
     members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
