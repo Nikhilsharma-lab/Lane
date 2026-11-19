@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./clerk-profile.module.css", () => ({ default: { action: "action", membersPage: "membersPage", table: "table" } }));
 
-const { clerkAccountAppearance, clerkEmbeddedAppearance, clerkNeutralVariables, clerkOrganizationAppearance } = await import("./clerk-appearance");
+const { clerkAccountAppearance, clerkEmbeddedAppearance, clerkNeutralVariables, clerkOrganizationAppearance, clerkWorkspaceTaskAppearance } = await import("./clerk-appearance");
 
 // Plan item 2.10: the Organization Profile modals show only the page Settings asked for.
 describe("clerkOrganizationAppearance", () => {
@@ -136,5 +136,25 @@ describe("clerkEmbeddedAppearance", () => {
     const keys = elements as Record<string, unknown>;
     for (const key of ["footerAction"]) expect(keys[key]).toBeUndefined();
     expect(JSON.stringify(clerkEmbeddedAppearance).match(/\d+(?:\.\d+)?(?:px|rem|em)\b|#[0-9a-f]{3,8}\b/gi)).toBeNull();
+  });
+});
+
+// #289: Lane's primary button, sign-in without a subtitle, and the create-workspace step in Lane's column. Theme
+// parity and the browser tests check how these look; these check what the values can't show on their own.
+describe("Clerk's screens in Lane's words and column (#289)", () => {
+  const elements = clerkEmbeddedAppearance.elements as Record<string, Record<string, unknown>>;
+
+  it("hides only an empty subtitle, so every subtitle Clerk writes still shows", () => {
+    expect(elements.headerSubtitle).not.toHaveProperty("display");
+  });
+
+  it("changes only the create-workspace step, which keeps Lane's header, values and options (D2, D8)", () => {
+    const task = clerkWorkspaceTaskAppearance.elements as Record<string, Record<string, unknown>>;
+    expect(task.header).toMatchObject(elements.header);
+    // The password-reset task and sign-in keep Clerk's own sign-out and footer.
+    expect(elements).not.toHaveProperty("footerAction__signOut");
+    expect(clerkWorkspaceTaskAppearance.variables).toBe(clerkEmbeddedAppearance.variables);
+    expect(clerkWorkspaceTaskAppearance.options).toBe(clerkEmbeddedAppearance.options);
+    expect(JSON.stringify(clerkWorkspaceTaskAppearance).match(/\d+(?:\.\d+)?(?:px|rem|em)\b|#[0-9a-f]{3,8}\b/gi)).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SUPPORT_EMAIL } from "@/app/support-contact";
 import TermsPage, { metadata } from "./page";
+import PrivacyPage from "../privacy/page";
 
 const html = renderToStaticMarkup(createElement(TermsPage));
 const text = html.replace(/<[^>]+>/g, " ");
@@ -22,6 +23,11 @@ describe("Plan item L1: the Terms of service page", () => {
     expect(html).toContain('href="/privacy"');
     expect(html).toContain(`href="mailto:${SUPPORT_EMAIL}"`);
     expect(html).toContain('href="/login"');
+  });
+
+  // D17 (#290, after #311): payments are off, so the pilot line stays; the role list changes in #315, not here.
+  it("keeps Lane free during the pilot", () => {
+    expect(text).toContain("Lane is free during the pilot and does not accept payment.");
   });
 
   it("writes no em or en dashes", () => {
@@ -44,5 +50,29 @@ describe("Plan item L1: the auth shell's legal links", () => {
     expect(nav).toContain('aria-label="Legal"');
     expect(nav.indexOf('href="/privacy"')).toBeGreaterThan(-1);
     expect(nav.indexOf('href="/terms"')).toBeGreaterThan(nav.indexOf('href="/privacy"'));
+  });
+});
+
+describe("Plan item L1: the Privacy policy page", () => {
+  const privacy = renderToStaticMarkup(createElement(PrivacyPage));
+  const privacyText = privacy.replace(/<[^>]+>/g, "");
+
+  // D18 (#290): Privacy links to the Terms of service, as Terms links to Privacy.
+  it("links to the Terms of service", () => {
+    expect(privacy).toMatch(/<a[^>]*href="\/terms"[^>]*>Terms of service<\/a>/);
+  });
+
+  // D17 (#290): the check has the name Settings gives it.
+  it("calls the AI check the Request AI check", () => {
+    expect(privacyText).toContain("4. The Request AI check");
+    expect(privacyText).toContain("When you run the Request AI check,");
+    expect(privacyText).not.toContain("Intake AI check");
+  });
+
+  // Nikhil, 2026-11-18: Terms use the same name.
+  it("Terms call it the Request AI check too", () => {
+    const termsText = renderToStaticMarkup(createElement(TermsPage)).replace(/<[^>]+>/g, "");
+    expect(termsText).toContain("5. The Request AI check");
+    expect(termsText).not.toContain("Intake AI check");
   });
 });

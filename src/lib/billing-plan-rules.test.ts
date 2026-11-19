@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { BILLING_PERIODS, foundingDiscountFor, foundingEndsAt, money, paidSeats, seatPrice } from "./billing-plan-rules";
+import { BILLING_PERIODS, BILLING_PILOT_LINE, foundingDiscountFor, foundingEndsAt, money, NOTHING_TO_PAY, paidSeats, seatPrice } from "./billing-plan-rules";
+
+describe("the pilot's words (#287)", () => {
+  it("refuses a checkout asked for in the pilot in the pilot line's words", () => {
+    expect(NOTHING_TO_PAY).toBe("Lane is free during the pilot, so there’s nothing to pay.");
+    expect(BILLING_PILOT_LINE.startsWith("Lane is free during the pilot.")).toBe(true);
+  });
+});
 
 describe("amounts on bills and invoices (#216)", () => {
   it("reads the provider's cents as money", () => {

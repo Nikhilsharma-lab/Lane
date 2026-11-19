@@ -14,34 +14,45 @@ const render = (props: Partial<FreeRequestsCardProps> = {}) =>
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
 describe("Free Requests card", () => {
-  it("shows how many Free Requests are left, and what counts", () => {
+  it("shows how many Free Requests are left as N of M, with one short line (#287)", () => {
     const html = text(render());
-    expect(html).toContain("Free Requests left 3 of 4");
-    expect(html).toContain("Every workspace gets 4 Free Requests with all of Lane, for any number of people and no time limit, shared with any other workspace from the same company email domain. Each Request created counts, including deleted ones. A Guest submission counts once it’s taken on.");
+    expect(html).toContain("Free Requests left After these, only creating Requests waits for payment. 3 of 4");
   });
 
-  it("says nothing is blocked while Lane isn't charging", () => {
-    expect(text(render({ free: { total: 4, used: 6, left: 0, usedElsewhere: null } }))).toContain("Free Requests left 0 of 4");
-    expect(text(render())).toContain("Lane isn’t charging yet, so creating Requests stays open after these are used.");
+  it("folds what counts behind How Free Requests work, without the Guest sentences (#287)", () => {
+    const html = render();
+    expect(html).toMatch(/<details[^>]*>\s*<summary[^>]*>(?:(?!<\/summary>)[\s\S])*How Free Requests work[\s\S]*?<\/summary>/);
+    expect(html).not.toMatch(/<details[^>]*\bopen\b/);
+    const fold = text(/<details[\s\S]*<\/details>/.exec(html)?.[0] ?? "");
+    expect(fold).toContain("Every workspace gets 4 Free Requests with all of Lane, for any number of people and no time limit, shared with any other workspace from the same company email domain. Each Request created counts, including deleted ones.");
+    expect(text(html)).not.toContain("Guest");
+  });
+
+  it("leaves saying Lane is free to the Billing pilot line, and blocks nothing while Lane isn't charging", () => {
+    const html = text(render({ free: { total: 4, used: 6, left: 0, usedElsewhere: null } }));
+    expect(html).toContain("Free Requests left After these, only creating Requests waits for payment. 0 of 4");
+    expect(html).not.toContain("isn’t charging");
+    expect(html).not.toContain("An Admin needs to pay");
   });
 
   it("says an Admin needs to pay once they're used and billing is on", () => {
     const html = render({ free: { total: 4, used: 4, left: 0, usedElsewhere: null }, enforced: true });
     expect(html).toContain('role="status"');
     expect(text(html)).toContain("This workspace has used its 4 Free Requests. An Admin needs to pay for Lane");
-    expect(text(html)).not.toContain("isn’t charging yet");
-    expect(text(render({ enforced: true }))).not.toContain("An Admin needs to pay");
+        expect(text(render({ enforced: true }))).not.toContain("An Admin needs to pay");
+    // While Guests still file Requests (#316 ends it), taking theirs on waits for payment too.
+    expect(text(html)).toContain("Free Requests left After these, only creating Requests and taking on Guest submissions wait for payment. 0 of 4");
   });
 
   it("tells a second workspace from the same company domain that the Free Requests were already used", () => {
     const html = text(render({ free: { total: 4, used: 0, left: 0, usedElsewhere: { kind: "company_domain", domain: "acme.com", used: 4 } } }));
-    expect(html).toContain("Free Requests left 0 of 4");
+    expect(html).toContain("Free Requests left After these, only creating Requests waits for payment. 0 of 4");
     expect(html).toContain("The Free Requests for acme.com were already used by another workspace.");
   });
 
   it("tells a second workspace from the same company domain what is left of the shared 4", () => {
     const html = text(render({ free: { total: 4, used: 0, left: 3, usedElsewhere: { kind: "company_domain", domain: "acme.com", used: 1 } } }));
-    expect(html).toContain("Free Requests left 3 of 4");
+    expect(html).toContain("Free Requests left After these, only creating Requests waits for payment. 3 of 4");
     expect(html).toContain("They are shared with another workspace from acme.com, which used 1.");
   });
 

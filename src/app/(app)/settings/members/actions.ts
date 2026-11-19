@@ -23,6 +23,8 @@ import type { WorkspacePermission } from "@/lib/auth-guard";
  */
 
 type Result = { success: true } | { error: string; sessionExpired?: true };
+/** An invitation's refusal; `field` says it is about the address, so Invite people shows it on the email field. */
+type InviteResult = Result | { error: string; field: "email" };
 
 const ROLES_UNAVAILABLE = "Guest and Viewer aren’t available in this workspace yet. Invite them as a Member, or ask whoever runs Lane to turn these roles on.";
 const CHANGE_UNAVAILABLE = "Guest and Viewer aren’t available in this workspace yet. Choose Admin or Member.";
@@ -38,9 +40,12 @@ function clerkCode(error: unknown): string | null {
   return Array.isArray(errors) ? errors[0]?.code ?? null : null;
 }
 
-export async function inviteToWorkspace(data: { email: string; role: string; confirmedPaidSeat?: boolean }, context: { orgId: string }): Promise<Result> {
+export async function inviteToWorkspace(data: { email: string; role: string; confirmedPaidSeat?: boolean }, context: { orgId: string }): Promise<InviteResult> {
   const parsed = inviteInputSchema.safeParse(data);
-  if (!parsed.success) return { error: firstIssue(parsed.error) };
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return issue?.path[0] === "email" ? { error: issue.message, field: "email" } : { error: firstIssue(parsed.error) };
+  }
   const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can invite people to this workspace.");
   if ("error" in auth) return auth;
   const { email, role, confirmedPaidSeat } = parsed.data;
@@ -55,7 +60,7 @@ export async function inviteToWorkspace(data: { email: string; role: string; con
   } catch (error) {
     const code = clerkCode(error);
     if (code === "duplicate_record" || code === "already_a_member_in_organization")
-      return { error: `${email} already has an invitation or is already in this workspace.` };
+      return { error: `${email} already has an invitation or is already in this workspace.`, field: "email" };
     console.error("[members] invitation failed", { code });
     return { error: "The invitation couldn’t be sent. Try again." };
   }

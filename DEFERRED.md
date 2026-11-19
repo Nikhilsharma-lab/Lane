@@ -358,6 +358,17 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   may be enough on their own. Trigger: Build 9's full re-measure still misses the speed targets after fixes
   1–6. — speed plan #231, recorded by Build 1 (#256, #259), 2026-10-28.
 
+## SIGN-IN FORM SPEED — when Clerk offers a way to load its form sooner
+
+- **Speed fix 6: sign-in and sign-up form loading with the page.** What: start loading Clerk's form with the page so
+  sign-in and sign-up are usable sooner. Why deferred: the pinned bundled Clerk UI (@clerk/ui 1.33.1) documents only
+  `ui` and `prefetchUI` for how its UI loads (`prefetchUI` affects the CDN build only), and an undocumented
+  `ensureMounted({ preloadHint })` trial made no difference. A returning desktop visit is already about 1.0 s locally
+  (login 1,026 ms, signup 1,092 ms, #227 method); the rest of the time is Clerk's environment and client requests
+  (about 570 ms) and React's 300 ms Suspense reveal inside Clerk's lazy tree. Trigger: Clerk documents a load or
+  preload option for the bundled UI, or Build 9's re-measure finds sign-in short of its target on live.
+  — Build 8 (#289), Nikhil 2026-11-18.
+
 ## RELEASED OPERATIONAL WORK — when a team wants to report operational work as released
 
 - **Release No measurable impact work without a measurement window.** What: let a Request whose Goal is No

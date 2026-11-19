@@ -1,17 +1,12 @@
 "use client";
 
-import { callAction } from "@/lib/action-call";
-import { thrownMessage } from "@/lib/failure-messages";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/arc/button/button";
 import { Select } from "@/components/arc/select/select";
-import { ChevronDown } from "lucide-react";
-import settingsStyles from "./settings.module.css";
-import { RadioGroup } from "@/components/arc/radio-group/radio-group";
-import { useToastStack, type ToastOptions } from "@/components/arc/toast-stack/toast-stack";
-import { Alert } from "@/components/arc/alert/alert";
 import { useOptimisticAction } from "@/components/requests/use-optimistic-action";
-import styles from "./profile.module.css";
+import { usePointerPickFocus } from "./pointer-pick-focus";
+import { SettingsRow, SettingsRowFailure } from "./settings-group";
 
 export type ProductRole = "pm" | "designer" | "developer";
 type SaveRole = (role: ProductRole) => Promise<{ error?: string; success?: boolean }>;
@@ -19,39 +14,26 @@ type SaveRole = (role: ProductRole) => Promise<{ error?: string; success?: boole
 const options = [{ value: "pm", label: "PM" }, { value: "designer", label: "Designer" }, { value: "developer", label: "Developer" }];
 const isRole = (value: string): value is ProductRole => value === "pm" || value === "designer" || value === "developer";
 const roleLabel = (role: ProductRole) => options.find(option => option.value === role)?.label ?? role;
-
-export function ProfileRoleForm({
-  initialRole,
-  onSave,
-  autoSave = false,
-  compact = false,
-}: {
-  initialRole: ProductRole;
-  autoSave?: boolean;
-  compact?: boolean;
-  onSave: SaveRole;
-}) {
-  if (autoSave) return <AutoSavedRole initialRole={initialRole} onSave={onSave} compact={compact} />;
-  return <ExplicitRoleForm initialRole={initialRole} onSave={onSave} compact={compact} />;
-}
+const HINT = "Your discipline in the team. This doesn’t change your permissions.";
 
 /** One queue for every role save on the pending-mutation overlay; no Request uses this id. */
 const SAVE_ID = "profile-role";
 
 /**
- * Plan item 2.9: the role saves on change, optimistically. The control and a
- * toast show the new role in the same frame, as Mark Done does; saves run one
- * at a time in the order chosen, and a choice overtaken while it waited is
- * never sent. A failure puts back the last role the server confirmed and
- * replaces the toast on screen with the reason. A role the server sends (a
- * refresh after a lost response, another tab) is adopted once nothing is in
- * flight; one that arrives during a save is adopted if that save is then put
- * back and no later save was confirmed after it arrived.
+ * Plan item 2.9: Settings → Profile's Role row saves on change, optimistically. Saves run one at a time in the order
+ * chosen, and a choice overtaken while it waited is never sent. A role the server sends (a refresh after a lost
+ * response, another tab) is adopted once nothing is in flight; one that arrives during a save is adopted if that save
+ * is then put back and no later save was confirmed after it arrived.
+ *
+ * #288 (D31, D3): the select showing the new role is the confirmation; there is no toast. A failure, offline included,
+ * puts back the last role the server confirmed and says so on the row with Try again, which sends that choice again.
+ * Nothing refreshes the page, so a lost connection never falls back to the browser's own error page. (D35) A pick with
+ * the pointer leaves no keyboard ring on the select.
  */
-function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductRole; onSave: SaveRole; compact: boolean }) {
-  const { toast, dismiss } = useToastStack();
+export function ProfileRoleForm({ initialRole, onSave }: { initialRole: ProductRole; onSave: SaveRole }) {
   const optimistic = useOptimisticAction();
   const [role, setRole] = useState<ProductRole>(initialRole);
+  const [failed, setFailed] = useState<{ role: ProductRole; message: string } | null>(null);
   const confirmed = useRef<ProductRole>(initialRole);
   const latest = useRef<ProductRole>(initialRole);
   const inFlight = useRef(0);
@@ -59,8 +41,8 @@ function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductR
   const reverted = useRef(false);
   // The role the server sent while a save was in flight, and how many saves had been confirmed then.
   const postponed = useRef<{ role: ProductRole; at: number } | null>(null);
-  const lastToast = useRef<string | null>(null);
-  const toastCount = useRef(0);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const pick = usePointerPickFocus(trigger);
 
   useEffect(() => {
     if (inFlight.current > 0) { postponed.current = { role: initialRole, at: confirmations.current }; return; }
@@ -69,14 +51,6 @@ function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductR
     latest.current = initialRole;
     setRole(initialRole);
   }, [initialRole]);
-
-  /** One toast owns the screen. Each message replaces it under a fresh id, so a dismissed toast is never brought back. */
-  function say(options: Omit<ToastOptions, "id">) {
-    if (lastToast.current) dismiss(lastToast.current);
-    const id = `profile-role-${++toastCount.current}`;
-    lastToast.current = id;
-    toast({ id, ...options });
-  }
 
   function settle() {
     if (--inFlight.current > 0) return;
@@ -94,7 +68,7 @@ function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductR
     if (next === latest.current) return;
     latest.current = next;
     setRole(next);
-    say({ type: "success", title: "Role changed", description: `Your profile label is now ${roleLabel(next)}.` });
+    setFailed(null);
     // A later choice owns the screen; it goes back itself if it fails or is skipped.
     const revert = () => {
       if (latest.current !== next) return;
@@ -107,107 +81,30 @@ function AutoSavedRole({ initialRole, onSave, compact }: { initialRole: ProductR
     void optimistic({
       id: SAVE_ID,
       waitForPending: true,
+      // The select going back is the whole answer; a refresh offline would leave Lane for the browser's error page.
+      refreshOnError: false,
       run: async () => {
         if (latest.current !== next) return { success: true };
         sent = true;
         return onSave(next);
       },
-      onError: (message) => {
+      onError: message => {
+        if (latest.current !== next) return;
         revert();
-        say({ type: "error", title: "Couldn’t save your role", description: message });
+        setFailed({ role: next, message });
       },
-    }).then((outcome) => {
+    }).then(outcome => {
       if (outcome.status === "success" && sent) { confirmed.current = next; confirmations.current++; }
       else if (outcome.status === "skipped") revert();
     }).finally(settle);
   }
 
-  const changeRole = (value: string) => { if (isRole(value)) choose(value); };
-  if (!compact) return <div className={styles.form}>
-    <RadioGroup label="Role" value={role} onValueChange={changeRole} options={options} />
-    <p className={styles.description}>This is a profile label only. It does not change what you can see or do.</p>
-  </div>;
-  return <div className={settingsStyles.card}>
-    <div className={settingsStyles.cardBody}>
-      <h3>Role</h3><p>Your discipline in the team. This doesn’t change your permissions.</p>
-      <Select label="Role" value={role} onValueChange={changeRole} options={options}
-        trigger={<Button type="button" variant="secondary" size="sm">{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />
-    </div>
-    <div className={settingsStyles.cardFooter}><span>Your role is saved automatically.</span></div>
-  </div>;
-}
-
-function ExplicitRoleForm({ initialRole, onSave, compact }: { initialRole: ProductRole; onSave: SaveRole; compact: boolean }) {
-  const { toast } = useToastStack();
-  const [role, setRole] = useState<ProductRole>(initialRole);
-  const [savedRole, setSavedRole] = useState<ProductRole>(initialRole);
-  const [feedback, setFeedback] = useState<{
-    kind: "error";
-    message: string;
-  } | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const saving = useRef(false);
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    saveRole(role);
-  }
-
-  function saveRole(next: ProductRole) {
-    if (saving.current || next === savedRole) return;
-    saving.current = true;
-    setFeedback(null);
-    startTransition(async () => {
-      try {
-        const result = await callAction(() => onSave(next));
-        if (result.error || !result.success) {
-          setFeedback({ kind: "error", message: result.error || "Your role couldn’t be saved. Try again." });
-          return;
-        }
-        setSavedRole(next);
-        toast({ type: "success", title: "Role updated" });
-      } catch (thrown) {
-        setFeedback({ kind: "error", message: thrownMessage(thrown, "Your role couldn’t be saved. Try again.") });
-      } finally {
-        saving.current = false;
-      }
-    });
-  }
-
-  const changeRole = (value: string) => {
-    if (saving.current) return;
-    if (isRole(value)) { setRole(value); setFeedback(null); }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className={compact ? settingsStyles.card : styles.form}>
-      {compact ? <div className={settingsStyles.cardBody}>
-        <h3>Role</h3><p>Your discipline in the team. This doesn’t change your permissions.</p>
-        <Select label="Role" value={role} onValueChange={changeRole} options={options} disabled={isPending}
-          trigger={<Button type="button" variant="secondary" size="sm" disabled={isPending}>{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />
-      </div> : <>
-        <fieldset disabled={isPending} className={styles.disabled}>
-          <RadioGroup label="Role" value={role} onValueChange={changeRole} options={options} />
-        </fieldset>
-        <p className={styles.description}>This is a profile label only. It does not change what you can see or do.</p>
-      </>}
-      <div className={compact ? settingsStyles.cardFooter : styles.actions}>
-        {compact && !feedback && !isPending && <span>Save your role to update your profile.</span>}
-        <Button
-          type="submit"
-          loading={isPending}
-          disabled={!isPending && role === savedRole}
-        >
-          Save role
-        </Button>
-        {feedback && (
-          <Alert
-            role="alert"
-            tone="danger"
-            title={feedback.message}
-          />
-        )}
-      </div>
-    </form>
-  );
+  // #287: a row of Profile's group; the row is the "role" search target.
+  return <SettingsRow id="role" label="Role" hint={HINT}
+    control={<Select label="Role" value={role} options={options} onContentKeyDown={pick.keyboard}
+      onValueChange={value => { pick.settle(); if (isRole(value)) choose(value); }}
+      trigger={<Button ref={trigger} type="button" variant="secondary" size="sm">{roleLabel(role)}<ChevronDown aria-hidden="true" /></Button>} />}>
+    {failed && <SettingsRowFailure title={`Couldn’t save ${roleLabel(failed.role)} as your role`}
+      onRetry={() => { choose(failed.role); trigger.current?.focus({ preventScroll: true }); }}>{failed.message}</SettingsRowFailure>}
+  </SettingsRow>;
 }

@@ -26,7 +26,7 @@ test("real signup requires a Clerk workspace before the Lane role and Requests",
   try {
     await setupClerkTestingToken({ page });
     await page.goto("/signup");
-    await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Create your Lane account" })).toBeVisible();
     await page.getByLabel("Email address", { exact: true }).fill(email);
     await page.getByLabel("Password", { exact: true }).fill("LaneSignupE2E1234!");
     await page.getByRole("button", { name: "Continue", exact: true }).click();

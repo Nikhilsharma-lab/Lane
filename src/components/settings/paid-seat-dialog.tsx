@@ -24,7 +24,7 @@ export function PaidSeatDialog({ change, open, onOpenChange, onConfirm, returnTo
       onCloseAutoFocus={event => { event.preventDefault(); document.querySelector<HTMLElement>(`[data-seat-return="${CSS.escape(returnTo)}"]`)?.focus(); }}>
       <p>{paidSeatSummary(change)}</p>
       <div className={styles.dialogActions}>
-        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+        <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
         <Button onClick={onConfirm}>Add paid seat</Button>
       </div>
     </DialogContent>

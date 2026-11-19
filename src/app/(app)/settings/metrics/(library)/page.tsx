@@ -5,14 +5,16 @@ import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { canChangeThings } from "@/lib/role-rules";
 import { membersPanel } from "../../members/members-panel";
 import { MetricDefinitionList } from "@/components/metrics/metric-definition-list";
-import { SettingsCard } from "@/components/settings/settings-card";
+import { SettingsBlock, SettingsGroup } from "@/components/settings/settings-group";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
+import { SettingsEarlySearch } from "@/components/settings/settings-early-search";
+import { billingEnforced } from "@/lib/feature-switches";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { listMetricDefinitions } from "@/lib/metrics-library";
 import { ProfileForm } from "../../profile/profile-form";
 import { ThemePreference } from "../../profile/theme-preference";
 import { sharedPanels } from "../../profile/shared-panels";
-import { AddMetricDialog, MetricLibraryFilter } from "../metric-controls";
+import { AddHowCountedDialog, AddMetricDialog, MetricLibraryFilter } from "../metric-controls";
 import styles from "../metrics.module.css";
 import { settingsMetadata } from "../../settings-metadata";
 
@@ -35,13 +37,17 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   const definitions = view === "archived" ? all.filter(definition => definition.archivedAt && !definition.mergedIntoId) : all;
   // #210: a Viewer reads the library and adds or edits nothing.
   const canEdit = canChangeThings(workspace.role);
-  return <SettingsCommandAdapter page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
-    metrics={<SettingsCard title="Metric definitions" footer="Pass/fail checks are chosen on each Request and aren’t part of the library.">
-      <div className={styles.toolbar}><MetricLibraryFilter show={view} />{canEdit && <AddMetricDialog orgId={workspace.orgId} />}</div>
-      <MetricDefinitionList definitions={definitions} view={view} canEdit={canEdit} />
-    </SettingsCard>}
+  return <><SettingsCommandAdapter billingEnforced={billingEnforced()} page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
+    metrics={<SettingsGroup label="Metric definitions" labelId="metric-definitions" description="Pass/fail checks are chosen on each Request and aren’t part of the library.">
+      <SettingsBlock className={styles.library}>
+        <div className={styles.toolbar}><MetricLibraryFilter show={view} />{canEdit && <AddMetricDialog orgId={workspace.orgId} />}</div>
+        <MetricDefinitionList definitions={definitions} view={view}
+          addDefinition={canEdit ? ({ id, name, unit, link, howCounted }) => <AddHowCountedDialog orgId={workspace.orgId} definition={{ id, name, unit, link, howCounted }} /> : undefined} />
+      </SettingsBlock>
+    </SettingsGroup>}
     members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
     account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
-    {...panels} />;
+    {...panels} />
+    <SettingsEarlySearch /></>;
 }

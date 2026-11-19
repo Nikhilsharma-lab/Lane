@@ -1,8 +1,10 @@
 import { Alert } from "@/components/arc/alert/alert";
 import { Badge, type BadgeTone } from "@/components/arc/badge/badge";
 import { BILLING_PAGES_UNAVAILABLE, PAID_SEAT_MINIMUM } from "@/lib/billing-plan-rules";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import type { PlanState } from "@/lib/free-request-rules";
-import styles from "./settings.module.css";
+import { freeRolesNote } from "@/lib/member-role-rules";
+import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowList } from "./settings-group";
 import account from "./billing-account-card.module.css";
 
 export type InvoiceStatus = "open" | "paid" | "void" | "uncollectible";
@@ -17,6 +19,8 @@ export type BillingAccountCardProps = {
   seats: { adminsAndMembers: number; paid: number } | null;
   /** What the payment provider says, or why it can't: not set up, or not reachable. */
   account: { nextBill: { amount: string; on: string } | null; invoices: InvoiceLine[] } | "unavailable" | "failed";
+  /** The roles an Admin can give now: the free ones are named only while they can be (D28). */
+  roles: readonly WorkspacePermission[];
 };
 
 const STATUS: Record<InvoiceStatus, { label: string; tone: BadgeTone }> = {
@@ -25,7 +29,7 @@ const STATUS: Record<InvoiceStatus, { label: string; tone: BadgeTone }> = {
   uncollectible: { label: "Not paid", tone: "danger" },
   void: { label: "Void", tone: "neutral" },
 };
-const ABOUT_SEATS = `Admins and Members, at least ${PAID_SEAT_MINIMUM}. Guests and Viewers are free.`;
+const aboutSeats = (roles: readonly WorkspacePermission[]) => [`Admins and Members, at least ${PAID_SEAT_MINIMUM}.`, freeRolesNote(roles)].filter(Boolean).join(" ");
 const FAILED = "Couldn’t load the next bill and invoices from the payment provider. Reload the page to try again.";
 
 function nextBillText(props: BillingAccountCardProps, nextBill: { amount: string; on: string } | null): string {
@@ -42,48 +46,30 @@ function nextBillText(props: BillingAccountCardProps, nextBill: { amount: string
  */
 export function BillingAccountCard(props: BillingAccountCardProps) {
   const { seats, account: reading } = props;
-  return <section className={styles.card} aria-labelledby="billing-account-title">
-    <div className={styles.cardBody}>
-      <h3 id="billing-account-title">Seats and invoices</h3>
-      {reading === "failed" && <Alert role="alert" tone="danger" title={FAILED} />}
-      <div className={styles.rows}>
-        <div className={styles.row}>
-          <div>
-            <strong>Paid seats</strong>
-            <p>{seats && seats.adminsAndMembers < PAID_SEAT_MINIMUM
-              ? `${seats.adminsAndMembers} ${seats.adminsAndMembers === 1 ? "Admin or Member" : "Admins and Members"}, billed as the ${PAID_SEAT_MINIMUM}-seat minimum.`
-              : ABOUT_SEATS}</p>
-          </div>
-          <span className={styles.value}>{seats ? seats.paid : "Couldn’t count this workspace’s seats. Reload the page to try again."}</span>
-        </div>
-        {typeof reading === "object" && <div className={styles.row}>
-          <div><strong>Next bill</strong></div>
-          <span className={styles.value}>{nextBillText(props, reading.nextBill)}</span>
-        </div>}
-      </div>
-      {reading === "unavailable" && <p className={styles.note}>{BILLING_PAGES_UNAVAILABLE}</p>}
-      {typeof reading === "object" && <>
-        <h4 className={account.heading}>Invoices</h4>
-        {reading.invoices.length === 0
-          ? <p className={styles.note}>No invoices yet.</p>
-          : <ul className={styles.rows} aria-label="Invoices">
-            {reading.invoices.map((invoice) => {
-              const name = invoice.number ?? "Invoice";
-              return <li key={invoice.id} className={styles.row}>
-                <div>
-                  <strong>{invoice.issuedOn}</strong>
-                  <p className={account.number}>{name}</p>
-                </div>
-                <div className={account.line}>
-                  <span className={account.amount}>{invoice.amount}</span>
-                  <Badge tone={STATUS[invoice.status].tone} size="sm">{STATUS[invoice.status].label}</Badge>
-                  {invoice.url && <a className={account.link} href={invoice.url} target="_blank" rel="noopener noreferrer"
-                    aria-label={`View invoice ${name} on the payment provider’s page`}>View</a>}
-                </div>
-              </li>;
-            })}
-          </ul>}
-      </>}
-    </div>
-  </section>;
+  return <SettingsGroup label="Seats and invoices" labelId="billing-account-title">
+    {reading === "failed" && <SettingsBlock><Alert role="alert" tone="danger" title={FAILED} /></SettingsBlock>}
+    <SettingsRow label="Paid seats"
+      hint={seats && seats.adminsAndMembers < PAID_SEAT_MINIMUM
+        ? `${seats.adminsAndMembers} ${seats.adminsAndMembers === 1 ? "Admin or Member" : "Admins and Members"}, billed as the ${PAID_SEAT_MINIMUM}-seat minimum.`
+        : aboutSeats(props.roles)}
+      control={seats ? seats.paid : "Couldn’t count this workspace’s seats. Reload the page to try again."} />
+    {typeof reading === "object" && <SettingsRow label="Next bill" control={nextBillText(props, reading.nextBill)} />}
+    {reading === "unavailable" && <SettingsBlock><p>{BILLING_PAGES_UNAVAILABLE}</p></SettingsBlock>}
+    {typeof reading === "object" && <SettingsBlock>
+      <h4 className={account.heading}>Invoices</h4>
+      {reading.invoices.length === 0 && <p>No invoices yet.</p>}
+    </SettingsBlock>}
+    {typeof reading === "object" && reading.invoices.length > 0 && <SettingsRowList label="Invoices">
+      {reading.invoices.map((invoice) => {
+        const name = invoice.number ?? "Invoice";
+        return <SettingsRow as="li" key={invoice.id} label={invoice.issuedOn} hint={name}
+          control={<>
+            <span className={account.amount}>{invoice.amount}</span>
+            <Badge tone={STATUS[invoice.status].tone} size="sm">{STATUS[invoice.status].label}</Badge>
+            {invoice.url && <a className={account.link} href={invoice.url} target="_blank" rel="noopener noreferrer"
+              aria-label={`View invoice ${name} on the payment provider’s page`}>View</a>}
+          </>} />;
+      })}
+    </SettingsRowList>}
+  </SettingsGroup>;
 }

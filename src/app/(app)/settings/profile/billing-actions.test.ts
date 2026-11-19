@@ -81,7 +81,8 @@ describe("paying for Lane from Settings → Billing", () => {
   it("offers nothing to pay while Lane isn't charging, or while paying isn't set up", async () => {
     const { startPlanCheckout } = await actions();
     vi.stubEnv("LANE_BILLING_ENFORCED", "");
-    expect(await startPlanCheckout({ period: "yearly" }, { orgId: ORG })).toEqual({ error: "Lane isn’t charging yet, so there’s nothing to pay." });
+    expect(await startPlanCheckout({ period: "yearly" }, { orgId: ORG })).toEqual({ error: "Lane is free during the pilot, so there’s nothing to pay." });
+    expect(payments.provider!.checkouts).toEqual([]);
     vi.stubEnv("LANE_BILLING_ENFORCED", "1");
     payments.provider = null;
     expect(await startPlanCheckout({ period: "yearly" }, { orgId: ORG })).toEqual({ error: "Paying by card isn’t available yet." });

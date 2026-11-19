@@ -4,7 +4,7 @@ import { useSignIn } from "@clerk/nextjs/legacy";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { createPasswordRecoveryFlow } from "@/components/auth/password-recovery-flow";
+import { createPasswordRecoveryFlow, recoveryErrorField, recoveryInputErrors, type RecoveryField, type RecoveryFieldErrors, type RecoveryStep } from "@/components/auth/password-recovery-flow";
 import { PasswordRecoveryView } from "./password-recovery-view";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
 
@@ -21,6 +21,9 @@ function recoveryErrorMessage(error: unknown) {
   return "Couldn’t complete the password reset. Try again.";
 }
 
+const FIELD_IDS: Record<RecoveryField, string> = { email: "recovery-email", code: "recovery-code", password: "recovery-password" };
+const STEP_FIELDS: Record<RecoveryStep, readonly RecoveryField[]> = { request: ["email"], code: ["code", "password"], activate: [], continue: [] };
+
 export function PasswordRecoveryForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const router = useRouter();
@@ -31,6 +34,7 @@ export function PasswordRecoveryForm() {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<RecoveryFieldErrors>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const { pending, run } = useRecoverableAction();
@@ -55,7 +59,15 @@ export function PasswordRecoveryForm() {
 
   async function performAction(sendCode = false) {
     if (!isLoaded || !signIn || !setActive || pending) return;
+    // D11 (#290): a resend sends the address already accepted; every other submit checks its step's fields first.
+    const invalid = sendCode && step === "code" ? {} : recoveryInputErrors(step, { email, code, password });
+    const firstInvalid = STEP_FIELDS[step].find(field => invalid[field]);
+    setFieldErrors(invalid);
     setError(null);
+    if (firstInvalid) {
+      document.getElementById(FIELD_IDS[firstInvalid])?.focus();
+      return;
+    }
     setNotice(null);
     setSending(sendCode);
     const outcome = await run(async () => {
@@ -87,20 +99,30 @@ export function PasswordRecoveryForm() {
     setRecovery(flow.snapshot());
     setNow(Date.now());
     if (outcome.status === "failed") {
-      setError(
-        flow.snapshot().step === "activate"
-          ? "Your password was updated, but sign-in did not finish. Continue to try again."
-          : recoveryErrorMessage(outcome.error)
-      );
+      const after = flow.snapshot().step;
+      if (after === "activate") {
+        setError("Your password was updated, but sign-in did not finish. Continue to try again.");
+        return;
+      }
+      // D16 (#290): an error Clerk ties to a field on this step sits on that field.
+      const field = recoveryErrorField(outcome.error);
+      if (field && STEP_FIELDS[after].includes(field)) setFieldErrors({ [field]: recoveryErrorMessage(outcome.error) });
+      else setError(recoveryErrorMessage(outcome.error));
     }
   }
 
-  return <PasswordRecoveryView step={step} email={email} code={code} password={password} error={error} notice={notice}
-    sending={sending} pending={pending} isLoaded={isLoaded} resendIn={resendIn}
-    setEmail={setEmail} setCode={setCode} setPassword={setPassword} performAction={performAction}
+  /** Editing a field clears the message about it. */
+  const edit = (field: RecoveryField, set: (value: string) => void) => (value: string) => {
+    set(value);
+    setFieldErrors(current => (current[field] ? { ...current, [field]: undefined } : current));
+  };
+
+  return <PasswordRecoveryView step={step} email={email} code={code} password={password} error={error} fieldErrors={fieldErrors} notice={notice}
+    sending={sending} pending={pending} isLoaded={isLoaded} resendIn={resendIn} coolingDown={recovery.nextSendAt > 0}
+    setEmail={edit("email", setEmail)} setCode={edit("code", setCode)} setPassword={edit("password", setPassword)} performAction={performAction}
     onChangeEmail={() => {
       if (!flow.changeEmail()) return;
-      setCode(""); setPassword(""); setError(null); setNotice(null); setRecovery(flow.snapshot());
+      setCode(""); setPassword(""); setError(null); setFieldErrors({}); setNotice(null); setRecovery(flow.snapshot());
     }} />;
 }
 

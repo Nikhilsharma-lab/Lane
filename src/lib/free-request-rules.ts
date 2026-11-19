@@ -6,6 +6,8 @@
  * allowance, so a second workspace from a company domain gets whatever is left (the first used 1: the second gets 3).
  */
 
+import { canCreateRequests } from "./role-rules";
+
 export const FREE_REQUESTS = 4;
 
 export type PlanState = "free" | "paying" | "lapsed";
@@ -72,6 +74,17 @@ export function freeRequestsSharedNote(free: FreeRequests): string | null {
  */
 export function creationBlock(state: FreeRequestsState, { enforced }: { enforced: boolean }): string | null {
   return freeRequestsBlock(state.planState, freeRequestsOf(state), { enforced });
+}
+
+/**
+ * #287: Free Requests' one short line, on what waits for payment once they're used. While billing is enforced,
+ * taking on a Guest submission waits too, for as long as Guests file Requests (`canCreateRequests`, until #314 and
+ * #316 end Guest submissions); otherwise only creating Requests is named.
+ */
+export function afterFreeRequestsLine({ enforced }: { enforced: boolean }): string {
+  return enforced && canCreateRequests("guest")
+    ? "After these, only creating Requests and taking on Guest submissions wait for payment."
+    : "After these, only creating Requests waits for payment.";
 }
 
 /** `creationBlock` for a workspace's plan state and Free Requests, as Settings → Billing reads them. */

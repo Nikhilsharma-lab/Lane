@@ -20,7 +20,8 @@ export async function saveOnboardingRole(data: { role: string }) {
   const { userId, orgId, orgRole } = await auth();
   if (!userId) return { error: "Sign in to continue.", sessionExpired: true as const };
   if (!orgId || !clerkWorkspacePermission(orgRole)) {
-    return { error: "Create or join a workspace before choosing your role." };
+    // #290: the role step links this message to the create-workspace step.
+    return { error: "Create or join a workspace before choosing your role.", needsWorkspace: true as const };
   }
 
   const user = await currentUser();

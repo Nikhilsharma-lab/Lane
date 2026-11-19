@@ -4,7 +4,8 @@
  * (the `?` overlay on every page) carries only these few lines.
  */
 
-const TYPING = "input, textarea, select, [role='textbox'], [role='combobox'], [contenteditable]:not([contenteditable='false'])"
+/** The fields a single-key shortcut never fires in. Settings' early "/" listener reads it too (settings-early-search.tsx). */
+export const TYPING = "input, textarea, select, [role='textbox'], [role='combobox'], [contenteditable]:not([contenteditable='false'])"
 
 /** A field the person is typing in; no single-key shortcut applies there. */
 export function isTypingTarget(target: EventTarget | null) {

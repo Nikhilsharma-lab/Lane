@@ -91,9 +91,12 @@ test("Settings reads the member list only once Members is shown, keeps it for th
 
     await test.step("inviting, revoking and changing a role still refresh the list", async () => {
       const invitee = `lane-e2e-settings-load-ahead-invitee-${Date.now()}+clerk_test@example.com`;
-      const invite = page.getByRole("form", { name: "Invite someone" });
+      // #288: one Invite people dialog; a sent invitation closes it and shows under Pending invitations.
+      await page.getByRole("button", { name: "Invite people" }).click();
+      const invite = page.getByRole("dialog", { name: "Invite people" });
       await invite.getByLabel("Email address").fill(invitee);
       await invite.getByRole("button", { name: "Send invitation" }).click();
+      await expect(invite).toBeHidden();
       const pending = page.getByRole("list", { name: "Pending invitations" });
       await expect(pending.getByText(invitee)).toBeVisible();
 

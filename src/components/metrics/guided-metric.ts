@@ -6,6 +6,9 @@ export const guideKinds = [
   { value: 'count', label: 'How many in total?', description: 'Example: 60 orders are placed → 60 orders.' },
   { value: 'time', label: 'How long does it take?', description: 'Example: a checkout takes 2 minutes → time in minutes.' },
 ];
+/** The units each kind of question measures in, so a metric with a unit already is asked only what fits it. */
+const KIND_UNITS: Record<string, readonly string[]> = { completion: ['percent'], share: ['percent'], count: ['count'], time: ['seconds', 'minutes'] };
+export const kindsForUnit = (unit?: string) => unit ? guideKinds.filter(kind => KIND_UNITS[kind.value].includes(unit)) : guideKinds;
 export const blankGuide = {kind:'', name:'', start:'', end:'', basis:'', window:'', part:'', whole:'', event:'', summary:'', unit:''};
 export type MetricGuide = typeof blankGuide;
 export type GuideField = keyof MetricGuide;

@@ -55,7 +55,7 @@ const skeletons: [string, string, ComponentType, string, string][] = [
 ]
 
 const settingsSkeletons: [string, string, ComponentType, string][] = [
-  ["settings/profile/loading.tsx", "/settings/profile", ProfileLoading, "Loading Profile settings"],
+  ["settings/profile/loading.tsx", "/settings/profile", ProfileLoading, "Loading settings"],
   ["settings/members/loading.tsx", "/settings/members", MembersLoading, "Loading Members"],
   ["settings/metrics/(library)/loading.tsx", "/settings/metrics", MetricsLoading, "Loading Metrics"],
   ["settings/metrics/[id]/loading.tsx", "/settings/metrics/x", MetricDefinitionLoading, "Loading metric"],
@@ -78,13 +78,15 @@ describe("(app) loading frames", () => {
     expect(strips(withoutHidden(html))).toBe(1)
   })
 
+  // #288 (D22): the header keeps its back arrow (named Back to Requests) and search, as the loaded frame has them.
   it.each(settingsSkeletons)("%s preserves Settings navigation and announces one loading status", (_file, pathname, Loading, label) => {
     const html = inShell(pathname, createElement(Loading))
     const visible = withoutHidden(page(html))
     expect(html).toContain('aria-busy="true"')
     expect(exposedStatuses(html)).toEqual([label])
     expect([...visible.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)].map(match => match[1])).toEqual(["Settings"])
-    expect(visible).toMatch(/<a\b[^>]*href="\/"[^>]*>[\s\S]*?Back to Requests<\/a>/)
+    expect(visible).toMatch(/<a\b[^>]*href="\/"[^>]*aria-label="Back to Requests"|<a\b[^>]*aria-label="Back to Requests"[^>]*href="\/"/)
+    expect(visible).toMatch(/<button[^>]*aria-keyshortcuts="\/"[^>]*>[\s\S]*?Search settings/)
   })
 
   it("draws the list from the loaded list's toolbar and 44px compact rows, with no data selectors", () => {

@@ -20,26 +20,12 @@
 .page { width: 100%; max-width: calc(var(--spacing) * 246); margin-inline: auto; padding: var(--space-6) var(--space-8) var(--space-16); }
 .section { width: 100%; padding-top: 0; scroll-margin-top: var(--space-4); }
 .section + .section { margin-top: var(--space-5); }
+/* #287 (D23): the open section's name is the page heading and the largest type in the content; one purpose line under it. */
 .sectionHead { margin-bottom: var(--space-6); }
-.sectionHead h2, .section > h2, .section > h3 { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); }
-.sectionHead p, .row p, .comingSoon p { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
-.rows { min-width: 0; }
-.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-6); min-height: calc(var(--spacing) * 15); padding: var(--space-3) 0; }
-.row + .row { border-top: var(--border-width) solid var(--border-subtle); }
-.row > div { min-width: 0; }
-.row strong { font-size: var(--text-sm); font-weight: var(--weight-medium); }
-.row .value { text-align: right; overflow-wrap: anywhere; }
-/* #210 Settings → Members: a list of people (ul/li), so the list resets and long names or addresses wrap. */
-ul.rows { margin: 0; padding: 0; list-style: none; }
-.person strong, .person p { overflow-wrap: anywhere; }
-.identity { display: flex; align-items: center; gap: var(--space-3); padding-block: var(--space-1); }
-.identityText { flex: 1; min-width: 0; }
-.identityText strong { font-size: var(--text-sm); font-weight: var(--weight-medium); }
-.identityText p { margin: var(--space-1) 0 0; color: var(--text-secondary); overflow-wrap: anywhere; }
+.sectionHead h2 { margin: 0; font-size: var(--text-xl); font-weight: var(--weight-medium); line-height: var(--text-xl--line-height); letter-spacing: var(--tracking-display); }
+.sectionHead p { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 .feedback:empty { display: none; }
 .feedback { display: flex; align-items: center; gap: var(--space-3); }
-.comingSoon { display: grid; gap: var(--space-3); }
-.comingSoon h2 { font-size: var(--text-sm); }
 .scrim { position: absolute; z-index: var(--lane-layer-settings-backdrop); inset: 0; background: var(--overlay); }
 @media (max-width: 720px) {
   .frame { width: 100%; height: 100dvh; margin: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: calc(var(--spacing) * 14) auto minmax(0, 1fr); border: 0; border-radius: 0; }
@@ -52,37 +38,45 @@ ul.rows { margin: 0; padding: 0; list-style: none; }
 }
 @media (max-width: 480px) {
   .searchKey { display: none; }
-  .row { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
-  .row > :last-child { justify-self: start; }
-  .row .value { text-align: left; }
-  .identity { flex-wrap: wrap; }
-  .identityText { flex-basis: calc(100% - var(--spacing) * 16); }
 }
 
 /* Each sidebar destination is its own panel; keep mounted form state across navigation. */
 .page > .section { margin-top: 0; }
 .page > .section[hidden] { display: none; }
 
-/* Centered fieldset column inside the full-page shell. Control behavior stays with Arc. */
-.card { min-width: 0; overflow: hidden; border: var(--border-width) solid var(--border); border-radius: var(--radius-surface); background: var(--surface); }
-.section > .card + .card, .section > .card + div, .section > div + .card, .section > div + div { margin-top: var(--space-6); }
-.cardBody { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: var(--space-5); min-width: 0; }
-.cardBody > h3 { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-medium); line-height: var(--leading-display); }
-.cardBody > p { margin: calc(var(--space-2) * -1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
-.cardBody > .rows, .cardBody > .identity { width: 100%; }
+/* #287: row groups (Arc Pro settings-page Group on Lane tokens). A small label over a bordered box of rows; each row is
+   its label and hint on the left and its control on the right. Content under the rows (alerts, forms, lists) is padded
+   like a row. Sections stack their groups and loose lines (a back link, the pilot line) with one gap. */
+.section > :not(.sectionHead) + * { margin-top: var(--space-6); }
+.group { min-width: 0; }
+.groupHead { margin-bottom: var(--space-2); }
+.groupHead h3 { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--leading-body); }
+.groupHead p { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+.groupBox { min-width: 0; overflow: hidden; border: var(--border-width) solid var(--border); border-radius: var(--radius-surface); background: var(--surface); }
+.groupBox > * + *, .groupList > li + li { border-top: var(--border-width) solid var(--border-subtle); }
+.groupRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-6); min-height: calc(var(--spacing) * 15); padding: var(--space-3) var(--space-4); scroll-margin-block: var(--space-4); }
+.groupRowLeading { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-2) var(--space-3); }
+.rowText { min-width: 0; }
+.rowLabel { display: block; font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--leading-body); overflow-wrap: anywhere; }
+.rowHint { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+.rowControl { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.groupList { margin: 0; padding: 0; list-style: none; }
+.groupBlock { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); min-width: 0; padding: var(--space-4); }
+.groupBlock > * { max-width: 100%; }
+.groupBlock > p { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+/* A closing line and its action at the end of a group (Slack's connection, the invite form). */
+.groupActions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); width: 100%; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
+.groupActions > :last-child:not(:first-child) { margin-left: auto; }
+.groupActions p { margin: 0; }
 .dialogActions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); margin-block-start: var(--space-4); }
-/* A note further down a card (not the description under its heading). */
-.cardBody > .note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
-.cardFooter { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); min-height: calc(var(--spacing) * 14); padding: var(--space-3) var(--space-5); border-top: var(--border-width) solid var(--border); background: var(--background); color: var(--text-secondary); font-size: var(--text-sm); }
-.cardFooter > button { margin-left: auto; }
-.futureGroup { margin-top: var(--space-6); }
-.futureGroup > h3 { margin: 0; padding: var(--space-5); border-bottom: var(--border-width) solid var(--border); font-size: var(--text-lg); font-weight: var(--weight-medium); }
-.futureGroup .row { padding: var(--space-4) var(--space-5); color: var(--text-secondary); background: var(--surface-muted); }
+/* A note inside a group's content. */
+.note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .searchTrigger:hover { background: var(--surface-muted); border-color: var(--border-strong); color: var(--foreground); }
 @media (max-width: 480px) {
-  .cardBody { padding: var(--space-4); }
-  .cardFooter { padding: var(--space-3) var(--space-4); }
-  .cardFooter > div { flex-basis: 100%; }
+  .groupRow { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+  .groupRowLeading { grid-template-columns: auto minmax(0, 1fr); }
+  .groupRowLeading > .rowControl { grid-column: 1 / -1; }
+  .rowControl { justify-content: flex-start; text-align: left; }
 }
 
 .navGroup + .navGroup { margin-top: var(--space-6); }
@@ -94,3 +88,28 @@ ul.rows { margin: 0; padding: 0; list-style: none; }
   .navGroupTitle { padding-block: var(--space-1); }
 }
 .identifier { overflow-wrap: anywhere; user-select: text; }
+/* A group's status line takes no room until it has something to say (its live region stays in the page). */
+.feedbackBlock:not(:has(> :not(:empty))) { display: none; }
+/* #287: a fold inside a group ("How Free Requests work"): a native disclosure, its summary laid out like a row. */
+.fold > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: calc(var(--spacing) * 12); padding: var(--space-2) var(--space-4); color: var(--text-secondary); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: var(--leading-body); cursor: pointer; list-style: none; }
+.fold > summary::-webkit-details-marker { display: none; }
+/* The group box clips what sits outside it, so the keyboard ring is drawn inside the summary. */
+.fold > summary:focus-visible { outline-offset: calc(var(--focus-outline-offset) * -1 - var(--focus-outline-width)); }
+.fold > summary > svg { flex: none; transition: transform var(--duration-fast) var(--ease-standard); }
+.fold[open] > summary > svg { transform: rotate(180deg); }
+.fold > p { margin: 0; padding: 0 var(--space-4) var(--space-4); color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+@media (hover: hover) and (pointer: fine) { .fold > summary:hover { color: var(--foreground); } }
+@media (prefers-reduced-motion: reduce) { .fold > summary > svg { transition: none; } }
+
+/* #288 (D30): the quiet line above the default section when the one asked for isn't this person's to open. */
+.notForRole { margin: 0 0 var(--space-6); color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
+/* #288 (D21): the row a search lands on is washed in the accent for a moment; from the keyboard a row with nothing to
+   focus inside keeps the ring, drawn inside the group box that clips it. Reduced motion keeps the wash, still, while focus is in the row. */
+.section [data-landed] { animation: settings-landed calc(var(--duration-standard) * 8) var(--ease-standard) both; }
+/* Arc's foundation takes the outline off every tabindex=-1 element at its layer's !important, so the ring is an inset shadow. */
+.section [data-landed-keyboard]:focus { box-shadow: inset 0 0 0 var(--focus-outline-width) var(--focus-outline); }
+@keyframes settings-landed { from, 40% { background-color: var(--accent-subtle); } }
+@media (prefers-reduced-motion: reduce) { .section [data-landed] { background-color: var(--accent-subtle); } }
+
+/* #288: a failed change on a row (Role, a person, an invitation), under its hint: what happened and Try again. */
+.rowFailure { display: grid; justify-items: start; gap: var(--space-3); margin-top: var(--space-3); }

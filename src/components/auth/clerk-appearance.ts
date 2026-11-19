@@ -39,6 +39,8 @@ const authControl = {
 };
 
 const controlFocus = { "&:focus, &:focus-visible, &:focus:not(:focus-visible)": { boxShadow: "none" } };
+/** The edge of Clerk's outline buttons, visible on a dark page too. */
+const outlineEdge = { border: "var(--border-width) solid var(--border-strong)", boxShadow: "var(--button-default-shadow)", ...controlFocus };
 const inputFocus = { "&:focus-within, &[data-focus-within=true]": { boxShadow: "none", borderColor: "var(--input-border-hover)" } };
 
 /**
@@ -57,7 +59,9 @@ export const clerkEmbeddedAppearance = {
   // unlayered styles, so main's class strings could not); no logo, since the header carries Lane's mark.
   options: { elevation: "flush" as const, logoPlacement: "none" as const },
   elements: {
-    rootBox: { width: "100%" },
+    // #289 D2: a grid item sizes to its content unless told otherwise; a long line inside Clerk's card (an email
+    // address) must not widen Lane's column past a phone screen.
+    rootBox: { width: "100%", minWidth: 0 },
     cardBox: { width: "100%", maxWidth: "100%" },
     card: { width: "100%", gap: "var(--space-6)" },
     header: { textAlign: "start", alignItems: "flex-start", gap: "var(--space-2)" },
@@ -65,7 +69,8 @@ export const clerkEmbeddedAppearance = {
     form: { gap: "var(--space-5)" },
     formFieldRow: { gap: "var(--space-4)" },
     headerTitle: { fontFamily: "var(--font-display)", fontSize: "var(--text-2xl)", lineHeight: "var(--leading-display)", letterSpacing: "var(--tracking-display)", fontWeight: "var(--weight-semibold)" },
-    headerSubtitle: { marginTop: 0, color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)" },
+    // #289: sign-in has no subtitle (clerk-localization.ts); its empty line takes no space.
+    headerSubtitle: { marginTop: 0, color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-body)", "&:empty": { display: "none" } },
     // Arc's Input answers focus with its border colour alone; Clerk's 4px halo would also show on pointer focus.
     formFieldInput: {
       minHeight: "var(--control-height-md)", paddingBlock: 0, paddingInlineStart: "var(--space-3)", fontSize: "var(--text-base)", borderRadius: "var(--radius-control)",
@@ -86,17 +91,37 @@ export const clerkEmbeddedAppearance = {
       "&[data-variant=solid]::after": { background: "none" },
       "@media (hover: hover) and (pointer: fine)": { "&:hover": { backgroundColor: "var(--primary-hover-background)" } },
     },
+    // #289 D14: Lane's primary button has no arrow.
+    buttonArrowIcon: { display: "none" },
     socialButtonsBlockButton: {
       ...authControl, color: "var(--foreground)", backgroundColor: "var(--button-secondary-background)",
-      "&[data-variant=outline]": { border: "var(--border-width) solid var(--border-strong)", boxShadow: "var(--button-default-shadow)", ...controlFocus },
+      "&[data-variant=outline]": outlineEdge,
       "@media (hover: hover) and (pointer: fine)": { "&:hover": { backgroundColor: "var(--button-secondary-hover)" } },
     },
     socialButtonsBlockButtonText: { color: "var(--foreground)", fontWeight: "var(--weight-medium)" },
+    // The create-workspace step's logo Upload (Clerk's outline button) takes the edge "Continue with Google" has.
+    avatarImageActionsUpload: { "&[data-variant=outline]": outlineEdge },
     footer: { gap: "var(--space-4)" },
     footerActionLink: authLink,
     formResendCodeLink: authLink,
     identityPreviewEditButton: authLink,
     formFieldAction: authLink,
+  },
+};
+
+/**
+ * #289 D2, D8: Clerk's create-workspace step (TaskChooseOrganization on /login). Clerk pads its header and form
+ * inside the card, which pushed the name field and Continue about 40px right of Lane's column (the trust line,
+ * the links); without it they line up. Its "Signed in as … Sign out" is hidden: the auth header shows Lane's
+ * "Wrong account? Sign out" on this step, as on the role step after it (WorkspaceTaskSignOut).
+ */
+export const clerkWorkspaceTaskAppearance = {
+  ...clerkEmbeddedAppearance,
+  elements: {
+    ...clerkEmbeddedAppearance.elements,
+    header: { ...clerkEmbeddedAppearance.elements.header, paddingInline: 0 },
+    formContainer: { paddingInline: 0, paddingBottom: 0 },
+    footerAction__signOut: { display: "none" },
   },
 };
 

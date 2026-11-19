@@ -48,7 +48,8 @@ describe("Pilot entry and transition contract", () => {
     expect(INTAKE_LOADING).not.toContain("RequestsWorkspaceLoading")
 
     // The consolidated Settings (2026-10-20) waits in its own frame, not the Requests skeleton.
-    expect(PROFILE_LOADING).toContain('label="Loading Profile settings"')
+    // #288 (D22): it opens on Profile's page but names the section asked for, so its wait is just "Loading settings".
+    expect(PROFILE_LOADING).toContain('section="profile" label="Loading settings"')
     expect(PROFILE_LOADING).toContain('from "@/components/settings/settings-loading"')
     expect(PROFILE_LOADING).not.toContain("RequestsWorkspaceLoading")
   })

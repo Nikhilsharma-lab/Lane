@@ -116,8 +116,8 @@ export async function removeMemberInClerk(page: Page, member: Person) {
 
 /**
  * Settings → Workspace details → Manage workspace fits the browser window; with `inFull`, its profile, Leave and
- * Delete organization are shown in full and apart. A Member's window (`asMember`) offers no Update profile or
- * Delete organization, so only its profile and Leave organization are checked.
+ * Delete workspace are shown in full and apart. A Member's window (`asMember`) offers no Update profile or
+ * Delete workspace, so only its profile and Leave workspace are checked.
  */
 export async function checkManageWorkspace(page: Page, workspaceName: string, { inFull, asMember = false }: { inFull: boolean; asMember?: boolean }) {
   await showSettingsSection(page, "Workspace details");
@@ -136,10 +136,10 @@ export async function checkManageWorkspace(page: Page, workspaceName: string, { 
       { label: "The workspace logo", part: dialog.getByRole("img", { name: `${workspaceName}'s logo` }) },
       { label: "The workspace name", part: dialog.getByText(workspaceName, { exact: true }) },
       ...adminOnly({ label: "Update profile", part: dialog.getByRole("button", { name: "Update profile" }) }),
-      { label: "The Leave organization title", part: title("Leave organization") },
-      { label: "The Leave organization button", part: dialog.getByRole("button", { name: "Leave organization" }) },
-      ...adminOnly({ label: "The Delete organization title", part: title("Delete organization") }),
-      ...adminOnly({ label: "The Delete organization button", part: dialog.getByRole("button", { name: "Delete organization" }) }),
+      { label: "The Leave workspace title", part: title("Leave workspace") },
+      { label: "The Leave workspace button", part: dialog.getByRole("button", { name: "Leave workspace" }) },
+      ...adminOnly({ label: "The Delete workspace title", part: title("Delete workspace") }),
+      ...adminOnly({ label: "The Delete workspace button", part: dialog.getByRole("button", { name: "Delete workspace" }) }),
     ];
     await expectShownInFull(dialog, parts);
     await expectNoOverlap(parts);

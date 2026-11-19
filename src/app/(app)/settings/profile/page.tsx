@@ -3,6 +3,8 @@ import { membersPanel } from "../members/members-panel";
 import { redirect } from "next/navigation";
 import { timePage } from "@/lib/request-timings";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
+import { SettingsEarlySearch } from "@/components/settings/settings-early-search";
+import { billingEnforced } from "@/lib/feature-switches";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { ProfileForm } from "./profile-form";
@@ -24,8 +26,8 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   // (#213/#214; `?checkout=` is how the payment provider’s checkout page ended).
   const { section, slack, checkout } = await searchParams;
   const panels = await sharedPanels(workspace, { slack, checkout });
-  return (
-      <SettingsCommandAdapter membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section}
+  return <>
+      <SettingsCommandAdapter billingEnforced={billingEnforced()} membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section}
         members={membersPanel(workspace)}
         workspaceManagement={workspace.role !== "guest" ? <ClerkWorkspaceProfile /> : undefined}
         account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
@@ -34,5 +36,6 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         appearance={<ThemePreference compact />}
         {...panels}
       />
-  );
+      <SettingsEarlySearch />
+    </>;
 }

@@ -6,6 +6,7 @@ import { Button } from "@/components/arc/button/button";
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/popup/adaptive-dialog";
 import { callAction } from "@/lib/action-call";
 import { thrownMessage } from "@/lib/failure-messages";
+import { SettingsBlock, SettingsGroup, SettingsRow } from "./settings-group";
 import styles from "./settings.module.css";
 
 /** How the round trip through Slack's install page ended (`GET /api/slack/callback` puts it in the URL). */
@@ -93,27 +94,25 @@ export function SlackConnectionCard({ connection, result, onConnect, onDisconnec
       </Dialog>
       : null;
 
-  return <div className={styles.card}>
-    <div className={styles.cardBody}>
-      <h3>Slack DMs</h3>
-      {connection.kind === "unavailable" && <p>Slack isn’t available in Lane yet. Once it is, an Admin can connect your Slack workspace here, and people can then choose Slack DM under Inbox delivery.</p>}
-      {connection.kind === "disconnected" && <p>Connect your Slack workspace so people here can choose Slack DM for items that need them. Lane only sends those DMs, and finds people by their email address.</p>}
-      {connection.kind === "connected" && <>
-        <p>People here can choose Slack DM for items that need them. Disconnecting sends those items by email instead.</p>
-        <div className={styles.rows}>
-          <div className={styles.row}><strong>Slack workspace</strong><span className={styles.value}>{connection.teamName}</span></div>
-          <div className={styles.row}><strong>Connected</strong><span className={styles.value}>{connection.connectedByName ? `By ${connection.connectedByName} on ${connection.connectedOn}` : `On ${connection.connectedOn}`}</span></div>
-        </div>
-        {!connection.available && <p className={styles.note}>Slack DMs are switched off in Lane right now, so items go by email.</p>}
-      </>}
+  // #287: the same content inside one row group; the footer's line and action close the group.
+  const about = connection.kind === "unavailable" ? "Slack isn’t available in Lane yet. Once it is, an Admin can connect your Slack workspace here, and people can then choose Slack DM under Inbox delivery."
+    : connection.kind === "disconnected" ? "Connect your Slack workspace so people here can choose Slack DM for items that need them. Lane only sends those DMs, and finds people by their email address."
+    : "People here can choose Slack DM for items that need them. Disconnecting sends those items by email instead.";
+  return <SettingsGroup label="Slack DMs" labelId="slack-dms" description={about}>
+    {connection.kind === "connected" && <>
+      <SettingsRow label="Slack workspace" control={connection.teamName} />
+      <SettingsRow label="Connected" control={connection.connectedByName ? `By ${connection.connectedByName} on ${connection.connectedOn}` : `On ${connection.connectedOn}`} />
+    </>}
+    <SettingsBlock>
+      {connection.kind === "connected" && !connection.available && <p className={styles.note}>Slack DMs are switched off in Lane right now, so items go by email.</p>}
       {problem && <Alert role="alert" tone={result === "cancelled" && !error ? "warning" : "danger"} title={problem} />}
-    </div>
-    <div className={styles.cardFooter}>
-      <div>
-        <span>{connection.kind === "disconnected" ? "You’ll approve it in Slack, then come back here." : "One connection for this workspace, managed by Admins."}</span>
-        <p role="status" className={styles.feedback}>{status}</p>
+      <div className={styles.groupActions}>
+        <div>
+          <span>{connection.kind === "disconnected" ? "You’ll approve it in Slack, then come back here." : "One connection for this workspace, managed by Admins."}</span>
+          <p role="status" className={styles.feedback}>{status}</p>
+        </div>
+        {action}
       </div>
-      {action}
-    </div>
-  </div>;
+    </SettingsBlock>
+  </SettingsGroup>;
 }

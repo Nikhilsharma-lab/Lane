@@ -89,9 +89,11 @@ describe("inviting someone", () => {
     expect(clerk.calls[0].params).toMatchObject({ role: "org:viewer" });
   });
 
-  it("refuses a Member, a bad address and an unknown role, and sends nothing", async () => {
+  it("refuses a Member, a missing or bad address and an unknown role, and sends nothing", async () => {
     const { inviteToWorkspace } = await api();
-    expect(await inviteToWorkspace({ email: "not-an-address", role: "member" }, ctx)).toEqual({ error: "Enter an email address." });
+    // #288 (D27): the same two messages the invite field shows.
+    expect(await inviteToWorkspace({ email: "  ", role: "member" }, ctx)).toEqual({ error: "Enter an email address.", field: "email" });
+    expect(await inviteToWorkspace({ email: "not-an-address", role: "member" }, ctx)).toEqual({ error: "Enter a valid email address.", field: "email" });
     expect(await inviteToWorkspace({ email: "x@example.test", role: "owner" }, ctx)).toEqual({ error: "Choose Admin, Member, Guest or Viewer." });
     as("user_members_member", "org:member");
     expect(await inviteToWorkspace({ email: "x@example.test", role: "member" }, ctx)).toEqual({ error: "Only Admins can invite people to this workspace." });
@@ -101,7 +103,7 @@ describe("inviting someone", () => {
   it("says plainly when Clerk won't send it", async () => {
     const { inviteToWorkspace } = await api();
     clerk.failNext = { status: 400, code: "duplicate_record" };
-    expect(await inviteToWorkspace({ email: "dup@example.test", role: "member" }, ctx)).toEqual({ error: "dup@example.test already has an invitation or is already in this workspace." });
+    expect(await inviteToWorkspace({ email: "dup@example.test", role: "member" }, ctx)).toEqual({ error: "dup@example.test already has an invitation or is already in this workspace.", field: "email" });
     clerk.failNext = { status: 500, code: "internal_clerk_error" };
     expect(await inviteToWorkspace({ email: "x@example.test", role: "member" }, ctx)).toEqual({ error: "The invitation couldn’t be sent. Try again." });
   });

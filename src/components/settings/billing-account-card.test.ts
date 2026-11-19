@@ -10,6 +10,7 @@ const render = (props: Partial<BillingAccountCardProps> = {}) =>
     endsOn: null,
     seats: { adminsAndMembers: 5, paid: 5 },
     account: { nextBill: { amount: "$90.00", on: "25 Nov 2026" }, invoices: [] },
+    roles: ["admin", "member", "guest", "viewer"],
     ...props,
   }));
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
@@ -21,6 +22,12 @@ describe("the seats and invoices card", () => {
     const html = text(render());
     expect(html).toMatch(/Paid seats .*Admins and Members, at least 3\. Guests and Viewers are free\. .*5/);
     expect(html).toMatch(/Next bill .*\$90\.00 on 25 Nov 2026/);
+  });
+
+  it("calls Guests and Viewers free only while they can be given (D28)", () => {
+    expect(text(render({ roles: ["admin", "member"] }))).toMatch(/Paid seats Admins and Members, at least 3\. 5/);
+    expect(text(render({ roles: ["admin", "member"] }))).not.toContain("free");
+    expect(text(render({ roles: ["admin", "member", "viewer"] }))).toContain("Admins and Members, at least 3. Viewers are free.");
   });
 
   it("counts the 3-seat minimum when there are fewer Admins and Members", () => {

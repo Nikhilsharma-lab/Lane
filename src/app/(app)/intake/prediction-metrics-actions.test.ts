@@ -175,7 +175,7 @@ describe("editing a prediction", () => {
     const { requestId } = await create(saved);
     as(ADMIN, "org:admin");
     const { editMetricDefinition } = await import("../settings/metrics/actions");
-    expect(await editMetricDefinition({ id: renamed, name: "Trials started", unit: "count", link: "", howCounted: "" }, { orgId: ORG })).toEqual({ ok: true });
+    expect(await editMetricDefinition({ id: renamed, name: "Trials started", unit: "count", link: "", howCounted: "How Trial starts is counted." }, { orgId: ORG })).toEqual({ ok: true });
     // History: the saved plan (and its Expected impact revision) still says "Trial starts".
     expect((await savedImpact(requestId)).primary.name).toBe("Trial starts");
     const [revision] = await sql`select expected_impact from request_expected_impact_revisions where request_id=${requestId} order by revision desc limit 1`;
@@ -192,20 +192,20 @@ describe("a definition's unit", () => {
   it("can change while no Request uses it, and is locked once one does", async () => {
     const { editMetricDefinition } = await import("../settings/metrics/actions");
     const unused = await addDefinition("Unused yet", "count");
-    expect(await editMetricDefinition({ id: unused, name: "Unused yet", unit: "percent", link: "", howCounted: "" }, { orgId: ORG })).toEqual({ ok: true });
+    expect(await editMetricDefinition({ id: unused, name: "Unused yet", unit: "percent", link: "", howCounted: "How Unused yet is counted." }, { orgId: ORG })).toEqual({ ok: true });
     const used = await addDefinition("Used now", "count");
     await create(plan({ guardrails: [{ ...plan().guardrails[0], ...metric(used, "Used now", "count"), limit: 5 }] }));
-    expect(await editMetricDefinition({ id: used, name: "Used now", unit: "percent", link: "", howCounted: "" }, { orgId: ORG }))
+    expect(await editMetricDefinition({ id: used, name: "Used now", unit: "percent", link: "", howCounted: "How Used now is counted." }, { orgId: ORG }))
       .toMatchObject({ error: expect.stringContaining("unit"), fields: { unit: expect.any(String) } });
-    // Other fields stay editable.
-    expect(await editMetricDefinition({ id: used, name: "Used now", unit: "count", link: "", howCounted: "Counted daily." }, { orgId: ORG })).toEqual({ ok: true });
+    // Other fields stay editable (the saved definition is read-only, #318).
+    expect(await editMetricDefinition({ id: used, name: "Used now", unit: "count", link: "https://analytics.example.test/used-now-v2", howCounted: "How Used now is counted." }, { orgId: ORG })).toEqual({ ok: true });
   });
 
   it("is locked when older Requests use it through the built-in metric", async () => {
     const { result } = await create({ ...plan(), version: 4, primary: { key: "events", name: "", unit: "count", current: 1, target: 2, noBaseline: false, check: "" }, guardrails: [] });
     expect(result).toMatchObject({ success: true });
-    const [starter] = await sql`select id, name from metric_definitions where org_id=${ORG} and starter_key='events'`;
+    const [starter] = await sql`select id, name, how_counted from metric_definitions where org_id=${ORG} and starter_key='events'`;
     const { editMetricDefinition } = await import("../settings/metrics/actions");
-    expect(await editMetricDefinition({ id: starter.id, name: starter.name, unit: "percent", link: "", howCounted: "" }, { orgId: ORG })).toHaveProperty("error");
+    expect(await editMetricDefinition({ id: starter.id, name: starter.name, unit: "percent", link: "", howCounted: starter.how_counted ?? "" }, { orgId: ORG })).toHaveProperty("fields.unit");
   });
 });

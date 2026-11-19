@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { settingsEntries, settingsHref, settingsNavigation, searchSettings, settingsSectionAt, showsSettingsInPlace } from "./settings-catalog";
+import { sectionNotForRole, settingsEntries, settingsHref, settingsNavigation, searchSettings, settingsSectionAt, showsSettingsInPlace } from "./settings-catalog";
 describe("Settings search availability", () => {
   it("does not reveal member or administrative destinations to a guest", () => {
     for (const query of ["invite", "billing", "api", "workspace security"]) expect(searchSettings(settingsEntries("guest"), query)).toEqual([]);
@@ -39,6 +39,22 @@ describe("Settings → Billing (#213)", () => {
     for (const query of ["billing", "free requests", "plan"]) expect(searchSettings(settingsEntries("admin"), query)[0].def.id).toBe("billing");
     expect(searchSettings(settingsEntries("member"), "free requests")).toEqual([]);
   });
+
+  // #287: in the pilot Billing shows the plan and Free Requests, so search names only those and finds nothing it hides.
+  const PILOT_HIDDEN = ["seats", "next bill", "invoices", "billing period", "update card", "cancel", "lapsed", "checkout", "pay", "payment"];
+  it("names only the plan and Free Requests while billing isn't enforced, and isn't found by what the pilot hides", () => {
+    for (const entries of [settingsEntries("admin"), settingsEntries("admin", { billingEnforced: false })]) {
+      expect(entries.find(entry => entry.id === "billing")?.description).toBe("The Lane plan and the Free Requests left.");
+      for (const query of PILOT_HIDDEN) expect(searchSettings(entries, query).map(result => result.def.id), query).not.toContain("billing");
+    }
+  });
+
+  it("names seats, the next bill and invoices once billing is enforced, and is found by them", () => {
+    const entries = settingsEntries("admin", { billingEnforced: true });
+    expect(entries.find(entry => entry.id === "billing")?.description).toBe("The Lane plan, seats, next bill, invoices and the Free Requests left.");
+    for (const query of [...PILOT_HIDDEN, "free requests", "plan"]) expect(searchSettings(entries, query).map(result => result.def.id), query).toContain("billing");
+    expect(searchSettings(settingsEntries("member", { billingEnforced: true }), "invoices")).toEqual([]);
+  });
 });
 
 describe("Settings → Metrics (#196)", () => {
@@ -70,5 +86,55 @@ describe("Settings → Metrics (#196)", () => {
     expect(settingsSectionAt("/settings/metrics/3f0c2a4e-1111-4222-8333-944445555666")).toBe("metrics");
     expect(settingsSectionAt("/settings/metricsx")).toBeNull();
     expect(settingsSectionAt("/settings/profile")).toBeNull();
+  });
+});
+
+describe("Settings catalog cleanup (#287)", () => {
+  const soon = (role: string) => settingsEntries(role).filter(entry => entry.soon).map(entry => `${entry.group} → ${entry.label}`);
+
+  it("has one Manage account entry, which the connected-account words find (D32)", () => {
+    for (const role of ["admin", "member", "viewer", "guest"]) {
+      const entries = settingsEntries(role);
+      expect(entries.map(entry => entry.label)).not.toContain("Connected accounts");
+      for (const query of ["google", "Google", "connected accounts", "login"]) {
+        expect(searchSettings(entries, query)[0].def, `${role}: ${query}`).toMatchObject({ id: "manage-account", label: "Manage account", section: "profile", target: "manage-account" });
+      }
+    }
+  });
+
+  it("no longer plans Display names or Request labels; Project labels stay planned (D25)", () => {
+    for (const role of ["admin", "member"]) {
+      expect(soon(role)).not.toContain("Preferences → Display names");
+      expect(soon(role)).not.toContain("Requests → Labels");
+      expect(soon(role)).toContain("Projects → Labels");
+      expect(soon(role)).toEqual(expect.arrayContaining(["Preferences → Send comments on", "Requests → Intake templates", "Projects → Templates"]));
+    }
+    expect(searchSettings(settingsEntries("member"), "display names")).toEqual([]);
+    expect(searchSettings(settingsEntries("member"), "labels").map(result => result.def.id)).toEqual(["project-labels"]);
+  });
+
+  it("describes Members by what each person can do there (D29)", () => {
+    const members = (role: string) => settingsNavigation(role).find(entry => entry.id === "members")?.description;
+    expect(members("member")).toBe("People in this workspace and their roles.");
+    expect(members("admin")).toBe("Manage workspace members and invitations.");
+    expect(settingsEntries("member").find(entry => entry.id === "members")?.description).toBe("People in this workspace and their roles.");
+  });
+});
+
+describe("A section someone's role can't open (#288, D30)", () => {
+  it("says who it is for, from the catalog", () => {
+    expect(sectionNotForRole("billing", "member")).toBe("Billing is for Admins of this workspace.");
+    expect(sectionNotForRole("slack", "viewer")).toBe("Slack is for Admins of this workspace.");
+    expect(sectionNotForRole("members", "viewer")).toBe("Members is for Admins and Members of this workspace.");
+    expect(sectionNotForRole("inbox-delivery", "guest")).toBe("Inbox delivery is for Admins and Members of this workspace.");
+    expect(sectionNotForRole("workspace", "guest")).toBe("Workspace details is for Admins, Members and Viewers of this workspace.");
+  });
+  it("says nothing when the section opens, doesn't exist, or is only planned", () => {
+    expect(sectionNotForRole("billing", "admin")).toBeNull();
+    expect(sectionNotForRole("members", "member")).toBeNull();
+    expect(sectionNotForRole("nonsense", "member")).toBeNull();
+    expect(sectionNotForRole("api", "member")).toBeNull();
+    expect(sectionNotForRole("role", "member")).toBeNull();
+    expect(sectionNotForRole(null, "member")).toBeNull();
   });
 });

@@ -12,8 +12,9 @@ import { AuthFormCard } from "@/components/auth/auth-form-card";
 import { RoleSelection, roleForKey, type FunctionalRole } from "@/components/auth/role-selection";
 import styles from "@/components/auth/auth.module.css";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
+import Link from "@/components/link";
+import { SESSION_TASK_URLS, SIGN_IN_URL } from "@/lib/session-task-urls";
 import { saveOnboardingRole } from "./actions";
-import { KeyCap } from "@/components/keyboard/key-caps";
 
 const TYPING_SELECTOR = 'textarea, select, [role="textbox"], [role="combobox"]';
 const NON_TEXT_INPUTS = new Set(["radio", "checkbox", "button", "submit", "reset"]);
@@ -32,11 +33,20 @@ function isRedirect(error: unknown) {
     && typeof error.digest === "string" && error.digest.startsWith("NEXT_REDIRECT;");
 }
 
+type RoleError = { message: string; link?: { href: string; label: string } };
+
+/** #290: the two save errors that name a step link to it; the workspace step resumes on Clerk's task page. */
+export function roleSaveError(failure: { error: string; sessionExpired?: true; needsWorkspace?: true }): RoleError {
+  if (failure.sessionExpired) return { message: failure.error, link: { href: SIGN_IN_URL, label: "Sign in" } };
+  if (failure.needsWorkspace) return { message: failure.error, link: { href: SESSION_TASK_URLS["choose-organization"], label: "Create or join a workspace" } };
+  return { message: failure.error };
+}
+
 /** `headerAction` is the page's Sign out (decision 2026-10-21); stories pass the Clerk-free link. */
 export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
   const formRef = useRef<HTMLFormElement>(null);
   const [role, setRole] = useState<FunctionalRole | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<RoleError | null>(null);
   const { pending, run } = useRecoverableAction();
   // useRecoverableAction clears `pending` as soon as the action answers; this
   // keeps the form disabled until the navigation to / commits.
@@ -66,7 +76,7 @@ export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
     event.preventDefault();
     if (busy) return;
     if (!role) {
-      setError("Choose a role to continue.");
+      setError({ message: "Choose a role to continue." });
       return;
     }
 
@@ -81,14 +91,14 @@ export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
       return;
     }
     if (outcome.status === "failed") {
-      setError(
+      setError({ message:
         isOfflineError(outcome.error) ? `${OFFLINE_ANSWER} Your role selection is still here.` :
-        `Your role selection is still here. ${CHECK_CONNECTION}`
-      );
+        `Your role selection is still here. ${CHECK_CONNECTION}`,
+      });
       return;
     }
 
-    setError(outcome.value.error);
+    setError(roleSaveError(outcome.value));
   }
 
   return (
@@ -96,9 +106,12 @@ export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
       <AuthFormCard title="Choose your role" description="A label for your team, not a permission. Change it any time in Profile settings.">
         <form ref={formRef} onSubmit={submit} className="grid gap-6" noValidate>
           <RoleSelection value={role} disabled={busy} invalid={Boolean(error)} onValueChange={(value) => { setRole(value); setError(null); }} />
-          {error && <Alert tone="danger" title={error} />}
+          {error && <Alert tone="danger" title={error.message}>
+            {error.link && <Link href={error.link.href} className={styles.alertLink}>{error.link.label}</Link>}
+          </Alert>}
           <AuthAction type="submit" loading={busy}>Continue</AuthAction>
-          <p className={styles.shortcuts}><KeyCap>C</KeyCap> to create, <KeyCap>/</KeyCap> to search</p>
+          {/* D10: the rows show 1, 2 and 3 as key caps; fine pointers get this line naming them, phones neither. */}
+          <p className={styles.shortcuts}>Press 1, 2 or 3 to choose</p>
         </form>
       </AuthFormCard>
     </OnboardingChrome>

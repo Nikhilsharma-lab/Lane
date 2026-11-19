@@ -1,5 +1,7 @@
 /* Settings → Metrics (#197). All visual values come from the theme file (src/styles/theme.css). */
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-block-end: var(--space-4); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; }
+/* #287: the toolbar and the list fill the group's content block. */
+.library.library { align-items: stretch; }
 .backLink { display: inline-flex; align-items: center; gap: var(--space-2); justify-self: start; color: var(--text-secondary); font-size: var(--text-sm); text-decoration: none; border-radius: var(--corner-sm); }
 .backLink:hover { color: var(--foreground); }
 .archive { display: grid; justify-items: end; gap: var(--space-2); }
@@ -9,7 +11,10 @@
 .merge > * { min-width: 0; }
 .mergeButton { justify-self: start; }
 .note { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
-.dialogActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-block-start: var(--space-4); }
 .keptLink { color: var(--foreground); text-decoration: underline; text-underline-offset: var(--space-1); border-radius: var(--corner-sm); }
 
 .createDialog.createDialog { width: min(calc(100vw - var(--space-8)), calc(var(--space-1) * 150)); }
+/* #288: "Add how it's counted" reads as Lane's other in-text links (link ink, underline on hover), though it opens the guide. */
+.addDefinition { justify-self: start; }
+.addDefinitionLink { padding: 0; border: 0; background: none; color: var(--link-ink); font: inherit; font-size: var(--text-sm); line-height: var(--leading-body); text-align: start; cursor: pointer; border-radius: var(--corner-sm); }
+@media (hover: hover) and (pointer: fine) { .addDefinitionLink:hover { text-decoration: underline; text-underline-offset: var(--space-1); } }

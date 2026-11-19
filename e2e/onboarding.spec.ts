@@ -32,6 +32,42 @@ function recordRscNavigations(page: Page) {
   return { paths, actions, stop: () => page.off("request", listener) };
 }
 
+/** #289 (D8): Clerk's create-workspace step speaks Lane's words, and signing out is the header's "Wrong account? Sign
+ * out", as on the role step after it, not Clerk's "Signed in as … Sign out" inside the card. */
+async function expectWorkspaceStepInLaneWords(page: Page) {
+  await expect(page.getByRole("heading", { name: "Name your workspace" })).toBeVisible();
+  await expect(page.getByText("You can change it later in Settings.", { exact: true })).toBeVisible();
+  const header = page.getByRole("banner");
+  await expect(header.getByText("Wrong account?", { exact: true })).toBeVisible();
+  await expect(header.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+  await expect(page.getByText(/^Signed in as /)).toBeHidden();
+  await expect(page.getByText("Sign in to access your Lane workspace.")).toHaveCount(0);
+}
+
+/** #289 (D2): on a 390px phone the step has no sideways scroll, the name field and Continue are fully on screen, and
+ * the name starts empty. */
+async function expectWorkspaceStepFitsPhone(page: Page) {
+  const desktop = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  try {
+    const name = page.locator('input[name="name"]');
+    const proceed = page.getByRole("button", { name: "Continue", exact: true });
+    await expect(name).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.scrollingElement!.scrollWidth - document.scrollingElement!.clientWidth)).toBe(0);
+    for (const part of [name, proceed]) {
+      const box = (await part.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(390);
+      await expect(part).toBeInViewport({ ratio: 1 });
+    }
+    // D7: the name starts empty, with no guess from the email's domain. Clerk's "organization creation defaults" are
+    // off on the instance (Nikhil, 2026-11-18); @clerk/ui 1.33.1's TaskChooseOrganization has no option of its own.
+    await expect(name).toHaveValue("");
+  } finally {
+    if (desktop) await page.setViewportSize(desktop);
+  }
+}
+
 /** Every scroller on the empty Requests page fits: the list pane, the shell's
  * content region and the document. */
 async function expectNoVerticalScroll(page: Page) {
@@ -129,6 +165,49 @@ test("a Clerk user chooses a Lane role and enters their active workspace", async
   }
 });
 
+// #290 (D9, D10): the role step names only its own keys, and only where there is a keyboard.
+test("the role step names its 1, 2 and 3 keys on desktop and no keys on a phone", async ({
+  page,
+  browser,
+}) => {
+  const user = await createTestUser("onboarding-role-keys");
+  const orgId = await createClerkTestOrganization(user.id, "Lane E2E Role Keys Workspace");
+
+  try {
+    await signInTestUser(page, user, orgId);
+    await page.goto("/onboarding");
+    await expect(page.getByRole("heading", { name: "Choose your role" })).toBeVisible();
+    await expect(page.getByText("C to create")).toHaveCount(0);
+    await expect(page.getByText("to search")).toHaveCount(0);
+    await expect(page.getByText("Press 1, 2 or 3 to choose", { exact: true })).toBeVisible();
+
+    await page.keyboard.press("2");
+    await expect(page.getByRole("radio", { name: "Designer" })).toBeChecked();
+    await expect(page.getByRole("radio", { name: "Designer" })).toBeFocused();
+
+    const touch = await browser.newContext({
+      storageState: await page.context().storageState(),
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    try {
+      const phone = await touch.newPage();
+      await setupClerkTestingToken({ page: phone });
+      await phone.goto("/onboarding");
+      await expect(phone.getByRole("heading", { name: "Choose your role" })).toBeVisible();
+      await expect(phone.getByText("Press 1, 2 or 3 to choose", { exact: true })).toBeHidden();
+      await expect(phone.locator("kbd").filter({ visible: true })).toHaveCount(0);
+      await expect(phone.getByText("C to create")).toHaveCount(0);
+    } finally {
+      await touch.close();
+    }
+  } finally {
+    await cleanupTestWorkspace(user.id);
+    await deleteTestUser(user.id);
+  }
+});
+
 // Risk 1 in the 2.1/2.2 spec: signing in soft-navigates to /, which redirects to
 // /onboarding and can sit in the client router cache for 30 s. Choosing a role
 // inside that window must still land on / and stay there.
@@ -210,6 +289,9 @@ test("workspace membership comes before a Lane role, including after an interrup
     await page.reload();
     await expect(page.locator('input[name="name"]')).toBeVisible();
     await expect(page.getByRole("radio", { name: "PM", exact: true })).toHaveCount(0);
+
+    await expectWorkspaceStepInLaneWords(page);
+    await expectWorkspaceStepFitsPhone(page);
 
     await page.locator('input[name="name"]').fill(workspaceName);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
