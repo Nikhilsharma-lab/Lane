@@ -1,8 +1,7 @@
 # Lane
 
 Lane tracks product Requests from the first ask, through the work, to the measured result of that work.
-`AGENTS.md` holds the locked vocabulary; this file defines the terms for people, Request status, reviewing a
-Request and closing it, and names the words retired with earlier designs.
+This file is Lane's locked vocabulary: use these terms, and never rename them to the words under _Avoid_.
 
 ## People
 
@@ -13,6 +12,11 @@ _Avoid_: Owner, release and outcome owner, creator (when meaning who closes)
 **Reviewer**:
 A teammate asked for an optional "Looks good" or "Raise a concern" before the work is picked up. Their answer never blocks pickup. See Reviewing a Request.
 _Avoid_: Approver, agreement
+
+**Profile label**:
+PM, Designer or Developer: a person's usual contribution, chosen at onboarding and editable in Settings. It
+never changes what the person can see or do.
+_Avoid_: Functional tag, permission, tier
 
 ## Workspace roles
 
@@ -46,6 +50,14 @@ it back.
 _Avoid_: Trial, free plan, credits
 
 ## A Request
+
+**Request**:
+One ask for product work, tracked from the first ask to the measured result. It is the unit Lane is built around.
+_Avoid_: Ticket, task
+
+**Intake**:
+Where a Request is first written and passes the AI gate before it is saved.
+_Avoid_: Backlog
 
 **Title**:
 The name a Request goes by everywhere, in the words its author typed. The Problem to solve shows under it on the
@@ -198,6 +210,22 @@ _Avoid_: Custom metric, KPI
 A yes-or-no goal, such as "keyboard users can finish checkout". It is not a Metric
 definition and never adds up. Its result is Passed or Didn't pass, in those words everywhere.
 _Avoid_: Metric, test
+
+## Reserved words
+
+Words held for ideas Lane has not built. If one of these ideas returns, it uses this word.
+
+**Ideas**:
+A lighter capture than a Request, kept as an unbuilt hypothesis.
+_Avoid_: Idea board
+
+**Active Requests**:
+Held for a future grouping of Requests; not yet defined.
+_Avoid_: Streams
+
+**Prove**:
+The last of the five design stages (Sense, Frame, Diverge, Converge, Prove), all deferred.
+_Avoid_: Sign-off
 
 ## Retired words
 

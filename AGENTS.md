@@ -29,12 +29,8 @@ If a screen isn't on this list, it does not get built without an explicit writte
 
 ## Vocabulary (locked — never rename)
 
-Requests (not tickets/tasks) · Intake (not backlog) · Prove (not sign-off) · Ideas (not idea board) ·
-Active Requests (not streams). Roles: **PM / Designer / Developer** (on `profiles.role`).
-Request status is one line: **Open → In progress → Done → Measuring → Closed**; "Closed without a result" is a
-form of Closed (#127, 2026-10-22). The person who closes is the **Requester** (not owner/creator). The
-Sense/Frame/Diverge/Converge/Prove design stages are DEFERRED, not built now.
-Request status, people, reviewer terms and retired words (Agreement, Design review): `GLOSSARY.md`.
+`GLOSSARY.md` is the locked vocabulary: Request, Intake, Request status, people, profile labels, workspace
+roles, reviewing, closing, and reserved and retired words. Use its terms in code, copy, issues and tests.
 
 ## Stack
 
@@ -43,13 +39,15 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Arc UI (shad
 ## Agent skills
 
 For issue/spec work, use GitHub Issues in `Nikhilsharma-lab/Lane`; read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`. For domain exploration, read `docs/agents/domain.md`.
+`docs/adr/` records why Lane made its hard-to-reverse choices (identity, Request status, closure, reviewers,
+design tools, profile labels, theme); read the matching record before changing one.
 
 ## Working rules (the part that actually matters)
 
 - **Pace to comprehension, not output.** v1 was 873 commits in two months — ~13/day. That pace is how the mess happened. If Nikhil can't explain in plain English what shipped, it shipped too fast.
 - **One user-touchable thing per week.** "Real" = a person could open the app and use it. Refactors and plumbing don't count.
 - **Read before writing.** Never change a file without reading it first.
-- **Product UI authority: Arc UI only.** `DESIGN.md` and the official Arc/Arc Pro skills in `.claude/skills/` control components, tokens, typography and motion. Use actual Arc registry/MCP source and preserve documented APIs. Linear interactions are explicitly approved for the 2026-10-07 Requests/detail/Project navigation work; Arc remains the visual authority. Preserve working data, permissions, draft/upload recovery and Clerk flows. Verify production components in the running app and with tests, including keyboard, responsive and edge states (Storybook was removed on 2026-10-21 at Nikhil's request). The old `marketing/` repository was removed from Lane on 2026-10-15; the new marketing site is a separate local project built on the same 2026-10-13 Supabase-derived values. On 2026-10-09 Nikhil activated the Linear primitives in production for the whole app (root `data-visual-system="linear"`, Request detail included), retaining Arc components/motion; the compact Requests rows with saved priority and the folder-tree Project navigation ship with it. See `docs/design-system/linear-primitives.md`. On 2026-10-10 Nikhil accepted the MVP launch plan (`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md`) with its defaults: the same interaction approval extends to Profile auto-save, onboarding role keys, and keyboard operation of the notifications and search panes; the Arc Pro licence is recorded in `docs/licenses/arc-pro.md`. **Theme file (2026-10-22, retires the 2026-10-13 Supabase token decision):** every visual value lives in `src/styles/theme.css` (tweakcn export on top, never hand-edited; Lane additions below); `src/styles/theme-bridge.css` only renames; Arc keeps components and motion; product CSS writes no design literals (`pnpm design:check`). For any change to colours, fonts, corners, shadows, sizes or motion, read `docs/design-system/theme-file.md`.
+- **Product UI authority: Arc UI only.** `DESIGN.md` and the official Arc/Arc Pro skills in `.claude/skills/` control components, tokens, typography and motion. Use actual Arc registry/MCP source and preserve documented APIs. Linear interactions are explicitly approved for the 2026-10-07 Requests/detail/Project navigation work; Arc remains the visual authority. Preserve working data, permissions, draft/upload recovery and Clerk flows. Verify production components in the running app and with tests, including keyboard, responsive and edge states (Storybook was removed on 2026-10-21 at Nikhil's request). The old `marketing/` repository was removed from Lane on 2026-10-15; the new marketing site is a separate local project built on the same 2026-10-13 Supabase-derived values. On 2026-10-09 Nikhil activated the Linear primitives in production for the whole app (root `data-visual-system="linear"`, Request detail included), retaining Arc components/motion; the compact Requests rows with saved priority and the folder-tree Project navigation ship with it. See `docs/design-system/linear-primitives.md`. On 2026-10-10 Nikhil accepted the MVP launch plan (`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md`) with its defaults: the same interaction approval extends to Profile auto-save, onboarding role keys, and keyboard operation of the notifications and search panes; the Arc Pro licence is recorded in `docs/licenses/arc-pro.md`. **Theme file (ADR 0007):** every visual value lives in `src/styles/theme.css`; product CSS writes no design literals (`pnpm design:check`). For any change to colours, fonts, corners, shadows, sizes or motion, read `docs/design-system/theme-file.md`.
 - **Signed-in browser checks:** walk a change signed in against a local database with `docs/agents/local-browser-checks.md` (reused `lane-e2e-*` user, temporary organization).
 - **No new tables, routes, AI calls, or cron jobs without explicit written approval.** Default answer to "should we also build X" is no.
 - **Same view for everyone.** PM/Designer/Developer profile labels grant no permissions or separate dashboards.
