@@ -383,6 +383,13 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   a team wants to report as released operational work, or Nikhil's decision, whichever comes first.
   — #309, recorded by the Builds 5 and 6 handoff (#256), 2026-11-15.
 
+## CLERK BRANDING — when a paid Clerk plan is approved
+
+- **"Secured by Clerk" in Clerk's account and workspace popups.** What: hide the badge through Clerk's branding
+  setting. Why deferred: removing it needs a paid Clerk plan, and Nikhil approved no paid plans (2026-10-26).
+  Lane keeps every other part of the popups in its own look through Clerk's appearance options. Trigger: Nikhil
+  approves a paid Clerk plan. — Polish spec: Settings, sign-in and onboarding (#243), 2026-10-26.
+
 ## LOW PRIORITY / maybe never
 
 - **Auth form DRY.** login/signup are ~95% duplicated. Only worth extracting *if* a third auth screen
