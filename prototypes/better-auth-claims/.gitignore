@@ -1,0 +1,5 @@
+node_modules/
+.next/
+scratch/
+*.tsbuildinfo
+next-env.d.ts

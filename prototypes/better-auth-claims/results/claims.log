@@ -1,0 +1,153 @@
+
+## Drizzle adapter on drizzle-orm 0.45.2 through a transaction-mode pooler
+
+CONFIRMED Sign-up writes profiles (Lane's table name and full_name column) through the adapter
+          200 {"token":null,"user":{"name":"Adapter","email":"adapter@example.test","emailVerified":false,"image":null,"createdAt":"2026-11-20T08:33:50.268Z","updatedAt":"2026-11-20T08:33:50.268Z","role":"designer","id":"apAwMUQxzS8tL
+CONFIRMED Better Auth's name maps to profiles.full_name; Lane's profile label keeps its default
+          {"full_name":"Adapter","role":"designer","email_verified":false}
+CONFIRMED The browser can't set Lane's own profile columns at sign-up (input: false)
+          200 {"token":null,"user":{"name":"F","email":"forge@example.test","emailVerified":false,"image":null,"createdAt":"2026-11-20T08:33:50.597Z","updatedAt":"2026-11-20T08:33:50.597Z","role":"designer","id":"BhbrM4mvvzo4dzxUuExSq → role designer
+INFO      All queries in this run go to PgBouncer 1.x on :6544, pool_mode=transaction, max_prepared_statements=0
+          server 17.10 (Homebrew)
+
+## Email code: sign-in, verification and reset
+
+CONFIRMED Sign-up sends a 6-digit verification code (overrideDefaultEmailVerification)
+          code 415263
+CONFIRMED Password sign-in is refused until the email is verified
+          403 {"message":"Email not verified","code":"EMAIL_NOT_VERIFIED"}
+CONFIRMED A wrong verification code is refused
+          400 {"message":"Invalid OTP","code":"INVALID_OTP"}
+CONFIRMED The right code verifies the email
+          200 {"status":true,"token":null,"user":{"name":"Codes","email":"codes@example.test","emailVerified":true,"image":null,"createdAt":"2026-11-20T08:33:50.804Z","updatedAt":"2026-11-20T08:33:50.980Z","role":"designer","id":"W4sZ
+CONFIRMED A sign-in code is sent to a known address
+          200 {"success":true}
+CONFIRMED The sign-in code signs in and sets a session
+          200 {"token":"gEDkBgtNpAXR0w9ZZ0gO6aIIKnaSYpkV","user":{"name":"Codes","email":"codes@example.test","emailVerified":true,"image":null,"createdAt":"2026-11-20T08:33:50.804Z","updatedAt":"2026-11-20T08:33:50.980Z","role":"desi
+CONFIRMED A used sign-in code can't be used again
+          400 {"message":"Invalid OTP","code":"INVALID_OTP"}
+CONFIRMED After 3 wrong attempts the correct code no longer works (allowedAttempts 3)
+          403 {"message":"Too many attempts","code":"TOO_MANY_ATTEMPTS"}
+FINDING   Unknown address (disableSignUp): nothing is sent, but the answer is the same 200 success as for a real account
+          200 {"success":true}. Lane's planned "No Lane account uses this email. Sign up instead." (#333 Q16) needs Lane's own lookup before calling Better Auth.
+CONFIRMED Codes never create accounts
+          profiles rows for nobody@: 0
+CONFIRMED Password reset sends a code
+          200 {"success":true}
+CONFIRMED Reset refuses a breached password (haveIBeenPwned)
+          400 {"message":"The password you entered has been compromised. Please choose a different password.","code":"PASSWORD_COMPROMISED"}
+CONFIRMED Reset with the code sets a new password
+          200 {"success":true} / 200 {"success":true}
+[2m2026-11-20T08:33:52.540Z[0m [33mWARN[0m [1m[Better Auth]:[0m Invalid password
+CONFIRMED Old password stops working, new one works
+          401 / 200
+FINDING   A password reset leaves the person's other signed-in devices signed in (revokeSessionsOnPasswordReset is off by default)
+          Decide whether Lane sets emailAndPassword.revokeSessionsOnPasswordReset: true (Clerk signs other sessions out on reset).
+[2m2026-11-20T08:33:52.734Z[0m [31mERROR[0m [1m[Better Auth]:[0m Failed to run background task: Error: Resend 429 daily_quota_exceeded (simulated)
+    at send (/Users/nikhilsharma/Documents/Work/Lane-proto-344/prototypes/better-auth-claims/lib/auth.ts:23:31)
+    at Object.sendVerificationOTP (/Users/nikhilsharma/Documents/Work/Lane-proto-344/prototypes/better-auth-claims/lib/auth.ts:115:60)
+    at file:///Users/nikhilsharma/Documents/Work/Lane-proto-344/prototypes/better-auth-claims/node_modules/.pnpm/better-auth@1.7.26_drizzle-orm@0.45.2_kysely@0.29.9_postgres@3.4.9__next@16.3.8_@types+_f802aaa6e95911230961a344b608b6a0/node_modules/better-auth/dist/plugins/email-otp/routes.mjs:109:48
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///Users/nikhilsharma/Documents/Work/Lane-proto-344/prototypes/better-auth-claims/node_modules/.pnpm/@better-auth+core@1.7.26_@better-auth+utils@0.5.1_@better-fetch+fetch@1.3.3_better-call_b7fde4f640957045d4d0dd90165e5072/node_modules/@better-auth/core/dist/api/index.mjs:57:11
+    at async internalHandler (/Users/nikhilsharma/Documents/Work/Lane-proto-344/prototypes/better-auth-claims/node_modules/.pnpm/better-call@1.4.6_zod@4.6.7/node_modules/better-call/src/endpoint.ts:648:20)
+    at async file:///Users/nikhilsharma/Documents/Work/Lane-proto-344/prototypes/better-auth-claims/node_modules/.pnpm/better-auth@1.7.26_drizzle-orm@0.45.2_kysely@0.29.9_postgres@3.4.9__next@16.3.8_@types+_f802aaa6e95911230961a344b608b6a0/node_modules/better-auth/dist/api/dispatch.mjs:252:18
+    at async processRequest (/Users/nikhilsharma/Documents/Work/Lane-proto-344/prototypes/better-auth-claims/node_modules/.pnpm/better-call@1.4.6_zod@4.6.7/node_modules/better-call/src/router.ts:261:11)
+    at async handler (/Users/nikhilsharma/Documents/Work/Lane-proto-344/prototypes/better-auth-claims/node_modules/.pnpm/better-call@1.4.6_zod@4.6.7/node_modules/better-call/src/router.ts:302:16)
+    at async file:///Users/nikhilsharma/Documents/Work/Lane-proto-344/prototypes/better-auth-claims/node_modules/.pnpm/@better-auth+core@1.7.26_@better-auth+utils@0.5.1_@better-fetch+fetch@1.3.3_better-call_b7fde4f640957045d4d0dd90165e5072/node_modules/@better-auth/core/dist/context/transaction.mjs:38:13
+FINDING   When the email provider refuses a send, Better Auth still answers 200 success (the error is only logged)
+          200 {"success":true}. Lane's "We couldn't send the code right now…" (#333 Q7) can't come from this response as is.
+CONFIRMED Email-code sends without a Turnstile token are refused
+          400 {"message":"Missing CAPTCHA response","code":"MISSING_RESPONSE"}
+CONFIRMED Password sign-in without a Turnstile token is refused
+          400 {"message":"Missing CAPTCHA response","code":"MISSING_RESPONSE"}
+CONFIRMED Repeated code sends from one IP are rate-limited
+          statuses 200,200,200,429,429
+CONFIRMED Rate-limit counters live in Postgres (storage: "database")
+          24 rows in rate_limit
+FINDING   The limit is per IP, not per email address: 4 more sends to the same address from 4 new IPs all went through
+          statuses 200,200,200,200. "About 3 per address per 10 minutes" (#333 Q6) needs a Lane-side per-address check.
+
+## Custom roles admin/member/guest/viewer, creatorRole admin, no owner
+
+CONFIRMED An organization is created in Lane's organizations table
+          200 {"name":"Proto Studio","slug":"proto-studio","logo":null,"createdAt":"2026-11-20T08:33:54.458Z","plan":"free","lastRequestNumber":0,"id":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","members":[{"organizationId":"UpDRxQ1mzxbvS0Pr84
+CONFIRMED The browser can't set plan or last_request_number
+          200 {"name":"Forged","slug":"forged","logo":null,"createdAt":"2026-11-20T08:33:54.465Z","plan":"free","lastRequestNumber":0,"id":"aBQF2gXiRvr6ZyS2PeTHIwMtCLzMCQW4","members":[{"organizationId":"aBQF2gXiRvr6ZyS2PeTHIwMtCLzMCQ → {"plan":"free","last_request_number":0}
+CONFIRMED The creator's membership role is admin, not owner
+          {"role":"admin"}
+CONFIRMED Invite and accept as member (Ben)
+          200 {"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","email":"ben@example.te / 200 {"invitation":{"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","email":"
+CONFIRMED Invite and accept as guest (Cy)
+          200 {"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","email":"cy@example.tes / 200 {"invitation":{"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","email":"
+CONFIRMED Invite and accept as viewer (Di)
+          200 {"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","email":"di@example.tes / 200 {"invitation":{"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","email":"
+CONFIRMED Inviting with the role 'owner' is refused when owner isn't a defined role
+          400 {"message":"That role doesn't exist in Lane."}
+CONFIRMED Changing someone's role to 'owner' is refused
+          400 {"message":"That role doesn't exist in Lane."}
+CONFIRMED Inviting with an undefined role is refused
+          400 {"message":"ROLE_NOT_FOUND: superuser"}
+CONFIRMED Guest: may create and comment, may not change
+CONFIRMED Viewer: changes nothing
+CONFIRMED Only Admin manages members
+CONFIRMED A Guest can't invite
+          403 {"message":"You are not allowed to invite users to this organization","code":"YOU_ARE_NOT_ALLOWED_TO_INVITE_USERS_TO_THIS_ORGANIZATION"}
+CONFIRMED A Member can't rename the workspace
+          403 {"message":"You are not allowed to update this organization","code":"YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_ORGANIZATION"}
+CONFIRMED An Admin renames the workspace
+          200 {"name":"Proto Studio 2","slug":"proto-studio","logo":null,"createdAt":"2026-11-20T08:33:54.458Z","plan":"free","lastRequestNumber":0,"id":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP"}
+FINDING   An Admin can still store a workspace logo and metadata through /organization/update
+          200; stored {"logo":"https://example.test/logo.png","metadata":"{\"a\":1}"}. Lane drops logos (#345 Q5): blank them in beforeUpdateOrganization / beforeCreateOrganization.
+CONFIRMED Workspace deletion is off (disableOrganizationDeletion)
+          404 {"message":"Organization deletion is disabled","code":"ORGANIZATION_DELETION_DISABLED"}
+CONFIRMED The only Admin can't leave
+          400 {"message":"You cannot leave the organization as the only owner","code":"YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER"} (Better Auth's own copy says 'owner'; Lane shows its own sentence)
+CONFIRMED The only Admin can't demote themselves
+          400 {"message":"You cannot leave the organization without an owner","code":"YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER"}
+CONFIRMED An Admin makes a Member an Admin
+          200 {"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","userId":"Zzrjpn2TQswRXhdipMgTIONSxww4c4nY","role":"admin","createdAt":"2026-11-20T08:33:54.492Z","id":"WlPyH5U1JPFHG9wbHg0LpSQIYIBFJpJ9"}
+CONFIRMED All Admins are equal: the newer Admin can demote the workspace's creator
+          200 {"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","userId":"RkvW655577lIfpvESuyGbmqTYtFBtC5Y","role":"member","createdAt":"2026-11-20T08:33:54.459Z","id":"ifi8tbKVQEmb7u8vA4oeNOsfseH9tCKH"}
+CONFIRMED Now Ben is the only Admin and can't leave either
+          400 {"message":"You cannot leave the organization as the only owner","code":"YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER"}
+CONFIRMED The only Admin can't remove themselves via remove-member
+          400 {"message":"You cannot leave the organization as the only owner","code":"YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER"}
+CONFIRMED A non-Admin can't change an Admin's role
+          403 {"message":"You are not allowed to update this member","code":"YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER"}
+CONFIRMED With two Admins, one Admin removes the other
+          200 {"member":{"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","userId":"Zzrjpn2TQswRXhdipMgTIONSxww4c4nY","role":"admin","createdAt":"2026-11-20T08:33:54.492Z","id":"WlPyH5U1JPFHG9wbHg0LpSQIYIBFJpJ9"}}
+CONFIRMED A non-Admin leaves freely
+          200 {"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","userId":"jd9UV83CMF56nawvdipykJZTiFNZlO9F","role":"viewer","createdAt":"2026-11-20T08:33:54.521Z","id":"1nbUQGJcyxP8tVgYB4c5oF9DIcQtAaSi","user":{"id":"jd9UV83CMF56na
+CONFIRMED An unverified account can't accept (it can't even sign in to try)
+          401 {"message":"Unauthorized","code":"UNAUTHORIZED"}
+CONFIRMED Someone whose email doesn't match can't accept another person's invitation
+          403 {"message":"You are not the recipient of the invitation","code":"YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION"}
+CONFIRMED Resending an invitation sends it again without a second pending row
+          200 {"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","email":"una@example.test","role":"member", pending=1
+CONFIRMED Invitations expire after 7 days
+          7 days
+CONFIRMED An Admin cancels a pending invitation
+          200 {"organizationId":"UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP","email":"una@example.test","role":"member","status":"canceled","expiresAt":"2026-11-27T08:33:54.903Z","createdAt":"2026-11-20T08:33:54.891Z","inviterId":"RkvW655577lIf
+INFO      Member rows holding 'owner' after clean-up: 0
+
+## Per-request cost of reading the session and the role
+
+CONFIRMED A one-query guard (signed cookie → session ⋈ member) returns the role
+CONFIRMED A tampered cookie fails the signature check before any query
+MEASURED  getSession: median 0.8 ms, p95 0.9 ms, 2 queries
+MEASURED  getSessionPlusMember: median 2.4 ms, p95 2.6 ms, 6 queries
+          getActiveMember re-reads the session itself
+MEASURED  laneGuard: median 0.3 ms, p95 0.4 ms, 1 queries
+MEASURED  A session older than a day is extended on the next read: 3.0 ms, 5 queries
+          status 200; Set-Cookie refreshed: true
+
+## How quickly revocation takes effect (cookie cache off)
+
+CONFIRMED Member → Viewer applies on Ben's very next request (8 ms after the change)
+          200 {"error":null,"success":true} → 200 {"error":null,"success":false}
+CONFIRMED After removal, Ben's next membership read fails
+          400 {"message":"Member not found","code":"MEMBER_NOT_FOUND"}
+FINDING   After removal Ben's session still names the workspace as active (activeOrganizationId isn't cleared)
+          activeOrganizationId=UpDRxQ1mzxbvS0Pr84kWWF1HElaCx9jP. Harmless only because Lane's guard reads the member row every request (#333 Q5); never trust activeOrganizationId alone.
+CONFIRMED 'Sign out other devices' ends the other session on its next request
+          sessions 2, other device now 200 null

@@ -1,0 +1,32 @@
+MEASURED  [schema=full, mapProfileToUser image=keep, image hook off] Google sign-in succeeds
+          callback 302 → /app; profiles.image column present, value "https://lh3.googleusercontent.com/a/proto-photo"; session user.image "https://lh3.googleusercontent.com/a/proto-photo"
+FINDING   [schema=full, mapProfileToUser image=keep, image hook off] The person sets their own picture with /update-user
+          200 {"status":true}; stored image: "https://example.test/self-set-photo.png"
+MEASURED  [schema=full, mapProfileToUser image=undefined, image hook off] Google sign-in succeeds
+          callback 302 → /app; profiles.image column present, value null; session user.image null
+FINDING   [schema=full, mapProfileToUser image=undefined, image hook off] The person sets their own picture with /update-user
+          200 {"status":true}; stored image: "https://example.test/self-set-photo.png"
+MEASURED  [schema=full, mapProfileToUser image=null, image hook off] Google sign-in succeeds
+          callback 302 → /app; profiles.image column present, value null; session user.image null
+FINDING   [schema=full, mapProfileToUser image=null, image hook off] The person sets their own picture with /update-user
+          200 {"status":true}; stored image: "https://example.test/self-set-photo.png"
+MEASURED  [schema=full, mapProfileToUser image=keep, image hook on] Google sign-in succeeds
+          callback 302 → /app; profiles.image column present, value null; session user.image null
+MEASURED  [schema=full, mapProfileToUser image=keep, image hook on] The person sets their own picture with /update-user
+          200 {"status":true}; stored image: null
+[2m2026-11-20T08:34:09.282Z[0m [31mERROR[0m [1m[Better Auth]:[0m Unable to create OAuth user [BetterAuthError: The field "image" does not exist in the "user" Drizzle schema. Please update your drizzle schema or re-generate using "npx auth@latest generate".]
+[2m2026-11-20T08:34:09.282Z[0m [31mERROR[0m [1m[Better Auth]:[0m unable_to_create_user
+FINDING   [schema=lean, mapProfileToUser image=keep, image hook off] Google sign-in fails
+          callback 302 → http://localhost:3344/api/auth/error?error=unable_to_create_user; profiles.image column absent; session user.image undefined
+MEASURED  [schema=lean, mapProfileToUser image=keep, image hook off] The person sets their own picture with /update-user
+          401 {"message":"Unauthorized","code":"UNAUTHORIZED"}; stored image: no column
+MEASURED  [schema=lean, mapProfileToUser image=undefined, image hook off] Google sign-in succeeds
+          callback 302 → /app; profiles.image column absent; session user.image undefined
+MEASURED  [schema=lean, mapProfileToUser image=undefined, image hook off] The person sets their own picture with /update-user
+          200 {"status":true}; stored image: no column
+[2m2026-11-20T08:34:13.163Z[0m [31mERROR[0m [1m[Better Auth]:[0m Unable to create OAuth user [BetterAuthError: The field "image" does not exist in the "user" Drizzle schema. Please update your drizzle schema or re-generate using "npx auth@latest generate".]
+[2m2026-11-20T08:34:13.163Z[0m [31mERROR[0m [1m[Better Auth]:[0m unable_to_create_user
+FINDING   [schema=lean, mapProfileToUser image=null, image hook off] Google sign-in fails
+          callback 302 → http://localhost:3344/api/auth/error?error=unable_to_create_user; profiles.image column absent; session user.image undefined
+MEASURED  [schema=lean, mapProfileToUser image=null, image hook off] The person sets their own picture with /update-user
+          401 {"message":"Unauthorized","code":"UNAUTHORIZED"}; stored image: no column

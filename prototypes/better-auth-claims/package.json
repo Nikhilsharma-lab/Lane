@@ -1,0 +1,34 @@
+{
+  "name": "prototype-better-auth-claims",
+  "private": true,
+  "description": "PROTOTYPE for #344. Throwaway, never merged.",
+  "type": "module",
+  "scripts": {
+    "db:reset": "bash scripts/reset-db.sh",
+    "checks": "bash scripts/run-all.sh",
+    "dev": "next dev -p 3344",
+    "build": "next build",
+    "start": "next start -p 3344"
+  },
+  "dependencies": {
+    "better-auth": "1.7.26",
+    "next": "16.3.8",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "drizzle-orm": "0.45.2",
+    "postgres": "3.4.9"
+  },
+  "devDependencies": {
+    "tsx": "^4",
+    "typescript": "^5",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "playwright": "1.61.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  }
+}

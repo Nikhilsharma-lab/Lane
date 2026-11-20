@@ -1,0 +1,4 @@
+MEASURED  Turnstile on: sign-up request median 314 ms (includes Have I Been Pwned), password sign-in request median 165 ms
+          runs 165, 130, 170, 137, 408
+MEASURED  Turnstile off: sign-up request median 230 ms (includes Have I Been Pwned), password sign-in request median 76 ms
+          runs 76, 115, 75, 76, 75

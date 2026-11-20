@@ -1,0 +1,39 @@
+
+## Login page with Turnstile (local production build, desktop Chromium)
+
+MEASURED  First visit: on screen 36 ms, form usable 56 ms, Turnstile script 411 ms, token ready 2607 ms
+          median of 5; target (#231) desktop returning ≤0.5 s on screen, ≤1.0 s usable; Clerk today ~1,026 ms usable (DEFERRED SIGN-IN FORM SPEED)
+MEASURED  Returning visit: on screen 24 ms, form usable 25 ms, Turnstile script 27 ms, token ready 2476 ms
+          median of 5; target (#231) desktop returning ≤0.5 s on screen, ≤1.0 s usable; Clerk today ~1,026 ms usable (DEFERRED SIGN-IN FORM SPEED)
+
+## Password sign-in → signed-in page
+
+MEASURED  Click "Sign in" → signed-in page painted: median 234 ms (runs 1380, 355, 234, 223, 215)
+          includes the sign-in request (Turnstile siteverify, password hash check), the redirect, proxy and the /app render
+MEASURED  proxy.ts session check: proxy;dur=1.6; /app session + role read: 4.0 ms; database queries per signed-in page load (proxy + page): 7
+          local Postgres; on Vercel hnd1 → Supabase ap-northeast-1 each query adds a network round trip
+
+## Fast submit: the form is sent the moment it is usable (password manager)
+
+MEASURED  Open /login, autofill and submit at once → signed-in page: median 2951 ms (runs 2951, 2587, 3019, 2512, 2952)
+          here the person waits for Turnstile's token; target ≤1.0 s usable applies to the form, which is usable in tens of ms
+
+## Server actions and revocation in the running app
+
+CONFIRMED A server action reads the session from the cookie and an Admin renames the workspace
+          msg renamed
+CONFIRMED The demotion applies to Wren's very next server action (82 ms after it, including the click)
+          200 {"organizationId":"RCIAgIFXHORr2VYxX6213p3vFVUOnnGd","us
+CONFIRMED After removal, Wren's next page shows no membership
+          role: not a member
+CONFIRMED A server-action sign-out clears the session cookie (nextCookies)
+          no cookies
+CONFIRMED proxy.ts sends a signed-out visit to /app back to /login
+          http://localhost:3344/login
+
+## Sign-in from a server action (auth.api, not the HTTP handler)
+
+FINDING   A server action calling auth.api.signInEmail signs in WITHOUT a Turnstile token: the captcha plugin only guards HTTP requests to /api/auth
+          So every Lane sign-in, sign-up, code and reset form must call /api/auth from the browser (Better Auth's client), never auth.api from an action.
+CONFIRMED When a server action signs in, nextCookies() sets the session cookie
+          better-auth.session_token

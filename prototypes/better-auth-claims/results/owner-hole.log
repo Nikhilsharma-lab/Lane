@@ -1,0 +1,7 @@
+FINDING   Invite with role 'owner' (no allow-list)
+          200 {"organizationId":"HkDbw4PoZF5IrJqk3HVYTvjFQJ1AYHlt","email":"hole-eve@example.test","role":"owner","status":"pendin
+FINDING   Accepted: Eve's member role is 'owner', which Lane's guards don't recognise
+INFO      'owner' carries no Lane permissions: has-permission = false
+          So it's a broken membership, not an escalation.
+INFO      Admin changes their own role to 'owner'
+          400 {"message":"You cannot leave the organization without an owner","code":"YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER"}
