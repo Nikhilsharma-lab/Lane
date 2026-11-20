@@ -25,6 +25,7 @@ everything and also file Requests is a Member.
 
 **Admin**:
 A Member who also manages the workspace's people and settings. Takes a paid seat.
+_Avoid_: Owner
 
 **Member**:
 A person who files and works Requests: picks them up, reviews them, records Releases and closes them. Takes a
