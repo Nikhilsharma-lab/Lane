@@ -518,8 +518,8 @@ function Account({ initial }: { initial: string }) {
   const [pwError, setPwError] = useState<string>();
   const [devices, setDevices] = useState([
     { id: "1", icon: MonitorIcon, label: "Chrome on macOS", detail: "This device", current: true },
-    { id: "2", icon: SmartphoneIcon, label: "Safari on iPhone", detail: "Signed in 18 Nov", current: false },
-    { id: "3", icon: MonitorIcon, label: "Firefox on Windows", detail: "Signed in 2 Nov", current: false },
+    { id: "2", icon: SmartphoneIcon, label: "Safari on iPhone", detail: "Used today · signed in 18 Nov", current: false },
+    { id: "3", icon: MonitorIcon, label: "Firefox on Windows", detail: "Used 12 Nov · signed in 2 Nov", current: false },
   ]);
   useReport({ screen: "account", methods, name, savedName, dialog, signOutOthers, devices: devices.map(d => d.label) });
   const onlyOne = Number(methods.password) + Number(methods.google) === 1;
@@ -540,7 +540,7 @@ function Account({ initial }: { initial: string }) {
           ? <Button size="sm" variant="secondary" disabled={onlyOne} onClick={() => setMethods(m => ({ ...m, google: false }))}>Disconnect</Button>
           : <Button size="sm" variant="secondary" onClick={() => setMethods(m => ({ ...m, google: true }))}><GoogleMark />Connect Google</Button>} />
     </SettingsGroup>
-    <SettingsGroup label={`Signed-in devices (${devices.length})`} labelId="devices" description="Sessions last 7 days.">
+    <SettingsGroup label={`Signed-in devices (${devices.length})`} labelId="devices" description="Only you see this. A device stays signed in for 7 days after it was last used.">
       <SettingsRowList label="Signed-in devices">
         {devices.map(d => <SettingsRow as="li" key={d.id} leading={<d.icon aria-hidden="true" />} label={d.label}
           hint={d.current ? <Badge size="sm" tone="success">This device</Badge> : d.detail}
@@ -599,14 +599,14 @@ function Workspace({ initial }: { initial: string }) {
           </form>
         : <span>{saved}</span>} />
     </SettingsGroup>
-    <SettingsGroup label={`People (${people.length})`} labelId="people" description="Prototype: the real list, invitations and role changes stay as accepted in #322; only Remove is new.">
+    <SettingsGroup id="people" tabIndex={-1} label={`People (${people.length})`} labelId="people" description="Prototype: the real list, invitations and role changes stay as accepted in #322; only Remove is new.">
       <SettingsRowList label="People">
         {people.map(p => <SettingsRow as="li" key={p.id} label={p.id === "me" ? `${p.name} (you)` : p.name} hint={p.email}
           control={<><Badge size="sm">{p.role}</Badge>{admin && p.id !== "me" && <Button size="sm" variant="ghost" onClick={() => setRemoving(p.id)}>Remove</Button>}</>} />)}
       </SettingsRowList>
     </SettingsGroup>
     <SettingsGroup label="Leave" labelId="leave">
-      <SettingsRow label="Leave Acme Design" hint={lastAdmin ? "You’re the only Admin. Make someone else an Admin before you leave." : "You lose access straight away. Your Requests and comments stay."}
+      <SettingsRow label="Leave Acme Design" hint={lastAdmin ? <>You’re the only Admin. Make someone else an Admin before you leave. <button type="button" className={s.textLink} onClick={() => { const el = document.getElementById("people"); el?.scrollIntoView({ block: "start" }); el?.focus(); }}>Make someone an Admin</button></> : "You lose access straight away. Your Requests and comments stay."}
         control={<Button size="sm" variant="danger" disabled={lastAdmin} onClick={() => setLeaving(true)}>Leave workspace</Button>} />
     </SettingsGroup>
     <Dialog open={!!target} onOpenChange={open => { if (!open) setRemoving(null); }}>
