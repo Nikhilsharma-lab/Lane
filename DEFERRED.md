@@ -394,6 +394,20 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   Lane keeps every other part of the popups in its own look through Clerk's appearance options. Trigger: Nikhil
   approves a paid Clerk plan. — Polish spec: Settings, sign-in and onboarding (#243), 2026-10-26.
 
+## AFTER THE BETTER AUTH CUTOVER — when auth email or account changes outgrow the first version
+
+- **Resend Pro ($20/mo).** What: move Lane's email from Resend Free (3,000 a month, 100 a day) to Pro (50,000 a
+  month). Why deferred: once Better Auth replaces Clerk, Lane sends every auth email itself, and the free plan fits
+  the pilot. Auth email comes first: if Resend refuses a send, that day's Inbox email stops and auth email keeps
+  trying. Nikhil approved no paid services before revenue. Trigger: about 70 sends a day on several days in a week,
+  or Resend refuses a send, or the first payment, whichever comes first. Nikhil approves the purchase when it fires.
+  — Decision: Better Auth architecture within the free pilot budget (#333), 2026-11-20.
+- **Changing your account's email address.** What: let someone change their sign-in email from Settings → Profile,
+  verified by a code sent to the new address. Why deferred: the email decides the Free Requests domain and which
+  invitations can be accepted, so it needs its own careful flow; the first Better Auth account section has name,
+  password, Google and signed-in devices only. Until then the change is made by hand. Trigger: the first person who
+  asks. — #333, 2026-11-20.
+
 ## LOW PRIORITY / maybe never
 
 - **Auth form DRY.** login/signup are ~95% duplicated. Only worth extracting *if* a third auth screen
