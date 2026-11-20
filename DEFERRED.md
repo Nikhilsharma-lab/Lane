@@ -284,6 +284,10 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   update payment methods, see invoice history, switch between the yearly and monthly prices (same product), and
   cancel at the end of the billing period; and under subscription retries, cancel the subscription when all retries
   fail (an unpaid plan stays lapsed until the card is updated otherwise).
+  Before switching on, also update the wording that says Lane is free (#236): `/terms` drops "free pilot" (its
+  description, the line under the title and §2) and states the paid plans, and Nikhil signs off the legal text.
+  Settings → Billing needs no edit: its "Lane is free during the pilot" line and the pilot's refusal to pay show only
+  while billing is off (Build 8, #287).
 
 - **Notification tabs (All/Mentions).** What: tabbed notification panel with separate unread counts
   per tab. Why: without @mentions there's only one category. Plane ref: `NOTIFICATION_TABS` constant,
