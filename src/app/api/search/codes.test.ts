@@ -4,8 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { GET } from "./route";
 import type { WorkspaceSearchResponse } from "@/lib/workspace-search";
 
-const session = vi.hoisted(() => ({ userId: "user_code_search_member", orgId: "org_code_search_a", orgRole: "org:member" }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+const session = vi.hoisted(() => ({ userId: "user_code_search_member", orgId: "org_code_search_a", role: "member" as "member" | "guest" }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 
 const ORG_A = "org_code_search_a";
 const ORG_B = "org_code_search_b";
@@ -40,7 +40,7 @@ beforeAll(async () => {
     values (${ORG_B},'Other workspace Request','Other private context',${MEMBER})`;
 });
 
-beforeEach(() => { session.userId = MEMBER; session.orgId = ORG_A; session.orgRole = "org:member"; });
+beforeEach(() => { session.userId = MEMBER; session.orgId = ORG_A; session.role = "member"; });
 afterAll(async () => {
   if (!connection) return;
   await connection`delete from organizations where id in (${ORG_A},${ORG_B})`;
@@ -56,14 +56,14 @@ describe("saved code retrieval with actual workspace data", () => {
   });
 
   it("does not expose another submitter's Request or its total when a guest knows its code", async () => {
-    session.userId = GUEST; session.orgRole = "org:guest";
+    session.userId = GUEST; session.role = "guest";
     expect(await search("LAN-1")).toMatchObject({
       success: true, requests: { items: [], total: 0, hasMore: false },
     });
   });
 
   it("lets a guest retrieve their own Request by code using the UUID detail identity", async () => {
-    session.userId = GUEST; session.orgRole = "org:guest";
+    session.userId = GUEST; session.role = "guest";
     expect(await search("LAN-2")).toMatchObject({
       success: true, requests: { total: 1, items: [{ id: guestRequestId, requestNumber: 2 }] },
     });
