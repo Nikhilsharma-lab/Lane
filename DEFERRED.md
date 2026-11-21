@@ -354,15 +354,26 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   support show phone users looking for one place to type what they want, or the phone shell is redesigned.
   — spec #101 (Q14), recorded by #107, 2026-10-22; narrowed to phones by #268, 2026-11-02.
 
-## CACHE COMPONENTS — when Build 9's re-measure still misses the speed targets
+## CACHE COMPONENTS — when a later re-measure misses after the follow-up fixes, or Vercel Pro is bought
 
 - **Cache Components / Partial Prefetching.** What: turn on Next.js 16's ready-made shell for every route, so
   each page shows its frame at once and fills in the rest. Why deferred: it is large and risky. It changes how
-  every signed-in page reads the session, and how popups and tests behave. Speed fixes 1–6 are smaller and
-  may be enough on their own. Trigger: Build 9's full re-measure still misses the speed targets after fixes
-  1–6. — speed plan #231, recorded by Build 1 (#256, #259), 2026-10-28.
+  every signed-in page reads the session, and how popups and tests behave. Build 9's live re-measure
+  (2026-11-21, `main` 24e077e0, #291) found the server isn't where the time goes: every page renders in 140 ms
+  or less and none of 150 loads was slow. The misses are in the browser (reads after the page arrives, phone code
+  download, Clerk's own form), which Cache Components doesn't change. It would help only first paint on a
+  returning desktop visit (0.51–0.62 s against 0.5 s, by about 0.1–0.2 s), and that miss is accepted for now.
+  Trigger: a later re-measure still misses after the follow-up fixes (#366), or Vercel Pro is bought at the
+  first-payment trigger. — speed plan #231, recorded by Build 1 (#256, #259), 2026-10-28; Build 9, Nikhil
+  2026-11-21.
 
-## SIGN-IN FORM SPEED — when Clerk offers a way to load its form sooner
+- **Accepted for now (Build 9, Nikhil 2026-11-21).** Returning desktop first paint 0.51–0.62 s on most pages
+  (target 0.5 s; one trip to Tokyo plus the render, no small code fix). The first C, ⌘K or / pressed right after a
+  first visit on a slow device (4× CPU, slow 4G): 1.81 s, 0.90 s and 0.88 s (target 0.1 s), because each window's
+  code loads after the page; desktop meets the target and phones have no keyboard shortcuts. Trigger: a phone or
+  tablet keyboard becomes a target, or Cache Components is turned on.
+
+## SIGN-IN FORM SPEED — on Nikhil's go for a Lane-drawn sign-in form
 
 - **Speed fix 6: sign-in and sign-up form loading with the page.** What: start loading Clerk's form with the page so
   sign-in and sign-up are usable sooner. Why deferred: the pinned bundled Clerk UI (@clerk/ui 1.33.1) documents only
@@ -372,6 +383,22 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   (about 570 ms) and React's 300 ms Suspense reveal inside Clerk's lazy tree. Trigger: Clerk documents a load or
   preload option for the bundled UI, or Build 9's re-measure finds sign-in short of its target on live.
   — Build 8 (#289), Nikhil 2026-11-18.
+  **Build 9 (#291): the trigger has fired.** On live, sign-in and sign-up on a phone (4× CPU, slow 4G) are usable at
+  5.81 s and 5.47 s (target 3.5 s). About 3.0 s of that is Clerk's: two API calls (about 0.5 s), then 263 KB of
+  @clerk/ui chunks loading about six deep. Desktop meets its target (returning 0.93 s, first visit 1.24–1.29 s). The
+  fix is a Lane-drawn form on Clerk's documented `useSignIn` / `useSignUp` (the password-recovery form already
+  works this way), a medium-sized build. Nikhil 2026-11-21: decide later, as its own build with its own go.
+
+## PHONE FIRST-LOAD SIZE — on Nikhil's go for a code diet
+
+- **Cut what phones download before a page is usable.** What: on a phone (4× CPU, slow 4G) usable time follows
+  first-load size (about 8.2 ms per KB) and crosses 3.5 s at about 369 KB. On live (Build 9, 2026-11-21) the
+  Requests list is 4.02 s, Intake 3.54 s, Impact 3.64 s and Settings 3.72–3.87 s (target 3.5 s; 4.3–5.8 s on
+  2026-10-26). Meeting it needs about 63 KB off the Requests list, 45 KB off a Metric, 35 KB off Profile, 29 KB off
+  Billing, 27 KB off Metrics, 17 KB off Impact and 5 KB off Intake, and about 30–40 KB of render-blocking CSS that
+  carries other screens' styles (on screen 2.02–2.19 s against 2.0 s). Why deferred: it is a project, not a small
+  fix; `inlineCss` and default chunking both made phones slower in Build 9's trials. Trigger: Nikhil's go, or phone
+  visits become a real share of Speed Insights. — Build 9 (#291), Nikhil 2026-11-21.
 
 ## RELEASED OPERATIONAL WORK — when a team wants to report operational work as released
 
