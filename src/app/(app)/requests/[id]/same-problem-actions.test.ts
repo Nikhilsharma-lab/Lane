@@ -6,15 +6,16 @@
  */
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_same_problem";
 const OTHER = "org_same_problem_other";
 const ADMIN = "same_problem_admin", MEMBER = "same_problem_member", GUEST = "same_problem_guest", VIEWER = "same_problem_viewer";
-const session = vi.hoisted(() => ({ userId: "same_problem_member", orgId: "org_same_problem", orgRole: "org:member" }));
+const session = vi.hoisted((): Session => ({ userId: "same_problem_member", orgId: "org_same_problem", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({ organizations: { getOrganizationMembershipList: async () => ({ totalCount: 0, data: [] }) } }),
 }));
 
@@ -23,7 +24,7 @@ requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
 
 const ctx = { orgId: ORG };
-const as = (userId: string, orgRole = "org:member") => Object.assign(session, { userId, orgRole, orgId: ORG });
+const as = (userId: string, role: Session["role"] = "member") => Object.assign(session, { userId, role, orgId: ORG });
 const actions = () => import("./same-problem-actions");
 const link = async (requestId: string, otherRequestId: string) => (await actions()).linkSameProblem({ requestId, otherRequestId }, ctx);
 const remove = async (requestId: string) => (await actions()).removeSameProblemLink({ requestId }, ctx);
@@ -97,7 +98,7 @@ describe("linking Requests as Same problem", () => {
   });
 
   it("lets an Admin link and remove too", async () => {
-    as(ADMIN, "org:admin");
+    as(ADMIN, "admin");
     const a = await request("Admin A"), b = await request("Admin B");
     expect(await link(a, b)).toEqual({ success: true });
     expect(await remove(a)).toEqual({ success: true });
@@ -138,7 +139,7 @@ describe("history", () => {
     const a = await request("History A"), b = await request("History B"), c = await request("History C");
     const number = async (id: string) => (await connection`select request_number from requests where id = ${id}`)[0].request_number;
     await link(a, b);
-    as(ADMIN, "org:admin");
+    as(ADMIN, "admin");
     await link(c, a);
     await remove(c);
     as(MEMBER);
@@ -169,7 +170,7 @@ describe("who sees and changes links", () => {
   it("shows a guest no links and lets them change none, even on their own Request", async () => {
     const own = await request("Guest's own", { createdBy: GUEST }), other = await request("Guest link target");
     await link(own, other);
-    as(GUEST, "org:guest");
+    as(GUEST, "guest");
     expect(await read(own)).toEqual({ shown: false });
     expect(await link(own, other)).toEqual({ error: "Guests can’t link Requests in this workspace." });
     expect(await remove(own)).toEqual({ error: "Guests can’t link Requests in this workspace." });
@@ -179,7 +180,7 @@ describe("who sees and changes links", () => {
   it("shows a Viewer every link and its history, with nothing to change", async () => {
     const a = await request("Viewer A"), b = await request("Viewer B");
     await link(a, b);
-    as(VIEWER, "org:viewer");
+    as(VIEWER, "viewer");
     expect(await read(a)).toMatchObject({ shown: true, canChange: false, iterations: { iterations: [{ title: "Viewer A" }, { title: "Viewer B" }] }, history: [{ kind: "linked" }] });
   });
 

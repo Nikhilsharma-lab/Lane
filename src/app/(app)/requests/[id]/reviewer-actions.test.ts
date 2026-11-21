@@ -2,10 +2,11 @@ import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
-const session = vi.hoisted(() => ({
+import type { Session } from "@/lib/session";
+const session = vi.hoisted((): Session => ({
   userId: "agreement_owner",
   orgId: "org_agreement",
-  orgRole: "org:member",
+  role: "member",
 }));
 const invitationState = vi.hoisted(() => ({
   status: "pending",
@@ -24,8 +25,8 @@ const roster = vi.hoisted(() => new Map<string, string>());
 /** Sign-in names changed since a reviewer was picked; everyone else is named by their user id. */
 const signInNames = vi.hoisted(() => new Map<string, string>());
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async () => ({
@@ -97,9 +98,9 @@ const contextFor = (requestId: string, expectedRevision: number) => ({
   expectedRevision,
   operationId: randomUUID(),
 });
-const as = (userId: string, orgRole = "org:member") => {
+const as = (userId: string, role: Session["role"] = "member") => {
   session.userId = userId;
-  session.orgRole = orgRole;
+  session.role = role;
 };
 async function freshRequest() {
   const [row] =
@@ -114,9 +115,9 @@ async function reviewersOf(id: string) {
   const [row] = await connection`select reviewers from request_agreements where request_id=${id}`;
   return (row?.reviewers ?? []) as { id: string; nominee: { kind: string; userId?: string }; decision: null | { kind: string; reason: string } }[];
 }
-async function add(id: string, nominees: unknown[], userId = owner, orgRole = "org:member") {
+async function add(id: string, nominees: unknown[], userId = owner, role: Session["role"] = "member") {
   const api = await import("./reviewer-actions");
-  as(userId, orgRole);
+  as(userId, role);
   const result = await api.addReviewers(contextFor(id, await revisionOf(id)), { nominees, note: "" });
   as(owner);
   return result;
@@ -168,35 +169,35 @@ it("a member adds reviewers; everyone sees them with their profile role and no a
 it("only Admins and Members can be Reviewers: Guests, Viewers, email addresses and pending invitations are refused", async () => {
   const id = await freshRequest();
   const PAID_SEATS_ONLY = { error: "Only Admins and Members can be Reviewers." };
-  for (const orgRole of ["org:member", "org:admin"]) {
-    expect(await add(id, [member(guest)], other, orgRole)).toEqual(PAID_SEATS_ONLY);
-    expect(await add(id, [member(viewer)], other, orgRole)).toEqual(PAID_SEATS_ONLY);
-    expect(await add(id, [invite], other, orgRole)).toEqual(PAID_SEATS_ONLY);
-    expect(await add(id, [{ kind: "email", email: "someone@example.test" }], other, orgRole)).toEqual(PAID_SEATS_ONLY);
-    expect(await add(id, ["someone@example.test"], other, orgRole)).toEqual(PAID_SEATS_ONLY);
-    expect(await add(id, [member(developer), invite], other, orgRole)).toEqual(PAID_SEATS_ONLY);
+  for (const role of ["member", "admin"] as const) {
+    expect(await add(id, [member(guest)], other, role)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, [member(viewer)], other, role)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, [invite], other, role)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, [{ kind: "email", email: "someone@example.test" }], other, role)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, ["someone@example.test"], other, role)).toEqual(PAID_SEATS_ONLY);
+    expect(await add(id, [member(developer), invite], other, role)).toEqual(PAID_SEATS_ONLY);
   }
   roster.delete(developer);
   expect(await add(id, [member(developer)], other)).toEqual(PAID_SEATS_ONLY);
   expect(await reviewersOf(id)).toEqual([]);
   roster.set(developer, "org:admin");
   expect(await add(id, [member(developer)], other)).toMatchObject({ success: true });
-  expect(await add(id, [member(designer)], other, "org:admin")).toMatchObject({ success: true });
+  expect(await add(id, [member(designer)], other, "admin")).toMatchObject({ success: true });
   expect((await reviewersOf(id)).map((r) => r.nominee)).toEqual([member(developer), member(designer)]);
 });
 
 it("the picker offers only Admins and Members, never Guests, Viewers or pending invitations", async () => {
   const api = await import("./reviewer-actions");
   roster.set(other, "org:admin");
-  for (const orgRole of ["org:member", "org:admin"]) {
-    as(designer, orgRole);
+  for (const role of ["member", "admin"] as const) {
+    as(designer, role);
     const loaded = await api.loadReviewerPeople({ orgId });
     expect(loaded).toEqual({
       people: [owner, designer, developer, other].map((userId) => expect.objectContaining({ nominee: member(userId), name: userId })),
-      canInvite: orgRole === "org:admin",
+      canInvite: role === "admin",
     });
   }
-  as(guest, "org:guest");
+  as(guest, "guest");
   expect(await api.loadReviewerPeople({ orgId })).toHaveProperty("error");
 });
 
@@ -204,8 +205,8 @@ it("the person adding and the requester can't be added, nor anyone twice; Guests
   const id = await freshRequest();
   expect(await add(id, [member(designer)], designer)).toEqual({ error: "You can’t add yourself as a reviewer." });
   expect(await add(id, [member(owner)], designer)).toEqual({ error: "The Requester can’t review their own Request." });
-  expect(await add(id, [member(developer)], guest, "org:guest")).toHaveProperty("error");
-  expect(await add(id, [member(developer)], viewer, "org:viewer")).toHaveProperty("error");
+  expect(await add(id, [member(developer)], guest, "guest")).toHaveProperty("error");
+  expect(await add(id, [member(developer)], viewer, "viewer")).toHaveProperty("error");
   expect(await reviewersOf(id)).toEqual([]);
   expect(await add(id, [member(developer)], designer)).toMatchObject({ success: true });
   expect(await add(id, [member(developer)], other)).toEqual({ error: "agreement_dev is already a reviewer." });
@@ -218,10 +219,10 @@ it("a Reviewer who becomes a Guest or Viewer can no longer answer", async () => 
   const api = await import("./reviewer-actions");
   const [first, second] = await reviewersOf(id);
   roster.set(designer, "org:guest");
-  as(designer, "org:guest");
+  as(designer, "guest");
   expect(await api.answerReview(contextFor(id, await revisionOf(id)), { reviewerId: first.id, kind: "looks_good", reason: "" })).toHaveProperty("error");
   roster.set(developer, "org:viewer");
-  as(developer, "org:viewer");
+  as(developer, "viewer");
   expect(await api.answerReview(contextFor(id, await revisionOf(id)), { reviewerId: second.id, kind: "looks_good", reason: "" })).toHaveProperty("error");
   expect((await reviewersOf(id)).map((r) => r.decision)).toEqual([null, null]);
 });
@@ -265,7 +266,7 @@ it("the requester or an admin removes a reviewer; nobody else can", async () => 
   expect(await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: second.id })).toEqual({ error: "Only the Requester or a workspace admin can remove a reviewer." });
   as(owner);
   expect(await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: first.id })).toMatchObject({ success: true });
-  as(other, "org:admin");
+  as(other, "admin");
   expect(await api.removeReviewer(contextFor(id, await revisionOf(id)), { reviewerId: second.id })).toMatchObject({ success: true });
   expect(await reviewersOf(id)).toEqual([]);
 });
@@ -364,7 +365,7 @@ it("the requester or an admin deletes an Open Request with its reviews; nobody d
   await connection`insert into comments(request_id,author_id,body) values (${id},${designer},'Looks good')`;
   as(designer);
   expect(await lifecycle.deleteRequest(id, { orgId })).toHaveProperty("error");
-  as(guest, "org:guest");
+  as(guest, "guest");
   expect(await lifecycle.deleteRequest(id, { orgId })).toEqual({ error: "Not found" });
   as(owner);
   expect(await lifecycle.deleteRequest(id, { orgId })).toEqual({ success: true });
@@ -372,7 +373,7 @@ it("the requester or an admin deletes an Open Request with its reviews; nobody d
   expect(left).toEqual({ requests: 0, comments: 0, agreements: 0, events: 0 });
 
   const byAdmin = await freshRequest();
-  as(other, "org:admin");
+  as(other, "admin");
   expect(await lifecycle.deleteRequest(byAdmin, { orgId })).toEqual({ success: true });
 
   const started = await freshRequest();
@@ -468,7 +469,7 @@ it("an admin who edits is named, and is not told about their own edit", async ()
   await answer(id, designer, "looks_good");
   await answer(id, other, "looks_good");
   await connection`delete from notifications where request_id=${id}`;
-  as(other, "org:admin");
+  as(other, "admin");
   expect(await edit(id, { uncertainty: "Unsure about mobile" })).toEqual({ success: true });
   expect(await notificationsFor(id)).toEqual([{ user_id: designer, type: "review_reset", actor_id: other, detail: null }]);
   expect((await reviewersOf(id)).map((r) => r.decision)).toEqual([null, null]);
@@ -540,7 +541,7 @@ it("#279: Undo only works while nothing else changed, only for whoever removed, 
   // A Member who is neither the Requester nor an admin is told what they can't do: undo the removal.
   as(designer);
   expect(await api.restoreReviewer(contextFor(id, again.revision), { reviewerId: second.id })).toEqual({ error: "Only the Requester or a workspace admin can undo removing a reviewer." });
-  as(other, "org:admin");
+  as(other, "admin");
   expect(await api.restoreReviewer(contextFor(id, again.revision), { reviewerId: second.id })).toEqual({ error: "The reviewers changed since. Add them again instead." });
   as(owner);
   expect(await api.restoreReviewer(contextFor(id, again.revision), { reviewerId: first.id })).toEqual({ error: "The reviewers changed since. Add them again instead." });

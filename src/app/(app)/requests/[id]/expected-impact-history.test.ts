@@ -2,12 +2,13 @@ import { randomUUID } from "node:crypto";
 import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 import { createTriageToken } from "@/lib/triage-token";
 import { requestEditSnapshot } from "@/lib/request-edit";
 
-const session = vi.hoisted(() => ({ userId: "history-creator", orgId: "org-history", orgRole: "org:member" }));
+const session = vi.hoisted((): Session => ({ userId: "history-creator", orgId: "org-history", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 
 const ORG = "org-history";
 const CREATOR = "history-creator";
@@ -38,7 +39,7 @@ beforeAll(async () => {
   vi.stubEnv("TRIAGE_TOKEN_SECRET", "history-test-secret".repeat(4));
 });
 beforeEach(async () => {
-  session.userId = CREATOR; session.orgId = ORG; session.orgRole = "org:member";
+  session.userId = CREATOR; session.orgId = ORG; session.role = "member";
   id = randomUUID();
   const x = input();
   await sql`insert into requests(id,org_id,title,description,created_by,request_type,priority,expected_impact) values (${id},${ORG},${x.title},${x.description},${CREATOR},'improvement','high',${sql.json(x.expectedImpact)})`;
@@ -66,7 +67,7 @@ it("records the first revision when a Request is created, with the person who cr
 });
 
 it("records a new revision with the editor and time when the Expected impact changes, and keeps the earlier one readable", async () => {
-  session.userId = EDITOR; session.orgRole = "org:admin";
+  session.userId = EDITOR; session.role = "admin";
   expect(await save(input(80))).toMatchObject({ success: true });
   const rows = await revisions();
   expect(rows.map((row) => [row.revision, row.author_id, row.recorded_as, row.expected_impact.primary.target])).toEqual([

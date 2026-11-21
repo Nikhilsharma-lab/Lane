@@ -2,11 +2,12 @@ import { randomUUID } from "node:crypto";
 import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 import { createTriageToken } from "@/lib/triage-token";
 import { requestEditSnapshot } from "@/lib/request-edit";
-const session = vi.hoisted(() => ({ userId: "edit-owner", orgId: "org-edit", orgRole: "org:member" }));
+const session = vi.hoisted((): Session => ({ userId: "edit-owner", orgId: "org-edit", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 let sql: ReturnType<typeof postgres>, id: string;
 const plan = { kind: "measurement" as const, version: 2 as const, primary: { key: "conversion" as const, name: "", unit: "percent" as const, current: 62, target: 75, noBaseline: false, check: "" as const }, measurement: { audience: "all" as const, platform: "web" as const, windowDays: 14 as const, exactDates: false, startDate: "", endDate: "" }, guardrails: [{ key: "support" as const, name: "", unit: "percent" as const, current: 4, noBaseline: false as const, operator: "at_most" as const, limit: 6 }] };
 const input = () => ({ title: "Delivery costs appear late", description: "Customers leave when delivery costs appear at payment.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: "improvement" as const, priority: "high" as const, expectedImpact: structuredClone(plan), reframedProblem: null as string | null, extractedSolution: null as string | null });
@@ -20,7 +21,7 @@ beforeAll(async () => {
     await sql `insert into profiles(id,full_name,email) values ('edit-owner','Owner','edit@example.test'), ('edit-admin','Admin','edit-admin@example.test')`;
     vi.stubEnv("TRIAGE_TOKEN_SECRET", "edit-test-secret".repeat(4));
 });
-beforeEach(async () => { session.userId = "edit-owner"; session.orgId = "org-edit"; session.orgRole = "org:member"; id = randomUUID(); await sql `insert into requests(id,org_id,title,description,created_by,request_type,priority,expected_impact) values (${id},'org-edit',${input().title},${input().description},'edit-owner','improvement','high',${sql.json(plan)})`; });
+beforeEach(async () => { session.userId = "edit-owner"; session.orgId = "org-edit"; session.role = "member"; id = randomUUID(); await sql `insert into requests(id,org_id,title,description,created_by,request_type,priority,expected_impact) values (${id},'org-edit',${input().title},${input().description},'edit-owner','improvement','high',${sql.json(plan)})`; });
 afterAll(async () => { await sql `delete from organizations where id='org-edit'`; await sql `delete from profiles where id in ('edit-owner','edit-admin')`; await sql.end(); vi.unstubAllEnvs(); });
 it("saves guardrail definitions, target and supporting context without AI review", async () => { const x = input(); x.expectedImpact.guardrails[0].limit = 8; x.expectedImpact.primary.target = 80; x.usefulLink = "https://example.com/research"; expect(await save(x)).toMatchObject({ success: true }); const [row] = await sql `select expected_impact,useful_link,status::text from requests where id=${id}`; expect(row).toMatchObject({ expected_impact: x.expectedImpact, useful_link: x.usefulLink, status: "open" }); });
 it.each(["other-user", "other-workspace", "in_progress", "done"])("rejects %s edits", async (kind) => { if (kind === "other-user")
@@ -141,14 +142,14 @@ it("refuses a typed metric the Metrics library doesn't have on an older Request 
 });
 
 it("allows a workspace admin to edit another creator's Open Request without changing ownership", async () => {
- session.userId="edit-admin"; session.orgRole="org:admin";
+ session.userId="edit-admin"; session.role = "admin";
  const changes=input();changes.expectedImpact.primary.target=82;
  expect(await save(changes)).toMatchObject({success:true});
  const [row]=await sql`select created_by,expected_impact from requests where id=${id}`;
  expect(row.created_by).toBe("edit-owner");expect(row.expected_impact.primary.target).toBe(82);
 });
 it.each(["in_progress","done"])("admin cannot edit %s Requests",async(status)=>{
- session.userId="edit-admin";session.orgRole="org:admin";
+ session.userId="edit-admin";session.role = "admin";
  await sql`update requests set status=${status}::request_status where id=${id}`;
  expect(await save(input())).toHaveProperty("error");
 });

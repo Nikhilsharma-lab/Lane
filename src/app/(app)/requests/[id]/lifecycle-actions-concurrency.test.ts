@@ -2,6 +2,7 @@ import { callAction } from "@/lib/action-call";
 import { queryCounter } from "@/db";
 import { fixtureClerkClient } from "@/test/member-fixtures";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 import {
   db,
   comments,
@@ -16,14 +17,13 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-type Session = { userId: string; orgId: string; orgRole: "org:member" | "org:guest" };
 let sessionQueue: Session[] = [];
 
+vi.mock("@/lib/session", () => ({
+  readSession: vi.fn(async () => sessionQueue.shift() ?? null),
+}));
 vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: async () => fixtureClerkClient(WORKSPACE_ID, [REQUESTER_ID,FIRST_MEMBER_ID,SECOND_MEMBER_ID]),
-  auth: vi.fn(async () =>
-    sessionQueue.shift() ?? { userId: null, orgId: null, orgRole: null }
-  ),
 }));
 
 const WORKSPACE_ID = "00000000-0000-4000-a000-00000000a101";
@@ -110,8 +110,8 @@ function splitResults(
 describe("atomic Request lifecycle transitions", () => {
   it("allows only one concurrent pickup and one pickup notification", async () => {
     sessionQueue = [
-      { userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" },
-      { userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" },
+      { userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, role: "member" },
+      { userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, role: "member" },
     ];
     const { pickUpRequest } = await import("./actions");
 
@@ -148,8 +148,8 @@ describe("atomic Request lifecycle transitions", () => {
 
   it("allows only one concurrent completion and one Done notification", async () => {
     sessionQueue = [
-      { userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" },
-      { userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" },
+      { userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, role: "member" },
+      { userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, role: "member" },
     ];
     const { markDone } = await import("./actions");
 
@@ -182,8 +182,8 @@ describe("atomic Request lifecycle transitions", () => {
 });
 
 describe("Request visibility in rejected actions", () => {
-  function actAs(role: Session["orgRole"] = "org:member") {
-    sessionQueue = [{ userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: role }];
+  function actAs(role: Session["role"] = "member") {
+    sessionQueue = [{ userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, role }];
   }
 
   it.each([
@@ -221,12 +221,12 @@ describe("Request visibility in rejected actions", () => {
     const form = new FormData();
     form.set("body", "Visibility regression comment");
     for (const id of [MISSING_REQUEST_ID, REQUEST_ID, FOREIGN_OPEN_ID]) {
-      actAs("org:guest");
+      actAs("guest");
       expect(await addComment(id, form, { orgId: WORKSPACE_ID })).toEqual({ error: "Not found" });
     }
     expect(await db.select({ id: comments.id }).from(comments).where(inArray(comments.requestId, [REQUEST_ID, FOREIGN_OPEN_ID]))).toEqual([]);
     // The same guest can still comment on their own Request.
-    actAs("org:guest");
+    actAs("guest");
     expect(await addComment(GUEST_REQUEST_ID, form, { orgId: WORKSPACE_ID })).toMatchObject({ success: true });
     expect(await db.select({ authorId: comments.authorId, body: comments.body }).from(comments).where(eq(comments.requestId, GUEST_REQUEST_ID)))
       .toEqual([{ authorId: SECOND_MEMBER_ID, body: "Visibility regression comment" }]);
@@ -245,7 +245,7 @@ it("forwards pre-write expiry through both the single and bulk adapters", async 
   }
 });
 it("never retries a real role denial containing the former matched phrase", async () => {
-  sessionQueue = [{ userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:guest" }];
+  sessionQueue = [{ userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, role: "guest" }];
   const { markDone } = await import("./actions");
   const run = vi.fn(() => markDone(REQUEST_ID, { orgId: WORKSPACE_ID }));
   const renew = vi.fn(async () => "renewed");
@@ -257,7 +257,7 @@ it("never retries a real role denial containing the former matched phrase", asyn
 });
 it("never marks or replays a batch with a committed move and a refused row", async () => {
   const [row] = await db.insert(requests).values({ orgId: WORKSPACE_ID, title: "Partial recovery", description: "Batch boundary", createdBy: REQUESTER_ID, status: "in_progress" }).returning({ id: requests.id });
-  sessionQueue = [{ userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, orgRole: "org:member" }];
+  sessionQueue = [{ userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, role: "member" }];
   const { markDoneMany } = await import("./actions");
   const run = vi.fn(() => markDoneMany([row.id, MISSING_REQUEST_ID], { orgId: WORKSPACE_ID }));
   const renew = vi.fn(async () => "renewed");

@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 
-const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
+const session = vi.hoisted((): Session => ({ userId: "", orgId: "", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 
 const ORG = "org_priority_actions_a", FOREIGN_ORG = "org_priority_actions_b";
 const MEMBER = "user_priority_member", GUEST = "user_priority_guest", FOREIGN = "user_priority_foreign";
@@ -13,7 +14,7 @@ let connection: ReturnType<typeof postgres>;
 let requestId: string;
 
 const api = () => import("./actions");
-const actAs = (userId: string, orgRole = "org:member", orgId = ORG) => { session.userId = userId; session.orgId = orgId; session.orgRole = orgRole; };
+const actAs = (userId: string, role: Session["role"] = "member", orgId = ORG) => { session.userId = userId; session.orgId = orgId; session.role = role; };
 const saved = async () => (await connection`select priority::text as priority, status::text as status, assigned_to from requests where id = ${requestId}`)[0];
 
 beforeAll(async () => {
@@ -56,9 +57,9 @@ describe("setRequestPriority", () => {
     // A guest sets priority only on a Request they created (request-access.ts),
     // so someone else's reads as missing. A workspace context that is not the
     // session's names the permission.
-    actAs(GUEST, "org:guest");
+    actAs(GUEST, "guest");
     expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "Request not found" });
-    actAs(FOREIGN, "org:member", FOREIGN_ORG);
+    actAs(FOREIGN, "member", FOREIGN_ORG);
     expect(await setRequestPriority(requestId, "urgent", { orgId: FOREIGN_ORG })).toEqual({ error: "Request not found" });
     expect(await setRequestPriority(requestId, "urgent", { orgId: ORG })).toEqual({ error: "You can’t change Requests in this workspace." });
     expect((await saved()).priority).toBe("none");
@@ -73,7 +74,7 @@ describe("setRequestPriority", () => {
 it("only creator or admin can change an Open Request priority",async()=>{
  const {setRequestPriority}=await api();
  actAs(FOREIGN);expect(await setRequestPriority(requestId,"high",{orgId:ORG})).toHaveProperty("error");
- actAs(FOREIGN,"org:admin");expect(await setRequestPriority(requestId,"high",{orgId:ORG})).toMatchObject({success:true});
+ actAs(FOREIGN,"admin");expect(await setRequestPriority(requestId,"high",{orgId:ORG})).toMatchObject({success:true});
  await connection`update requests set status='in_progress' where id=${requestId}`;
  expect(await setRequestPriority(requestId,"low",{orgId:ORG})).toHaveProperty("error");
 });

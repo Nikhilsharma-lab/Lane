@@ -6,19 +6,20 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 import { createTriageToken } from "@/lib/triage-token";
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_guest_take_on";
 const [GUEST, MEMBER, OTHER, ADMIN, VIEWER] = ["take_on_guest", "take_on_member", "take_on_other", "take_on_admin", "take_on_viewer"];
-const ROLES: Record<string, string> = { [GUEST]: "org:guest", [MEMBER]: "org:member", [OTHER]: "org:member", [ADMIN]: "org:admin", [VIEWER]: "org:viewer" };
-const session = vi.hoisted(() => ({ userId: "take_on_guest", orgId: "org_guest_take_on", orgRole: "org:guest" }));
+const ROLES: Record<string, NonNullable<Session["role"]>> = { [GUEST]: "guest", [MEMBER]: "member", [OTHER]: "member", [ADMIN]: "admin", [VIEWER]: "viewer" };
+const session = vi.hoisted((): Session => ({ userId: "take_on_guest", orgId: "org_guest_take_on", role: "guest" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 // The AI review and its rate limit are outside services: the review always finds a problem.
 vi.mock("@/lib/ai/triage", () => ({ triageRequest: async () => ({ ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } }) }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async ({ userId }: { userId?: string[] } = {}) => {
@@ -49,7 +50,7 @@ afterAll(async () => {
 
 function as(userId: string) {
   session.userId = userId;
-  session.orgRole = ROLES[userId];
+  session.role = ROLES[userId];
 }
 const draft = { title: "Export is hard to find", description: "Customers can't find where to export their invoices.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "" };
 const prediction = { kind: "no_measurable_impact" as const, reason: "Keeps invoices where people expect them." };
@@ -92,7 +93,7 @@ async function submission(guest = GUEST) {
 }
 async function listAs(userId: string) {
   const { loadRequestList } = await import("@/lib/data/requests");
-  return (await loadRequestList({ userId, orgId: ORG, role: ROLES[userId].slice(4) as "admin" })).rows;
+  return (await loadRequestList({ userId, orgId: ORG, role: ROLES[userId] })).rows;
 }
 
 describe("who sees Guest submissions", () => {
@@ -120,7 +121,7 @@ async function takeOn(id: string, userId: string, ctx?: Awaited<ReturnType<typeo
 }
 async function detailAs(userId: string, id: string) {
   const { loadRequestDetail } = await import("@/lib/data/requests");
-  return loadRequestDetail({ userId, orgId: ORG, role: ROLES[userId].slice(4) as "admin" }, id);
+  return loadRequestDetail({ userId, orgId: ORG, role: ROLES[userId] }, id);
 }
 const comment = (body: string) => { const form = new FormData(); form.set("body", body); return form; };
 /** The edit form's values for the submission, with `change` applied. */

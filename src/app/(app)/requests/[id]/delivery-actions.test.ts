@@ -7,17 +7,18 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_delivery_actions";
 const [OWNER, DESIGNER, DEVELOPER] = ["delivery_owner", "delivery_designer", "delivery_developer"];
-const session = vi.hoisted(() => ({ userId: "delivery_owner", orgId: "org_delivery_actions", orgRole: "org:member" }));
+const session = vi.hoisted((): Session => ({ userId: "delivery_owner", orgId: "org_delivery_actions", role: "member" }));
 /** Work `after()` scheduled during the action; the test runs it as the response would finish. */
 const scheduled = vi.hoisted(() => [] as (() => Promise<unknown> | unknown)[]);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: (work: () => unknown) => { scheduled.push(work); } }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async () => {
