@@ -1,20 +1,21 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import { requireTestDatabase } from "@/test/test-database";
 import { createTriageToken } from "@/lib/triage-token";
 
 // #199: adding a metric inline from the prediction form. Seam: the prediction form's add action, called directly
-// on the real database with Clerk's session faked; what it saved is read back through the Metrics library.
+// on the real database with the session seam faked; what it saved is read back through the Metrics library.
 const ORG = "org_inline_metric";
 const OTHER = "org_inline_metric_other";
 const MEMBER = "user_inline_metric_member";
-const session = vi.hoisted(() => ({ userId: "user_inline_metric_member", orgId: "org_inline_metric", orgRole: "org:member" }));
+const session = vi.hoisted(() => ({ userId: "user_inline_metric_member", orgId: "org_inline_metric", role: "member" as WorkspacePermission }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ ...session }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
 
 let sql: ReturnType<typeof postgres>;
-const as = (orgRole: string) => { session.userId = MEMBER; session.orgId = ORG; session.orgRole = orgRole; };
+const as = (role: WorkspacePermission) => { session.userId = MEMBER; session.orgId = ORG; session.role = role; };
 const add = async (data: { name: string; unit: string }, orgId = ORG) => (await import("./metric-actions")).addPredictionMetric(data, { orgId });
 const library = async () => import("@/lib/metrics-library");
 const definitionsNamed = async (name: string) => sql`select id from metric_definitions where org_id=${ORG} and lower(name)=lower(${name})`;
@@ -27,7 +28,7 @@ beforeAll(async () => {
   await sql`insert into profiles (id,full_name,email) values (${MEMBER},'Mira Member','inline-member@example.test')`;
   vi.stubEnv("TRIAGE_TOKEN_SECRET", "inline-metric-test-secret".repeat(3));
 });
-beforeEach(() => as("org:member"));
+beforeEach(() => as("member"));
 afterAll(async () => {
   if (!sql) return;
   await sql`delete from organizations where id in (${ORG}, ${OTHER})`;
@@ -61,7 +62,7 @@ describe("adding a metric inline", () => {
   });
 
   it("offers a starter metric by name, even in a workspace whose library hasn't been opened yet", async () => {
-    session.orgId = OTHER; session.orgRole = "org:admin";
+    session.orgId = OTHER; session.role = "admin";
     const result = await add({ name: "conversion rate", unit: "count" }, OTHER);
     expect(result).toMatchObject({ ok: true, existing: true, metric: { name: "Conversion rate", unit: "percent", archived: false } });
     expect(await sql`select id from metric_definitions where org_id=${OTHER} and lower(name)='conversion rate'`).toHaveLength(1);
@@ -91,14 +92,14 @@ describe("adding a metric inline", () => {
 describe("who can add inline", () => {
   it("tells the prediction form that Members and Admins can add, and Guests can't", async () => {
     const { listPredictionMetrics } = await import("./metric-actions");
-    const canAdd = async (orgRole: string) => { as(orgRole); return (await listPredictionMetrics({ impact: null }, { orgId: ORG }) as { canAddMetrics?: boolean }).canAddMetrics; };
-    expect(await canAdd("org:admin")).toBe(true);
-    expect(await canAdd("org:member")).toBe(true);
-    expect(await canAdd("org:guest")).toBe(false);
+    const canAdd = async (role: WorkspacePermission) => { as(role); return (await listPredictionMetrics({ impact: null }, { orgId: ORG }) as { canAddMetrics?: boolean }).canAddMetrics; };
+    expect(await canAdd("admin")).toBe(true);
+    expect(await canAdd("member")).toBe(true);
+    expect(await canAdd("guest")).toBe(false);
   });
 
   it("refuses Guests and adds nothing", async () => {
-    as("org:guest");
+    as("guest");
     expect(await add({ name: "Guest metric", unit: "count" })).toEqual({ error: "Guests can’t add metrics to the Metrics library. Pick one that’s there, or ask a Member to add it." });
     expect(await definitionsNamed("Guest metric")).toHaveLength(0);
   });
