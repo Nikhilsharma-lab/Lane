@@ -66,7 +66,7 @@ design tools, profile labels, theme); read the matching record before changing o
   vanish — pre-launch items are built or deleted before the first paying customer.
 - **Migrations are canonical.** Schema files describe intent.
 - **This file is the primary repository instruction file.** `CLAUDE.md` is only a compatibility pointer.
-- **Shared session handoff:** read `docs/SESSION-STATE.md` before resuming Claude or Codex work; keep one editing session per checkout and update the handoff when switching tools.
+- **Shared session handoff:** read `docs/SESSION-STATE.md` before resuming Claude or Codex work, and keep one editing session per checkout. Every build, increment or retro adds a dated entry at its top, in its own PR or a follow-up handoff PR.
 
 ## Do NOT build (these sank v1 — they are banned until there is a paying customer asking)
 

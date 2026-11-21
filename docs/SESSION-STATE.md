@@ -1,5 +1,9 @@
 # Shared Claude / Codex handoff
 
+## November 21 — Retro on increment 2: handoff habit, PR criteria, review standards
+
+Branch `chore/358-retro`, merged after #364. AGENTS.md now says every build, increment or retro adds a dated entry here (the old "when switching tools" wording let #364 miss it). `docs/agents/issue-tracker.md` puts criteria about the PR itself on the spec issue, since no ticket's agent writes the PR. A new `CODING_STANDARDS.md`, read during review, has two judgement rules from the #358 review: fixed email subjects and From names, and an adapter owns the parsing of its result format. Outside the repo: the wizard skill now asks for third-party facts to be fetched and cited, and implement-spec fast-forwards without a merger subagent. Three merged agent worktrees were removed.
+
 ## November 21 — Increment 2 of Better Auth built: the dormant auth-email sender (#358)
 
 [PR #364](https://github.com/Nikhilsharma-lab/Lane/pull/364) on `feat/358-auth-email` (closes #358, #360–#362); not merged, nothing deployed. `src/lib/auth-email.ts` `sendAuthEmail` sends the sign-up, sign-in and reset codes and the invitation as plain text through the existing Resend adapter and returns sent or couldn't-send; nothing imports it, and it sends nothing until `RESEND_API_KEY` and `LANE_AUTH_EMAIL_FROM` are both set (`env.ts` warns when only one is). The invitation subject is fixed, so inviter-typed text never reaches a subject line. `src/lib/email-pause.ts` holds Inbox email until 00:00 UTC once Resend refuses any send (one expiring Upstash key, client shared with the AI rate limit in `src/lib/upstash.ts`); Inbox delivery holds Email items unclaimed while paused, only when `LANE_EMAIL_DELIVERY` is really sending. Unit tests, typecheck and lint pass. No migrations, routes or tables; Better Auth isn't installed.
