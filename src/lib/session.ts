@@ -14,7 +14,7 @@ import { clerkWorkspacePermission } from "./role-rules";
 /** The signed-in person, their active workspace and their role in it. A role Lane doesn't know is null: no access. */
 export type Session = { userId: string; orgId: string | null; role: WorkspacePermission | null };
 
-export type SessionReadOptions = {
+type SessionReadOptions = {
   /** A session still waiting on Clerk's choose-a-workspace step counts as signed in. Only "Page not found" asks. */
   pendingCountsAsSignedIn?: boolean;
 };

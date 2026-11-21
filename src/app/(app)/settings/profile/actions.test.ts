@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { callAction } from "@/lib/action-call";
 import { db, profiles, queryCounter } from "@/db";
+import { accountNameOf } from "@/lib/account-name";
 import { SESSION_ENDED } from "@/lib/auth-guard";
 import type { Account, Session } from "@/lib/session";
 
@@ -50,7 +51,9 @@ describe("syncAccountName", () => {
   it("falls back to the email when the account has no name", async () => {
     await remember(MEMBER_ID);
     mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
-    mockAccount = { name: "daniel@example.com", email: "daniel@example.com", imageUrl: "" };
+    // The seam names the account by the real account-name rule; this one has only an email.
+    const nameless = { firstName: null, lastName: null, username: null, primaryEmailAddress: { emailAddress: "daniel@example.com" } };
+    mockAccount = { name: accountNameOf(nameless), email: "daniel@example.com", imageUrl: "" };
 
     expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ success: true });
     expect(await nameOf(MEMBER_ID)).toBe("daniel@example.com");

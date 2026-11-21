@@ -1,6 +1,6 @@
 import type { ActionFailure } from "./action-session-failure";
 import { canChangeThings } from "./role-rules";
-import { readSession } from "./session";
+import { readSession, type Session } from "./session";
 
 /** Clerk owns workspace membership. Profile labels never grant these capabilities. */
 export type WorkspacePermission = "admin" | "member" | "guest" | "viewer";
@@ -12,13 +12,20 @@ export type WorkspacePerson = Pick<MemberAuth, "orgId" | "userId">;
 export const SESSION_ENDED = "Your session ended. Sign in again to continue.";
 export const VIEWER_REFUSAL = "You’re a Viewer in this workspace, so you can read everything but can’t change anything. Ask an Admin if you need to.";
 
+/** The session's person as a member of its active workspace, or null without a workspace or a known role. */
+export function activeMemberOf(session: Session | null): MemberAuth | null {
+  if (!session?.orgId || !session.role) return null;
+  return { userId: session.userId, orgId: session.orgId, role: session.role };
+}
+
 /** One session snapshot decides identity, workspace and expiry before any change.
  * Wrong-workspace, role and validation refusals never permit a session replay. */
 export async function guardActiveMember(orgId: string, copy: string): Promise<MemberAuth | ActionFailure> {
   const session = await readSession();
   if (!session) return { error: SESSION_ENDED, sessionExpired: true };
-  if (!session.orgId || session.orgId !== orgId || !session.role) return { error: copy };
-  return { userId: session.userId, orgId: session.orgId, role: session.role };
+  const member = activeMemberOf(session);
+  if (!member || member.orgId !== orgId) return { error: copy };
+  return member;
 }
 
 /** Admin or Member may change shared workspace data. */

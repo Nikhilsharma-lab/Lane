@@ -18,7 +18,7 @@ export async function RequestsWorkspace() {
   const member = await getMember()
   if (!member) redirect("/login")
 
-  // Plan item 1.8: the list read starts from Clerk claims and runs in parallel
+  // Plan item 1.8: the list read starts from the session seam and runs in parallel
   // with the profile/workspace join, so the page waits for one round trip.
   // Plan items 1.7 and 1.10: the server no longer reads the status view or the
   // Project filter. The list loads every active Request (capped) plus the

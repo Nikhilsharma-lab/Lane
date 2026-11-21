@@ -14,7 +14,7 @@ import { isUuid } from "@/lib/uuid";
 // #271 (A114): the tab reads "Inbox · Lane".
 export const metadata: Metadata = { title: "Inbox" };
 
-// #204 / #205: the Inbox, one page of what needs a person and their updates. Identity, workspace and role come from the Clerk session
+// #204 / #205: the Inbox, one page of what needs a person and their updates. Identity, workspace and role come from the session seam
 // through getMember; the read model decides what the Inbox holds (a Guest sees only their own submissions).
 // #284: `?item=` is the open item (inbox-screen.tsx); a read one stays in the list while the address holds it.
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ item?: string | string[] }> }) {

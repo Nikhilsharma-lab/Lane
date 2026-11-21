@@ -14,7 +14,7 @@ const CLERK_SESSION = {
   importNames: ["auth", "currentUser"],
   message: "Read the session through readSession, readAccount or sendToSignIn from src/lib/session.ts (#356).",
 };
-const SESSION_SEAM = ["src/lib/session.ts", "src/lib/clerk-auth-guard.test.ts"];
+const CLERK_SESSION_READERS = ["src/lib/session.ts", "src/lib/clerk-auth-guard.test.ts"];
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -52,7 +52,7 @@ const eslintConfig = defineConfig([
   // so the dialog and link blocks below repeat CLERK_SESSION.
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: SESSION_SEAM,
+    ignores: CLERK_SESSION_READERS,
     rules: { "no-restricted-imports": ["error", { paths: [CLERK_SESSION] }] },
   },
   // #263: Lane's dialogs go through the adaptive popup (a bottom panel on phones, focus return, the typed-text

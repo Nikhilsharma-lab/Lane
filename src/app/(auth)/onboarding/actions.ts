@@ -5,6 +5,7 @@ import { RedirectType, redirect } from "next/navigation";
 import * as z from "zod";
 
 import { db, profiles } from "@/db";
+import { activeMemberOf } from "@/lib/auth-guard";
 import { readAccount, readSession } from "@/lib/session";
 
 const onboardingRoleSchema = z.object({
@@ -17,7 +18,7 @@ export async function saveOnboardingRole(data: { role: string }) {
 
   const session = await readSession();
   if (!session) return { error: "Sign in to continue.", sessionExpired: true as const };
-  if (!session.orgId || !session.role) {
+  if (!activeMemberOf(session)) {
     // #290: the role step links this message to the create-workspace step.
     return { error: "Create or join a workspace before choosing your role.", needsWorkspace: true as const };
   }

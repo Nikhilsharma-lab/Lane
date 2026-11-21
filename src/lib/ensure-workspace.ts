@@ -2,7 +2,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { cache } from "react";
 
 import { db, workspaces } from "@/db";
-import type { MemberAuth, WorkspacePermission } from "@/lib/auth-guard";
+import { activeMemberOf, type MemberAuth, type WorkspacePermission } from "@/lib/auth-guard";
 import { loadShell } from "@/lib/data/shell";
 import { accountNameOf } from "@/lib/account-name";
 import { decideFreeRequests } from "@/lib/billing";
@@ -35,9 +35,7 @@ type OnboardingContext = {
  * request, so the layout and the page share one session read.
  */
 export const getMember = cache(async function getMember(): Promise<MemberAuth | null> {
-  const session = await timed("session", () => readSession());
-  if (!session?.orgId || !session.role) return null;
-  return { userId: session.userId, orgId: session.orgId, role: session.role };
+  return activeMemberOf(await timed("session", () => readSession()));
 });
 
 export const getWorkspace = cache(async function getWorkspace(): Promise<
