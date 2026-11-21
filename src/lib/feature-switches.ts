@@ -21,6 +21,18 @@ export function emailDelivery(env: Env = process.env): EmailDelivery {
   return { on: true, apiKey, from }
 }
 
+export type AuthEmailConfig = { configured: true; apiKey: string; from: string } | { configured: false }
+
+/**
+ * #358 auth email: `RESEND_API_KEY` (the one Resend account, shared with Inbox email) + `LANE_AUTH_EMAIL_FROM`.
+ * Configured only when both are set. There is no on/off switch: once Better Auth is live, codes must always send.
+ */
+export function authEmail(env: Env = process.env): AuthEmailConfig {
+  const apiKey = env.RESEND_API_KEY?.trim()
+  const from = env.LANE_AUTH_EMAIL_FROM?.trim()
+  return apiKey && from ? { configured: true, apiKey, from } : { configured: false }
+}
+
 /** #206 `CRON_SECRET`: while unset, the daily Inbox job refuses every call. */
 export function cronSecret(env: Env = process.env): string | null {
   return env.CRON_SECRET?.trim() || null
