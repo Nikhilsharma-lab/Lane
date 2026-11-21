@@ -25,3 +25,5 @@ export * from "./first-run";
 export * from "./same-problem";
 
 export * from "./saved-views";
+
+export * from "./better-auth";

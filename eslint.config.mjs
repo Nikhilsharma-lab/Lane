@@ -20,6 +20,21 @@ const CLERK_SESSION_DYNAMIC = {
   message: "Import clerkClient statically, and read the session through src/lib/session.ts (#356).",
 };
 const CLERK_SESSION_READERS = ["src/lib/session.ts", "src/lib/session.test.ts"];
+// #371: the Better Auth server stays dormant until increment 5 widens this list on purpose. Only the server module,
+// the auth route and their tests load Better Auth's server entry points or Lane's server instance. The browser
+// client entries (better-auth/client, better-auth/react) stay open for the screens.
+const BETTER_AUTH_SERVER = [
+  {
+    regex: "^better-auth(?!/(client|react|vue|svelte|solid)(/|$))(/.*)?$",
+    message: "Better Auth's server is dormant: only src/lib/auth-server.ts and the auth route load it (#371).",
+  },
+  { regex: "(^|/)auth-server$", message: "Better Auth's server instance is dormant: only the auth route uses it (#371)." },
+];
+const BETTER_AUTH_SERVER_DYNAMIC = [
+  { selector: "ImportExpression[source.value=/^better-auth/]", message: "Better Auth's server is dormant: only src/lib/auth-server.ts loads it (#371)." },
+  { selector: "ImportExpression[source.value=/auth-server$/]", message: "Better Auth's server instance is dormant: only the auth route uses it (#371)." },
+];
+const BETTER_AUTH_SERVER_FILES = ["src/lib/auth-server.ts", "src/lib/auth-server.test.ts", "src/app/api/auth/**/*.ts"];
 const ROUTER_REFRESH = {
   selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='refresh']",
   message:
@@ -47,24 +62,33 @@ const eslintConfig = defineConfig([
   {
     files: ["src/**/*.{ts,tsx}"],
     ignores: REFRESH_OWNERS,
-    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC] },
   },
   // The files above that own the router refresh still keep Clerk's server module static.
   {
     files: REFRESH_OWNERS,
-    rules: { "no-restricted-syntax": ["error", CLERK_SESSION_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC] },
   },
   // The seam and its Clerk-side test may load Clerk's server module dynamically; the refresh and zod rules still apply.
   {
     files: CLERK_SESSION_READERS,
-    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE] },
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, ...BETTER_AUTH_SERVER_DYNAMIC] },
+  },
+  // #371: the Better Auth server's own files may load it dynamically; the other rules still apply.
+  {
+    files: BETTER_AUTH_SERVER_FILES,
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC] },
   },
   // #356: all of src, tests and Arc included. Flat config keeps only the last matching block's options for a rule,
-  // so the dialog and link blocks below repeat CLERK_SESSION.
+  // so the dialog and link blocks below repeat CLERK_SESSION, and every block repeats BETTER_AUTH_SERVER.
   {
     files: ["src/**/*.{ts,tsx}"],
     ignores: CLERK_SESSION_READERS,
-    rules: { "no-restricted-imports": ["error", { paths: [CLERK_SESSION] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [CLERK_SESSION], patterns: BETTER_AUTH_SERVER }] },
+  },
+  {
+    files: ["src/lib/session.test.ts"],
+    rules: { "no-restricted-imports": ["error", { patterns: BETTER_AUTH_SERVER }] },
   },
   // #263: Lane's dialogs go through the adaptive popup (a bottom panel on phones, focus return, the typed-text
   // guard). Only the popup itself and the pickers and menus that stay centred import Arc's dialog directly.
@@ -81,6 +105,7 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-imports": ["error", {
         paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION],
+        patterns: BETTER_AUTH_SERVER,
       }],
     },
   },
@@ -89,12 +114,17 @@ const eslintConfig = defineConfig([
   {
     files: ["src/components/popup/**/*.{ts,tsx}", "src/components/shell/command-palette.tsx", "src/components/shell/workspace-search-results.tsx"],
     ignores: ["src/**/*.test.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [NEXT_LINK, CLERK_SESSION] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [NEXT_LINK, CLERK_SESSION], patterns: BETTER_AUTH_SERVER }] },
   },
   // The seam keeps the dialog and link rules; only Clerk's session reads are allowed there.
   {
     files: ["src/lib/session.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: BETTER_AUTH_SERVER }] },
+  },
+  // #371: only the Better Auth server module, the auth route and its tests load Better Auth's server.
+  {
+    files: BETTER_AUTH_SERVER_FILES,
+    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION] }] },
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([

@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { STRIPE_NAMES } from "./feature-switches";
+import { BETTER_AUTH_NAMES, STRIPE_NAMES } from "./feature-switches";
 
 /**
  * Server env check (plan 6.1, I4/I5).
@@ -86,6 +86,16 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
     warnings.push(
       `Auth email is half configured: ${authEmailUnset[0]} is not set, so no sign-up, sign-in, reset or invitation email is sent.`,
     );
+
+  // #371: the Better Auth server is dormant until its secret is set. Set, it needs the other four names; none is
+  // required until increment 5.
+  if (env.BETTER_AUTH_SECRET?.trim()) {
+    const unset = BETTER_AUTH_NAMES.filter((name) => name !== "BETTER_AUTH_SECRET" && !env[name]?.trim());
+    if (unset.length)
+      warnings.push(
+        `BETTER_AUTH_SECRET is set but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without the Google names there is no Google sign-in; without the Turnstile secret, sign-up and every code send are refused.`,
+      );
+  }
 
   // #207: Slack DM is off by default (src/lib/feature-switches.ts). Switched on, it needs these names.
   if (env.LANE_SLACK_DELIVERY === "1") {
