@@ -1,8 +1,9 @@
 import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import { createTriageToken } from "@/lib/triage-token";
-const boundary = vi.hoisted(() => ({ queries: [] as { sql: string; params: unknown[] }[], responses: [] as unknown[][][], aiInputs: [] as unknown[], session: { userId: "user_creator", orgId: "org_test", orgRole: "org:member" } }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => boundary.session }));
+const boundary = vi.hoisted(() => ({ queries: [] as { sql: string; params: unknown[] }[], responses: [] as unknown[][][], aiInputs: [] as unknown[], session: { userId: "user_creator", orgId: "org_test", role: "member" as WorkspacePermission } }));
+vi.mock("@/lib/session", () => ({ readSession: async () => boundary.session }));
 vi.mock("@/db", async () => {
   const { drizzle } = await import("drizzle-orm/pg-proxy");
   const schema = await import("@/db/schema");
@@ -15,7 +16,7 @@ const input = { title: "Signup loses customers", description: "Customers abandon
 const triage = { classification: "problem" as const, reframedProblem: null, extractedSolution: null };
 const context = { orgId: "org_test", userId: "user_creator" };
 const SECRET = "expected-impact-test-secret".repeat(3);
-beforeEach(() => { vi.stubEnv("TRIAGE_TOKEN_SECRET", SECRET); boundary.queries = []; boundary.responses = []; boundary.aiInputs = []; boundary.session.orgRole="org:member"; });
+beforeEach(() => { vi.stubEnv("TRIAGE_TOKEN_SECRET", SECRET); boundary.queries = []; boundary.responses = []; boundary.aiInputs = []; boundary.session.role="member"; });
 
 describe("Expected impact server contract", () => {
   it("rejects missing or incomplete impact before an AI call", async () => {
@@ -102,7 +103,7 @@ it("refuses unavailable existing Requests before spending an AI call", async () 
 });
 
 it("lets workspace admins review another creator's Open Request using session authority",async()=>{
- boundary.session.orgRole="org:admin";
+ boundary.session.role="admin";
  const requestId="a1000000-0000-4000-8000-000000000011";
  boundary.responses=[[[requestId]]];
  const {runTriage}=await import("./actions");

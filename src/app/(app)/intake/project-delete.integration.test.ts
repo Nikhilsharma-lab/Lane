@@ -5,8 +5,8 @@ import { db, organizations, profiles, projects, requests, workspaceLabels } from
 import { requireTestDatabase } from "@/test/test-database";
 import { deleteProject } from "./project-actions";
 
-const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+const session = vi.hoisted(() => ({ userId: "", orgId: "", role: "member" }));
+vi.mock("@/lib/session", () => ({ readSession: async () => session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 it("deletes only the selected workspace Project, keeps Requests and workspace labels, and tolerates a repeated confirmation", async () => {

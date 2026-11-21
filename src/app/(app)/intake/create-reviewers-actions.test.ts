@@ -1,15 +1,16 @@
 import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import { createTriageToken } from "@/lib/triage-token";
 
-const session = vi.hoisted(() => ({ userId: "create_owner", orgId: "org_create_reviewers", orgRole: "org:member" }));
+const session = vi.hoisted(() => ({ userId: "create_owner", orgId: "org_create_reviewers", role: "member" as WorkspacePermission }));
 const users = vi.hoisted(() => ["create_owner", "create_design", "create_dev", "create_guest", "create_viewer"]);
 /** Clerk roster roles; a user missing from it has left the workspace. */
 const roster = vi.hoisted(() => new Map<string, string>());
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async () => ({
@@ -47,10 +48,10 @@ function reviewedDraft(userId = owner) {
   const requestId = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString()).requestId as string;
   return { token, requestId };
 }
-async function create(nominees: unknown, userId = owner, orgRole = "org:member", note = "") {
+async function create(nominees: unknown, userId = owner, role: WorkspacePermission = "member", note = "") {
   const { saveRequest } = await import("./actions");
   session.userId = userId;
-  session.orgRole = orgRole;
+  session.role = role;
   const { token, requestId } = reviewedDraft(userId);
   const result = await saveRequest({ token, editedProblemText: null }, { orgId }, nominees === undefined ? undefined : { nominees, note });
   return { result, requestId };
@@ -75,7 +76,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   session.userId = owner;
-  session.orgRole = "org:member";
+  session.role = "member";
 });
 afterAll(() => connection.end());
 
@@ -94,14 +95,14 @@ it("creating a Request with reviewers saves them unanswered and asks each of the
 
 it("the optional question is saved on each reviewer and sent with their notification", async () => {
   const question = "Can we build this with the current API?";
-  const { result, requestId } = await create([member(designer), member(developer)], owner, "org:member", `  ${question} `);
+  const { result, requestId } = await create([member(designer), member(developer)], owner, "member", `  ${question} `);
   expect(result).toMatchObject({ success: true, requestId });
   expect((await reviewersOf(requestId)).map((r) => r.note)).toEqual([question, question]);
   expect((await notificationsFor(requestId)).map((n) => n.detail)).toEqual([question, question]);
 });
 
 it("a question over 500 characters is rejected and the Request is not created", async () => {
-  const { result, requestId } = await create([member(designer)], owner, "org:member", "x".repeat(501));
+  const { result, requestId } = await create([member(designer)], owner, "member", "x".repeat(501));
   expect(result).toEqual({ success: false, error: { code: "validation", field: "reviewers", message: "Keep the question to 500 characters." } });
   expect(await requestExists(requestId)).toBe(false);
 });
@@ -133,21 +134,21 @@ it("an invalid reviewer is rejected and the Request is not created", async () =>
 });
 
 it("a guest can create a Request but can't add reviewers", async () => {
-  const { result, requestId } = await create([member(designer)], guest, "org:guest");
+  const { result, requestId } = await create([member(designer)], guest, "guest");
   expect(result).toMatchObject({ success: false, error: { code: "validation", field: "reviewers" } });
   expect(await requestExists(requestId)).toBe(false);
-  expect(await create([], guest, "org:guest")).toMatchObject({ result: { success: true } });
+  expect(await create([], guest, "guest")).toMatchObject({ result: { success: true } });
 });
 
 it("only Admins and Members can be Reviewers: Guests, Viewers, email addresses and invitations are refused and nothing is created", async () => {
   roster.set(developer, "org:admin");
-  for (const orgRole of ["org:member", "org:admin"])
+  for (const role of ["member", "admin"] as const)
     for (const reviewers of [[member(guest)], [member(viewer)], [invite], [{ kind: "email", email: "someone@example.test" }], ["someone@example.test"], [member(designer), invite]]) {
-      const { result, requestId } = await create(reviewers, owner, orgRole);
+      const { result, requestId } = await create(reviewers, owner, role);
       expect(result).toEqual({ success: false, error: { code: "validation", field: "reviewers", message: "Only Admins and Members can be Reviewers." } });
       expect(await requestExists(requestId)).toBe(false);
     }
-  const { result, requestId } = await create([member(developer), member(designer)], owner, "org:admin");
+  const { result, requestId } = await create([member(developer), member(designer)], owner, "admin");
   expect(result).toMatchObject({ success: true });
   expect((await reviewersOf(requestId)).map((r) => r.nominee)).toEqual([member(developer), member(designer)]);
 });

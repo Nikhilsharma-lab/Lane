@@ -9,7 +9,7 @@ import { EMPTY_METRIC_IMPACT } from "@/lib/request-impact";
 import { measurementEditorChanges, measurementEditorValue } from "@/lib/request-measurement-editor";
 import type { RequestDetail } from "@/components/requests/detail-view";
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ userId: "snapshot-audit-owner", orgId: "org-snapshot-audit", orgRole: "org:member" }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ userId: "snapshot-audit-owner", orgId: "org-snapshot-audit", role: "member" }) }));
 const path = process.env.LANE_REQUEST_AUDIT_SNAPSHOT;
 type Snapshot = { id: string; request_number: number; project_id: string | null; status: string; title: string; description: string; affected_people: string | null; desired_change: string | null; observed_evidence: string | null; uncertainty: string | null; useful_link: string | null; request_type: RequestDetail["requestType"]; priority: RequestDetail["priority"]; expected_impact: RequestDetail["expectedImpact"]; measurement_draft: RequestDetail["measurementDraft"]; reframed_problem: string | null; extracted_solution: string | null; classification: RequestDetail["classification"] };
 const rows: Snapshot[] = path ? JSON.parse(readFileSync(path, "utf8")) : [];

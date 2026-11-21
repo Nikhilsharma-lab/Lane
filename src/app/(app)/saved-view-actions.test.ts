@@ -3,7 +3,7 @@ import type { SavedViewFilters } from "@/lib/saved-view-rules";
  * #219: saved views. Anyone in the workspace, Viewers and Guests included, saves the Requests list's current filters
  * under a name, then renames, updates or deletes it. Views are personal: nobody else sees or changes them. Opening one
  * applies its filters through the normal list, so it never shows more than the person may see.
- * Real database, mocked Clerk session.
+ * Real database, faked session seam.
  */
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -13,9 +13,9 @@ import type { OverviewRequest } from "@/lib/request-overview";
 const ORG = "org_saved_views";
 const OTHER = "org_saved_views_other";
 const MEMBER = "saved_views_member", TEAMMATE = "saved_views_teammate", GUEST = "saved_views_guest", VIEWER = "saved_views_viewer";
-const session = vi.hoisted(() => ({ userId: "saved_views_member" as string | null, orgId: "org_saved_views", orgRole: "org:member" }));
+const session = vi.hoisted(() => ({ userId: "saved_views_member" as string | null, orgId: "org_saved_views", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ ...session }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
@@ -34,20 +34,20 @@ beforeAll(async () => {
   [{ id: membersWebsiteRequest }] = await connection`insert into requests(org_id,title,description,created_by,project_id) values (${ORG},'Hero is slow','The homepage hero loads slowly',${MEMBER},${website}) returning id`;
   await connection`insert into requests(org_id,title,description,created_by,project_id) values (${ORG},'Invoices are confusing','People misread invoices',${MEMBER},${hiddenFromGuest})`;
 });
-afterEach(() => { Object.assign(session, { userId: MEMBER, orgId: ORG, orgRole: "org:member" }); });
+afterEach(() => { Object.assign(session, { userId: MEMBER, orgId: ORG, role: "member" }); });
 afterAll(async () => {
   await connection`delete from organizations where id in (${ORG}, ${OTHER})`;
   await connection`delete from profiles where id in (${MEMBER}, ${TEAMMATE}, ${GUEST}, ${VIEWER})`;
   await connection.end();
 });
 
-const as = (userId: string | null, orgRole = "org:member", orgId = ORG) => Object.assign(session, { userId, orgRole, orgId });
+const as = (userId: string | null, role = "member", orgId = ORG) => Object.assign(session, { userId, role, orgId });
 const actions = () => import("./saved-view-actions");
 const ctx = { orgId: ORG };
 /** The views the navigation shows the signed-in person. */
 async function myViews() {
   const { loadSavedViews } = await import("@/lib/data/saved-views");
-  return loadSavedViews({ userId: session.userId!, orgId: session.orgId, role: session.orgRole.replace("org:", "") as "member" });
+  return loadSavedViews({ userId: session.userId!, orgId: session.orgId, role: session.role as "member" });
 }
 const stored = (orgId = ORG) => connection`select owner_id, name, filters from saved_views where org_id = ${orgId} order by owner_id, name`;
 
@@ -74,7 +74,7 @@ describe("saving the list's filters", () => {
   });
 
   it("keeps the workspace from the page and the owner from the session", async () => {
-    as(MEMBER, "org:member", OTHER);
+    as(MEMBER, "member", OTHER);
     expect(await (await actions()).saveView({ name: "Mine", filters: { status: "all", project: "all" } }, ctx)).toEqual({ error: "You can’t save views in this workspace." });
     as(null);
     expect(await (await actions()).saveView({ name: "Mine", filters: { status: "all", project: "all" } }, ctx)).toEqual({ error: "Your session ended. Sign in again to continue.", sessionExpired: true });
@@ -126,7 +126,7 @@ describe("a view is its owner's alone", () => {
     const { saveView, renameSavedView, updateSavedView, deleteSavedView } = await actions();
     const kept = (await saveView({ name: "Done this week", filters: { status: "done", project: "all" } }, ctx) as { view: { id: string } }).view.id;
     const before = await stored();
-    for (const role of ["org:member", "org:admin"]) {
+    for (const role of ["member", "admin"]) {
       as(TEAMMATE, role);
       expect(await myViews()).toEqual([]);
       expect(await renameSavedView({ id: kept, name: "Taken" }, ctx)).toEqual({ error: "That view isn’t saved any more." });
@@ -139,7 +139,7 @@ describe("a view is its owner's alone", () => {
   });
 
   it("can't be reached from another workspace", async () => {
-    as(MEMBER, "org:member", OTHER);
+    as(MEMBER, "member", OTHER);
     expect(await myViews()).toEqual([]);
     const [{ id }] = await connection`select id from saved_views where org_id = ${ORG} and owner_id = ${MEMBER} limit 1`;
     expect(await (await actions()).deleteSavedView({ id }, { orgId: OTHER })).toEqual({ error: "That view isn’t saved any more." });
@@ -148,7 +148,7 @@ describe("a view is its owner's alone", () => {
 
 describe("Viewers and Guests", () => {
   it("lets a Viewer save, rename, update and delete their own views", async () => {
-    as(VIEWER, "org:viewer");
+    as(VIEWER, "viewer");
     const { saveView, renameSavedView, updateSavedView, deleteSavedView } = await actions();
     const saved = await saveView({ name: "Measuring", filters: { status: "measuring", project: website } }, ctx);
     expect(saved).toMatchObject({ ok: true, view: { name: "Measuring" } });
@@ -160,14 +160,14 @@ describe("Viewers and Guests", () => {
   });
 
   it("lets a Guest save a view of a Project they can see, and not one they can't", async () => {
-    as(GUEST, "org:guest");
+    as(GUEST, "guest");
     const { saveView } = await actions();
     expect(await saveView({ name: "Website", filters: { status: "all", project: website } }, ctx)).toMatchObject({ ok: true });
     expect(await saveView({ name: "Billing", filters: { status: "all", project: hiddenFromGuest } }, ctx)).toEqual({ error: "That Project isn’t available. Choose another and try again." });
   });
 
   it("opens a Guest's view through the normal list, so it shows only their own Requests", async () => {
-    as(GUEST, "org:guest");
+    as(GUEST, "guest");
     const [view] = await myViews();
     const { loadRequestList } = await import("@/lib/data/requests");
     const { matchesListFilters } = await import("@/lib/request-overview");

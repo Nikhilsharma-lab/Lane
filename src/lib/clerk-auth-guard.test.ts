@@ -12,9 +12,116 @@ let session: MockClerkAuth = {
   orgRole: null,
 };
 
+// A session still waiting on Clerk's choose-a-workspace step: Clerk reads it as signed out unless asked not to.
+let pending = false;
+const signedOut: MockClerkAuth = { userId: null, orgId: null, orgRole: null };
+
+type MockClerkUser = {
+  firstName: string | null;
+  lastName: string | null;
+  username: string | null;
+  primaryEmailAddress: { emailAddress: string } | null;
+  imageUrl: string;
+};
+let account: MockClerkUser | null = null;
+
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(async () => session),
+  auth: vi.fn(async (options?: { treatPendingAsSignedOut?: boolean }) => ({
+    ...(pending && options?.treatPendingAsSignedOut !== false ? signedOut : session),
+    // Clerk's redirect throws Next's redirect, back to the page after sign-in.
+    redirectToSignIn: () => {
+      throw new Error("redirect to sign-in, returning to this page");
+    },
+  })),
+  currentUser: vi.fn(async () => account),
 }));
+
+beforeEach(() => {
+  pending = false;
+  account = null;
+});
+
+it("sends a signed-out visitor to sign in through Clerk's redirect", async () => {
+  const { sendToSignIn } = await import("./session");
+  await expect(sendToSignIn()).rejects.toThrow("redirect to sign-in, returning to this page");
+});
+
+describe("session seam: reading the signed-in account from Clerk", () => {
+  const ada: MockClerkUser = {
+    firstName: " Ada ",
+    lastName: "Lovelace",
+    username: "ada",
+    primaryEmailAddress: { emailAddress: "ada@example.com" },
+    imageUrl: "https://img.example/ada.png",
+  };
+
+  it("reads nothing when no account can be read", async () => {
+    const { readAccount } = await import("./session");
+    await expect(readAccount()).resolves.toBeNull();
+  });
+
+  it("reads the account name, primary email and image", async () => {
+    account = ada;
+    const { readAccount } = await import("./session");
+    await expect(readAccount()).resolves.toEqual({ name: "Ada Lovelace", email: "ada@example.com", imageUrl: "https://img.example/ada.png" });
+  });
+
+  it("names the account by the account-name rule when it has no first or last name", async () => {
+    const { readAccount } = await import("./session");
+    account = { ...ada, firstName: null, lastName: null };
+    await expect(readAccount()).resolves.toMatchObject({ name: "ada" });
+    account = { ...ada, firstName: null, lastName: null, username: null };
+    await expect(readAccount()).resolves.toMatchObject({ name: "ada@example.com" });
+  });
+
+  it("reads an empty email and the name User for an account with no name and no primary email", async () => {
+    account = { ...ada, firstName: null, lastName: null, username: null, primaryEmailAddress: null };
+    const { readAccount } = await import("./session");
+    await expect(readAccount()).resolves.toEqual({ name: "User", email: "", imageUrl: "https://img.example/ada.png" });
+  });
+});
+
+describe("session seam: reading the session from Clerk", () => {
+  beforeEach(() => {
+    session = { userId: null, orgId: null, orgRole: null };
+  });
+
+  it("reads no session for a signed-out visitor", async () => {
+    const { readSession } = await import("./session");
+    await expect(readSession()).resolves.toBeNull();
+  });
+
+  it.each([
+    ["org:admin", "admin"],
+    ["org:member", "member"],
+    ["org:guest", "guest"],
+    ["org:viewer", "viewer"],
+  ])("translates the Clerk role key %s into Lane's %s", async (orgRole, role) => {
+    session = { userId: "user_real", orgId: "org_lane", orgRole };
+    const { readSession } = await import("./session");
+    await expect(readSession()).resolves.toEqual({ userId: "user_real", orgId: "org_lane", role });
+  });
+
+  it("reads an unknown Clerk role key as no role", async () => {
+    session = { userId: "user_real", orgId: "org_lane", orgRole: "org:billing" };
+    const { readSession } = await import("./session");
+    await expect(readSession()).resolves.toEqual({ userId: "user_real", orgId: "org_lane", role: null });
+  });
+
+  it("counts a pending session as signed in only when asked to", async () => {
+    pending = true;
+    session = { userId: "user_pending", orgId: null, orgRole: null };
+    const { readSession } = await import("./session");
+    await expect(readSession()).resolves.toBeNull();
+    await expect(readSession({ pendingCountsAsSignedIn: true })).resolves.toEqual({ userId: "user_pending", orgId: null, role: null });
+  });
+
+  it("reads a person with no active workspace", async () => {
+    session = { userId: "user_real", orgId: null, orgRole: null };
+    const { readSession } = await import("./session");
+    await expect(readSession()).resolves.toEqual({ userId: "user_real", orgId: null, role: null });
+  });
+});
 
 describe("Clerk-backed workspace guards", () => {
   beforeEach(() => {

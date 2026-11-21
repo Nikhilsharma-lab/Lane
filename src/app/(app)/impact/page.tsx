@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Impact" };
 type Query = Record<"tab" | "period" | "person", string | string[] | undefined>;
 
 // The Impact page (#159, spec #151; Outcome report #208; #283): one read-only screen. Identity and workspace come from
-// the Clerk session through getMember; the tab, period and teammate come from the address and are checked before use.
+// the session seam through getMember; the tab, period and teammate come from the address and are checked before use.
 export default async function ImpactPage({ searchParams }: { searchParams: Promise<Partial<Query>> }) {
   void timePage("Impact");
   const member = await getMember();

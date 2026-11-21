@@ -3,6 +3,7 @@ import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 import { queryCounter } from "@/db";
 
 // Reviewer-era progress checks add one ordered Request lock and two batched reads before
@@ -10,9 +11,10 @@ import { queryCounter } from "@/db";
 // bulk operations still use a bounded number of statements independent of size.
 // Comment, priority and Undo budgets retain their existing narrow boundaries.
 
-const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
+const session = vi.hoisted((): Session => ({ userId: "", orgId: "", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session, clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, REQUESTER]) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
+vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, REQUESTER]) }));
 
 const ORG = "org_statement_ceilings";
 const MEMBER = "user_ceilings_member", REQUESTER = "user_ceilings_requester";
@@ -28,10 +30,10 @@ beforeAll(async () => {
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Statement ceilings','statement-ceilings')`;
   for (const id of [MEMBER, REQUESTER]) await connection`insert into profiles (id,full_name,email) values (${id},${id},${id + "@example.test"})`;
-  session.userId = MEMBER; session.orgId = ORG; session.orgRole = "org:member";
+  session.userId = MEMBER; session.orgId = ORG; session.role = "member";
 });
 beforeEach(async () => {
-  session.userId = MEMBER; session.orgRole = "org:member";
+  session.userId = MEMBER; session.role = "member";
   requestId = randomUUID();
   // Submitted by someone else, so every lifecycle move also writes a notification.
   await connection`insert into requests (id,org_id,title,description,created_by) values (${requestId},${ORG},'Ceiling probe','A Request',${REQUESTER})`;
@@ -104,13 +106,13 @@ describe("statement ceilings per Request mutation", () => {
     const { addComment } = await api();
     const form = new FormData();
     form.set("body", "Not my Request");
-    session.orgRole = "org:guest";
+    session.role = "guest";
     try {
       const { result, statements } = await measure(() => addComment(requestId, form, { orgId: ORG }));
       expect(result).toEqual({ error: "Not found" });
       expect(statements).toBeLessThanOrEqual(1);
     } finally {
-      session.orgRole = "org:member";
+      session.role = "member";
     }
     expect(await connection`select id from comments where request_id = ${requestId}`).toEqual([]);
     expect(await connection`select id from notifications where request_id = ${requestId}`).toEqual([]);
@@ -171,14 +173,14 @@ describe("statement ceilings per bulk Request mutation", () => {
   it("refuses a guest bulk move without touching the database", async () => {
     const { pickUpRequests } = await api();
     const ids = await insertRequests(2);
-    session.orgRole = "org:guest";
+    session.role = "guest";
     try {
     const { result, statements } = await measure(() => pickUpRequests(ids, { orgId: ORG }));
       expect(result.error).toBe("You can’t change Requests in this workspace.");
       expect(result.moved).toEqual([]);
       expect(statements).toBe(0);
     } finally {
-      session.orgRole = "org:member";
+      session.role = "member";
     }
     const open = await connection`select id from requests where status = 'open' and id = any(${ids})`;
     expect(open).toHaveLength(2);

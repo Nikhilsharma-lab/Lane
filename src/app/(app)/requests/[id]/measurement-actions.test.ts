@@ -3,17 +3,19 @@ import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 
-const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
+const session = vi.hoisted((): Session => ({ userId: "", orgId: "", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session, clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, OWNER]) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
+vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, OWNER]) }));
 
 const ORG = "org_measurement_actions", OTHER_ORG = "org_measurement_other";
 const OWNER = "user_measurement_owner", MEMBER = "user_measurement_member";
 let connection: ReturnType<typeof postgres>;
 let requestId: string;
 const api = () => import("./actions");
-const actAs = (userId = OWNER, orgRole = "org:member", orgId = ORG) => Object.assign(session, { userId, orgRole, orgId });
+const actAs = (userId = OWNER, role: Session["role"] = "member", orgId = ORG) => Object.assign(session, { userId, role, orgId });
 const plan = (current: number | null = null) => ({
   kind: "measurement" as const, version: 2 as const,
   primary: { key: "conversion" as const, name: "", unit: "percent" as const, current, target: 80, noBaseline: false, check: "" },

@@ -3,11 +3,13 @@ import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, afterEach, expect, it, vi } from 'vitest';
-const session = vi.hoisted(() => ({ userId: 'release_owner', orgId: 'org_release', orgRole: 'org:member' }));
+import type { Session } from "@/lib/session";
+const session = vi.hoisted((): Session => ({ userId: 'release_owner', orgId: 'org_release', role: 'member' }));
 const roster = vi.hoisted(() => ({ ids: ['release_owner', 'release_pm', 'release_designer', 'release_developer', 'release_admin', 'release_next'] }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
+// A blank userId is a signed-out visitor.
+vi.mock('@/lib/session', () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 vi.mock('@clerk/nextjs/server', () => ({
-    auth: async () => ({ ...session }),
     clerkClient: async () => ({ organizations: { getOrganizationMembershipList: async () => ({ totalCount: roster.ids.length, data: roster.ids.map(userId => ({ organization: { id: 'org_release' }, role: userId === 'release_admin' ? 'org:admin' : 'org:member', publicUserData: { userId, firstName: userId, identifier: userId + '@example.test' } })) }) } }),
 }));
 const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, { max: 6, prepare: false });
@@ -18,7 +20,7 @@ beforeAll(async () => {
         await connection `insert into profiles(id,full_name,email) values (${id},${id},${id + '@example.test'})`;
 });
 afterAll(() => connection.end());
-afterEach(() => { vi.useRealTimers(); session.userId = 'release_owner'; session.orgId = orgId; session.orgRole = 'org:member'; roster.ids = ['release_owner', 'release_pm', 'release_designer', 'release_developer', 'release_admin', 'release_next']; });
+afterEach(() => { vi.useRealTimers(); session.userId = 'release_owner'; session.orgId = orgId; session.role = 'member'; roster.ids = ['release_owner', 'release_pm', 'release_designer', 'release_developer', 'release_admin', 'release_next']; });
 const context = (requestId: string, expectedRevision = 0) => ({ orgId, requestId, expectedRevision, operationId: randomUUID() });
 const release = { kind: 'release', exposureDate: '2026-10-21', evidence: 'Full audience rollout confirmed in release log', audienceConfirmed: true, valueBeforeRelease: { value: 50, unit: '%' } };
 async function fixture(fixed = false) {
@@ -124,12 +126,12 @@ it('refuses to switch a released Request\'s Goal to No measurable impact', async
 it('blocks wrong lifecycle, guests and foreign workspace reads/writes', async () => {
     const api = await import('./release-actions');
     const id = await fixture();
-    session.orgRole = 'org:guest';
+    session.role = 'guest';
     expect(await api.readRequestRelease(id, { orgId })).toHaveProperty('release', null);
     expect(await api.changeRequestRelease(context(id), release)).toHaveProperty('error');
     session.userId = 'release_next';
     expect(await api.readRequestRelease(id, { orgId })).toHaveProperty('error');
-    session.orgRole = 'org:member';
+    session.role = 'member';
     session.orgId = 'org_foreign';
     expect(await api.readRequestRelease(id, { orgId: session.orgId })).toHaveProperty('error');
     expect(await api.changeRequestRelease({ ...context(id), orgId: session.orgId }, release)).toHaveProperty('error');
@@ -142,7 +144,7 @@ it('hands over only from a departed Requester to an active member, retains autho
     const api = await import('./release-actions');
     const id = await fixture();
     session.userId = 'release_admin';
-    session.orgRole = 'org:admin';
+    session.role = 'admin';
     const transfer = { kind: 'transfer', recipientId: 'release_next', reason: 'Original owner left the workspace' };
     expect(await api.changeRequestRelease(context(id), transfer)).toHaveProperty('error');
     roster.ids = roster.ids.filter(id => id !== 'release_owner');
@@ -152,7 +154,7 @@ it('hands over only from a departed Requester to an active member, retains autho
     expect(result).toEqual({ success: true, revision: 1 });
     expect(await api.changeRequestRelease(ctx, transfer)).toEqual(result);
     session.userId = 'release_next';
-    session.orgRole = 'org:member';
+    session.role = 'member';
     expect(await api.changeRequestRelease(context(id, 1), release)).toHaveProperty('success', true);
     const [row] = await connection `select created_by,release_state from requests where id=${id}`;
     expect(row.created_by).toBe('release_owner');
@@ -162,7 +164,7 @@ it('hands over only from a departed Requester to an active member, retains autho
     expect(await api.changeRequestRelease(context(id, 2), { kind: 'void', reason: 'Stale owner', neverExposed: true })).toHaveProperty('error');
     roster.ids = roster.ids.filter(id => id !== 'release_next');
     session.userId = 'release_admin';
-    session.orgRole = 'org:admin';
+    session.role = 'admin';
     expect(await api.changeRequestRelease(context(id, 2), { ...transfer, recipientId: 'release_admin' })).toHaveProperty('success', true);
 });
 it('names a departed owner and every history actor from saved profiles, for guests too', async () => {
@@ -174,12 +176,12 @@ it('names a departed owner and every history actor from saved profiles, for gues
         await api.changeRequestRelease(context(id), release);
         roster.ids = roster.ids.filter(id => id !== 'release_owner');
         session.userId = 'release_admin';
-        session.orgRole = 'org:admin';
+        session.role = 'admin';
         const departed = await api.readRequestRelease(id, { orgId });
         expect(departed).toMatchObject({ requesterName: 'Maya Chen', names: { release_owner: 'Maya Chen' } });
         await api.changeRequestRelease(context(id, 1), { kind: 'transfer', recipientId: 'release_next', reason: 'Owner left' });
         session.userId = 'release_owner';
-        session.orgRole = 'org:guest';
+        session.role = 'guest';
         const guest = await api.readRequestRelease(id, { orgId });
         expect(guest).toMatchObject({ requesterName: 'release_next', names: { release_owner: 'Maya Chen', release_admin: 'Ana Admin', release_next: 'release_next' } });
     }
@@ -283,11 +285,11 @@ it('a departed owner cannot win a transfer/release race or replay an old release
     const first = context(id);
     await api.changeRequestRelease(first, release);
     roster.ids = roster.ids.filter(id => id !== 'release_owner');
-    // auth() captures the session synchronously, so each call below runs as the user set before it.
+    // readSession() captures the session synchronously, so each call below runs as the user set before it.
     const staleRelease = api.changeRequestRelease(first, release);
     const staleCorrection = api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-01', reason: 'Stale tab' });
     session.userId = 'release_admin';
-    session.orgRole = 'org:admin';
+    session.role = 'admin';
     const transfer = api.changeRequestRelease(context(id, 1), { kind: 'transfer', recipientId: 'release_next', reason: 'Original owner departed' });
     const results = await Promise.all([staleRelease, staleCorrection, transfer]);
     expect(results[0]).toHaveProperty('error');
@@ -296,7 +298,7 @@ it('a departed owner cannot win a transfer/release race or replay an old release
     // With access restored, the former Requester corrects like any member, against the current revision only.
     roster.ids = [...roster.ids, 'release_owner'];
     session.userId = 'release_owner';
-    session.orgRole = 'org:member';
+    session.role = 'member';
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-01', reason: 'Stale tab' })).toEqual({ error: 'Request changed. Reload before trying again.' });
     const view = await api.readRequestRelease(id, { orgId });
     expect(view).toMatchObject({ requesterId: 'release_next', actions: { close: { allowed: false, reason: 'Only the Requester, release_next, can close this.' } }, release: { exposureDate: '2026-10-21', dueDate: '2026-10-28' } });
@@ -323,10 +325,10 @@ it('any active member records, corrects and voids a release, each attributed to 
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ journey: { status: 'measuring', label: 'Measuring' }, actions: { correctRelease: { allowed: true }, voidRelease: { allowed: true }, release: { allowed: false, reason: 'The release is already recorded.' } } });
     expect(await api.changeRequestRelease(context(id, 1), { ...release, kind: 'correct', exposureDate: '2026-10-20', reason: 'Verified original exposure log' })).toHaveProperty('success', true);
     session.userId = 'release_admin';
-    session.orgRole = 'org:admin';
+    session.role = 'admin';
     expect(await api.changeRequestRelease(context(id, 2), { kind: 'void', reason: 'Only staging was exposed', neverExposed: true })).toHaveProperty('success', true);
     session.userId = 'release_designer';
-    session.orgRole = 'org:guest';
+    session.role = 'guest';
     expect(await api.readRequestRelease(id, { orgId })).toHaveProperty('error');
     session.userId = 'release_owner';
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ actions: { release: { allowed: false, reason: 'Guests can follow this Request but can’t change it.' } } });
@@ -360,7 +362,7 @@ it('an admin hands over an In progress Request before any release, creating the 
     const [open] = await connection `insert into requests(org_id,title,description,created_by,status) values (${orgId},'Not started','No pickup','release_owner','open') returning id`;
     roster.ids = roster.ids.filter(u => u !== 'release_owner');
     session.userId = 'release_admin';
-    session.orgRole = 'org:admin';
+    session.role = 'admin';
     const handover = { kind: 'transfer', recipientId: 'release_next', reason: 'Requester left the workspace' };
     expect(await api.changeRequestRelease(context(open.id), handover)).toEqual({ error: 'Handover opens once the work is picked up.' });
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ journey: { status: 'in_progress' }, actions: { handover: { allowed: true }, release: { allowed: false, reason: 'Opens once the work is Done.' } } });
@@ -370,7 +372,7 @@ it('an admin hands over an In progress Request before any release, creating the 
     expect(row.release_state).toMatchObject({ ownerId: 'release_next', release: null, history: [{ actorId: 'release_admin', previousOwnerId: 'release_owner', ownerId: 'release_next', release: null, previousRelease: null }] });
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ requesterId: 'release_next', actions: { handover: { allowed: false, reason: 'release_next still has workspace access.' } } });
     session.userId = 'release_pm';
-    session.orgRole = 'org:member';
+    session.role = 'member';
     roster.ids = roster.ids.filter(u => u !== 'release_next');
     expect(await api.changeRequestRelease(context(id, 1), { ...handover, recipientId: 'release_pm' })).toEqual({ error: 'Only a workspace admin can hand this over.' });
 });

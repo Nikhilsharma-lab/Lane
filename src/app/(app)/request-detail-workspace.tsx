@@ -20,7 +20,7 @@ export async function RequestDetailWorkspace({ selectedRequestId }: { selectedRe
   const member = await getMember()
   if (!member) redirect("/login")
 
-  // Plan items 1.8 and 1.10: the detail read starts from Clerk claims and runs
+  // Plan items 1.8 and 1.10: the detail read starts from the session seam and runs
   // in parallel with the profile/workspace join, so the page waits for one
   // round trip. It loads only that Request, its comments and its files, with
   // the workspace and guest guards (src/lib/data/requests.ts).

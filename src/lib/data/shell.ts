@@ -16,7 +16,7 @@ export type ShellRow = {
 
 /**
  * Plan item 1.9: the profile and the workspace in one statement. Identity and
- * the workspace permission come from Clerk claims (`auth.role`), so the only
+ * the workspace permission come from the session seam (`auth.role`), so the only
  * database work on the shell's critical path is this join. Returns null when
  * the session user has no profile yet (onboarding).
  */

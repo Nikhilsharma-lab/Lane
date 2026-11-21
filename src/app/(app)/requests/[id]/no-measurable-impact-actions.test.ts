@@ -2,12 +2,13 @@ import { randomUUID } from "node:crypto";
 import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 import { createTriageToken } from "@/lib/triage-token";
 import { requestEditSnapshot } from "@/lib/request-edit";
 
-const session = vi.hoisted(() => ({ userId: "nmi-creator", orgId: "org-nmi", orgRole: "org:member" }));
+const session = vi.hoisted((): Session => ({ userId: "nmi-creator", orgId: "org-nmi", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 
 const ORG = "org-nmi";
 const CREATOR = "nmi-creator";
@@ -40,7 +41,7 @@ beforeAll(async () => {
   vi.stubEnv("TRIAGE_TOKEN_SECRET", "nmi-test-secret".repeat(4));
 });
 beforeEach(async () => {
-  session.userId = CREATOR; session.orgId = ORG; session.orgRole = "org:member";
+  session.userId = CREATOR; session.orgId = ORG; session.role = "member";
   id = randomUUID();
   const x = withPlan();
   await sql`insert into requests(id,org_id,title,description,created_by,request_type,priority,expected_impact) values (${id},${ORG},${x.title},${x.description},${CREATOR},'improvement','high',${sql.json(plan)})`;

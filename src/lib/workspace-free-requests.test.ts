@@ -5,13 +5,13 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { requireTestDatabase } from "@/test/test-database";
+import type { Session } from "./session";
 
-const session = vi.hoisted(() => ({ userId: "wfr_founder", orgId: "org_wfr_first", orgRole: "org:admin" }));
+const session = vi.hoisted((): Session => ({ userId: "wfr_founder", orgId: "org_wfr_first", role: "admin" }));
 const creators = vi.hoisted((): Record<string, string> => ({ org_wfr_first: "wfr_founder", org_wfr_second: "wfr_colleague" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("./session", () => ({ readSession: async () => ({ ...session }), readAccount: async () => null }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
-  currentUser: async () => null,
   clerkClient: async () => ({
     organizations: { getOrganization: async ({ organizationId }: { organizationId: string }) => ({ id: organizationId, name: "Acme", slug: organizationId, createdBy: creators[organizationId] }) },
     users: { getUser: async (userId: string) => ({ primaryEmailAddress: { emailAddress: `${userId.slice(4)}@wfr-acme.example` }, emailAddresses: [] }) },
@@ -32,8 +32,8 @@ afterAll(async () => {
   await connection.end();
 });
 
-async function firstLoad(userId: string, orgId: string, orgRole = "org:admin") {
-  Object.assign(session, { userId, orgId, orgRole });
+async function firstLoad(userId: string, orgId: string, role: Session["role"] = "admin") {
+  Object.assign(session, { userId, orgId, role });
   vi.resetModules();
   const { getWorkspace } = await import("./ensure-workspace");
   return getWorkspace();
@@ -45,6 +45,6 @@ it("gives the first workspace from a company domain its 4 Free Requests, and a s
   expect(await freeRequests("org_wfr_first")).toEqual({ total: 4, used: 0, left: 4, usedElsewhere: null });
   await connection`insert into requests(org_id,title,description,created_by) values ('org_wfr_first','Work','A Request.','wfr_founder')`;
   // The second workspace is first opened by someone who didn't create it; its creator's address still decides.
-  expect(await firstLoad("wfr_founder", "org_wfr_second", "org:member")).toMatchObject({ orgId: "org_wfr_second" });
+  expect(await firstLoad("wfr_founder", "org_wfr_second", "member")).toMatchObject({ orgId: "org_wfr_second" });
   expect(await freeRequests("org_wfr_second")).toEqual({ total: 4, used: 0, left: 3, usedElsewhere: { kind: "company_domain", domain: "wfr-acme.example", used: 1 } });
 });

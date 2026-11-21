@@ -3,10 +3,12 @@ import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 
-const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
+const session = vi.hoisted((): Session => ({ userId: "", orgId: "", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session, clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, REQUESTER]) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
+vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, REQUESTER]) }));
 
 const ORG = "org_undo_done_a", FOREIGN_ORG = "org_undo_done_b";
 const MEMBER = "user_undo_member", REQUESTER = "user_undo_requester", GUEST = "user_undo_guest", FOREIGN = "user_undo_foreign";
@@ -14,7 +16,7 @@ let connection: ReturnType<typeof postgres>;
 let requestId: string;
 
 const api = () => import("./actions");
-const actAs = (userId: string, orgRole = "org:member", orgId = ORG) => { session.userId = userId; session.orgId = orgId; session.orgRole = orgRole; };
+const actAs = (userId: string, role: Session["role"] = "member", orgId = ORG) => { session.userId = userId; session.orgId = orgId; session.role = role; };
 const saved = async () => (await connection`select status::text as status, assigned_to from requests where id = ${requestId}`)[0];
 const doneAt = async (id = requestId) => (await connection`select done_at from requests where id = ${id}`)[0].done_at as Date | null;
 const doneNotifications = async () => (await connection`select count(*)::int as count from notifications where request_id = ${requestId} and type = 'request_done'`)[0].count;
@@ -101,9 +103,9 @@ describe("undoMarkDone", () => {
     // Plan item 1.4: a failed membership check (guest, or a workspace context
     // that is not the session's) names the permission; "Not found" is kept
     // for a Request that belongs to another workspace.
-    actAs(GUEST, "org:guest");
+    actAs(GUEST, "guest");
     expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ error: "You can’t change Requests in this workspace." });
-    actAs(FOREIGN, "org:member", FOREIGN_ORG);
+    actAs(FOREIGN, "member", FOREIGN_ORG);
     expect(await undoMarkDone(requestId, { orgId: FOREIGN_ORG })).toEqual({ error: "Not found" });
     expect(await undoMarkDone(requestId, { orgId: ORG })).toEqual({ error: "You can’t change Requests in this workspace." });
     expect((await saved()).status).toBe("done");
