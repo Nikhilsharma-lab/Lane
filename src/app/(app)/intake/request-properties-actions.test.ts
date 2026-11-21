@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import { createTriageToken, verifyTriageToken } from "@/lib/triage-token";
 
 const boundary = vi.hoisted(() => ({
-  session: { userId: "user_member", orgId: "org_a", orgRole: "org:member" },
+  session: { userId: "user_member", orgId: "org_a", role: "member" as WorkspacePermission },
   queries: [] as { sql: string; params: unknown[] }[],
   responses: [] as unknown[][][],
   aiCalls: 0,
 }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => boundary.session }));
+vi.mock("@/lib/session", () => ({ readSession: async () => boundary.session }));
 vi.mock("@/db", async () => {
   const { drizzle } = await import("drizzle-orm/pg-proxy");
   const schema = await import("@/db/schema");
@@ -29,7 +30,7 @@ const context = { orgId: "org_a", userId: "user_member" };
 beforeEach(() => {
   vi.stubEnv("TRIAGE_TOKEN_SECRET", "test-project-property-secret".repeat(3));
   boundary.queries = []; boundary.responses = []; boundary.aiCalls = 0;
-  boundary.session = { userId: "user_member", orgId: "org_a", orgRole: "org:member" };
+  boundary.session = { userId: "user_member", orgId: "org_a", role: "member" };
 });
 
 describe("Intake Project authorization", () => {
@@ -71,7 +72,7 @@ describe("Intake Project authorization", () => {
   });
   it("does not broaden Project visibility for guest triage", async () => {
     const { runTriage } = await import("./actions");
-    boundary.session.orgRole = "org:guest";
+    boundary.session.role = "guest";
     expect(await runTriage(input, { orgId: "org_a" })).toMatchObject({ success: false });
     expect(boundary.queries[0].sql).toContain('"requests"."created_by"');
     expect(boundary.queries[0].params).toEqual(["org_a", "user_member", "org_a", "user_member", PROJECT_ID, 1]);

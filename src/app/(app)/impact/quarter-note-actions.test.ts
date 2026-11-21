@@ -1,10 +1,10 @@
 /**
  * #209 seam 1: writing and editing the Quarter note. Only Admins write or edit it, at any time during or after its
- * quarter; the note keeps its last editor and edit time. Real database, mocked Clerk session.
+ * quarter; the note keeps its last editor and edit time. Real database, faked session seam.
  */
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { SESSION_ENDED, VIEWER_REFUSAL } from "@/lib/auth-guard";
+import { SESSION_ENDED, VIEWER_REFUSAL, type WorkspacePermission } from "@/lib/auth-guard";
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_quarter_note_actions";
@@ -12,9 +12,9 @@ const OTHER = "org_quarter_note_actions_other";
 const ADMIN = "quarter_note_admin";
 const SECOND_ADMIN = "quarter_note_admin_two";
 const MEMBER = "quarter_note_member";
-const session = vi.hoisted(() => ({ userId: "quarter_note_admin" as string | null, orgId: "org_quarter_note_actions", orgRole: "org:admin" }));
+const session = vi.hoisted(() => ({ userId: "quarter_note_admin" as string | null, orgId: "org_quarter_note_actions", role: "admin" as WorkspacePermission }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ ...session }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
@@ -26,7 +26,7 @@ beforeAll(async () => {
 });
 afterEach(async () => {
   vi.useRealTimers();
-  Object.assign(session, { userId: ADMIN, orgId: ORG, orgRole: "org:admin" });
+  Object.assign(session, { userId: ADMIN, orgId: ORG, role: "admin" });
   await connection`delete from quarter_notes where org_id in (${ORG}, ${OTHER})`;
 });
 afterAll(async () => {
@@ -37,7 +37,7 @@ afterAll(async () => {
 
 const at = (iso: string) => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(iso)); };
 const actions = () => import("./quarter-note-actions");
-const as = (userId: string | null, orgRole: string) => Object.assign(session, { userId, orgRole });
+const as = (userId: string | null, role: WorkspacePermission) => Object.assign(session, { userId, role });
 const stored = () => connection`select year, quarter, body, edited_by, edited_at from quarter_notes where org_id = ${ORG} order by year, quarter`;
 
 describe("Quarter note", () => {
@@ -54,7 +54,7 @@ describe("Quarter note", () => {
     const { saveQuarterNote } = await actions();
     await saveQuarterNote({ year: 2026, quarter: 3, text: "First", expectedEditedAt: null }, { orgId: ORG });
     at("2027-02-01T09:00:00.000Z");
-    as(SECOND_ADMIN, "org:admin");
+    as(SECOND_ADMIN, "admin");
     expect(await saveQuarterNote({ year: 2026, quarter: 3, text: "Second", expectedEditedAt: "2026-08-15T10:00:00.000Z" }, { orgId: ORG }))
       .toEqual({ success: true, note: { text: "Second", editorName: "Bo Admin", editedAt: "2027-02-01T09:00:00.000Z" } });
     expect(await stored()).toMatchObject([{ body: "Second", edited_by: SECOND_ADMIN }]);
@@ -71,7 +71,7 @@ describe("Quarter note", () => {
     at("2026-08-15T10:00:00.000Z");
     const { saveQuarterNote } = await actions();
     await saveQuarterNote({ year: 2026, quarter: 3, text: "Ada's words", expectedEditedAt: null }, { orgId: ORG });
-    as(SECOND_ADMIN, "org:admin");
+    as(SECOND_ADMIN, "admin");
     const stale = { error: "Someone else changed this Quarter note. Reload to see it before editing." };
     expect(await saveQuarterNote({ year: 2026, quarter: 3, text: "Bo's words", expectedEditedAt: null }, { orgId: ORG })).toEqual(stale);
     expect(await saveQuarterNote({ year: 2026, quarter: 3, text: "Bo's words", expectedEditedAt: "2026-08-01T00:00:00.000Z" }, { orgId: ORG })).toEqual(stale);
@@ -99,14 +99,14 @@ describe("Quarter note", () => {
     const { saveQuarterNote } = await actions();
     const note = { year: 2026, quarter: 3 as const, text: "Not an Admin", expectedEditedAt: null };
     const refused = { error: "Only Admins can write the Quarter note." };
-    for (const role of ["org:member", "org:guest", "org:viewer"]) {
+    for (const role of ["member", "guest", "viewer"] as const) {
       as(MEMBER, role);
       // #210: a Viewer is told they are read-only, whatever the change.
-      expect(await saveQuarterNote(note, { orgId: ORG })).toEqual(role === "org:viewer" ? { error: VIEWER_REFUSAL } : refused);
+      expect(await saveQuarterNote(note, { orgId: ORG })).toEqual(role === "viewer" ? { error: VIEWER_REFUSAL } : refused);
     }
-    as(ADMIN, "org:admin");
+    as(ADMIN, "admin");
     expect(await saveQuarterNote(note, { orgId: OTHER })).toEqual(refused);
-    as(null, "org:admin");
+    as(null, "admin");
     expect(await saveQuarterNote(note, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
     expect(await connection`select 1 from quarter_notes where org_id in (${ORG}, ${OTHER})`).toHaveLength(0);
   });

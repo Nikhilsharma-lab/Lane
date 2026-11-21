@@ -1,18 +1,19 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import { requireTestDatabase } from "@/test/test-database";
 import { createTriageToken } from "@/lib/triage-token";
 import { requestEditSnapshot } from "@/lib/request-edit";
 
 // #198: predictions and guardrails pick Metric definitions. Seam: the Intake and edit actions, the picker's
-// read action and the library's edit action, called directly on the real database with Clerk's session faked.
+// read action and the library's edit action, called directly on the real database with the session seam faked.
 const ORG = "org_prediction_metrics";
 const OTHER = "org_prediction_metrics_other";
 const OWNER = "user_prediction_owner";
 const ADMIN = "user_prediction_admin";
-const session = vi.hoisted(() => ({ userId: "user_prediction_owner", orgId: "org_prediction_metrics", orgRole: "org:member" }));
+const session = vi.hoisted(() => ({ userId: "user_prediction_owner", orgId: "org_prediction_metrics", role: "member" as WorkspacePermission }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ ...session }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
 vi.mock("@/lib/ai/triage", () => ({ triageRequest: async () => ({ ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } }) }));
 
@@ -31,7 +32,7 @@ function plan(over: Record<string, unknown> = {}) {
   };
 }
 const draft = (expectedImpact: unknown) => ({ title: "Signups drop at the plan step", description: "People leave signup when they reach the plan step.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", expectedImpact });
-const as = (userId: string, orgRole = "org:member") => { session.userId = userId; session.orgId = ORG; session.orgRole = orgRole; };
+const as = (userId: string, role: WorkspacePermission = "member") => { session.userId = userId; session.orgId = ORG; session.role = role; };
 
 async function create(expectedImpact: unknown) {
   const { saveRequest } = await import("./actions");
@@ -173,7 +174,7 @@ describe("editing a prediction", () => {
     const renamed = await addDefinition("Trial starts", "count");
     const saved = plan({ primary: { ...plan().primary, ...metric(renamed, "Trial starts", "count") } });
     const { requestId } = await create(saved);
-    as(ADMIN, "org:admin");
+    as(ADMIN, "admin");
     const { editMetricDefinition } = await import("../settings/metrics/actions");
     expect(await editMetricDefinition({ id: renamed, name: "Trials started", unit: "count", link: "", howCounted: "How Trial starts is counted." }, { orgId: ORG })).toEqual({ ok: true });
     // History: the saved plan (and its Expected impact revision) still says "Trial starts".
