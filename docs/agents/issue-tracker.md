@@ -10,6 +10,7 @@ Issues and specs live at https://github.com/Nikhilsharma-lab/Lane/issues. Use `g
 - After publishing, verify the saved body and labels and return the issue URL.
 - Apply the vocabulary in `docs/agents/triage-labels.md`. A tracking label does not override Lane's scoped implementation or release approvals.
 - Before publishing a set of tickets, read each ticket's acceptance criteria against its siblings' and the parent's. Two criteria **conflict** when meeting one breaks the other: an expand ticket promising "other tests pass without edits" beside migrate tickets that edit those tests, or "no test name changes" beside a change to the values an `it.each` prints. Resolve every conflict first, and write criteria as exact checks ("no assertion or test-title template changes").
+- Criteria about the PR itself (a checklist in its description, wording put to Nikhil) go on the spec issue, not a ticket. The integration PR is written after the tickets merge, and no ticket's agent writes it.
 
 **PRs as a request surface: no.**
 
