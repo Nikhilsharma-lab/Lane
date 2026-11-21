@@ -1,24 +1,25 @@
 /**
- * #213 (spec #195, seam 1): the Free Requests block, through the actions people use. Real database, mocked Clerk,
- * roles switched per call. The first 4 Requests are free; once they are used (and there is no paid plan), creating a
+ * #213 (spec #195, seam 1): the Free Requests block, through the actions people use. Real database, faked session seam and
+ * Clerk roster, roles switched per call. The first 4 Requests are free; once they are used (and there is no paid plan), creating a
  * new Request, a follow-up, or taking on a Guest submission is refused with "an Admin needs to pay", and nothing else
  * is. All of it only while `LANE_BILLING_ENFORCED` is on; with it off no workspace is ever blocked.
  */
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkspacePermission } from "@/lib/auth-guard";
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORGS = ["org_fr_block", "org_fr_race", "org_fr_deleted", "org_fr_guests", "org_fr_follow", "org_fr_off", "org_fr_paid"] as const;
 type Org = (typeof ORGS)[number];
 const [MEMBER, OTHER, GUEST, ADMIN] = ["fr_member", "fr_other", "fr_guest", "fr_admin"];
-const ROLES: Record<string, string> = { [MEMBER]: "org:member", [OTHER]: "org:member", [GUEST]: "org:guest", [ADMIN]: "org:admin" };
-const session = vi.hoisted(() => ({ userId: "fr_member", orgId: "org_fr_block", orgRole: "org:member" }));
+const ROLES: Record<string, WorkspacePermission> = { [MEMBER]: "member", [OTHER]: "member", [GUEST]: "guest", [ADMIN]: "admin" };
+const session = vi.hoisted(() => ({ userId: "fr_member", orgId: "org_fr_block", role: "member" as WorkspacePermission }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/ai/triage", () => ({ triageRequest: async () => ({ ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } }) }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async ({ userId }: { userId?: string[] } = {}) => {
@@ -58,7 +59,7 @@ afterAll(async () => {
 function as(userId: string, orgId: Org) {
   session.userId = userId;
   session.orgId = orgId;
-  session.orgRole = ROLES[userId];
+  session.role = ROLES[userId];
 }
 const draft = { title: "Export is hard to find", description: "Customers can't find where to export their invoices.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "" };
 const prediction = { kind: "no_measurable_impact" as const, reason: "Keeps invoices where people expect them." };

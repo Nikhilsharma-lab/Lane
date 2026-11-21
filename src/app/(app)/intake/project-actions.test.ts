@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Session } from "@/lib/session";
 
 const boundary = vi.hoisted(() => ({
-  session: { userId: "user_member", orgId: "org_a", orgRole: "org:member" } as { userId: string | null; orgId: string | null; orgRole: string | null },
+  session: { userId: "user_member", orgId: "org_a", role: "member" } as Session,
   queries: [] as { sql: string; params: unknown[] }[],
   responses: [] as unknown[][][],
 }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => boundary.session }));
+vi.mock("@/lib/session", () => ({ readSession: async () => boundary.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/db", async () => {
   const { drizzle } = await import("drizzle-orm/pg-proxy");
@@ -19,14 +20,14 @@ vi.mock("@/db", async () => {
 const PROJECT = ["00000000-0000-4000-a000-000000000001", "Website", null];
 
 beforeEach(() => {
-  boundary.session = { userId: "user_member", orgId: "org_a", orgRole: "org:member" };
+  boundary.session = { userId: "user_member", orgId: "org_a", role: "member" };
   boundary.queries = []; boundary.responses = [];
 });
 
 describe("Project actions", () => {
-  it.each(["org:guest", "org:viewer"])("refuses Project deletion for %s", async role => {
+  it.each(["guest", "viewer"] as const)("refuses Project deletion for %s", async role => {
     const actions = await import("./project-actions");
-    boundary.session.orgRole = role;
+    boundary.session.role = role;
     expect(typeof actions.deleteProject).toBe("function");
     expect(await actions.deleteProject(PROJECT[0]!, { orgId: "org_a" })).toMatchObject({ success: false });
     expect(boundary.queries).toHaveLength(0);
@@ -53,7 +54,7 @@ describe("Project actions", () => {
   });
   it("restricts guest lists to created or own-Request-referenced projects", async () => {
     const { listProjects } = await import("./project-actions");
-    boundary.session.orgRole = "org:guest";
+    boundary.session.role = "guest";
     await listProjects({ orgId: "org_a" });
     const query = boundary.queries[0];
     expect(query.sql).toContain('"projects"."created_by"');
@@ -64,7 +65,7 @@ describe("Project actions", () => {
   });
   it("allows a guest to create with session identity and normalized input", async () => {
     const { createProject } = await import("./project-actions");
-    boundary.session.orgRole = "org:guest";
+    boundary.session.role = "guest";
     boundary.responses = [[PROJECT]];
     const result = await createProject({ name: "  Website   ", createdBy: "forged" } as { name: string }, { orgId: "org_a" });
     expect(result).toMatchObject({ success: true, project: { name: "Website" } });
@@ -109,7 +110,7 @@ describe("Project actions", () => {
   });
   it("does not disclose a hidden project on a guest duplicate", async () => {
     const { createProject } = await import("./project-actions");
-    boundary.session.orgRole = "org:guest";
+    boundary.session.role = "guest";
     boundary.responses = [[], []];
     expect(await createProject({ name: "Website" }, { orgId: "org_a" })).toMatchObject({ success: false, error: { code: "conflict" } });
     expect(boundary.queries[1].sql).toContain('"requests"."created_by"');
