@@ -2,23 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
 import { db, profiles } from "@/db";
+import type { Session } from "./session";
 
-let session: {
-  userId: string | null;
-  orgId: string | null;
-  orgRole: string | null;
-};
+let session: Session | null;
 
 const USER_ID = "user_workspace_first_test";
 
-vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(async () => session),
-  currentUser: vi.fn(async () => ({
-    id: USER_ID,
-    firstName: "Lane",
-    lastName: "Test",
-    username: null,
-    primaryEmailAddress: { emailAddress: "workspace-first@example.com" },
+vi.mock("./session", () => ({
+  readSession: vi.fn(async () => session),
+  readAccount: vi.fn(async () => ({
+    name: "Lane Test",
+    email: "workspace-first@example.com",
     imageUrl: "https://example.com/avatar.png",
   })),
 }));
@@ -29,7 +23,7 @@ import { getWorkspace } from "./ensure-workspace";
 import { saveOnboardingRole } from "@/app/(auth)/onboarding/actions";
 
 beforeEach(() => {
-  session = { userId: USER_ID, orgId: "org_test_a", orgRole: "org:member" };
+  session = { userId: USER_ID, orgId: "org_test_a", role: "member" };
   vi.mocked(revalidatePath).mockClear();
 });
 
@@ -38,10 +32,10 @@ afterEach(async () => {
 });
 
 describe("workspace-first onboarding", () => {
-  it.each([
-    { userId: null, orgId: null, orgRole: null },
-    { userId: USER_ID, orgId: null, orgRole: null },
-    { userId: USER_ID, orgId: "org_test_a", orgRole: "org:unknown" },
+  it.each<Session | null>([
+    null,
+    { userId: USER_ID, orgId: null, role: null },
+    { userId: USER_ID, orgId: "org_test_a", role: null },
   ])("does not expose Lane onboarding without recognized membership: %j", async (auth) => {
     session = auth;
     expect(await getWorkspace()).toBeNull();
@@ -54,10 +48,10 @@ describe("workspace-first onboarding", () => {
     });
   });
 
-  it.each([
-    { userId: null, orgId: null, orgRole: null },
-    { userId: USER_ID, orgId: null, orgRole: null },
-    { userId: USER_ID, orgId: "org_test_a", orgRole: "org:unknown" },
+  it.each<Session | null>([
+    null,
+    { userId: USER_ID, orgId: null, role: null },
+    { userId: USER_ID, orgId: "org_test_a", role: null },
   ])("rejects a direct role submission without recognized membership: %j", async (auth) => {
     session = auth;
     expect(await saveOnboardingRole({ role: "pm" })).toHaveProperty("error");
@@ -88,7 +82,7 @@ describe("workspace-first onboarding", () => {
     await expect(saveOnboardingRole({ role: "designer" })).rejects.toMatchObject({
       digest: expect.stringMatching(/^NEXT_REDIRECT;/),
     });
-    session = { userId: USER_ID, orgId: null, orgRole: null };
+    session = { userId: USER_ID, orgId: null, role: null };
     expect(await getWorkspace()).toBeNull();
   });
 });

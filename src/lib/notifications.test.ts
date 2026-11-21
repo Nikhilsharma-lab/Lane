@@ -19,16 +19,19 @@ import {
   comments,
 } from "@/db";
 import { eq, and } from "drizzle-orm";
+import type { Session } from "@/lib/session";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-let mockSession = { userId: "", orgId: "", orgRole: "" };
+let mockSession: Session | null = null;
 
+vi.mock("@/lib/session", () => ({
+  readSession: vi.fn(async () => mockSession),
+}));
 vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: async () => fixtureClerkClient(WS_ID, [REQUESTER_ID,PICKER_ID,THIRD_PARTY_ID]),
-  auth: vi.fn(async () => mockSession),
 }));
 
 // Unique UUIDs for this test file (0xF0xx range)
@@ -113,7 +116,7 @@ async function getNotifications(requestId: string | null) {
 
 describe("pickUpRequest → notification", () => {
   it("notifies the requester when someone picks up their request", async () => {
-    mockSession = { userId: PICKER_ID, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: PICKER_ID, orgId: WS_ID, role: "member" };
     const { pickUpRequest } = await import("@/app/(app)/requests/[id]/actions");
     const result = await pickUpRequest(REQ_PICKUP, { orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
@@ -127,7 +130,7 @@ describe("pickUpRequest → notification", () => {
   });
 
   it("does NOT self-notify when requester picks up own request", async () => {
-    mockSession = { userId: PICKER_ID, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: PICKER_ID, orgId: WS_ID, role: "member" };
     const { pickUpRequest } = await import("@/app/(app)/requests/[id]/actions");
     const result = await pickUpRequest(REQ_SELF, { orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
@@ -139,7 +142,7 @@ describe("pickUpRequest → notification", () => {
 
 describe("markDone → notification", () => {
   it("notifies the requester when their request is marked done", async () => {
-    mockSession = { userId: PICKER_ID, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: PICKER_ID, orgId: WS_ID, role: "member" };
     const { markDone } = await import("@/app/(app)/requests/[id]/actions");
     const result = await markDone(REQ_DONE, { orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
@@ -154,7 +157,7 @@ describe("markDone → notification", () => {
 
 describe("addComment → notification", () => {
   it("requester comments → notifies assignee", async () => {
-    mockSession = { userId: REQUESTER_ID, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: REQUESTER_ID, orgId: WS_ID, role: "member" };
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const formData = new FormData();
     formData.set("body", "requester comment");
@@ -169,7 +172,7 @@ describe("addComment → notification", () => {
   });
 
   it("assignee comments → notifies requester", async () => {
-    mockSession = { userId: PICKER_ID, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: PICKER_ID, orgId: WS_ID, role: "member" };
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const formData = new FormData();
     formData.set("body", "assignee comment");
@@ -183,7 +186,7 @@ describe("addComment → notification", () => {
   });
 
   it("third party comments → notifies BOTH requester and assignee", async () => {
-    mockSession = { userId: THIRD_PARTY_ID, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: THIRD_PARTY_ID, orgId: WS_ID, role: "member" };
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const formData = new FormData();
     formData.set("body", "third party comment");
@@ -198,7 +201,7 @@ describe("addComment → notification", () => {
   });
 
   it("guest comments on own request → notifies assignee", async () => {
-    mockSession = { userId: GUEST_ID, orgId: WS_ID, orgRole: "org:guest" };
+    mockSession = { userId: GUEST_ID, orgId: WS_ID, role: "guest" };
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const formData = new FormData();
     formData.set("body", "guest comment");
@@ -214,7 +217,7 @@ describe("addComment → notification", () => {
   it("third party comments where createdBy === assignedTo → notifies that person", async () => {
     // REQ_SELF: createdBy=PICKER_ID, picked up by PICKER_ID in earlier test.
     // Commenter=REQUESTER_ID (neither party) → "both" branch fires for PICKER_ID.
-    mockSession = { userId: REQUESTER_ID, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: REQUESTER_ID, orgId: WS_ID, role: "member" };
     const { addComment } = await import("@/app/(app)/requests/[id]/actions");
     const formData = new FormData();
     formData.set("body", "comment on self-assigned request");

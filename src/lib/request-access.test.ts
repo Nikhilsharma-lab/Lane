@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MemberAuth } from "./auth-guard";
+import type { Session } from "./session";
 import { canChange, canSee } from "./request-access-rules";
 
 /**
@@ -13,9 +14,10 @@ import { canChange, canSee } from "./request-access-rules";
  * nothing. Each surface reaches the rule through request-access.ts.
  */
 
-const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
+const session = vi.hoisted(() => ({ current: null as Session | null }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session, clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, ADMIN]) }));
+vi.mock("./session", () => ({ readSession: async () => session.current }));
+vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, ADMIN]) }));
 vi.mock("@/lib/supabase/admin", () => ({
   createServiceClient: () => ({ storage: { from: () => ({ createSignedUrl: async () => ({ data: { signedUrl: "https://files.test/signed" }, error: null }), remove: async () => ({ error: null }) }) } }),
 }));
@@ -26,7 +28,7 @@ const ROLES = { [GUEST]: "guest", [MEMBER]: "member", [ADMIN]: "admin", [OUTSIDE
 let sql: ReturnType<typeof postgres>;
 let guestRequest: string, memberRequest: string, viewerRequest: string, memberFile: string;
 
-const as = (userId: keyof typeof ROLES) => Object.assign(session, { userId, orgId: userId === OUTSIDER ? OTHER : ORG, orgRole: `org:${ROLES[userId]}` });
+const as = (userId: keyof typeof ROLES) => { session.current = { userId, orgId: userId === OUTSIDER ? OTHER : ORG, role: ROLES[userId] }; };
 const authOf = (userId: keyof typeof ROLES): MemberAuth => ({ userId, orgId: userId === OUTSIDER ? OTHER : ORG, role: ROLES[userId] });
 const actions = () => import("@/app/(app)/requests/[id]/actions");
 const ids = (rows: { id: string }[]) => rows.map((row) => row.id).sort();
@@ -156,7 +158,7 @@ describe("a signed-out caller", () => {
   it("is told the session ended instead of a missing Request, so the browser renews it and retries", async () => {
     const api = await actions();
     const { SESSION_ENDED } = await import("./auth-guard");
-    Object.assign(session, { userId: "", orgId: "", orgRole: "" });
+    session.current = null;
     const form = new FormData(); form.set("body", "A comment");
     expect(await api.addComment(guestRequest, form, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
     expect(await api.pickUpRequest(guestRequest, { orgId: ORG })).toEqual({ error: SESSION_ENDED, sessionExpired: true });

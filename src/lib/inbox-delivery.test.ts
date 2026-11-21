@@ -20,8 +20,8 @@ const SECOND_REQUESTER = "delivery_second_requester"
 
 /** The live Clerk roster: who is in the workspace, with which role. A Guest is filtered out like any non-member. */
 const roster = vi.hoisted(() => new Map<string, string>())
+vi.mock("./session", () => ({ readSession: vi.fn(async () => null) }))
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(async () => ({ userId: null })),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async ({ organizationId }: { organizationId: string }) => {
