@@ -10,10 +10,11 @@ import { GET as inboxList } from "@/app/api/notifications/route"
 import { GET as inboxCount } from "@/app/api/notifications/unread/route"
 import { requireTestDatabase } from "@/test/test-database"
 import type { ReleaseFact } from "./request-release"
+import type { Session } from "./session"
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
-const session = vi.hoisted(() => ({ current: { userId: "", orgId: "", orgRole: "" } }))
-vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn(async () => session.current) }))
+const session = vi.hoisted(() => ({ current: null as Session | null }))
+vi.mock("./session", () => ({ readSession: vi.fn(async () => session.current) }))
 
 const url = new URL(process.env.DATABASE_URL!)
 requireTestDatabase(process.env.DATABASE_URL);
@@ -63,7 +64,7 @@ afterEach(() => vi.useRealTimers())
 // The test database is rebuilt every run, and release history cannot be deleted, so fixtures stay.
 afterAll(() => connection.end())
 
-const as = (userId: string, orgRole = "org:member") => { session.current = { userId, orgId, orgRole } }
+const as = (userId: string, role: Session["role"] = "member") => { session.current = { userId, orgId, role } }
 const at = (date: Date) => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(date) }
 async function counts() {
   const response = await inboxCount(new Request(`http://lane.test/api/notifications/unread?org=${orgId}`))
@@ -112,7 +113,7 @@ describe("Needs you, through the Inbox's reads", () => {
 
   it("gives a Guest no Needs-you items, even on their own submission", async () => {
     at(today)
-    as(guest, "org:guest")
+    as(guest, "guest")
     expect(await needsYou()).toEqual([])
     expect((await counts()).count).toBe(0)
   })

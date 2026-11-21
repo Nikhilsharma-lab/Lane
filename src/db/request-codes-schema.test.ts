@@ -5,9 +5,10 @@ import path from "node:path";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createTriageToken } from "@/lib/triage-token";
+import type { Session } from "@/lib/session";
 
-const session = vi.hoisted(() => ({ userId: "user_request_codes_schema", orgId: "", orgRole: "org:member" }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+const session = vi.hoisted((): Session => ({ userId: "user_request_codes_schema", orgId: null, role: "member" }));
+vi.mock("@/lib/session", () => ({ readSession: async () => session }));
 
 const ORG_PREFIX = "org_request_codes_";
 const USER = "user_request_codes_schema";

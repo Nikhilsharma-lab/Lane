@@ -13,7 +13,7 @@ const ORG = "org_guest_delivery"
 const [GUEST, MEMBER, REVIEWER] = ["guest_delivery_guest", "guest_delivery_member", "guest_delivery_reviewer"]
 const APP = "https://lane.example.test"
 
-const session = vi.hoisted(() => ({ userId: "guest_delivery_member", orgId: "org_guest_delivery", orgRole: "org:member" }))
+const session = vi.hoisted(() => ({ userId: "guest_delivery_member", orgId: "org_guest_delivery", role: "member" as const }))
 /** The live Clerk roster: who is in the workspace, with which role. */
 const roster = vi.hoisted(() => new Map<string, string>())
 /** Work `after()` scheduled during an action; the test runs it as the response would finish. */
@@ -28,8 +28,8 @@ vi.mock("./messenger", async (original) => {
   // The switches pick the stand-in while email is off; this one also keeps what it was given for the test.
   return { ...real, recordingMessenger: () => { const messenger = real.recordingMessenger(); return { ...messenger, send: async (message: { to: string; subject: string; text: string }) => { sent.push(message); return messenger.send(message as never) } } } }
 })
+vi.mock("./session", () => ({ readSession: async () => ({ ...session }) }))
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async ({ userId }: { userId?: string[] } = {}) => {
@@ -55,7 +55,7 @@ beforeEach(async () => {
   scheduled.length = 0
   sent.length = 0
   session.userId = MEMBER
-  session.orgRole = "org:member"
+  session.role = "member"
   await connection`delete from delivery_preferences where org_id = ${ORG}`
 })
 // Closed Requests can't be deleted; the database is rebuilt every run.

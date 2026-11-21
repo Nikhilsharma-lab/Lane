@@ -11,8 +11,8 @@ const boundary = vi.hoisted(() => ({
   beforeRows: () => {},
   fail: null as "requests" | "names" | null,
 }));
-vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ userId: "viewer", orgId: "org_impact", orgRole: "org:member" }),
+vi.mock("@/lib/session", () => ({
+  readSession: async () => ({ userId: "viewer", orgId: "org_impact", role: "member" }),
 }));
 vi.mock("@/db", async () => {
   const { drizzle } = await import("drizzle-orm/pg-proxy");

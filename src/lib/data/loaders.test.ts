@@ -16,11 +16,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 // runtime dependency); Vitest cannot resolve it, so the loaders get an empty module.
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-const session = vi.hoisted(() => ({ userId: "", orgId: "", orgRole: "org:member" }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => session }));
+const session = vi.hoisted(() => ({ current: null as Session | null }));
+vi.mock("@/lib/session", () => ({ readSession: async () => session.current }));
 
 import { db, queryCounter, comments, notifications, organizations, profiles, projects, requestAgreements, requestAttachments, requests } from "@/db";
 import type { MemberAuth } from "@/lib/auth-guard";
+import type { Session } from "@/lib/session";
 import { REQUEST_PRIORITIES } from "@/lib/request-constants";
 import { GET as unreadCount } from "@/app/api/notifications/unread/route";
 import { loadShell } from "./shell";
@@ -185,7 +186,7 @@ describe("the Inbox's counts", () => {
 
   it("serves both scoped counts through the current GET endpoint", async () => {
     for (const auth of [admin, guest]) {
-      Object.assign(session, { userId: auth.userId, orgId: auth.orgId, orgRole: `org:${auth.role}` });
+      session.current = { userId: auth.userId, orgId: auth.orgId, role: auth.role };
       const response = await unreadCount(new Request(`http://lane.test/api/notifications/unread?${new URLSearchParams({ org: ORG })}`));
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ count: await countNeedsYou(auth), unread: auth.role === "guest" ? 1 : 2 });

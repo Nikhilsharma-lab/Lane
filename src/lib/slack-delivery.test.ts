@@ -17,8 +17,8 @@ const REVIEWER = "slack_delivery_reviewer"
 const EMAILER = "slack_delivery_emailer"
 const TOKEN = "xoxb-5555-6666-deliverytoken"
 
+vi.mock("./session", () => ({ readSession: vi.fn(async () => null) }))
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(async () => ({ userId: null })),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async ({ organizationId }: { organizationId: string }) => {

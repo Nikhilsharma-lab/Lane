@@ -13,9 +13,10 @@ import { readReviews, loadReviewerPeople } from "@/app/(app)/requests/[id]/revie
 import { addComment, getAttachmentDownloadUrl, deleteRequest, setRequestPriority, undoMarkDone } from "@/app/(app)/requests/[id]/actions";
 import { saveRequestEdits } from "@/app/(app)/requests/[id]/edit-actions";
 import { saveOnboardingRole } from "@/app/(auth)/onboarding/actions";
+import type { Session } from "@/lib/session";
 
-const boundary = vi.hoisted(() => ({ session: { userId: null, orgId: null, orgRole: null } as { userId: string | null; orgId: string | null; orgRole: string | null } }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => boundary.session }));
+const boundary = vi.hoisted(() => ({ session: null as Session | null }));
+vi.mock("@/lib/session", () => ({ readSession: async () => boundary.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const orgId = "org_test_a";
 const context = { orgId };
@@ -49,7 +50,7 @@ const actions: [string, () => Promise<unknown>][] = [
 
 describe("production action guard signals", () => {
   it.each(actions)("%s preserves explicit expiry before database/provider work", async (_name, action) => {
-    boundary.session = { userId: null, orgId: null, orgRole: null };
+    boundary.session = null;
     const run = vi.fn(action);
     const renew = vi.fn(async () => "renewed");
     const observed = await queryCounter.measure(() => callAction(run, { current: async () => "old", renew }));
@@ -60,8 +61,8 @@ describe("production action guard signals", () => {
   });
   it.each(actions)("%s never calls renewal for a wrong workspace or unknown role", async (_name, action) => {
     for (const session of [
-      { userId: "user_test_member_a", orgId: "different_workspace", orgRole: "org:member" },
-      { userId: "user_test_member_a", orgId, orgRole: "org:unknown" },
+      { userId: "user_test_member_a", orgId: "different_workspace", role: "member" as const },
+      { userId: "user_test_member_a", orgId, role: null },
     ]) {
       boundary.session = session;
       const run = vi.fn(action);
@@ -75,9 +76,9 @@ describe("production action guard signals", () => {
     }
   });
   it("onboarding preserves its copy and only no-user emits expiry", async () => {
-    boundary.session = { userId: null, orgId: null, orgRole: null };
+    boundary.session = null;
     expect(await saveOnboardingRole({ role: "designer" })).toEqual({ error: "Sign in to continue.", sessionExpired: true });
-    boundary.session = { userId: "signed_in", orgId: null, orgRole: null };
+    boundary.session = { userId: "signed_in", orgId: null, role: null };
     expect(await saveOnboardingRole({ role: "designer" })).toEqual({ error: "Create or join a workspace before choosing your role.", needsWorkspace: true });
     expect(await saveOnboardingRole({ role: "invalid" })).toEqual({ error: "Choose a valid role." });
   });

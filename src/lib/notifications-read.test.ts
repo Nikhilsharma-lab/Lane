@@ -20,6 +20,7 @@ import { eq } from "drizzle-orm";
 import { GET as notificationList } from "@/app/api/notifications/route";
 import { GET as unreadCount } from "@/app/api/notifications/unread/route";
 import type { ForYourInformationItem } from "@/lib/inbox-read-model";
+import type { Session } from "@/lib/session";
 
 type ReadNotification = Omit<ForYourInformationItem, "createdAt" | "readAt"> & { createdAt: string; readAt: string | null };
 async function readNotifications(context: { orgId: string }) {
@@ -39,10 +40,10 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-let mockSession = { userId: "", orgId: "", orgRole: "" };
+let mockSession: Session = { userId: "", orgId: null, role: null };
 
-vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(async () => mockSession),
+vi.mock("@/lib/session", () => ({
+  readSession: vi.fn(async () => (mockSession.userId ? mockSession : null)),
 }));
 
 const WS_ID = "00000000-0000-4000-b000-00000000f001";
@@ -103,7 +104,7 @@ afterAll(async () => {
 
 describe("GET /api/notifications — own-scoped reads", () => {
   it("user A sees only their own notifications", async () => {
-    mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: USER_A, orgId: WS_ID, role: "member" };
     const result = await readNotifications({ orgId: WS_ID });
     if (!result.forYourInformation) throw new Error("missing Inbox items");
     expect(result.forYourInformation).toHaveLength(2);
@@ -115,7 +116,7 @@ describe("GET /api/notifications — own-scoped reads", () => {
   });
 
   it("user B sees only their own notifications", async () => {
-    mockSession = { userId: USER_B, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: USER_B, orgId: WS_ID, role: "member" };
     const result = await readNotifications({ orgId: WS_ID });
     if (!result.forYourInformation) throw new Error("missing Inbox items");
     expect(result.forYourInformation).toHaveLength(1);
@@ -123,7 +124,7 @@ describe("GET /api/notifications — own-scoped reads", () => {
   });
 
   it("guest sees only own-request notifications", async () => {
-    mockSession = { userId: GUEST_USER, orgId: WS_ID, orgRole: "org:guest" };
+    mockSession = { userId: GUEST_USER, orgId: WS_ID, role: "guest" };
     const result = await readNotifications({ orgId: WS_ID });
     if (!result.forYourInformation) throw new Error("missing Inbox items");
     expect(result.forYourInformation).toHaveLength(1);
@@ -133,7 +134,7 @@ describe("GET /api/notifications — own-scoped reads", () => {
 
 describe("GET /api/notifications/unread", () => {
   it("returns correct unread count for user A", async () => {
-    mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: USER_A, orgId: WS_ID, role: "member" };
     const result = await readUnreadCount({ orgId: WS_ID });
     if (!("count" in result)) throw new Error("missing count");
     expect(result.count).toBe(2);
@@ -142,7 +143,7 @@ describe("GET /api/notifications/unread", () => {
 
 describe("markNotificationRead — own-scoped writes", () => {
   it("user A marks own notification as read", async () => {
-    mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: USER_A, orgId: WS_ID, role: "member" };
     const { markNotificationRead } = await import("@/app/(app)/notifications/actions");
     const result = await markNotificationRead(NOTIF_A1, { orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
@@ -161,7 +162,7 @@ describe("markNotificationRead — own-scoped writes", () => {
   });
 
   it("user A CANNOT mark user B's notification as read (security boundary)", async () => {
-    mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: USER_A, orgId: WS_ID, role: "member" };
     const { markNotificationRead } = await import("@/app/(app)/notifications/actions");
     const result = await markNotificationRead(NOTIF_B1, { orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
@@ -176,7 +177,7 @@ describe("markNotificationRead — own-scoped writes", () => {
 
 describe("markAllNotificationsRead", () => {
   it("marks all of user A's unread notifications as read", async () => {
-    mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: USER_A, orgId: WS_ID, role: "member" };
     const { markAllNotificationsRead } = await import("@/app/(app)/notifications/actions");
     const result = await markAllNotificationsRead({ orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
@@ -206,7 +207,7 @@ describe("markAllNotificationsRead", () => {
 
 describe("markNotificationUnread — own-scoped writes", () => {
   it("user A marks own read notification as unread", async () => {
-    mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: USER_A, orgId: WS_ID, role: "member" };
     const { markNotificationUnread } = await import("@/app/(app)/notifications/actions");
 
     const [before] = await db
@@ -232,7 +233,7 @@ describe("markNotificationUnread — own-scoped writes", () => {
   });
 
   it("user A CANNOT mark user B's notification as unread (security boundary)", async () => {
-    mockSession = { userId: USER_B, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: USER_B, orgId: WS_ID, role: "member" };
     const { markNotificationRead } = await import("@/app/(app)/notifications/actions");
     await markNotificationRead(NOTIF_B1, { orgId: WS_ID });
 
@@ -242,7 +243,7 @@ describe("markNotificationUnread — own-scoped writes", () => {
       .where(eq(notifications.id, NOTIF_B1));
     expect(confirm.readAt).not.toBeNull();
 
-    mockSession = { userId: USER_A, orgId: WS_ID, orgRole: "org:member" };
+    mockSession = { userId: USER_A, orgId: WS_ID, role: "member" };
     const { markNotificationUnread } = await import("@/app/(app)/notifications/actions");
     const result = await markNotificationUnread(NOTIF_B1, { orgId: WS_ID });
     expect(result).toHaveProperty("success", true);
@@ -283,7 +284,7 @@ describe("notification visibility after a member becomes a guest", () => {
   });
 
   beforeEach(async () => {
-    mockSession = { userId: downgradedUser, orgId: WS_ID, orgRole: "org:guest" };
+    mockSession = { userId: downgradedUser, orgId: WS_ID, role: "guest" };
     await db.update(notifications).set({ readAt: null }).where(eq(notifications.userId, downgradedUser));
   });
 
@@ -295,7 +296,7 @@ describe("notification visibility after a member becomes a guest", () => {
   });
 
   it("members retain workspace notifications but cannot read a cross-workspace Request title", async () => {
-    mockSession.orgRole = "org:member";
+    mockSession.role = "member";
     const result = await readNotifications({ orgId: WS_ID });
     if (!result.forYourInformation) throw new Error("missing Inbox items");
     expect(result.forYourInformation.map((row) => row.id).sort()).toEqual(
@@ -305,11 +306,11 @@ describe("notification visibility after a member becomes a guest", () => {
   });
 
   it("a downgrade immediately hides previous notifications about other Requests and non-Request events", async () => {
-    mockSession.orgRole = "org:member";
+    mockSession.role = "member";
     const before = await readNotifications({ orgId: WS_ID });
     expect(before.forYourInformation.some((row) => row.id === otherRequestNotification)).toBe(true);
 
-    mockSession.orgRole = "org:guest";
+    mockSession.role = "guest";
     const after = await readNotifications({ orgId: WS_ID });
     expect(after.forYourInformation.map((row) => ({ id: row.id, title: row.requestTitle }))).toEqual([
       { id: ownNotification, title: "Still visible" },

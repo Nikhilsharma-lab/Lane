@@ -3,9 +3,11 @@ import { readRequestRelease } from "@/app/(app)/requests/[id]/release-actions";
 import { createJourneyRefresh } from "@/components/requests/journey-refresh";
 import { callAction } from "@/lib/action-call";
 import { readRequestJourney } from "@/app/(app)/requests/[id]/journey-actions";
+import type { Session } from "@/lib/session";
 
 const boundary = vi.hoisted(() => ({
-  session: { userId: "viewer", orgId: "org_journey", orgRole: "org:member" } as { userId: string | null; orgId: string | null; orgRole: string | null },
+  // A null userId is a signed-out visitor: the seam reads no session.
+  session: { userId: "viewer", orgId: "org_journey", role: "member" } as { userId: string | null; orgId: string | null; role: Session["role"] },
   rosterFailed: false, namesFailed: false, visible: true,
   row: {} as Record<string, unknown>,
   savedNames: [["departed", "Saved Requester"], ["viewer", "Saved viewer"], ["historian", "Saved historian"]],
@@ -14,8 +16,14 @@ const boundary = vi.hoisted(() => ({
   authReads: 0, rosterReads: 0, primaryReads: 0, nameReads: 0,
   queries: [] as { sql: string; params: unknown[] }[],
 }));
+vi.mock("@/lib/session", () => ({
+  readSession: async () => {
+    boundary.authReads++;
+    const { userId, ...rest } = boundary.session;
+    return userId ? { userId, ...rest } : null;
+  },
+}));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => { boundary.authReads++; return boundary.session; },
   clerkClient: async () => ({ organizations: { getOrganizationMembershipList: async () => {
     boundary.rosterReads++;
     if (boundary.rosterFailed) throw new Error("Clerk unavailable");
@@ -55,7 +63,7 @@ vi.mock("@/db", async () => {
 beforeEach(() => {
   boundary.authReads = boundary.rosterReads = boundary.primaryReads = boundary.nameReads = 0;
   boundary.queries = [];
-  boundary.session = { userId: "viewer", orgId: "org_journey", orgRole: "org:member" };
+  boundary.session = { userId: "viewer", orgId: "org_journey", role: "member" };
   boundary.rosterFailed = boundary.namesFailed = false;
   boundary.visible = true;
   boundary.row = {};
@@ -117,7 +125,7 @@ it("does not turn a failed profile query into Former member facts", async () => 
 });
 
 it("keeps a guest's Request and follow-up queries scoped to their own workspace and creator", async () => {
-  boundary.session = { userId: "departed", orgId: "org_journey", orgRole: "org:guest" };
+  boundary.session = { userId: "departed", orgId: "org_journey", role: "guest" };
   boundary.row.follow_up_of = "parent";
   boundary.children = [["child", "Own child", 12, "departed", "2026-10-22T00:00:00Z"]];
   const result = await journey();
@@ -144,7 +152,7 @@ it("refuses foreign workspaces before loading facts and uses explicit expiry rec
   const result = await callAction(() => readRequestJourney(id, context), {
     current: async () => "stale",
     renew: async () => {
-      boundary.session = { userId: "viewer", orgId: "org_journey", orgRole: "org:member" };
+      boundary.session = { userId: "viewer", orgId: "org_journey", role: "member" };
       return "usable";
     },
   });
@@ -192,7 +200,7 @@ it("the production refresh mechanism discards an older actual combined read", as
 
 
 it("keeps a taken-on Guest submission's Requester and saved correction facts in the combined Viewer journey", async () => {
-  boundary.session.orgRole = "org:viewer";
+  boundary.session.role = "viewer";
   boundary.row = {
     guest_submission: true, taken_on_by: "viewer", release_state: null,
     exception_closure: { kind: "exception", actorId: "viewer", ownerId: "viewer", learned: "The original need changed.", closedAt: "2026-10-23T00:00:00Z", reasonCode: "other", reason: "Stopped", revision: 2 },
