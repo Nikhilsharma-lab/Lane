@@ -98,13 +98,16 @@ describe("sending each kind", () => {
     const email = bodyOf(resend.calls[0])
     expect(email.from).toBe("Lane <auth@mail.uselane.app>")
     expect(email.to).toEqual(["sam@example.test"])
-    expect(email.subject).toBe("Priya Raman invited you to Northwind Design on Lane")
+    // A fixed subject: nothing the inviter typed reaches the subject line of mail from Lane's domain.
+    expect(email.subject).toBe("You’re invited to a Lane workspace")
     expect(email.text.match(/https?:\/\/\S+/g)).toEqual([acceptUrl])
     expect(email.text).toContain("Northwind Design")
     expect(email.text).toContain("Priya Raman")
     expect(email.text).toContain(asRole)
     expect(email.text).toContain("28 November 2026 at 09:30 UTC")
     expect(email.text).not.toMatch(/owner/i)
+    // The ignore-it line belongs to the code kinds only.
+    expect(email.text).not.toMatch(/ignore this email/i)
   })
 })
 

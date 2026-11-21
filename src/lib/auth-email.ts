@@ -58,11 +58,12 @@ const utcMoment = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} 
 function written(email: AuthEmail): { subject: string; text: string } {
   if (email.kind === "invitation")
     return {
-      subject: `${email.inviterName} invited you to ${email.workspaceName} on Lane`,
+      // Fixed: nothing the inviter typed goes into the subject of mail from Lane's domain.
+      subject: "You’re invited to a Lane workspace",
       text: [
         `${email.inviterName} invited you to join ${email.workspaceName} on Lane ${AS_ROLE[email.role]}.`,
         `Accept the invitation:\n${email.acceptUrl}`,
-        `The invitation expires on ${utcMoment(email.expiresAt)}. If you weren’t expecting it, you can ignore this email.`,
+        `The invitation expires on ${utcMoment(email.expiresAt)}.`,
       ].join("\n\n"),
     }
   const lasts = `It lasts ${minutes(email.expiresInMinutes)}.`
