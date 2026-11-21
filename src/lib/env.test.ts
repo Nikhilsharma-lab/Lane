@@ -93,7 +93,8 @@ describe("checkServerEnv", () => {
     for (const name of ["RESEND_API_KEY", "LANE_EMAIL_FROM", "CRON_SECRET"]) expect(warnings[0]).toContain(name);
     expect(warnings.join(" ")).not.toContain(SENTINEL);
 
-    const complete = { ...env, RESEND_API_KEY: SENTINEL, LANE_EMAIL_FROM: SENTINEL, CRON_SECRET: SENTINEL };
+    // RESEND_API_KEY is shared with auth email, which warns on its own without LANE_AUTH_EMAIL_FROM (#358).
+    const complete = { ...env, RESEND_API_KEY: SENTINEL, LANE_EMAIL_FROM: SENTINEL, CRON_SECRET: SENTINEL, LANE_AUTH_EMAIL_FROM: SENTINEL };
     expect(checkServerEnv({ env: complete, vercelEnv: "preview" }).warnings).toEqual([]);
     // Off by default: nothing to warn about.
     expect(checkServerEnv({ env: completeEnv(), vercelEnv: "preview" }).warnings).toEqual([]);
@@ -119,6 +120,25 @@ describe("checkServerEnv", () => {
     expect(warnings.join(" ")).not.toContain(SENTINEL);
     const complete = { ...env, STRIPE_WEBHOOK_SECRET: SENTINEL, STRIPE_PRICE_YEARLY: SENTINEL, STRIPE_PRICE_MONTHLY: SENTINEL, STRIPE_FOUNDING_COUPON: SENTINEL };
     expect(checkServerEnv({ env: complete, vercelEnv: "preview" }).warnings).toEqual([]);
+  });
+
+  it("warns, by the missing name only, when one auth-email name is set without the other (#358)", () => {
+    const onlyFrom = checkServerEnv({ env: { ...completeEnv(), LANE_AUTH_EMAIL_FROM: SENTINEL }, vercelEnv: "production" })
+    expect(onlyFrom.ok).toBe(true)
+    expect(onlyFrom.warnings).toHaveLength(1)
+    expect(onlyFrom.warnings[0]).toContain("RESEND_API_KEY")
+    expect(onlyFrom.warnings[0]).not.toContain("LANE_AUTH_EMAIL_FROM")
+
+    const onlyKey = checkServerEnv({ env: { ...completeEnv(), RESEND_API_KEY: SENTINEL }, vercelEnv: "production" })
+    expect(onlyKey.ok).toBe(true)
+    expect(onlyKey.warnings).toHaveLength(1)
+    expect(onlyKey.warnings[0]).toContain("LANE_AUTH_EMAIL_FROM")
+    expect(onlyKey.warnings[0]).not.toContain("RESEND_API_KEY")
+    expect([...onlyFrom.warnings, ...onlyKey.warnings].join(" ")).not.toContain(SENTINEL)
+
+    // Both or neither: nothing to say, and neither name is required.
+    expect(checkServerEnv({ env: { ...completeEnv(), RESEND_API_KEY: SENTINEL, LANE_AUTH_EMAIL_FROM: SENTINEL }, vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] })
+    expect(checkServerEnv({ env: completeEnv(), vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] })
   });
 
   it("reads VERCEL_ENV from the env when not given explicitly", () => {

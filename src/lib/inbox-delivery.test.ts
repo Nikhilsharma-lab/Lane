@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { requireTestDatabase } from "@/test/test-database"
+import { createInMemoryEmailPause } from "./email-pause"
 import { recordingMessenger, type Messenger } from "./messenger"
 import type { ReleaseFact } from "./request-release"
 
@@ -75,8 +76,9 @@ beforeEach(async () => {
 afterAll(() => connection.end())
 
 const delivery = () => import("./inbox-delivery")
+// A never-paused Inbox email pause (#362), for the cases whose messenger really sends.
 const sendFor = async (requestId: string, messenger: Messenger = recordingMessenger()) =>
-  (await delivery()).deliverRequestNeedsYou({ orgId: ORG, requestId }, { now: NOW, messenger, appUrl: APP })
+  (await delivery()).deliverRequestNeedsYou({ orgId: ORG, requestId }, { now: NOW, messenger, appUrl: APP, emailPause: createInMemoryEmailPause() })
 const daily = async (messenger: Messenger, now = NOW) => (await delivery()).runDailyDelivery({ now, messenger, appUrl: APP })
 const links = (text: string) => text.match(/https?:\/\/\S+/g) ?? []
 

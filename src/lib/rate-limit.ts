@@ -1,5 +1,5 @@
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { upstashRedis } from "./upstash";
 
 type RateLimitResult =
   | { allowed: true; retryAfterMs: 0 }
@@ -13,16 +13,12 @@ export async function checkAiRateLimit(
 ): Promise<RateLimitResult> {
   try {
     if (!ratelimit) {
-      const url = process.env.KV_REST_API_URL?.trim();
-      const token = process.env.KV_REST_API_TOKEN?.trim();
-      if (!url || !token) {
-        console.error("[rate-limit] KV_REST_API_URL / KV_REST_API_TOKEN missing — AI review unavailable");
-        return unavailable;
-      }
       // Initialization can reject malformed configuration too. Keep that failure
       // inside the same closed, recoverable boundary as a Redis request failure.
+      const redis = upstashRedis({ tag: "rate-limit", consequence: "AI review unavailable" });
+      if (!redis) return unavailable;
       ratelimit = new Ratelimit({
-        redis: new Redis({ url, token }),
+        redis,
         limiter: Ratelimit.slidingWindow(5, "60 s"),
         prefix: "lane:ratelimit:ai",
       });

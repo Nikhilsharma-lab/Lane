@@ -80,6 +80,13 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
       );
   }
 
+  // #358: auth email (src/lib/auth-email.ts) sends only with both names. Neither is required until increment 5.
+  const authEmailUnset = ["RESEND_API_KEY", "LANE_AUTH_EMAIL_FROM"].filter((name) => !env[name]?.trim());
+  if (authEmailUnset.length === 1)
+    warnings.push(
+      `Auth email is half configured: ${authEmailUnset[0]} is not set, so no sign-up, sign-in, reset or invitation email is sent.`,
+    );
+
   // #207: Slack DM is off by default (src/lib/feature-switches.ts). Switched on, it needs these names.
   if (env.LANE_SLACK_DELIVERY === "1") {
     const unset = ["SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET", "LANE_SLACK_TOKEN_KEY"].filter((name) => !env[name]?.trim());

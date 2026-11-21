@@ -7,9 +7,10 @@ import { db, deliveryLog, deliveryPreferences, organizations, profiles, requestA
 import type { MemberAuth, WorkspacePermission } from "./auth-guard";
 import { loadNeedsYou } from "./data/inbox";
 import { deliveryMessage, guestMessage } from "./delivery-message";
+import { emailPause, type EmailPause } from "./email-pause";
 import { appOrigin, emailDelivery, slackDelivery, type SlackDelivery } from "./feature-switches";
 import type { NeedsYouItem, NeedsYouKind } from "./inbox-read-model";
-import { idempotencyKeyOf, recordingMessenger, resendMessenger, slackMessenger, type Messenger, type SendResult } from "./messenger";
+import { idempotencyKeyOf, isResendRefusal, recordingMessenger, resendMessenger, slackMessenger, type Messenger, type SendResult } from "./messenger";
 import { slackTokenFor } from "./slack-connection";
 import { journeyStatusCondition, requesterColumn } from "./request-journey-sql";
 import { canChangeThings, canContribute, clerkWorkspacePermission } from "./role-rules";
@@ -30,6 +31,9 @@ import { workspaceMember, workspaceRoster } from "./workspace-roster";
  * goes by Email while Slack is not connected, or when Slack can’t reach the person) or Off. Off holds everything
  * except Result due. Only Admins and Members on the live Clerk roster get anything; Guests, Viewers and people
  * who left get nothing here.
+ *
+ * Auth email first (#358): while Inbox email really sends and Resend has refused a send that day, Email items
+ * (Needs-you, Guest and the Slack DM fallback) hold unclaimed until the pause ends. Slack DMs carry on.
  */
 
 export const ACTION_KINDS: readonly NeedsYouKind[] = ["review", "concern"];
@@ -45,6 +49,8 @@ export type DeliveryRun = {
   slack: SlackDelivery;
   /** The Slack DM messenger for a connected workspace's bot token. */
   slackMessenger: (token: string) => Messenger;
+  /** Auth email first (#358): read only while `messenger` really sends. Defaults to the KV-backed pause. */
+  emailPause: EmailPause;
 };
 
 /** Totals only: no person, address or item ever leaves this module in a report. */
@@ -59,13 +65,62 @@ export function switchedMessenger(): Messenger {
   return email.on ? resendMessenger({ apiKey: email.apiKey, from: email.from }) : recordingMessenger();
 }
 
-const runOf = (run: Partial<DeliveryRun> = {}): DeliveryRun => ({
-  now: run.now ?? new Date(),
-  messenger: run.messenger ?? switchedMessenger(),
-  appUrl: run.appUrl ?? appOrigin(),
-  slack: run.slack ?? slackDelivery(),
-  slackMessenger: run.slackMessenger ?? ((token) => slackMessenger({ token })),
-});
+/** One run's settled options, with its Email gate. */
+type Settled = DeliveryRun & { email: EmailGate };
+
+const runOf = (run: Partial<DeliveryRun> = {}): Settled => {
+  const defaulted: DeliveryRun = {
+    now: run.now ?? new Date(),
+    messenger: run.messenger ?? switchedMessenger(),
+    appUrl: run.appUrl ?? appOrigin(),
+    slack: run.slack ?? slackDelivery(),
+    slackMessenger: run.slackMessenger ?? ((token) => slackMessenger({ token })),
+    emailPause: run.emailPause ?? emailPause,
+  };
+  return { ...defaulted, email: emailGateOf(defaulted) };
+};
+
+/**
+ * Whether this run's Email items go. Auth email and Inbox email share Resend Free's sends (#333 Q7), so once
+ * Resend refuses a send, Inbox email gives way until the pause ends. Only a real sender is held: the recording
+ * stand-in records "would send" as before, and the pause is never read.
+ */
+type EmailGate = {
+  /** True when an Email item must hold. Once one holds, the rest of the run's Email items hold too. */
+  held(): Promise<boolean>;
+  /** Records the pause when Resend refused this Email send. */
+  settle(result: SendResult): Promise<void>;
+};
+
+function emailGateOf(run: DeliveryRun): EmailGate {
+  const sending = run.messenger.outcome === "sent";
+  let paused = false;
+  let heldLogged = false;
+  /** Holds this item, logging the pause on the run's first hold only. */
+  const holdLoggingOnce = () => {
+    if (!heldLogged) console.info("[inbox-delivery] Inbox email is paused for today; Email items held");
+    heldLogged = true;
+    return true;
+  };
+  return {
+    async held() {
+      if (!sending) return false;
+      if (paused) return holdLoggingOnce();
+      try {
+        paused = await run.emailPause.isPaused(run.now);
+      } catch {
+        // A pause that can't be read holds: auth email's sends come first.
+        paused = true;
+      }
+      return paused && holdLoggingOnce();
+    },
+    async settle(result) {
+      if (!sending || result.ok || !isResendRefusal(result.reason)) return;
+      paused = true;
+      await run.emailPause.pause(run.now);
+    },
+  };
+}
 
 /** Admins and Members on the live roster, by id. Everyone else is never asked to act. */
 async function recipientsOf(orgId: string): Promise<Map<string, Recipient>> {
@@ -94,23 +149,32 @@ async function workspaceNameOf(orgId: string): Promise<string> {
   return row?.name ?? "your workspace";
 }
 
-/**
- * Sends one item on one channel: claimed in the log first, so a concurrent or repeated run skips it, then sent.
- * A send that fails releases its claim, so a later run (or Email, when Slack can't reach the person) can send it.
- */
-async function sendOne({ orgId, recipient, item, channel, messenger, copyOf, now }: {
+/** One item for one person. The run supplies the clock, the Email messenger and the Email gate. */
+type OneSend = {
   orgId: string;
   recipient: Pick<Recipient, "userId" | "email">;
   item: Pick<NeedsYouItem, "requestId" | "key">;
-  channel: "email" | "slack";
-  messenger: Messenger;
   /** The message, written only once the send is claimed. */
   copyOf: () => { subject: string; text: string };
-  now: Date;
-}): Promise<SendResult | "already"> {
+  /** The workspace's Slack DM messenger, to send by Slack DM; without it the item goes by Email. */
+  slackDm?: Messenger;
+};
+
+type OneSendResult = SendResult | "already" | "held";
+
+/**
+ * Sends one item on one channel: claimed in the log first, so a concurrent or repeated run skips it, then sent.
+ * A send that fails releases its claim, so a later run (or Email, when Slack can't reach the person) can send it.
+ * An Email item the run's gate holds is never claimed, so a later run can send it too.
+ */
+async function sendOne(run: Settled, { orgId, recipient, item, copyOf, slackDm }: OneSend): Promise<OneSendResult> {
+  const channel = slackDm ? "slack" : "email";
+  const messenger = slackDm ?? run.messenger;
+  const gate = slackDm ? undefined : run.email;
+  if (gate && (await gate.held())) return "held";
   const [claimed] = await db
     .insert(deliveryLog)
-    .values({ orgId, userId: recipient.userId, requestId: item.requestId, itemKey: item.key, channel, outcome: messenger.outcome, sentAt: now })
+    .values({ orgId, userId: recipient.userId, requestId: item.requestId, itemKey: item.key, channel, outcome: messenger.outcome, sentAt: run.now })
     .onConflictDoNothing()
     .returning({ id: deliveryLog.id });
   if (!claimed) return "already";
@@ -123,7 +187,18 @@ async function sendOne({ orgId, recipient, item, channel, messenger, copyOf, now
     idempotencyKey: idempotencyKeyOf(orgId, recipient.userId, item.key),
   });
   if (!result.ok) await db.delete(deliveryLog).where(eq(deliveryLog.id, claimed.id));
+  await gate?.settle(result);
   return result;
+}
+
+/** Counts one send's result into the report: a repeat or a held item is skipped. `failure` names it in the log. */
+function tally(report: DeliveryReport, result: OneSendResult, failure: string) {
+  if (result === "already" || result === "held") report.skipped++;
+  else if (result.ok) report.sent++;
+  else {
+    report.failed++;
+    console.error(`[inbox-delivery] ${failure}: ${result.reason}`);
+  }
 }
 
 /**
@@ -137,7 +212,7 @@ async function sendItems(
   items: NeedsYouItem[],
   workspaceName: string,
   slackDm: Messenger | null,
-  run: DeliveryRun,
+  run: Settled,
   report: DeliveryReport,
 ) {
   for (const item of items) {
@@ -145,21 +220,16 @@ async function sendItems(
       report.skipped++;
       continue;
     }
-    let result: SendResult | "already" | null = null;
+    let result: OneSendResult | null = null;
     if (channel === "slack" && slackDm) {
-      result = await sendOne({ orgId, recipient, item, channel: "slack", messenger: slackDm, copyOf: () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "slack" }), now: run.now });
-      if (result !== "already" && !result.ok && result.useEmail) {
+      result = await sendOne(run, { orgId, recipient, item, slackDm, copyOf: () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "slack" }) });
+      if (typeof result === "object" && !result.ok && result.useEmail) {
         console.error(`[inbox-delivery] Slack DM not possible, sending by email: ${result.reason}`);
         result = null;
       }
     }
-    result ??= await sendOne({ orgId, recipient, item, channel: "email", messenger: run.messenger, copyOf: () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "email" }), now: run.now });
-    if (result === "already") report.skipped++;
-    else if (result.ok) report.sent++;
-    else {
-      report.failed++;
-      console.error(`[inbox-delivery] send failed: ${result.reason}`);
-    }
+    result ??= await sendOne(run, { orgId, recipient, item, copyOf: () => deliveryMessage(item, { appUrl: run.appUrl, workspaceName, channel: "email" }) });
+    tally(report, result, "send failed");
   }
 }
 
@@ -175,7 +245,7 @@ async function deliverInWorkspace(
   orgId: string,
   candidateIds: Iterable<string>,
   kinds: readonly NeedsYouKind[],
-  run: DeliveryRun,
+  run: Settled,
   report: DeliveryReport,
   only?: { requestId: string },
 ) {
@@ -266,16 +336,11 @@ export async function deliverGuestEmail(target: { orgId: string; requestId: stri
     { requestId: target.requestId, requestNumber: row.requestNumber, title: row.title, reframedProblem: row.reframedProblem },
     { appUrl: settled.appUrl, workspaceName },
   );
-  const result = await sendOne({
+  const result = await sendOne(settled, {
     orgId: target.orgId, recipient: { userId: row.createdBy, email: guest.email }, item: { requestId: target.requestId, key: `guest_${target.kind}:${target.requestId}` },
-    channel: "email", messenger: settled.messenger, copyOf: copy, now: settled.now,
+    copyOf: copy,
   });
-  if (result === "already") report.skipped++;
-  else if (result.ok) report.sent++;
-  else {
-    report.failed++;
-    console.error(`[inbox-delivery] Guest email failed: ${result.reason}`);
-  }
+  tally(report, result, "Guest email failed");
   return report;
 }
 

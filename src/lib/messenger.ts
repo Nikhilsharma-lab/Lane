@@ -52,6 +52,12 @@ export const idempotencyKeyOf = (orgId: string, userId: string, itemKey: string)
   `lane-inbox-${createHash("sha256").update(`${orgId}\n${userId}\n${itemKey}`).digest("hex")}`
 
 /**
+ * Resend answered with a non-success status (the Email adapter's `resend_<status>`). A timeout or an unreachable
+ * Resend isn't a refusal: Resend never answered.
+ */
+export const isResendRefusal = (reason: string) => /^resend_\d+$/.test(reason)
+
+/**
  * The Email adapter. A failure comes back as a reason (never thrown) carrying no address or content, so the
  * caller can release the item for a later run and log only the reason.
  */
