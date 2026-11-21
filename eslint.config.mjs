@@ -14,7 +14,29 @@ const CLERK_SESSION = {
   importNames: ["auth", "currentUser"],
   message: "Read the session through readSession, readAccount or sendToSignIn from src/lib/session.ts (#356).",
 };
-const CLERK_SESSION_READERS = ["src/lib/session.ts", "src/lib/clerk-auth-guard.test.ts"];
+// A dynamic import() hands over every export, auth included, so only the seam's files load Clerk's server module that way.
+const CLERK_SESSION_DYNAMIC = {
+  selector: "ImportExpression[source.value='@clerk/nextjs/server']",
+  message: "Import clerkClient statically, and read the session through src/lib/session.ts (#356).",
+};
+const CLERK_SESSION_READERS = ["src/lib/session.ts", "src/lib/session.test.ts"];
+const ROUTER_REFRESH = {
+  selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='refresh']",
+  message:
+    "Do not call router.refresh() directly. Run Request mutations through useOptimisticAction, and use useServerRefresh from src/components/requests/use-optimistic-action.ts for an explicit re-sync.",
+};
+// #256 Build 3: the named (or default) `z` is zod's whole namespace object, every schema type and locale,
+// which keeps all of zod (about 34 KB gzip) in any page whose code validates in the browser. The namespace
+// import lets the build keep only what is used, with the same schemas and messages.
+const ZOD_NAMESPACE = {
+  selector: "ImportDeclaration[source.value='zod'] > ImportSpecifier[imported.name='z'], ImportDeclaration[source.value='zod'] > ImportDefaultSpecifier",
+  message: "Import zod as `import * as z from \"zod\"`, so a page carries only the zod it uses (#256 Build 3).",
+};
+const REFRESH_OWNERS = [
+  "src/components/requests/use-optimistic-action.ts",
+  // #296: the provider that holds the router for useServerRefresh; nothing else reaches its refresh.
+  "src/components/shell/stable-router.tsx",
+];
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -24,29 +46,18 @@ const eslintConfig = defineConfig([
   // outside the overlay helper can drop a pending mutation's payload.
   {
     files: ["src/**/*.{ts,tsx}"],
-    ignores: [
-      "src/components/requests/use-optimistic-action.ts",
-      // #296: the provider that holds the router for useServerRefresh; nothing else reaches its refresh.
-      "src/components/shell/stable-router.tsx",
-    ],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector:
-            "CallExpression[callee.type='MemberExpression'][callee.property.name='refresh']",
-          message:
-            "Do not call router.refresh() directly. Run Request mutations through useOptimisticAction, and use useServerRefresh from src/components/requests/use-optimistic-action.ts for an explicit re-sync.",
-        },
-        // #256 Build 3: the named (or default) `z` is zod's whole namespace object, every schema type and locale,
-        // which keeps all of zod (about 34 KB gzip) in any page whose code validates in the browser. The namespace
-        // import lets the build keep only what is used, with the same schemas and messages.
-        {
-          selector: "ImportDeclaration[source.value='zod'] > ImportSpecifier[imported.name='z'], ImportDeclaration[source.value='zod'] > ImportDefaultSpecifier",
-          message: "Import zod as `import * as z from \"zod\"`, so a page carries only the zod it uses (#256 Build 3).",
-        },
-      ],
-    },
+    ignores: REFRESH_OWNERS,
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC] },
+  },
+  // The files above that own the router refresh still keep Clerk's server module static.
+  {
+    files: REFRESH_OWNERS,
+    rules: { "no-restricted-syntax": ["error", CLERK_SESSION_DYNAMIC] },
+  },
+  // The seam and its Clerk-side test may load Clerk's server module dynamically; the refresh and zod rules still apply.
+  {
+    files: CLERK_SESSION_READERS,
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE] },
   },
   // #356: all of src, tests and Arc included. Flat config keeps only the last matching block's options for a rule,
   // so the dialog and link blocks below repeat CLERK_SESSION.
@@ -96,6 +107,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Local research captures (gitignored); never lint them.
     "artifacts/**",
+    // Local database exports and agent worktrees (gitignored): not Lane's source.
+    "backups/**",
+    ".claude/**",
   ]),
 ]);
 

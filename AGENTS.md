@@ -38,7 +38,7 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Arc UI (shad
 
 ## Agent skills
 
-For issue/spec work, use GitHub Issues in `Nikhilsharma-lab/Lane`; read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`. For domain exploration, read `docs/agents/domain.md`.
+For issue/spec work, use GitHub Issues in `Nikhilsharma-lab/Lane`; read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`. For domain exploration, read `docs/agents/domain.md`. For work in a git worktree, read `docs/agents/worktrees.md`.
 `docs/adr/` records why Lane made its hard-to-reverse choices (identity, Request status, closure, reviewers,
 design tools, profile labels, theme); read the matching record before changing one.
 
@@ -58,9 +58,10 @@ design tools, profile labels, theme); read the matching record before changing o
   workspace they're in. (This bug recurred three times — it lives here now so it stops.) **However,
   `userId` must NEVER come from client-passed arguments.** Server action arguments travel over HTTP and
   are forgeable. Identity, active organization, and organization role are derived inside the shared guards
-  (`requireActiveMember` / `requireOwnerOrAdmin` in `src/lib/auth-guard.ts`) from Clerk `auth()` — the
-  httpOnly session cookie is unforgeable. Actions use the guard's returned `auth.userId` for every identity
-  field (assignedTo, authorId, createdBy). Lane must never recreate local membership or invitation tables.
+  (`requireActiveMember` / `requireOwnerOrAdmin` in `src/lib/auth-guard.ts`) from Clerk `auth()`, read only
+  through the session seam `src/lib/session.ts` (#350; lint enforces it) — the httpOnly session cookie is
+  unforgeable. Actions use the guard's returned `auth.userId` for every identity field (assignedTo, authorId,
+  createdBy). Lane must never recreate local membership or invitation tables.
 - **Deferred work is tracked in DEFERRED.md**, by trigger. Daily reviews feed it. Nothing deferred may
   vanish — pre-launch items are built or deleted before the first paying customer.
 - **Migrations are canonical.** Schema files describe intent.
