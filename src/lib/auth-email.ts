@@ -50,12 +50,12 @@ const IGNORE_IT = "If you didn’t ask for this code, you can ignore this email.
 const AS_ROLE: Record<WorkspacePermission, string> = { admin: "as an Admin", member: "as a Member", guest: "as a Guest", viewer: "as a Viewer" }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-const two = (value: number) => String(value).padStart(2, "0")
+const twoDigits = (value: number) => String(value).padStart(2, "0")
 /** Written out by hand in UTC, so every server says the same thing whatever its locale or zone. */
-const utcMoment = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()} at ${two(at.getUTCHours())}:${two(at.getUTCMinutes())} UTC`
+const utcMoment = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()} at ${twoDigits(at.getUTCHours())}:${twoDigits(at.getUTCMinutes())} UTC`
 
 /** Plain text, built only from the email's own inputs. The code comes first, so a notification preview shows it. */
-function written(email: AuthEmail): { subject: string; text: string } {
+function messageOf(email: AuthEmail): { subject: string; text: string } {
   if (email.kind === "invitation")
     return {
       // Fixed: nothing the inviter typed goes into the subject of mail from Lane's domain.
@@ -66,24 +66,24 @@ function written(email: AuthEmail): { subject: string; text: string } {
         `The invitation expires on ${utcMoment(email.expiresAt)}.`,
       ].join("\n\n"),
     }
-  const lasts = `It lasts ${minutes(email.expiresInMinutes)}.`
+  const lifetime = `It lasts ${minutes(email.expiresInMinutes)}.`
   switch (email.kind) {
     case "sign_up_code":
       return {
         subject: "Your Lane verification code",
-        text: [`Your Lane verification code is ${email.code}`, `Enter it on the sign-up screen to verify your email address. ${lasts}`, IGNORE_IT].join("\n\n"),
+        text: [`Your Lane verification code is ${email.code}`, `Enter it on the sign-up screen to verify your email address. ${lifetime}`, IGNORE_IT].join("\n\n"),
       }
     case "sign_in_code":
       return {
         subject: "Your Lane sign-in code",
-        text: [`Your Lane sign-in code is ${email.code}`, `Enter it on the sign-in screen to sign in. ${lasts}`, IGNORE_IT].join("\n\n"),
+        text: [`Your Lane sign-in code is ${email.code}`, `Enter it on the sign-in screen to sign in. ${lifetime}`, IGNORE_IT].join("\n\n"),
       }
     case "reset_code":
       return {
         subject: "Your Lane password reset code",
         text: [
           `Your Lane password reset code is ${email.code}`,
-          `Enter it on the reset screen to choose a new password. ${lasts} Resetting your password signs you out of Lane on your other devices.`,
+          `Enter it on the reset screen to choose a new password. ${lifetime} Resetting your password signs you out of Lane on your other devices.`,
           IGNORE_IT,
         ].join("\n\n"),
       }
@@ -112,7 +112,7 @@ export async function sendAuthEmail(email: AuthEmail, options: SendAuthEmailOpti
   }
   const config = authEmail(env)
   if (!config.configured) return couldNotSend("not_configured")
-  const { subject, text } = written(email)
+  const { subject, text } = messageOf(email)
   const result = await resendMessenger({ apiKey: config.apiKey, from: config.from, fetch }).send({ channel: "email", to: email.to, subject, text, idempotencyKey: idempotencyKeyOf(email) })
   if (result.ok) return { ok: true }
   // The pause never throws; a failed write is its own log line and leaves this result unchanged.
