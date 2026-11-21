@@ -13,7 +13,7 @@
     "test:e2e": "playwright test",
     "theme-parity:record": "LANE_THEME_PARITY_RECORD=1 playwright test e2e/theme-parity.spec.ts",
     "test:ui": "vitest run --config vitest.ui.config.ts --no-file-parallelism",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "theme:paste": "node scripts/design-system/theme-paste.mjs",
     "theme:copy": "node scripts/design-system/theme-paste.mjs --copy",
     "theme:reset": "node scripts/design-system/theme-paste.mjs --reset",
