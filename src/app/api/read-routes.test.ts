@@ -1,6 +1,6 @@
 /**
  * Plan item 1.16: the read-only GET route handlers. Each route is called
- * directly with a Request; identity comes from the mocked Clerk auth(), so
+ * directly with a Request; identity comes from the faked session seam, so
  * the guards, the org scoping and the guest scoping are exercised against
  * lane_test rows.
  *
@@ -12,13 +12,14 @@ import { randomUUID } from "node:crypto";
 import { inArray } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const session = vi.hoisted(() => ({ userId: null as string | null, orgId: null as string | null, orgRole: null as string | null }));
+const session = vi.hoisted(() => ({ userId: null as string | null, orgId: null as string | null, role: null as "admin" | "member" | "guest" | "viewer" | null }));
+// The session seam answers null for anyone signed out.
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 const clerk = vi.hoisted(() => ({
   memberships: [] as { userId: string; role: string; firstName: string; lastName: string }[],
   calls: [] as { userId?: string[]; query?: string }[],
 }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => session,
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async (input: { organizationId: string; userId?: string[]; query?: string }) => {
@@ -46,7 +47,7 @@ const MARK = `Read route probe ${randomUUID().slice(0, 8)}`;
 const memberRequest = randomUUID(), guestRequest = randomUUID(), foreignRequest = randomUUID(), project = randomUUID();
 const notificationIds = Array.from({ length: 8 }, () => randomUUID());
 
-const actAs = (userId: string | null, orgRole = "org:member", orgId: string | null = ORG) => { session.userId = userId; session.orgId = orgId; session.orgRole = orgRole; };
+const actAs = (userId: string | null, role: typeof session.role = "member", orgId: string | null = ORG) => { session.userId = userId; session.orgId = orgId; session.role = role; };
 const get = (handler: (request: Request) => Promise<Response>, path: string, params: Record<string, string>) =>
   handler(new Request(`http://lane.test${path}?${new URLSearchParams(params)}`));
 
@@ -87,9 +88,9 @@ afterAll(async () => {
 
 describe("GET /api/search", () => {
   it("refuses a signed-out caller with 401 and a mismatched workspace with 403", async () => {
-    actAs(null, "org:member", null);
+    actAs(null, "member", null);
     expect((await get(search, "/api/search", { org: ORG, q: MARK })).status).toBe(401);
-    actAs(OTHER_ADMIN, "org:admin", OTHER_ORG);
+    actAs(OTHER_ADMIN, "admin", OTHER_ORG);
     expect((await get(search, "/api/search", { org: ORG, q: MARK })).status).toBe(403);
     expect((await get(search, "/api/search", { q: MARK })).status).toBe(400);
   });
@@ -108,7 +109,7 @@ describe("GET /api/search", () => {
   });
 
   it("shows a guest only their own Requests and rejects an invalid page", async () => {
-    actAs(GUEST, "org:guest");
+    actAs(GUEST, "guest");
     const body = await (await get(search, "/api/search", { org: ORG, q: MARK })).json();
     expect(body.requests.items.map((item: { id: string }) => item.id)).toEqual([guestRequest]);
     expect((await get(search, "/api/search", { org: ORG, q: MARK, requestsPage: "-1" })).status).toBe(400);
@@ -117,9 +118,9 @@ describe("GET /api/search", () => {
 
 describe("GET /api/notifications", () => {
   it("refuses a signed-out caller with 401 and a mismatched workspace with 403", async () => {
-    actAs(null, "org:member", null);
+    actAs(null, "member", null);
     expect((await get(notificationList, "/api/notifications", { org: ORG })).status).toBe(401);
-    actAs(MEMBER, "org:member", OTHER_ORG);
+    actAs(MEMBER, "member", OTHER_ORG);
     expect((await get(notificationList, "/api/notifications", { org: ORG })).status).toBe(403);
   });
 
@@ -145,7 +146,7 @@ describe("GET /api/notifications", () => {
   });
 
   it("hides workspace-wide events from a guest", async () => {
-    actAs(GUEST, "org:guest");
+    actAs(GUEST, "guest");
     const ids = (await (await get(notificationList, "/api/notifications", { org: ORG })).json()).forYourInformation.map((item: { id: string }) => item.id);
     expect(ids).toEqual([notificationIds[6]]);
   });
@@ -153,9 +154,9 @@ describe("GET /api/notifications", () => {
 
 describe("GET /api/notifications/unread", () => {
   it("refuses a signed-out caller with 401 and a mismatched workspace with 403", async () => {
-    actAs(null, "org:member", null);
+    actAs(null, "member", null);
     expect((await get(unread, "/api/notifications/unread", { org: ORG })).status).toBe(401);
-    actAs(OTHER_ADMIN, "org:admin", OTHER_ORG);
+    actAs(OTHER_ADMIN, "admin", OTHER_ORG);
     expect((await get(unread, "/api/notifications/unread", { org: ORG })).status).toBe(403);
   });
 
@@ -167,7 +168,7 @@ describe("GET /api/notifications/unread", () => {
     expect(count).toEqual(expect.any(Number));
     // At least the pickup and the invite (other files may leave rows for this shared member).
     expect(fyi).toBeGreaterThanOrEqual(2);
-    actAs(GUEST, "org:guest");
+    actAs(GUEST, "guest");
     // No Needs-you items for a Guest. The pickup on their own Request; not the read comment, and not the
     // workspace-wide invite guests never see.
     expect(await (await get(unread, "/api/notifications/unread", { org: ORG })).json()).toEqual({ count: 0, unread: 1 });
@@ -179,11 +180,11 @@ describe("GET /api/requests/[id]", () => {
     requestDetail(new Request(`http://lane.test/api/requests/${id}?${new URLSearchParams(params)}`), { params: Promise.resolve({ id }) });
 
   it("refuses a signed-out caller with 401, no workspace with 400 and a mismatched workspace with 403", async () => {
-    actAs(null, "org:member", null);
+    actAs(null, "member", null);
     expect((await detail(memberRequest)).status).toBe(401);
     actAs(MEMBER);
     expect((await detail(memberRequest, {})).status).toBe(400);
-    actAs(OTHER_ADMIN, "org:admin", OTHER_ORG);
+    actAs(OTHER_ADMIN, "admin", OTHER_ORG);
     expect((await detail(memberRequest)).status).toBe(403);
   });
 
@@ -203,7 +204,7 @@ describe("GET /api/requests/[id]", () => {
     expect(missing.status).toBe(404);
     const body = await missing.json();
     expect((await detail("not-a-uuid")).status).toBe(404);
-    actAs(GUEST, "org:guest");
+    actAs(GUEST, "guest");
     const hidden = await detail(memberRequest);
     expect(hidden.status).toBe(404);
     expect(await hidden.json()).toEqual(body);

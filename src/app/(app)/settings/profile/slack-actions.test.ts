@@ -2,7 +2,7 @@
  * #207 seam 1: connecting and disconnecting Slack, and the Slack DM choice that depends on it. An Admin connects
  * Slack once per workspace through Slack's standard install flow (out to Slack, back to `GET /api/slack/callback`)
  * and can disconnect it; nobody else can. Slack DM is a choice only while Slack is connected. Real database,
- * mocked Clerk session, and Slack answered by a stubbed `fetch`, so nothing reaches the network.
+ * faked session seam, and Slack answered by a stubbed `fetch`, so nothing reaches the network.
  */
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
@@ -16,9 +16,9 @@ const ADMIN = "slack_connect_admin";
 const MEMBER = "slack_connect_member";
 const APP = "https://lane.example.test";
 const TOKEN = "xoxb-7777-8888-connectedtoken";
-const session = vi.hoisted(() => ({ userId: "slack_connect_admin" as string | null, orgId: "org_slack_connect", orgRole: "org:admin" }));
+const session = vi.hoisted(() => ({ userId: "slack_connect_admin" as string | null, orgId: "org_slack_connect", role: "admin" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ ...session }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
@@ -51,7 +51,7 @@ beforeEach(() => {
 afterEach(async () => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
-  Object.assign(session, { userId: ADMIN, orgId: ORG, orgRole: "org:admin" });
+  Object.assign(session, { userId: ADMIN, orgId: ORG, role: "admin" });
   await connection`delete from slack_connections where org_id in (${ORG}, ${OTHER})`;
   await connection`delete from delivery_preferences where org_id in (${ORG}, ${OTHER})`;
 });
@@ -117,11 +117,11 @@ describe("connecting Slack", () => {
   });
 
   it("refuses a Member, a Guest, another workspace and a signed-out caller", async () => {
-    session.orgRole = "org:member";
+    session.role = "member";
     expect(await start()).toEqual({ error: "Only Admins can connect Slack to this workspace." });
-    session.orgRole = "org:guest";
+    session.role = "guest";
     expect(await start()).toEqual({ error: "Only Admins can connect Slack to this workspace." });
-    session.orgRole = "org:admin";
+    session.role = "admin";
     expect(await start(OTHER)).toEqual({ error: "Only Admins can connect Slack to this workspace." });
     session.userId = null;
     expect(await start()).toEqual({ error: SESSION_ENDED, sessionExpired: true });
@@ -129,9 +129,9 @@ describe("connecting Slack", () => {
 
   it("refuses the return trip for anyone but the Admin who started it, and keeps nothing", async () => {
     const state = stateOf(await start());
-    Object.assign(session, { userId: MEMBER, orgRole: "org:member" });
+    Object.assign(session, { userId: MEMBER, role: "member" });
     expect(landing(await callback({ code: "c0de", state }))).toBe("/settings/profile?section=slack&slack=refused");
-    Object.assign(session, { userId: ADMIN, orgRole: "org:member" });
+    Object.assign(session, { userId: ADMIN, role: "member" });
     expect(landing(await callback({ code: "c0de", state }))).toBe("/settings/profile?section=slack&slack=refused");
     expect(await connected()).toBeNull();
     expect(slack.calls).toEqual([]);
@@ -168,9 +168,9 @@ describe("disconnecting Slack", () => {
 
   it("refuses a Member and a Guest, and leaves Slack connected", async () => {
     await connectAsAdmin();
-    session.orgRole = "org:member";
+    session.role = "member";
     expect(await disconnect()).toEqual({ error: "Only Admins can disconnect Slack from this workspace." });
-    session.orgRole = "org:guest";
+    session.role = "guest";
     expect(await disconnect()).toEqual({ error: "Only Admins can disconnect Slack from this workspace." });
     expect(await connected()).not.toBeNull();
   });
@@ -186,7 +186,7 @@ describe("disconnecting Slack", () => {
 });
 
 describe("the Slack DM choice", () => {
-  const choose = async (channel: string, as = { userId: MEMBER, orgRole: "org:member" }) => {
+  const choose = async (channel: string, as = { userId: MEMBER, role: "member" }) => {
     Object.assign(session, as);
     return (await import("./delivery-actions")).updateDeliveryPreference({ channel }, { orgId: ORG });
   };
@@ -208,7 +208,7 @@ describe("the Slack DM choice", () => {
   it("shows Email after Slack is disconnected, remembering the person chose Slack DM", async () => {
     await connectAsAdmin();
     await choose("slack");
-    Object.assign(session, { userId: ADMIN, orgRole: "org:admin" });
+    Object.assign(session, { userId: ADMIN, role: "admin" });
     await disconnect();
     expect(await state()).toEqual({ choice: "email", slackOffered: false, choseSlack: true });
   });

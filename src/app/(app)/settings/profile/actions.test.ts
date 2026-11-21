@@ -3,21 +3,18 @@ import { eq } from "drizzle-orm";
 import { callAction } from "@/lib/action-call";
 import { db, profiles, queryCounter } from "@/db";
 import { SESSION_ENDED } from "@/lib/auth-guard";
+import type { Account, Session } from "@/lib/session";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-let mockSession: {
-  userId: string | null;
-  orgId: string | null;
-  orgRole: string | null;
-} = { userId: null, orgId: null, orgRole: null };
+let mockSession: Session | null = null;
 
-// The sign-in account Clerk holds for the session's user (#261).
-let mockAccount: { firstName: string | null; lastName: string | null; username: string | null; primaryEmailAddress: { emailAddress: string } | null } | null = null;
+// The sign-in account the session seam reads for the session's user (#261), already named by the account-name rule.
+let mockAccount: Account | null = null;
 
-vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(async () => mockSession),
-  currentUser: vi.fn(async () => mockAccount),
+vi.mock("@/lib/session", () => ({
+  readSession: vi.fn(async () => mockSession),
+  readAccount: vi.fn(async () => mockAccount),
 }));
 
 import { syncAccountName, updateProfileRole } from "./actions";
@@ -42,8 +39,8 @@ describe("syncAccountName", () => {
   it("copies the sign-in account's name onto the signed-in person's profile, and no one else's", async () => {
     await remember(MEMBER_ID, OWNER_ID);
     const ownerBefore = await nameOf(OWNER_ID);
-    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, orgRole: "org:member" };
-    mockAccount = { firstName: "Daniel", lastName: "Okafor", username: null, primaryEmailAddress: { emailAddress: "daniel@example.com" } };
+    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
+    mockAccount = { name: "Daniel Okafor", email: "daniel@example.com", imageUrl: "" };
 
     expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ success: true });
     expect(await nameOf(MEMBER_ID)).toBe("Daniel Okafor");
@@ -52,8 +49,8 @@ describe("syncAccountName", () => {
 
   it("falls back to the email when the account has no name", async () => {
     await remember(MEMBER_ID);
-    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, orgRole: "org:member" };
-    mockAccount = { firstName: null, lastName: null, username: null, primaryEmailAddress: { emailAddress: "daniel@example.com" } };
+    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
+    mockAccount = { name: "daniel@example.com", email: "daniel@example.com", imageUrl: "" };
 
     expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ success: true });
     expect(await nameOf(MEMBER_ID)).toBe("daniel@example.com");
@@ -61,10 +58,10 @@ describe("syncAccountName", () => {
 
   it("never takes a name from the browser", async () => {
     await remember(MEMBER_ID);
-    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, orgRole: "org:member" };
-    mockAccount = { firstName: "Daniel", lastName: "Okafor", username: null, primaryEmailAddress: null };
+    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
+    mockAccount = { name: "Daniel Okafor", email: "", imageUrl: "" };
 
-    // A forged argument is ignored: the name only ever comes from Clerk.
+    // A forged argument is ignored: the name only ever comes from the sign-in account.
     await (syncAccountName as unknown as (forged: unknown) => Promise<unknown>)({ orgId: ORG_ID, name: "Someone Else", fullName: "Someone Else", userId: OWNER_ID });
     expect(await nameOf(MEMBER_ID)).toBe("Daniel Okafor");
   });
@@ -72,8 +69,8 @@ describe("syncAccountName", () => {
   it("changes nothing without a signed-in person", async () => {
     await remember(MEMBER_ID);
     const before = await nameOf(MEMBER_ID);
-    mockSession = { userId: null, orgId: null, orgRole: null };
-    mockAccount = { firstName: "Someone", lastName: "Else", username: null, primaryEmailAddress: null };
+    mockSession = null;
+    mockAccount = { name: "Someone Else", email: "", imageUrl: "" };
 
     expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
     expect(await nameOf(MEMBER_ID)).toBe(before);
@@ -83,8 +80,8 @@ describe("syncAccountName", () => {
     await remember(MEMBER_ID, OWNER_ID);
     const member = await nameOf(MEMBER_ID);
     const owner = await nameOf(OWNER_ID);
-    mockSession = { userId: OUTSIDER_ID, orgId: "org_test_b", orgRole: "org:member" };
-    mockAccount = { firstName: "Someone", lastName: "Else", username: null, primaryEmailAddress: null };
+    mockSession = { userId: OUTSIDER_ID, orgId: "org_test_b", role: "member" };
+    mockAccount = { name: "Someone Else", email: "", imageUrl: "" };
 
     expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ error: "You do not have access to this workspace." });
     expect(await nameOf(MEMBER_ID)).toBe(member);
@@ -94,7 +91,7 @@ describe("syncAccountName", () => {
 
 describe("updateProfileRole", () => {
   it("updates only the signed-in member's profile label", async () => {
-    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, orgRole: "org:member" };
+    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
 
     const result = await updateProfileRole(
       { role: "developer" },
@@ -110,7 +107,7 @@ describe("updateProfileRole", () => {
   });
 
   it("rejects an invalid role", async () => {
-    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, orgRole: "org:member" };
+    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
     const result = await updateProfileRole(
       { role: "admin" },
       { orgId: ORG_ID }
@@ -122,7 +119,7 @@ describe("updateProfileRole", () => {
     mockSession = {
       userId: OUTSIDER_ID,
       orgId: "org_test_b",
-      orgRole: "org:member",
+      role: "member",
     };
     const result = await updateProfileRole(
       { role: "developer" },
@@ -133,7 +130,7 @@ describe("updateProfileRole", () => {
 });
 
 it("does not replay an actual profile write when its response is lost", async () => {
-  mockSession = { userId: MEMBER_ID, orgId: ORG_ID, orgRole: "org:member" };
+  mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
   let attempts = 0;
   const failure = new Error("401 response lost after commit");
   const session = { current: vi.fn(async () => "current"), renew: vi.fn(async () => "renewed") };
@@ -159,11 +156,11 @@ it("does not replay an actual profile write when its response is lost", async ()
 // Real guard → browser recovery → actual SQL. Attempts and committed statements
 // are measured separately, so idempotent final state cannot hide duplicate writes.
 it("retries pre-write expiry with changed copy and fresh session identity", async () => {
-  mockSession = { userId: null, orgId: null, orgRole: null };
+  mockSession = null;
   const context = { orgId: ORG_ID };
   const attempts: { orgId: string }[] = [];
   const session = { current: async () => "old", renew: vi.fn(async () => {
-    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, orgRole: "org:member" };
+    mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
     return "renewed";
   }) };
   const observed = await queryCounter.measure(() => callAction(async () => {
@@ -181,7 +178,7 @@ it("retries pre-write expiry with changed copy and fresh session identity", asyn
 });
 
 it.each([null, undefined, "", "   ", "reject"])("makes no write or replay on unusable renewal %s", async token => {
-  mockSession = { userId: null, orgId: null, orgRole: null };
+  mockSession = null;
   const run = vi.fn(() => updateProfileRole({ role: "developer" }, { orgId: ORG_ID }));
   const observed = await queryCounter.measure(() => callAction(run, { current: async () => undefined, renew: async () => {
     if (token === "reject") throw new Error("offline");
@@ -193,7 +190,7 @@ it.each([null, undefined, "", "   ", "reject"])("makes no write or replay on unu
 });
 
 it("stops repeated real guard expiry after one replay with no writes", async () => {
-  mockSession = { userId: null, orgId: null, orgRole: null };
+  mockSession = null;
   const run = vi.fn(() => updateProfileRole({ role: "developer" }, { orgId: ORG_ID }));
   const observed = await queryCounter.measure(() => callAction(run, { current: async () => "old", renew: async () => "renewed" }));
   expect(observed.result).toMatchObject({ sessionExpired: true });
@@ -202,11 +199,11 @@ it("stops repeated real guard expiry after one replay with no writes", async () 
 });
 
 it("retains the original workspace when renewal changes the active workspace", async () => {
-  mockSession = { userId: null, orgId: null, orgRole: null };
+  mockSession = null;
   const context = { orgId: ORG_ID };
   const run = vi.fn(() => updateProfileRole({ role: "developer" }, context));
   const observed = await queryCounter.measure(() => callAction(run, { current: async () => "old", renew: async () => {
-    mockSession = { userId: MEMBER_ID, orgId: "org_test_b", orgRole: "org:member" };
+    mockSession = { userId: MEMBER_ID, orgId: "org_test_b", role: "member" };
     return "renewed";
   } }));
   expect(observed.result).toEqual({ error: "You do not have access to this workspace." });

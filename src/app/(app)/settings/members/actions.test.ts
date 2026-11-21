@@ -14,7 +14,7 @@ const ORG = "org_members_actions";
 const PAYING = "org_members_paying";
 const stand = vi.hoisted(() => ({ provider: null as null | (PaymentProvider & { seatChanges: SeatChange[] }) }));
 vi.mock("@/lib/payment-provider", async (original) => ({ ...(await original<typeof import("@/lib/payment-provider")>()), paymentProvider: () => stand.provider }));
-const session = vi.hoisted(() => ({ userId: "user_members_admin", orgId: "org_members_actions", orgRole: "org:admin" }));
+const session = vi.hoisted(() => ({ userId: "user_members_admin", orgId: "org_members_actions", role: "admin" }));
 const clerk = vi.hoisted(() => ({
   members: new Map<string, string>(),
   invitations: new Map<string, { organizationId: string; status: string }>(),
@@ -22,6 +22,7 @@ const clerk = vi.hoisted(() => ({
   failNext: null as null | { status: number; code: string },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 vi.mock("@clerk/nextjs/server", () => {
   const record = (method: string) => async (params: Record<string, unknown>) => {
     clerk.calls.push({ method, params });
@@ -33,7 +34,6 @@ vi.mock("@clerk/nextjs/server", () => {
     return { id: "orginv_new", ...params };
   };
   return {
-    auth: async () => ({ ...session }),
     clerkClient: async () => ({
       organizations: {
         getOrganizationMembershipList: async ({ organizationId, userId }: { organizationId: string; userId?: string[] }) => {
@@ -61,10 +61,10 @@ vi.mock("@clerk/nextjs/server", () => {
 
 const api = () => import("./actions");
 const ctx = { orgId: ORG };
-const as = (userId: string, orgRole: string) => Object.assign(session, { userId, orgId: ORG, orgRole });
+const as = (userId: string, role: string) => Object.assign(session, { userId, orgId: ORG, role });
 
 beforeEach(() => {
-  as("user_members_admin", "org:admin");
+  as("user_members_admin", "admin");
   clerk.members = new Map([["user_members_admin", "org:admin"], ["user_members_member", "org:member"], ["user_members_viewer", "org:viewer"]]);
   clerk.invitations = new Map([["orginv_here", { organizationId: ORG, status: "pending" }], ["orginv_elsewhere", { organizationId: "org_else", status: "pending" }]]);
   clerk.calls = [];
@@ -95,7 +95,7 @@ describe("inviting someone", () => {
     expect(await inviteToWorkspace({ email: "  ", role: "member" }, ctx)).toEqual({ error: "Enter an email address.", field: "email" });
     expect(await inviteToWorkspace({ email: "not-an-address", role: "member" }, ctx)).toEqual({ error: "Enter a valid email address.", field: "email" });
     expect(await inviteToWorkspace({ email: "x@example.test", role: "owner" }, ctx)).toEqual({ error: "Choose Admin, Member, Guest or Viewer." });
-    as("user_members_member", "org:member");
+    as("user_members_member", "member");
     expect(await inviteToWorkspace({ email: "x@example.test", role: "member" }, ctx)).toEqual({ error: "Only Admins can invite people to this workspace." });
     expect(clerk.calls).toEqual([]);
   });
@@ -128,7 +128,7 @@ describe("changing someone's role", () => {
     const { changeMemberRole } = await api();
     expect(await changeMemberRole({ userId: "user_members_admin", role: "member" }, ctx)).toEqual({ error: "You can’t change your own role. Ask another Admin to do it." });
     expect(await changeMemberRole({ userId: "user_elsewhere", role: "member" }, ctx)).toEqual({ error: "That person isn’t in this workspace any more. Reload to see who is." });
-    as("user_members_member", "org:member");
+    as("user_members_member", "member");
     expect(await changeMemberRole({ userId: "user_members_viewer", role: "member" }, ctx)).toEqual({ error: "Only Admins can change people’s roles." });
     expect(clerk.calls).toEqual([]);
   });
@@ -197,7 +197,7 @@ describe("paid seats", () => {
   it("charges a paying workspace part-month for the seat a promotion adds, and lowers the next bill for one made a Viewer", async () => {
     enforce();
     vi.stubEnv("LANE_CUSTOM_ROLES", "1");
-    Object.assign(session, { userId: "user_members_admin", orgId: PAYING, orgRole: "org:admin" });
+    Object.assign(session, { userId: "user_members_admin", orgId: PAYING, role: "admin" });
     clerk.members = new Map([["user_members_admin", "org:admin"], ["user_members_member", "org:member"], ["user_members_other", "org:member"], ["user_members_viewer", "org:viewer"]]);
     const { changeMemberRole } = await api();
     expect(await changeMemberRole({ userId: "user_members_viewer", role: "member", confirmedPaidSeat: true }, paying)).toEqual({ success: true });

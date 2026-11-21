@@ -1,7 +1,7 @@
 /**
  * #206 seam 1: the delivery preference. Each person chooses, per workspace, whether Needs-you items reach them
  * by Email (the default) or not at all; Slack DM is covered with Slack (#207, slack-actions.test.ts). Identity and role come from the
- * session through the shared guards. Real database, mocked Clerk session.
+ * session through the shared guards. Real database, faked session seam.
  */
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -10,9 +10,9 @@ import { requireTestDatabase } from "@/test/test-database";
 const ORG = "org_delivery_preference";
 const OTHER = "org_delivery_preference_other";
 const PERSON = "delivery_preference_person";
-const session = vi.hoisted(() => ({ userId: "delivery_preference_person" as string | null, orgId: "org_delivery_preference", orgRole: "org:member" }));
+const session = vi.hoisted(() => ({ userId: "delivery_preference_person" as string | null, orgId: "org_delivery_preference", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ ...session }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
@@ -22,7 +22,7 @@ beforeAll(async () => {
   await connection`insert into organizations(id,name,slug) values (${ORG},'Preference','delivery-preference'), (${OTHER},'Other','delivery-preference-other')`;
   await connection`insert into profiles(id,full_name,email) values (${PERSON},'Person','person@delivery-preference.test')`;
 });
-afterEach(() => Object.assign(session, { userId: PERSON, orgId: ORG, orgRole: "org:member" }));
+afterEach(() => Object.assign(session, { userId: PERSON, orgId: ORG, role: "member" }));
 afterAll(async () => {
   await connection`delete from organizations where id in (${ORG}, ${OTHER})`;
   await connection`delete from profiles where id = ${PERSON}`;
@@ -47,7 +47,7 @@ describe("choosing how Needs-you items reach you", () => {
   });
 
   it("works the same for an Admin", async () => {
-    session.orgRole = "org:admin";
+    session.role = "admin";
     expect(await choose("off")).toEqual({ success: true });
     expect(await choiceIn(ORG)).toBe("off");
     await choose("email");
@@ -60,7 +60,7 @@ describe("choosing how Needs-you items reach you", () => {
   });
 
   it("refuses a Guest, who has no Needs-you items to deliver", async () => {
-    session.orgRole = "org:guest";
+    session.role = "guest";
     expect(await choose("off")).toEqual({ error: "Guests get Lane email only about their own submissions, so there is nothing to choose here." });
     expect(await choiceIn(ORG)).toBe("email");
   });
