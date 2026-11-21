@@ -6,21 +6,21 @@ import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireTestDatabase } from "@/test/test-database";
 
-const session = vi.hoisted(() => ({ userId: "" as string | null, orgId: "", orgRole: "org:member" }));
+const session = vi.hoisted(() => ({ userId: "" as string | null, orgId: "", role: "member" }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ ...session }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 
 const PREFIX = "org_metrics_actions_";
 const ADMIN = "user_metrics_actions_admin", MEMBER = "user_metrics_actions_member", GUEST = "user_metrics_actions_guest";
-const ROLES = { admin: [ADMIN, "org:admin"], member: [MEMBER, "org:member"], guest: [GUEST, "org:guest"] } as const;
+const ROLES = { admin: [ADMIN, "admin"], member: [MEMBER, "member"], guest: [GUEST, "guest"] } as const;
 let connection: ReturnType<typeof postgres>;
 let workspaces = 0;
 let orgId = "";
 
 const actions = () => import("./actions");
 const library = () => import("@/lib/metrics-library");
-const actAs = (role: keyof typeof ROLES) => Object.assign(session, { userId: ROLES[role][0], orgRole: ROLES[role][1], orgId });
+const actAs = (role: keyof typeof ROLES) => Object.assign(session, { userId: ROLES[role][0], role: ROLES[role][1], orgId });
 const context = () => ({ orgId });
 const all = async () => (await library()).listMetricDefinitions({ orgId }, { includeArchived: true });
 const active = async () => (await library()).listMetricDefinitions({ orgId });

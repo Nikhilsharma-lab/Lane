@@ -2,7 +2,7 @@
  * #216 (spec #195, seam 5): a workspace whose plan lapsed. Its record is never held hostage: everything already
  * filed keeps working (picking up, comments, Done, releasing, closing) and Result due reminders still go out;
  * nothing is deleted. Only creating new Requests waits for payment: new Requests, follow-ups and taking on a Guest
- * submission. Real database, mocked Clerk, roles switched per call, the payment provider swapped for the recording
+ * submission. Real database, faked session, mocked Clerk roster, roles switched per call, the payment provider swapped for the recording
  * stand-in, billing enforced.
  */
 import { randomUUID } from "node:crypto";
@@ -12,13 +12,13 @@ import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_lapsed_plan";
 const [MEMBER, OTHER, GUEST, ADMIN] = ["lapsed_member", "lapsed_other", "lapsed_guest", "lapsed_admin"];
-const ROLES: Record<string, string> = { [MEMBER]: "org:member", [OTHER]: "org:member", [GUEST]: "org:guest", [ADMIN]: "org:admin" };
-const session = vi.hoisted(() => ({ userId: "lapsed_member", orgId: "org_lapsed_plan", orgRole: "org:member" }));
+const ROLES: Record<string, string> = { [MEMBER]: "member", [OTHER]: "member", [GUEST]: "guest", [ADMIN]: "admin" };
+const session = vi.hoisted(() => ({ userId: "lapsed_member", orgId: "org_lapsed_plan", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/ai/triage", () => ({ triageRequest: async () => ({ ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } }) }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async ({ organizationId, userId }: { organizationId?: string; userId?: string[] } = {}) => {
@@ -42,7 +42,7 @@ const prediction = { kind: "no_measurable_impact" as const, reason: "Keeps invoi
 
 function as(userId: string) {
   session.userId = userId;
-  session.orgRole = ROLES[userId];
+  session.role = ROLES[userId];
 }
 const ctx = { orgId: ORG };
 const intake = () => import("./intake/actions");

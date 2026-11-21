@@ -1,7 +1,7 @@
 /**
  * #214 seam 5: an Admin pays for Lane from Settings → Billing. The action opens the payment provider's hosted
  * checkout for the workspace's paid seats (Admins and Members, at least 3) and returns its page; nobody else can,
- * and nothing is offered while billing is off or there is no provider. Real database, mocked Clerk session and
+ * and nothing is offered while billing is off or there is no provider. Real database, faked session, mocked Clerk
  * roster, and the payment provider swapped for the recording stand-in.
  */
 import postgres from "postgres";
@@ -11,12 +11,12 @@ import { recordingPaymentProvider } from "@/lib/payment-provider";
 
 const ORG = "org_billing_checkout";
 const [ADMIN, MEMBER, GUEST, VIEWER] = ["checkout_admin", "checkout_member", "checkout_guest", "checkout_viewer"];
-const session = vi.hoisted(() => ({ userId: "checkout_admin", orgId: "org_billing_checkout", orgRole: "org:admin" }));
+const session = vi.hoisted(() => ({ userId: "checkout_admin", orgId: "org_billing_checkout", role: "admin" }));
 const roster = vi.hoisted(() => ({ people: {} as Record<string, string> }));
 const payments = vi.hoisted(() => ({ provider: null as ReturnType<typeof import("@/lib/payment-provider").recordingPaymentProvider> | null }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async () => {
@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllEnvs();
-  Object.assign(session, { userId: ADMIN, orgRole: "org:admin" });
+  Object.assign(session, { userId: ADMIN, role: "admin" });
 });
 afterAll(async () => {
   await connection`delete from organizations where id = ${ORG}`;
@@ -72,7 +72,7 @@ describe("paying for Lane from Settings → Billing", () => {
   });
 
   it("lets only Admins pay", async () => {
-    Object.assign(session, { userId: MEMBER, orgRole: "org:member" });
+    Object.assign(session, { userId: MEMBER, role: "member" });
     const { startPlanCheckout } = await actions();
     expect(await startPlanCheckout({ period: "yearly" }, { orgId: ORG })).toEqual({ error: "Only Admins can pay for Lane in this workspace." });
     expect(payments.provider!.checkouts).toEqual([]);
@@ -147,7 +147,7 @@ describe("the provider's hosted billing pages (#216)", () => {
     await set({ plan: "paying", customer: "cus_pages", subscription: "sub_pages" });
     const { openBillingPage } = await actions();
     expect(await openBillingPage({ flow: "refund" } as never, { orgId: ORG })).toEqual({ error: "Choose what to change." });
-    Object.assign(session, { userId: MEMBER, orgRole: "org:member" });
+    Object.assign(session, { userId: MEMBER, role: "member" });
     expect(await openBillingPage({ flow: "cancel" }, { orgId: ORG })).toEqual({ error: "Only Admins can change billing in this workspace." });
     expect(payments.provider!.portals).toEqual([]);
   });

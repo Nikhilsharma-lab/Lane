@@ -4,7 +4,7 @@ import type { WorkspaceSearchResponse } from "@/lib/workspace-search";
 vi.mock("server-only", () => ({}));
 
 const boundary = vi.hoisted(() => ({
-  session: { userId: "user_member", orgId: "org_a", orgRole: "org:member" } as { userId: string | null; orgId: string | null; orgRole: string | null },
+  session: { userId: "user_member", orgId: "org_a", role: "member" } as { userId: string | null; orgId: string | null; role: string | null },
   queries: [] as { sql: string; params: unknown[] }[],
   requestRows: [] as unknown[][],
   projectRows: [] as unknown[][],
@@ -12,7 +12,8 @@ const boundary = vi.hoisted(() => ({
   projectTotal: 0,
   failure: false,
 }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => boundary.session }));
+// The session seam answers null for anyone signed out.
+vi.mock("@/lib/session", () => ({ readSession: async () => (boundary.session.userId ? { ...boundary.session } : null) }));
 vi.mock("@/db", async () => {
   const { drizzle } = await import("drizzle-orm/pg-proxy");
   const schema = await import("@/db/schema");
@@ -33,7 +34,7 @@ const REQUEST = [REQUEST_ID, 42, "Signup", "People cannot finish signup", "open"
 const PROJECT = [PROJECT_ID, "Website", "Public website", "2025-01-01T10:00:00.000Z"];
 
 beforeEach(() => {
-  boundary.session = { userId: "user_member", orgId: "org_a", orgRole: "org:member" };
+  boundary.session = { userId: "user_member", orgId: "org_a", role: "member" };
   boundary.queries = []; boundary.requestRows = []; boundary.projectRows = [];
   boundary.requestTotal = 0; boundary.projectTotal = 0; boundary.failure = false;
 });
@@ -76,7 +77,7 @@ describe("GET /api/search query and authorization contract", () => {
   });
 
   it("filters the authorized dataset before paging and keeps facet counts inside guest access", async () => {
-    boundary.session.orgRole = "org:guest";
+    boundary.session.role = "guest";
     // The viewer's local days, 1 to 18 October in India (plan item 2.8).
     const response = await search({ query: "signup", statuses: "open,done", types: "bug", createdSince: "2026-09-30T18:30:00.000Z", createdBefore: "2026-10-18T18:30:00.000Z", sort: "title", requestsPage: 2 });
     expect(response).toHaveProperty("facets");
@@ -101,7 +102,7 @@ describe("GET /api/search query and authorization contract", () => {
   });
 
   it("accepts the widest bindable range and an offset instant, still inside guest access", async () => {
-    boundary.session.orgRole = "org:guest";
+    boundary.session.role = "guest";
     const response = await searchResponse({ query: "signup", createdSince: "1970-01-01T00:00:00.000Z", createdBefore: "2026-10-21T00:00:00+05:30" });
     expect(response.status).toBe(200);
     const row = queryFor("requests");
@@ -109,10 +110,10 @@ describe("GET /api/search query and authorization contract", () => {
     expect(queryFor("projects").params).toEqual(expect.arrayContaining(["org_a", "1970-01-01T00:00:00.000Z", "2026-10-20T18:30:00.000Z"]));
   });
   it.each([
-    { userId: null, orgId: "org_a", orgRole: "org:member" },
-    { userId: "user_member", orgId: null, orgRole: "org:member" },
-    { userId: "user_member", orgId: "org_b", orgRole: "org:member" },
-    { userId: "user_member", orgId: "org_a", orgRole: "org:unknown" },
+    { userId: null, orgId: "org_a", role: "member" },
+    { userId: "user_member", orgId: null, role: null },
+    { userId: "user_member", orgId: "org_b", role: "member" },
+    { userId: "user_member", orgId: "org_a", role: null },
   ])("rejects an unavailable active membership before querying: %j", async (session) => {
     boundary.session = session;
     const response = await searchResponse({ query: "signup" });
@@ -178,7 +179,7 @@ describe("GET /api/search query and authorization contract", () => {
   });
 
   it("restricts guest results and totals with the same own-Request and accessible-Project guards", async () => {
-    boundary.session.orgRole = "org:guest";
+    boundary.session.role = "guest";
     await search({ query: "signup", userId: "forged", role: "admin" } as Parameters<typeof search>[0]);
     for (const count of [false, true]) {
       const requestQuery = queryFor("requests", count);
@@ -207,8 +208,8 @@ describe("GET /api/search query and authorization contract", () => {
     }
   });
 
-  it.each(["org:member", "org:guest"])("searches saved codes inside the existing %s access boundary for rows and totals", async (role) => {
-    boundary.session.orgRole = role;
+  it.each(["member", "guest"])("searches saved codes inside the existing %s access boundary for rows and totals", async (role) => {
+    boundary.session.role = role;
     boundary.requestRows = [REQUEST]; boundary.requestTotal = 1;
     expect(await search({ query: "  lan-42  " })).toMatchObject({
       success: true, requests: { total: 1, items: [{ id: REQUEST_ID, requestNumber: 42 }] },
@@ -219,7 +220,7 @@ describe("GET /api/search query and authorization contract", () => {
       expect(whereClause(query.sql)).toContain('"requests"."request_number" = $param');
       expect(query.params).toContain(42);
       expect(query.params).toContain("org_a");
-      if (role === "org:guest") {
+      if (role === "guest") {
         expect(query.sql).toMatch(/and "requests"\."created_by" = \$\d+\) and \(/);
         expect(query.params).toContain("user_member");
       }

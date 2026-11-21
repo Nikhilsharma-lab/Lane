@@ -12,13 +12,13 @@ import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_viewer_read_only";
 const VIEWER = "user_viewer_ro", MEMBER = "user_viewer_ro_member", ADMIN = "user_viewer_ro_admin";
-const session = vi.hoisted(() => ({ userId: "user_viewer_ro", orgId: "org_viewer_read_only", orgRole: "org:viewer" }));
+const session = vi.hoisted(() => ({ userId: "user_viewer_ro", orgId: "org_viewer_read_only", role: "viewer" }));
 const roster = vi.hoisted(() => new Map<string, string>([
   ["user_viewer_ro", "org:viewer"], ["user_viewer_ro_member", "org:member"], ["user_viewer_ro_admin", "org:admin"],
 ]));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: async () => ({ ...session }),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async () => ({
@@ -38,7 +38,7 @@ let ownRequest: string, membersRequest: string, guestSubmission: string, definit
 
 const ctx = { orgId: ORG };
 const change = (requestId: string) => ({ orgId: ORG, requestId, expectedRevision: 1, operationId: randomUUID() });
-const asViewer = () => { session.userId = VIEWER; session.orgId = ORG; session.orgRole = "org:viewer"; };
+const asViewer = () => { session.userId = VIEWER; session.orgId = ORG; session.role = "viewer"; };
 
 /** Everything a refused change could have touched, read straight from the database. */
 async function workspaceState() {

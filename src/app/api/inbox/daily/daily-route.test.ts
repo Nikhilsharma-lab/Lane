@@ -10,8 +10,8 @@ import { requireTestDatabase } from "@/test/test-database"
 const ORG = "org_inbox_daily_route"
 const REQUESTER = "daily_route_requester"
 vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: vi.fn() }))
+vi.mock("@/lib/session", () => ({ readSession: vi.fn(async () => null) }))
 vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(async () => ({ userId: null })),
   clerkClient: async () => ({
     organizations: {
       getOrganizationMembershipList: async ({ organizationId }: { organizationId: string }) => organizationId === ORG
