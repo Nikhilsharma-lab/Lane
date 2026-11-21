@@ -7,7 +7,7 @@ const boundary = vi.hoisted(() => ({
   limit: { allowed: true } as { allowed: true } | { allowed: false; retryAfterMs: number },
   aiCalls: 0,
 }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ userId: "user_member", orgId: "org_a", orgRole: "org:member" }) }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ userId: "user_member", orgId: "org_a", role: "member" }) }));
 vi.mock("@/db", () => ({ db: {}, requests: {} }));
 vi.mock("@/lib/ai/triage", () => ({
   triageRequest: async () => { boundary.aiCalls += 1; return { ok: false, kind: boundary.kind, status: boundary.status, error: new Error("Illustrative provider failure") }; },

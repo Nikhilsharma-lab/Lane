@@ -1,15 +1,15 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const state = vi.hoisted(() => ({ role: "org:member", queries: [] as {sql:string; params:unknown[]}[], responses: [] as unknown[][][] }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ userId:"user_member", orgId:"org_a", orgRole:state.role }) }));
+const state = vi.hoisted(() => ({ role: "member", queries: [] as {sql:string; params:unknown[]}[], responses: [] as unknown[][][] }));
+vi.mock("@/lib/session", () => ({ readSession: async () => ({ userId:"user_member", orgId:"org_a", role:state.role }) }));
 vi.mock("@/db", async () => {
  const { drizzle } = await import("drizzle-orm/pg-proxy"); const schema = await import("@/db/schema");
  return { ...schema, db:drizzle(async (sql,params) => { state.queries.push({sql,params}); return {rows:state.responses.shift() ?? []}; }, {schema}) };
 });
-beforeEach(() => {state.role="org:member";state.queries=[];state.responses=[];});
+beforeEach(() => {state.role="member";state.queries=[];state.responses=[];});
 it("denies guest label creation and a mismatched workspace before querying", async () => {
- const {createLabel}=await import("./label-actions"); state.role="org:guest";
+ const {createLabel}=await import("./label-actions"); state.role="guest";
  expect(await createLabel({name:"Feedback",colour:"green"},{orgId:"org_a"})).toMatchObject({success:false});
- state.role="org:member";
+ state.role="member";
  expect(await createLabel({name:"Feedback",colour:"green"},{orgId:"org_b"})).toMatchObject({success:false});
  expect(state.queries).toHaveLength(0);
 });
