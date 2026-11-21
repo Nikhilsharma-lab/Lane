@@ -8,7 +8,7 @@ import { createHash } from "node:crypto"
 import type { WorkspacePermission } from "./auth-guard"
 import { emailPause, type EmailPause } from "./email-pause"
 import { authEmail } from "./feature-switches"
-import { resendMessenger } from "./messenger"
+import { isResendRefusal, resendMessenger } from "./messenger"
 
 type CodeEmail = { to: string; code: string; expiresInMinutes: number }
 
@@ -99,9 +99,6 @@ function idempotencyKeyOf(email: AuthEmail): string {
   return `lane-auth-${createHash("sha256").update(parts.join("\n")).digest("hex")}`
 }
 
-/** Resend answered with a non-success status. A thrown fetch or a timeout isn't one: Resend never answered. */
-const isRefusal = (reason: string) => /^resend_\d+$/.test(reason)
-
 /**
  * Sends one auth email, or says why it couldn't: `resend_<status>`, `resend_timeout`, `resend_unreachable`, or
  * `not_configured` while either env name is unset. Each couldn't-send logs once, with the kind and the reason only.
@@ -119,6 +116,6 @@ export async function sendAuthEmail(email: AuthEmail, options: SendAuthEmailOpti
   const result = await resendMessenger({ apiKey: config.apiKey, from: config.from, fetch }).send({ channel: "email", to: email.to, subject, text, idempotencyKey: idempotencyKeyOf(email) })
   if (result.ok) return { ok: true }
   // The pause never throws; a failed write is its own log line and leaves this result unchanged.
-  if (isRefusal(result.reason)) await pause.pause(now())
+  if (isResendRefusal(result.reason)) await pause.pause(now())
   return couldNotSend(result.reason)
 }

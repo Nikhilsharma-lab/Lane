@@ -10,7 +10,7 @@ import { deliveryMessage, guestMessage } from "./delivery-message";
 import { emailPause, type EmailPause } from "./email-pause";
 import { appOrigin, emailDelivery, slackDelivery, type SlackDelivery } from "./feature-switches";
 import type { NeedsYouItem, NeedsYouKind } from "./inbox-read-model";
-import { idempotencyKeyOf, recordingMessenger, resendMessenger, slackMessenger, type Messenger, type SendResult } from "./messenger";
+import { idempotencyKeyOf, isResendRefusal, recordingMessenger, resendMessenger, slackMessenger, type Messenger, type SendResult } from "./messenger";
 import { slackTokenFor } from "./slack-connection";
 import { journeyStatusCondition, requesterColumn } from "./request-journey-sql";
 import { canChangeThings, canContribute, clerkWorkspacePermission } from "./role-rules";
@@ -92,9 +92,6 @@ type EmailGate = {
   settle(result: SendResult): Promise<void>;
 };
 
-/** Resend answered with a non-success status. A timeout or an unreachable Resend never answered. */
-const isRefusal = (reason: string) => /^resend_\d+$/.test(reason);
-
 function emailGateOf(run: DeliveryRun): EmailGate {
   const sending = run.messenger.outcome === "sent";
   let paused = false;
@@ -117,7 +114,7 @@ function emailGateOf(run: DeliveryRun): EmailGate {
       return paused && hold();
     },
     async settle(result) {
-      if (!sending || result.ok || !isRefusal(result.reason)) return;
+      if (!sending || result.ok || !isResendRefusal(result.reason)) return;
       paused = true;
       await run.emailPause.pause(run.now);
     },
