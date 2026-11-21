@@ -2,7 +2,7 @@
 
 ## November 21 — Retro on increment 2: handoff habit, PR criteria, review standards
 
-Branch `chore/358-retro`, stacked on `feat/358-auth-email` (#364). AGENTS.md now says every build, increment or retro adds a dated entry here (the old "when switching tools" wording let #364 miss it). `docs/agents/issue-tracker.md` puts criteria about the PR itself on the spec issue, since no ticket's agent writes the PR. A new `CODING_STANDARDS.md`, read during review, has two judgement rules from the #358 review: fixed email subjects and From names, and an adapter owns the parsing of its result format. Outside the repo: the wizard skill now asks for third-party facts to be fetched and cited, and implement-spec fast-forwards without a merger subagent. Three merged agent worktrees were removed.
+Branch `chore/358-retro`, merged after #364. AGENTS.md now says every build, increment or retro adds a dated entry here (the old "when switching tools" wording let #364 miss it). `docs/agents/issue-tracker.md` puts criteria about the PR itself on the spec issue, since no ticket's agent writes the PR. A new `CODING_STANDARDS.md`, read during review, has two judgement rules from the #358 review: fixed email subjects and From names, and an adapter owns the parsing of its result format. Outside the repo: the wizard skill now asks for third-party facts to be fetched and cited, and implement-spec fast-forwards without a merger subagent. Three merged agent worktrees were removed.
 
 ## November 21 — Increment 2 of Better Auth built: the dormant auth-email sender (#358)
 
