@@ -1,5 +1,5 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { sendToSignIn } from "@/lib/session";
 import { getMember } from "@/lib/ensure-workspace";
 import { loadWorkspaceFrame } from "@/lib/data/workspace-frame";
 import { WorkspaceFrame } from "@/components/shell/workspace-frame";
@@ -15,13 +15,13 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Identity and permission come from Clerk claims, so the reads below can
+  // Identity and permission come from the session alone, so the reads below can
   // start before any database round trip (plan item 1.8).
   const member = await getMember();
-  if (!member) return (await auth()).redirectToSignIn();
+  if (!member) return sendToSignIn();
 
   const workspace = await loadWorkspaceFrame(member);
-  if (!workspace) return (await auth()).redirectToSignIn();
+  if (!workspace) return sendToSignIn();
   if (workspace.needsOnboarding) redirect("/onboarding");
   // #215: a paying workspace's seats follow Clerk memberships; checked after the response, at most every 10 minutes.
   followSeatChangesAfterResponse({ orgId: workspace.orgId });

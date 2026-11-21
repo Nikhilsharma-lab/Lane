@@ -1,8 +1,6 @@
-import { auth } from "@clerk/nextjs/server";
 import type { ActionFailure } from "./action-session-failure";
-import { canChangeThings, clerkWorkspacePermission } from "./role-rules";
-
-export { clerkWorkspacePermission };
+import { canChangeThings } from "./role-rules";
+import { readSession } from "./session";
 
 /** Clerk owns workspace membership. Profile labels never grant these capabilities. */
 export type WorkspacePermission = "admin" | "member" | "guest" | "viewer";
@@ -17,11 +15,10 @@ export const VIEWER_REFUSAL = "You’re a Viewer in this workspace, so you can r
 /** One session snapshot decides identity, workspace and expiry before any change.
  * Wrong-workspace, role and validation refusals never permit a session replay. */
 export async function guardActiveMember(orgId: string, copy: string): Promise<MemberAuth | ActionFailure> {
-  const session = await auth();
-  if (!session.userId) return { error: SESSION_ENDED, sessionExpired: true };
-  const role = clerkWorkspacePermission(session.orgRole);
-  if (!session.orgId || session.orgId !== orgId || !role) return { error: copy };
-  return { userId: session.userId, orgId: session.orgId, role };
+  const session = await readSession();
+  if (!session) return { error: SESSION_ENDED, sessionExpired: true };
+  if (!session.orgId || session.orgId !== orgId || !session.role) return { error: copy };
+  return { userId: session.userId, orgId: session.orgId, role: session.role };
 }
 
 /** Admin or Member may change shared workspace data. */

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { auth } from "@clerk/nextjs/server";
 import { unstable_rethrow } from "next/navigation";
 import { LazyMissingInFrame } from "@/components/shell/lazy-missing-in-frame";
 import { getMember } from "@/lib/ensure-workspace";
 import { loadWorkspaceFrame } from "@/lib/data/workspace-frame";
+import { readSession } from "@/lib/session";
 import { MissingPageNoWorkspace } from "./missing-page";
 
 export const metadata: Metadata = { title: "Page not found" };
@@ -17,7 +17,7 @@ async function visitor() {
       if (workspace && !workspace.needsOnboarding) return workspace.frame;
     }
     // A session waiting on Clerk's choose-a-workspace step counts as signed in here.
-    return member || (await auth({ treatPendingAsSignedOut: false })).userId ? "signed-in" : null;
+    return member || (await readSession({ pendingCountsAsSignedIn: true })) ? "signed-in" : null;
   } catch (error) {
     unstable_rethrow(error);
     // An address the proxy skips (one ending in a file extension) has no Clerk session to read, and a failed read

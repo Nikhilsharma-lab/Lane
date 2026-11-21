@@ -1,12 +1,11 @@
 "use server";
 
-import { currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { and, eq, ne } from "drizzle-orm";
 import * as z from "zod";
 import { db, profiles } from "@/db";
-import { accountNameOf } from "@/lib/account-name";
 import { guardActiveMember } from "@/lib/auth-guard";
+import { readAccount } from "@/lib/session";
 
 const profileSchema = z.object({
   role: z.enum(["pm", "designer", "developer"]),
@@ -36,15 +35,15 @@ export async function updateProfileRole(
  * #261: Lane's saved copy of the signed-in person's name catches up with their sign-in account. Settings → Profile
  * calls it when "Manage account" leaves Clerk's live name different from Lane's copy. It takes nothing from the
  * browser but the workspace it was rendered in: whose name comes from the session's guard and the name itself from
- * Clerk for this session. Every page then shows the new name.
+ * the signed-in account. Every page then shows the new name.
  */
 export async function syncAccountName(context: { orgId: string }) {
   const auth = await guardActiveMember(context.orgId, "You do not have access to this workspace.");
   if ("error" in auth) return auth;
-  const user = await currentUser();
-  if (!user) return { error: "You do not have access to this workspace." };
+  const account = await readAccount();
+  if (!account) return { error: "You do not have access to this workspace." };
 
-  const fullName = accountNameOf(user);
+  const fullName = account.name;
   const changed = await db
     .update(profiles)
     .set({ fullName, updatedAt: new Date() })

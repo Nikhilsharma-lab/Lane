@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { sendToSignIn } from "@/lib/session";
 import { getMember, getWorkspace } from "@/lib/ensure-workspace";
 import { canCreateRequests } from "@/lib/role-rules";
 import { IntakeLauncher } from "@/components/requests/intake-launcher";
@@ -15,7 +15,7 @@ export default async function IntakePage() {
   void timePage("Intake");
   const result = await getWorkspace();
 
-  if (!result) return (await auth()).redirectToSignIn();
+  if (!result) return sendToSignIn();
   if (result.needsOnboarding) redirect("/onboarding");
   // #210: a Viewer reads everything and files nothing. #285: the shared "can create Requests" rule decides.
   if (!canCreateRequests(result.role)) redirect("/");

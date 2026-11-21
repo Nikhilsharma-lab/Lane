@@ -1,7 +1,7 @@
 import "server-only";
 
-import { auth } from "@clerk/nextjs/server";
 import type { MemberAuth } from "@/lib/auth-guard";
+import { readSession } from "@/lib/session";
 
 /**
  * Plan item 1.16 (decision 8.15): read-only GET route handlers. Next runs
@@ -10,7 +10,7 @@ import type { MemberAuth } from "@/lib/auth-guard";
  * front of a user's mutation. These routes run in parallel and the client
  * aborts a stale request with an AbortController.
  *
- * Identity comes from Clerk auth() through the existing guards. The `org`
+ * Identity comes from the session seam through the existing guards. The `org`
  * query parameter names the workspace the page was rendered for; a session
  * that no longer matches it is refused, exactly like the action's context
  * check. Every response is private and uncacheable.
@@ -29,8 +29,7 @@ export async function authorizeReadRoute(
 ): Promise<ReadRouteAuth> {
   const params = new URL(request.url).searchParams;
   const orgId = params.get("org");
-  const session = await auth();
-  if (!session.userId) return { ok: false, response: json({ error: "Sign in to continue." }, { status: 401 }) };
+  if (!(await readSession())) return { ok: false, response: json({ error: "Sign in to continue." }, { status: 401 }) };
   if (!orgId) return { ok: false, response: json({ error: "A workspace is required." }, { status: 400 }) };
   const member = await guard(orgId);
   if (!member) return { ok: false, response: json({ error: "Your workspace session changed. Refresh the page to continue." }, { status: 403 }) };

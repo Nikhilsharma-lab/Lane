@@ -1,12 +1,13 @@
-import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { cache } from "react";
 
 import { db, workspaces } from "@/db";
-import { clerkWorkspacePermission, type MemberAuth, type WorkspacePermission } from "@/lib/auth-guard";
+import type { MemberAuth, WorkspacePermission } from "@/lib/auth-guard";
 import { loadShell } from "@/lib/data/shell";
 import { accountNameOf } from "@/lib/account-name";
 import { decideFreeRequests } from "@/lib/billing";
 import { timed } from "@/lib/request-timings";
+import { readAccount, readSession } from "@/lib/session";
 
 export type WorkspaceContext = {
   userId: string;
@@ -28,16 +29,15 @@ type OnboardingContext = {
 
 
 /**
- * Identity and workspace permission from Clerk claims alone: no database
+ * Identity and workspace permission from the session alone: no database
  * round trip. Plan item 1.8 starts the page's reads from this so they run in
  * parallel with the profile/workspace join in getWorkspace. Cached per
- * request, so the layout and the page share one auth() call.
+ * request, so the layout and the page share one session read.
  */
 export const getMember = cache(async function getMember(): Promise<MemberAuth | null> {
-  const { userId, orgId, orgRole } = await timed("session", async () => auth());
-  const role = clerkWorkspacePermission(orgRole);
-  if (!userId || !orgId || !role) return null;
-  return { userId, orgId, role };
+  const session = await timed("session", () => readSession());
+  if (!session?.orgId || !session.role) return null;
+  return { userId: session.userId, orgId: session.orgId, role: session.role };
 });
 
 export const getWorkspace = cache(async function getWorkspace(): Promise<
@@ -53,12 +53,12 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
   const shell = await timed("workspace", () => loadShell(member));
 
   if (!shell) {
-    const user = await timed("clerk", () => currentUser());
+    const account = await timed("clerk", () => readAccount());
     return {
       needsOnboarding: true,
       userId,
-      fullName: accountNameOf(user),
-      email: user?.primaryEmailAddress?.emailAddress ?? "",
+      fullName: account?.name ?? accountNameOf(null),
+      email: account?.email ?? "",
     };
   }
 
