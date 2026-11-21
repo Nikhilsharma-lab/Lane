@@ -67,6 +67,25 @@ describe("emailPause.pause", () => {
   });
 });
 
+describe("createInMemoryEmailPause", () => {
+  it("holds a pause from the moment it is recorded until the next 00:00 UTC, without reaching Upstash", async () => {
+    const { createInMemoryEmailPause } = await import("./email-pause");
+    const pause = createInMemoryEmailPause();
+    expect(await pause.isPaused(new Date("2026-11-21T12:00:00.000Z"))).toBe(false);
+    await pause.pause(new Date("2026-11-21T12:00:00.000Z"));
+    expect(await pause.isPaused(new Date("2026-11-21T12:00:00.000Z"))).toBe(true);
+    expect(await pause.isPaused(new Date("2026-11-21T23:59:59.000Z"))).toBe(true);
+    expect(await pause.isPaused(new Date("2026-11-22T00:00:00.000Z"))).toBe(false);
+    expect(boundary.initialize).not.toHaveBeenCalled();
+  });
+  it("keeps each fake's pause to itself", async () => {
+    const { createInMemoryEmailPause } = await import("./email-pause");
+    const first = createInMemoryEmailPause();
+    await first.pause(new Date("2026-11-21T12:00:00.000Z"));
+    expect(await createInMemoryEmailPause().isPaused(new Date("2026-11-21T12:00:00.000Z"))).toBe(false);
+  });
+});
+
 describe("emailPause.isPaused", () => {
   const now = new Date("2026-11-21T12:00:00.000Z");
   it("is false when no pause key exists", async () => {

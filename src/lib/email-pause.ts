@@ -61,3 +61,16 @@ export const emailPause: EmailPause = {
     }
   },
 };
+
+// For tests of the senders that use the pause: the same shape, held in memory.
+export function createInMemoryEmailPause(): EmailPause {
+  let endsAt = 0;
+  return {
+    async pause(now) {
+      endsAt = nextUtcMidnight(now);
+    },
+    async isPaused(now) {
+      return now.getTime() < endsAt;
+    },
+  };
+}
