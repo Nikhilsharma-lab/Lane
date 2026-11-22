@@ -1,5 +1,6 @@
 import * as z from "zod";
 import { BETTER_AUTH_NAMES, STRIPE_NAMES } from "./feature-switches";
+import { TURNSTILE_SITE_KEY_NAME } from "./turnstile-site-key";
 
 /**
  * Server env check (plan 6.1, I4/I5).
@@ -87,13 +88,13 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
       `Auth email is half configured: ${authEmailUnset[0]} is not set, so no sign-up, sign-in, reset or invitation email is sent.`,
     );
 
-  // #371: the Better Auth server is dormant until its secret is set. Set, it needs the other four names; none is
-  // required until increment 5.
+  // #371: the Better Auth server is dormant until its secret is set. Set, it needs the other four names, and Lane's
+  // auth screens need Turnstile's site key (#377); none is required until increment 5.
   if (env.BETTER_AUTH_SECRET?.trim()) {
-    const unset = BETTER_AUTH_NAMES.filter((name) => name !== "BETTER_AUTH_SECRET" && !env[name]?.trim());
+    const unset = [...BETTER_AUTH_NAMES, TURNSTILE_SITE_KEY_NAME].filter((name) => name !== "BETTER_AUTH_SECRET" && !env[name]?.trim());
     if (unset.length)
       warnings.push(
-        `BETTER_AUTH_SECRET is set but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without the Google names there is no Google sign-in; without the Turnstile secret, sign-up and every code send are refused.`,
+        `BETTER_AUTH_SECRET is set but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without the Google names there is no Google sign-in; without the Turnstile secret, sign-up and every code send are refused; without the Turnstile site key, the screens can’t show the human check, so they offer only password and Google sign-in.`,
       );
   }
 

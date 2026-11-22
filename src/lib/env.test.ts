@@ -141,8 +141,8 @@ describe("checkServerEnv", () => {
     expect(checkServerEnv({ env: completeEnv(), vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] })
   });
 
-  it("warns, by the missing names only, when the Better Auth secret is set without the other auth names (#371)", () => {
-    const others = ["BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TURNSTILE_SECRET_KEY"];
+  it("warns, by the missing names only, when the Better Auth secret is set without the other auth names (#371, #377)", () => {
+    const others = ["BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TURNSTILE_SECRET_KEY", "NEXT_PUBLIC_TURNSTILE_SITE_KEY"];
     for (const missing of others) {
       const env: Record<string, string> = { ...completeEnv(), BETTER_AUTH_SECRET: SENTINEL };
       for (const name of others) if (name !== missing) env[name] = `${SENTINEL}_${name}`;
@@ -159,9 +159,9 @@ describe("checkServerEnv", () => {
     for (const name of others) expect(onlySecret.warnings[0]).toContain(name);
     expect(onlySecret.warnings[0]).not.toContain(SENTINEL);
 
-    // All five, or no secret: nothing to say, and none is required.
-    const allFive = { ...completeEnv(), BETTER_AUTH_SECRET: SENTINEL, ...Object.fromEntries(others.map((name) => [name, SENTINEL])) };
-    expect(checkServerEnv({ env: allFive, vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] });
+    // All six, or no secret: nothing to say, and none is required. The site key alone is never required either (#377).
+    const allSix = { ...completeEnv(), BETTER_AUTH_SECRET: SENTINEL, ...Object.fromEntries(others.map((name) => [name, SENTINEL])) };
+    expect(checkServerEnv({ env: allSix, vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] });
     const noSecret = { ...completeEnv(), GOOGLE_CLIENT_ID: SENTINEL };
     expect(checkServerEnv({ env: noSecret, vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] });
     expect(checkServerEnv({ env: { ...noSecret, BETTER_AUTH_SECRET: "  " }, vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] });
