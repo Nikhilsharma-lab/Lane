@@ -84,6 +84,18 @@ describe("Auth error copy", () => {
     for (const sentence of words) expect(sentence.split(". ").length).toBeGreaterThanOrEqual(2)
   })
 
+  // #380: Settings → Profile's account section.
+  it("has Lane's words for every code Settings → Profile's account section meets", () => {
+    // #346's words.
+    expect(authErrorCopy("INVALID_PASSWORD")).toBe("That isn’t your current password.")
+    expect(authErrorCopy("FAILED_TO_UNLINK_LAST_ACCOUNT")).toBe("Google is your only sign-in method. Set a password before disconnecting it.")
+    // Proposed for Nikhil to confirm: Lane's codes for a Google connection that came back without connecting.
+    expect(authErrorCopy("GOOGLE_EMAIL_DOES_NOT_MATCH")).toBe("That Google account uses a different email, so nothing changed. Choose the Google account that uses your Lane email.")
+    expect(authErrorCopy("GOOGLE_NOT_CONNECTED")).toBe("Google didn’t connect, so nothing changed. Try again.")
+    // The password answers it shares with sign-up.
+    for (const code of ["PASSWORD_TOO_SHORT", "PASSWORD_COMPROMISED", "PASSWORD_CHECK_UNAVAILABLE", "UNAUTHORIZED"]) expect(authErrorCopy(code)).not.toBe("Something went wrong. Try again.")
+  })
+
   // #377: the sign-in screens' tests (src/components/auth/better-auth) meet these codes, from increment 3's route
   // tests and the screens' own human check. Each has its own words: none falls back to the generic line.
   it("has Lane's words for every code the sign-in screens' tests produce", () => {

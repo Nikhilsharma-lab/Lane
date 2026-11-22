@@ -69,6 +69,12 @@ const DORMANT_VIEWS = [
     regex: "(^|/)components/auth/better-auth(/|$)",
     selector: "ImportExpression[source.value=/components\\u002Fauth\\u002Fbetter-auth(\\u002F|$)/]",
   },
+  // #380: Settings → Profile's account section (profile-account-view, -password, -devices and their controllers).
+  {
+    message: "Settings → Profile's account section is dormant until increment 5 mounts it (#380).",
+    regex: "(^|/)profile-account(-[\\w-]+)?$",
+    selector: "ImportExpression[source.value=/profile-account(-[\\w-]+)?$/]",
+  },
 ];
 const DORMANT_VIEWS_IMPORTS = DORMANT_VIEWS.map(({ regex, message }) => ({ regex, message }));
 const DORMANT_VIEWS_DYNAMIC = DORMANT_VIEWS.map(({ selector, message }) => ({ selector, message }));
