@@ -15,12 +15,13 @@ import { CODE_FIELD_ID, CodeStep } from "./code-step"
 import { secondsUntil } from "./code-sends"
 import { GoogleMark, OrDivider } from "./google-mark"
 import { createSignInFlow, type SignInFlow, type SignInState } from "./sign-in-flow"
+import { SignUp } from "./sign-up-form"
 import { TurnstileWidget } from "./turnstile-widget"
 import authStyles from "../auth.module.css"
 import styles from "./better-auth.module.css"
 
-/** Which screen the shared form draws. Sign-up mode joins in #378 without changing the props. */
-export type AuthFormMode = "sign-in"
+/** Which screen the shared form draws. Sign-up mode joined in #378 without changing the props. */
+export type AuthFormMode = "sign-in" | "sign-up"
 
 export type AuthFormProps = {
   mode: AuthFormMode
@@ -41,7 +42,7 @@ const ALERT_ID = "sign-in-alert"
  * instead". Dormant: no route mounts it until increment 5.
  */
 export function AuthForm(props: AuthFormProps) {
-  return <SignIn {...props} />
+  return props.mode === "sign-up" ? <SignUp {...props} /> : <SignIn {...props} />
 }
 
 /** #376 story 94: after a refused submit, focus goes to the first field with a problem, or to the box. */

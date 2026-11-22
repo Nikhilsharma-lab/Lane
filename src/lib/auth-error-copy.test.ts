@@ -127,6 +127,18 @@ describe("Auth error copy", () => {
     expect(authErrorCopy("INVITATION_NOT_FOUND")).toBe("This invitation has expired or is no longer open. Ask the person who invited you to send a new one.")
   })
 
+  // #378: the sign-up and forgot-and-reset screens' tests meet these codes besides the sign-in ones above. Every one
+  // was already in the table, so #378 adds no entry.
+  it("has Lane's words for every code the sign-up and reset screens' tests produce", () => {
+    expect(authErrorCopy("PASSWORD_TOO_SHORT")).toBe("Use at least 8 characters.")
+    expect(authErrorCopy("PASSWORD_COMPROMISED")).toBe("This password has appeared in a data breach elsewhere. Choose a different one.")
+    expect(authErrorCopy("PASSWORD_CHECK_UNAVAILABLE")).toBe("We couldn’t check this password right now. Try again in a minute.")
+    expect(authErrorCopy("USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL")).toBe("A Lane account already uses this email.")
+    expect(authErrorCopy("SIGN_UP_CODE_NOT_SENT")).toBe("We couldn’t send the code right now. Try again in a few minutes.")
+    expect(authErrorCopy("TOO_MANY_ATTEMPTS")).toBe("That code has expired. Send a new one.")
+    expect(authErrorCopy("HUMAN_CHECK_UNAVAILABLE")).toBe("We couldn’t run the check that you’re human right now. Try again in a minute.")
+  })
+
   it("reads the code from a Better Auth or Lane error answer's body, and nothing from any other body", () => {
     expect(authErrorCode({ code: "INVALID_OTP", message: "Invalid OTP" })).toBe("INVALID_OTP")
     for (const body of [{ message: "Too many requests. Please try again later." }, { code: 42 }, { code: "" }, "INVALID_OTP", null, undefined]) expect(authErrorCode(body)).toBeUndefined()
