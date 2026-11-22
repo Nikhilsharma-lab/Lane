@@ -199,6 +199,31 @@ describe("email codes through the auth route", () => {
     })
   })
 
+  describe("the endpoints Lane switches off", () => {
+    it("answers each as missing, sends nothing and changes nothing, even signed in", async () => {
+      const cody = person("switched-off")
+      const browser = await signUpVerified(outbound, cody)
+      expect((await signIn(browser, cody)).status).toBe(200)
+      const sent = outbound.emails().length
+      const newEmail = person("switched-off-new").email
+      const answers = {
+        "/send-verification-email": await from(browser).post("/send-verification-email", { email: cody.email }),
+        "/verify-email": await from(browser).get("/verify-email?token=lane-test-token"),
+        "/request-password-reset": await from(browser).post("/request-password-reset", { email: cody.email, redirectTo: "/reset" }),
+        "/reset-password": await from(browser).post("/reset-password", { newPassword: "a-brand-new-lane-password", token: "lane-test-token" }),
+        "/forget-password/email-otp": await from(browser).post("/forget-password/email-otp", { email: cody.email }),
+        "/change-email": await from(browser).post("/change-email", { newEmail }),
+        "/delete-user": await from(browser).post("/delete-user", {}),
+        "/email-otp/request-email-change": await from(browser).post("/email-otp/request-email-change", { newEmail }),
+        "/email-otp/change-email": await from(browser).post("/email-otp/change-email", { newEmail, otp: "123456" }),
+      }
+      for (const [path, answer] of Object.entries(answers)) expect([path, answer.status]).toEqual([path, 404])
+      expect(outbound.emails()).toHaveLength(sent)
+      expect(await profilesWith(cody.email)).toBe(1)
+      expect((await signIn(new AuthBrowser(), cody)).status).toBe(200)
+    })
+  })
+
   describe("Turnstile", () => {
     it("is required on every code send and on the reset submission", async () => {
       const cody = person("turnstile")
