@@ -19,6 +19,7 @@ import { and, gt, inArray, sql } from "drizzle-orm"
 import { account, db, invitation, member, organizations, profiles, rateLimit, session, verification } from "@/db"
 import { sendAuthEmail, type AuthEmail } from "./auth-email"
 import { AUTH_ERROR_COPY } from "./auth-error-copy"
+import { isWorkspacePermission } from "./role-rules"
 import type { BetterAuthServer } from "./feature-switches"
 
 type Config = Extract<BetterAuthServer, { on: true }>
@@ -127,6 +128,19 @@ const TURNSTILE_PATHS = ["/sign-up/email", "/email-otp/send-verification-otp", "
 /** The endpoints a browser asks for a code on. Sign-up's verification code is sent from inside `/sign-up/email`. */
 const CODE_REQUEST_PATHS = ["/email-otp/send-verification-otp", "/email-otp/request-password-reset"]
 
+/** The endpoints that give someone a workspace role. */
+const ROLE_PATHS = ["/organization/invite-member", "/organization/update-member-role"]
+
+/**
+ * #369's role allow-list: a role must be exactly one of Lane's (WORKSPACE_ROLES), as a string or a one-item list.
+ * Anything else, `owner`, a comma list, several roles, an empty or unknown name, gets ROLE_NOT_IN_LANE.
+ */
+function refuseRoleNotInLane(role: unknown): void {
+  const roles = Array.isArray(role) ? role : [role]
+  if (roles.length === 1 && typeof roles[0] === "string" && isWorkspacePermission(roles[0])) return
+  throw APIError.from("BAD_REQUEST", { code: "ROLE_NOT_IN_LANE", message: AUTH_ERROR_COPY.ROLE_NOT_IN_LANE })
+}
+
 /**
  * Lane's checks before Better Auth's own endpoint runs, after Turnstile and Better Auth's IP limit. Better Auth
  * alone answers success and sends nothing in both cases, leaving the person waiting for a code.
@@ -135,8 +149,12 @@ const CODE_REQUEST_PATHS = ["/email-otp/send-verification-otp", "/email-otp/requ
  *   address's code limit: a fourth code in 10 minutes gets TOO_MANY_CODES. Both run before Better Auth makes the
  *   code, so a refused request leaves the last code sent still working, and only a request that reaches the limit
  *   is counted.
+ * - An invitation or a role change: the role allow-list. It runs here, before Better Auth's own checks, because
+ *   Better Auth refuses an empty or unknown role itself, with its own code, before its organization hooks run.
+ *   So it also runs before the permission check: anyone sending a role Lane doesn't have gets ROLE_NOT_IN_LANE.
  */
 const beforeEndpoint = createAuthMiddleware(async (ctx) => {
+  if (ROLE_PATHS.includes(ctx.path)) return refuseRoleNotInLane(ctx.body?.role)
   if (ctx.path !== "/sign-up/email" && !CODE_REQUEST_PATHS.includes(ctx.path)) return
   // Better Auth refuses any other code type itself; email change is off.
   if (ctx.path === "/email-otp/send-verification-otp" && !isCodeType(ctx.body?.type)) return
@@ -200,6 +218,36 @@ function build(config: Config) {
         disableOrganizationDeletion: true,
         requireEmailVerificationOnInvitation: true,
         invitationExpiresIn: 7 * DAY,
+        // Better Auth's limits, written down: 100 members and 100 pending invitations per workspace.
+        membershipLimit: 100,
+        invitationLimit: 100,
+        // Awaited, never thrown (Better Auth would swallow it): the invitation row is already written, and the
+        // request answers INVITATION_NOT_SENT when the email didn't go, so it can be resent or its link shared.
+        // A resend passes the invitation's new expiry, which keeps Resend from dropping it as a duplicate.
+        sendInvitationEmail: async ({ id, role, email, organization, inviter, invitation }) => {
+          // The role allow-list refused anything else before the invitation was written.
+          if (!isWorkspacePermission(role)) return noteNotSent("INVITATION_NOT_SENT")
+          await sendForRequest({
+            kind: "invitation",
+            to: email,
+            workspaceName: organization.name,
+            inviterName: inviter.user.name,
+            role,
+            // Nothing serves /invite/<id> until increment 5.
+            acceptUrl: `${config.baseURL}/invite/${id}`,
+            expiresAt: invitation.expiresAt,
+          })
+        },
+        organizationHooks: {
+          // Lane keeps no picture or free-form data on a workspace (#344 Q3). On update, an undefined metadata is
+          // left out of the write: Better Auth would store a null as the text "null".
+          beforeCreateOrganization: async ({ organization }) => ({ data: { ...organization, logo: null, metadata: undefined } }),
+          beforeUpdateOrganization: async ({ organization }) => ({ data: { ...organization, logo: null, metadata: undefined } }),
+          // The role allow-list again, where #369 puts it. beforeEndpoint already refused every request and
+          // `auth.api` call; this holds an endpoint called as a plain function, which skips hooks.before.
+          beforeCreateInvitation: async ({ invitation }) => refuseRoleNotInLane(invitation.role),
+          beforeUpdateMemberRole: async ({ newRole }) => refuseRoleNotInLane(newRole),
+        },
         schema: {
           organization: {
             modelName: "organizations",
