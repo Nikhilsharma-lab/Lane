@@ -5,3 +5,5 @@
  */
 export const CODE_LIFETIME_SECONDS = 5 * 60
 export const CODE_LIFETIME_MINUTES = CODE_LIFETIME_SECONDS / 60
+/** The code's digits, as the server's `otpLength`. */
+export const CODE_LENGTH = 6
