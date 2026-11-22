@@ -47,6 +47,12 @@ const BETTER_AUTH_SERVER_FILES = [
   "src/lib/better-auth-session.ts",
   "src/lib/better-auth-session.test.ts",
 ];
+// #381 (#376 story 99): the workspace name and Leave rows are dormant until increment 5 mounts them, so nothing under
+// the app directory (a route, page or layout) imports them, statically or dynamically. #377 and #380 fence their own
+// views the same way; whichever of the three lands later merges the lists into one route rule.
+const DORMANT_WORKSPACE_ROWS_MESSAGE = "The workspace name and Leave rows are dormant: no route, page or layout imports them until increment 5 (#381).";
+const DORMANT_WORKSPACE_ROWS = [{ regex: "(^|/)(workspace-name-row|leave-workspace-row)$", message: DORMANT_WORKSPACE_ROWS_MESSAGE }];
+const DORMANT_WORKSPACE_ROWS_DYNAMIC = [{ selector: "ImportExpression[source.value=/(workspace-name-row|leave-workspace-row)$/]", message: DORMANT_WORKSPACE_ROWS_MESSAGE }];
 const ROUTER_REFRESH = {
   selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='refresh']",
   message:
@@ -138,6 +144,16 @@ const eslintConfig = defineConfig([
   {
     files: BETTER_AUTH_SERVER_FILES,
     rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION] }] },
+  },
+  // #381: the app directory keeps every rule the blocks above give it, plus the dormant-row fence. The Better Auth
+  // server's files keep their own allowance above.
+  {
+    files: ["src/app/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.ts", ...BETTER_AUTH_SERVER_FILES],
+    rules: {
+      "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, ...DORMANT_WORKSPACE_ROWS_DYNAMIC],
+      "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, ...DORMANT_WORKSPACE_ROWS] }],
+    },
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([
