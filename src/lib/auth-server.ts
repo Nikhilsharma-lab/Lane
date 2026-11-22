@@ -263,6 +263,8 @@ function build(config: Config) {
         otpLength: 6,
         expiresIn: CODE_LIFETIME_SECONDS,
         allowedAttempts: 3,
+        // Only a hash of each code is kept, so the verification table never holds one that would sign someone in.
+        storeOTP: "hashed",
         disableSignUp: true,
         overrideDefaultEmailVerification: true,
         // Awaited, never thrown (Better Auth would swallow it): the request's answer says when it didn't go. A code

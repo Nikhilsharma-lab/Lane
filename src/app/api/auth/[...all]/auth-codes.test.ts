@@ -76,6 +76,17 @@ describe("email codes through the auth route", () => {
       expect([again.status, codeOf(again)]).toEqual([400, "INVALID_OTP"])
     })
 
+    it("keeps only a hash of the emailed code, which still signs in", async () => {
+      const cody = person("hashed")
+      await signUpVerified(outbound, cody)
+      const browser = new AuthBrowser()
+      await askForSignInCode(browser, cody.email)
+      const code = outbound.codeFor(cody.email)
+      const [row] = await connection`select value from verification where identifier = ${`sign-in-otp-${cody.email}`}`
+      expect(row.value).not.toContain(code)
+      expect((await signInWithCode(browser, cody.email, code)).status).toBe(200)
+    })
+
     it("burns a code after 3 wrong attempts, so the right one is refused afterwards", async () => {
       const cody = person("burnt")
       await signUpVerified(outbound, cody)
