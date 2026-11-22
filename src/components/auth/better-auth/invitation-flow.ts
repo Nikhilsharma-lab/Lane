@@ -1,8 +1,7 @@
 import * as auth from "@/lib/auth-client"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import type { WorkspacePermission } from "@/lib/auth-guard"
-import { authPageAddress } from "@/lib/auth-return-address"
-import { SIGN_IN_URL, SIGN_UP_URL } from "@/lib/session-task-urls"
+import { signInPage, signUpPage } from "./auth-addresses"
 
 /**
  * Where the invitation stands, as increment 5's `/invite/[id]` reads it: Better Auth's `rejected` is declined and
@@ -94,7 +93,8 @@ export function createInvitationFlow({ invitation, viewer, navigate, onJoined }:
     state = { ...state, ...next }
     for (const listener of listeners) listener()
   }
-  const back = { email: invitation.email, returnTo: invitationAddress(invitation.id) }
+  const signInHere = signInPage(invitation.email, invitationAddress(invitation.id))
+  const signUpHere = signUpPage(invitation.email, invitationAddress(invitation.id))
 
   function refuse(code: string | undefined) {
     const screen = code ? SCREEN_OF[code] : undefined
@@ -142,12 +142,12 @@ export function createInvitationFlow({ invitation, viewer, navigate, onJoined }:
     signInAsInvited: () =>
       run("sign-out", async () => {
         const answer = await auth.signOut()
-        if (answer.ok) navigate(authPageAddress(SIGN_IN_URL, back))
+        if (answer.ok) navigate(signInHere)
         else refuse(answer.code)
       }),
     /** Sign in to accept, and I already have an account. */
-    signIn: () => navigate(authPageAddress(SIGN_IN_URL, back)),
-    createAccount: () => navigate(authPageAddress(SIGN_UP_URL, back)),
+    signIn: () => navigate(signInHere),
+    createAccount: () => navigate(signUpHere),
     /**
      * "Stay signed in as <email>", Go to Lane, and Open <workspace>. Lane's home opens the last workspace used, which
      * a person who just accepted is in; increment 5 can point Open at the workspace itself.
