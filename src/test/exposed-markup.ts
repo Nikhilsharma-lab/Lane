@@ -17,6 +17,21 @@ export function withoutHidden(html: string) {
   return depth === 0 ? out + html.slice(last) : out
 }
 
+/** The words in some markup, spaces collapsed. */
+export const markupWords = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+
+/** Every button in the markup: its opening tag, the words on it, and its name as assistive tech reads it. */
+export function buttonsIn(html: string) {
+  return [...html.matchAll(/<button\b([^>]*)>(.*?)<\/button>/g)].map(([, tag, inner]) => ({
+    tag,
+    text: markupWords(inner),
+    name: /aria-label="([^"]*)"/.exec(tag)?.[1] ?? markupWords(withoutHidden(inner)),
+    disabled: /\sdisabled=""/.test(tag),
+    ariaDisabled: /aria-disabled="true"/.test(tag),
+    submit: /type="submit"/.test(tag),
+  }))
+}
+
 /** The accessible names of every role="status" element left in the markup. */
 export function statusLabels(html: string) {
   return [...html.matchAll(/<[^>]*\brole="status"[^>]*>/g)].map(([tag]) => /aria-label="([^"]*)"/.exec(tag)?.[1] ?? "")
