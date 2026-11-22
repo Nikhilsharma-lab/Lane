@@ -16,6 +16,8 @@ export const AUTH_ERROR_COPY = {
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "A Lane account already uses this email.",
   PASSWORD_TOO_SHORT: "Use at least 8 characters.",
   PASSWORD_COMPROMISED: "This password has appeared in a data breach elsewhere. Choose a different one.",
+  // Proposed for Nikhil: Lane's code for Have I Been Pwned not answering. The password is refused until it does.
+  PASSWORD_CHECK_UNAVAILABLE: "We couldn’t check this password right now. Try again in a minute.",
   // Sign-in. Proposed for Nikhil (#371): #346 has no state for an address that was never confirmed.
   EMAIL_NOT_VERIFIED: "This email isn’t confirmed yet. Email yourself a code to confirm it.",
   INVALID_EMAIL_OR_PASSWORD: "That email and password don’t match. Try again, or email yourself a code.",

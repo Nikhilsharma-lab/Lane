@@ -176,7 +176,7 @@ describe("email codes through the auth route", () => {
       expect((await signIn(new AuthBrowser(), cody)).status).toBe(200)
     })
 
-    it("refuses the reset, and keeps the old password, while Have I Been Pwned can't be reached", async () => {
+    it("refuses the reset with PASSWORD_CHECK_UNAVAILABLE while Have I Been Pwned can't be reached, keeping the old password and the code", async () => {
       const cody = person("reset-hibp-down")
       await signUpVerified(outbound, cody)
       const browser = new AuthBrowser()
@@ -186,8 +186,11 @@ describe("email codes through the auth route", () => {
       const down = await resetWith(browser, cody.email, code, "a-brand-new-lane-password")
       outbound.hibp = () => Promise.reject(new TypeError("fetch failed"))
       const unreachable = await resetWith(browser, cody.email, code, "a-brand-new-lane-password")
-      for (const answer of [down, unreachable]) expect([answer.status, codeOf(answer)]).toEqual([500, undefined])
+      for (const answer of [down, unreachable]) expect([answer.status, codeOf(answer)]).toEqual([503, "PASSWORD_CHECK_UNAVAILABLE"])
       expect((await signIn(new AuthBrowser(), cody)).status).toBe(200)
+
+      outbound.hibp = undefined
+      expect((await resetWith(browser, cody.email, code, "a-brand-new-lane-password")).status).toBe(200)
     })
   })
 

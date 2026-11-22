@@ -9,7 +9,7 @@
 import "server-only"
 import { AsyncLocalStorage } from "node:async_hooks"
 import { createHash, randomUUID } from "node:crypto"
-import { betterAuth } from "better-auth"
+import { betterAuth, type BetterAuthPlugin } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api"
 import { nextCookies } from "better-auth/next-js"
@@ -170,6 +170,30 @@ const beforeEndpoint = createAuthMiddleware(async (ctx) => {
   if (store) store.codeCounted = true
 })
 
+/**
+ * Have I Been Pwned's plugin checks a new password inside Better Auth's password hash, on sign-up, reset and
+ * password change. When its range API can't be reached it fails closed (the password is refused, nothing is
+ * written, an emailed code isn't used up), but with a 500 that has no code. This plugin runs after it, around the
+ * same hash, and gives that failure Lane's code. Every other answer of the check, PASSWORD_COMPROMISED included,
+ * passes through as it is.
+ */
+const passwordCheckUnavailable = () => APIError.from("SERVICE_UNAVAILABLE", { code: "PASSWORD_CHECK_UNAVAILABLE", message: AUTH_ERROR_COPY.PASSWORD_CHECK_UNAVAILABLE })
+const lanePasswordCheck = {
+  id: "lane-password-check",
+  init(ctx) {
+    const checkedHash = ctx.password.hash
+    async function hash(password: string): Promise<string> {
+      try {
+        return await checkedHash(password)
+      } catch (error) {
+        if (isAPIError(error) && error.statusCode === 500 && !error.body?.code) throw passwordCheckUnavailable()
+        throw error
+      }
+    }
+    return { context: { password: { ...ctx.password, hash } } }
+  },
+} satisfies BetterAuthPlugin
+
 /** A request whose email didn't go answers Lane's code for why, in place of Better Auth's success. */
 const afterEndpoint = createAuthMiddleware(async (ctx) => {
   const notSent = requestEmails.getStore()?.notSent
@@ -277,6 +301,8 @@ function build(config: Config) {
       }),
       captcha({ provider: "cloudflare-turnstile", secretKey: config.turnstileSecretKey ?? "", endpoints: TURNSTILE_PATHS }),
       haveIBeenPwned(),
+      // After haveIBeenPwned, so it wraps the hash that plugin checks in.
+      lanePasswordCheck,
       nextCookies(),
     ],
   })

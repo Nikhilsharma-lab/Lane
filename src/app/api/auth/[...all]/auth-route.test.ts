@@ -122,6 +122,31 @@ describe("the auth route switched on", () => {
       expect(ranges[0].body).toBe("")
     })
 
+    it("refuses sign-up with PASSWORD_CHECK_UNAVAILABLE while Have I Been Pwned can't be reached, and creates nothing", async () => {
+      const outages: [string, () => Response | Promise<Response>][] = [
+        ["a 5xx", () => new Response("", { status: 503 })],
+        ["a thrown fetch", () => Promise.reject(new TypeError("fetch failed"))],
+      ]
+      for (const [label, answer] of outages) {
+        const rae = person("hibp-down")
+        outbound.hibp = answer
+        const signedUp = await signUp(rae)
+        expect([label, signedUp.status, codeOf(signedUp)]).toEqual([label, 503, "PASSWORD_CHECK_UNAVAILABLE"])
+        expect(await profileOf(rae.email)).toBeUndefined()
+      }
+      expect(outbound.emails()).toEqual([])
+    })
+
+    it("refuses a password change with PASSWORD_CHECK_UNAVAILABLE while Have I Been Pwned can't be reached, keeping the old password", async () => {
+      const rae = person("change-hibp-down")
+      const browser = await signUpVerified(outbound, rae)
+      await signIn(browser, rae)
+      outbound.hibp = () => Promise.reject(new TypeError("fetch failed"))
+      const changed = await browser.post("/change-password", { currentPassword: rae.password, newPassword: "a-new-lane-route-password" })
+      expect([changed.status, codeOf(changed)]).toEqual([503, "PASSWORD_CHECK_UNAVAILABLE"])
+      expect((await signIn(new AuthBrowser(), rae)).status).toBe(200)
+    })
+
     it("refuses an email a Lane account already uses, whatever its case, and sends nothing", async () => {
       const rae = person("taken")
       await signUpVerified(outbound, rae)
