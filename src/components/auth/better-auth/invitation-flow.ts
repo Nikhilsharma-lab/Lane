@@ -148,8 +148,11 @@ export function createInvitationFlow({ invitation, viewer, navigate, onJoined }:
     /** Sign in to accept, and I already have an account. */
     signIn: () => navigate(authPageAddress(SIGN_IN_URL, back)),
     createAccount: () => navigate(authPageAddress(SIGN_UP_URL, back)),
-    /** "Stay signed in as <email>", and Go to Lane. */
-    stay: () => navigate(HOME),
+    /**
+     * "Stay signed in as <email>", Go to Lane, and Open <workspace>. Lane's home opens the last workspace used, which
+     * a person who just accepted is in; increment 5 can point Open at the workspace itself.
+     */
+    goToLane: () => navigate(HOME),
   }
 }
 

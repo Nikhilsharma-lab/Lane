@@ -159,7 +159,7 @@ describe("signed in as someone else (#379)", () => {
   })
 
   it("stays signed in, going to Lane", () => {
-    flowFor().stay()
+    flowFor().goToLane()
     expect(navigate).toHaveBeenCalledExactlyOnceWith("/")
     expect(auth.requests).toEqual([])
   })

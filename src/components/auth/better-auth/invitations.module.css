@@ -1,0 +1,10 @@
+/* #379: the invitation page's card and Onboarding's list of invitations (#346, the prototype's inviteCard and inviteRow). */
+.card { display: grid; gap: var(--space-1); padding: var(--space-4); border: var(--border-width) solid var(--border); border-radius: var(--radius-surface); background: var(--surface); overflow-wrap: anywhere; }
+.card strong { font-size: var(--text-base); font-weight: var(--weight-medium); }
+.muted { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+.list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: var(--border-width) solid var(--border); border-radius: var(--radius-surface); background: var(--surface); }
+.rowText { display: grid; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.rowText strong { font-size: var(--text-sm); font-weight: var(--weight-medium); }
+/* Wraps a screen's card so focus can move to it when a refusal changes the screen. */
+.screen:focus { outline: none; }
