@@ -151,6 +151,15 @@ export function authErrorCode(body: unknown): string | undefined {
   return typeof code === "string" && code ? code : undefined
 }
 
+/**
+ * Lane's code for Google's redirect back to Settings after Connect Google (its `?error=`, one of
+ * `GOOGLE_REDIRECT_ERRORS`): a Google account with a different email, or any other way the connection didn't
+ * finish. Either way nothing changed.
+ */
+export function googleConnectionCode(redirectError: string): "GOOGLE_EMAIL_DOES_NOT_MATCH" | "GOOGLE_NOT_CONNECTED" {
+  return redirectError === "email_does_not_match" ? "GOOGLE_EMAIL_DOES_NOT_MATCH" : "GOOGLE_NOT_CONNECTED"
+}
+
 /** Lane's words for an auth error code. A code it doesn't know, or none, gets the generic line. */
 export function authErrorCopy(code: string | null | undefined): string {
   return code && Object.hasOwn(AUTH_ERROR_COPY, code) ? AUTH_ERROR_COPY[code as keyof typeof AUTH_ERROR_COPY] : SOMETHING_WENT_WRONG

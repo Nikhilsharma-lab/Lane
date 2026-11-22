@@ -1,3 +1,4 @@
+import { settle, type AuthAnswer } from "@/lib/auth-answer"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { invitationRefusal } from "./invitation-copy"
@@ -10,9 +11,6 @@ export type PendingWorkspaceInvitation = {
   inviter: string
   role: WorkspacePermission
 }
-
-/** What `onJoin` and `onCreate` answer: nothing on success, or a Better Auth or Lane error code. */
-export type OnboardingAnswer = { error?: string }
 
 export const NAME_MISSING = "Name your workspace."
 
@@ -28,8 +26,8 @@ export type OnboardingState = {
 
 type Options = {
   invitations: PendingWorkspaceInvitation[]
-  onJoin: (invitationId: string) => Promise<OnboardingAnswer>
-  onCreate: (name: string) => Promise<OnboardingAnswer>
+  onJoin: (invitationId: string) => Promise<AuthAnswer>
+  onCreate: (name: string) => Promise<AuthAnswer>
 }
 
 /**
@@ -49,17 +47,12 @@ export function createOnboardingFlow({ invitations, onJoin, onCreate }: Options)
    * Runs one callback at a time, answering its refusal, or null when it succeeded or a call was already answering.
    * A throw is a refusal with no code, which reads as the generic line.
    */
-  async function run(pending: OnboardingState["pending"], call: () => Promise<OnboardingAnswer>): Promise<{ code: string | undefined } | null> {
+  async function run(pending: OnboardingState["pending"], call: () => Promise<AuthAnswer>): Promise<{ code?: string } | null> {
     if (state.pending) return null
     set({ pending, alert: null })
-    try {
-      const { error } = await call()
-      return error ? { code: error } : null
-    } catch {
-      return { code: undefined }
-    } finally {
-      set({ pending: null })
-    }
+    const answer = await settle(call)
+    set({ pending: null })
+    return answer.ok ? null : answer
   }
 
   return {

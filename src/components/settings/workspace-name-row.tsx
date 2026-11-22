@@ -3,10 +3,11 @@
 import { useRef, useState, useSyncExternalStore, type FormEvent } from "react"
 import { Button } from "@/components/arc/button/button"
 import { Input } from "@/components/arc/input/input"
+import type { AuthAnswer } from "@/lib/auth-answer"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { managesWorkspace } from "@/lib/role-rules"
 import { SettingsRow } from "./settings-group"
-import { canSaveName, createWorkspaceNameDraft, type WorkspaceAnswer } from "./workspace-rows-state"
+import { canSaveName, createWorkspaceNameDraft } from "./workspace-rows-state"
 import rows from "./workspace-rows.module.css"
 
 export type WorkspaceNameRowProps = {
@@ -15,7 +16,7 @@ export type WorkspaceNameRowProps = {
   /** The person's role in this workspace; only an Admin renames it. */
   role: WorkspacePermission | null
   /** Renames the workspace to the trimmed name. */
-  onRename: (name: string) => Promise<WorkspaceAnswer>
+  onRename: (name: string) => Promise<AuthAnswer>
 }
 
 /**

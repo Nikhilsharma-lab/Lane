@@ -13,6 +13,7 @@ import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { SearchField } from "@/components/arc/search-field/search-field";
 import { Select } from "@/components/arc/select/select";
 import { callAction } from "@/lib/action-call";
+import type { AuthAnswer } from "@/lib/auth-answer";
 import { emailAddressProblem } from "@/lib/email-address-rules";
 import { thrownMessage, TRY_AGAIN } from "@/lib/failure-messages";
 import type { WorkspacePermission } from "@/lib/auth-guard";
@@ -23,7 +24,7 @@ import {
 import { isWorkspacePermission, ROLE_NAMES } from "@/lib/role-rules";
 import { RoleGuide } from "./role-guide";
 import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowFailure, SettingsRowList } from "./settings-group";
-import { createConfirmation, type WorkspaceAnswer } from "./workspace-rows-state";
+import { createConfirmation } from "./workspace-rows-state";
 import styles from "./settings.module.css";
 import members from "./members.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
@@ -57,7 +58,7 @@ export type WorkspaceMembersViewProps = {
    * #381: with it, an Admin removes anyone but themselves after a red confirmation; it answers success or an error
    * code. Without it (the Clerk adapter, which removes in Clerk through `manage`), the view is exactly as before.
    */
-  onRemove?: (userId: string) => Promise<WorkspaceAnswer>;
+  onRemove?: (userId: string) => Promise<AuthAnswer>;
   /** The workspace's name, which Remove's confirmation names; pass it with `onRemove`. */
   workspaceName?: string;
 };

@@ -1,4 +1,4 @@
-import type { AuthAnswer } from "@/lib/auth-client"
+import type { AuthAnswer } from "@/lib/auth-answer"
 import { turnstileSiteKey } from "@/lib/turnstile-site-key"
 
 /** The rendered Turnstile widget, as the human check sees it. */

@@ -3,17 +3,17 @@
  * and organization client plugins, talking to increment 3's server at `/api/auth`. Dormant: only Lane's new auth
  * screens and their tests import it (eslint.config.mjs), and no route mounts those until increment 5.
  *
- * Each call answers `{ ok: true, data }` or `{ ok: false, code }`. The code is read with `authErrorCode`, and a
- * fetch that throws (offline, blocked) is a failure with no code, which `authErrorCopy` turns into the generic line.
+ * Each call answers an `AuthAnswer` (`auth-answer.ts`): `{ ok: true, data }` or `{ ok: false, code }`. The code is read
+ * with `authErrorCode`, and a fetch that throws (offline, blocked) is a failure with no code, which `authErrorCopy`
+ * turns into the generic line.
  * Better Auth's own message is never passed on. Calls that need Turnstile take its token and send it in Better Auth's
  * captcha header.
  */
 import { createAuthClient } from "better-auth/client"
 import { emailOTPClient, organizationClient } from "better-auth/client/plugins"
 
+import { settle, type AuthAnswer } from "./auth-answer"
 import { authErrorCode } from "./auth-error-copy"
-
-export type AuthAnswer<T = unknown> = { ok: true; data: T } | { ok: false; code: string | undefined }
 
 /** Why a code is emailed: to sign in, to confirm a new account's email, or to reset a password. */
 export type CodePurpose = "sign-in" | "confirm" | "reset"
@@ -36,13 +36,12 @@ const withToken = (token: string) => ({ headers: { [CAPTCHA_HEADER]: token } })
 
 type ClientResult<T> = { data: T | null; error: unknown }
 
-async function answer<T>(call: () => Promise<ClientResult<T>>): Promise<AuthAnswer<T>> {
-  try {
+/** Better Auth's `{ data, error }` as Lane's `AuthAnswer`: the one place that format is read. */
+function answer<T>(call: () => Promise<ClientResult<T>>): Promise<AuthAnswer<T>> {
+  return settle(async () => {
     const { data, error } = await call()
     return error ? { ok: false, code: authErrorCode(error) } : { ok: true, data: data as T }
-  } catch {
-    return { ok: false, code: undefined }
-  }
+  })
 }
 
 export function signInWithPassword({ email, password }: { email: string; password: string }) {

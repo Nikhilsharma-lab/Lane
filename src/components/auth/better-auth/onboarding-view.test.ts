@@ -19,7 +19,7 @@ const invitations: PendingWorkspaceInvitation[] = [
   { id: "inv_1", workspace: "Acme Design", inviter: "Priya Shah", role: "member" },
   { id: "inv_2", workspace: "Northwind Product", inviter: "Ola Berg", role: "admin" },
 ]
-const done = async () => ({})
+const done = async () => ({ ok: true as const })
 const base: OnboardingWorkspaceStepProps = {
   email: SAM,
   invitations,
@@ -101,7 +101,7 @@ describe("Onboarding's workspace step (#379, #346)", () => {
   })
 
   it("shows a refused Create's line under the form, in a box focus can reach", async () => {
-    const { flow, render } = mount({ onCreate: async () => ({ error: "UNAUTHORIZED" }) })
+    const { flow, render } = mount({ onCreate: async () => ({ ok: false as const, code: "UNAUTHORIZED" }) })
     await flow.create("Acme Design")
     const html = render()
     expect(html).toMatch(/id="onboarding-create-alert"[^>]*tabindex="-1"|tabindex="-1"[^>]*id="onboarding-create-alert"/i)
@@ -109,7 +109,7 @@ describe("Onboarding's workspace step (#379, #346)", () => {
   })
 
   it("shows a Join refused for a full workspace in the invitation page's words, in a box focus can reach", async () => {
-    const { flow, render } = mount({ onJoin: async () => ({ error: "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED" }) })
+    const { flow, render } = mount({ onJoin: async () => ({ ok: false as const, code: "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED" }) })
     await flow.join("inv_1")
     const html = render()
     expect(html).toMatch(/id="onboarding-join-alert"[^>]*tabindex="-1"|tabindex="-1"[^>]*id="onboarding-join-alert"/i)
@@ -117,7 +117,7 @@ describe("Onboarding's workspace step (#379, #346)", () => {
   })
 
   it("shows a Join refused for a gone invitation in the invitation page's words", async () => {
-    const { flow, render } = mount({ onJoin: async () => ({ error: "INVITATION_NOT_FOUND" }) })
+    const { flow, render } = mount({ onJoin: async () => ({ ok: false as const, code: "INVITATION_NOT_FOUND" }) })
     await flow.join("inv_2")
     expect(read(render())).toContain("This invitation can’t be used This invitation has expired or is no longer open. Ask the person who invited you to send a new one.")
   })

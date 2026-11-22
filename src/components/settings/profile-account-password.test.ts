@@ -5,7 +5,7 @@ import { Dialog } from "@/components/popup/adaptive-dialog"
 import { createProfileAccount, type ProfileAccountCallbacks } from "./profile-account-controller"
 import { ProfileAccountPasswordForm } from "./profile-account-password"
 
-const done = async () => ({ success: true as const })
+const done = async () => ({ ok: true as const })
 let callbacks: { onChangePassword: ReturnType<typeof vi.fn<ProfileAccountCallbacks["onChangePassword"]>>; onSetPassword: ReturnType<typeof vi.fn<ProfileAccountCallbacks["onSetPassword"]>> }
 let account: ReturnType<typeof createProfileAccount>
 
@@ -65,7 +65,7 @@ describe("Settings → Profile, Change password (#380)", () => {
   })
 
   it("puts a wrong current password's line on the current password", async () => {
-    callbacks.onChangePassword.mockResolvedValue({ error: "INVALID_PASSWORD" })
+    callbacks.onChangePassword.mockResolvedValue({ ok: false as const, code: "INVALID_PASSWORD" })
     await change("wrong", "new-secret-1")
     const html = render("change")
     expect(described(html, "current-password")).toContain("That isn’t your current password.")
@@ -78,7 +78,7 @@ describe("Settings → Profile, Change password (#380)", () => {
     ["PASSWORD_TOO_SHORT", "Use at least 8 characters."],
     ["PASSWORD_CHECK_UNAVAILABLE", "We couldn’t check this password right now. Try again in a minute."],
   ])("puts %s's line on the new password", async (code, line) => {
-    callbacks.onChangePassword.mockResolvedValue({ error: code })
+    callbacks.onChangePassword.mockResolvedValue({ ok: false as const, code })
     await change("old-secret", "short")
     const html = render("change")
     expect(described(html, "new-password")).toContain(line)
@@ -128,7 +128,7 @@ describe("Settings → Profile, Set a password (#380)", () => {
     await account.submitPassword()
     expect(callbacks.onSetPassword).toHaveBeenCalledWith("new-secret-1")
     expect(callbacks.onChangePassword).not.toHaveBeenCalled()
-    callbacks.onSetPassword.mockResolvedValue({ error: "PASSWORD_COMPROMISED" })
+    callbacks.onSetPassword.mockResolvedValue({ ok: false as const, code: "PASSWORD_COMPROMISED" })
     account.openPassword("set")
     account.changeNewPassword("password1")
     expect(await account.submitPassword()).toBe("new")

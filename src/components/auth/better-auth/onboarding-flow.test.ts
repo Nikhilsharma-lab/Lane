@@ -6,7 +6,7 @@ const invitations: PendingWorkspaceInvitation[] = [
   { id: "inv_1", workspace: "Acme Design", inviter: "Priya Shah", role: "member" },
   { id: "inv_2", workspace: "Northwind Product", inviter: "Ola Berg", role: "admin" },
 ]
-const done = async () => ({})
+const done = async () => ({ ok: true as const })
 
 describe("creating a workspace in Onboarding (#379)", () => {
   // #290 D11: Lane's words on the field, not the browser's tooltip.
@@ -27,15 +27,15 @@ describe("creating a workspace in Onboarding (#379)", () => {
   })
 
   it("puts a taken workspace URL on the name field", async () => {
-    const flow = createOnboardingFlow({ invitations: [], onJoin: done, onCreate: async () => ({ error: "ORGANIZATION_ALREADY_EXISTS" }) })
+    const flow = createOnboardingFlow({ invitations: [], onJoin: done, onCreate: async () => ({ ok: false as const, code: "ORGANIZATION_ALREADY_EXISTS" }) })
     await flow.create("Acme Design")
     expect(flow.snapshot()).toMatchObject({ nameError: "Another workspace already uses this URL. Choose a different one, then try again.", alert: null })
   })
 
   it("shows any other code's line under the form, and the generic line for an unknown code or a throw", async () => {
     const onCreate = vi.fn()
-      .mockResolvedValueOnce({ error: "UNAUTHORIZED" })
-      .mockResolvedValueOnce({ error: "SOMETHING_LANE_HAS_NO_WORDS_FOR" })
+      .mockResolvedValueOnce({ ok: false as const, code: "UNAUTHORIZED" })
+      .mockResolvedValueOnce({ ok: false as const, code: "SOMETHING_LANE_HAS_NO_WORDS_FOR" })
       .mockRejectedValueOnce(new Error("offline"))
     const flow = createOnboardingFlow({ invitations: [], onJoin: done, onCreate })
     await flow.create("Acme Design")
@@ -65,7 +65,7 @@ describe("joining a workspace from Onboarding (#379)", () => {
   })
 
   it("says a full workspace is full, in the invitation page's words", async () => {
-    const flow = createOnboardingFlow({ invitations, onJoin: async () => ({ error: "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED" }), onCreate: done })
+    const flow = createOnboardingFlow({ invitations, onJoin: async () => ({ ok: false as const, code: "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED" }), onCreate: done })
     await flow.join("inv_1")
     expect(flow.snapshot().alert).toEqual({
       at: "join",
@@ -75,7 +75,7 @@ describe("joining a workspace from Onboarding (#379)", () => {
   })
 
   it("says a gone invitation can't be used, in the invitation page's words", async () => {
-    const flow = createOnboardingFlow({ invitations, onJoin: async () => ({ error: "INVITATION_NOT_FOUND" }), onCreate: done })
+    const flow = createOnboardingFlow({ invitations, onJoin: async () => ({ ok: false as const, code: "INVITATION_NOT_FOUND" }), onCreate: done })
     await flow.join("inv_2")
     expect(flow.snapshot().alert).toEqual({
       at: "join",
@@ -86,7 +86,7 @@ describe("joining a workspace from Onboarding (#379)", () => {
 
   it("shows any other code's line, and the generic line for a throw", async () => {
     const onJoin = vi.fn()
-      .mockResolvedValueOnce({ error: "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION" })
+      .mockResolvedValueOnce({ ok: false as const, code: "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION" })
       .mockRejectedValueOnce(new Error("offline"))
     const flow = createOnboardingFlow({ invitations, onJoin, onCreate: done })
     await flow.join("inv_1")

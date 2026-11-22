@@ -4,13 +4,14 @@ import { useState, useSyncExternalStore, type ReactNode } from "react"
 
 import { Alert } from "@/components/arc/alert/alert"
 import { Button } from "@/components/arc/button/button"
+import type { AuthAnswer } from "@/lib/auth-answer"
 import { AuthAction } from "../auth-action"
 import { AuthInputField } from "../auth-field"
 import { AuthFormCard } from "../auth-form-card"
 import { OnboardingChrome } from "../onboarding-chrome"
 import { OrDivider } from "./google-mark"
 import { withArticle } from "./invitation-copy"
-import { createOnboardingFlow, type OnboardingAnswer, type OnboardingFlow, type OnboardingState, type PendingWorkspaceInvitation } from "./onboarding-flow"
+import { createOnboardingFlow, type OnboardingFlow, type OnboardingState, type PendingWorkspaceInvitation } from "./onboarding-flow"
 import styles from "./better-auth.module.css"
 import invitationStyles from "./invitations.module.css"
 
@@ -23,10 +24,10 @@ export type OnboardingWorkspaceStepProps = {
   removedFrom?: string
   /** The header's Sign out: increment 5 passes `BetterAuthSignOut`, so this view never imports the browser client. */
   signOut: ReactNode
-  /** Joins with the invitation; answers nothing, or `{ error }` with a code. */
-  onJoin: (invitationId: string) => Promise<OnboardingAnswer>
-  /** Creates a workspace with the trimmed name; answers nothing, or `{ error }` with a code. */
-  onCreate: (name: string) => Promise<OnboardingAnswer>
+  /** Joins with the invitation; answers success or an error code. */
+  onJoin: (invitationId: string) => Promise<AuthAnswer>
+  /** Creates a workspace with the trimmed name; answers success or an error code. */
+  onCreate: (name: string) => Promise<AuthAnswer>
 }
 
 const NAME_ID = "onboarding-workspace-name"

@@ -1,20 +1,6 @@
+import { settle, type AuthAnswer } from "@/lib/auth-answer"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import { createExternalStore } from "@/lib/external-store"
-
-/**
- * #381: what a workspace row's callback answers, the shape Lane's browser auth client gives (#376): success, or a
- * failure with Better Auth's or Lane's error code, read with `authErrorCopy`. A callback that throws (the request
- * never answered) counts as a failure with no code, which gets the generic line.
- */
-export type WorkspaceAnswer = { ok: true } | { ok: false; code?: string }
-
-async function answerOf(run: () => Promise<WorkspaceAnswer>): Promise<WorkspaceAnswer> {
-  try {
-    return await run()
-  } catch {
-    return { ok: false }
-  }
-}
 
 export type WorkspaceNameState = { value: string; saved: string; busy: boolean; error: string | null }
 
@@ -34,12 +20,12 @@ export function createWorkspaceNameDraft(name: string) {
       store.set({ ...store.get(), value, error: null })
     },
     /** Sends the trimmed name once; true when it was saved. */
-    async save(rename: (name: string) => Promise<WorkspaceAnswer>): Promise<boolean> {
+    async save(rename: (name: string) => Promise<AuthAnswer>): Promise<boolean> {
       const state = store.get()
       if (!canSaveName(state)) return false
       const next = state.value.trim()
       store.set({ ...state, busy: true, error: null })
-      const answer = await answerOf(() => rename(next))
+      const answer = await settle(() => rename(next))
       if (answer.ok) store.set({ value: next, saved: next, busy: false, error: null })
       else store.set({ ...store.get(), busy: false, error: authErrorCopy(answer.code) })
       return answer.ok
@@ -67,11 +53,11 @@ export function createConfirmation<T = void>() {
       if (!store.get().busy) store.set({ ...store.get(), open: false })
     },
     /** Sends `run` once; true when it succeeded. */
-    async confirm(run: () => Promise<WorkspaceAnswer>): Promise<boolean> {
+    async confirm(run: () => Promise<AuthAnswer>): Promise<boolean> {
       const state = store.get()
       if (!state.open || state.busy) return false
       store.set({ ...state, busy: true, error: null })
-      const answer = await answerOf(run)
+      const answer = await settle(run)
       store.set({ ...store.get(), open: !answer.ok, busy: false, error: answer.ok ? null : authErrorCopy(answer.code) })
       return answer.ok
     },

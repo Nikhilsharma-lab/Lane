@@ -1,35 +1,14 @@
-import { authErrorCopy } from "@/lib/auth-error-copy"
+import { settle, type AuthAnswer } from "@/lib/auth-answer"
+import { authErrorCopy, googleConnectionCode } from "@/lib/auth-error-copy"
 
-/** Every account callback answers success or an error code, which the view reads with `authErrorCopy`. */
-export type AccountAnswer = { success: true } | { error?: string }
-
+/** Every account callback answers success or an error code (`AuthAnswer`), which the view reads with `authErrorCopy`. */
 export type ProfileAccountCallbacks = {
-  onSaveName: (name: string) => Promise<AccountAnswer>
-  onChangePassword: (change: { currentPassword: string; newPassword: string; signOutOtherDevices: boolean }) => Promise<AccountAnswer>
+  onSaveName: (name: string) => Promise<AuthAnswer>
+  onChangePassword: (change: { currentPassword: string; newPassword: string; signOutOtherDevices: boolean }) => Promise<AuthAnswer>
   /** Increment 5 runs it as a Server Action (#346): Better Auth sets a first password only on the server. */
-  onSetPassword: (newPassword: string) => Promise<AccountAnswer>
-  onConnectGoogle: () => Promise<AccountAnswer>
-  onDisconnectGoogle: () => Promise<AccountAnswer>
-}
-
-type Outcome = { ok: true } | { ok: false; code?: string }
-
-/** Runs one callback. A thrown one (the network, an old tab) has no code, so it gets the generic line. */
-export async function outcome(run: () => Promise<AccountAnswer>): Promise<Outcome> {
-  try {
-    const answer = await run()
-    return "success" in answer && answer.success ? { ok: true } : { ok: false, code: "error" in answer ? answer.error : undefined }
-  } catch {
-    return { ok: false }
-  }
-}
-
-/**
- * Lane's code for Google's redirect back to Settings after Connect Google (its `?error=`): a Google account with a
- * different email, or any other way the connection didn't finish. Either way nothing changed.
- */
-export function googleConnectionCode(redirectError: string) {
-  return redirectError === "email_does_not_match" ? "GOOGLE_EMAIL_DOES_NOT_MATCH" : "GOOGLE_NOT_CONNECTED"
+  onSetPassword: (newPassword: string) => Promise<AuthAnswer>
+  onConnectGoogle: () => Promise<AuthAnswer>
+  onDisconnectGoogle: () => Promise<AuthAnswer>
 }
 
 const EMPTY_NAME = "Enter your name."
@@ -103,7 +82,7 @@ export function createProfileAccount(initial: ProfileAccountCallbacks & { name: 
       if (state.name.busy || draft === state.name.saved) return
       if (!draft) { set({ name: name({ error: EMPTY_NAME }) }); return }
       set({ name: name({ busy: true, error: null }), status: "" })
-      const answer = await outcome(() => callbacks().onSaveName(draft))
+      const answer = await settle(() => callbacks().onSaveName(draft))
       if (answer.ok) set({ name: name({ busy: false, draft, saved: draft }), status: "Name saved." })
       else set({ name: name({ busy: false, error: authErrorCopy(answer.code) }) })
     },
@@ -137,7 +116,7 @@ export function createProfileAccount(initial: ProfileAccountCallbacks & { name: 
         return errors.current ? "current" : "new"
       }
       set({ password: password({ busy: true, errors: {}, error: null }), status: "" })
-      const answer = await outcome(() => mode === "change"
+      const answer = await settle(() => mode === "change"
         ? callbacks().onChangePassword({ currentPassword: current, newPassword: next, signOutOtherDevices: signOutOthers })
         : callbacks().onSetPassword(next))
       if (answer.ok) {
@@ -160,10 +139,10 @@ export function createProfileAccount(initial: ProfileAccountCallbacks & { name: 
     },
   }
 
-  async function google(busy: "connect" | "disconnect", run: () => Promise<AccountAnswer>, success: string): Promise<void> {
+  async function google(busy: "connect" | "disconnect", run: () => Promise<AuthAnswer>, success: string): Promise<void> {
     if (state.google.busy) return
     set({ google: { busy, problem: null }, status: "" })
-    const answer = await outcome(run)
+    const answer = await settle(run)
     if (answer.ok) { set({ google: { busy: null, problem: null }, status: success }); return }
     // The last sign-in method can't go, so sending it again can't help.
     const retry = answer.code === "FAILED_TO_UNLINK_LAST_ACCOUNT" ? undefined : () => { void google(busy, run, success) }

@@ -5,9 +5,10 @@ import { Alert } from "@/components/arc/alert/alert"
 import { Button } from "@/components/arc/button/button"
 import Link from "@/components/link"
 import { PermanentActionConfirmation } from "@/components/popup/permanent-action-confirmation"
+import type { AuthAnswer } from "@/lib/auth-answer"
 import { ONLY_ADMIN } from "@/lib/auth-error-copy"
 import { SettingsRow } from "./settings-group"
-import { createConfirmation, type WorkspaceAnswer } from "./workspace-rows-state"
+import { createConfirmation } from "./workspace-rows-state"
 import rows from "./workspace-rows.module.css"
 
 export type LeaveWorkspaceRowProps = {
@@ -17,7 +18,7 @@ export type LeaveWorkspaceRowProps = {
   /** Where the People list is: `#id` on this page, or a page and its fragment (increment 5 decides, #376). */
   peopleList: string
   /** Takes the person out of the workspace. Where they go next is the caller's. */
-  onLeave: () => Promise<WorkspaceAnswer>
+  onLeave: () => Promise<AuthAnswer>
 }
 
 type Page = { location: Pick<Location, "href" | "pathname">; getElementById: (id: string) => { focus: () => void } | null }

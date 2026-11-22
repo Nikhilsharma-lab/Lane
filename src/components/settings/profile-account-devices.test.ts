@@ -16,7 +16,7 @@ const thisMac: SignedInDevice = { id: "s1", browser: "Chrome", system: "macOS", 
 const phone: SignedInDevice = { id: "s2", browser: "Safari", system: "iPhone", signedInAt: "2026-11-18T09:00:00Z", lastUsedAt: "2026-11-22T07:00:00Z", current: false }
 const oldPc: SignedInDevice = { id: "s3", browser: "Firefox", system: "Windows", signedInAt: "2025-11-18T09:00:00Z", lastUsedAt: "2026-11-21T10:00:00Z", current: false }
 
-const done = async () => ({ success: true as const })
+const done = async () => ({ ok: true as const })
 let callbacks: { [K in keyof SignedInDevicesCallbacks]: ReturnType<typeof vi.fn<SignedInDevicesCallbacks[K]>> }
 
 function mount(props: Partial<ProfileAccountDevicesProps> = {}) {
@@ -69,7 +69,7 @@ describe("Settings → Profile, Signed-in devices (#380)", () => {
   })
 
   it("shows a refused sign-out on its row, with Try again", async () => {
-    callbacks.onSignOutDevice.mockResolvedValueOnce({ error: "UNAUTHORIZED" })
+    callbacks.onSignOutDevice.mockResolvedValueOnce({ ok: false as const, code: "UNAUTHORIZED" })
     const { devices, render } = mount()
     await devices.signOut(oldPc)
     const [, iphone, firefox] = rows(render())

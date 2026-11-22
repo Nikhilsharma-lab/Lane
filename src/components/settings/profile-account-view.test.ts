@@ -12,7 +12,7 @@ vi.mock("./profile-account-controller", async (importOriginal) => ({
 }))
 const actual = await vi.importActual<typeof import("./profile-account-controller")>("./profile-account-controller")
 
-const done = async () => ({ success: true as const })
+const done = async () => ({ ok: true as const })
 let callbacks: { [K in keyof ProfileAccountCallbacks]: ReturnType<typeof vi.fn<ProfileAccountCallbacks[K]>> }
 const base = (): ProfileAccountViewProps => ({
   name: "Sam Lee", email: "sam@acme.test", methods: { password: true, google: true }, googleEmail: "sam@acme.test", ...callbacks,
@@ -64,7 +64,7 @@ describe("Settings → Profile, Account (#380)", () => {
   })
 
   it("shows a refused save's line on the name field", async () => {
-    callbacks.onSaveName.mockResolvedValue({ error: "UNAUTHORIZED" })
+    callbacks.onSaveName.mockResolvedValue({ ok: false as const, code: "UNAUTHORIZED" })
     const { account, render } = mount()
     account.changeName("Sam Rivera")
     await account.saveName()
@@ -143,7 +143,7 @@ describe("Settings → Profile, Sign-in methods (#380)", () => {
   })
 
   it("shows the same line when the server refuses to disconnect the last sign-in method", async () => {
-    callbacks.onDisconnectGoogle.mockResolvedValue({ error: "FAILED_TO_UNLINK_LAST_ACCOUNT" })
+    callbacks.onDisconnectGoogle.mockResolvedValue({ ok: false as const, code: "FAILED_TO_UNLINK_LAST_ACCOUNT" })
     const { account, render } = mount()
     await account.disconnectGoogle()
     const html = render()
@@ -153,7 +153,7 @@ describe("Settings → Profile, Sign-in methods (#380)", () => {
   })
 
   it("offers Try again on any other refused Google change", async () => {
-    callbacks.onConnectGoogle.mockResolvedValueOnce({ error: "UNAUTHORIZED" })
+    callbacks.onConnectGoogle.mockResolvedValueOnce({ ok: false as const, code: "UNAUTHORIZED" })
     const { account, render } = mount({ methods: { password: true, google: false } })
     await account.connectGoogle()
     const html = render()
