@@ -1,4 +1,4 @@
-import { SIGN_IN_URL } from "./session-task-urls"
+import { SIGN_IN_URL, SIGN_UP_URL } from "./session-task-urls"
 
 /** Where Lane goes after sign-in when it was given no return address, or one it won't follow. */
 const HOME = "/"
@@ -19,4 +19,17 @@ export function safeReturnAddress(value: string | null | undefined): string {
 export function signInAddress(returnTo: string | null | undefined): string {
   const address = safeReturnAddress(returnTo)
   return address === HOME ? SIGN_IN_URL : `${SIGN_IN_URL}?${new URLSearchParams({ [RETURN_PARAM]: address })}`
+}
+
+/**
+ * #379: the sign-in or sign-up page with an email to start with (an invitation's) and a return address other than
+ * `/`, such as the invitation page. The pages read `email` into the form's props (increment 5).
+ */
+export function authPageAddress(page: typeof SIGN_IN_URL | typeof SIGN_UP_URL, { email, returnTo }: { email?: string; returnTo?: string }): string {
+  const query = new URLSearchParams()
+  if (email?.trim()) query.set("email", email.trim())
+  const address = safeReturnAddress(returnTo)
+  if (address !== HOME) query.set(RETURN_PARAM, address)
+  const search = query.toString()
+  return search ? `${page}?${search}` : page
 }

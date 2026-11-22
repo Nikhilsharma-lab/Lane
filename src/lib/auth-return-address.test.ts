@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { safeReturnAddress, signInAddress } from "./auth-return-address"
+import { authPageAddress, safeReturnAddress, signInAddress } from "./auth-return-address"
 
 describe("the return address after sign-in (#377)", () => {
   it("keeps a path within Lane, with its query and fragment", () => {
@@ -48,5 +48,17 @@ describe("the sign-in screen's own address", () => {
 
   it("drops an unsafe return address", () => {
     expect(signInAddress("https://x")).toBe("/login")
+  })
+})
+
+describe("a sign-in or sign-up page with an email to start with (#379)", () => {
+  it("carries the email and the return address", () => {
+    expect(authPageAddress("/login", { email: "mei@example.test", returnTo: "/invite/inv_1" })).toBe("/login?email=mei%40example.test&redirect_url=%2Finvite%2Finv_1")
+    expect(authPageAddress("/signup", { email: "mei@example.test", returnTo: "/invite/inv_1" })).toBe("/signup?email=mei%40example.test&redirect_url=%2Finvite%2Finv_1")
+  })
+
+  it("leaves out an empty email, and a return address of / or one Lane won't follow", () => {
+    expect(authPageAddress("/login", { email: " ", returnTo: "/" })).toBe("/login")
+    expect(authPageAddress("/signup", { returnTo: "//x" })).toBe("/signup")
   })
 })
