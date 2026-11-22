@@ -6,7 +6,7 @@
 import { randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { AuthBrowser, codesMet, fakeOutbound, signIn, signInWithGoogle, signUpVerified, switchOnAuthRoute, type AuthAnswer, type Outbound } from "@/test/auth-route-browser"
+import { AuthBrowser, codesMet, fakeOutbound, signIn, signInWithGoogle, signUpVerified, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import { requireTestDatabase } from "@/test/test-database"
 
@@ -241,11 +241,25 @@ describe("workspaces through the auth route", () => {
       expect([demoted.status, codeOf(demoted)]).toEqual([400, "YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER"])
       const removedSelf = await remove(admin.browser, admin.memberId)
       expect([removedSelf.status, codeOf(removedSelf)]).toEqual([400, "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER"])
+      // A Member can't remove anyone, so that's what they're told, not that the Admin is the only one. Better Auth keeps
+      // the status of the answer Lane replaces, 400.
       const removedByMember = await remove(member.browser, admin.memberId)
-      expect([removedByMember.status, codeOf(removedByMember)]).toEqual([400, "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER"])
+      expect([removedByMember.status, codeOf(removedByMember)]).toEqual([400, "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER"])
 
       expect(await memberRows(admin.workspaceId)).toContainEqual({ email: admin.person.email, role: "admin" })
-      for (const answer of [left, demoted, removedSelf, removedByMember]) expect(authErrorCopy(codeOf(answer))).toBe("You’re the only Admin. Make someone else an Admin before you leave.")
+      for (const answer of [left, demoted, removedSelf]) expect(authErrorCopy(codeOf(answer))).toBe("You’re the only Admin. Make someone else an Admin before you leave.")
+    })
+
+    it("tells a Member, a Guest and a Viewer they can't remove an Admin, though the workspace has two", async () => {
+      const admin = await adminWithWorkspace("removable-admin")
+      await join(admin.browser, "admin", "other-admin")
+      for (const role of ["member", "guest", "viewer"]) {
+        const { browser } = await join(admin.browser, role)
+        const answer = await remove(browser, admin.memberId)
+        expect([role, answer.status, codeOf(answer)]).toEqual([role, 400, "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER"])
+        expect(authErrorCopy(codeOf(answer))).toBe("Only an Admin can remove someone. Ask an Admin of this workspace to remove them.")
+      }
+      expect(await memberRows(admin.workspaceId)).toContainEqual({ email: admin.person.email, role: "admin" })
     })
 
     it("treats every Admin the same: a second Admin can demote the first", async () => {

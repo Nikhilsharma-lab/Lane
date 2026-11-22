@@ -11,11 +11,11 @@ import { AsyncLocalStorage } from "node:async_hooks"
 import { createHash, randomUUID } from "node:crypto"
 import { betterAuth, type BetterAuthPlugin } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
-import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api"
+import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from "better-auth/api"
 import { nextCookies } from "better-auth/next-js"
 import { captcha, emailOTP, haveIBeenPwned, organization } from "better-auth/plugins"
 import { createAccessControl } from "better-auth/plugins/access"
-import { and, gt, inArray, sql } from "drizzle-orm"
+import { and, eq, gt, inArray, sql } from "drizzle-orm"
 import { account, db, invitation, member, organizations, profiles, rateLimit, session, verification } from "@/db"
 import { sendAuthEmail, type AuthEmail } from "./auth-email"
 import { AUTH_ERROR_COPY } from "./auth-error-copy"
@@ -209,8 +209,33 @@ const lanePasswordCheck = {
   },
 } satisfies BetterAuthPlugin
 
-/** A request whose email didn't go answers Lane's code for why, in place of Better Auth's success. */
+/** Whether this person's member row in the workspace is an Admin's. */
+async function isAdminOf(userId: string, workspaceId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ role: member.role })
+    .from(member)
+    .where(and(eq(member.organizationId, workspaceId), eq(member.userId, userId)))
+  return row?.role === "admin"
+}
+
+const errorCode = (returned: unknown) => (isAPIError(returned) ? (returned.body as { code?: unknown } | undefined)?.code : undefined)
+
+/**
+ * After Better Auth's endpoint.
+ * - Removing someone: Better Auth checks whether the person being removed is an Admin before it checks whether the
+ *   remover may remove anyone, so a Member, Guest or Viewer who tries to remove an Admin is told the Admin is the
+ *   only one, even when there are others. Only that answer is looked at again: a remover who isn't an Admin of the
+ *   workspace gets the not-allowed answer Better Auth gives them for anyone else. An Admin keeps the only-Admin one.
+ * - A request whose email didn't go answers Lane's code for why, in place of Better Auth's success.
+ */
 const afterEndpoint = createAuthMiddleware(async (ctx) => {
+  if (ctx.path === "/organization/remove-member" && errorCode(ctx.context.returned) === "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER") {
+    const signedIn = await getSessionFromCtx(ctx)
+    const workspaceId = (typeof ctx.body?.organizationId === "string" && ctx.body.organizationId) || signedIn?.session.activeOrganizationId
+    if (!signedIn || !workspaceId || (await isAdminOf(signedIn.user.id, workspaceId))) return
+    // Better Auth answers with the status of the error this replaces, 400, whatever this one says.
+    throw APIError.from("BAD_REQUEST", { code: "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER", message: AUTH_ERROR_COPY.YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER })
+  }
   const notSent = requestEmails.getStore()?.notSent
   if (!notSent || isAPIError(ctx.context.returned)) return
   throw APIError.from(NOT_SENT_STATUS[notSent], { code: notSent, message: AUTH_ERROR_COPY[notSent] })
