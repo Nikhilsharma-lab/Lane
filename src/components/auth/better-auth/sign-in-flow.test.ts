@@ -265,6 +265,13 @@ describe("signing in with an emailed code (#377)", () => {
     expect(auth.to("/email-otp/send-verification-otp")).toHaveLength(1)
   })
 
+  // #379: the invitation's unconfirmed-email "Email me a sign-in code" lands here.
+  it("can open straight at the code request, with the email it was given", () => {
+    const flow = createSignInFlow({ navigate, email: MEI, start: "code-request" })
+    expect(flow.snapshot()).toMatchObject({ step: "code-request", email: MEI })
+    expect(createSignInFlow({ navigate }).snapshot().step).toBe("password")
+  })
+
   it("goes back to the password with the email kept", () => {
     const { flow } = codeRequest()
     flow.usePassword()

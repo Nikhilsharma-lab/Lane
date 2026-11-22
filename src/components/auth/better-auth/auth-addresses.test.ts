@@ -17,4 +17,10 @@ describe("the sign-in and sign-up addresses", () => {
     expect(signUpPage(" ada@acme.test ", "/invite/inv_1")).toBe("/signup?email=ada%40acme.test&redirect_url=%2Finvite%2Finv_1")
     expect(signInPage("  ")).toBe("/login")
   })
+
+  it("can open sign-in at the code request", () => {
+    expect(signInPage("sam@example.test", "/invite/inv_1", "code-request"))
+      .toBe("/login?email=sam%40example.test&redirect_url=%2Finvite%2Finv_1&start=code-request")
+    expect(signInPage("sam@example.test", undefined, "password")).toBe("/login?email=sam%40example.test")
+  })
 })

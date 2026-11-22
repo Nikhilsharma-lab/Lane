@@ -107,6 +107,14 @@ export function createInvitationFlow({ invitation, viewer, navigate, onJoined }:
     }
   }
 
+  function signOutThenGo(path: string) {
+    return run("sign-out", async () => {
+      const answer = await auth.signOut()
+      if (answer.ok) navigate(path)
+      else refuse(answer.code)
+    })
+  }
+
   return {
     invitation,
     snapshot: store.get,
@@ -125,16 +133,13 @@ export function createInvitationFlow({ invitation, viewer, navigate, onJoined }:
         if (answer.ok) set({ screen: "cancelled", alert: null })
         else refuse(answer.code)
       }),
+    /** "Sign out and sign in as <email>": signs out, then goes to sign-in with the invited email, which comes back here. */
+    signInAsInvited: () => signOutThenGo(signInHere),
     /**
-     * "Sign out and sign in as <email>", and the code path for an email that isn't confirmed: signs out, then goes to
-     * sign-in with the invited email, which comes back here.
+     * The code path for an email that isn't confirmed: signs out, then opens sign-in at the code request with the
+     * invited email. Signing in with the code confirms it, and comes back here.
      */
-    signInAsInvited: () =>
-      run("sign-out", async () => {
-        const answer = await auth.signOut()
-        if (answer.ok) navigate(signInHere)
-        else refuse(answer.code)
-      }),
+    confirmWithCode: () => signOutThenGo(signInPage(invitation.email, invitationAddress(invitation.id), "code-request")),
     /** Sign in to accept, and I already have an account. */
     signIn: () => navigate(signInHere),
     createAccount: () => navigate(signUpHere),

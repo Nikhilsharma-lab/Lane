@@ -14,7 +14,7 @@ import { useAuthFlow, type FocusOrder } from "./auth-flow-view"
 import { CODE_INPUT, CodeStep } from "./code-step"
 import { secondsUntil } from "./code-sends"
 import { GoogleMark, OrDivider } from "./google-mark"
-import { createSignInFlow, type SignInFlow, type SignInState } from "./sign-in-flow"
+import { createSignInFlow, type SignInFlow, type SignInStart, type SignInState } from "./sign-in-flow"
 import { SignUp } from "./sign-up-form"
 import { TurnstileWidget } from "./turnstile-widget"
 import authStyles from "../auth.module.css"
@@ -31,6 +31,8 @@ export type AuthFormProps = {
   returnTo?: string
   /** The `error` on Google's redirect back to this screen. */
   errorCode?: string
+  /** Sign-in only: open straight at the code request (`?start=code-request`), with `email` kept. */
+  start?: SignInStart
 }
 
 const FIELD_IDS = { email: "sign-in-email", password: "sign-in-password" } as const
@@ -48,9 +50,9 @@ export function AuthForm(props: AuthFormProps) {
 /** #376 story 94: after a refused submit, focus goes to the first field with a problem, or to the box. */
 const FOCUS_ORDER: FocusOrder<SignInState> = [["email", `#${FIELD_IDS.email}`], ["password", `#${FIELD_IDS.password}`], ["code", CODE_INPUT]]
 
-function SignIn({ email, returnTo, errorCode }: AuthFormProps) {
+function SignIn({ email, returnTo, errorCode, start }: AuthFormProps) {
   // A full page load after signing in, so every server read sees the new session.
-  const [flow] = useState<SignInFlow>(() => createSignInFlow({ email, returnTo, errorCode, navigate: (path) => window.location.assign(path) }))
+  const [flow] = useState<SignInFlow>(() => createSignInFlow({ email, returnTo, errorCode, start, navigate: (path) => window.location.assign(path) }))
   const [password, setPassword] = useState("")
   const [code, setCode] = useState("")
   const { state, now, act } = useAuthFlow(flow, FOCUS_ORDER, ALERT_ID)

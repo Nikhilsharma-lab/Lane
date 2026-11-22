@@ -10,6 +10,8 @@ import { createHumanCheck, withHumanCheck, type HumanCheck } from "./human-check
 
 /** Email and password, the screen asking for a sign-in code, and the code step. */
 export type SignInStep = "password" | "code-request" | "code"
+/** Where the screen opens: email and password, or straight at the code request. */
+export type SignInStart = Extract<SignInStep, "password" | "code-request">
 export type SignInField = "email" | "password" | "code"
 export type SignInFieldErrors = Partial<Record<SignInField, string>>
 /** What the box under the fields offers beside its line: Sign up instead, or the code path. */
@@ -36,6 +38,8 @@ type Options = {
   returnTo?: string
   /** The `error` Google's redirect brought back to this screen. */
   errorCode?: string
+  /** Where the screen opens; email and password unless told otherwise. */
+  start?: SignInStart
   navigate: (path: string) => void
   humanCheck?: HumanCheck
   now?: () => number
@@ -46,11 +50,11 @@ type Options = {
  * code. Every call goes through Lane's browser auth client, and every refusal reads Lane's words from
  * `authErrorCopy`.
  */
-export function createSignInFlow({ email = "", returnTo, errorCode, navigate, humanCheck = createHumanCheck(), now = Date.now }: Options) {
+export function createSignInFlow({ email = "", returnTo, errorCode, start = "password", navigate, humanCheck = createHumanCheck(), now = Date.now }: Options) {
   const destination = safeReturnAddress(returnTo)
   const sends = createCodeSends(now)
   const flow = createAuthFlowStore<SignInState>({
-    step: "password",
+    step: start,
     email,
     fieldErrors: {},
     alert: errorCode ? { message: authErrorCopy(errorCode), offer: null } : null,

@@ -25,7 +25,7 @@ let rendered: string[] = []
  */
 function mount(props: Partial<AuthFormProps> = {}, siteKey?: string | null) {
   const human = passedHumanCheck(siteKey)
-  const flow = actual.createSignInFlow({ email: props.email, returnTo: props.returnTo, errorCode: props.errorCode, navigate, humanCheck: human.check })
+  const flow = actual.createSignInFlow({ email: props.email, returnTo: props.returnTo, errorCode: props.errorCode, start: props.start, navigate, humanCheck: human.check })
   vi.mocked(createSignInFlow).mockReturnValue(flow)
   const render = () => {
     const html = renderToStaticMarkup(createElement(AuthForm, { mode: "sign-in", ...props })).replace(/<!--.*?-->/g, "")
@@ -141,6 +141,13 @@ describe("the sign-in code screens (#377)", () => {
     expect(input(html, "sign-in-email")).toContain(`value="${MEI}"`)
     expect(html).toContain('data-turnstile=""')
     expect(buttonsIn(html).map((button) => button.name)).toEqual(expect.arrayContaining(["Email me a code", "Use your password instead"]))
+  })
+
+  it("opens at the code request with the email kept when told to start there", () => {
+    const html = mount({ email: MEI, start: "code-request" }).render()
+    expect(createSignInFlow).toHaveBeenLastCalledWith(expect.objectContaining({ email: MEI, start: "code-request" }))
+    expect(markupWords(html)).toContain("Sign in with a code")
+    expect(input(html, "sign-in-email")).toContain(`value="${MEI}"`)
   })
 
   it("keeps Email me a code off and says why without a site key", () => {

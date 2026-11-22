@@ -55,7 +55,7 @@ export function InvitationView({ invitation, viewer, onJoined }: InvitationViewP
   </div>
 
   const box = alert && <Alert tone="danger" title={alert.message} id={ALERT_ID} tabIndex={-1}>
-    {alert.offer === "code" && <button type="button" className={styles.textLink} onClick={() => void act(flow.signInAsInvited)}>Email me a sign-in code</button>}
+    {alert.offer === "code" && <button type="button" className={styles.textLink} onClick={() => void act(flow.confirmWithCode)}>Email me a sign-in code</button>}
   </Alert>
 
   const shell = (title: string, description: ReactNode, body: ReactNode) => <AuthShell>

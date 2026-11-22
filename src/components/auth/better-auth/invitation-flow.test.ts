@@ -102,6 +102,16 @@ describe("accepting and declining (#379)", () => {
     })
   })
 
+  // #379 "with the code link": the link leads to a code, not to the password.
+  it("signs out, then opens sign-in at the code request with the invited email and a return here", async () => {
+    auth.refuse("/organization/accept-invitation", 403, "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION")
+    const flow = flowFor()
+    await flow.accept()
+    await flow.confirmWithCode()
+    expect(auth.requests.map((request) => request.path)).toEqual(["/organization/accept-invitation", "/sign-out"])
+    expect(navigate).toHaveBeenCalledExactlyOnceWith("/login?email=sam%40example.test&redirect_url=%2Finvite%2Finv_1&start=code-request")
+  })
+
   it("shows any other refusal's line, and the generic line for an unknown code or a fetch that threw", async () => {
     auth.refuse("/organization/accept-invitation", 403, "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION")
     auth.refuse("/organization/accept-invitation", 500, UNKNOWN_CODE)
