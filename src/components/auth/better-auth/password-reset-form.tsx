@@ -1,7 +1,7 @@
 "use client"
 
 import { LockKeyholeIcon } from "lucide-react"
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
 import { Alert } from "@/components/arc/alert/alert"
 import Link from "@/components/link"
@@ -11,7 +11,8 @@ import { AuthFormCard } from "../auth-form-card"
 import { AuthShell, AuthTrust } from "../auth-shell"
 import { RecoveryLoginLink } from "../recovery-login-link"
 import { signUpPage } from "./auth-addresses"
-import { CODE_FIELD_ID, CodeStep } from "./code-step"
+import { useAuthFlow, type FocusOrder } from "./auth-flow-view"
+import { CODE_INPUT, CodeStep } from "./code-step"
 import { secondsUntil } from "./code-sends"
 import { createPasswordResetFlow, type PasswordResetFlow, type PasswordResetState } from "./password-reset-flow"
 import { TurnstileWidget } from "./turnstile-widget"
@@ -27,13 +28,7 @@ const FIELD_IDS = { email: "reset-email", password: "reset-new-password" } as co
 const ALERT_ID = "reset-alert"
 
 /** #376 story 94: after a refused submit, focus goes to the first field with a problem, or to the box. */
-function focusRefusal({ fieldErrors, alert }: PasswordResetState) {
-  const target = fieldErrors.email ? document.getElementById(FIELD_IDS.email)
-    : fieldErrors.code ? document.querySelector<HTMLElement>(`#${CODE_FIELD_ID} input`)
-      : fieldErrors.password ? document.getElementById(FIELD_IDS.password)
-        : alert ? document.getElementById(ALERT_ID) : null
-  target?.focus()
-}
+const FOCUS_ORDER: FocusOrder<PasswordResetState> = [["email", `#${FIELD_IDS.email}`], ["code", CODE_INPUT], ["password", `#${FIELD_IDS.password}`]]
 
 /**
  * #378 (#376 "Forgot and reset"): Lane's own forgot and reset password screen, through Lane's browser auth client,
@@ -44,27 +39,10 @@ function focusRefusal({ fieldErrors, alert }: PasswordResetState) {
 export function PasswordResetForm({ email }: PasswordResetFormProps) {
   // A full page load after signing in, so every server read sees the new session.
   const [flow] = useState<PasswordResetFlow>(() => createPasswordResetFlow({ email, navigate: (path) => window.location.assign(path) }))
-  const state = useSyncExternalStore(flow.subscribe, flow.snapshot, flow.snapshot)
   const [code, setCode] = useState("")
   const [password, setPassword] = useState("")
-  const [now, setNow] = useState(flow.now)
+  const { state, now, act } = useAuthFlow(flow, FOCUS_ORDER, ALERT_ID)
   const { step, fieldErrors, alert, pending, nextSendAt } = state
-
-  useEffect(() => {
-    if (!nextSendAt) return
-    const timer = window.setInterval(() => {
-      const time = flow.now()
-      setNow(time)
-      if (time >= nextSendAt) window.clearInterval(timer)
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [flow, nextSendAt])
-
-  async function act(action: () => Promise<void>) {
-    await action()
-    setNow(flow.now())
-    focusRefusal(flow.snapshot())
-  }
 
   const box = alert && <Alert tone="danger" title={alert.message} id={ALERT_ID} tabIndex={-1}>
     {alert.offer === "sign-up" && <Link href={signUpPage(state.email)} className={authStyles.alertLink}>Sign up instead</Link>}

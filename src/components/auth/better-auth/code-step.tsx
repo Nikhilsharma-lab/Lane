@@ -15,6 +15,8 @@ const ACTION: Record<CodePurpose, string> = { "sign-in": "Sign in", confirm: "Co
 
 /** Wraps the code boxes, so a screen can put focus on the first one after a refused code. */
 export const CODE_FIELD_ID = "code-step-code"
+/** The first code box, which takes focus after a refused code. */
+export const CODE_INPUT = `#${CODE_FIELD_ID} input`
 
 /**
  * #290 D12: the seconds change on screen only. The button's name stays the action while it waits, and the words on

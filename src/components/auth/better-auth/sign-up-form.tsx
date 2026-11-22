@@ -1,7 +1,7 @@
 "use client"
 
 import { ShieldCheckIcon } from "lucide-react"
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
 import { Alert } from "@/components/arc/alert/alert"
 import Link from "@/components/link"
@@ -10,7 +10,8 @@ import { AuthInputField, AuthPasswordField } from "../auth-field"
 import { AuthFormCard } from "../auth-form-card"
 import { AuthHeaderLink, AuthShell, AuthTrust } from "../auth-shell"
 import { signInPage } from "./auth-addresses"
-import { CODE_FIELD_ID, CodeStep } from "./code-step"
+import { useAuthFlow, type FocusOrder } from "./auth-flow-view"
+import { CODE_INPUT, CodeStep } from "./code-step"
 import { secondsUntil } from "./code-sends"
 import { GoogleMark, OrDivider } from "./google-mark"
 import { createSignUpFlow, type SignUpFlow, type SignUpState } from "./sign-up-flow"
@@ -22,14 +23,9 @@ const FIELD_IDS = { name: "sign-up-name", email: "sign-up-email", password: "sig
 const ALERT_ID = "sign-up-alert"
 
 /** #376 story 94: after a refused submit, focus goes to the first field with a problem, or to the box. */
-function focusRefusal({ fieldErrors, alert }: SignUpState) {
-  const target = fieldErrors.name ? document.getElementById(FIELD_IDS.name)
-    : fieldErrors.email ? document.getElementById(FIELD_IDS.email)
-      : fieldErrors.password ? document.getElementById(FIELD_IDS.password)
-        : fieldErrors.code ? document.querySelector<HTMLElement>(`#${CODE_FIELD_ID} input`)
-          : alert ? document.getElementById(ALERT_ID) : null
-  target?.focus()
-}
+const FOCUS_ORDER: FocusOrder<SignUpState> = [
+  ["name", `#${FIELD_IDS.name}`], ["email", `#${FIELD_IDS.email}`], ["password", `#${FIELD_IDS.password}`], ["code", CODE_INPUT],
+]
 
 type SignUpProps = { email?: string; returnTo?: string; errorCode?: string }
 
@@ -41,27 +37,10 @@ type SignUpProps = { email?: string; returnTo?: string; errorCode?: string }
 export function SignUp({ email, returnTo, errorCode }: SignUpProps) {
   // A full page load after signing in, so every server read sees the new session.
   const [flow] = useState<SignUpFlow>(() => createSignUpFlow({ email, returnTo, errorCode, navigate: (path) => window.location.assign(path) }))
-  const state = useSyncExternalStore(flow.subscribe, flow.snapshot, flow.snapshot)
   const [password, setPassword] = useState("")
   const [code, setCode] = useState("")
-  const [now, setNow] = useState(flow.now)
+  const { state, now, act } = useAuthFlow(flow, FOCUS_ORDER, ALERT_ID)
   const { step, fieldErrors, alert, pending, nextSendAt } = state
-
-  useEffect(() => {
-    if (!nextSendAt) return
-    const timer = window.setInterval(() => {
-      const time = flow.now()
-      setNow(time)
-      if (time >= nextSendAt) window.clearInterval(timer)
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [flow, nextSendAt])
-
-  async function act(action: () => Promise<void>) {
-    await action()
-    setNow(flow.now())
-    focusRefusal(flow.snapshot())
-  }
 
   const box = alert && <Alert tone="danger" title={alert.message} id={ALERT_ID} tabIndex={-1}>
     {alert.offer === "sign-in" && <Link href={signInPage(state.email, returnTo)} className={authStyles.alertLink}>Sign in instead</Link>}
