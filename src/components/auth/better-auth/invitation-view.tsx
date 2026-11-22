@@ -16,6 +16,8 @@ export type InvitationViewProps = {
   /** What increment 5's `/invite/[id]` reads on the server. */
   invitation: Invitation
   viewer: InvitationViewer
+  /** Where Open <workspace> goes: an address that opens the invitation's workspace, read with the invitation. */
+  workspaceAddress: string
   /** Called once the person has joined; increment 5 sends them to the role step. */
   onJoined: () => void
 }
@@ -34,9 +36,9 @@ function focusRefusal(before: InvitationState, after: InvitationState) {
  * the invitation and who is looking. Accept, Decline and the switch to the invited email go through Lane's browser
  * auth client. Dormant: no route mounts it until increment 5.
  */
-export function InvitationView({ invitation, viewer, onJoined }: InvitationViewProps) {
+export function InvitationView({ invitation, viewer, workspaceAddress, onJoined }: InvitationViewProps) {
   // A full page load after signing out or in, so every server read sees the new session.
-  const [flow] = useState<InvitationFlow>(() => createInvitationFlow({ invitation, viewer, onJoined, navigate: (path) => window.location.assign(path) }))
+  const [flow] = useState<InvitationFlow>(() => createInvitationFlow({ invitation, viewer, workspaceAddress, onJoined, navigate: (path) => window.location.assign(path) }))
   const state = useSyncExternalStore(flow.subscribe, flow.snapshot, flow.snapshot)
   const { screen, alert, pending } = state
   const { workspace, inviter, email } = invitation
@@ -94,7 +96,7 @@ export function InvitationView({ invitation, viewer, onJoined }: InvitationViewP
     }
     case "expired": return shell("This invitation has expired", `Invitations last 7 days. Ask an Admin of ${workspace} to send it again.`, goToLane)
     case "already-accepted": return shell(`You’re already in ${workspace}`, "This invitation has been accepted.",
-      <AuthAction type="button" onClick={flow.goToLane}>Open {workspace}</AuthAction>)
+      <AuthAction type="button" onClick={flow.openWorkspace}>Open {workspace}</AuthAction>)
     case "cancelled": return shell("This invitation can’t be used", `It was cancelled or declined. Ask an Admin of ${workspace} for a new one.`, goToLane)
     case "closed": {
       const { title, detail } = invitationRefusal("INVITATION_NOT_FOUND", workspace)!

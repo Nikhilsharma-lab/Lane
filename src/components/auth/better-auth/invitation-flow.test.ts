@@ -15,6 +15,8 @@ const invitation: Invitation = {
   status: "pending",
 }
 const signedInAsSam: InvitationViewer = { signedIn: true, email: SAM }
+/** Where increment 5 would open Acme Design: any address of its choosing. */
+const ACME_ADDRESS = "/w/acme-design"
 /** A code Lane has no words for, which must read as the generic line. */
 const UNKNOWN_CODE = "SOMETHING_LANE_HAS_NO_WORDS_FOR"
 
@@ -28,7 +30,7 @@ describe("which invitation state a person meets (#379, #346's state list)", () =
   const navigate = vi.fn()
   const onJoined = vi.fn()
   const screen = (props: Partial<Invitation> = {}, viewer: InvitationViewer = signedInAsSam) =>
-    createInvitationFlow({ invitation: { ...invitation, ...props }, viewer, navigate, onJoined }).snapshot().screen
+    createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation: { ...invitation, ...props }, viewer, navigate, onJoined }).snapshot().screen
 
   it("asks a signed-out person with an account to sign in, and one without to create an account", () => {
     expect(screen({}, { signedIn: false, hasAccount: true })).toBe("sign-in")
@@ -58,7 +60,7 @@ describe("accepting and declining (#379)", () => {
   let auth: AuthFetchFake
   const navigate = vi.fn()
   const onJoined = vi.fn()
-  const flowFor = (viewer: InvitationViewer = signedInAsSam) => createInvitationFlow({ invitation, viewer, navigate, onJoined })
+  const flowFor = (viewer: InvitationViewer = signedInAsSam) => createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation, viewer, navigate, onJoined })
   beforeEach(() => {
     auth = fakeAuthFetch()
     navigate.mockReset()
@@ -146,7 +148,7 @@ describe("accepting and declining (#379)", () => {
 describe("signed in as someone else (#379)", () => {
   let auth: AuthFetchFake
   const navigate = vi.fn()
-  const flowFor = () => createInvitationFlow({ invitation, viewer: { signedIn: true, email: "sam.lee@example.test" }, navigate, onJoined: vi.fn() })
+  const flowFor = () => createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation, viewer: { signedIn: true, email: "sam.lee@example.test" }, navigate, onJoined: vi.fn() })
   beforeEach(() => {
     auth = fakeAuthFetch()
     navigate.mockReset()
@@ -173,12 +175,20 @@ describe("signed in as someone else (#379)", () => {
     expect(navigate).toHaveBeenCalledExactlyOnceWith("/")
     expect(auth.requests).toEqual([])
   })
+
+  // #376 story 52: Open <workspace> opens that workspace, not whichever Lane's home would.
+  it("opens the invitation's own workspace from an accepted invitation", () => {
+    const flow = createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation: { ...invitation, status: "accepted" }, viewer: signedInAsSam, navigate, onJoined: vi.fn() })
+    flow.openWorkspace()
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(ACME_ADDRESS)
+    expect(auth.requests).toEqual([])
+  })
 })
 
 describe("the ways on from a signed-out invitation (#379)", () => {
   const navigate = vi.fn()
   beforeEach(() => navigate.mockReset())
-  const flowFor = (hasAccount: boolean) => createInvitationFlow({ invitation, viewer: { signedIn: false, hasAccount }, navigate, onJoined: vi.fn() })
+  const flowFor = (hasAccount: boolean) => createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation, viewer: { signedIn: false, hasAccount }, navigate, onJoined: vi.fn() })
 
   it("goes to sign-in or sign-up with the invited email and a return to the invitation", () => {
     flowFor(true).signIn()
@@ -192,7 +202,7 @@ describe("the ways on from a signed-out invitation (#379)", () => {
   })
 
   it("keeps an invitation id that needs escaping inside its own path", () => {
-    createInvitationFlow({ invitation: { ...invitation, id: "a/b?c" }, viewer: { signedIn: false, hasAccount: true }, navigate, onJoined: vi.fn() }).signIn()
+    createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation: { ...invitation, id: "a/b?c" }, viewer: { signedIn: false, hasAccount: true }, navigate, onJoined: vi.fn() }).signIn()
     expect(navigate).toHaveBeenCalledWith("/login?email=sam%40example.test&redirect_url=%2Finvite%2Fa%252Fb%253Fc")
   })
 })

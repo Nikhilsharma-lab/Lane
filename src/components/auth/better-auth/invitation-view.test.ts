@@ -32,7 +32,7 @@ let rendered: string[] = []
 
 /** The flow the view will pick up, made with the view's own props, so the test can drive it before rendering. */
 function mount(props: Partial<Invitation> = {}, viewer: InvitationViewer = signedInAsSam) {
-  const options = { invitation: { ...invitation, ...props }, viewer, onJoined }
+  const options = { invitation: { ...invitation, ...props }, viewer, onJoined, workspaceAddress: "/w/acme-design" }
   const flow = actual.createInvitationFlow({ ...options, navigate })
   vi.mocked(createInvitationFlow).mockReturnValue(flow)
   const render = () => {

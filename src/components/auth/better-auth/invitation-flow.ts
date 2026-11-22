@@ -54,6 +54,8 @@ export type InvitationState = {
 type Options = {
   invitation: Invitation
   viewer: InvitationViewer
+  /** Where Open <workspace> goes: an address that opens the invitation's workspace, which increment 5 knows. */
+  workspaceAddress: string
   navigate: (path: string) => void
   /** Called once the person has joined; increment 5 sends them to the role step. */
   onJoined: () => void
@@ -85,7 +87,7 @@ function firstScreen({ status, email }: Invitation, viewer: InvitationViewer): I
  * #379: the invitation page's state, made once per mount. Accept, Decline and the switch to the invited email go
  * through Lane's browser auth client; every refusal reads `authErrorCopy`.
  */
-export function createInvitationFlow({ invitation, viewer, navigate, onJoined }: Options) {
+export function createInvitationFlow({ invitation, viewer, workspaceAddress, navigate, onJoined }: Options) {
   const store = createExternalStore<InvitationState>({ screen: firstScreen(invitation, viewer), alert: null, pending: null })
   const set = (next: Partial<InvitationState>) => store.set({ ...store.get(), ...next })
   const signInHere = signInPage(invitation.email, invitationAddress(invitation.id))
@@ -143,11 +145,10 @@ export function createInvitationFlow({ invitation, viewer, navigate, onJoined }:
     /** Sign in to accept, and I already have an account. */
     signIn: () => navigate(signInHere),
     createAccount: () => navigate(signUpHere),
-    /**
-     * "Stay signed in as <email>", Go to Lane, and Open <workspace>. Lane's home opens the last workspace used, which
-     * a person who just accepted is in; increment 5 can point Open at the workspace itself.
-     */
+    /** "Stay signed in as <email>" and Go to Lane: Lane's home, which opens the last workspace used. */
     goToLane: () => navigate(HOME),
+    /** Open <workspace>, from an invitation already accepted: that workspace itself (#376 story 52). */
+    openWorkspace: () => navigate(workspaceAddress),
   }
 }
 
