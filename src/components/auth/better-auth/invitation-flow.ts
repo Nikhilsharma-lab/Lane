@@ -1,7 +1,8 @@
 import * as auth from "@/lib/auth-client"
-import { authErrorCopy } from "@/lib/auth-error-copy"
+import { authErrorCopy, forCode, type AuthErrorCode } from "@/lib/auth-error-copy"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { HOME } from "@/lib/auth-return-address"
+import { createExternalStore } from "@/lib/external-store"
 import { signInPage, signUpPage } from "./auth-addresses"
 
 /**
@@ -59,11 +60,11 @@ type Options = {
 }
 
 /** Refusals that mean the invitation can't be accepted at all, so the page moves to that state. */
-const SCREEN_OF: Partial<Record<string, InvitationScreen>> = {
+const SCREEN_OF: Partial<Record<AuthErrorCode, InvitationScreen>> = {
   ORGANIZATION_MEMBERSHIP_LIMIT_REACHED: "full",
   INVITATION_NOT_FOUND: "closed",
 }
-const OFFER_OF: Partial<Record<string, InvitationOffer>> = {
+const OFFER_OF: Partial<Record<AuthErrorCode, InvitationOffer>> = {
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "code",
 }
 
@@ -81,27 +82,23 @@ function firstScreen({ status, email }: Invitation, viewer: InvitationViewer): I
 }
 
 /**
- * #379: the invitation page's state, made once per mount, as `createPasswordRecoveryFlow` is. Accept, Decline and
- * the switch to the invited email go through Lane's browser auth client; every refusal reads `authErrorCopy`.
+ * #379: the invitation page's state, made once per mount. Accept, Decline and the switch to the invited email go
+ * through Lane's browser auth client; every refusal reads `authErrorCopy`.
  */
 export function createInvitationFlow({ invitation, viewer, navigate, onJoined }: Options) {
-  let state: InvitationState = { screen: firstScreen(invitation, viewer), alert: null, pending: null }
-  const listeners = new Set<() => void>()
-  const set = (next: Partial<InvitationState>) => {
-    state = { ...state, ...next }
-    for (const listener of listeners) listener()
-  }
+  const store = createExternalStore<InvitationState>({ screen: firstScreen(invitation, viewer), alert: null, pending: null })
+  const set = (next: Partial<InvitationState>) => store.set({ ...store.get(), ...next })
   const signInHere = signInPage(invitation.email, invitationAddress(invitation.id))
   const signUpHere = signUpPage(invitation.email, invitationAddress(invitation.id))
 
   function refuse(code: string | undefined) {
-    const screen = code ? SCREEN_OF[code] : undefined
-    set(screen ? { screen, alert: null } : { alert: { message: authErrorCopy(code), offer: (code && OFFER_OF[code]) || null } })
+    const screen = forCode(SCREEN_OF, code)
+    set(screen ? { screen, alert: null } : { alert: { message: authErrorCopy(code), offer: forCode(OFFER_OF, code) ?? null } })
   }
 
   /** Runs one call at a time; a press while one is answering does nothing. */
   async function run(pending: Exclude<InvitationPending, null>, call: () => Promise<void>) {
-    if (state.pending || state.screen === "joined") return
+    if (store.get().pending || store.get().screen === "joined") return
     set({ pending })
     try {
       await call()
@@ -112,13 +109,8 @@ export function createInvitationFlow({ invitation, viewer, navigate, onJoined }:
 
   return {
     invitation,
-    snapshot: () => state,
-    subscribe(listener: () => void) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
+    snapshot: store.get,
+    subscribe: store.subscribe,
     /** Accept and join, and Try again from the full state. */
     accept: () =>
       run("accept", async () => {

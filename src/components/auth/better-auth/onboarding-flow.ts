@@ -1,5 +1,6 @@
 import { settle, type AuthAnswer } from "@/lib/auth-answer"
-import { authErrorCopy } from "@/lib/auth-error-copy"
+import { authErrorCopy, eachCode, forCode } from "@/lib/auth-error-copy"
+import { createExternalStore } from "@/lib/external-store"
 import type { WorkspacePermission } from "@/lib/auth-guard"
 import { invitationRefusal } from "./invitation-copy"
 
@@ -12,10 +13,10 @@ export type PendingWorkspaceInvitation = {
   role: WorkspacePermission
 }
 
-export const NAME_MISSING = "Name your workspace."
+export const WORKSPACE_NAME_MISSING = "Name your workspace."
 
 /** Codes whose line belongs on the name field: a workspace URL another workspace has. */
-const NAME_CODES = new Set(["ORGANIZATION_ALREADY_EXISTS", "ORGANIZATION_SLUG_ALREADY_TAKEN"])
+const NAME_CODES = eachCode(["ORGANIZATION_ALREADY_EXISTS", "ORGANIZATION_SLUG_ALREADY_TAKEN"], true)
 
 export type OnboardingState = {
   nameError: string | null
@@ -31,24 +32,20 @@ type Options = {
 }
 
 /**
- * #379: Onboarding's workspace step, made once per mount, as `createPasswordRecoveryFlow` is. It calls the view's
- * callbacks, never the browser auth client, and reads every refusal from `authErrorCopy`. A Join refused because the
- * workspace is full or the invitation is gone reads as the invitation page does.
+ * #379: Onboarding's workspace step, made once per mount. It calls the view's callbacks, never the browser auth
+ * client, and reads every refusal from `authErrorCopy`. A Join refused because the workspace is full or the
+ * invitation is gone reads as the invitation page does.
  */
 export function createOnboardingFlow({ invitations, onJoin, onCreate }: Options) {
-  let state: OnboardingState = { nameError: null, alert: null, pending: null }
-  const listeners = new Set<() => void>()
-  const set = (next: Partial<OnboardingState>) => {
-    state = { ...state, ...next }
-    for (const listener of listeners) listener()
-  }
+  const store = createExternalStore<OnboardingState>({ nameError: null, alert: null, pending: null })
+  const set = (next: Partial<OnboardingState>) => store.set({ ...store.get(), ...next })
 
   /**
    * Runs one callback at a time, answering its refusal, or null when it succeeded or a call was already answering.
    * A throw is a refusal with no code, which reads as the generic line.
    */
   async function run(pending: OnboardingState["pending"], call: () => Promise<AuthAnswer>): Promise<{ code?: string } | null> {
-    if (state.pending) return null
+    if (store.get().pending) return null
     set({ pending, alert: null })
     const answer = await settle(call)
     set({ pending: null })
@@ -56,16 +53,11 @@ export function createOnboardingFlow({ invitations, onJoin, onCreate }: Options)
   }
 
   return {
-    snapshot: () => state,
-    subscribe(listener: () => void) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
+    snapshot: store.get,
+    subscribe: store.subscribe,
     /** Typing a name forgets what was said about the last one. */
     editName() {
-      if (state.nameError) set({ nameError: null })
+      if (store.get().nameError) set({ nameError: null })
     },
     async join(invitationId: string) {
       const refused = await run({ join: invitationId }, () => onJoin(invitationId))
@@ -75,13 +67,13 @@ export function createOnboardingFlow({ invitations, onJoin, onCreate }: Options)
       set({ alert: { at: "join", title: refusal?.title ?? authErrorCopy(refused.code), detail: refusal?.detail ?? null } })
     },
     async create(name: string) {
-      if (state.pending) return
+      if (store.get().pending) return
       const trimmed = name.trim()
-      if (!trimmed) return set({ nameError: NAME_MISSING, alert: null })
+      if (!trimmed) return set({ nameError: WORKSPACE_NAME_MISSING, alert: null })
       set({ nameError: null })
       const refused = await run("create", () => onCreate(trimmed))
       if (!refused) return
-      if (refused.code && NAME_CODES.has(refused.code)) set({ nameError: authErrorCopy(refused.code) })
+      if (forCode(NAME_CODES, refused.code)) set({ nameError: authErrorCopy(refused.code) })
       else set({ alert: { at: "create", title: authErrorCopy(refused.code), detail: null } })
     },
   }

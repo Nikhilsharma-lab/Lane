@@ -162,5 +162,25 @@ export function googleConnectionCode(redirectError: string): "GOOGLE_EMAIL_DOES_
 
 /** Lane's words for an auth error code. A code it doesn't know, or none, gets the generic line. */
 export function authErrorCopy(code: string | null | undefined): string {
-  return code && Object.hasOwn(AUTH_ERROR_COPY, code) ? AUTH_ERROR_COPY[code as keyof typeof AUTH_ERROR_COPY] : SOMETHING_WENT_WRONG
+  return isAuthErrorCode(code) ? AUTH_ERROR_COPY[code] : SOMETHING_WENT_WRONG
 }
+
+/** An error code Lane has words for: the keys every map from a code to a field, offer or screen is keyed by. */
+export type AuthErrorCode = keyof typeof AUTH_ERROR_COPY
+
+export const isAuthErrorCode = (code: string | null | undefined): code is AuthErrorCode =>
+  Boolean(code) && Object.hasOwn(AUTH_ERROR_COPY, code as string)
+
+/** What `map` holds for `code`; nothing for a code Lane has no words for, or none. */
+export const forCode = <V>(map: Partial<Record<AuthErrorCode, V>>, code: string | null | undefined): V | undefined =>
+  isAuthErrorCode(code) ? map[code] : undefined
+
+/** A map from each of `codes` to `value`, such as the field their line belongs on. */
+export const eachCode = <V>(codes: readonly AuthErrorCode[], value: V): Partial<Record<AuthErrorCode, V>> =>
+  Object.fromEntries(codes.map((code) => [code, value]))
+
+/** A typed code refused: wrong, expired, or used up. Its line belongs on the code field. */
+export const CODE_REFUSALS = ["INVALID_OTP", "OTP_EXPIRED", "TOO_MANY_ATTEMPTS"] as const satisfies readonly AuthErrorCode[]
+
+/** A new password refused for itself. Its line belongs on the new password's field. */
+export const NEW_PASSWORD_REFUSALS = ["PASSWORD_TOO_SHORT", "PASSWORD_TOO_LONG", "PASSWORD_COMPROMISED", "PASSWORD_CHECK_UNAVAILABLE"] as const satisfies readonly AuthErrorCode[]

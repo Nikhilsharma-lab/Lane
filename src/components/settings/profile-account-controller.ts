@@ -1,5 +1,7 @@
 import { settle, type AuthAnswer } from "@/lib/auth-answer"
-import { authErrorCopy, googleConnectionCode } from "@/lib/auth-error-copy"
+import { NEW_PASSWORD_MISSING, PERSON_NAME_MISSING } from "@/lib/auth-code-rules"
+import { createExternalStore } from "@/lib/external-store"
+import { authErrorCopy, eachCode, forCode, googleConnectionCode, NEW_PASSWORD_REFUSALS, type AuthErrorCode } from "@/lib/auth-error-copy"
 
 /** Every account callback answers success or an error code (`AuthAnswer`), which the view reads with `authErrorCopy`. */
 export type ProfileAccountCallbacks = {
@@ -11,15 +13,12 @@ export type ProfileAccountCallbacks = {
   onDisconnectGoogle: () => Promise<AuthAnswer>
 }
 
-const EMPTY_NAME = "Enter your name."
 const EMPTY_CURRENT = "Enter your current password."
-const EMPTY_NEW = "Enter a new password."
 
 export type PasswordField = "current" | "new"
-// The answers about the new password itself; the wrong current password is the other field's.
-const NEW_PASSWORD_CODES = new Set(["PASSWORD_TOO_SHORT", "PASSWORD_TOO_LONG", "PASSWORD_COMPROMISED", "PASSWORD_CHECK_UNAVAILABLE"])
-const fieldFor = (code: string | undefined): PasswordField | null =>
-  code === "INVALID_PASSWORD" ? "current" : code && NEW_PASSWORD_CODES.has(code) ? "new" : null
+// The wrong current password is that field's; the answers about the new password itself are the other's.
+const FIELD_OF: Partial<Record<AuthErrorCode, PasswordField>> = { INVALID_PASSWORD: "current", ...eachCode(NEW_PASSWORD_REFUSALS, "new") }
+const fieldFor = (code: string | undefined): PasswordField | null => forCode(FIELD_OF, code) ?? null
 
 /** A refused change's line, with Try again when sending it again could help. */
 export type Problem = { line: string; retry?: () => void }
@@ -55,32 +54,28 @@ const closedPassword = (mode: PasswordState["mode"]): PasswordState =>
 export function createProfileAccount(initial: ProfileAccountCallbacks & { name: string; googleError?: string }) {
   let current: ProfileAccountCallbacks = initial
   const callbacks = () => current
-  let state: ProfileAccountState = {
+  const store = createExternalStore<ProfileAccountState>({
     name: { draft: initial.name, saved: initial.name, busy: false, error: null },
     password: closedPassword("change"),
     google: { busy: null, problem: initial.googleError ? { line: authErrorCopy(googleConnectionCode(initial.googleError)) } : null },
     status: "",
-  }
-  const listeners = new Set<() => void>()
-  const set = (next: Partial<ProfileAccountState>) => {
-    state = { ...state, ...next }
-    listeners.forEach(listener => listener())
-  }
-  const name = (next: Partial<ProfileAccountState["name"]>) => ({ ...state.name, ...next })
-  const password = (next: Partial<PasswordState>) => ({ ...state.password, ...next })
+  })
+  const set = (next: Partial<ProfileAccountState>) => store.set({ ...store.get(), ...next })
+  const name = (next: Partial<ProfileAccountState["name"]>) => ({ ...store.get().name, ...next })
+  const password = (next: Partial<PasswordState>) => ({ ...store.get().password, ...next })
 
   return {
-    snapshot: () => state,
-    subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    snapshot: store.get,
+    subscribe: store.subscribe,
     keepCallbacks(next: ProfileAccountCallbacks) { current = next },
 
     changeName(draft: string) {
       set({ name: name({ draft, error: null }) })
     },
     async saveName() {
-      const draft = state.name.draft.trim()
-      if (state.name.busy || draft === state.name.saved) return
-      if (!draft) { set({ name: name({ error: EMPTY_NAME }) }); return }
+      const draft = store.get().name.draft.trim()
+      if (store.get().name.busy || draft === store.get().name.saved) return
+      if (!draft) { set({ name: name({ error: PERSON_NAME_MISSING }) }); return }
       set({ name: name({ busy: true, error: null }), status: "" })
       const answer = await settle(() => callbacks().onSaveName(draft))
       if (answer.ok) set({ name: name({ busy: false, draft, saved: draft }), status: "Name saved." })
@@ -93,24 +88,24 @@ export function createProfileAccount(initial: ProfileAccountCallbacks & { name: 
     },
     /** Closes it and drops what was typed. */
     closePassword() {
-      if (!state.password.busy) set({ password: closedPassword(state.password.mode) })
+      if (!store.get().password.busy) set({ password: closedPassword(store.get().password.mode) })
     },
     changeCurrentPassword(current: string) {
-      set({ password: password({ current, errors: { ...state.password.errors, current: undefined }, error: null }) })
+      set({ password: password({ current, errors: { ...store.get().password.errors, current: undefined }, error: null }) })
     },
     changeNewPassword(next: string) {
-      set({ password: password({ next, errors: { ...state.password.errors, new: undefined }, error: null }) })
+      set({ password: password({ next, errors: { ...store.get().password.errors, new: undefined }, error: null }) })
     },
     setSignOutOthers(signOutOthers: boolean) {
       set({ password: password({ signOutOthers }) })
     },
     /** Sends the change, or says what's missing. Answers the field a refusal belongs to, for focus. */
     async submitPassword(): Promise<PasswordField | null> {
-      const { mode, current, next, signOutOthers, busy } = state.password
+      const { mode, current, next, signOutOthers, busy } = store.get().password
       if (busy) return null
       const errors: PasswordState["errors"] = {}
       if (mode === "change" && !current) errors.current = EMPTY_CURRENT
-      if (!next) errors.new = EMPTY_NEW
+      if (!next) errors.new = NEW_PASSWORD_MISSING
       if (errors.current || errors.new) {
         set({ password: password({ errors, error: null }) })
         return errors.current ? "current" : "new"
@@ -140,7 +135,7 @@ export function createProfileAccount(initial: ProfileAccountCallbacks & { name: 
   }
 
   async function google(busy: "connect" | "disconnect", run: () => Promise<AuthAnswer>, success: string): Promise<void> {
-    if (state.google.busy) return
+    if (store.get().google.busy) return
     set({ google: { busy, problem: null }, status: "" })
     const answer = await settle(run)
     if (answer.ok) { set({ google: { busy: null, problem: null }, status: success }); return }

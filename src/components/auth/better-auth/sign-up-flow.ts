@@ -1,12 +1,12 @@
 import * as auth from "@/lib/auth-client"
-import { CODE_LENGTH } from "@/lib/auth-code-rules"
-import { authErrorCopy } from "@/lib/auth-error-copy"
+import { CODE_MISSING, isWholeCode, PASSWORD_MIN_LENGTH, PERSON_NAME_MISSING } from "@/lib/auth-code-rules"
+import { authErrorCopy, CODE_REFUSALS, eachCode, NEW_PASSWORD_REFUSALS } from "@/lib/auth-error-copy"
 import { HOME, safeReturnAddress } from "@/lib/auth-return-address"
 import { emailAddressProblem } from "@/lib/email-address-rules"
 import { signInPage, signUpPage } from "./auth-addresses"
+import { createAuthFlowStore } from "./auth-flow-store"
 import { createCodeSends } from "./code-sends"
 import { createHumanCheck, withHumanCheck, type HumanCheck } from "./human-check"
-import { CODE_MISSING } from "./sign-in-flow"
 
 /** Where a new account goes once signed in, unless it came from somewhere such as an invitation. */
 export const ONBOARDING_URL = "/onboarding"
@@ -18,25 +18,6 @@ export type SignUpFieldErrors = Partial<Record<SignUpField, string>>
 /** What the box under the fields offers beside its line: Sign in instead. */
 export type SignUpOffer = "sign-in" | null
 export type SignUpPending = "sign-up" | "google" | "send" | "code" | null
-
-/** Better Auth's shortest password on Lane's server (increment 3), said before any request. */
-export const PASSWORD_MIN_LENGTH = 8
-// Proposed for Nikhil (#378): the prototype's client-side line (auth-prototype.tsx:234), not in #346's ERR table.
-export const NAME_MISSING = "Enter your name."
-
-/** Codes whose words belong on a field rather than in the box under the fields. */
-const FIELD_OF: Partial<Record<string, SignUpField>> = {
-  PASSWORD_TOO_SHORT: "password",
-  PASSWORD_TOO_LONG: "password",
-  PASSWORD_COMPROMISED: "password",
-  PASSWORD_CHECK_UNAVAILABLE: "password",
-  INVALID_OTP: "code",
-  OTP_EXPIRED: "code",
-  TOO_MANY_ATTEMPTS: "code",
-}
-const OFFER_OF: Partial<Record<string, SignUpOffer>> = {
-  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "sign-in",
-}
 
 export type SignUpState = {
   step: SignUpStep
@@ -62,16 +43,16 @@ type Options = {
 }
 
 /**
- * #378: the sign-up screen's state, made once per mount, as `createSignInFlow` is. Its state holds only what the
- * screen shows. The typed password is kept in this closure from Create account until the sign-in after the email is
- * confirmed, and dropped then, whatever the answer.
+ * #378: the sign-up screen's state, made once per mount. Its state holds only what the screen shows. The typed
+ * password is kept in this closure from Create account until the sign-in after the email is confirmed, and dropped
+ * then, whatever the answer.
  */
 export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, humanCheck = createHumanCheck(), now = Date.now }: Options) {
   const destination = signedUpDestination(returnTo)
   const sends = createCodeSends(now)
-  /** The typed password, between Create account and the sign-in after confirming. Never in `state`. */
+  /** The typed password, between Create account and the sign-in after confirming. Never in the state. */
   let password: string | null = null
-  let state: SignUpState = {
+  const flow = createAuthFlowStore<SignUpState>({
     step: "details",
     name: "",
     email,
@@ -79,57 +60,30 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
     alert: errorCode ? { message: authErrorCopy(errorCode), offer: null } : null,
     pending: null,
     nextSendAt: 0,
-  }
-  const listeners = new Set<() => void>()
-  const set = (next: Partial<SignUpState>) => {
-    state = { ...state, ...next }
-    for (const listener of listeners) listener()
-  }
-
-  function refuse(code: string | undefined) {
-    const field = code ? FIELD_OF[code] : undefined
-    const message = authErrorCopy(code)
-    set(field ? { fieldErrors: { [field]: message }, alert: null } : { fieldErrors: {}, alert: { message, offer: (code && OFFER_OF[code]) || null } })
-  }
+  }, {
+    fieldOf: { ...eachCode(NEW_PASSWORD_REFUSALS, "password"), ...eachCode(CODE_REFUSALS, "code") },
+    offerOf: { USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "sign-in" },
+  })
+  const { get, set, run, refuse } = flow
+  const typedEmail = () => get().email.trim()
 
   async function sendConfirmation() {
-    const answer = await withHumanCheck(humanCheck, (token) => auth.sendCode({ email: state.email.trim(), purpose: "confirm" }, token))
+    const answer = await withHumanCheck(humanCheck, (token) => auth.sendCode({ email: typedEmail(), purpose: "confirm" }, token))
     if (!answer.ok) return refuse(answer.code)
     sends.sent()
     set({ fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt() })
   }
 
-  /** Runs one call at a time; a press while one is answering does nothing. */
-  async function run(pending: Exclude<SignUpPending, null>, call: () => Promise<void>) {
-    if (state.pending) return
-    set({ pending })
-    try {
-      await call()
-    } finally {
-      set({ pending: null })
-    }
-  }
-
   return {
     humanCheck,
     now,
-    snapshot: () => state,
-    subscribe(listener: () => void) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
+    snapshot: get,
+    subscribe: flow.subscribe,
     setName(next: string) {
-      set({ name: next, fieldErrors: { ...state.fieldErrors, name: undefined } })
+      set({ name: next, fieldErrors: { ...get().fieldErrors, name: undefined } })
     },
-    setEmail(next: string) {
-      set({ email: next, fieldErrors: { ...state.fieldErrors, email: undefined } })
-    },
-    /** Create account: needs the human check. */
-    clearFieldError(field: SignUpField) {
-      if (state.fieldErrors[field]) set({ fieldErrors: { ...state.fieldErrors, [field]: undefined } })
-    },
+    setEmail: flow.setEmail,
+    clearFieldError: flow.clearFieldError,
     /** Whether the typed password is still in memory: only between Create account and the sign-in after confirming. */
     holdsPassword: () => password !== null,
     continueWithGoogle: () =>
@@ -142,15 +96,15 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
     /** Create account: needs the human check. */
     signUp: ({ password: typed }: { password: string }) =>
       run("sign-up", async () => {
-        if (state.step !== "details") return
+        if (get().step !== "details") return
         const fieldErrors: SignUpFieldErrors = {}
-        if (!state.name.trim()) fieldErrors.name = NAME_MISSING
-        const emailProblem = emailAddressProblem(state.email)
+        if (!get().name.trim()) fieldErrors.name = PERSON_NAME_MISSING
+        const emailProblem = emailAddressProblem(get().email)
         if (emailProblem) fieldErrors.email = emailProblem
         if (typed.length < PASSWORD_MIN_LENGTH) fieldErrors.password = authErrorCopy("PASSWORD_TOO_SHORT")
-        if (Object.keys(fieldErrors).length) return set({ fieldErrors, alert: null })
+        if (Object.keys(fieldErrors).length) return flow.refuseFields(fieldErrors)
         const answer = await withHumanCheck(humanCheck, (token) =>
-          auth.signUp({ name: state.name.trim(), email: state.email.trim(), password: typed }, token))
+          auth.signUp({ name: get().name.trim(), email: typedEmail(), password: typed }, token))
         if (answer.ok) {
           password = typed
           sends.sent()
@@ -166,30 +120,29 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
     /** "Send a new code": a confirmation code, with a fresh token, once the wait is over. */
     resendCode: () =>
       run("send", async () => {
-        if (state.step !== "code" || sends.waiting()) return
+        if (get().step !== "code" || sends.waiting()) return
         await sendConfirmation()
       }),
     /** Confirm email, then sign in with the kept password. The password is dropped either way. */
     confirmEmail: ({ code }: { code: string }) =>
       run("code", async () => {
-        if (state.step !== "code") return
-        const digits = code.trim()
-        if (!new RegExp(`^\\d{${CODE_LENGTH}}$`).test(digits)) return set({ fieldErrors: { code: CODE_MISSING }, alert: null })
-        const confirmed = await auth.confirmEmail({ email: state.email.trim(), code: digits })
+        if (get().step !== "code") return
+        if (!isWholeCode(code)) return flow.refuseFields({ code: CODE_MISSING })
+        const confirmed = await auth.confirmEmail({ email: typedEmail(), code: code.trim() })
         if (!confirmed.ok) return refuse(confirmed.code)
         const kept = password
         password = null
-        const signedIn = kept !== null && (await auth.signInWithPassword({ email: state.email.trim(), password: kept })).ok
+        const signedIn = kept !== null && (await auth.signInWithPassword({ email: typedEmail(), password: kept })).ok
         if (signedIn) navigate(destination)
         else set({ step: "confirmed", fieldErrors: {}, alert: null })
       }),
     /** Sign in, once the email is confirmed but the sign-in after it didn't go: the sign-in page, email kept. */
     goToSignIn() {
-      navigate(signInPage(state.email, returnTo))
+      navigate(signInPage(get().email, returnTo))
     },
     /** "Use a different email": back to the details, with the name and email kept. A new Create account follows. */
     useDifferentEmail() {
-      if (state.pending || state.step !== "code") return
+      if (get().pending || get().step !== "code") return
       password = null
       set({ step: "details", fieldErrors: {}, alert: null })
     },

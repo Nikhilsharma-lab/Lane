@@ -1,13 +1,12 @@
 import * as auth from "@/lib/auth-client"
-import { CODE_LENGTH } from "@/lib/auth-code-rules"
-import { authErrorCopy } from "@/lib/auth-error-copy"
+import { CODE_MISSING, isWholeCode, NEW_PASSWORD_MISSING, PASSWORD_MIN_LENGTH } from "@/lib/auth-code-rules"
+import { authErrorCopy, CODE_REFUSALS, eachCode, NEW_PASSWORD_REFUSALS } from "@/lib/auth-error-copy"
 import { HOME } from "@/lib/auth-return-address"
 import { emailAddressProblem } from "@/lib/email-address-rules"
 import { signInPage } from "./auth-addresses"
+import { createAuthFlowStore } from "./auth-flow-store"
 import { createCodeSends } from "./code-sends"
 import { createHumanCheck, withHumanCheck, type HumanCheck } from "./human-check"
-import { CODE_MISSING } from "./sign-in-flow"
-import { PASSWORD_MIN_LENGTH } from "./sign-up-flow"
 
 /** The email and Send reset code, then the code and new password, then the saved password. */
 export type PasswordResetStep = "request" | "reset" | "saved"
@@ -16,23 +15,6 @@ export type PasswordResetFieldErrors = Partial<Record<PasswordResetField, string
 /** What the box under the fields offers beside its line: Sign up instead. */
 export type PasswordResetOffer = "sign-up" | null
 export type PasswordResetPending = "send" | "save" | null
-
-/** Today's recovery line for an empty new password (`password-recovery-flow.ts`). */
-export const NEW_PASSWORD_MISSING = "Enter a new password."
-
-/** Codes whose words belong on a field rather than in the box under the fields. */
-const FIELD_OF: Partial<Record<string, PasswordResetField>> = {
-  INVALID_OTP: "code",
-  OTP_EXPIRED: "code",
-  TOO_MANY_ATTEMPTS: "code",
-  PASSWORD_TOO_SHORT: "password",
-  PASSWORD_TOO_LONG: "password",
-  PASSWORD_COMPROMISED: "password",
-  PASSWORD_CHECK_UNAVAILABLE: "password",
-}
-const OFFER_OF: Partial<Record<string, PasswordResetOffer>> = {
-  NO_ACCOUNT: "sign-up",
-}
 
 export type PasswordResetState = {
   step: PasswordResetStep
@@ -63,32 +45,15 @@ type Options = {
  */
 export function createPasswordResetFlow({ email = "", navigate, humanCheck = createHumanCheck(), now = Date.now }: Options) {
   const sends = createCodeSends(now)
-  let state: PasswordResetState = { step: "request", email, fieldErrors: {}, alert: null, pending: null, nextSendAt: 0, signedIn: false }
-  const listeners = new Set<() => void>()
-  const set = (next: Partial<PasswordResetState>) => {
-    state = { ...state, ...next }
-    for (const listener of listeners) listener()
-  }
-
-  function refuse(code: string | undefined) {
-    const field = code ? FIELD_OF[code] : undefined
-    const message = authErrorCopy(code)
-    set(field ? { fieldErrors: { [field]: message }, alert: null } : { fieldErrors: {}, alert: { message, offer: (code && OFFER_OF[code]) || null } })
-  }
-
-  /** Runs one call at a time; a press while one is answering does nothing. */
-  async function run(pending: Exclude<PasswordResetPending, null>, call: () => Promise<void>) {
-    if (state.pending) return
-    set({ pending })
-    try {
-      await call()
-    } finally {
-      set({ pending: null })
-    }
-  }
+  const flow = createAuthFlowStore<PasswordResetState>(
+    { step: "request", email, fieldErrors: {}, alert: null, pending: null, nextSendAt: 0, signedIn: false },
+    { fieldOf: { ...eachCode(CODE_REFUSALS, "code"), ...eachCode(NEW_PASSWORD_REFUSALS, "password") }, offerOf: { NO_ACCOUNT: "sign-up" } },
+  )
+  const { get, set, run, refuse } = flow
+  const typedEmail = () => get().email.trim()
 
   async function send() {
-    const answer = await withHumanCheck(humanCheck, (token) => auth.requestReset({ email: state.email.trim() }, token))
+    const answer = await withHumanCheck(humanCheck, (token) => auth.requestReset({ email: typedEmail() }, token))
     if (!answer.ok) return refuse(answer.code)
     sends.sent()
     set({ step: "reset", fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt() })
@@ -97,61 +62,50 @@ export function createPasswordResetFlow({ email = "", navigate, humanCheck = cre
   return {
     humanCheck,
     now,
-    snapshot: () => state,
-    subscribe(listener: () => void) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
-    /** Typing in the email field clears what was said about it. */
-    setEmail(next: string) {
-      set({ email: next, fieldErrors: { ...state.fieldErrors, email: undefined } })
-    },
-    clearFieldError(field: PasswordResetField) {
-      if (state.fieldErrors[field]) set({ fieldErrors: { ...state.fieldErrors, [field]: undefined } })
-    },
+    snapshot: get,
+    subscribe: flow.subscribe,
+    setEmail: flow.setEmail,
+    clearFieldError: flow.clearFieldError,
     /** Send reset code. */
     requestCode: () =>
       run("send", async () => {
-        if (state.step !== "request" || sends.waiting()) return
-        const problem = emailAddressProblem(state.email)
-        if (problem) return set({ fieldErrors: { email: problem }, alert: null })
+        if (get().step !== "request" || sends.waiting()) return
+        const problem = emailAddressProblem(get().email)
+        if (problem) return flow.refuseFields({ email: problem })
         await send()
       }),
     /** "Send a new code", from the reset step, once the wait is over. */
     resendCode: () =>
       run("send", async () => {
-        if (state.step !== "reset" || sends.waiting()) return
+        if (get().step !== "reset" || sends.waiting()) return
         await send()
       }),
     /** Save new password, then sign in with it. Saving signs out every device (increment 3's server). */
     save: ({ code, password }: { code: string; password: string }) =>
       run("save", async () => {
-        if (state.step !== "reset") return
-        const digits = code.trim()
+        if (get().step !== "reset") return
         const fieldErrors: PasswordResetFieldErrors = {}
-        if (!new RegExp(`^\\d{${CODE_LENGTH}}$`).test(digits)) fieldErrors.code = CODE_MISSING
+        if (!isWholeCode(code)) fieldErrors.code = CODE_MISSING
         if (!password) fieldErrors.password = NEW_PASSWORD_MISSING
         else if (password.length < PASSWORD_MIN_LENGTH) fieldErrors.password = authErrorCopy("PASSWORD_TOO_SHORT")
-        if (Object.keys(fieldErrors).length) return set({ fieldErrors, alert: null })
-        const saved = await withHumanCheck(humanCheck, (token) => auth.resetPassword({ email: state.email.trim(), code: digits, password }, token))
+        if (Object.keys(fieldErrors).length) return flow.refuseFields(fieldErrors)
+        const saved = await withHumanCheck(humanCheck, (token) => auth.resetPassword({ email: typedEmail(), code: code.trim(), password }, token))
         if (!saved.ok) return refuse(saved.code)
-        const signedIn = await auth.signInWithPassword({ email: state.email.trim(), password })
+        const signedIn = await auth.signInWithPassword({ email: typedEmail(), password })
         set({ step: "saved", signedIn: signedIn.ok, fieldErrors: {}, alert: null })
       }),
     /** "Use a different email": back to the request, with the email kept. The resend wait stays. */
     useDifferentEmail() {
-      if (state.pending || state.step !== "reset") return
+      if (get().pending || get().step !== "reset") return
       set({ step: "request", fieldErrors: {}, alert: null })
     },
     /** Continue, once signed in with the new password. */
     continueToLane() {
-      if (state.step === "saved" && state.signedIn) navigate(HOME)
+      if (get().step === "saved" && get().signedIn) navigate(HOME)
     },
     /** Sign in, once saved but the sign-in after it didn't go: the sign-in page, email kept. */
     goToSignIn() {
-      navigate(signInPage(state.email))
+      navigate(signInPage(get().email))
     },
   }
 }

@@ -1,4 +1,5 @@
 import { settle, type AuthAnswer } from "@/lib/auth-answer"
+import { createExternalStore } from "@/lib/external-store"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import { deviceName, type SignedInDevice } from "./signed-in-device-rules"
 
@@ -26,16 +27,12 @@ export type SignedInDevicesState = {
 /** #380: what the Signed-in devices group shows, made once per mount. `keepCallbacks` keeps the view's latest ones. */
 export function createSignedInDevices(initial: SignedInDevicesCallbacks) {
   let current: SignedInDevicesCallbacks = initial
-  let state: SignedInDevicesState = { busy: null, problem: null, signedOut: [], othersSignedOut: false, status: "" }
-  const listeners = new Set<() => void>()
-  const set = (next: Partial<SignedInDevicesState>) => {
-    state = { ...state, ...next }
-    listeners.forEach(listener => listener())
-  }
+  const store = createExternalStore<SignedInDevicesState>({ busy: null, problem: null, signedOut: [], othersSignedOut: false, status: "" })
+  const set = (next: Partial<SignedInDevicesState>) => store.set({ ...store.get(), ...next })
 
   /** One sign-out. `gone` is what leaves the list once it's done; a refusal stays on its row with Try again. */
   async function run(target: Target, send: () => Promise<AuthAnswer>, gone: () => Partial<SignedInDevicesState>, success: string): Promise<void> {
-    if (state.busy) return
+    if (store.get().busy) return
     set({ busy: target, problem: null, status: "" })
     const answer = await settle(send)
     if (answer.ok) set({ busy: null, ...gone(), status: success })
@@ -43,12 +40,12 @@ export function createSignedInDevices(initial: SignedInDevicesCallbacks) {
   }
 
   return {
-    snapshot: () => state,
-    subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    snapshot: store.get,
+    subscribe: store.subscribe,
     keepCallbacks(next: SignedInDevicesCallbacks) { current = next },
 
     signOut(device: SignedInDevice) {
-      return run(device.id, () => current.onSignOutDevice(device), () => ({ signedOut: [...state.signedOut, device.id] }), `Signed out of ${deviceName(device)}.`)
+      return run(device.id, () => current.onSignOutDevice(device), () => ({ signedOut: [...store.get().signedOut, device.id] }), `Signed out of ${deviceName(device)}.`)
     },
     signOutOthers() {
       return run("others", () => current.onSignOutOtherDevices(), () => ({ othersSignedOut: true }), "Signed out of your other devices.")
