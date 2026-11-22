@@ -19,6 +19,10 @@ describe("Auth error copy", () => {
     expect(authErrorCopy("VERIFICATION_FAILED")).toBe("We couldn’t confirm you’re human. Refresh the page and try again.")
   })
 
+  it("has Lane's words, proposed for Nikhil to confirm, for a check that couldn't run and for Better Auth's own limit", () => {
+    expect(authErrorCopy("HUMAN_CHECK_UNAVAILABLE")).toBe("We couldn’t run the check that you’re human right now. Try again in a minute.")
+  })
+
   it("has Lane's words for every code the auth route's email-code and reset tests produce", () => {
     expect(authErrorCopy("NO_ACCOUNT")).toBe("No Lane account uses this email.")
     expect(authErrorCopy("INVALID_OTP")).toBe("That code isn’t right. Check the most recent email from Lane.")

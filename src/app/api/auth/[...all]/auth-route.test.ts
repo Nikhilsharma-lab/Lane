@@ -149,6 +149,22 @@ describe("the auth route switched on", () => {
       expect(await profileOf(rae.email)).toBeUndefined()
     })
 
+    it("refuses sign-up with HUMAN_CHECK_UNAVAILABLE while Turnstile can't be reached, and creates nothing", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {})
+      const outages: [string, () => Response | Promise<Response>][] = [
+        ["a 5xx", () => new Response("", { status: 503 })],
+        ["a thrown fetch", () => Promise.reject(new TypeError("fetch failed"))],
+      ]
+      for (const [label, answer] of outages) {
+        const rae = person("turnstile-down")
+        outbound.turnstile = answer
+        const signedUp = await signUp(rae)
+        expect([label, signedUp.status, codeOf(signedUp)]).toEqual([label, 503, "HUMAN_CHECK_UNAVAILABLE"])
+        expect(await profileOf(rae.email)).toBeUndefined()
+      }
+      expect(outbound.emails()).toEqual([])
+    })
+
     it("isn't asked for on verification submission or password sign-in", async () => {
       const rae = person("no-turnstile-after")
       const browser = new AuthBrowser()

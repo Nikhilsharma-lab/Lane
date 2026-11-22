@@ -296,6 +296,27 @@ export function getAuth(config: Config): Auth {
  * Answers one HTTP request to `/api/auth/*`. Each request runs in its own email store, so a send that fails reaches
  * that request's answer and no other's.
  */
-export function handleAuthRequest(config: Config, request: Request): Promise<Response> {
-  return requestEmails.run({ codeCounted: false }, () => getAuth(config).handler(request))
+export async function handleAuthRequest(config: Config, request: Request): Promise<Response> {
+  return withLaneCode(request, await requestEmails.run({ codeCounted: false }, () => getAuth(config).handler(request)))
+}
+
+/** The path under `/api/auth`, as Better Auth matches it. */
+const authPath = (request: Request) => new URL(request.url).pathname.replace(/^\/api\/auth/, "").replace(/\/+$/, "")
+
+/**
+ * Gives Lane's own code to an answer Better Auth makes before any endpoint or hook runs, so its code is too broad
+ * for Lane's words: Turnstile's plugin answers UNKNOWN_ERROR when siteverify can't be reached (fail closed, nothing
+ * else ran). Every other answer is passed on untouched, without reading its body.
+ */
+async function withLaneCode(request: Request, response: Response): Promise<Response> {
+  if (response.status !== 500 || !TURNSTILE_PATHS.includes(authPath(request))) return response
+  const body = (await response.clone().json().catch(() => null)) as { code?: unknown } | null
+  if (body?.code !== "UNKNOWN_ERROR") return response
+  return laneAnswer(response, 503, "HUMAN_CHECK_UNAVAILABLE")
+}
+
+function laneAnswer(response: Response, status: number, code: keyof typeof AUTH_ERROR_COPY): Response {
+  const headers = new Headers(response.headers)
+  headers.delete("content-length")
+  return Response.json({ code, message: AUTH_ERROR_COPY[code] }, { status, headers })
 }

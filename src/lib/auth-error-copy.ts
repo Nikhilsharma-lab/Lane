@@ -23,6 +23,8 @@ export const AUTH_ERROR_COPY = {
   // No token: the widget hasn't finished. Turnstile refused the token, or it expired: a reload gives a new one.
   MISSING_RESPONSE: "Finish the check that you’re human, then try again.",
   VERIFICATION_FAILED: "We couldn’t confirm you’re human. Refresh the page and try again.",
+  // Lane's code for Turnstile's siteverify not answering, so Better Auth's broad UNKNOWN_ERROR keeps the generic line.
+  HUMAN_CHECK_UNAVAILABLE: "We couldn’t run the check that you’re human right now. Try again in a minute.",
   // Google's redirect back, `?error=account_not_linked`: Google didn't confirm an email a Lane account uses.
   account_not_linked: "Google sign-in didn’t finish. Try again, or use your email.",
   // Email codes (#372). A code is burnt after 3 wrong tries, so too many tries reads as used up: only a new code helps.
