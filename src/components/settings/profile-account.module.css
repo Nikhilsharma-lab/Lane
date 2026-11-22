@@ -1,0 +1,12 @@
+/* #380 Settings → Profile's account section. All visual values come from the theme file (src/styles/theme.css). */
+/* The name field and its Save sit together, and wrap under each other when the row is narrow. */
+.inlineForm { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--space-2); min-width: 0; }
+.inlineForm > :first-child { flex: 1 1 auto; min-width: 0; }
+.passwordForm { display: grid; gap: var(--space-4); min-width: 0; }
+.passwordForm > * { min-width: 0; }
+.status { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); overflow-wrap: anywhere; }
+.status:empty { display: none; }
+/* Inputs read at 16px where a phone would otherwise zoom in on them. */
+@media (max-width: 640px), (pointer: coarse) {
+  .inlineForm input, .passwordForm input { font-size: var(--text-base); }
+}

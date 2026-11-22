@@ -47,12 +47,21 @@ const BETTER_AUTH_SERVER_FILES = [
   "src/lib/better-auth-session.ts",
   "src/lib/better-auth-session.test.ts",
 ];
-// #381 (#376 story 99): the workspace name and Leave rows are dormant until increment 5 mounts them, so nothing under
-// the app directory (a route, page or layout) imports them, statically or dynamically. #377 and #380 fence their own
-// views the same way; whichever of the three lands later merges the lists into one route rule.
-const DORMANT_WORKSPACE_ROWS_MESSAGE = "The workspace name and Leave rows are dormant: no route, page or layout imports them until increment 5 (#381).";
-const DORMANT_WORKSPACE_ROWS = [{ regex: "(^|/)(workspace-name-row|leave-workspace-row)$", message: DORMANT_WORKSPACE_ROWS_MESSAGE }];
-const DORMANT_WORKSPACE_ROWS_DYNAMIC = [{ selector: "ImportExpression[source.value=/(workspace-name-row|leave-workspace-row)$/]", message: DORMANT_WORKSPACE_ROWS_MESSAGE }];
+// #376: Lane's own auth and account screens stay dormant until increment 5 mounts them, so no route, page or layout
+// under src/app imports them, statically or through a dynamic import(). This is the one list: each increment 4 ticket
+// adds an entry. `module` is a regex for the imported file's name (no folder, no extension); `message` names the view
+// and its ticket. DORMANT_SCREENS (import declarations) and DORMANT_SCREENS_DYNAMIC (import()) are both built from it.
+const DORMANT_SCREEN_MODULES = [
+  // #380: Settings → Profile's account section (profile-account-view, -password, -devices and their controllers).
+  { module: "profile-account(-[\\w-]+)?", message: "Settings → Profile's account section is dormant until increment 5 mounts it (#380)." },
+  // #381 (story 99): the workspace name and Leave rows.
+  {
+    module: "(workspace-name-row|leave-workspace-row)",
+    message: "The workspace name and Leave rows are dormant: no route, page or layout imports them until increment 5 (#381).",
+  },
+];
+const DORMANT_SCREENS = DORMANT_SCREEN_MODULES.map(({ module, message }) => ({ regex: `(^|/)${module}$`, message }));
+const DORMANT_SCREENS_DYNAMIC = DORMANT_SCREEN_MODULES.map(({ module, message }) => ({ selector: `ImportExpression[source.value=/${module}$/]`, message }));
 const ROUTER_REFRESH = {
   selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='refresh']",
   message:
@@ -92,10 +101,11 @@ const eslintConfig = defineConfig([
     files: CLERK_SESSION_READERS,
     rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, ...BETTER_AUTH_SERVER_DYNAMIC] },
   },
-  // #371: the Better Auth server's own files may load it dynamically; the other rules still apply.
+  // #371: the Better Auth server's own files may load it dynamically; the other rules still apply. The auth route is
+  // under src/app, so it keeps the dormant screens' rule (#376).
   {
     files: BETTER_AUTH_SERVER_FILES,
-    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...DORMANT_SCREENS_DYNAMIC] },
   },
   // #356: all of src, tests and Arc included. Flat config keeps only the last matching block's options for a rule,
   // so the dialog and link blocks below repeat CLERK_SESSION, and every block repeats BETTER_AUTH_SERVER.
@@ -140,19 +150,20 @@ const eslintConfig = defineConfig([
     rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: BETTER_AUTH_SERVER }] },
   },
   // #371: only the Better Auth server module, the auth route, the session read (#374) and their tests load Better
-  // Auth's server.
+  // Auth's server. The auth route is under src/app, so it keeps the dormant screens' rule (#376).
   {
     files: BETTER_AUTH_SERVER_FILES,
-    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: DORMANT_SCREENS }] },
   },
-  // #381: the app directory keeps every rule the blocks above give it, plus the dormant-row fence. The Better Auth
-  // server's files keep their own allowance above.
+  // #376: the app's routes, pages and layouts keep every rule the blocks above give them, and don't import the dormant
+  // screens, statically or dynamically. The Better Auth server's files keep their own allowance above, which carries
+  // the same dormant-screen rule for the auth route.
   {
     files: ["src/app/**/*.{ts,tsx}"],
     ignores: ["src/**/*.test.ts", ...BETTER_AUTH_SERVER_FILES],
     rules: {
-      "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, ...DORMANT_WORKSPACE_ROWS_DYNAMIC],
-      "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, ...DORMANT_WORKSPACE_ROWS] }],
+      "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, ...DORMANT_SCREENS_DYNAMIC],
+      "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, ...DORMANT_SCREENS] }],
     },
   },
   // Override default ignores of eslint-config-next.
