@@ -148,19 +148,24 @@ export class AuthBrowser {
 /** The `code` of a Better Auth or Lane error answer, if it has one. */
 export const codeOf = (answer: AuthAnswer) => (answer.body as { code?: string } | null)?.code
 
+/** The `error` on the redirect back from Google sign-in, if it has one. */
+export const googleErrorOf = (answer: AuthAnswer) => (answer.location ? new URL(answer.location, AUTH_ORIGIN).searchParams.get("error") : null)
+
 /**
  * Keeps every error code a test file's answers carried, so its last test can check each one has Lane's own words
- * (#369: no error a person can meet falls to the generic line). Use its `codeOf` in place of the plain one.
+ * (#369: no error a person can meet falls to the generic line). Use its `codeOf` and `googleErrorOf` in place of the
+ * plain ones.
  */
 export function codesMet() {
   const met = new Set<string>()
+  const keep = <T extends string | null | undefined>(code: T): T => {
+    if (code) met.add(code)
+    return code
+  }
   return {
     met,
-    codeOf(answer: AuthAnswer) {
-      const code = codeOf(answer)
-      if (code) met.add(code)
-      return code
-    },
+    codeOf: (answer: AuthAnswer) => keep(codeOf(answer)),
+    googleErrorOf: (answer: AuthAnswer) => keep(googleErrorOf(answer)),
     /** The codes met that have no words of Lane's, or only the generic line. */
     withoutLaneWords: () => [...met].filter((code) => authErrorCopy(code) === SOMETHING_WENT_WRONG),
   }

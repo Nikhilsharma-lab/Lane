@@ -11,6 +11,52 @@ export const SOMETHING_WENT_WRONG = "Something went wrong. Try again."
 /** #333 Q4: the last Admin of a workspace can't leave it, be removed or stop being an Admin. */
 export const ONLY_ADMIN = "You’re the only Admin. Make someone else an Admin before you leave."
 
+/** #346's googleFailed line, for every way Google sign-in can come back unfinished. */
+const GOOGLE_FAILED = "Google sign-in didn’t finish. Try again, or use your email."
+
+/**
+ * Every `error` the redirect back from Google sign-in can carry (Better Auth 1.7). Each one means the sign-in didn't
+ * finish, and a person can only start again or use their email.
+ */
+const GOOGLE_REDIRECT_ERRORS = [
+  // Better Auth's callback codes (its oauth2/errors).
+  "no_code",
+  "oauth_provider_not_found",
+  "issuer_missing",
+  "issuer_mismatch",
+  "invalid_code",
+  "nonce_binding_missing",
+  "unable_to_get_user_info",
+  "no_callback_url",
+  "unable_to_link_account",
+  "email_does_not_match",
+  "account_already_linked_to_different_user",
+  "email_not_found",
+  "email_not_verified",
+  // Its callback's own checks, and the sign-in's state.
+  "invalid_callback_request",
+  "state_not_found",
+  "state_mismatch",
+  "state_invalid",
+  "internal_server_error",
+  // Its sign-in result, spaces as underscores. `account_not_linked`: Google didn't confirm an email a Lane account uses.
+  "account_not_linked",
+  "unable_to_update_account",
+  "signup_disabled",
+  "unable_to_create_user",
+  "unable_to_create_session",
+  // Google's own, passed through (OAuth 2.0, RFC 6749 4.1.2.1). `access_denied`: the person cancelled at Google.
+  "access_denied",
+  "invalid_request",
+  "unauthorized_client",
+  "unsupported_response_type",
+  "invalid_scope",
+  "server_error",
+  "temporarily_unavailable",
+] as const
+
+const GOOGLE_REDIRECT_COPY = Object.fromEntries(GOOGLE_REDIRECT_ERRORS.map((error) => [error, GOOGLE_FAILED])) as Record<(typeof GOOGLE_REDIRECT_ERRORS)[number], string>
+
 export const AUTH_ERROR_COPY = {
   // Sign-up
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "A Lane account already uses this email.",
@@ -27,8 +73,8 @@ export const AUTH_ERROR_COPY = {
   VERIFICATION_FAILED: "We couldn’t confirm you’re human. Refresh the page and try again.",
   // Lane's code for Turnstile's siteverify not answering, so Better Auth's broad UNKNOWN_ERROR keeps the generic line.
   HUMAN_CHECK_UNAVAILABLE: "We couldn’t run the check that you’re human right now. Try again in a minute.",
-  // Google's redirect back, `?error=account_not_linked`: Google didn't confirm an email a Lane account uses.
-  account_not_linked: "Google sign-in didn’t finish. Try again, or use your email.",
+  // Google's redirect back, `?error=<code>`.
+  ...GOOGLE_REDIRECT_COPY,
   // Email codes (#372). A code is burnt after 3 wrong tries, so too many tries reads as used up: only a new code helps.
   NO_ACCOUNT: "No Lane account uses this email.",
   INVALID_OTP: "That code isn’t right. Check the most recent email from Lane.",

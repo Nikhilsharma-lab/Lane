@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { queryCounter } from "@/db"
+import { authErrorCopy } from "@/lib/auth-error-copy"
 import {
   AuthBrowser,
   HIBP_RANGE_URL,
@@ -248,8 +249,21 @@ describe("the auth route switched on", () => {
       const browser = new AuthBrowser(undefined, false)
       const answer = await signInWithGoogle(browser, outbound, google(rae.email, false))
       expect(answer.status).toBe(302)
-      expect(new URL(answer.location!, "http://localhost:3000").searchParams.get("error")).toBe("account_not_linked")
+      expect(codes.googleErrorOf(answer)).toBe("account_not_linked")
       expect(await accountsOf(rae.email)).toEqual(["credential"])
+      expect((await browser.get("/get-session")).body).toBeNull()
+    })
+
+    it("sends someone back with an error that reads as Google's failed line when they cancel at Google or the sign-in's state doesn't match", async () => {
+      const browser = new AuthBrowser(undefined, false)
+      const start = await browser.post("/sign-in/social", { provider: "google", callbackURL: "/" })
+      const state = new URL((start.body as { url: string }).url).searchParams.get("state")
+      const cancelled = await browser.get(`/callback/google?error=access_denied&state=${state}`)
+      const mismatched = await new AuthBrowser(undefined, false).get("/callback/google?code=lane-test-code&state=not-the-state-lane-sent")
+      for (const [answer, error] of [[cancelled, "access_denied"], [mismatched, "state_mismatch"]] as const) {
+        expect([error, answer.status, codes.googleErrorOf(answer)]).toEqual([error, 302, error])
+        expect(authErrorCopy(error)).toBe("Google sign-in didn’t finish. Try again, or use your email.")
+      }
       expect((await browser.get("/get-session")).body).toBeNull()
     })
   })

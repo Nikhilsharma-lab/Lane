@@ -19,6 +19,17 @@ describe("Auth error copy", () => {
     expect(authErrorCopy("VERIFICATION_FAILED")).toBe("We couldn’t confirm you’re human. Refresh the page and try again.")
   })
 
+  it("gives every error Google sign-in's redirect back can carry #346's Google line", () => {
+    const errors = [
+      ...["no_code", "oauth_provider_not_found", "issuer_missing", "issuer_mismatch", "invalid_code", "nonce_binding_missing", "unable_to_get_user_info"],
+      ...["no_callback_url", "unable_to_link_account", "email_does_not_match", "account_already_linked_to_different_user", "email_not_found", "email_not_verified"],
+      ...["invalid_callback_request", "state_not_found", "state_mismatch", "state_invalid", "internal_server_error"],
+      ...["account_not_linked", "unable_to_update_account", "signup_disabled", "unable_to_create_user", "unable_to_create_session"],
+      ...["access_denied", "invalid_request", "unauthorized_client", "unsupported_response_type", "invalid_scope", "server_error", "temporarily_unavailable"],
+    ]
+    for (const error of errors) expect([error, authErrorCopy(error)]).toEqual([error, "Google sign-in didn’t finish. Try again, or use your email."])
+  })
+
   it("has Lane's words, proposed for Nikhil to confirm, for a check that couldn't run and for Better Auth's own limit", () => {
     expect(authErrorCopy("HUMAN_CHECK_UNAVAILABLE")).toBe("We couldn’t run the check that you’re human right now. Try again in a minute.")
     expect(authErrorCopy("PASSWORD_CHECK_UNAVAILABLE")).toBe("We couldn’t check this password right now. Try again in a minute.")
