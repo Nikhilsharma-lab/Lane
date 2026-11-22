@@ -36,8 +36,13 @@ const isCodeType = (type: unknown): type is keyof typeof CODE_KINDS => typeof ty
  * Why an auth request's email didn't go, as the Lane code its answer carries (#369). The answer's message is Lane's
  * own copy; the screens show the copy for the code, never the message.
  */
-type NotSent = "CODE_NOT_SENT" | "INVITATION_NOT_SENT" | "TOO_MANY_CODES"
-const NOT_SENT_STATUS = { CODE_NOT_SENT: "BAD_GATEWAY", INVITATION_NOT_SENT: "BAD_GATEWAY", TOO_MANY_CODES: "TOO_MANY_REQUESTS" } as const
+type NotSent = "CODE_NOT_SENT" | "SIGN_UP_CODE_NOT_SENT" | "INVITATION_NOT_SENT" | "TOO_MANY_CODES"
+const NOT_SENT_STATUS = { CODE_NOT_SENT: "BAD_GATEWAY", SIGN_UP_CODE_NOT_SENT: "BAD_GATEWAY", INVITATION_NOT_SENT: "BAD_GATEWAY", TOO_MANY_CODES: "TOO_MANY_REQUESTS" } as const
+/**
+ * Why each email's failed send answers what it does. A sign-up code goes to an account that isn't confirmed yet,
+ * which can't sign in by password, so its answer doesn't offer that.
+ */
+const NOT_SENT_FOR = { sign_up_code: "SIGN_UP_CODE_NOT_SENT", sign_in_code: "CODE_NOT_SENT", reset_code: "CODE_NOT_SENT", invitation: "INVITATION_NOT_SENT" } as const satisfies Record<AuthEmail["kind"], NotSent>
 
 /**
  * What one auth request's emails did. Better Auth swallows anything a sender throws and answers success, so a sender
@@ -55,13 +60,13 @@ function noteNotSent(reason: NotSent) {
 }
 
 /**
- * Sends one auth email through #358's sender and waits for it. A couldn't-send makes the request answer
- * CODE_NOT_SENT, or INVITATION_NOT_SENT for an invitation; sendAuthEmail has already logged it by kind and reason
- * only. Never throws. Every code, and every invitation, goes through here.
+ * Sends one auth email through #358's sender and waits for it. A couldn't-send makes the request answer the
+ * email's NOT_SENT_FOR code; sendAuthEmail has already logged it by kind and reason only. Never throws. Every code,
+ * and every invitation, goes through here.
  */
 async function sendForRequest(email: AuthEmail): Promise<void> {
   const result = await sendAuthEmail(email)
-  if (!result.ok) noteNotSent(email.kind === "invitation" ? "INVITATION_NOT_SENT" : "CODE_NOT_SENT")
+  if (!result.ok) noteNotSent(NOT_SENT_FOR[email.kind])
 }
 
 /** #344: at most 3 codes to one address in any 10 minutes, whatever the IP and whichever code. */

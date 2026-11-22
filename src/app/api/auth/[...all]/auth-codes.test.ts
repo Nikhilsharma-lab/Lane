@@ -7,6 +7,7 @@
 import { createHash, randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { authErrorCopy } from "@/lib/auth-error-copy"
 import { RESEND_EMAILS_URL } from "@/lib/messenger"
 import {
   AuthBrowser,
@@ -253,12 +254,18 @@ describe("email codes through the auth route", () => {
         }
       })
 
-    it("answers CODE_NOT_SENT for a sign-up whose verification code didn't go, keeping the new account", async () => {
+    it("answers SIGN_UP_CODE_NOT_SENT for a sign-up whose verification code didn't go, keeping the new account", async () => {
       const cody = person("sign-up-not-sent")
       outbound.resend = () => new Response("{}", { status: 503 })
       const answer = await signUp(cody)
-      expect([answer.status, codeOf(answer)]).toEqual([502, "CODE_NOT_SENT"])
+      expect([answer.status, codeOf(answer)]).toEqual([502, "SIGN_UP_CODE_NOT_SENT"])
+      // An unverified account can't sign in by password, so it isn't offered.
+      expect(authErrorCopy(codeOf(answer))).toBe("We couldn’t send the code right now. Try again in a few minutes.")
       expect(await profilesWith(cody.email)).toBe(1)
+
+      // So does asking for the verification code again.
+      const again = await from(new AuthBrowser()).post("/email-otp/send-verification-otp", { email: cody.email, type: "email-verification" })
+      expect([again.status, codeOf(again)]).toEqual([502, "SIGN_UP_CODE_NOT_SENT"])
     })
 
     it("answers CODE_NOT_SENT for a reset code that didn't go", async () => {

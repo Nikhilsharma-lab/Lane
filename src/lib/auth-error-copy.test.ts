@@ -49,6 +49,8 @@ describe("Auth error copy", () => {
     expect(authErrorCopy("OTP_EXPIRED")).toBe("That code has expired. Send a new one.")
     expect(authErrorCopy("TOO_MANY_ATTEMPTS")).toBe("That code has expired. Send a new one.")
     expect(authErrorCopy("CODE_NOT_SENT")).toBe(CODE_COULD_NOT_SEND)
+    // #346's sendFailedSignup, verbatim.
+    expect(authErrorCopy("SIGN_UP_CODE_NOT_SENT")).toBe("We couldn’t send the code right now. Try again in a few minutes.")
     // Proposed for Nikhil to confirm (#372).
     expect(authErrorCopy("TOO_MANY_CODES")).toBe("Too many codes sent to this email. Wait 10 minutes, then try again.")
   })

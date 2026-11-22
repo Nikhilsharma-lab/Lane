@@ -91,6 +91,9 @@ export const AUTH_ERROR_COPY = {
   RATE_LIMITED: "Too many tries. Wait a minute, then try again.",
   // Lane's codes for a send that failed (#358's sentences).
   CODE_NOT_SENT: CODE_COULD_NOT_SEND,
+  // A sign-up's verification code, sent or resent: #346's sendFailedSignup. The account isn't confirmed, so password
+  // sign-in, which CODE_NOT_SENT offers, would be refused.
+  SIGN_UP_CODE_NOT_SENT: "We couldn’t send the code right now. Try again in a few minutes.",
   INVITATION_NOT_SENT: INVITATION_COULD_NOT_SEND,
   // Signed out, on any call that needs a session.
   UNAUTHORIZED: "You’re signed out. Sign in, then try again.",
