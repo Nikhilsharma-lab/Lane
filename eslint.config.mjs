@@ -47,6 +47,15 @@ const BETTER_AUTH_SERVER_FILES = [
   "src/lib/better-auth-session.ts",
   "src/lib/better-auth-session.test.ts",
 ];
+// #376: Lane's own auth and account screens stay dormant until increment 5 mounts them, so no route, page or layout
+// under src/app imports them. Each increment 4 ticket adds its screens here; whichever lands second merges the lists.
+const DORMANT_SCREENS = [
+  // #380: Settings → Profile's account section (profile-account-view, -password, -devices and their controllers).
+  {
+    regex: "(^|/)profile-account(-[\\w-]+)?$",
+    message: "Settings → Profile's account section is dormant until increment 5 mounts it (#380).",
+  },
+];
 const ROUTER_REFRESH = {
   selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='refresh']",
   message:
@@ -128,16 +137,27 @@ const eslintConfig = defineConfig([
     ignores: ["src/**/*.test.ts"],
     rules: { "no-restricted-imports": ["error", { paths: [NEXT_LINK, CLERK_SESSION], patterns: BETTER_AUTH_SERVER }] },
   },
+  // #376: the app's routes, pages and layouts keep every rule above, and don't import the dormant screens.
+  {
+    files: ["src/app/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION],
+        patterns: [...BETTER_AUTH_SERVER, ...DORMANT_SCREENS],
+      }],
+    },
+  },
   // The seam keeps the dialog and link rules; only Clerk's session reads are allowed there.
   {
     files: ["src/lib/session.ts"],
     rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: BETTER_AUTH_SERVER }] },
   },
   // #371: only the Better Auth server module, the auth route, the session read (#374) and their tests load Better
-  // Auth's server.
+  // Auth's server. The auth route is under src/app, so it keeps the dormant screens' rule (#376).
   {
     files: BETTER_AUTH_SERVER_FILES,
-    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: DORMANT_SCREENS }] },
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([
