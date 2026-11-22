@@ -21,6 +21,14 @@ export const AUTH_ERROR_COPY = {
   VERIFICATION_FAILED: SOMETHING_WENT_WRONG,
   // Google's redirect back, `?error=account_not_linked`: Google didn't confirm an email a Lane account uses.
   account_not_linked: "Google sign-in didn’t finish. Try again, or use your email.",
+  // Email codes (#372). A code is burnt after 3 wrong tries, so too many tries reads as used up: only a new code helps.
+  NO_ACCOUNT: "No Lane account uses this email.",
+  INVALID_OTP: "That code isn’t right. Check the most recent email from Lane.",
+  OTP_EXPIRED: "That code has expired. Send a new one.",
+  TOO_MANY_ATTEMPTS: "That code has expired. Send a new one.",
+  // Proposed for Nikhil (#372), from #346's "Too many tries. Wait a minute, then try again.": a fourth code to one
+  // address in 10 minutes. The wait is at most 10 minutes, so it says so rather than a minute.
+  TOO_MANY_CODES: "Too many codes sent to this email. Wait 10 minutes, then try again.",
   // Lane's codes for a send that failed (#358's sentences).
   CODE_NOT_SENT: CODE_COULD_NOT_SEND,
   INVITATION_NOT_SENT: INVITATION_COULD_NOT_SEND,

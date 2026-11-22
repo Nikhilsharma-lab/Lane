@@ -1,4 +1,4 @@
-import { getAuth } from "@/lib/auth-server"
+import { handleAuthRequest } from "@/lib/auth-server"
 import { betterAuthServer } from "@/lib/feature-switches"
 
 /**
@@ -9,7 +9,7 @@ import { betterAuthServer } from "@/lib/feature-switches"
 async function handle(request: Request): Promise<Response> {
   const config = betterAuthServer()
   if (!config.on) return new Response(null, { status: 404 })
-  return getAuth(config).handler(request)
+  return handleAuthRequest(config, request)
 }
 
 export const GET = handle

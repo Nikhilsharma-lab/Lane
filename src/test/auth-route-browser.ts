@@ -35,7 +35,8 @@ export const TURNSTILE_TOKEN = "XXXX.DUMMY.TOKEN.XXXX"
 
 export type GoogleProfile = { sub: string; email: string; email_verified: boolean; name: string; picture?: string }
 export type OutboundCall = { url: string; method: string; body: string }
-type Answer = () => Response | Promise<Response>
+/** A faked service's answer to one call. It gets the call, so a test can answer each recipient differently. */
+type Answer = (call: OutboundCall) => Response | Promise<Response>
 
 const urlOf = (input: RequestInfo | URL) => (typeof input === "string" ? input : input instanceof URL ? input.href : input.url)
 const sha1 = (text: string) => createHash("sha1").update(text).digest("hex").toUpperCase()
@@ -70,10 +71,11 @@ export function fakeOutbound() {
   }
   vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = urlOf(input)
-    calls.push({ url, method: init?.method ?? (input instanceof Request ? input.method : "GET"), body: typeof init?.body === "string" ? init.body : "" })
-    if (url === TURNSTILE_SITEVERIFY_URL) return fake.turnstile()
+    const call = { url, method: init?.method ?? (input instanceof Request ? input.method : "GET"), body: typeof init?.body === "string" ? init.body : "" }
+    calls.push(call)
+    if (url === TURNSTILE_SITEVERIFY_URL) return fake.turnstile(call)
     if (url.startsWith(HIBP_RANGE_URL)) {
-      if (fake.hibp) return fake.hibp()
+      if (fake.hibp) return fake.hibp(call)
       const prefix = url.slice(HIBP_RANGE_URL.length)
       const lines = [...fake.breached].map(sha1).filter((hash) => hash.startsWith(prefix)).map((hash) => `${hash.slice(5)}:42`)
       return new Response([...lines, "0000000000000000000000000000000000A:0"].join("\r\n"), { headers: { "content-type": "text/plain" } })
@@ -86,7 +88,7 @@ export function fakeOutbound() {
       const idToken = unsignedJwt({ iss: "https://accounts.google.com", aud: TEST_AUTH_ENV.GOOGLE_CLIENT_ID, iat: now, exp: now + 3600, ...profile })
       return Response.json({ access_token: "ya29.lane-test", expires_in: 3599, token_type: "Bearer", scope: "openid email profile", id_token: idToken })
     }
-    if (url === RESEND_EMAILS_URL) return fake.resend()
+    if (url === RESEND_EMAILS_URL) return fake.resend(call)
     throw new Error(`The test made an unexpected outbound call to ${url}`)
   })
   return fake
@@ -96,7 +98,8 @@ export type Outbound = ReturnType<typeof fakeOutbound>
 
 // 198.18.0.0/15 is set aside for testing; a random start keeps runs apart in the shared rate_limit table.
 let nextAddress = Math.floor(Math.random() * 60_000)
-const freshIp = () => {
+/** A fresh address in the test range, so a browser can step past Better Auth's per-IP limits. */
+export const freshIp = () => {
   nextAddress = (nextAddress + 1) % 131_072
   return `198.${18 + (nextAddress >> 16)}.${(nextAddress >> 8) & 255}.${nextAddress & 255}`
 }
