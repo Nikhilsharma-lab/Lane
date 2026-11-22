@@ -10,7 +10,7 @@ import { vi } from "vitest"
 import { createHumanCheck } from "@/components/auth/better-auth/human-check"
 
 /** Better Auth's own message on every faked failure. No screen may show it. */
-export const BETTER_AUTH_MESSAGE = "Better Auth's own words, never shown"
+export const BETTER_AUTH_MESSAGE = "Better Auth message text, never shown to a person"
 
 /** What the browser puts in `x-captcha-response` once Turnstile's widget passes (as `src/test/auth-route-browser.ts`). */
 export const TURNSTILE_TOKEN = "XXXX.DUMMY.TOKEN.XXXX"

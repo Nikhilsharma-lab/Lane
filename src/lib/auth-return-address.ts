@@ -12,7 +12,6 @@ const RETURN_PARAM = "redirect_url"
  */
 export function safeReturnAddress(value: string | null | undefined): string {
   if (!value || !value.startsWith("/") || value[1] === "/" || value[1] === "\\") return HOME
-  // eslint-disable-next-line no-control-regex
   return /[\u0000-\u001f\u007f]/.test(value) ? HOME : value
 }
 
