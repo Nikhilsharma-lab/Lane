@@ -324,6 +324,17 @@ describe("email codes through the auth route", () => {
       expect((await askForSignInCode(new AuthBrowser(), other.email)).status).toBe(200)
     })
 
+    it("refuses a sign-up past the limit before the account is made: no profile, and nothing sent", async () => {
+      const cody = person("limit-sign-up")
+      await threeCodesSent(cody)
+      // The address's account goes, but its 3 codes still count.
+      await connection`delete from profiles where email = ${cody.email}`
+      const again = await signUp(cody, from(new AuthBrowser()))
+      expect([again.status, codeOf(again)]).toEqual([429, "TOO_MANY_CODES"])
+      expect(await profilesWith(cody.email)).toBe(0)
+      expect(outbound.emailsTo(cody.email)).toHaveLength(3)
+    })
+
     it("keeps the counter under a hash of the address, never the address", async () => {
       const cody = person("limit-key")
       await threeCodesSent(cody)

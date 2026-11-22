@@ -75,23 +75,39 @@ const CODE_WINDOW_SECONDS = 10 * 60
 const CODE_COUNTER_PREFIX = "lane-codes:"
 
 /**
- * Counts one code send to `email`, or answers false when 3 were already sent in the last 10 minutes. The counter
- * lives in Better Auth's rate_limit table, keyed by a SHA-256 of the lower-cased address and never the address:
- * one row per send (`lane-codes:<hash>:<slot>`, 3 slots), each holding when it was sent. A slot older than 10
- * minutes is free again, so the limit holds over any 10 minutes, not fixed blocks of them. A lock on the address
- * keeps two requests from taking the last slot together.
+ * The counter lives in Better Auth's rate_limit table, keyed by a SHA-256 of the lower-cased address and never the
+ * address: one row per send (`lane-codes:<hash>:<slot>`, 3 slots), each holding when it was sent. A slot older than
+ * 10 minutes is free again, so the limit holds over any 10 minutes, not fixed blocks of them.
+ */
+function codeCounter(email: string) {
+  const hash = createHash("sha256").update(email.trim().toLowerCase()).digest("hex")
+  return { lock: CODE_COUNTER_PREFIX + hash, keys: Array.from({ length: CODE_LIMIT }, (_, slot) => `${CODE_COUNTER_PREFIX}${hash}:${slot}`) }
+}
+
+/** The first of the address's slots not used in the last 10 minutes, if any. */
+async function freeCodeSlot(reader: Pick<typeof db, "select">, keys: string[], now: number): Promise<string | undefined> {
+  const taken = await reader
+    .select({ key: rateLimit.key })
+    .from(rateLimit)
+    .where(and(inArray(rateLimit.key, keys), gt(rateLimit.lastRequest, now - CODE_WINDOW_SECONDS * 1000)))
+  return keys.find((key) => !taken.some((row) => row.key === key))
+}
+
+/** Whether `email` may be sent a code now, without counting one. */
+async function mayGetCode(email: string): Promise<boolean> {
+  return Boolean(await freeCodeSlot(db, codeCounter(email).keys, Date.now()))
+}
+
+/**
+ * Counts one code send to `email`, or answers false when 3 were already sent in the last 10 minutes. A lock on the
+ * address keeps two requests from taking the last slot together.
  */
 async function countCodeSend(email: string): Promise<boolean> {
-  const hash = createHash("sha256").update(email.trim().toLowerCase()).digest("hex")
-  const keys = Array.from({ length: CODE_LIMIT }, (_, slot) => `${CODE_COUNTER_PREFIX}${hash}:${slot}`)
+  const { lock, keys } = codeCounter(email)
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${CODE_COUNTER_PREFIX + hash}))`)
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${lock}))`)
     const now = Date.now()
-    const taken = await tx
-      .select({ key: rateLimit.key })
-      .from(rateLimit)
-      .where(and(inArray(rateLimit.key, keys), gt(rateLimit.lastRequest, now - CODE_WINDOW_SECONDS * 1000)))
-    const free = keys.find((key) => !taken.some((row) => row.key === key))
+    const free = await freeCodeSlot(tx, keys, now)
     if (!free) return false
     await tx.insert(rateLimit).values({ id: randomUUID(), key: free, count: 1, lastRequest: now }).onConflictDoUpdate({ target: rateLimit.key, set: { count: 1, lastRequest: now } })
     return true
@@ -149,7 +165,9 @@ function refuseRoleNotInLane(role: unknown): void {
 /**
  * Lane's checks before Better Auth's own endpoint runs, after Turnstile and Better Auth's IP limit. Better Auth
  * alone answers success and sends nothing in both cases, leaving the person waiting for a code.
- * - Sign-up: an address that already has a Lane account is told so (#369 story 7).
+ * - Sign-up: an address that already has a Lane account is told so (#369 story 7). Then the address's code limit,
+ *   so a sign-up that couldn't be sent its code gets TOO_MANY_CODES before the account is made. It isn't counted
+ *   here: Better Auth may still refuse the password, and the code is counted when it's sent.
  * - A code request: an address with no Lane account gets NO_ACCOUNT and nothing is sent (#333 Q16). Then the
  *   address's code limit: a fourth code in 10 minutes gets TOO_MANY_CODES. Both run before Better Auth makes the
  *   code, so a refused request leaves the last code sent still working, and only a request that reaches the limit
@@ -158,6 +176,8 @@ function refuseRoleNotInLane(role: unknown): void {
  *   Better Auth refuses an empty or unknown role itself, with its own code, before its organization hooks run.
  *   So it also runs before the permission check: anyone sending a role Lane doesn't have gets ROLE_NOT_IN_LANE.
  */
+const tooManyCodes = () => APIError.from(NOT_SENT_STATUS.TOO_MANY_CODES, { code: "TOO_MANY_CODES", message: AUTH_ERROR_COPY.TOO_MANY_CODES })
+
 const beforeEndpoint = createAuthMiddleware(async (ctx) => {
   if (ROLE_PATHS.includes(ctx.path)) return refuseRoleNotInLane(ctx.body?.role)
   if (ctx.path !== "/sign-up/email" && !CODE_REQUEST_PATHS.includes(ctx.path)) return
@@ -167,10 +187,11 @@ const beforeEndpoint = createAuthMiddleware(async (ctx) => {
   const hasAccount = Boolean(email && (await ctx.context.internalAdapter.findUserByEmail(email)))
   if (ctx.path === "/sign-up/email") {
     if (hasAccount) throw APIError.from("UNPROCESSABLE_ENTITY", { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL", message: "A Lane account already uses this email." })
+    if (email && !(await mayGetCode(email))) throw tooManyCodes()
     return
   }
   if (!hasAccount) throw APIError.from("BAD_REQUEST", { code: "NO_ACCOUNT", message: AUTH_ERROR_COPY.NO_ACCOUNT })
-  if (!(await countCodeSend(email))) throw APIError.from(NOT_SENT_STATUS.TOO_MANY_CODES, { code: "TOO_MANY_CODES", message: AUTH_ERROR_COPY.TOO_MANY_CODES })
+  if (!(await countCodeSend(email))) throw tooManyCodes()
   const store = requestEmails.getStore()
   if (store) store.codeCounted = true
 })
@@ -337,7 +358,8 @@ function build(config: Config) {
         disableSignUp: true,
         overrideDefaultEmailVerification: true,
         // Awaited, never thrown (Better Auth would swallow it): the request's answer says when it didn't go. A code
-        // request was counted in beforeEndpoint; sign-up's verification code is counted here, once the account exists.
+        // request was counted in beforeEndpoint. Sign-up's verification code is counted here, once the account exists;
+        // beforeEndpoint already refused a sign-up past the limit.
         sendVerificationOTP: async ({ email, otp, type }) => {
           if (!isCodeType(type)) return
           if (!requestEmails.getStore()?.codeCounted && !(await countCodeSend(email))) return noteNotSent("TOO_MANY_CODES")
