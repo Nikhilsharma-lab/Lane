@@ -263,6 +263,15 @@ describe("email codes through the auth route", () => {
     const resendBodies = () => outbound.callsTo(RESEND_EMAILS_URL).map((call) => JSON.parse(call.body) as { to: string[]; text: string })
     /** Every console.error line so far, for checking nothing that signs someone in was logged. */
     const errorLines = () => vi.mocked(console.error).mock.calls.map((args) => args.map(String).join(" "))
+    /** The failed send was logged, and no line holds the address or the code Resend was given for it. */
+    function expectLoggedWithoutAddressOrCode(email: string) {
+      const code = resendBodies().filter((body) => body.to.includes(email)).at(-1)!.text.match(/\b(\d{6})\b/)![1]
+      expect(errorLines().some((line) => line.includes("[auth-email]"))).toBe(true)
+      for (const line of errorLines()) {
+        expect(line).not.toContain(email.split("@")[0])
+        expect(line).not.toContain(code)
+      }
+    }
 
     for (const [label, answer] of failures)
       it(`answers CODE_NOT_SENT on ${label}, and logs neither the address nor the code`, async () => {
@@ -271,15 +280,10 @@ describe("email codes through the auth route", () => {
         outbound.resend = answer
         const asked = await askForSignInCode(new AuthBrowser(), cody.email)
         expect([asked.status, codeOf(asked)]).toEqual([502, "CODE_NOT_SENT"])
-        const code = resendBodies().at(-1)!.text.match(/\b(\d{6})\b/)![1]
-        expect(errorLines().some((line) => line.includes("[auth-email]"))).toBe(true)
-        for (const line of errorLines()) {
-          expect(line).not.toContain(cody.email.split("@")[0])
-          expect(line).not.toContain(code)
-        }
+        expectLoggedWithoutAddressOrCode(cody.email)
       })
 
-    it("answers SIGN_UP_CODE_NOT_SENT for a sign-up whose verification code didn't go, keeping the new account", async () => {
+    it("answers SIGN_UP_CODE_NOT_SENT for a sign-up whose verification code didn't go, keeping the new account, and logs neither the address nor the code", async () => {
       const cody = person("sign-up-not-sent")
       outbound.resend = () => new Response("{}", { status: 503 })
       const answer = await signUp(cody)
@@ -287,18 +291,20 @@ describe("email codes through the auth route", () => {
       // An unverified account can't sign in by password, so it isn't offered.
       expect(authErrorCopy(codeOf(answer))).toBe("We couldn’t send the code right now. Try again in a few minutes.")
       expect(await profilesWith(cody.email)).toBe(1)
+      expectLoggedWithoutAddressOrCode(cody.email)
 
       // So does asking for the verification code again.
       const again = await from(new AuthBrowser()).post("/email-otp/send-verification-otp", { email: cody.email, type: "email-verification" })
       expect([again.status, codeOf(again)]).toEqual([502, "SIGN_UP_CODE_NOT_SENT"])
     })
 
-    it("answers CODE_NOT_SENT for a reset code that didn't go", async () => {
+    it("answers CODE_NOT_SENT for a reset code that didn't go, and logs neither the address nor the code", async () => {
       const cody = person("reset-not-sent")
       await signUpVerified(outbound, cody)
       outbound.resend = () => Promise.reject(new TypeError("fetch failed"))
       const answer = await askForResetCode(new AuthBrowser(), cody.email)
       expect([answer.status, codeOf(answer)]).toEqual([502, "CODE_NOT_SENT"])
+      expectLoggedWithoutAddressOrCode(cody.email)
     })
 
     it("gives two requests in flight together their own answers, one failing and one sending", async () => {

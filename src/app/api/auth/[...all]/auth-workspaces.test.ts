@@ -165,16 +165,24 @@ describe("workspaces through the auth route", () => {
       expect(row.expires_at.getTime() - Date.now()).toBeGreaterThan(6.9 * 24 * 60 * 60 * 1000)
     })
 
-    it("answers INVITATION_NOT_SENT when the email couldn't be sent, and keeps the invitation", async () => {
-      vi.spyOn(console, "error").mockImplementation(() => {})
+    it("answers INVITATION_NOT_SENT when the email couldn't be sent, keeps the invitation, and logs neither the address nor the link", async () => {
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {})
       const { browser: admin } = await signedIn("unsent")
       const workspaceId = await createWorkspace(admin)
       const invitee = person("not-reached")
       outbound.resend = () => new Response("{}", { status: 503 })
       const answer = await invite(admin, invitee.email, "viewer")
       expect([answer.status, codeOf(answer)]).toEqual([502, "INVITATION_NOT_SENT"])
-      const rows = await connection`select role, status from invitation where organization_id = ${workspaceId} and email = ${invitee.email}`
-      expect(rows.map((row) => ({ ...row }))).toEqual([{ role: "viewer", status: "pending" }])
+      const rows = await connection`select id, role, status from invitation where organization_id = ${workspaceId} and email = ${invitee.email}`
+      expect(rows.map(({ role, status }) => ({ role, status }))).toEqual([{ role: "viewer", status: "pending" }])
+
+      const lines = errors.mock.calls.map((args) => args.map(String).join(" "))
+      expect(lines.some((line) => line.includes("[auth-email]"))).toBe(true)
+      for (const line of lines) {
+        expect(line).not.toContain(invitee.email.split("@")[0])
+        expect(line).not.toContain("/invite/")
+        expect(line).not.toContain(rows[0].id)
+      }
     })
 
     it("is accepted only by a signed-in account whose verified email matches it", async () => {
