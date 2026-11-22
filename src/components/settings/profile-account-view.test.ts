@@ -21,7 +21,7 @@ const base = (): ProfileAccountViewProps => ({
 /** Mounts the view with its controller made from these props, and returns that controller to drive. */
 function mount(props: Partial<ProfileAccountViewProps> = {}) {
   const all = { ...base(), ...props }
-  const account = actual.createProfileAccount(all, () => all)
+  const account = actual.createProfileAccount(all)
   vi.mocked(createProfileAccount).mockReturnValue(account)
   return { account, render: () => renderToStaticMarkup(createElement(ProfileAccountView, all)) }
 }
@@ -93,6 +93,16 @@ describe("Settings → Profile, Account (#380)", () => {
 })
 
 describe("Settings → Profile, Sign-in methods (#380)", () => {
+  it("keeps the password dialog out of the page until it opens, and says on the page what a saved change did", async () => {
+    const { account, render } = mount()
+    expect(render()).not.toContain("Current password")
+    account.openPassword("change")
+    account.changeCurrentPassword("old-secret")
+    account.changeNewPassword("new-secret-1")
+    await account.submitPassword()
+    expect(render()).toMatch(/role="status"[^>]*>Password changed\. Your other devices are signed out\.</)
+  })
+
   it("offers Change password to someone with a password, and Set a password to someone who signs in only with Google", () => {
     const withPassword = render()
     expect(button(withPassword, "Change password")).toBeDefined()

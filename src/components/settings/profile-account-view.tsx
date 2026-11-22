@@ -4,11 +4,16 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } fro
 import { Alert } from "@/components/arc/alert/alert"
 import { Button } from "@/components/arc/button/button"
 import { Input } from "@/components/arc/input/input"
+import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup"
 import { GOOGLE_ONLY_METHOD } from "@/lib/auth-error-copy"
 import { createProfileAccount, type ProfileAccountCallbacks } from "./profile-account-controller"
 import { SettingsGroup, SettingsRow, SettingsRowFailure } from "./settings-group"
 import styles from "./settings.module.css"
 import account from "./profile-account.module.css"
+
+// Settings → Profile has about 48 bytes of first-load room (Build 8), so the password dialog loads the first time it
+// opens. If it can't load, Lane says so and nothing changes.
+const passwordDialogCode = popupCode(() => import("./profile-account-password"))
 
 export type ProfileAccountViewProps = ProfileAccountCallbacks & {
   name: string
@@ -30,13 +35,15 @@ export type ProfileAccountViewProps = ProfileAccountCallbacks & {
 export function ProfileAccountView(props: ProfileAccountViewProps) {
   const { email, methods, googleEmail } = props
   const googleOnly = methods.google && !methods.password
-  const latest = useRef(props)
-  useEffect(() => { latest.current = props })
-  const [controller] = useState(() => createProfileAccount(props, () => latest.current))
+  const [controller] = useState(() => createProfileAccount(props))
+  useEffect(() => { controller.keepCallbacks(props) })
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot)
   const nameRef = useRef<HTMLInputElement>(null)
   const draft = state.name.draft.trim()
   const problem = state.google.problem
+  const mode = methods.password ? "change" : "set"
+  const passwordDialog = usePopupCode(passwordDialogCode, state.password.open,
+    () => couldNotOpen("account-password", open => { if (open) controller.openPassword(mode); else controller.closePassword() }))
 
   async function saveName(event: FormEvent) {
     event.preventDefault()
@@ -58,7 +65,7 @@ export function ProfileAccountView(props: ProfileAccountViewProps) {
     <SettingsGroup label="Sign-in methods" labelId="sign-in-methods-heading" description="Keep at least one way to sign in. You can always get a sign-in code by email.">
       <SettingsRow label="Password"
         hint={methods.password ? "Changing it can sign you out on your other devices." : methods.google ? "You sign in with Google. Add a password to sign in without it." : undefined}
-        control={<Button type="button" variant="secondary" size="sm">{methods.password ? "Change password" : "Set a password"}</Button>} />
+        control={<Button type="button" variant="secondary" size="sm" onClick={() => controller.openPassword(mode)}>{methods.password ? "Change password" : "Set a password"}</Button>} />
       <SettingsRow label="Google" hint={methods.google ? `Connected as ${googleEmail ?? email}.` : `Sign in with your Google account for ${email}.`}
         control={methods.google
           ? <Button type="button" variant="secondary" size="sm" disabled={googleOnly} aria-describedby={googleOnly ? "google-only-method" : undefined}
@@ -72,5 +79,7 @@ export function ProfileAccountView(props: ProfileAccountViewProps) {
     </SettingsGroup>
 
     <p role="status" className={account.status}>{state.status}</p>
+
+    {passwordDialog && <passwordDialog.ProfileAccountPasswordDialog account={controller} mode={state.password.mode} email={email} />}
   </>
 }
