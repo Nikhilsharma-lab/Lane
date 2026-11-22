@@ -22,25 +22,27 @@ const CLERK_SESSION_DYNAMIC = {
 const CLERK_SESSION_READERS = ["src/lib/session.ts", "src/lib/session.test.ts"];
 // #371: the Better Auth server stays dormant until increment 5 widens this list on purpose. Only the server module,
 // the auth route, the session read (#374) and their tests load Better Auth's server entry points, Lane's server
-// instance or the session read. The browser
-// client entries (better-auth/client, better-auth/react) stay open for the screens.
+// instance or the session read. The browser client entries (better-auth/client, better-auth/react) stay open for
+// the screens.
 const BETTER_AUTH_SERVER = [
   {
     regex: "^better-auth(?!/(client|react|vue|svelte|solid)(/|$))(/.*)?$",
-    message: "Better Auth's server is dormant: only src/lib/auth-server.ts and the auth route load it (#371).",
+    message: "Better Auth's server is dormant: only src/lib/auth-server.ts, the auth route and the session read (src/lib/better-auth-session.ts) load it (#371, #374).",
   },
   { regex: "(^|/)auth-server$", message: "Better Auth's server instance is dormant: only the auth route uses it (#371)." },
   { regex: "(^|/)better-auth-session$", message: "The Better Auth session read is dormant until increment 5 makes readSession call it (#374)." },
 ];
 const BETTER_AUTH_SERVER_DYNAMIC = [
-  { selector: "ImportExpression[source.value=/^better-auth/]", message: "Better Auth's server is dormant: only src/lib/auth-server.ts loads it (#371)." },
+  {
+    selector: "ImportExpression[source.value=/^better-auth/]",
+    message: "Better Auth's server is dormant: only src/lib/auth-server.ts, the auth route and the session read (src/lib/better-auth-session.ts) load it (#371, #374).",
+  },
   { selector: "ImportExpression[source.value=/auth-server$/]", message: "Better Auth's server instance is dormant: only the auth route uses it (#371)." },
   { selector: "ImportExpression[source.value=/better-auth-session$/]", message: "The Better Auth session read is dormant until increment 5 makes readSession call it (#374)." },
 ];
 // #374: the dormant session read and its test join them. Nothing else imports the read until increment 5.
 const BETTER_AUTH_SERVER_FILES = [
   "src/lib/auth-server.ts",
-  "src/lib/auth-server.test.ts",
   "src/app/api/auth/**/*.ts",
   "src/lib/better-auth-session.ts",
   "src/lib/better-auth-session.test.ts",
@@ -131,7 +133,8 @@ const eslintConfig = defineConfig([
     files: ["src/lib/session.ts"],
     rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: BETTER_AUTH_SERVER }] },
   },
-  // #371: only the Better Auth server module, the auth route and its tests load Better Auth's server.
+  // #371: only the Better Auth server module, the auth route, the session read (#374) and their tests load Better
+  // Auth's server.
   {
     files: BETTER_AUTH_SERVER_FILES,
     rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION] }] },
