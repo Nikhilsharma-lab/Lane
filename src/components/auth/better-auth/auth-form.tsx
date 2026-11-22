@@ -5,7 +5,6 @@ import { useState } from "react"
 
 import { Alert } from "@/components/arc/alert/alert"
 import Link from "@/components/link"
-import { SIGN_UP_URL } from "@/lib/session-task-urls"
 import { AuthAction } from "../auth-action"
 import { AuthInputField, AuthPasswordField } from "../auth-field"
 import { AuthFormCard } from "../auth-form-card"
@@ -66,7 +65,7 @@ function SignIn({ email, returnTo, errorCode }: AuthFormProps) {
     value={state.email} error={fieldErrors.email} disabled={Boolean(pending)} onChange={(event) => flow.setEmail(event.target.value)} />
 
   const shell = (title: string, description: string, body: React.ReactNode) => <AuthShell
-    headerAction={<AuthHeaderLink prompt="New to Lane?" href={SIGN_UP_URL} label="Create an account" />}
+    headerAction={<AuthHeaderLink prompt="New to Lane?" href={signUpPage(state.email, returnTo)} label="Create an account" />}
     footer={<AuthTrust icon={ShieldCheckIcon}>Lane opens the workspace you used last.</AuthTrust>}>
     <AuthFormCard title={title} description={description}>{body}</AuthFormCard>
   </AuthShell>

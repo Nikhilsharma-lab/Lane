@@ -70,6 +70,15 @@ describe("the sign-in screen (#377, #346 layout A)", () => {
     expect(input(mount({ email: MEI }).render(), "sign-in-email")).toContain(`value="${MEI}"`)
   })
 
+  // #376 story 48: either path ends back on the invitation.
+  it("keeps the typed email and the return on the header's Create an account", () => {
+    const { flow, render } = mount({ email: MEI, returnTo: "/invite/inv_1" })
+    expect(render()).toContain(`href="/signup?email=${encodeURIComponent(MEI)}&amp;redirect_url=%2Finvite%2Finv_1"`)
+    flow.setEmail("ada@example.test")
+    expect(render()).toContain(`href="/signup?email=ada%40example.test&amp;redirect_url=%2Finvite%2Finv_1"`)
+    expect(mount().render()).toContain('href="/signup"')
+  })
+
   it("puts a wrong password's line on the password field", async () => {
     auth.refuse("/sign-in/email", 401, "INVALID_EMAIL_OR_PASSWORD")
     const { flow, render } = mount({ email: MEI })
