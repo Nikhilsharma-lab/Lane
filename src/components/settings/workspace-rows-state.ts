@@ -47,3 +47,34 @@ export function createWorkspaceNameDraft(name: string) {
   }
 }
 export type WorkspaceNameDraft = ReturnType<typeof createWorkspaceNameDraft>
+
+export type ConfirmationState<T> = { open: boolean; target: T | undefined; busy: boolean; error: string | null }
+
+/**
+ * A red confirmation for a workspace change (#381: Leave, and Remove of a `target` person): open, then one request on
+ * confirm. A refusal keeps it open with its code's line; success closes it. It can't be closed, or turned to someone
+ * else, while the request is on its way. The target stays after closing, so the dialog keeps its words as it leaves.
+ */
+export function createConfirmation<T = void>() {
+  const store = createExternalStore<ConfirmationState<T>>({ open: false, target: undefined, busy: false, error: null })
+  return {
+    get: store.get,
+    subscribe: store.subscribe,
+    ask(target: T) {
+      if (!store.get().busy) store.set({ open: true, target, busy: false, error: null })
+    },
+    dismiss() {
+      if (!store.get().busy) store.set({ ...store.get(), open: false })
+    },
+    /** Sends `run` once; true when it succeeded. */
+    async confirm(run: () => Promise<WorkspaceAnswer>): Promise<boolean> {
+      const state = store.get()
+      if (!state.open || state.busy) return false
+      store.set({ ...state, busy: true, error: null })
+      const answer = await answerOf(run)
+      store.set({ ...store.get(), open: !answer.ok, busy: false, error: answer.ok ? null : authErrorCopy(answer.code) })
+      return answer.ok
+    },
+  }
+}
+export type Confirmation<T = void> = ReturnType<typeof createConfirmation<T>>

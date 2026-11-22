@@ -124,6 +124,8 @@ export const AUTH_ERROR_COPY = {
   INVITATION_NOT_FOUND: "This invitation has expired or is no longer open. Ask the person who invited you to send a new one.",
   YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "This invitation was sent to a different email. Sign in with that email to accept it.",
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "Confirm your email before you accept. Email yourself a code to confirm it.",
+  // Workspace rows (#381). Lane's own last-Admin refusal reads as Better Auth's only-owner codes do.
+  ONLY_ADMIN,
 } as const satisfies Record<string, string>
 
 /**
