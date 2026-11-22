@@ -35,6 +35,8 @@ export const AUTH_ERROR_COPY = {
   // Proposed for Nikhil (#372), from #346's "Too many tries. Wait a minute, then try again.": a fourth code to one
   // address in 10 minutes. The wait is at most 10 minutes, so it says so rather than a minute.
   TOO_MANY_CODES: "Too many codes sent to this email. Wait 10 minutes, then try again.",
+  // Lane's code for Better Auth's own per-IP limit, which answers with none: #346's line.
+  RATE_LIMITED: "Too many tries. Wait a minute, then try again.",
   // Lane's codes for a send that failed (#358's sentences).
   CODE_NOT_SENT: CODE_COULD_NOT_SEND,
   INVITATION_NOT_SENT: INVITATION_COULD_NOT_SEND,

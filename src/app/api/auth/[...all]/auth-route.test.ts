@@ -14,6 +14,7 @@ import {
   TURNSTILE_TOKEN,
   codesMet,
   fakeOutbound,
+  freshIp,
   signIn,
   signInWithGoogle,
   signUp,
@@ -230,6 +231,17 @@ describe("the auth route switched on", () => {
     const answer = await browser.post("/update-user", { image: "https://example.test/self-set-photo.png", name: "Rae Renamed" })
     expect(answer.status).toBe(200)
     expect(await profileOf(rae.email)).toMatchObject({ full_name: "Rae Renamed", image: null })
+  })
+
+  it("answers RATE_LIMITED, keeping Better Auth's retry time, when one IP passes Better Auth's sign-in limit", async () => {
+    const rae = person("ip-limit")
+    const browser = await signUpVerified(outbound, rae)
+    browser.ip = freshIp()
+    for (let attempt = 0; attempt < 3; attempt++) expect((await signIn(browser, { ...rae, password: "not-the-password" })).status).toBe(401)
+    const fourth = await signIn(browser, rae)
+    expect([fourth.status, codeOf(fourth)]).toEqual([429, "RATE_LIMITED"])
+    expect(Number(fourth.headers.get("x-retry-after"))).toBeGreaterThan(0)
+    expect(browser.cookies.size).toBe(0)
   })
 
   it("keeps rate-limit counters in the rate_limit table, keyed by the IP Vercel forwards", async () => {

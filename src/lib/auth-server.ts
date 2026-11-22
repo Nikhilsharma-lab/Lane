@@ -304,15 +304,18 @@ export async function handleAuthRequest(config: Config, request: Request): Promi
 const authPath = (request: Request) => new URL(request.url).pathname.replace(/^\/api\/auth/, "").replace(/\/+$/, "")
 
 /**
- * Gives Lane's own code to an answer Better Auth makes before any endpoint or hook runs, so its code is too broad
- * for Lane's words: Turnstile's plugin answers UNKNOWN_ERROR when siteverify can't be reached (fail closed, nothing
- * else ran). Every other answer is passed on untouched, without reading its body.
+ * Gives Lane's own code to the answers Better Auth makes before any endpoint or hook runs, which carry no code or
+ * one too broad for Lane's words:
+ * - its per-IP limit answers 429 with no code (Lane's TOO_MANY_CODES has one, and is kept);
+ * - Turnstile's plugin answers 500 UNKNOWN_ERROR when siteverify can't be reached (fail closed, nothing else ran).
+ * Every other answer is passed on untouched, without reading its body.
  */
 async function withLaneCode(request: Request, response: Response): Promise<Response> {
-  if (response.status !== 500 || !TURNSTILE_PATHS.includes(authPath(request))) return response
-  const body = (await response.clone().json().catch(() => null)) as { code?: unknown } | null
-  if (body?.code !== "UNKNOWN_ERROR") return response
-  return laneAnswer(response, 503, "HUMAN_CHECK_UNAVAILABLE")
+  const turnstileDown = response.status === 500 && TURNSTILE_PATHS.includes(authPath(request))
+  if (response.status !== 429 && !turnstileDown) return response
+  const code = ((await response.clone().json().catch(() => null)) as { code?: unknown } | null)?.code
+  if (response.status === 429) return code ? response : laneAnswer(response, 429, "RATE_LIMITED")
+  return code === "UNKNOWN_ERROR" ? laneAnswer(response, 503, "HUMAN_CHECK_UNAVAILABLE") : response
 }
 
 function laneAnswer(response: Response, status: number, code: keyof typeof AUTH_ERROR_COPY): Response {
