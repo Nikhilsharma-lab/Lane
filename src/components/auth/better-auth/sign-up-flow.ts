@@ -1,7 +1,7 @@
 import * as auth from "@/lib/auth-client"
 import { CODE_LENGTH } from "@/lib/auth-code-rules"
 import { authErrorCopy } from "@/lib/auth-error-copy"
-import { safeReturnAddress } from "@/lib/auth-return-address"
+import { HOME, safeReturnAddress } from "@/lib/auth-return-address"
 import { emailAddressProblem } from "@/lib/email-address-rules"
 import { signInPage, signUpPage } from "./auth-addresses"
 import { createCodeSends } from "./code-sends"
@@ -199,7 +199,7 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
 /** After signing up: the return address it was given, such as an invitation, or else Onboarding. */
 function signedUpDestination(returnTo: string | undefined) {
   const address = safeReturnAddress(returnTo)
-  return address === "/" ? ONBOARDING_URL : address
+  return address === HOME ? ONBOARDING_URL : address
 }
 
 export type SignUpFlow = ReturnType<typeof createSignUpFlow>

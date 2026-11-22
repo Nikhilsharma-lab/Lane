@@ -1,6 +1,7 @@
 import * as auth from "@/lib/auth-client"
 import { CODE_LENGTH } from "@/lib/auth-code-rules"
 import { authErrorCopy } from "@/lib/auth-error-copy"
+import { HOME } from "@/lib/auth-return-address"
 import { emailAddressProblem } from "@/lib/email-address-rules"
 import { signInPage } from "./auth-addresses"
 import { createCodeSends } from "./code-sends"
@@ -146,7 +147,7 @@ export function createPasswordResetFlow({ email = "", navigate, humanCheck = cre
     },
     /** Continue, once signed in with the new password. */
     continueToLane() {
-      if (state.step === "saved" && state.signedIn) navigate("/")
+      if (state.step === "saved" && state.signedIn) navigate(HOME)
     },
     /** Sign in, once saved but the sign-in after it didn't go: the sign-in page, email kept. */
     goToSignIn() {

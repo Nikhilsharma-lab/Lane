@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { safeReturnAddress, signInAddress } from "./auth-return-address"
+import { safeReturnAddress } from "./auth-return-address"
 
 describe("the return address after sign-in (#377)", () => {
   it("keeps a path within Lane, with its query and fragment", () => {
@@ -37,16 +37,5 @@ describe("the return address after sign-in (#377)", () => {
     expect(safeReturnAddress("")).toBe("/")
     expect(safeReturnAddress("requests")).toBe("/")
     expect(safeReturnAddress(" /requests")).toBe("/")
-  })
-})
-
-describe("the sign-in screen's own address", () => {
-  it("is /login, carrying a return address other than /", () => {
-    expect(signInAddress("/")).toBe("/login")
-    expect(signInAddress("/invite/inv_123?from=email")).toBe("/login?redirect_url=%2Finvite%2Finv_123%3Ffrom%3Demail")
-  })
-
-  it("drops an unsafe return address", () => {
-    expect(signInAddress("https://x")).toBe("/login")
   })
 })

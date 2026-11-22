@@ -1,8 +1,9 @@
 import * as auth from "@/lib/auth-client"
 import { CODE_LENGTH } from "@/lib/auth-code-rules"
 import { authErrorCopy } from "@/lib/auth-error-copy"
-import { safeReturnAddress, signInAddress } from "@/lib/auth-return-address"
+import { safeReturnAddress } from "@/lib/auth-return-address"
 import { emailAddressProblem } from "@/lib/email-address-rules"
+import { signInPage } from "./auth-addresses"
 import { createCodeSends } from "./code-sends"
 import { createHumanCheck, withHumanCheck, type HumanCheck } from "./human-check"
 
@@ -136,7 +137,7 @@ export function createSignInFlow({ email = "", returnTo, errorCode, navigate, hu
       run("google", async () => {
         set({ alert: null })
         // On success Better Auth's client sends the browser to Google; the page leaves.
-        const answer = await auth.signInWithGoogle({ returnTo: destination, errorTo: signInAddress(returnTo) })
+        const answer = await auth.signInWithGoogle({ returnTo: destination, errorTo: signInPage(undefined, returnTo) })
         if (!answer.ok) refuse(answer.code)
       }),
     /** "Email me a sign-in code instead": the code request, with the email kept. */

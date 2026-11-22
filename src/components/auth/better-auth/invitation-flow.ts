@@ -1,6 +1,7 @@
 import * as auth from "@/lib/auth-client"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import type { WorkspacePermission } from "@/lib/auth-guard"
+import { HOME } from "@/lib/auth-return-address"
 import { signInPage, signUpPage } from "./auth-addresses"
 
 /**
@@ -56,9 +57,6 @@ type Options = {
   /** Called once the person has joined; increment 5 sends them to the role step. */
   onJoined: () => void
 }
-
-/** Lane's home, which opens the workspace you used last (#333 Q12). */
-const HOME = "/"
 
 /** Refusals that mean the invitation can't be accepted at all, so the page moves to that state. */
 const SCREEN_OF: Partial<Record<string, InvitationScreen>> = {

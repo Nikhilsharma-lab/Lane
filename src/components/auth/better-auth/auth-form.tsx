@@ -5,12 +5,12 @@ import { useEffect, useState, useSyncExternalStore } from "react"
 
 import { Alert } from "@/components/arc/alert/alert"
 import Link from "@/components/link"
-import { safeReturnAddress } from "@/lib/auth-return-address"
 import { SIGN_UP_URL } from "@/lib/session-task-urls"
 import { AuthAction } from "../auth-action"
 import { AuthInputField, AuthPasswordField } from "../auth-field"
 import { AuthFormCard } from "../auth-form-card"
 import { AuthHeaderLink, AuthShell, AuthTrust } from "../auth-shell"
+import { signUpPage } from "./auth-addresses"
 import { CODE_FIELD_ID, CodeStep } from "./code-step"
 import { secondsUntil } from "./code-sends"
 import { GoogleMark, OrDivider } from "./google-mark"
@@ -54,15 +54,6 @@ function focusRefusal({ fieldErrors, alert }: SignInState) {
   target?.focus()
 }
 
-function signUpAddress(email: string, returnTo: string | undefined) {
-  const query = new URLSearchParams()
-  if (email.trim()) query.set("email", email.trim())
-  const destination = safeReturnAddress(returnTo)
-  if (destination !== "/") query.set("redirect_url", destination)
-  const search = query.toString()
-  return search ? `${SIGN_UP_URL}?${search}` : SIGN_UP_URL
-}
-
 function SignIn({ email, returnTo, errorCode }: AuthFormProps) {
   // A full page load after signing in, so every server read sees the new session.
   const [flow] = useState<SignInFlow>(() => createSignInFlow({ email, returnTo, errorCode, navigate: (path) => window.location.assign(path) }))
@@ -89,7 +80,7 @@ function SignIn({ email, returnTo, errorCode }: AuthFormProps) {
   }
 
   const box = alert && <Alert tone="danger" title={alert.message} id={ALERT_ID} tabIndex={-1}>
-    {alert.offer === "sign-up" && <Link href={signUpAddress(state.email, returnTo)} className={authStyles.alertLink}>Sign up instead</Link>}
+    {alert.offer === "sign-up" && <Link href={signUpPage(state.email, returnTo)} className={authStyles.alertLink}>Sign up instead</Link>}
     {alert.offer === "code" && <button type="button" className={styles.textLink} onClick={() => flow.useCode()}>Email me a sign-in code</button>}
   </Alert>
 
