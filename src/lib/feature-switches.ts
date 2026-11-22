@@ -115,3 +115,31 @@ export function stripeBilling(env: Env = process.env): StripeBilling {
 export function serverTimingHeader(env: Env = process.env): boolean {
   return env.LANE_SERVER_TIMING_HEADER === "1"
 }
+
+export type BetterAuthServer =
+  | { on: true; secret: string; baseURL: string | undefined; google: { clientId: string; clientSecret: string } | null; turnstileSecretKey: string | undefined }
+  | { on: false }
+
+/** The names #369's Better Auth server reads. Only the secret switches it on; none is required until increment 5. */
+export const BETTER_AUTH_NAMES = ["BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TURNSTILE_SECRET_KEY"] as const
+
+/**
+ * #369 `BETTER_AUTH_SECRET` + `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TURNSTILE_SECRET_KEY`.
+ * Dormant: while the secret is unset or blank, `/api/auth/*` answers 404 and Better Auth is never built. It isn't set
+ * on staging or production until increment 6. Google is offered only with both of its names; without the Turnstile
+ * secret every Turnstile-guarded call is refused.
+ */
+export function betterAuthServer(env: Env = process.env): BetterAuthServer {
+  const read = (name: (typeof BETTER_AUTH_NAMES)[number]) => env[name]?.trim() || undefined
+  const secret = read("BETTER_AUTH_SECRET")
+  if (!secret) return { on: false }
+  const clientId = read("GOOGLE_CLIENT_ID")
+  const clientSecret = read("GOOGLE_CLIENT_SECRET")
+  return {
+    on: true,
+    secret,
+    baseURL: read("BETTER_AUTH_URL"),
+    google: clientId && clientSecret ? { clientId, clientSecret } : null,
+    turnstileSecretKey: read("TURNSTILE_SECRET_KEY"),
+  }
+}

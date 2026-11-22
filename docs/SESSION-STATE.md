@@ -1,5 +1,18 @@
 # Shared Claude / Codex handoff
 
+## November 22 — Increment 3 of Better Auth built: the dormant Better Auth server (#369)
+
+[PR #375](https://github.com/Nikhilsharma-lab/Lane/pull/375) on `better-auth-increment-3` (closes #369–#374); not merged, nothing deployed, no Vercel env set, `0055` applied to no hosted database. Approved on #349 (2026-11-21). `better-auth` 1.7.26, pinned exactly. `src/lib/auth-server.ts` builds one Better Auth instance on first use (email and password, email codes, Google, organizations with Lane's four roles and no Owner, Turnstile, Have I Been Pwned, database rate limits, 7-day sessions, no cookie cache). `/api/auth/[...all]` answers 404 and runs no query while `BETTER_AUTH_SECRET` is unset or blank. Lane's hooks there:
+- an allow-list of the four roles, on both invitation and role change;
+- "No Lane account uses this email." for an unknown address;
+- 3 codes per address per 10 minutes, keyed by a SHA-256 of the address;
+- a failed send answers `CODE_NOT_SENT`, `SIGN_UP_CODE_NOT_SENT` or `INVITATION_NOT_SENT`, through a per-request store, so concurrent requests keep their own answers;
+- pictures and workspace logos are always blanked.
+
+`src/lib/auth-error-copy.ts` maps every code the route tests meet to Lane's words; nothing falls to the generic line when Lane can tell what happened (Nikhil, 2026-11-22). `src/lib/better-auth-session.ts` returns the seam's `Session` in one query and trusts the active workspace only with its member row; nothing imports it, and `readSession` is unchanged. Migration `0055` only adds: six locked-down tables, plus columns on `profiles` and `organizations` and a unique index on `profiles.email`. #349's runbook now checks for duplicate emails, ignoring case, before applying it. Unit tests (3561), typecheck, lint and design:check pass.
+
+Nikhil's decisions (2026-11-22): codes are stored hashed. Have I Been Pwned still refuses the password when it can't answer, but gives up after 3 seconds and answers `PASSWORD_CHECK_UNAVAILABLE`. Turnstile stays (sign-up, code sends and reset only); increment 6's speed check measures it. `TOO_MANY_CODES` words confirmed. The other proposed words are listed in the PR for his confirmation. Reported, not fixed: a Member who sends `owner` is told Lane has no such role rather than that only an Admin can invite; AGENTS.md and ADR 0001 still describe Clerk until increments 5 and 7. For increment 4: after a failed sign-up send the account exists unconfirmed, so "try again" there means resending the code. Build notes are in `~/.claude/lane-notes/better-auth-inc3/`.
+
 ## November 21 — Build 9 of #256 finished: final speed check, Cache Components stays deferred
 
 [#291](https://github.com/Nikhilsharma-lab/Lane/issues/291) closed, and with it the whole UI polish plan [#256](https://github.com/Nikhilsharma-lab/Lane/issues/256) (all nine builds live, every sub-issue closed). No code change. Measured live on `main` 24e077e0 (`dpl_DqwL1puqUn3CyWUiftVtSsrzsXZp`, Nikhil's workspace, his session, read-only) and on staging (same commit, "Lane speed check" workspace) by the #227 method; full table, causes and decision in the [#291 results comment](https://github.com/Nikhilsharma-lab/Lane/issues/291#issuecomment-7061494472). Clicks, Settings from the account menu and desktop first visits meet their targets and are far faster than on 2026-10-26; sign-in on a returning desktop visit is 0.93 s (this run is also Build 8's live re-measure). The server renders every page in 140 ms or less; the misses are in the browser. The "first byte about 30 ms" in earlier reports was Vercel's 103 Early Hints; the page's real first byte is about 0.3 s, and later measurements use that.
