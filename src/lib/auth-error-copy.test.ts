@@ -101,6 +101,20 @@ describe("Auth error copy", () => {
     expect(authErrorCopy(undefined)).toBe("Something went wrong. Try again.")
   })
 
+  // #379: the invitation page's and Onboarding's tests meet these codes. Each was already in the table.
+  it("has Lane's words for every code the invitation and Onboarding screens' tests produce", () => {
+    for (const code of [
+      "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED",
+      "INVITATION_NOT_FOUND",
+      "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION",
+      "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION",
+      "ORGANIZATION_ALREADY_EXISTS",
+      "UNAUTHORIZED",
+    ]) expect([code, Object.hasOwn(AUTH_ERROR_COPY, code)]).toEqual([code, true])
+    expect(authErrorCopy("EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION")).toBe("Confirm your email before you accept. Email yourself a code to confirm it.")
+    expect(authErrorCopy("INVITATION_NOT_FOUND")).toBe("This invitation has expired or is no longer open. Ask the person who invited you to send a new one.")
+  })
+
   it("reads the code from a Better Auth or Lane error answer's body, and nothing from any other body", () => {
     expect(authErrorCode({ code: "INVALID_OTP", message: "Invalid OTP" })).toBe("INVALID_OTP")
     for (const body of [{ message: "Too many requests. Please try again later." }, { code: 42 }, { code: "" }, "INVALID_OTP", null, undefined]) expect(authErrorCode(body)).toBeUndefined()

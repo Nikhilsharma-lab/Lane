@@ -42,6 +42,9 @@ describe("the browser auth client's fence", () => {
     "src/components/auth/better-auth/auth-form.tsx",
     "src/components/auth/better-auth/sign-in-flow.ts",
     "src/components/auth/better-auth/sign-in-flow.test.ts",
+    // #379: the invitation page's controller and Onboarding's header Sign out.
+    "src/components/auth/better-auth/invitation-flow.ts",
+    "src/components/auth/better-auth/sign-out.tsx",
   ])("lets the new auth screens and their tests use it: %s", async (filePath) => {
     expect(await refusals(filePath, importing(CLIENT))).toEqual([])
   })
@@ -64,6 +67,17 @@ describe("the new auth screens' fence", () => {
     "src/app/api/auth/[...all]/route.ts",
   ])("refuses a screen in %s", async (filePath) => {
     expect((await refusals(filePath, importing(SCREEN))).join("\n")).toContain("new auth screens are dormant")
+  })
+
+  // #379: the invitation page view and Onboarding's workspace step, which increment 5 mounts at /invite/[id] and
+  // /onboarding.
+  it.each([
+    ["@/components/auth/better-auth/invitation-view", "src/app/invite/[id]/page.tsx"],
+    ["@/components/auth/better-auth/onboarding-view", "src/app/(auth)/onboarding/page.tsx"],
+    ["@/components/auth/better-auth/sign-out", "src/app/(auth)/onboarding/page.tsx"],
+  ])("refuses %s in %s", async (view, filePath) => {
+    expect((await refusals(filePath, importing(view))).join("\n")).toContain("new auth screens are dormant")
+    expect((await refusals(filePath, loading(view))).join("\n")).toContain("new auth screens are dormant")
   })
 
   it("refuses loading a screen with import() from the app", async () => {
