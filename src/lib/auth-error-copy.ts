@@ -126,6 +126,8 @@ export const AUTH_ERROR_COPY = {
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "Confirm your email before you accept. Email yourself a code to confirm it.",
   // Workspace rows (#381). Lane's own last-Admin refusal reads as Better Auth's only-owner codes do.
   ONLY_ADMIN,
+  // Proposed for Nikhil (#381): removing someone another Admin removed first.
+  MEMBER_NOT_FOUND: "This person is no longer in this workspace. Reload the page to see who’s in it now.",
 } as const satisfies Record<string, string>
 
 /**
