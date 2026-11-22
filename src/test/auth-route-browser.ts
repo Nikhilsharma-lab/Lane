@@ -6,7 +6,7 @@
  */
 import { createHash, randomUUID } from "node:crypto"
 import { vi } from "vitest"
-import { SOMETHING_WENT_WRONG, authErrorCopy } from "@/lib/auth-error-copy"
+import { SOMETHING_WENT_WRONG, authErrorCode, authErrorCopy } from "@/lib/auth-error-copy"
 import { RESEND_EMAILS_URL } from "@/lib/messenger"
 
 export const AUTH_ORIGIN = "http://localhost:3000"
@@ -146,7 +146,7 @@ export class AuthBrowser {
 }
 
 /** The `code` of a Better Auth or Lane error answer, if it has one. */
-export const codeOf = (answer: AuthAnswer) => (answer.body as { code?: string } | null)?.code
+export const codeOf = (answer: AuthAnswer) => authErrorCode(answer.body)
 
 /** The `error` on the redirect back from Google sign-in, if it has one. */
 export const googleErrorOf = (answer: AuthAnswer) => (answer.location ? new URL(answer.location, AUTH_ORIGIN).searchParams.get("error") : null)

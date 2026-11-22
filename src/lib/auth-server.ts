@@ -18,11 +18,25 @@ import { createAccessControl } from "better-auth/plugins/access"
 import { and, eq, gt, inArray, sql } from "drizzle-orm"
 import { account, db, invitation, member, organizations, profiles, rateLimit, session, verification } from "@/db"
 import { sendAuthEmail, type AuthEmail } from "./auth-email"
-import { AUTH_ERROR_COPY } from "./auth-error-copy"
-import { isWorkspacePermission } from "./role-rules"
+import { AUTH_ERROR_COPY, authErrorCode } from "./auth-error-copy"
+import { isWorkspacePermission, managesWorkspace } from "./role-rules"
 import type { BetterAuthServer } from "./feature-switches"
 
 type Config = Extract<BetterAuthServer, { on: true }>
+
+/** The Better Auth endpoints Lane's own checks and switches name. */
+const PATHS = {
+  signUp: "/sign-up/email",
+  sendCode: "/email-otp/send-verification-otp",
+  requestReset: "/email-otp/request-password-reset",
+  resetPassword: "/email-otp/reset-password",
+  invite: "/organization/invite-member",
+  changeRole: "/organization/update-member-role",
+  removeMember: "/organization/remove-member",
+} as const
+
+/** An address as Lane looks it up and counts it: Better Auth keeps every address lower-cased. */
+const normalEmail = (email: string) => email.trim().toLowerCase()
 
 const DAY = 24 * 60 * 60
 /** How long an emailed code lasts: Better Auth's default, written down so the email can say it. */
@@ -80,7 +94,7 @@ const CODE_COUNTER_PREFIX = "lane-codes:"
  * 10 minutes is free again, so the limit holds over any 10 minutes, not fixed blocks of them.
  */
 function codeCounter(email: string) {
-  const hash = createHash("sha256").update(email.trim().toLowerCase()).digest("hex")
+  const hash = createHash("sha256").update(normalEmail(email)).digest("hex")
   return { lock: CODE_COUNTER_PREFIX + hash, keys: Array.from({ length: CODE_LIMIT }, (_, slot) => `${CODE_COUNTER_PREFIX}${hash}:${slot}`) }
 }
 
@@ -144,13 +158,13 @@ const DISABLED_PATHS = [
 ]
 
 /** Turnstile guards account creation and everything that spends one of Lane's daily emails (#344 Q1). */
-const TURNSTILE_PATHS = ["/sign-up/email", "/email-otp/send-verification-otp", "/email-otp/request-password-reset", "/email-otp/reset-password"]
+const TURNSTILE_PATHS: readonly string[] = [PATHS.signUp, PATHS.sendCode, PATHS.requestReset, PATHS.resetPassword]
 
 /** The endpoints a browser asks for a code on. Sign-up's verification code is sent from inside `/sign-up/email`. */
-const CODE_REQUEST_PATHS = ["/email-otp/send-verification-otp", "/email-otp/request-password-reset"]
+const CODE_REQUEST_PATHS: readonly string[] = [PATHS.sendCode, PATHS.requestReset]
 
 /** The endpoints that give someone a workspace role. */
-const ROLE_PATHS = ["/organization/invite-member", "/organization/update-member-role"]
+const ROLE_PATHS: readonly string[] = [PATHS.invite, PATHS.changeRole]
 
 /**
  * #369's role allow-list: a role must be exactly one of Lane's (WORKSPACE_ROLES), as a string or a one-item list.
@@ -161,6 +175,8 @@ function refuseRoleNotInLane(role: unknown): void {
   if (roles.length === 1 && typeof roles[0] === "string" && isWorkspacePermission(roles[0])) return
   throw APIError.from("BAD_REQUEST", { code: "ROLE_NOT_IN_LANE", message: AUTH_ERROR_COPY.ROLE_NOT_IN_LANE })
 }
+
+const tooManyCodes = () => APIError.from(NOT_SENT_STATUS.TOO_MANY_CODES, { code: "TOO_MANY_CODES", message: AUTH_ERROR_COPY.TOO_MANY_CODES })
 
 /**
  * Lane's checks before Better Auth's own endpoint runs, after Turnstile and Better Auth's IP limit. Better Auth
@@ -176,17 +192,16 @@ function refuseRoleNotInLane(role: unknown): void {
  *   Better Auth refuses an empty or unknown role itself, with its own code, before its organization hooks run.
  *   So it also runs before the permission check: anyone sending a role Lane doesn't have gets ROLE_NOT_IN_LANE.
  */
-const tooManyCodes = () => APIError.from(NOT_SENT_STATUS.TOO_MANY_CODES, { code: "TOO_MANY_CODES", message: AUTH_ERROR_COPY.TOO_MANY_CODES })
-
 const beforeEndpoint = createAuthMiddleware(async (ctx) => {
   if (ROLE_PATHS.includes(ctx.path)) return refuseRoleNotInLane(ctx.body?.role)
-  if (ctx.path !== "/sign-up/email" && !CODE_REQUEST_PATHS.includes(ctx.path)) return
+  if (ctx.path !== PATHS.signUp && !CODE_REQUEST_PATHS.includes(ctx.path)) return
   // Better Auth refuses any other code type itself; email change is off.
-  if (ctx.path === "/email-otp/send-verification-otp" && !isCodeType(ctx.body?.type)) return
-  const email = typeof ctx.body?.email === "string" ? ctx.body.email.trim().toLowerCase() : ""
+  if (ctx.path === PATHS.sendCode && !isCodeType(ctx.body?.type)) return
+  const email = typeof ctx.body?.email === "string" ? normalEmail(ctx.body.email) : ""
   const hasAccount = Boolean(email && (await ctx.context.internalAdapter.findUserByEmail(email)))
-  if (ctx.path === "/sign-up/email") {
-    if (hasAccount) throw APIError.from("UNPROCESSABLE_ENTITY", { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL", message: "A Lane account already uses this email." })
+  if (ctx.path === PATHS.signUp) {
+    if (hasAccount)
+      throw APIError.from("UNPROCESSABLE_ENTITY", { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL", message: AUTH_ERROR_COPY.USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL })
     if (email && !(await mayGetCode(email))) throw tooManyCodes()
     return
   }
@@ -212,6 +227,9 @@ const PASSWORD_CHECK_TIMEOUT_MS = 3_000
  * same code, failing closed the same way. The abandoned fetch is left to settle on its own; its answer is never
  * used. Every other answer of the check, PASSWORD_COMPROMISED included, passes through as it is.
  */
+/** The code of an error Better Auth threw or an endpoint returned, read as the copy reads its answers. */
+const errorCode = (returned: unknown) => (isAPIError(returned) ? authErrorCode(returned.body) : undefined)
+
 const passwordCheckUnavailable = () => APIError.from("SERVICE_UNAVAILABLE", { code: "PASSWORD_CHECK_UNAVAILABLE", message: AUTH_ERROR_COPY.PASSWORD_CHECK_UNAVAILABLE })
 const lanePasswordCheck = {
   id: "lane-password-check",
@@ -225,7 +243,7 @@ const lanePasswordCheck = {
       try {
         return await Promise.race([checkedHash(password), deadline])
       } catch (error) {
-        if (isAPIError(error) && error.statusCode === 500 && !error.body?.code) throw passwordCheckUnavailable()
+        if (isAPIError(error) && error.statusCode === 500 && !errorCode(error)) throw passwordCheckUnavailable()
         throw error
       } finally {
         clearTimeout(timer)
@@ -241,10 +259,8 @@ async function isAdminOf(userId: string, workspaceId: string): Promise<boolean> 
     .select({ role: member.role })
     .from(member)
     .where(and(eq(member.organizationId, workspaceId), eq(member.userId, userId)))
-  return row?.role === "admin"
+  return Boolean(row && isWorkspacePermission(row.role) && managesWorkspace(row.role))
 }
-
-const errorCode = (returned: unknown) => (isAPIError(returned) ? (returned.body as { code?: unknown } | undefined)?.code : undefined)
 
 /**
  * After Better Auth's endpoint.
@@ -255,7 +271,7 @@ const errorCode = (returned: unknown) => (isAPIError(returned) ? (returned.body 
  * - A request whose email didn't go answers Lane's code for why, in place of Better Auth's success.
  */
 const afterEndpoint = createAuthMiddleware(async (ctx) => {
-  if (ctx.path === "/organization/remove-member" && errorCode(ctx.context.returned) === "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER") {
+  if (ctx.path === PATHS.removeMember && errorCode(ctx.context.returned) === "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER") {
     const signedIn = await getSessionFromCtx(ctx)
     const workspaceId = (typeof ctx.body?.organizationId === "string" && ctx.body.organizationId) || signedIn?.session.activeOrganizationId
     if (!signedIn || !workspaceId || (await isAdminOf(signedIn.user.id, workspaceId))) return
@@ -265,6 +281,14 @@ const afterEndpoint = createAuthMiddleware(async (ctx) => {
   const notSent = requestEmails.getStore()?.notSent
   if (!notSent || isAPIError(ctx.context.returned)) return
   throw APIError.from(NOT_SENT_STATUS[notSent], { code: notSent, message: AUTH_ERROR_COPY[notSent] })
+})
+
+/**
+ * Lane keeps no picture or free-form data on a workspace (#344 Q3), on create or update. An undefined metadata is
+ * left out of the write: Better Auth would store a null as the text "null".
+ */
+const withoutPictureOrData = async <Workspace extends object>({ organization }: { organization: Workspace }) => ({
+  data: { ...organization, logo: null, metadata: undefined },
 })
 
 function build(config: Config) {
@@ -329,10 +353,8 @@ function build(config: Config) {
           })
         },
         organizationHooks: {
-          // Lane keeps no picture or free-form data on a workspace (#344 Q3). On update, an undefined metadata is
-          // left out of the write: Better Auth would store a null as the text "null".
-          beforeCreateOrganization: async ({ organization }) => ({ data: { ...organization, logo: null, metadata: undefined } }),
-          beforeUpdateOrganization: async ({ organization }) => ({ data: { ...organization, logo: null, metadata: undefined } }),
+          beforeCreateOrganization: withoutPictureOrData,
+          beforeUpdateOrganization: withoutPictureOrData,
           // The role allow-list again, where #369 puts it. beforeEndpoint already refused every request and
           // `auth.api` call; this holds an endpoint called as a plain function, which skips hooks.before.
           beforeCreateInvitation: async ({ invitation }) => refuseRoleNotInLane(invitation.role),
@@ -366,7 +388,7 @@ function build(config: Config) {
           await sendForRequest({ kind: CODE_KINDS[type], to: email, code: otp, expiresInMinutes: CODE_LIFETIME_SECONDS / 60 })
         },
       }),
-      captcha({ provider: "cloudflare-turnstile", secretKey: config.turnstileSecretKey ?? "", endpoints: TURNSTILE_PATHS }),
+      captcha({ provider: "cloudflare-turnstile", secretKey: config.turnstileSecretKey ?? "", endpoints: [...TURNSTILE_PATHS] }),
       haveIBeenPwned(),
       // After haveIBeenPwned, so it wraps the hash that plugin checks in.
       lanePasswordCheck,
@@ -378,9 +400,12 @@ function build(config: Config) {
 type Auth = ReturnType<typeof build>
 let built: { key: string; auth: Auth } | undefined
 
-/** The one instance, built on first use from the switched-on config. A changed config builds a fresh one. */
-export function getAuth(config: Config): Auth {
-  const key = JSON.stringify(config)
+/**
+ * The one instance, built on first use from the switched-on config. A changed config builds a fresh one. The config
+ * holds the secrets, so the instance is kept under a SHA-256 of it, never the config itself.
+ */
+function getAuth(config: Config): Auth {
+  const key = createHash("sha256").update(JSON.stringify(config)).digest("hex")
   if (built?.key !== key) built = { key, auth: build(config) }
   return built.auth
 }
@@ -408,7 +433,7 @@ const authPath = (request: Request) => new URL(request.url).pathname.replace(/^\
 async function withLaneCode(config: Config, request: Request, response: Response): Promise<Response> {
   const turnstileDown = response.status === 500 && TURNSTILE_PATHS.includes(authPath(request))
   if (response.status !== 429 && !turnstileDown) return response
-  const code = ((await response.clone().json().catch(() => null)) as { code?: unknown } | null)?.code
+  const code = authErrorCode(await response.clone().json().catch(() => null))
   if (response.status === 429) return code ? response : laneAnswer(response, 429, "RATE_LIMITED")
   if (code !== "UNKNOWN_ERROR") return response
   return laneAnswer(response, 503, config.turnstileSecretKey ? "HUMAN_CHECK_UNAVAILABLE" : "HUMAN_CHECK_NOT_SET_UP")

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { CODE_COULD_NOT_SEND, INVITATION_COULD_NOT_SEND } from "./auth-email"
-import { AUTH_ERROR_COPY, authErrorCopy } from "./auth-error-copy"
+import { AUTH_ERROR_COPY, authErrorCode, authErrorCopy } from "./auth-error-copy"
 
 /**
  * #371 (spec #369): what a person reads when an auth call fails. Better Auth's own message is never shown. The
@@ -82,6 +82,11 @@ describe("Auth error copy", () => {
     expect(new Set(words).size).toBe(own.length)
     // Two sentences: what happened, then what to do.
     for (const sentence of words) expect(sentence.split(". ").length).toBeGreaterThanOrEqual(2)
+  })
+
+  it("reads the code from a Better Auth or Lane error answer's body, and nothing from any other body", () => {
+    expect(authErrorCode({ code: "INVALID_OTP", message: "Invalid OTP" })).toBe("INVALID_OTP")
+    for (const body of [{ message: "Too many requests. Please try again later." }, { code: 42 }, { code: "" }, "INVALID_OTP", null, undefined]) expect(authErrorCode(body)).toBeUndefined()
   })
 
   it("gives the generic line for a code it doesn't know, or no code at all", () => {

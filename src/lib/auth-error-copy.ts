@@ -126,6 +126,15 @@ export const AUTH_ERROR_COPY = {
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "Confirm your email before you accept. Email yourself a code to confirm it.",
 } as const satisfies Record<string, string>
 
+/**
+ * The error code in a Better Auth or Lane error answer's JSON body (`{ code, message }`), if it has one. The one
+ * reader of that format: the auth server, the screens and the route tests all use it.
+ */
+export function authErrorCode(body: unknown): string | undefined {
+  const code = typeof body === "object" && body !== null ? (body as { code?: unknown }).code : undefined
+  return typeof code === "string" && code ? code : undefined
+}
+
 /** Lane's words for an auth error code. A code it doesn't know, or none, gets the generic line. */
 export function authErrorCopy(code: string | null | undefined): string {
   return code && Object.hasOwn(AUTH_ERROR_COPY, code) ? AUTH_ERROR_COPY[code as keyof typeof AUTH_ERROR_COPY] : SOMETHING_WENT_WRONG
