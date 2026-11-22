@@ -84,6 +84,12 @@ describe("Settings → Members, Remove (#381)", () => {
     expect(confirmation().confirmLabel).toBe("Remove Marguerite")
   })
 
+  it("says \"this workspace\" when the caller doesn't name it", () => {
+    removable({ workspaceName: undefined })
+    removal().ask(people[1])
+    expect(text(removable({ workspaceName: undefined }))).toContain("Morgan Member loses access to this workspace straight away.")
+  })
+
   it("calls onRemove with that person's id once confirmed, then closes", async () => {
     const onRemove = vi.fn(removed)
     removable({ onRemove })

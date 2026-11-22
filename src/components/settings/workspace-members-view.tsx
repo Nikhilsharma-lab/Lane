@@ -58,7 +58,7 @@ export type WorkspaceMembersViewProps = {
    * code. Without it (the Clerk adapter, which removes in Clerk through `manage`), the view is exactly as before.
    */
   onRemove?: (userId: string) => Promise<WorkspaceAnswer>;
-  /** The workspace's name, which Remove's confirmation names. */
+  /** The workspace's name, which Remove's confirmation names; pass it with `onRemove`. */
   workspaceName?: string;
 };
 
