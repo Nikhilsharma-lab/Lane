@@ -130,7 +130,16 @@ export const BETTER_AUTH_NAMES = ["BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOG
  * secret every Turnstile-guarded call is refused.
  */
 export function betterAuthServer(env: Env = process.env): BetterAuthServer {
-  const [secret, baseURL, clientId, clientSecret, turnstileSecretKey] = BETTER_AUTH_NAMES.map((name) => env[name]?.trim() || undefined)
+  const read = (name: (typeof BETTER_AUTH_NAMES)[number]) => env[name]?.trim() || undefined
+  const secret = read("BETTER_AUTH_SECRET")
   if (!secret) return { on: false }
-  return { on: true, secret, baseURL, google: clientId && clientSecret ? { clientId, clientSecret } : null, turnstileSecretKey }
+  const clientId = read("GOOGLE_CLIENT_ID")
+  const clientSecret = read("GOOGLE_CLIENT_SECRET")
+  return {
+    on: true,
+    secret,
+    baseURL: read("BETTER_AUTH_URL"),
+    google: clientId && clientSecret ? { clientId, clientSecret } : null,
+    turnstileSecretKey: read("TURNSTILE_SECRET_KEY"),
+  }
 }
