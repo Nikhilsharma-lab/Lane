@@ -24,20 +24,34 @@ export async function outcome(run: () => Promise<AccountAnswer>): Promise<Outcom
   }
 }
 
+/**
+ * Lane's code for Google's redirect back to Settings after Connect Google (its `?error=`): a Google account with a
+ * different email, or any other way the connection didn't finish. Either way nothing changed.
+ */
+export function googleConnectionCode(redirectError: string) {
+  return redirectError === "email_does_not_match" ? "GOOGLE_EMAIL_DOES_NOT_MATCH" : "GOOGLE_NOT_CONNECTED"
+}
+
 const EMPTY_NAME = "Enter your name."
+
+/** A refused change's line, with Try again when sending it again could help. */
+export type Problem = { line: string; retry?: () => void }
 
 export type ProfileAccountState = {
   name: { draft: string; saved: string; busy: boolean; error: string | null }
+  google: { busy: "connect" | "disconnect" | null; problem: Problem | null }
   status: string
 }
 
 /**
  * #380: what Settings → Profile's account section shows, made once per mount. It holds only what the screen shows,
- * never a password after its dialog is done with it. `callbacks` reads the view's latest props.
+ * never a password after its dialog is done with it. `callbacks` reads the view's latest props. `googleError` is the
+ * `error` on Google's redirect back to Settings, if there was one.
  */
-export function createProfileAccount(initial: { name: string }, callbacks: () => ProfileAccountCallbacks) {
+export function createProfileAccount(initial: { name: string; googleError?: string }, callbacks: () => ProfileAccountCallbacks) {
   let state: ProfileAccountState = {
     name: { draft: initial.name, saved: initial.name, busy: false, error: null },
+    google: { busy: null, problem: initial.googleError ? { line: authErrorCopy(googleConnectionCode(initial.googleError)) } : null },
     status: "",
   }
   const listeners = new Set<() => void>()
@@ -63,6 +77,24 @@ export function createProfileAccount(initial: { name: string }, callbacks: () =>
       if (answer.ok) set({ name: name({ busy: false, draft, saved: draft }), status: "Name saved." })
       else set({ name: name({ busy: false, error: authErrorCopy(answer.code) }) })
     },
+
+    /** Starts Google's connection; on success the page is on its way to Google, and comes back with its answer. */
+    connectGoogle() {
+      return google("connect", () => callbacks().onConnectGoogle(), "")
+    },
+    disconnectGoogle() {
+      return google("disconnect", () => callbacks().onDisconnectGoogle(), "Google disconnected.")
+    },
+  }
+
+  async function google(busy: "connect" | "disconnect", run: () => Promise<AccountAnswer>, success: string): Promise<void> {
+    if (state.google.busy) return
+    set({ google: { busy, problem: null }, status: "" })
+    const answer = await outcome(run)
+    if (answer.ok) { set({ google: { busy: null, problem: null }, status: success }); return }
+    // The last sign-in method can't go, so sending it again can't help.
+    const retry = answer.code === "FAILED_TO_UNLINK_LAST_ACCOUNT" ? undefined : () => { void google(busy, run, success) }
+    set({ google: { busy: null, problem: { line: authErrorCopy(answer.code), retry } } })
   }
 }
 

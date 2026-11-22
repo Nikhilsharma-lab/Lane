@@ -91,3 +91,74 @@ describe("Settings → Profile, Account (#380)", () => {
     expect(html).not.toMatch(/<input[^>]*value="sam@acme.test"/)
   })
 })
+
+describe("Settings → Profile, Sign-in methods (#380)", () => {
+  it("offers Change password to someone with a password, and Set a password to someone who signs in only with Google", () => {
+    const withPassword = render()
+    expect(button(withPassword, "Change password")).toBeDefined()
+    expect(button(withPassword, "Set a password")).toBeUndefined()
+    const googleOnly = render({ methods: { password: false, google: true } })
+    expect(button(googleOnly, "Set a password")).toBeDefined()
+    expect(button(googleOnly, "Change password")).toBeUndefined()
+    expect(text(googleOnly)).toContain("You sign in with Google. Add a password to sign in without it.")
+  })
+
+  it("shows the connected Google account with Disconnect, or Connect Google without one", () => {
+    const connected = render({ googleEmail: "sam.lee@gmail.test" })
+    expect(text(connected)).toContain("Connected as sam.lee@gmail.test.")
+    expect(disabled(button(connected, "Disconnect"))).toBe(false)
+    expect(button(connected, "Connect Google")).toBeUndefined()
+    const notConnected = render({ methods: { password: true, google: false }, googleEmail: undefined })
+    expect(button(notConnected, "Connect Google")).toBeDefined()
+    expect(button(notConnected, "Disconnect")).toBeUndefined()
+    expect(text(notConnected)).not.toContain("Connected as")
+  })
+
+  it("sends Connect Google and Disconnect to their callbacks", async () => {
+    const { account, render } = mount()
+    await account.disconnectGoogle()
+    expect(callbacks.onDisconnectGoogle).toHaveBeenCalledOnce()
+    expect(render()).toMatch(/role="status"[^>]*>Google disconnected\.</)
+    await account.connectGoogle()
+    expect(callbacks.onConnectGoogle).toHaveBeenCalledOnce()
+  })
+
+  it("greys Disconnect while Google is the only sign-in method, and says why", () => {
+    const html = render({ methods: { password: false, google: true } })
+    const disconnect = button(html, "Disconnect")
+    expect(disabled(disconnect)).toBe(true)
+    const reason = /aria-describedby="([^"]+)"/.exec(disconnect ?? "")?.[1]
+    expect(reason).toBeTruthy()
+    expect(html).toMatch(new RegExp(`id="${reason}"[^>]*>Google is your only sign-in method\\. Set a password before disconnecting it\\.<`))
+  })
+
+  it("shows the same line when the server refuses to disconnect the last sign-in method", async () => {
+    callbacks.onDisconnectGoogle.mockResolvedValue({ error: "FAILED_TO_UNLINK_LAST_ACCOUNT" })
+    const { account, render } = mount()
+    await account.disconnectGoogle()
+    const html = render()
+    expect(text(html)).toContain("Google is your only sign-in method. Set a password before disconnecting it.")
+    // Trying again can't help, so there's no Try again.
+    expect(button(html, "Try again")).toBeUndefined()
+  })
+
+  it("offers Try again on any other refused Google change", async () => {
+    callbacks.onConnectGoogle.mockResolvedValueOnce({ error: "UNAUTHORIZED" })
+    const { account, render } = mount({ methods: { password: true, google: false } })
+    await account.connectGoogle()
+    const html = render()
+    expect(text(html)).toContain("You’re signed out. Sign in, then try again.")
+    expect(button(html, "Try again")).toBeDefined()
+  })
+
+  it("says nothing changed when Google comes back from a connection with a different email, or one that didn't finish", () => {
+    const different = render({ methods: { password: true, google: false }, googleError: "email_does_not_match" })
+    expect(text(different)).toContain("That Google account uses a different email, so nothing changed. Choose the Google account that uses your Lane email.")
+    for (const error of ["access_denied", "state_mismatch", "account_already_linked_to_different_user"]) {
+      const unfinished = render({ methods: { password: true, google: false }, googleError: error })
+      expect(text(unfinished)).toContain("Google didn’t connect, so nothing changed. Try again.")
+      expect(text(unfinished)).not.toContain("use your email")
+    }
+    expect(text(render())).not.toContain("nothing changed")
+  })
+})

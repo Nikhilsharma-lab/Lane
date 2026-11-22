@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react"
+import { Alert } from "@/components/arc/alert/alert"
 import { Button } from "@/components/arc/button/button"
 import { Input } from "@/components/arc/input/input"
+import { GOOGLE_ONLY_METHOD } from "@/lib/auth-error-copy"
 import { createProfileAccount, type ProfileAccountCallbacks } from "./profile-account-controller"
-import { SettingsGroup, SettingsRow } from "./settings-group"
+import { SettingsGroup, SettingsRow, SettingsRowFailure } from "./settings-group"
 import styles from "./settings.module.css"
 import account from "./profile-account.module.css"
 
@@ -16,6 +18,8 @@ export type ProfileAccountViewProps = ProfileAccountCallbacks & {
   methods: { password: boolean; google: boolean }
   /** The connected Google account's email. */
   googleEmail?: string
+  /** The `error` on Google's redirect back here after Connect Google, if any: it says nothing changed. */
+  googleError?: string
 }
 
 /**
@@ -24,13 +28,15 @@ export type ProfileAccountViewProps = ProfileAccountCallbacks & {
  * callback that answers success or an error code; the view never calls Better Auth itself.
  */
 export function ProfileAccountView(props: ProfileAccountViewProps) {
-  const { email } = props
+  const { email, methods, googleEmail } = props
+  const googleOnly = methods.google && !methods.password
   const latest = useRef(props)
   useEffect(() => { latest.current = props })
   const [controller] = useState(() => createProfileAccount(props, () => latest.current))
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot)
   const nameRef = useRef<HTMLInputElement>(null)
   const draft = state.name.draft.trim()
+  const problem = state.google.problem
 
   async function saveName(event: FormEvent) {
     event.preventDefault()
@@ -48,6 +54,23 @@ export function ProfileAccountView(props: ProfileAccountViewProps) {
         </form>} />
       <SettingsRow label="Email" hint="Changing your email isn’t available yet." control={<span className={styles.identifier}>{email}</span>} />
     </SettingsGroup>
+
+    <SettingsGroup label="Sign-in methods" labelId="sign-in-methods-heading" description="Keep at least one way to sign in. You can always get a sign-in code by email.">
+      <SettingsRow label="Password"
+        hint={methods.password ? "Changing it can sign you out on your other devices." : methods.google ? "You sign in with Google. Add a password to sign in without it." : undefined}
+        control={<Button type="button" variant="secondary" size="sm">{methods.password ? "Change password" : "Set a password"}</Button>} />
+      <SettingsRow label="Google" hint={methods.google ? `Connected as ${googleEmail ?? email}.` : `Sign in with your Google account for ${email}.`}
+        control={methods.google
+          ? <Button type="button" variant="secondary" size="sm" disabled={googleOnly} aria-describedby={googleOnly ? "google-only-method" : undefined}
+              loading={state.google.busy === "disconnect"} onClick={() => { void controller.disconnectGoogle() }}>Disconnect</Button>
+          : <Button type="button" variant="secondary" size="sm" loading={state.google.busy === "connect"} onClick={() => { void controller.connectGoogle() }}>Connect Google</Button>}>
+        {googleOnly && <p id="google-only-method" className={styles.note}>{GOOGLE_ONLY_METHOD}</p>}
+        {problem && (problem.retry
+          ? <SettingsRowFailure title={problem.line} onRetry={problem.retry} />
+          : <div className={styles.rowFailure}><Alert role="alert" tone="danger" title={problem.line} /></div>)}
+      </SettingsRow>
+    </SettingsGroup>
+
     <p role="status" className={account.status}>{state.status}</p>
   </>
 }
