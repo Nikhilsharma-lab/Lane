@@ -42,6 +42,10 @@ describe("the browser auth client's fence", () => {
     "src/components/auth/better-auth/auth-form.tsx",
     "src/components/auth/better-auth/sign-in-flow.ts",
     "src/components/auth/better-auth/sign-in-flow.test.ts",
+    "src/components/auth/better-auth/sign-up-flow.ts",
+    "src/components/auth/better-auth/sign-up-form.tsx",
+    "src/components/auth/better-auth/password-reset-flow.ts",
+    "src/components/auth/better-auth/password-reset-form.test.ts",
   ])("lets the new auth screens and their tests use it: %s", async (filePath) => {
     expect(await refusals(filePath, importing(CLIENT))).toEqual([])
   })
@@ -64,6 +68,16 @@ describe("the new auth screens' fence", () => {
     "src/app/api/auth/[...all]/route.ts",
   ])("refuses a screen in %s", async (filePath) => {
     expect((await refusals(filePath, importing(SCREEN))).join("\n")).toContain("new auth screens are dormant")
+  })
+
+  // #378's screens: sign-up rides in the auth form; forgot and reset is its own screen.
+  it.each([
+    ["src/app/(auth)/signup/page.tsx", "@/components/auth/better-auth/sign-up-form"],
+    ["src/app/(auth)/signup/page.tsx", "@/components/auth/better-auth/sign-up-flow"],
+    ["src/app/(auth)/forgot-password/page.tsx", "@/components/auth/better-auth/password-reset-form"],
+    ["src/app/(auth)/reset-password/page.tsx", "@/components/auth/better-auth/password-reset-flow"],
+  ])("refuses #378's screens in %s: %s", async (filePath, screen) => {
+    expect((await refusals(filePath, importing(screen))).join("\n")).toContain("new auth screens are dormant")
   })
 
   it("refuses loading a screen with import() from the app", async () => {
