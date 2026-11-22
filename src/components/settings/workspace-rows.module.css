@@ -1,0 +1,8 @@
+/* #381: the workspace name and Leave rows. All visual values come from the theme file (src/styles/theme.css). */
+/* The name's field and Save share a line, and Save wraps under the field when the row is narrow (390px, story 95). */
+.nameForm { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-end; gap: var(--space-2); min-width: 0; text-align: left; }
+.nameForm > :first-child { flex: 1 1 calc(var(--spacing) * 56); min-width: 0; }
+/* 16px text on phones and touch screens, so focusing the field doesn't zoom the page. */
+@media (max-width: 640px), (pointer: coarse) { .nameForm input { font-size: var(--text-base); } }
+/* "Make someone an Admin", in the only Admin's Leave hint. */
+.peopleLink { color: var(--foreground); text-decoration: underline; text-underline-offset: var(--space-1); border-radius: var(--radius-control); }

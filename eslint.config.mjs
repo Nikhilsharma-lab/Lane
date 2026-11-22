@@ -53,11 +53,25 @@ const BROWSER_AUTH_CLIENT_MESSAGE = "Lane's browser auth client is dormant: only
 const BROWSER_AUTH_CLIENT = { regex: "(^|/)auth-client$", message: BROWSER_AUTH_CLIENT_MESSAGE };
 const BROWSER_AUTH_CLIENT_DYNAMIC = { selector: "ImportExpression[source.value=/auth-client$/]", message: BROWSER_AUTH_CLIENT_MESSAGE };
 const BROWSER_AUTH_CLIENT_USERS = ["src/components/auth/better-auth/**/*.{ts,tsx}"];
-// #377: no route, page or layout under the app directory imports the new screens until increment 5 mounts them.
-// #380 and #381 add their views to this list; whichever lands second merges the lists.
-const DORMANT_SCREENS_MESSAGE = "Lane's new auth screens are dormant: nothing under src/app imports them until increment 5 (#377)."
-const DORMANT_SCREENS = [{ regex: "(^|/)components/auth/better-auth(/|$)", message: DORMANT_SCREENS_MESSAGE }];
-const DORMANT_SCREENS_DYNAMIC = [{ selector: "ImportExpression[source.value=/components\\u002Fauth\\u002Fbetter-auth(\\u002F|$)/]", message: DORMANT_SCREENS_MESSAGE }];
+// #376 story 99: the one route rule. Increment 4's views are dormant until increment 5 mounts them, so nothing under
+// the app directory (a route, page or layout) imports them, statically or dynamically. Each entry names its views;
+// a ticket adds its own entry here.
+const DORMANT_VIEWS = [
+  // #381: the workspace name and Leave rows.
+  {
+    message: "The workspace name and Leave rows are dormant: no route, page or layout imports them until increment 5 (#381).",
+    regex: "(^|/)(workspace-name-row|leave-workspace-row)$",
+    selector: "ImportExpression[source.value=/(workspace-name-row|leave-workspace-row)$/]",
+  },
+  // #377: Lane's new auth screens (sign-in now; sign-up, reset and invitation in #378 and #379), one folder.
+  {
+    message: "Lane's new auth screens are dormant: no route, page or layout imports them until increment 5 (#377).",
+    regex: "(^|/)components/auth/better-auth(/|$)",
+    selector: "ImportExpression[source.value=/components\\u002Fauth\\u002Fbetter-auth(\\u002F|$)/]",
+  },
+];
+const DORMANT_VIEWS_IMPORTS = DORMANT_VIEWS.map(({ regex, message }) => ({ regex, message }));
+const DORMANT_VIEWS_DYNAMIC = DORMANT_VIEWS.map(({ selector, message }) => ({ selector, message }));
 const ROUTER_REFRESH = {
   selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='refresh']",
   message:
@@ -87,11 +101,6 @@ const eslintConfig = defineConfig([
     ignores: REFRESH_OWNERS,
     rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
   },
-  // #377: the app directory doesn't load the new auth screens dynamically either.
-  {
-    files: ["src/app/**/*.{ts,tsx}"],
-    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC, ...DORMANT_SCREENS_DYNAMIC] },
-  },
   // The files above that own the router refresh still keep Clerk's server module static.
   {
     files: REFRESH_OWNERS,
@@ -105,7 +114,7 @@ const eslintConfig = defineConfig([
   // #371: the Better Auth server's own files may load it dynamically; the other rules still apply.
   {
     files: BETTER_AUTH_SERVER_FILES,
-    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC, ...DORMANT_SCREENS_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC, ...DORMANT_VIEWS_DYNAMIC] },
   },
   // #356: all of src, tests and Arc included. Flat config keeps only the last matching block's options for a rule,
   // so the dialog and link blocks below repeat CLERK_SESSION, and every block repeats BETTER_AUTH_SERVER and (#377)
@@ -160,22 +169,26 @@ const eslintConfig = defineConfig([
     files: ["src/components/auth/better-auth/**/*.test.ts"],
     rules: { "no-restricted-imports": ["error", { paths: [CLERK_SESSION], patterns: BETTER_AUTH_SERVER }] },
   },
-  // #377: nothing under the app directory, routes, pages, layouts or their tests, imports the new auth screens or the
-  // browser auth client. Increment 5 lifts this when it mounts them.
-  {
-    files: ["src/app/**/*.{ts,tsx}"],
-    ignores: ["src/**/*.test.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, ...DORMANT_SCREENS] }] },
-  },
+  // #377: the app directory's tests don't import the dormant views or the browser auth client either.
   {
     files: ["src/app/**/*.test.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, ...DORMANT_SCREENS] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, ...DORMANT_VIEWS_IMPORTS] }] },
   },
   // #371: only the Better Auth server module, the auth route, the session read (#374) and their tests load Better
-  // Auth's server. #377: the auth route is under the app directory, so it keeps that block's fences.
+  // Auth's server. #377: the auth route is under the app directory, so it keeps the route rule's fences.
   {
     files: BETTER_AUTH_SERVER_FILES,
-    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [BROWSER_AUTH_CLIENT, ...DORMANT_SCREENS] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [BROWSER_AUTH_CLIENT, ...DORMANT_VIEWS_IMPORTS] }] },
+  },
+  // #381, #377: the route rule. The app directory keeps every rule the blocks above give it, plus the browser auth
+  // client's fence and every dormant view. The Better Auth server's files keep their own allowance above.
+  {
+    files: ["src/app/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.ts", ...BETTER_AUTH_SERVER_FILES],
+    rules: {
+      "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC, ...DORMANT_VIEWS_DYNAMIC],
+      "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, ...DORMANT_VIEWS_IMPORTS] }],
+    },
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([
