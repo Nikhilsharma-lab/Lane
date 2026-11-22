@@ -7,6 +7,19 @@ import { momentDay, type Moment } from "@/lib/dates"
  */
 export type DeviceKind = { browser: string; system: string }
 
+/**
+ * One of a person's signed-in devices (a Better Auth session), as only they see it. There is deliberately no field
+ * for an IP address or a place: support, not surveillance (#346 point 5).
+ */
+export type SignedInDevice = DeviceKind & {
+  /** The session's own id, for signing it out. */
+  id: string
+  signedInAt: Moment
+  lastUsedAt: Moment
+  /** The device reading this. */
+  current: boolean
+}
+
 // Proposed for Nikhil (#380): the words for an agent Lane can't read.
 const UNKNOWN_BROWSER = "Unknown browser"
 const UNKNOWN_SYSTEM = "unknown system"
