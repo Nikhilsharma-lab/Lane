@@ -1,0 +1,97 @@
+import { authErrorCopy } from "@/lib/auth-error-copy"
+import type { WorkspacePermission } from "@/lib/auth-guard"
+import { invitationRefusal } from "./invitation-copy"
+
+/** An invitation waiting for the person's email, as increment 5 reads it. */
+export type PendingWorkspaceInvitation = {
+  id: string
+  workspace: string
+  /** The inviter's name. */
+  inviter: string
+  role: WorkspacePermission
+}
+
+/** What `onJoin` and `onCreate` answer: nothing on success, or a Better Auth or Lane error code. */
+export type OnboardingAnswer = { error?: string }
+
+export const NAME_MISSING = "Name your workspace."
+
+/** Codes whose line belongs on the name field: a workspace URL another workspace has. */
+const NAME_CODES = new Set(["ORGANIZATION_ALREADY_EXISTS", "ORGANIZATION_SLUG_ALREADY_TAKEN"])
+
+export type OnboardingState = {
+  nameError: string | null
+  /** A refused Join (under the invitations) or Create (under the form). */
+  alert: { at: "join" | "create"; title: string; detail: string | null } | null
+  pending: { join: string } | "create" | null
+}
+
+type Options = {
+  invitations: PendingWorkspaceInvitation[]
+  onJoin: (invitationId: string) => Promise<OnboardingAnswer>
+  onCreate: (name: string) => Promise<OnboardingAnswer>
+}
+
+/**
+ * #379: Onboarding's workspace step, made once per mount, as `createPasswordRecoveryFlow` is. It calls the view's
+ * callbacks, never the browser auth client, and reads every refusal from `authErrorCopy`. A Join refused because the
+ * workspace is full or the invitation is gone reads as the invitation page does.
+ */
+export function createOnboardingFlow({ invitations, onJoin, onCreate }: Options) {
+  let state: OnboardingState = { nameError: null, alert: null, pending: null }
+  const listeners = new Set<() => void>()
+  const set = (next: Partial<OnboardingState>) => {
+    state = { ...state, ...next }
+    for (const listener of listeners) listener()
+  }
+
+  /**
+   * Runs one callback at a time, answering its refusal, or null when it succeeded or a call was already answering.
+   * A throw is a refusal with no code, which reads as the generic line.
+   */
+  async function run(pending: OnboardingState["pending"], call: () => Promise<OnboardingAnswer>): Promise<{ code: string | undefined } | null> {
+    if (state.pending) return null
+    set({ pending, alert: null })
+    try {
+      const { error } = await call()
+      return error ? { code: error } : null
+    } catch {
+      return { code: undefined }
+    } finally {
+      set({ pending: null })
+    }
+  }
+
+  return {
+    snapshot: () => state,
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    /** Typing a name forgets what was said about the last one. */
+    editName() {
+      if (state.nameError) set({ nameError: null })
+    },
+    async join(invitationId: string) {
+      const refused = await run({ join: invitationId }, () => onJoin(invitationId))
+      if (!refused) return
+      const workspace = invitations.find((invitation) => invitation.id === invitationId)?.workspace
+      const refusal = workspace ? invitationRefusal(refused.code, workspace) : null
+      set({ alert: { at: "join", title: refusal?.title ?? authErrorCopy(refused.code), detail: refusal?.detail ?? null } })
+    },
+    async create(name: string) {
+      if (state.pending) return
+      const trimmed = name.trim()
+      if (!trimmed) return set({ nameError: NAME_MISSING, alert: null })
+      set({ nameError: null })
+      const refused = await run("create", () => onCreate(trimmed))
+      if (!refused) return
+      if (refused.code && NAME_CODES.has(refused.code)) set({ nameError: authErrorCopy(refused.code) })
+      else set({ alert: { at: "create", title: authErrorCopy(refused.code), detail: null } })
+    },
+  }
+}
+
+export type OnboardingFlow = ReturnType<typeof createOnboardingFlow>
