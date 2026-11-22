@@ -186,7 +186,11 @@ describe("email codes through the auth route", () => {
       const down = await resetWith(browser, cody.email, code, "a-brand-new-lane-password")
       outbound.hibp = () => Promise.reject(new TypeError("fetch failed"))
       const unreachable = await resetWith(browser, cody.email, code, "a-brand-new-lane-password")
-      for (const answer of [down, unreachable]) expect([answer.status, codeOf(answer)]).toEqual([503, "PASSWORD_CHECK_UNAVAILABLE"])
+      outbound.hibp = () => new Promise<Response>(() => {})
+      const started = Date.now()
+      const hung = await resetWith(browser, cody.email, code, "a-brand-new-lane-password")
+      expect(Date.now() - started).toBeLessThan(5_000)
+      for (const answer of [down, unreachable, hung]) expect([answer.status, codeOf(answer)]).toEqual([503, "PASSWORD_CHECK_UNAVAILABLE"])
       expect((await signIn(new AuthBrowser(), cody)).status).toBe(200)
 
       outbound.hibp = undefined

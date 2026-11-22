@@ -171,11 +171,20 @@ const beforeEndpoint = createAuthMiddleware(async (ctx) => {
 })
 
 /**
+ * How long a new password's check may take before Lane gives up on it. Have I Been Pwned's range API is served
+ * from Cloudflare's cache and usually answers in well under a second; 3 seconds leaves room for a slow answer while
+ * someone waits on sign-up, reset or a password change, and is a third of the 10 seconds Turnstile's check gets.
+ */
+const PASSWORD_CHECK_TIMEOUT_MS = 3_000
+
+/**
  * Have I Been Pwned's plugin checks a new password inside Better Auth's password hash, on sign-up, reset and
  * password change. When its range API can't be reached it fails closed (the password is refused, nothing is
- * written, an emailed code isn't used up), but with a 500 that has no code. This plugin runs after it, around the
- * same hash, and gives that failure Lane's code. Every other answer of the check, PASSWORD_COMPROMISED included,
- * passes through as it is.
+ * written, an emailed code isn't used up), but with a 500 that has no code, and a range API that never answers
+ * holds the request open: its fetch has no timeout and takes no signal. This plugin runs after it, around the
+ * same hash. It gives that failure Lane's code, and gives up on a check that takes longer than the timeout with the
+ * same code, failing closed the same way. The abandoned fetch is left to settle on its own; its answer is never
+ * used. Every other answer of the check, PASSWORD_COMPROMISED included, passes through as it is.
  */
 const passwordCheckUnavailable = () => APIError.from("SERVICE_UNAVAILABLE", { code: "PASSWORD_CHECK_UNAVAILABLE", message: AUTH_ERROR_COPY.PASSWORD_CHECK_UNAVAILABLE })
 const lanePasswordCheck = {
@@ -183,11 +192,17 @@ const lanePasswordCheck = {
   init(ctx) {
     const checkedHash = ctx.password.hash
     async function hash(password: string): Promise<string> {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const deadline = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(passwordCheckUnavailable()), PASSWORD_CHECK_TIMEOUT_MS)
+      })
       try {
-        return await checkedHash(password)
+        return await Promise.race([checkedHash(password), deadline])
       } catch (error) {
         if (isAPIError(error) && error.statusCode === 500 && !error.body?.code) throw passwordCheckUnavailable()
         throw error
+      } finally {
+        clearTimeout(timer)
       }
     }
     return { context: { password: { ...ctx.password, hash } } }

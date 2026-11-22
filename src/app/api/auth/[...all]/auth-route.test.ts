@@ -44,6 +44,8 @@ afterAll(async () => {
 
 const route = () => import("./route")
 const person = (label: string) => ({ email: `${label}-${randomUUID().slice(0, 8)}@${DOMAIN}`, password: "lane-route-test-password", name: "Rae Route" })
+/** A range API that never answers. */
+const hung = () => new Promise<Response>(() => {})
 const profileOf = async (email: string) => (await connection`select id, full_name, email_verified, role, image from profiles where email = ${email}`)[0]
 
 describe("the auth route while dormant", () => {
@@ -126,12 +128,15 @@ describe("the auth route switched on", () => {
       const outages: [string, () => Response | Promise<Response>][] = [
         ["a 5xx", () => new Response("", { status: 503 })],
         ["a thrown fetch", () => Promise.reject(new TypeError("fetch failed"))],
+        ["no answer at all", hung],
       ]
       for (const [label, answer] of outages) {
         const rae = person("hibp-down")
         outbound.hibp = answer
+        const started = Date.now()
         const signedUp = await signUp(rae)
         expect([label, signedUp.status, codeOf(signedUp)]).toEqual([label, 503, "PASSWORD_CHECK_UNAVAILABLE"])
+        expect(Date.now() - started).toBeLessThan(5_000)
         expect(await profileOf(rae.email)).toBeUndefined()
       }
       expect(outbound.emails()).toEqual([])
@@ -141,7 +146,7 @@ describe("the auth route switched on", () => {
       const rae = person("change-hibp-down")
       const browser = await signUpVerified(outbound, rae)
       await signIn(browser, rae)
-      outbound.hibp = () => Promise.reject(new TypeError("fetch failed"))
+      outbound.hibp = hung
       const changed = await browser.post("/change-password", { currentPassword: rae.password, newPassword: "a-new-lane-route-password" })
       expect([changed.status, codeOf(changed)]).toEqual([503, "PASSWORD_CHECK_UNAVAILABLE"])
       expect((await signIn(new AuthBrowser(), rae)).status).toBe(200)
