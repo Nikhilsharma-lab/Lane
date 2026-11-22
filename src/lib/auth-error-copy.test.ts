@@ -37,6 +37,12 @@ describe("Auth error copy", () => {
     expect(authErrorCopy("RATE_LIMITED")).toBe("Too many tries. Wait a minute, then try again.")
   })
 
+  it("has Lane's words, proposed for Nikhil to confirm, for a password that's too long and a workspace URL that's taken", () => {
+    expect(authErrorCopy("PASSWORD_TOO_LONG")).toBe("Use at most 128 characters.")
+    for (const code of ["ORGANIZATION_ALREADY_EXISTS", "ORGANIZATION_SLUG_ALREADY_TAKEN"])
+      expect(authErrorCopy(code)).toBe("Another workspace already uses this URL. Choose a different one, then try again.")
+  })
+
   it("has Lane's words for every code the auth route's email-code and reset tests produce", () => {
     expect(authErrorCopy("NO_ACCOUNT")).toBe("No Lane account uses this email.")
     expect(authErrorCopy("INVALID_OTP")).toBe("That code isn’t right. Check the most recent email from Lane.")

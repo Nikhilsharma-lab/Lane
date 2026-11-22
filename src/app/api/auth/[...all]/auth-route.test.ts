@@ -125,6 +125,14 @@ describe("the auth route switched on", () => {
       expect(ranges[0].body).toBe("")
     })
 
+    it("refuses a 129-character password with Lane's words saying how long it may be, and creates nothing", async () => {
+      const long = person("long")
+      const answer = await signUp({ ...long, password: "x".repeat(129) })
+      expect([answer.status, codeOf(answer)]).toEqual([400, "PASSWORD_TOO_LONG"])
+      expect(authErrorCopy(codeOf(answer))).toBe("Use at most 128 characters.")
+      expect(await profileOf(long.email)).toBeUndefined()
+    })
+
     it("refuses sign-up with PASSWORD_CHECK_UNAVAILABLE while Have I Been Pwned can't be reached, and creates nothing", async () => {
       const outages: [string, () => Response | Promise<Response>][] = [
         ["a 5xx", () => new Response("", { status: 503 })],

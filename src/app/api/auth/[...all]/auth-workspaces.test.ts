@@ -103,6 +103,26 @@ describe("workspaces through the auth route", () => {
       expect(await workspaceRow(id)).toEqual({ name: "Wren's other studio", logo: null, metadata: null })
     })
 
+    it("refuses a workspace URL another workspace already uses, with Lane's words saying to choose another", async () => {
+      const { browser } = await signedIn("slug-taken")
+      const id = await createWorkspace(browser)
+      const slug = (await connection`select slug from organizations where id = ${id}`)[0].slug as string
+      const other = await createWorkspace(browser)
+      // Better Auth gives creating one code, and checking or changing a URL another.
+      const answers = {
+        create: await browser.post("/organization/create", { name: "Wren's second studio", slug }),
+        check: await browser.post("/organization/check-slug", { slug }),
+        update: await browser.post("/organization/update", { organizationId: other, data: { slug } }),
+      }
+      expect(Object.fromEntries(Object.entries(answers).map(([action, answer]) => [action, [answer.status, codeOf(answer)]]))).toEqual({
+        create: [400, "ORGANIZATION_ALREADY_EXISTS"],
+        check: [400, "ORGANIZATION_SLUG_ALREADY_TAKEN"],
+        update: [400, "ORGANIZATION_SLUG_ALREADY_TAKEN"],
+      })
+      for (const answer of Object.values(answers)) expect(authErrorCopy(codeOf(answer))).toBe("Another workspace already uses this URL. Choose a different one, then try again.")
+      expect((await connection`select id from organizations where slug = ${slug}`).map((row) => row.id)).toEqual([id])
+    })
+
     it("refuses deleting a workspace", async () => {
       const { browser } = await signedIn("deleter")
       const id = await createWorkspace(browser)

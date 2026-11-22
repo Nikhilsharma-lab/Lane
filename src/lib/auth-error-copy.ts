@@ -11,6 +11,8 @@ export const SOMETHING_WENT_WRONG = "Something went wrong. Try again."
 /** #333 Q4: the last Admin of a workspace can't leave it, be removed or stop being an Admin. */
 export const ONLY_ADMIN = "You’re the only Admin. Make someone else an Admin before you leave."
 
+const SLUG_TAKEN = "Another workspace already uses this URL. Choose a different one, then try again."
+
 /** #346's googleFailed line, for every way Google sign-in can come back unfinished. */
 const GOOGLE_FAILED = "Google sign-in didn’t finish. Try again, or use your email."
 
@@ -61,6 +63,8 @@ export const AUTH_ERROR_COPY = {
   // Sign-up
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "A Lane account already uses this email.",
   PASSWORD_TOO_SHORT: "Use at least 8 characters.",
+  // Proposed for Nikhil: Better Auth's longest password, in the short line's shape.
+  PASSWORD_TOO_LONG: "Use at most 128 characters.",
   PASSWORD_COMPROMISED: "This password has appeared in a data breach elsewhere. Choose a different one.",
   // Proposed for Nikhil: Lane's code for Have I Been Pwned not answering. The password is refused until it does.
   PASSWORD_CHECK_UNAVAILABLE: "We couldn’t check this password right now. Try again in a minute.",
@@ -92,7 +96,11 @@ export const AUTH_ERROR_COPY = {
   UNAUTHORIZED: "You’re signed out. Sign in, then try again.",
   // Workspaces (#373). Every Admin is Better Auth's creator role, which it calls an owner: its "only owner" and
   // "without an owner" codes both mean the last Admin, and get #333 Q4's sentence.
-  ORGANIZATION_DELETION_DISABLED: "Workspaces can’t be deleted in Lane. To stop someone using this one, remove them on the Members page in Settings.",
+  // Proposed for Nikhil: a workspace URL (Better Auth's slug) another workspace has. Creating one answers the first
+  // code; checking or changing a URL, the second.
+  ORGANIZATION_ALREADY_EXISTS: SLUG_TAKEN,
+  ORGANIZATION_SLUG_ALREADY_TAKEN: SLUG_TAKEN,
+  ORGANIZATION_DELETION_DISABLED:"Workspaces can’t be deleted in Lane. To stop someone using this one, remove them on the Members page in Settings.",
   YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER: ONLY_ADMIN,
   YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER: ONLY_ADMIN,
   USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION: "You’re no longer in this workspace. Ask one of its Admins to invite you again.",
