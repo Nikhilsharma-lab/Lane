@@ -2,12 +2,15 @@
  * #371 (spec #369): what the auth route tests share. A browser that keeps its cookies and sends Requests to
  * `/api/auth/[...all]`'s GET and POST as a real one would, and a fake for every outbound call Better Auth and the
  * auth email make: Turnstile's siteverify, Have I Been Pwned's range API, Google's token and userinfo endpoints, and
- * Resend. Anything else that leaves the process fails the test.
+ * Resend. Anything else that leaves the process fails the test. And each test file's people, workspaces and
+ * clean-up (`authRouteTestFile`).
  */
 import { createHash, randomUUID } from "node:crypto"
-import { vi } from "vitest"
+import postgres from "postgres"
+import { afterAll, afterEach, vi } from "vitest"
 import { SOMETHING_WENT_WRONG, authErrorCode, authErrorCopy } from "@/lib/auth-error-copy"
 import { RESEND_EMAILS_URL } from "@/lib/messenger"
+import { requireTestDatabase } from "./test-database"
 
 export const AUTH_ORIGIN = "http://localhost:3000"
 
@@ -121,7 +124,7 @@ export class AuthBrowser {
   async call(method: "GET" | "POST", path: string, body?: unknown, extraHeaders: Record<string, string> = {}): Promise<AuthAnswer> {
     const headers = new Headers({ origin: AUTH_ORIGIN, "x-vercel-forwarded-for": this.ip, ...extraHeaders })
     if (this.turnstile) headers.set("x-captcha-response", TURNSTILE_TOKEN)
-    if (this.cookies.size) headers.set("cookie", [...this.cookies].map(([name, value]) => `${name}=${value}`).join("; "))
+    if (this.cookies.size) headers.set("cookie", this.cookieHeader())
     if (body !== undefined) headers.set("content-type", "application/json")
     const { GET, POST } = await import("@/app/api/auth/[...all]/route")
     const request = new Request(`${AUTH_ORIGIN}/api/auth${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), redirect: "manual" })
@@ -140,6 +143,9 @@ export class AuthBrowser {
     } catch {}
     return { status: response.status, body: parsed, location: response.headers.get("location"), headers: response.headers }
   }
+
+  /** The Cookie header this browser sends. */
+  cookieHeader = () => [...this.cookies].map(([name, value]) => `${name}=${value}`).join("; ")
 
   post = (path: string, body: unknown = {}, headers?: Record<string, string>) => this.call("POST", path, body, headers)
   get = (path: string, headers?: Record<string, string>) => this.call("GET", path, undefined, headers)
@@ -197,4 +203,61 @@ export async function signInWithGoogle(browser: AuthBrowser, outbound: Outbound,
   const start = await browser.post("/sign-in/social", { provider: "google", callbackURL: "/" })
   const state = new URL((start.body as { url: string }).url).searchParams.get("state")
   return browser.get(`/callback/google?code=lane-test-code&state=${state}`)
+}
+
+export type TestPerson = { email: string; password: string; name: string }
+
+/**
+ * One auth route test file's database connection, people and workspaces, and the clean-up every such file needs.
+ * Everyone it makes has an address at `domain` and every workspace a slug made from it, so its afterAll removes
+ * exactly what the file made, and files running side by side never remove each other's. Its afterEach undoes the
+ * stubbed env, the fake fetch and every spy. Call it once, at the top of the file. `name` gives a person's name from
+ * their label.
+ */
+export function authRouteTestFile(domain: string, name: (label: string) => string = (label) => `Wren ${label}`) {
+  requireTestDatabase(process.env.DATABASE_URL)
+  const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false, onnotice: () => {} })
+  const slugPrefix = `${domain.replace(/[^a-z0-9]+/g, "-")}-`
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+  afterAll(async () => {
+    await connection`delete from organizations where slug like ${slugPrefix + "%"}`
+    await connection`delete from profiles where email like ${"%@" + domain}`
+    await connection`delete from verification where identifier like ${"%@" + domain}`
+    await connection.end()
+  })
+
+  const person = (label: string): TestPerson => ({ email: `${label}-${randomUUID().slice(0, 8)}@${domain}`, password: "lane-auth-route-test-password", name: name(label) })
+
+  /** A verified person, signed in, in their own browser. */
+  async function signedIn(outbound: Outbound, label: string) {
+    const someone = person(label)
+    const browser = await signUpVerified(outbound, someone)
+    const answer = await signIn(browser, someone)
+    if (answer.status !== 200) throw new Error(`Sign-in answered ${answer.status}`)
+    return { person: someone, browser, userId: (answer.body as { user: { id: string } }).user.id }
+  }
+
+  /** Creates a workspace from the browser, as onboarding will. It becomes the browser's active workspace. */
+  async function createWorkspace(browser: AuthBrowser, extra: Record<string, unknown> = {}) {
+    const answer = await browser.post("/organization/create", { name: "Wren's studio", slug: `${slugPrefix}${randomUUID().slice(0, 8)}`, ...extra })
+    if (answer.status !== 200) throw new Error(`Creating a workspace answered ${answer.status}: ${JSON.stringify(answer.body)}`)
+    return (answer.body as { id: string }).id
+  }
+
+  /** A new person, invited by the Admin as `role` and accepted. The workspace becomes their active one. */
+  async function join(outbound: Outbound, admin: AuthBrowser, role: string, label: string = role) {
+    const joiner = await signedIn(outbound, label)
+    const invited = await admin.post("/organization/invite-member", { email: joiner.person.email, role })
+    if (invited.status !== 200) throw new Error(`Inviting answered ${invited.status}: ${JSON.stringify(invited.body)}`)
+    const accepted = await joiner.browser.post("/organization/accept-invitation", { invitationId: (invited.body as { id: string }).id })
+    if (accepted.status !== 200) throw new Error(`Accepting answered ${accepted.status}: ${JSON.stringify(accepted.body)}`)
+    return { ...joiner, memberId: (accepted.body as { member: { id: string } }).member.id }
+  }
+
+  return { connection, domain, person, signedIn, createWorkspace, join }
 }

@@ -5,13 +5,13 @@
  * database, and only outbound HTTP is faked.
  */
 import { createHash, randomUUID } from "node:crypto"
-import postgres from "postgres"
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import { RESEND_EMAILS_URL } from "@/lib/messenger"
 import {
   AuthBrowser,
   TURNSTILE_SITEVERIFY_URL,
+  authRouteTestFile,
   codesMet,
   fakeOutbound,
   freshIp,
@@ -21,27 +21,12 @@ import {
   switchOnAuthRoute,
   type Outbound,
 } from "@/test/auth-route-browser"
-import { requireTestDatabase } from "@/test/test-database"
 
-requireTestDatabase(process.env.DATABASE_URL)
-const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false, onnotice: () => {} })
+const { connection, person } = authRouteTestFile("auth-codes.test", () => "Cody Codes")
 /** Every error code these tests met, so the last test can check each one has Lane's words. */
 const codes = codesMet()
 const codeOf = codes.codeOf
-const DOMAIN = "auth-codes.test"
 
-afterEach(() => {
-  vi.unstubAllEnvs()
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
-})
-afterAll(async () => {
-  await connection`delete from profiles where email like ${"%@" + DOMAIN}`
-  await connection`delete from verification where identifier like ${"%@" + DOMAIN}`
-  await connection.end()
-})
-
-const person = (label: string) => ({ email: `${label}-${randomUUID().slice(0, 8)}@${DOMAIN}`, password: "lane-codes-test-password", name: "Cody Codes" })
 const profilesWith = async (email: string) => (await connection`select count(*)::int as n from profiles where email = ${email}`)[0].n as number
 
 /** Each call from a new IP, so Better Auth's own per-IP limits (3 a minute on these paths) stay out of the way. */

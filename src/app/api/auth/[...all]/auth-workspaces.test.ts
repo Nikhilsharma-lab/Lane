@@ -4,31 +4,11 @@
  * database, and only outbound HTTP is faked.
  */
 import { randomUUID } from "node:crypto"
-import postgres from "postgres"
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { AuthBrowser, codesMet, fakeOutbound, signIn, signInWithGoogle, signUpVerified, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { AuthBrowser, authRouteTestFile, codesMet, fakeOutbound, signInWithGoogle, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
 import { authErrorCopy } from "@/lib/auth-error-copy"
-import { requireTestDatabase } from "@/test/test-database"
 
-requireTestDatabase(process.env.DATABASE_URL)
-const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false, onnotice: () => {} })
-const DOMAIN = "auth-workspaces.test"
-const SLUG_PREFIX = "auth-workspaces-"
-
-afterEach(() => {
-  vi.unstubAllEnvs()
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
-})
-afterAll(async () => {
-  await connection`delete from organizations where slug like ${SLUG_PREFIX + "%"}`
-  await connection`delete from profiles where email like ${"%@" + DOMAIN}`
-  await connection`delete from verification where identifier like ${"%@" + DOMAIN}`
-  await connection.end()
-})
-
-const person = (label: string) => ({ email: `${label}-${randomUUID().slice(0, 8)}@${DOMAIN}`, password: "lane-workspaces-test-password", name: `Wren ${label}` })
-type Person = ReturnType<typeof person>
+const { connection, domain: DOMAIN, person, signedIn, createWorkspace, join } = authRouteTestFile("auth-workspaces.test")
 
 /** Every error code these tests met, so the last test can check each one has Lane's words. */
 const codes = codesMet()
@@ -36,43 +16,14 @@ const codeOf = codes.codeOf
 
 let outbound: Outbound
 
-/** A verified person, signed in, in their own browser. */
-async function signedIn(label: string): Promise<{ person: Person; browser: AuthBrowser }> {
-  const someone = person(label)
-  const browser = await signUpVerified(outbound, someone)
-  const answer = await signIn(browser, someone)
-  if (answer.status !== 200) throw new Error(`Sign-in answered ${answer.status}`)
-  return { person: someone, browser }
-}
-
-/** Creates a workspace from the browser, as onboarding will. It becomes the browser's active workspace. */
-async function createWorkspace(browser: AuthBrowser, extra: Record<string, unknown> = {}) {
-  const slug = `${SLUG_PREFIX}${randomUUID().slice(0, 8)}`
-  const answer = await browser.post("/organization/create", { name: "Wren's studio", slug, ...extra })
-  if (answer.status !== 200) throw new Error(`Creating a workspace answered ${answer.status}: ${JSON.stringify(answer.body)}`)
-  return (answer.body as { id: string }).id
-}
-
 /** The Admin's browser invites `email` as `role` into the browser's active workspace. */
 const invite = (admin: AuthBrowser, email: string, role: unknown, extra: Record<string, unknown> = {}) => admin.post("/organization/invite-member", { email, role, ...extra })
 const invitationId = (answer: { body: unknown }) => (answer.body as { id: string }).id
 const invitationRow = async (id: string) => (await connection`select email, role, status, expires_at, created_at from invitation where id = ${id}`)[0]
 
-type Joined = { person: Person; browser: AuthBrowser; memberId: string }
-
-/** A new person, invited by the Admin as `role` and accepted. The workspace becomes their active one. */
-async function join(admin: AuthBrowser, role: string, label: string = role): Promise<Joined> {
-  const { person: someone, browser } = await signedIn(label)
-  const invited = await invite(admin, someone.email, role)
-  if (invited.status !== 200) throw new Error(`Inviting answered ${invited.status}: ${JSON.stringify(invited.body)}`)
-  const accepted = await browser.post("/organization/accept-invitation", { invitationId: invitationId(invited) })
-  if (accepted.status !== 200) throw new Error(`Accepting answered ${accepted.status}: ${JSON.stringify(accepted.body)}`)
-  return { person: someone, browser, memberId: (accepted.body as { member: { id: string } }).member.id }
-}
-
 /** A signed-in Admin with a new workspace, active in their browser. */
 async function adminWithWorkspace(label: string) {
-  const admin = await signedIn(label)
+  const admin = await signedIn(outbound, label)
   const workspaceId = await createWorkspace(admin.browser)
   const memberId = (await connection`select id from member where organization_id = ${workspaceId}`)[0].id as string
   return { ...admin, workspaceId, memberId }
@@ -93,7 +44,7 @@ describe("workspaces through the auth route", () => {
 
   describe("creating a workspace", () => {
     it("makes the creator's member row admin, and keeps no logo or metadata on create or update", async () => {
-      const { person: wren, browser } = await signedIn("creator")
+      const { person: wren, browser } = await signedIn(outbound, "creator")
       const id = await createWorkspace(browser, { logo: "https://pictures.example/logo.png", metadata: { colour: "teal" } })
       expect(await memberRows(id)).toEqual([{ email: wren.email, role: "admin" }])
       expect(await workspaceRow(id)).toEqual({ name: "Wren's studio", logo: null, metadata: null })
@@ -104,7 +55,7 @@ describe("workspaces through the auth route", () => {
     })
 
     it("refuses a workspace URL another workspace already uses, with Lane's words saying to choose another", async () => {
-      const { browser } = await signedIn("slug-taken")
+      const { browser } = await signedIn(outbound, "slug-taken")
       const id = await createWorkspace(browser)
       const slug = (await connection`select slug from organizations where id = ${id}`)[0].slug as string
       const other = await createWorkspace(browser)
@@ -124,7 +75,7 @@ describe("workspaces through the auth route", () => {
     })
 
     it("refuses deleting a workspace", async () => {
-      const { browser } = await signedIn("deleter")
+      const { browser } = await signedIn(outbound, "deleter")
       const id = await createWorkspace(browser)
       const answer = await browser.post("/organization/delete", { organizationId: id })
       expect([answer.status, codeOf(answer)]).toEqual([404, "ORGANIZATION_DELETION_DISABLED"])
@@ -134,7 +85,7 @@ describe("workspaces through the auth route", () => {
 
   describe("invitations", () => {
     it("emails one invitation through Resend, linking to /invite/<id>, that expires 7 days after it was sent", async () => {
-      const { browser: admin } = await signedIn("inviter")
+      const { browser: admin } = await signedIn(outbound, "inviter")
       await createWorkspace(admin)
       const invitee = person("invitee")
       const answer = await invite(admin, invitee.email, "member")
@@ -151,7 +102,7 @@ describe("workspaces through the auth route", () => {
     })
 
     it("sends again on a resend, with the invitation's new expiry", async () => {
-      const { browser: admin } = await signedIn("resender")
+      const { browser: admin } = await signedIn(outbound, "resender")
       await createWorkspace(admin)
       const invitee = person("resent")
       const first = await invite(admin, invitee.email, "guest")
@@ -167,7 +118,7 @@ describe("workspaces through the auth route", () => {
 
     it("answers INVITATION_NOT_SENT when the email couldn't be sent, keeps the invitation, and logs neither the address nor the link", async () => {
       const errors = vi.spyOn(console, "error").mockImplementation(() => {})
-      const { browser: admin } = await signedIn("unsent")
+      const { browser: admin } = await signedIn(outbound, "unsent")
       const workspaceId = await createWorkspace(admin)
       const invitee = person("not-reached")
       outbound.resend = () => new Response("{}", { status: 503 })
@@ -186,12 +137,12 @@ describe("workspaces through the auth route", () => {
     })
 
     it("is accepted only by a signed-in account whose verified email matches it", async () => {
-      const { browser: admin } = await signedIn("accept-admin")
+      const { browser: admin } = await signedIn(outbound, "accept-admin")
       const workspaceId = await createWorkspace(admin)
-      const { person: invitee, browser: inviteeBrowser } = await signedIn("accepter")
+      const { person: invitee, browser: inviteeBrowser } = await signedIn(outbound, "accepter")
       const id = invitationId(await invite(admin, invitee.email, "member"))
 
-      const { browser: someoneElse } = await signedIn("not-invited")
+      const { browser: someoneElse } = await signedIn(outbound, "not-invited")
       const wrongAccount = await someoneElse.post("/organization/accept-invitation", { invitationId: id })
       expect([wrongAccount.status, codeOf(wrongAccount)]).toEqual([403, "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION"])
 
@@ -205,7 +156,7 @@ describe("workspaces through the auth route", () => {
     })
 
     it("refuses an account whose email isn't verified, even when it matches", async () => {
-      const { browser: admin } = await signedIn("unverified-admin")
+      const { browser: admin } = await signedIn(outbound, "unverified-admin")
       const workspaceId = await createWorkspace(admin)
       const unverified = person("unverified")
       const id = invitationId(await invite(admin, unverified.email, "member"))
@@ -224,7 +175,7 @@ describe("workspaces through the auth route", () => {
   describe("an invitation that can't be used", () => {
     it("refuses accepting an expired invitation", async () => {
       const admin = await adminWithWorkspace("expired-admin")
-      const { person: invitee, browser } = await signedIn("expired-invitee")
+      const { person: invitee, browser } = await signedIn(outbound, "expired-invitee")
       const id = invitationId(await invite(admin.browser, invitee.email, "member"))
       await connection`update invitation set expires_at = now() - interval '1 second' where id = ${id}`
       const answer = await browser.post("/organization/accept-invitation", { invitationId: id })
@@ -245,7 +196,7 @@ describe("workspaces through the auth route", () => {
 
     it("refuses accepting into a workspace that already has 100 people", async () => {
       const admin = await adminWithWorkspace("member-limit")
-      const { person: invitee, browser } = await signedIn("hundred-and-first")
+      const { person: invitee, browser } = await signedIn(outbound, "hundred-and-first")
       const id = invitationId(await invite(admin.browser, invitee.email, "member"))
       const others = await connection`
         insert into profiles (id, full_name, email)
@@ -261,7 +212,7 @@ describe("workspaces through the auth route", () => {
   describe("one Admin always", () => {
     it("refuses the only Admin leaving, demoting themselves and being removed", async () => {
       const admin = await adminWithWorkspace("only-admin")
-      const member = await join(admin.browser, "member")
+      const member = await join(outbound, admin.browser, "member")
 
       const left = await admin.browser.post("/organization/leave", { organizationId: admin.workspaceId })
       expect([left.status, codeOf(left)]).toEqual([400, "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER"])
@@ -280,9 +231,9 @@ describe("workspaces through the auth route", () => {
 
     it("tells a Member, a Guest and a Viewer they can't remove an Admin, though the workspace has two", async () => {
       const admin = await adminWithWorkspace("removable-admin")
-      await join(admin.browser, "admin", "other-admin")
+      await join(outbound, admin.browser, "admin", "other-admin")
       for (const role of ["member", "guest", "viewer"]) {
-        const { browser } = await join(admin.browser, role)
+        const { browser } = await join(outbound, admin.browser, role)
         const answer = await remove(browser, admin.memberId)
         expect([role, answer.status, codeOf(answer)]).toEqual([role, 400, "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER"])
         expect(authErrorCopy(codeOf(answer))).toBe("Only an Admin can remove someone. Ask an Admin of this workspace to remove them.")
@@ -292,7 +243,7 @@ describe("workspaces through the auth route", () => {
 
     it("treats every Admin the same: a second Admin can demote the first", async () => {
       const first = await adminWithWorkspace("first-admin")
-      const second = await join(first.browser, "admin", "second-admin")
+      const second = await join(outbound, first.browser, "admin", "second-admin")
       const demoted = await changeRole(second.browser, first.memberId, "member")
       expect(demoted.status).toBe(200)
       expect(await memberRows(first.workspaceId)).toEqual(
@@ -333,7 +284,7 @@ describe("workspaces through the auth route", () => {
 
     it("refuses a role change to anything but a Lane role with ROLE_NOT_IN_LANE, and accepts each Lane role", async () => {
       const admin = await adminWithWorkspace("change-roles")
-      const target = await join(admin.browser, "member", "role-target")
+      const target = await join(outbound, admin.browser, "member", "role-target")
       for (const [label, role] of NOT_LANE_ROLES) {
         const answer = await changeRole(admin.browser, target.memberId, role)
         expect([label, answer.status, codeOf(answer)]).toEqual([label, 400, "ROLE_NOT_IN_LANE"])
@@ -350,7 +301,7 @@ describe("workspaces through the auth route", () => {
   describe("workspace management is the Admin's", () => {
     it("refuses a Member, a Guest and a Viewer inviting, changing a role, removing someone and renaming the workspace", async () => {
       const admin = await adminWithWorkspace("rights-admin")
-      const people = { member: await join(admin.browser, "member"), guest: await join(admin.browser, "guest"), viewer: await join(admin.browser, "viewer") }
+      const people = { member: await join(outbound, admin.browser, "member"), guest: await join(outbound, admin.browser, "guest"), viewer: await join(outbound, admin.browser, "viewer") }
       // Each one tries on the next, so the target is never an Admin.
       const targets = { member: people.guest, guest: people.viewer, viewer: people.member }
       for (const role of ["member", "guest", "viewer"] as const) {
@@ -385,7 +336,7 @@ describe("workspaces through the auth route", () => {
   describe("removal and role changes apply on the next request", () => {
     it("stops a removed person seeing the workspace on their next request", async () => {
       const admin = await adminWithWorkspace("remover")
-      const removed = await join(admin.browser, "member", "removed")
+      const removed = await join(outbound, admin.browser, "member", "removed")
       expect((await removed.browser.get("/organization/get-active-member-role")).body).toMatchObject({ role: "member" })
 
       expect((await remove(admin.browser, removed.memberId)).status).toBe(200)
@@ -397,7 +348,7 @@ describe("workspaces through the auth route", () => {
 
     it("shows a changed role on the person's next request", async () => {
       const admin = await adminWithWorkspace("role-changer")
-      const changed = await join(admin.browser, "member", "changed")
+      const changed = await join(outbound, admin.browser, "member", "changed")
       expect((await changed.browser.get("/organization/get-active-member-role")).body).toMatchObject({ role: "member" })
       expect((await changeRole(admin.browser, changed.memberId, "viewer")).status).toBe(200)
       expect((await changed.browser.get("/organization/get-active-member-role")).body).toMatchObject({ role: "viewer" })

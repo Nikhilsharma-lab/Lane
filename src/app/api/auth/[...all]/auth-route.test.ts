@@ -4,8 +4,7 @@
  * route's GET and POST on a local lane_test database, and only outbound HTTP is faked.
  */
 import { randomUUID } from "node:crypto"
-import postgres from "postgres"
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { queryCounter } from "@/db"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import {
@@ -13,6 +12,7 @@ import {
   HIBP_RANGE_URL,
   TURNSTILE_SITEVERIFY_URL,
   TURNSTILE_TOKEN,
+  authRouteTestFile,
   codesMet,
   fakeOutbound,
   freshIp,
@@ -23,28 +23,13 @@ import {
   switchOnAuthRoute,
   type Outbound,
 } from "@/test/auth-route-browser"
-import { requireTestDatabase } from "@/test/test-database"
 
-requireTestDatabase(process.env.DATABASE_URL)
-const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false, onnotice: () => {} })
+const { connection, person } = authRouteTestFile("auth-route.test", () => "Rae Route")
 /** Every error code these tests met, so the last test can check each one has Lane's words. */
 const codes = codesMet()
 const codeOf = codes.codeOf
-const DOMAIN = "auth-route.test"
-
-afterEach(() => {
-  vi.unstubAllEnvs()
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
-})
-afterAll(async () => {
-  await connection`delete from profiles where email like ${"%@" + DOMAIN}`
-  await connection`delete from verification where identifier like ${"%@" + DOMAIN}`
-  await connection.end()
-})
 
 const route = () => import("./route")
-const person = (label: string) => ({ email: `${label}-${randomUUID().slice(0, 8)}@${DOMAIN}`, password: "lane-route-test-password", name: "Rae Route" })
 /** A range API that never answers. */
 const hung = () => new Promise<Response>(() => {})
 const profileOf = async (email: string) => (await connection`select id, full_name, email_verified, role, image from profiles where email = ${email}`)[0]
