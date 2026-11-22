@@ -8,7 +8,18 @@ import { createHash, randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { RESEND_EMAILS_URL } from "@/lib/messenger"
-import { AuthBrowser, codeOf, fakeOutbound, freshIp, signIn, signUp, signUpVerified, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
+import {
+  AuthBrowser,
+  TURNSTILE_SITEVERIFY_URL,
+  codeOf,
+  fakeOutbound,
+  freshIp,
+  signIn,
+  signUp,
+  signUpVerified,
+  switchOnAuthRoute,
+  type Outbound,
+} from "@/test/auth-route-browser"
 import { requireTestDatabase } from "@/test/test-database"
 
 requireTestDatabase(process.env.DATABASE_URL)
@@ -107,6 +118,90 @@ describe("email codes through the auth route", () => {
         expect([answer.status, codeOf(answer)]).toEqual([400, "NO_ACCOUNT"])
       expect(outbound.emails()).toEqual([])
       expect(await profilesWith(nobody.email)).toBe(0)
+    })
+  })
+
+  describe("password reset by code", () => {
+    const resetWith = (browser: AuthBrowser, email: string, otp: string, password: string) => from(browser).post("/email-otp/reset-password", { email, otp, password })
+    const sessionsOf = async (email: string) =>
+      (await connection`select count(*)::int as n from session s join profiles p on p.id = s.user_id where p.email = ${email}`)[0].n as number
+
+    it("sets a new password that then signs in, and signs the person out everywhere else", async () => {
+      const cody = person("reset")
+      const laptop = await signUpVerified(outbound, cody)
+      expect((await signIn(laptop, cody)).status).toBe(200)
+      const phone = new AuthBrowser()
+      expect((await signIn(phone, cody)).status).toBe(200)
+      expect(await sessionsOf(cody.email)).toBe(2)
+
+      const browser = new AuthBrowser()
+      expect((await askForResetCode(browser, cody.email)).status).toBe(200)
+      expect(outbound.emailsTo(cody.email).at(-1)!.subject).toBe("Your Lane password reset code")
+      const newPassword = "a-brand-new-lane-password"
+      const reset = await resetWith(browser, cody.email, outbound.codeFor(cody.email), newPassword)
+      expect(reset.status).toBe(200)
+
+      expect(await sessionsOf(cody.email)).toBe(0)
+      for (const device of [laptop, phone]) expect((await device.get("/get-session")).body).toBeNull()
+      const old = await signIn(from(new AuthBrowser()), cody)
+      expect([old.status, codeOf(old)]).toEqual([401, "INVALID_EMAIL_OR_PASSWORD"])
+      expect((await signIn(new AuthBrowser(), { ...cody, password: newPassword })).status).toBe(200)
+    })
+
+    it("refuses a breached and a 7-character new password, as at sign-up, and keeps the old one", async () => {
+      const cody = person("reset-refused")
+      await signUpVerified(outbound, cody)
+      const browser = new AuthBrowser()
+      await askForResetCode(browser, cody.email)
+      const code = outbound.codeFor(cody.email)
+      const short = await resetWith(browser, cody.email, code, "seven77")
+      expect([short.status, codeOf(short)]).toEqual([400, "PASSWORD_TOO_SHORT"])
+      outbound.breached.add("a-breached-lane-password")
+      const breached = await resetWith(browser, cody.email, code, "a-breached-lane-password")
+      expect([breached.status, codeOf(breached)]).toEqual([400, "PASSWORD_COMPROMISED"])
+      expect((await signIn(new AuthBrowser(), cody)).status).toBe(200)
+    })
+
+    it("refuses the reset, and keeps the old password, while Have I Been Pwned can't be reached", async () => {
+      const cody = person("reset-hibp-down")
+      await signUpVerified(outbound, cody)
+      const browser = new AuthBrowser()
+      await askForResetCode(browser, cody.email)
+      const code = outbound.codeFor(cody.email)
+      outbound.hibp = () => new Response("", { status: 503 })
+      const down = await resetWith(browser, cody.email, code, "a-brand-new-lane-password")
+      outbound.hibp = () => Promise.reject(new TypeError("fetch failed"))
+      const unreachable = await resetWith(browser, cody.email, code, "a-brand-new-lane-password")
+      for (const answer of [down, unreachable]) expect([answer.status, codeOf(answer)]).toEqual([500, undefined])
+      expect((await signIn(new AuthBrowser(), cody)).status).toBe(200)
+    })
+  })
+
+  describe("Turnstile", () => {
+    it("is required on every code send and on the reset submission", async () => {
+      const cody = person("turnstile")
+      await signUpVerified(outbound, cody)
+      const browser = new AuthBrowser(undefined, false)
+      const answers = [
+        ...(await Promise.all(
+          (["email-verification", "sign-in", "forget-password"] as const).map((type) => from(browser).post("/email-otp/send-verification-otp", { email: cody.email, type })),
+        )),
+        await askForResetCode(browser, cody.email),
+        await from(browser).post("/email-otp/reset-password", { email: cody.email, otp: "123456", password: "a-brand-new-lane-password" }),
+      ]
+      for (const answer of answers) expect([answer.status, codeOf(answer)]).toEqual([400, "MISSING_RESPONSE"])
+      expect(outbound.emailsTo(cody.email)).toHaveLength(1)
+    })
+
+    it("isn't asked for when signing in with a code", async () => {
+      const cody = person("turnstile-sign-in")
+      await signUpVerified(outbound, cody)
+      const browser = new AuthBrowser()
+      await askForSignInCode(browser, cody.email)
+      browser.turnstile = false
+      const turnstileChecks = outbound.callsTo(TURNSTILE_SITEVERIFY_URL).length
+      expect((await signInWithCode(browser, cody.email, outbound.codeFor(cody.email))).status).toBe(200)
+      expect(outbound.callsTo(TURNSTILE_SITEVERIFY_URL)).toHaveLength(turnstileChecks)
     })
   })
 

@@ -16,6 +16,16 @@ describe("Auth error copy", () => {
     for (const code of ["EMAIL_NOT_VERIFIED", "MISSING_RESPONSE", "VERIFICATION_FAILED"]) expect(Object.keys(AUTH_ERROR_COPY)).toContain(code)
   })
 
+  it("has Lane's words for every code the auth route's email-code and reset tests produce", () => {
+    expect(authErrorCopy("NO_ACCOUNT")).toBe("No Lane account uses this email.")
+    expect(authErrorCopy("INVALID_OTP")).toBe("That code isn’t right. Check the most recent email from Lane.")
+    expect(authErrorCopy("OTP_EXPIRED")).toBe("That code has expired. Send a new one.")
+    expect(authErrorCopy("TOO_MANY_ATTEMPTS")).toBe("That code has expired. Send a new one.")
+    expect(authErrorCopy("CODE_NOT_SENT")).toBe(CODE_COULD_NOT_SEND)
+    // Proposed for Nikhil to confirm (#372).
+    expect(authErrorCopy("TOO_MANY_CODES")).toBe("Too many codes sent to this email. Wait 10 minutes, then try again.")
+  })
+
   it("gives the generic line for a code it doesn't know, or no code at all", () => {
     for (const code of ["SOMETHING_NEW_IN_BETTER_AUTH", "constructor", "", null, undefined]) expect(authErrorCopy(code)).toBe("Something went wrong. Try again.")
   })
