@@ -32,6 +32,7 @@ describe("Auth error copy", () => {
 
   it("has Lane's words, proposed for Nikhil to confirm, for a check that couldn't run and for Better Auth's own limit", () => {
     expect(authErrorCopy("HUMAN_CHECK_UNAVAILABLE")).toBe("We couldn’t run the check that you’re human right now. Try again in a minute.")
+    expect(authErrorCopy("HUMAN_CHECK_NOT_SET_UP")).toBe("We can’t run the check that you’re human, so this is off for now. Continue with Google instead, or try again later.")
     expect(authErrorCopy("PASSWORD_CHECK_UNAVAILABLE")).toBe("We couldn’t check this password right now. Try again in a minute.")
     // #346's rateLimited line.
     expect(authErrorCopy("RATE_LIMITED")).toBe("Too many tries. Wait a minute, then try again.")

@@ -205,6 +205,17 @@ describe("the auth route switched on", () => {
       expect(outbound.emails()).toEqual([])
     })
 
+    it("refuses sign-up with HUMAN_CHECK_NOT_SET_UP, not the try-again-in-a-minute line, while Turnstile's secret isn't set", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {})
+      switchOnAuthRoute({ TURNSTILE_SECRET_KEY: "" })
+      const rae = person("turnstile-unset")
+      const signedUp = await signUp(rae)
+      expect([signedUp.status, codeOf(signedUp)]).toEqual([503, "HUMAN_CHECK_NOT_SET_UP"])
+      expect(authErrorCopy(codeOf(signedUp))).not.toMatch(/in a minute/)
+      expect(await profileOf(rae.email)).toBeUndefined()
+      expect(outbound.calls).toEqual([])
+    })
+
     it("isn't asked for on verification submission or password sign-in", async () => {
       const rae = person("no-turnstile-after")
       const browser = new AuthBrowser()

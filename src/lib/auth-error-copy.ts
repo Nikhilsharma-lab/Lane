@@ -77,6 +77,9 @@ export const AUTH_ERROR_COPY = {
   VERIFICATION_FAILED: "We couldn’t confirm you’re human. Refresh the page and try again.",
   // Lane's code for Turnstile's siteverify not answering, so Better Auth's broad UNKNOWN_ERROR keeps the generic line.
   HUMAN_CHECK_UNAVAILABLE: "We couldn’t run the check that you’re human right now. Try again in a minute.",
+  // Proposed for Nikhil: Lane's code for the check not being set up (no TURNSTILE_SECRET_KEY). A minute won't fix
+  // it; Google sign-in doesn't need the check.
+  HUMAN_CHECK_NOT_SET_UP: "We can’t run the check that you’re human, so this is off for now. Continue with Google instead, or try again later.",
   // Google's redirect back, `?error=<code>`.
   ...GOOGLE_REDIRECT_COPY,
   // Email codes (#372). A code is burnt after 3 wrong tries, so too many tries reads as used up: only a new code helps.

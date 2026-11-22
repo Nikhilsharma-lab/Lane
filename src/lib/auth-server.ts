@@ -390,7 +390,7 @@ export function getAuth(config: Config): Auth {
  * that request's answer and no other's.
  */
 export async function handleAuthRequest(config: Config, request: Request): Promise<Response> {
-  return withLaneCode(request, await requestEmails.run({ codeCounted: false }, () => getAuth(config).handler(request)))
+  return withLaneCode(config, request, await requestEmails.run({ codeCounted: false }, () => getAuth(config).handler(request)))
 }
 
 /** The path under `/api/auth`, as Better Auth matches it. */
@@ -400,15 +400,18 @@ const authPath = (request: Request) => new URL(request.url).pathname.replace(/^\
  * Gives Lane's own code to the answers Better Auth makes before any endpoint or hook runs, which carry no code or
  * one too broad for Lane's words:
  * - its per-IP limit answers 429 with no code (Lane's TOO_MANY_CODES has one, and is kept);
- * - Turnstile's plugin answers 500 UNKNOWN_ERROR when siteverify can't be reached (fail closed, nothing else ran).
+ * - Turnstile's plugin answers 500 UNKNOWN_ERROR, failing closed with nothing else run, both when siteverify can't
+ *   be reached or fails and when TURNSTILE_SECRET_KEY isn't set. Only the first is worth trying again in a minute,
+ *   so each gets its own code.
  * Every other answer is passed on untouched, without reading its body.
  */
-async function withLaneCode(request: Request, response: Response): Promise<Response> {
+async function withLaneCode(config: Config, request: Request, response: Response): Promise<Response> {
   const turnstileDown = response.status === 500 && TURNSTILE_PATHS.includes(authPath(request))
   if (response.status !== 429 && !turnstileDown) return response
   const code = ((await response.clone().json().catch(() => null)) as { code?: unknown } | null)?.code
   if (response.status === 429) return code ? response : laneAnswer(response, 429, "RATE_LIMITED")
-  return code === "UNKNOWN_ERROR" ? laneAnswer(response, 503, "HUMAN_CHECK_UNAVAILABLE") : response
+  if (code !== "UNKNOWN_ERROR") return response
+  return laneAnswer(response, 503, config.turnstileSecretKey ? "HUMAN_CHECK_UNAVAILABLE" : "HUMAN_CHECK_NOT_SET_UP")
 }
 
 function laneAnswer(response: Response, status: number, code: keyof typeof AUTH_ERROR_COPY): Response {
