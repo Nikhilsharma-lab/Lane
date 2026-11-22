@@ -12,6 +12,8 @@ import styles from "./better-auth.module.css"
 
 const LABEL: Record<CodePurpose, string> = { "sign-in": "Sign-in code", confirm: "Confirmation code", reset: "Reset code" }
 const ACTION: Record<CodePurpose, string> = { "sign-in": "Sign in", confirm: "Confirm email", reset: "Save new password" }
+/** Whether the step's own submit sends a Turnstile token: only the reset's save does (increment 3's server). */
+const SUBMIT_NEEDS_CHECK: Record<CodePurpose, boolean> = { "sign-in": false, confirm: false, reset: true }
 
 /** Wraps the code boxes, so a screen can put focus on the first one after a refused code. */
 export const CODE_FIELD_ID = "code-step-code"
@@ -71,7 +73,7 @@ export function CodeStep({ purpose, email, code, onCodeChange, error, resendIn, 
     {fields}
     <TurnstileWidget check={humanCheck} />
     {alert}
-    <AuthAction type="submit" loading={pending === "submit"}>{ACTION[purpose]}</AuthAction>
+    <AuthAction type="submit" loading={pending === "submit"} disabled={SUBMIT_NEEDS_CHECK[purpose] && !humanCheck.siteKey}>{ACTION[purpose]}</AuthAction>
     <div className={styles.actions}>
       {/* Unavailable while it waits, but focusable, so a keyboard press keeps its place. */}
       <AuthAction type="button" kind="tertiary" loading={pending === "send"} aria-disabled={!canResend || undefined}

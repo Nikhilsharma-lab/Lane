@@ -68,4 +68,14 @@ describe("the shared code step (#377)", () => {
     expect(resend(html).ariaDisabled).toBe(true)
     expect(html).toContain("We can’t run the check that you’re human")
   })
+
+  // #376: "the actions that need the check stay disabled". Only the reset's save sends a token.
+  it("keeps Save new password disabled when the human check isn't set up, and signing in or confirming on", () => {
+    const off = passedHumanCheck(null).check
+    const submit = (html: string) => buttonsIn(html).find((button) => button.submit)!
+    expect(submit(step({ purpose: "reset", humanCheck: off })).disabled).toBe(true)
+    expect(submit(step({ purpose: "reset" })).disabled).toBe(false)
+    expect(submit(step({ purpose: "sign-in", humanCheck: off })).disabled).toBe(false)
+    expect(submit(step({ purpose: "confirm", humanCheck: off })).disabled).toBe(false)
+  })
 })
