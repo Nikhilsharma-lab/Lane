@@ -1,9 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { fakeAuthFetch, passedHumanCheck, TURNSTILE_TOKEN, type AuthFetchFake } from "@/test/auth-fetch-fake"
+import { AUTH_ERROR_COPY } from "@/lib/auth-error-copy"
+import { answeredCodes, fakeAuthFetch, passedHumanCheck, TURNSTILE_TOKEN, type AuthFetchFake } from "@/test/auth-fetch-fake"
 import { createSignInFlow } from "./sign-in-flow"
 
 const MEI = "mei@example.test"
+
+// #376: every code these tests met has Lane's words in AUTH_ERROR_COPY.
+afterAll(() => {
+  expect(answeredCodes().length).toBeGreaterThan(5)
+  expect(answeredCodes().filter((code) => !Object.hasOwn(AUTH_ERROR_COPY, code))).toEqual([])
+})
 
 describe("signing in with a password (#377)", () => {
   let auth: AuthFetchFake

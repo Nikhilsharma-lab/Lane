@@ -35,15 +35,18 @@ const SUCCESS: Record<string, unknown> = {
 
 const PREFIX = "/api/auth"
 
+/** Every error code any fake in this test file answered with, so the file can check each has Lane's words. */
+const ANSWERED = new Set<string>()
+export const answeredCodes = () => [...ANSWERED]
+
 export function fakeAuthFetch() {
   const requests: AuthRequest[] = []
   const replies = new Map<string, Reply[]>()
-  const answered = new Set<string>()
   const queue = (path: string, reply: Reply) => replies.set(path, [...(replies.get(path) ?? []), reply])
   const fake = {
     requests,
-    /** Every error code a faked answer carried, so a test can check each has Lane's words. */
-    codes: answered,
+    /** Every error code this fake answered with. */
+    codes: new Set<string>(),
     /** The next call to `path` fails with Better Auth's answer shape. */
     refuse(path: string, status: number, code: string) {
       queue(path, { status, body: { code, message: BETTER_AUTH_MESSAGE } })
@@ -71,7 +74,10 @@ export function fakeAuthFetch() {
     if (reply && "throws" in reply) throw new TypeError("Failed to fetch")
     if (reply) {
       const code = (reply.body as { code?: unknown } | null)?.code
-      if (typeof code === "string") answered.add(code)
+      if (typeof code === "string") {
+        fake.codes.add(code)
+        ANSWERED.add(code)
+      }
       return Response.json(reply.body, { status: reply.status })
     }
     if (!(path in SUCCESS)) throw new Error(`The test made an unexpected call to ${path}`)

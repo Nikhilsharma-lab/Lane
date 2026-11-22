@@ -84,6 +84,23 @@ describe("Auth error copy", () => {
     for (const sentence of words) expect(sentence.split(". ").length).toBeGreaterThanOrEqual(2)
   })
 
+  // #377: the sign-in screens' tests (src/components/auth/better-auth) meet these codes, from increment 3's route
+  // tests and the screens' own human check. Each has its own words: none falls back to the generic line.
+  it("has Lane's words for every code the sign-in screens' tests produce", () => {
+    expect(authErrorCopy("INVALID_EMAIL_OR_PASSWORD")).toBe("That email and password don’t match. Try again, or email yourself a code.")
+    expect(authErrorCopy("EMAIL_NOT_VERIFIED")).toBe("This email isn’t confirmed yet. Email yourself a code to confirm it.")
+    expect(authErrorCopy("access_denied")).toBe("Google sign-in didn’t finish. Try again, or use your email.")
+    expect(authErrorCopy("NO_ACCOUNT")).toBe("No Lane account uses this email.")
+    expect(authErrorCopy("CODE_NOT_SENT")).toBe("We couldn’t send the code right now. Sign in with your password or Google, or try again later.")
+    expect(authErrorCopy("TOO_MANY_CODES")).toBe("Too many codes sent to this email. Wait 10 minutes, then try again.")
+    expect(authErrorCopy("RATE_LIMITED")).toBe("Too many tries. Wait a minute, then try again.")
+    expect(authErrorCopy("INVALID_OTP")).toBe("That code isn’t right. Check the most recent email from Lane.")
+    expect(authErrorCopy("OTP_EXPIRED")).toBe("That code has expired. Send a new one.")
+    expect(authErrorCopy("MISSING_RESPONSE")).toBe("Finish the check that you’re human, then try again.")
+    expect(authErrorCopy("HUMAN_CHECK_NOT_SET_UP")).toBe("We can’t run the check that you’re human, so this is off for now. Continue with Google instead, or try again later.")
+    expect(authErrorCopy(undefined)).toBe("Something went wrong. Try again.")
+  })
+
   it("reads the code from a Better Auth or Lane error answer's body, and nothing from any other body", () => {
     expect(authErrorCode({ code: "INVALID_OTP", message: "Invalid OTP" })).toBe("INVALID_OTP")
     for (const body of [{ message: "Too many requests. Please try again later." }, { code: 42 }, { code: "" }, "INVALID_OTP", null, undefined]) expect(authErrorCode(body)).toBeUndefined()
