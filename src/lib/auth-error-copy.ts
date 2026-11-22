@@ -11,6 +11,9 @@ export const SOMETHING_WENT_WRONG = "Something went wrong. Try again."
 /** #333 Q4: the last Admin of a workspace can't leave it, be removed or stop being an Admin. */
 export const ONLY_ADMIN = "You’re the only Admin. Make someone else an Admin before you leave."
 
+/** #346: Google can't be disconnected while it's the only way a person signs in. */
+export const GOOGLE_ONLY_METHOD = "Google is your only sign-in method. Set a password before disconnecting it."
+
 const SLUG_TAKEN = "Another workspace already uses this URL. Choose a different one, then try again."
 
 /** #346's googleFailed line, for every way Google sign-in can come back unfinished. */
@@ -124,6 +127,15 @@ export const AUTH_ERROR_COPY = {
   INVITATION_NOT_FOUND: "This invitation has expired or is no longer open. Ask the person who invited you to send a new one.",
   YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "This invitation was sent to a different email. Sign in with that email to accept it.",
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "Confirm your email before you accept. Email yourself a code to confirm it.",
+  // Settings → Profile's account section (#380). Changing a password with the wrong current one, and unlinking the
+  // last sign-in method: #346's words.
+  INVALID_PASSWORD: "That isn’t your current password.",
+  FAILED_TO_UNLINK_LAST_ACCOUNT: GOOGLE_ONLY_METHOD,
+  // Proposed for Nikhil: Lane's codes for Google's redirect back to Settings after Connect Google. Its
+  // `email_does_not_match` becomes the first; any other `error` the second (`googleConnectionCode`). The redirect's
+  // own codes keep the sign-in line, which tells a person to use their email instead.
+  GOOGLE_EMAIL_DOES_NOT_MATCH: "That Google account uses a different email, so nothing changed. Choose the Google account that uses your Lane email.",
+  GOOGLE_NOT_CONNECTED: "Google didn’t connect, so nothing changed. Try again.",
 } as const satisfies Record<string, string>
 
 /**
