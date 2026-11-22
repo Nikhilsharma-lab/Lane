@@ -210,6 +210,14 @@ describe("confirming the email (#378)", () => {
     expect(navigate).not.toHaveBeenCalled()
   })
 
+  it("sends Sign in to the sign-in page with the email and the return address", async () => {
+    auth.refuse("/sign-in/email", 429, "RATE_LIMITED")
+    const { flow } = await confirming({ returnTo: "/invite/inv_1" })
+    await flow.confirmEmail({ code: "482913" })
+    flow.goToSignIn()
+    expect(navigate).toHaveBeenCalledWith(`/login?email=${encodeURIComponent(MEI)}&redirect_url=%2Finvite%2Finv_1`)
+  })
+
   it.each([
     ["INVALID_OTP", "That code isn’t right. Check the most recent email from Lane."],
     ["OTP_EXPIRED", "That code has expired. Send a new one."],

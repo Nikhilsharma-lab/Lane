@@ -3,7 +3,7 @@ import { CODE_LENGTH } from "@/lib/auth-code-rules"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import { safeReturnAddress } from "@/lib/auth-return-address"
 import { emailAddressProblem } from "@/lib/email-address-rules"
-import { signUpPage } from "./auth-addresses"
+import { signInPage, signUpPage } from "./auth-addresses"
 import { createCodeSends } from "./code-sends"
 import { createHumanCheck, withHumanCheck, type HumanCheck } from "./human-check"
 import { CODE_MISSING } from "./sign-in-flow"
@@ -183,6 +183,10 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
         if (signedIn) navigate(destination)
         else set({ step: "confirmed", fieldErrors: {}, alert: null })
       }),
+    /** Sign in, once the email is confirmed but the sign-in after it didn't go: the sign-in page, email kept. */
+    goToSignIn() {
+      navigate(signInPage(state.email, returnTo))
+    },
     /** "Use a different email": back to the details, with the name and email kept. A new Create account follows. */
     useDifferentEmail() {
       if (state.pending || state.step !== "code") return
