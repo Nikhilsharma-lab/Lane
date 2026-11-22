@@ -11,7 +11,7 @@ import { RESEND_EMAILS_URL } from "@/lib/messenger"
 import {
   AuthBrowser,
   TURNSTILE_SITEVERIFY_URL,
-  codeOf,
+  codesMet,
   fakeOutbound,
   freshIp,
   signIn,
@@ -24,6 +24,9 @@ import { requireTestDatabase } from "@/test/test-database"
 
 requireTestDatabase(process.env.DATABASE_URL)
 const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false, onnotice: () => {} })
+/** Every error code these tests met, so the last test can check each one has Lane's words. */
+const codes = codesMet()
+const codeOf = codes.codeOf
 const DOMAIN = "auth-codes.test"
 
 afterEach(() => {
@@ -351,5 +354,11 @@ describe("email codes through the auth route", () => {
       for (let ask = 0; ask < 2; ask++) expect((await askForSignInCode(browser, cody.email)).status).toBe(200)
       expect(codeOf(await askForSignInCode(browser, cody.email))).toBe("TOO_MANY_CODES")
     })
+  })
+
+  // Runs last: vitest runs a file's tests in order.
+  it("has Lane's own words for every error code these tests met, none of them the generic line", () => {
+    expect(codes.met.size).toBeGreaterThanOrEqual(8)
+    expect(codes.withoutLaneWords()).toEqual([])
   })
 })

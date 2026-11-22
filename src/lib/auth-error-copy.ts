@@ -19,9 +19,10 @@ export const AUTH_ERROR_COPY = {
   // Sign-in. Proposed for Nikhil (#371): #346 has no state for an address that was never confirmed.
   EMAIL_NOT_VERIFIED: "This email isn’t confirmed yet. Email yourself a code to confirm it.",
   INVALID_EMAIL_OR_PASSWORD: "That email and password don’t match. Try again, or email yourself a code.",
-  // Turnstile: no token, or Turnstile didn't pass it. #346 has no words of its own, so the generic line.
-  MISSING_RESPONSE: SOMETHING_WENT_WRONG,
-  VERIFICATION_FAILED: SOMETHING_WENT_WRONG,
+  // Turnstile. Proposed for Nikhil (his rule on #369: every error a person can meet says how to fix it).
+  // No token: the widget hasn't finished. Turnstile refused the token, or it expired: a reload gives a new one.
+  MISSING_RESPONSE: "Finish the check that you’re human, then try again.",
+  VERIFICATION_FAILED: "We couldn’t confirm you’re human. Refresh the page and try again.",
   // Google's redirect back, `?error=account_not_linked`: Google didn't confirm an email a Lane account uses.
   account_not_linked: "Google sign-in didn’t finish. Try again, or use your email.",
   // Email codes (#372). A code is burnt after 3 wrong tries, so too many tries reads as used up: only a new code helps.

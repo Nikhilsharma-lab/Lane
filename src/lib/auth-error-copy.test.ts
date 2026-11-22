@@ -13,7 +13,10 @@ describe("Auth error copy", () => {
     expect(authErrorCopy("PASSWORD_COMPROMISED")).toBe("This password has appeared in a data breach elsewhere. Choose a different one.")
     expect(authErrorCopy("INVALID_EMAIL_OR_PASSWORD")).toBe("That email and password don’t match. Try again, or email yourself a code.")
     expect(authErrorCopy("account_not_linked")).toBe("Google sign-in didn’t finish. Try again, or use your email.")
-    for (const code of ["EMAIL_NOT_VERIFIED", "MISSING_RESPONSE", "VERIFICATION_FAILED"]) expect(Object.keys(AUTH_ERROR_COPY)).toContain(code)
+    expect(authErrorCopy("EMAIL_NOT_VERIFIED")).toBe("This email isn’t confirmed yet. Email yourself a code to confirm it.")
+    // Proposed for Nikhil to confirm.
+    expect(authErrorCopy("MISSING_RESPONSE")).toBe("Finish the check that you’re human, then try again.")
+    expect(authErrorCopy("VERIFICATION_FAILED")).toBe("We couldn’t confirm you’re human. Refresh the page and try again.")
   })
 
   it("has Lane's words for every code the auth route's email-code and reset tests produce", () => {

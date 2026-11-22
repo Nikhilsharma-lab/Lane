@@ -6,8 +6,8 @@
 import { randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { AuthBrowser, codeOf as codeIn, fakeOutbound, signIn, signInWithGoogle, signUpVerified, switchOnAuthRoute, type AuthAnswer, type Outbound } from "@/test/auth-route-browser"
-import { AUTH_ERROR_COPY, SOMETHING_WENT_WRONG, authErrorCopy } from "@/lib/auth-error-copy"
+import { AuthBrowser, codesMet, fakeOutbound, signIn, signInWithGoogle, signUpVerified, switchOnAuthRoute, type AuthAnswer, type Outbound } from "@/test/auth-route-browser"
+import { authErrorCopy } from "@/lib/auth-error-copy"
 import { requireTestDatabase } from "@/test/test-database"
 
 requireTestDatabase(process.env.DATABASE_URL)
@@ -31,12 +31,8 @@ const person = (label: string) => ({ email: `${label}-${randomUUID().slice(0, 8)
 type Person = ReturnType<typeof person>
 
 /** Every error code these tests met, so the last test can check each one has Lane's words. */
-const codesMet = new Set<string>()
-const codeOf = (answer: AuthAnswer) => {
-  const code = codeIn(answer)
-  if (code) codesMet.add(code)
-  return code
-}
+const codes = codesMet()
+const codeOf = codes.codeOf
 
 let outbound: Outbound
 
@@ -368,7 +364,7 @@ describe("workspaces through the auth route", () => {
 
   // Runs last: vitest runs a file's tests in order.
   it("has Lane's own words for every error code these tests met, none of them the generic line", () => {
-    expect(codesMet.size).toBeGreaterThanOrEqual(15)
-    for (const code of codesMet) expect([code, Object.hasOwn(AUTH_ERROR_COPY, code) && AUTH_ERROR_COPY[code as keyof typeof AUTH_ERROR_COPY] !== SOMETHING_WENT_WRONG]).toEqual([code, true])
+    expect(codes.met.size).toBeGreaterThanOrEqual(15)
+    expect(codes.withoutLaneWords()).toEqual([])
   })
 })

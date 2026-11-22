@@ -6,6 +6,7 @@
  */
 import { createHash, randomUUID } from "node:crypto"
 import { vi } from "vitest"
+import { SOMETHING_WENT_WRONG, authErrorCopy } from "@/lib/auth-error-copy"
 import { RESEND_EMAILS_URL } from "@/lib/messenger"
 
 export const AUTH_ORIGIN = "http://localhost:3000"
@@ -146,6 +147,24 @@ export class AuthBrowser {
 
 /** The `code` of a Better Auth or Lane error answer, if it has one. */
 export const codeOf = (answer: AuthAnswer) => (answer.body as { code?: string } | null)?.code
+
+/**
+ * Keeps every error code a test file's answers carried, so its last test can check each one has Lane's own words
+ * (#369: no error a person can meet falls to the generic line). Use its `codeOf` in place of the plain one.
+ */
+export function codesMet() {
+  const met = new Set<string>()
+  return {
+    met,
+    codeOf(answer: AuthAnswer) {
+      const code = codeOf(answer)
+      if (code) met.add(code)
+      return code
+    },
+    /** The codes met that have no words of Lane's, or only the generic line. */
+    withoutLaneWords: () => [...met].filter((code) => authErrorCopy(code) === SOMETHING_WENT_WRONG),
+  }
+}
 
 /** Signs up by password from a fresh browser, as the sign-up screen does. */
 export const signUp = (person: { email: string; password: string; name: string }, browser = new AuthBrowser()) => browser.post("/sign-up/email", person)

@@ -12,7 +12,7 @@ import {
   HIBP_RANGE_URL,
   TURNSTILE_SITEVERIFY_URL,
   TURNSTILE_TOKEN,
-  codeOf,
+  codesMet,
   fakeOutbound,
   signIn,
   signInWithGoogle,
@@ -25,6 +25,9 @@ import { requireTestDatabase } from "@/test/test-database"
 
 requireTestDatabase(process.env.DATABASE_URL)
 const connection = postgres(process.env.DATABASE_URL!, { max: 1, prepare: false, onnotice: () => {} })
+/** Every error code these tests met, so the last test can check each one has Lane's words. */
+const codes = codesMet()
+const codeOf = codes.codeOf
 const DOMAIN = "auth-route.test"
 
 afterEach(() => {
@@ -217,5 +220,11 @@ describe("the auth route switched on", () => {
     const browser = new AuthBrowser()
     await signUp(person("rate-limit"), browser)
     expect(await connection`select count from rate_limit where key = ${`${browser.ip}|/sign-up/email`}`).toEqual([{ count: 1 }])
+  })
+
+  // Runs last: vitest runs a file's tests in order.
+  it("has Lane's own words for every error code these tests met, none of them the generic line", () => {
+    expect(codes.met.size).toBeGreaterThanOrEqual(7)
+    expect(codes.withoutLaneWords()).toEqual([])
   })
 })
