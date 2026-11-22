@@ -26,6 +26,34 @@ describe("Auth error copy", () => {
     expect(authErrorCopy("TOO_MANY_CODES")).toBe("Too many codes sent to this email. Wait 10 minutes, then try again.")
   })
 
+  it("has Lane's own words, each saying what to do next, for every code the auth route's workspace tests produce", () => {
+    const onlyAdmin = "You’re the only Admin. Make someone else an Admin before you leave."
+    expect(authErrorCopy("YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER")).toBe(onlyAdmin)
+    expect(authErrorCopy("YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER")).toBe(onlyAdmin)
+    // Proposed for Nikhil to confirm (#373).
+    expect(authErrorCopy("ROLE_NOT_IN_LANE")).toBe("Lane has no such role. Choose Admin, Member, Guest or Viewer.")
+    expect(authErrorCopy("INVITATION_NOT_SENT")).toBe(INVITATION_COULD_NOT_SEND)
+    expect(authErrorCopy("YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION")).toBe("This invitation was sent to a different email. Sign in with that email to accept it.")
+    expect(authErrorCopy("INVITATION_NOT_FOUND")).toBe("This invitation has expired or is no longer open. Ask the person who invited you to send a new one.")
+    const own = [
+      "UNAUTHORIZED",
+      "ORGANIZATION_DELETION_DISABLED",
+      "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION",
+      "YOU_ARE_NOT_ALLOWED_TO_INVITE_USERS_TO_THIS_ORGANIZATION",
+      "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER",
+      "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER",
+      "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_ORGANIZATION",
+      "INVITATION_LIMIT_REACHED",
+      "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED",
+      "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION",
+    ]
+    const words = own.map((code) => authErrorCopy(code))
+    expect(words).not.toContain("Something went wrong. Try again.")
+    expect(new Set(words).size).toBe(own.length)
+    // Two sentences: what happened, then what to do.
+    for (const sentence of words) expect(sentence.split(". ").length).toBeGreaterThanOrEqual(2)
+  })
+
   it("gives the generic line for a code it doesn't know, or no code at all", () => {
     for (const code of ["SOMETHING_NEW_IN_BETTER_AUTH", "constructor", "", null, undefined]) expect(authErrorCopy(code)).toBe("Something went wrong. Try again.")
   })
