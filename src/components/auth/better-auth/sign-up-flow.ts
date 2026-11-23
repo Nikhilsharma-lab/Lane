@@ -70,8 +70,8 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
   async function sendConfirmation() {
     const answer = await withHumanCheck(humanCheck, (token) => auth.sendCode({ email: typedEmail(), purpose: "confirm" }, token))
     if (!answer.ok) return refuse(answer.code)
-    sends.sent()
-    set({ fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt() })
+    sends.sent(typedEmail())
+    set({ fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt(typedEmail()) })
   }
 
   return {
@@ -82,7 +82,7 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
     setName(next: string) {
       set({ name: next, fieldErrors: { ...get().fieldErrors, name: undefined } })
     },
-    setEmail: flow.setEmail,
+    setEmail: (next: string) => flow.setEmail(next, sends.nextSendAt(next)),
     clearFieldError: flow.clearFieldError,
     /** Whether the typed password is still in memory: only between Create account and the sign-in after confirming. */
     holdsPassword: () => password !== null,
@@ -107,8 +107,8 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
           auth.signUp({ name: get().name.trim(), email: typedEmail(), password: typed }, token))
         if (answer.ok) {
           password = typed
-          sends.sent()
-          return set({ step: "code", fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt() })
+          sends.sent(typedEmail())
+          return set({ step: "code", fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt(typedEmail()) })
         }
         // The account exists, unconfirmed: a second sign-up would be refused, so Send a new code is the way on.
         if (answer.code === "SIGN_UP_CODE_NOT_SENT") {
@@ -120,7 +120,7 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
     /** "Send a new code": a confirmation code, with a fresh token, once the wait is over. */
     resendCode: () =>
       run("send", async () => {
-        if (get().step !== "code" || sends.waiting()) return
+        if (get().step !== "code" || sends.waiting(typedEmail())) return
         await sendConfirmation()
       }),
     /** Confirm email, then sign in with the kept password. The password is dropped either way. */

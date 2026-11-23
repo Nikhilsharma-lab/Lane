@@ -12,7 +12,7 @@ import { AuthShell, AuthTrust } from "../auth-shell"
 import { RecoveryLoginLink } from "../recovery-login-link"
 import { signUpPage } from "./auth-addresses"
 import { useAuthFlow, type FocusOrder } from "./auth-flow-view"
-import { CODE_INPUT, CodeStep } from "./code-step"
+import { CODE_INPUT, CodeStep, Countdown } from "./code-step"
 import { secondsUntil } from "./code-sends"
 import { createPasswordResetFlow, type PasswordResetFlow, type PasswordResetState } from "./password-reset-flow"
 import { TurnstileWidget } from "./turnstile-widget"
@@ -77,6 +77,7 @@ export function PasswordResetForm({ email }: PasswordResetFormProps) {
         onChange={(event) => { setPassword(event.target.value); flow.clearFieldError("password") }} />}
       alert={box} />)
 
+  const requestWait = secondsUntil(nextSendAt, now)
   return shell("Forgot your password?", "Enter the email you use for Lane. We’ll email you a code to reset it.",
     <form className={styles.stack} noValidate onSubmit={(event) => {
       event.preventDefault()
@@ -86,6 +87,9 @@ export function PasswordResetForm({ email }: PasswordResetFormProps) {
         value={state.email} error={fieldErrors.email} disabled={Boolean(pending)} onChange={(event) => flow.setEmail(event.target.value)} />
       <TurnstileWidget check={flow.humanCheck} />
       {box}
-      <AuthAction type="submit" loading={pending === "send"} disabled={!flow.humanCheck.siteKey}>Send reset code</AuthAction>
+      {/* This address's wait, after Use a different email: shown, not a press that does nothing. A corrected address has none. */}
+      <AuthAction type="submit" loading={pending === "send"} disabled={!flow.humanCheck.siteKey} aria-disabled={requestWait > 0 || undefined}>
+        <Countdown action="Send reset code" seconds={requestWait} />
+      </AuthAction>
     </form>)
 }

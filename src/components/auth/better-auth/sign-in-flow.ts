@@ -27,7 +27,7 @@ export type SignInState = {
   fieldErrors: SignInFieldErrors
   alert: { message: string; offer: SignInOffer } | null
   pending: SignInPending
-  /** When Send a new code is offered again (ms since the epoch); 0 before any code was sent. */
+  /** When the typed email may be sent a code again (ms since the epoch); 0 when it may now. */
   nextSendAt: number
 }
 
@@ -79,8 +79,8 @@ export function createSignInFlow({ email = "", returnTo, errorCode, start = "pas
   async function send() {
     const answer = await withHumanCheck(humanCheck, (token) => auth.sendCode({ email: typedEmail(), purpose: "sign-in" }, token))
     if (!answer.ok) return refuse(answer.code)
-    sends.sent()
-    set({ step: "code", fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt() })
+    sends.sent(typedEmail())
+    set({ step: "code", fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt(typedEmail()) })
   }
 
   return {
@@ -88,7 +88,8 @@ export function createSignInFlow({ email = "", returnTo, errorCode, start = "pas
     now,
     snapshot: get,
     subscribe: flow.subscribe,
-    setEmail: flow.setEmail,
+    /** Typing an email shows that address's own wait: a corrected address may be sent a code at once. */
+    setEmail: (next: string) => flow.setEmail(next, sends.nextSendAt(next)),
     clearFieldError: flow.clearFieldError,
     signInWithPassword: ({ password }: { password: string }) =>
       run("password", async () => {
@@ -117,13 +118,13 @@ export function createSignInFlow({ email = "", returnTo, errorCode, start = "pas
     /** "Email me a code": needs the human check. */
     sendCode: () =>
       run("send", async () => {
-        if (sends.waiting() || !checkEmail()) return
+        if (sends.waiting(typedEmail()) || !checkEmail()) return
         await send()
       }),
     /** "Send a new code", from the code step, once the wait is over. */
     resendCode: () =>
       run("send", async () => {
-        if (get().step !== "code" || sends.waiting()) return
+        if (get().step !== "code" || sends.waiting(typedEmail())) return
         await send()
       }),
     signInWithCode: ({ code }: { code: string }) =>
@@ -134,7 +135,7 @@ export function createSignInFlow({ email = "", returnTo, errorCode, start = "pas
         if (answer.ok) navigate(destination)
         else refuse(answer.code)
       }),
-    /** "Use a different email": back to the code request, with the email kept. The resend wait stays. */
+    /** "Use a different email": back to the code request, with the email kept. That address's wait stays. */
     useDifferentEmail() {
       if (get().pending || get().step !== "code") return
       set({ step: "code-request", fieldErrors: {}, alert: null })

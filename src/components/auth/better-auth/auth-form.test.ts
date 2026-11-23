@@ -220,6 +220,19 @@ describe("the sign-in code screens (#377)", () => {
     expect(markupWords(html)).toContain("Sign in with a code")
     expect(input(html, "sign-in-email")).toContain(`value="${MEI}"`)
   })
+
+  // #376: never a silent no-op. The same address visibly waits; a corrected one may send at once.
+  it("shows the same address's wait on Email me a code, and none for a corrected address", async () => {
+    const { flow, render } = mount({ email: MEI })
+    flow.useCode()
+    await flow.sendCode()
+    flow.useDifferentEmail()
+    const send = (html: string) => buttonsIn(html).find((button) => button.submit)!
+    expect(send(render()).text).toContain("Email me a code in 30s")
+    expect(send(render())).toMatchObject({ name: "Email me a code", ariaDisabled: true })
+    flow.setEmail("ada@example.test")
+    expect(send(render())).toMatchObject({ text: "Email me a code", ariaDisabled: false })
+  })
 })
 
 // Runs last: every screen the tests above rendered.

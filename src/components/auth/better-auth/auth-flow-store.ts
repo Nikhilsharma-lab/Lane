@@ -8,7 +8,7 @@ export type AuthFlowState = {
   fieldErrors: Partial<Record<string, string>>
   alert: { message: string; offer: string | null } | null
   pending: string | null
-  /** When Send a new code is offered again (ms since the epoch); 0 when it's offered now. */
+  /** When the typed email may be sent a code again (ms since the epoch); 0 when it may now. */
   nextSendAt: number
 }
 
@@ -55,9 +55,9 @@ export function createAuthFlowStore<S extends AuthFlowState>(initial: S, { field
         setShared({ pending: null })
       }
     },
-    /** Typing in the email field clears what was said about it. */
-    setEmail(email: string) {
-      setShared({ email, fieldErrors: { ...store.get().fieldErrors, email: undefined } })
+    /** Typing in the email field clears what was said about it. `nextSendAt` is that address's own wait. */
+    setEmail(email: string, nextSendAt = 0) {
+      setShared({ email, fieldErrors: { ...store.get().fieldErrors, email: undefined }, nextSendAt })
     },
     clearFieldError(field: Field<S>) {
       if (store.get().fieldErrors[field]) setShared({ fieldErrors: { ...store.get().fieldErrors, [field]: undefined } })

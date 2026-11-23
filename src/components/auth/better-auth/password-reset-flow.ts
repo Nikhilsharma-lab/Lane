@@ -23,7 +23,7 @@ export type PasswordResetState = {
   fieldErrors: PasswordResetFieldErrors
   alert: { message: string; offer: PasswordResetOffer } | null
   pending: PasswordResetPending
-  /** When Send a new code is offered again (ms since the epoch); 0 before any code was sent. */
+  /** When the typed email may be sent a code again (ms since the epoch); 0 when it may now. */
   nextSendAt: number
   /** Once saved: whether the sign-in with the new password went through. */
   signedIn: boolean
@@ -55,8 +55,8 @@ export function createPasswordResetFlow({ email = "", navigate, humanCheck = cre
   async function send() {
     const answer = await withHumanCheck(humanCheck, (token) => auth.requestReset({ email: typedEmail() }, token))
     if (!answer.ok) return refuse(answer.code)
-    sends.sent()
-    set({ step: "reset", fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt() })
+    sends.sent(typedEmail())
+    set({ step: "reset", fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt(typedEmail()) })
   }
 
   return {
@@ -64,12 +64,13 @@ export function createPasswordResetFlow({ email = "", navigate, humanCheck = cre
     now,
     snapshot: get,
     subscribe: flow.subscribe,
-    setEmail: flow.setEmail,
+    /** Typing an email shows that address's own wait: a corrected address may be sent a code at once. */
+    setEmail: (next: string) => flow.setEmail(next, sends.nextSendAt(next)),
     clearFieldError: flow.clearFieldError,
     /** Send reset code. */
     requestCode: () =>
       run("send", async () => {
-        if (get().step !== "request" || sends.waiting()) return
+        if (get().step !== "request" || sends.waiting(typedEmail())) return
         const problem = emailAddressProblem(get().email)
         if (problem) return flow.refuseFields({ email: problem })
         await send()
@@ -77,7 +78,7 @@ export function createPasswordResetFlow({ email = "", navigate, humanCheck = cre
     /** "Send a new code", from the reset step, once the wait is over. */
     resendCode: () =>
       run("send", async () => {
-        if (get().step !== "reset" || sends.waiting()) return
+        if (get().step !== "reset" || sends.waiting(typedEmail())) return
         await send()
       }),
     /** Save new password, then sign in with it. Saving signs out every device (increment 3's server). */
@@ -94,7 +95,7 @@ export function createPasswordResetFlow({ email = "", navigate, humanCheck = cre
         const signedIn = await auth.signInWithPassword({ email: typedEmail(), password })
         set({ step: "saved", signedIn: signedIn.ok, fieldErrors: {}, alert: null })
       }),
-    /** "Use a different email": back to the request, with the email kept. The resend wait stays. */
+    /** "Use a different email": back to the request, with the email kept. That address's wait stays. */
     useDifferentEmail() {
       if (get().pending || get().step !== "reset") return
       set({ step: "request", fieldErrors: {}, alert: null })

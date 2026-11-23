@@ -171,6 +171,17 @@ describe("the reset step (#378)", () => {
     expect(markupWords(html)).toContain("Forgot your password?")
     expect(input(html, "reset-email")).toContain(`value="${MEI}"`)
   })
+
+  // #376: never a silent no-op. The same address visibly waits; a corrected one may send at once.
+  it("shows the same address's wait on Send reset code, and none for a corrected address", async () => {
+    const { flow, render } = await resetting()
+    flow.useDifferentEmail()
+    const send = (html: string) => buttonsIn(html).find((button) => button.submit)!
+    expect(send(render()).text).toContain("Send reset code in 30s")
+    expect(send(render())).toMatchObject({ name: "Send reset code", ariaDisabled: true })
+    flow.setEmail("ada@example.test")
+    expect(send(render())).toMatchObject({ text: "Send reset code", ariaDisabled: false })
+  })
 })
 
 // Runs last: every screen the tests above rendered.

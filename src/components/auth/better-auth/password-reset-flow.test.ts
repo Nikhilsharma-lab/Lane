@@ -194,6 +194,19 @@ describe("saving a new password (#378)", () => {
     human.pass()
     await flow.requestCode()
     expect(auth.to("/email-otp/request-password-reset")).toHaveLength(1)
+    expect(flow.snapshot().nextSendAt).toBe(clock + 30_000)
+  })
+
+  // #376 story 21: the wait is per address, so a corrected address gets its own code straight away.
+  it("sends a corrected address its own reset code at once", async () => {
+    const { flow, human } = await resetting()
+    flow.useDifferentEmail()
+    flow.setEmail("ada@example.test")
+    expect(flow.snapshot().nextSendAt).toBe(0)
+    human.pass()
+    await flow.requestCode()
+    expect(auth.to("/email-otp/request-password-reset").map((request) => request.body)).toEqual([{ email: MEI }, { email: "ada@example.test" }])
+    expect(flow.snapshot()).toMatchObject({ step: "reset", email: "ada@example.test", nextSendAt: clock + 30_000 })
   })
 
   it("continues to Lane once signed in", async () => {

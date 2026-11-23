@@ -11,7 +11,7 @@ import { AuthFormCard } from "../auth-form-card"
 import { AuthHeaderLink, AuthShell, AuthTrust } from "../auth-shell"
 import { signUpPage } from "./auth-addresses"
 import { useAuthFlow, type FocusOrder } from "./auth-flow-view"
-import { CODE_INPUT, CodeStep } from "./code-step"
+import { CODE_INPUT, CodeStep, Countdown } from "./code-step"
 import { secondsUntil } from "./code-sends"
 import { GoogleMark, OrDivider } from "./google-mark"
 import { createSignInFlow, type SignInFlow, type SignInStart, type SignInState } from "./sign-in-flow"
@@ -82,6 +82,7 @@ function SignIn({ email, returnTo, errorCode, start }: AuthFormProps) {
       onUseDifferentEmail={() => { setCode(""); flow.useDifferentEmail() }}
       alert={box} />)
 
+  const requestWait = secondsUntil(nextSendAt, now)
   if (step === "code-request") return shell("Sign in with a code", "We’ll email you a 6-digit code. No password needed.",
     <form className={styles.stack} noValidate onSubmit={(event) => {
       event.preventDefault()
@@ -90,7 +91,10 @@ function SignIn({ email, returnTo, errorCode, start }: AuthFormProps) {
       {emailField}
       <TurnstileWidget check={flow.humanCheck} />
       {box}
-      <AuthAction type="submit" loading={pending === "send"} disabled={!flow.humanCheck.siteKey}>Email me a code</AuthAction>
+      {/* This address's wait, after Use a different email: shown, not a press that does nothing. A corrected address has none. */}
+      <AuthAction type="submit" loading={pending === "send"} disabled={!flow.humanCheck.siteKey} aria-disabled={requestWait > 0 || undefined}>
+        <Countdown action="Email me a code" seconds={requestWait} />
+      </AuthAction>
       <button type="button" className={styles.textLink} onClick={() => flow.usePassword()}>Use your password instead</button>
     </form>)
 

@@ -263,6 +263,28 @@ describe("signing in with an emailed code (#377)", () => {
     human.pass()
     await flow.sendCode()
     expect(auth.to("/email-otp/send-verification-otp")).toHaveLength(1)
+    // The wait is in the state, so the screen shows it rather than doing nothing.
+    expect(flow.snapshot().nextSendAt).toBe(clock + 30_000)
+  })
+
+  // #376 story 21: the wait is per address, so a corrected address gets its own code straight away.
+  it("sends a corrected address its own code at once, and keeps each address's wait", async () => {
+    const { flow, human } = codeRequest()
+    await flow.sendCode()
+    flow.useDifferentEmail()
+    flow.setEmail("ada@example.test")
+    expect(flow.snapshot().nextSendAt).toBe(0)
+    human.pass("SECOND.TOKEN")
+    await flow.sendCode()
+    expect(auth.to("/email-otp/send-verification-otp").map((request) => request.body)).toEqual([
+      { email: MEI, type: "sign-in" },
+      { email: "ada@example.test", type: "sign-in" },
+    ])
+    expect(flow.snapshot()).toMatchObject({ step: "code", email: "ada@example.test", nextSendAt: clock + 30_000 })
+    flow.useDifferentEmail()
+    clock += 10_000
+    flow.setEmail(` ${MEI.toUpperCase()} `)
+    expect(flow.snapshot().nextSendAt).toBe(clock + 20_000)
   })
 
   // #379: the invitation's unconfirmed-email "Email me a sign-in code" lands here.
