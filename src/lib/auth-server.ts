@@ -17,6 +17,7 @@ import { captcha, emailOTP, haveIBeenPwned, organization } from "better-auth/plu
 import { createAccessControl } from "better-auth/plugins/access"
 import { and, eq, gt, inArray, sql } from "drizzle-orm"
 import { account, db, invitation, member, organizations, profiles, rateLimit, session, verification } from "@/db"
+import { CODE_LIFETIME_MINUTES, CODE_LIFETIME_SECONDS } from "./auth-code-rules"
 import { sendAuthEmail, type AuthEmail } from "./auth-email"
 import { AUTH_ERROR_COPY, authErrorCode } from "./auth-error-copy"
 import { isWorkspacePermission, managesWorkspace } from "./role-rules"
@@ -39,8 +40,6 @@ const PATHS = {
 const normalEmail = (email: string) => email.trim().toLowerCase()
 
 const DAY = 24 * 60 * 60
-/** How long an emailed code lasts: Better Auth's default, written down so the email can say it. */
-const CODE_LIFETIME_SECONDS = 5 * 60
 
 /** Better Auth's code types, as the auth email's kinds. Email change is off, so it never asks for that one. */
 const CODE_KINDS = { "email-verification": "sign_up_code", "sign-in": "sign_in_code", "forget-password": "reset_code" } as const
@@ -385,7 +384,7 @@ function build(config: Config) {
         sendVerificationOTP: async ({ email, otp, type }) => {
           if (!isCodeType(type)) return
           if (!requestEmails.getStore()?.codeCounted && !(await countCodeSend(email))) return noteNotSent("TOO_MANY_CODES")
-          await sendForRequest({ kind: CODE_KINDS[type], to: email, code: otp, expiresInMinutes: CODE_LIFETIME_SECONDS / 60 })
+          await sendForRequest({ kind: CODE_KINDS[type], to: email, code: otp, expiresInMinutes: CODE_LIFETIME_MINUTES })
         },
       }),
       captcha({ provider: "cloudflare-turnstile", secretKey: config.turnstileSecretKey ?? "", endpoints: [...TURNSTILE_PATHS] }),

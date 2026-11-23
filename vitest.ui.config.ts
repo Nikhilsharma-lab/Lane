@@ -17,6 +17,9 @@ export default defineConfig({
       "src/test/theme-parity-contrast.test.ts",
       "src/test/theme-parity-clerk-colours.test.ts",
       "src/components/auth/auth-frames.test.ts",
+      // #377: Lane's own auth screens, which fake only fetch to /api/auth/*.
+      "src/components/auth/better-auth/*.test.ts",
+      "src/lib/auth-return-address.test.ts",
       "src/app/terms/terms-page.test.ts",
       "src/components/shell/sidebar-workspace-name.test.ts",
       "src/components/shell/workspace-switcher.test.ts",

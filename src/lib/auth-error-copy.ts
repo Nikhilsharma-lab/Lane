@@ -11,6 +11,9 @@ export const SOMETHING_WENT_WRONG = "Something went wrong. Try again."
 /** #333 Q4: the last Admin of a workspace can't leave it, be removed or stop being an Admin. */
 export const ONLY_ADMIN = "You’re the only Admin. Make someone else an Admin before you leave."
 
+/** #346: Google can't be disconnected while it's the only way a person signs in. */
+export const GOOGLE_ONLY_METHOD = "Google is your only sign-in method. Set a password before disconnecting it."
+
 const SLUG_TAKEN = "Another workspace already uses this URL. Choose a different one, then try again."
 
 /** #346's googleFailed line, for every way Google sign-in can come back unfinished. */
@@ -124,6 +127,20 @@ export const AUTH_ERROR_COPY = {
   INVITATION_NOT_FOUND: "This invitation has expired or is no longer open. Ask the person who invited you to send a new one.",
   YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION: "This invitation was sent to a different email. Sign in with that email to accept it.",
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "Confirm your email before you accept. Email yourself a code to confirm it.",
+  // Workspace rows (#381). Lane's own last-Admin refusal reads as Better Auth's only-owner codes do.
+  ONLY_ADMIN,
+  // Proposed for Nikhil (#381): removing someone another Admin removed first.
+  MEMBER_NOT_FOUND: "This person is no longer in this workspace. Reload the page to see who’s in it now.",
+  // Settings → Profile's account section (#380). Changing a password with the wrong current one, and unlinking the
+  // last sign-in method: #346's words.
+  INVALID_PASSWORD: "That isn’t your current password.",
+  FAILED_TO_UNLINK_LAST_ACCOUNT: GOOGLE_ONLY_METHOD,
+  // Lane's codes for Google's redirect back to Settings after Connect Google (`googleConnectionCode`): its
+  // `email_does_not_match`, its `account_already_linked_to_different_user`, and any other `error`. The redirect's own
+  // codes keep the sign-in line, which tells a person to use their email instead. Nikhil's words (2026-11-23).
+  GOOGLE_EMAIL_DOES_NOT_MATCH: "That Google account uses a different email, so nothing changed. Choose the Google account that uses your Lane email.",
+  GOOGLE_ALREADY_LINKED: "That Google account is already connected to another Lane account.",
+  GOOGLE_NOT_CONNECTED: "Google didn’t connect, so nothing changed. Try again.",
 } as const satisfies Record<string, string>
 
 /**
@@ -135,7 +152,39 @@ export function authErrorCode(body: unknown): string | undefined {
   return typeof code === "string" && code ? code : undefined
 }
 
+/**
+ * Lane's code for Google's redirect back to Settings after Connect Google (its `?error=`, one of
+ * `GOOGLE_REDIRECT_ERRORS`): a Google account with a different email, one another Lane account already has, or any
+ * other way the connection didn't finish. Either way nothing changed. Better Auth 1.7 sends the redirect's
+ * `account_already_linked_to_different_user`; its `LINKED_ACCOUNT_ALREADY_EXISTS` is never thrown.
+ */
+export function googleConnectionCode(redirectError: string): "GOOGLE_EMAIL_DOES_NOT_MATCH" | "GOOGLE_ALREADY_LINKED" | "GOOGLE_NOT_CONNECTED" {
+  if (redirectError === "email_does_not_match") return "GOOGLE_EMAIL_DOES_NOT_MATCH"
+  if (redirectError === "account_already_linked_to_different_user") return "GOOGLE_ALREADY_LINKED"
+  return "GOOGLE_NOT_CONNECTED"
+}
+
 /** Lane's words for an auth error code. A code it doesn't know, or none, gets the generic line. */
 export function authErrorCopy(code: string | null | undefined): string {
-  return code && Object.hasOwn(AUTH_ERROR_COPY, code) ? AUTH_ERROR_COPY[code as keyof typeof AUTH_ERROR_COPY] : SOMETHING_WENT_WRONG
+  return isAuthErrorCode(code) ? AUTH_ERROR_COPY[code] : SOMETHING_WENT_WRONG
 }
+
+/** An error code Lane has words for: the keys every map from a code to a field, offer or screen is keyed by. */
+export type AuthErrorCode = keyof typeof AUTH_ERROR_COPY
+
+export const isAuthErrorCode = (code: string | null | undefined): code is AuthErrorCode =>
+  Boolean(code) && Object.hasOwn(AUTH_ERROR_COPY, code as string)
+
+/** What `map` holds for `code`; nothing for a code Lane has no words for, or none. */
+export const forCode = <V>(map: Partial<Record<AuthErrorCode, V>>, code: string | null | undefined): V | undefined =>
+  isAuthErrorCode(code) ? map[code] : undefined
+
+/** A map from each of `codes` to `value`, such as the field their line belongs on. */
+export const eachCode = <V>(codes: readonly AuthErrorCode[], value: V): Partial<Record<AuthErrorCode, V>> =>
+  Object.fromEntries(codes.map((code) => [code, value]))
+
+/** A typed code refused: wrong, expired, or used up. Its line belongs on the code field. */
+export const CODE_REFUSALS = ["INVALID_OTP", "OTP_EXPIRED", "TOO_MANY_ATTEMPTS"] as const satisfies readonly AuthErrorCode[]
+
+/** A new password refused for itself. Its line belongs on the new password's field. */
+export const NEW_PASSWORD_REFUSALS = ["PASSWORD_TOO_SHORT", "PASSWORD_TOO_LONG", "PASSWORD_COMPROMISED", "PASSWORD_CHECK_UNAVAILABLE"] as const satisfies readonly AuthErrorCode[]

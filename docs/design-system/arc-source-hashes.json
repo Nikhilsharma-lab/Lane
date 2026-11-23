@@ -563,5 +563,19 @@
     "file": "src/components/arc/radio-cards/radio-cards.module.css",
     "upstreamSha256": "5f6e5cd90a57fd7c31f301d6c1a9172b3386b2e4afdd0526573c4736836eca7a",
     "localSha256": "ec0d43035f6e962156e1e61580296182a492b5059b2c83d366a19177f014bc3b"
+  },
+  {
+    "id": "otp-input",
+    "source": "https://uiarc.dev/r/otp-input.json",
+    "file": "src/components/arc/otp-input/otp-input.tsx",
+    "upstreamSha256": "b9e65d37809df131b44df38526083416d50db21c4b30899643d893f92457e127",
+    "localSha256": "0cb0fdacaff1e8a1714ea4006aa3fba2671b08650c2f2fe370cb389ff557bee1"
+  },
+  {
+    "id": "otp-input",
+    "source": "https://uiarc.dev/r/otp-input.json",
+    "file": "src/components/arc/otp-input/otp-input.module.css",
+    "upstreamSha256": "36871739c1772c80f32e511d3d9cf49e589f6f060a6a079f8c4ec4b07e8339c3",
+    "localSha256": "43425e3838937bed0456f1b934a8d7dbce410faffb70febb75f36fe9c28e1b66"
   }
 ]

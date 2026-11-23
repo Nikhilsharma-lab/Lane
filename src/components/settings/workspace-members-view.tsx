@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type ReactNode, type Ref } from "react";
+import { useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode, type Ref } from "react";
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import { Dialog, DialogClose, DialogContent } from "@/components/popup/adaptive-dialog";
+import { PermanentActionConfirmation } from "@/components/popup/permanent-action-confirmation";
 import { Alert } from "@/components/arc/alert/alert";
 import { Avatar } from "@/components/arc/avatar/avatar";
 import { Badge } from "@/components/arc/badge/badge";
@@ -12,6 +13,7 @@ import { RadioGroup } from "@/components/arc/radio-group/radio-group";
 import { SearchField } from "@/components/arc/search-field/search-field";
 import { Select } from "@/components/arc/select/select";
 import { callAction } from "@/lib/action-call";
+import type { AuthAnswer } from "@/lib/auth-answer";
 import { emailAddressProblem } from "@/lib/email-address-rules";
 import { thrownMessage, TRY_AGAIN } from "@/lib/failure-messages";
 import type { WorkspacePermission } from "@/lib/auth-guard";
@@ -22,6 +24,7 @@ import {
 import { isWorkspacePermission, ROLE_NAMES } from "@/lib/role-rules";
 import { RoleGuide } from "./role-guide";
 import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowFailure, SettingsRowList } from "./settings-group";
+import { createConfirmation } from "./workspace-rows-state";
 import styles from "./settings.module.css";
 import members from "./members.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
@@ -51,6 +54,12 @@ export type WorkspaceMembersViewProps = {
   onChangeRole: (userId: string, role: WorkspacePermission, confirmedPaidSeat?: boolean) => Promise<Answer>;
   onRevoke: (invitationId: string) => Promise<Answer>;
   onRetry: () => void;
+  /**
+   * #381: with it, an Admin removes anyone but themselves after a red confirmation naming the workspace; `onRemove`
+   * answers success or an error code. Without it (the Clerk adapter, which removes in Clerk through `manage`), the
+   * view is exactly as before.
+   */
+  remove?: { workspaceName: string; onRemove: (userId: string) => Promise<AuthAnswer> };
 };
 
 const FAILED = "Couldn’t reach Lane. Try again.";
@@ -59,6 +68,8 @@ const roleName = (role: WorkspacePermission | null) => role ? ROLE_NAMES[role] :
 /** The roles an Admin can give, as the role picker and the invite's Role choice list them. */
 const roleOptions = (roles: WorkspacePermission[]) => roles.map(role => ({ value: role, label: ROLE_NAMES[role], description: ROLE_DESCRIPTIONS[role] }));
 const withArticle = (role: WorkspacePermission) => `${role === "admin" ? "an" : "a"} ${ROLE_NAMES[role]}`;
+/** The accepted prototype's rule (#346): a person's first name is their name up to its first space. */
+const firstName = (name: string) => name.trim().split(" ")[0];
 /** The accepted prototype's matching (#325): a person's shown name or address contains what was typed. */
 const matches = (person: WorkspaceMember, needle: string) => !needle || `${person.name} ${person.email}`.toLowerCase().includes(needle);
 
@@ -86,7 +97,7 @@ async function attempt(run: () => Promise<Answer>): Promise<Answer> {
  * first asks the Admin to confirm "This adds a paid seat". Cancelling changes nothing; focus goes back to the
  * control that asked.
  */
-export function WorkspaceMembersView({ people, invitations, selfId, canManage, roles, state, confirmPaidSeats = false, manage, onInvite, onChangeRole, onRevoke, onRetry }: WorkspaceMembersViewProps) {
+export function WorkspaceMembersView({ people, invitations, selfId, canManage, roles, state, confirmPaidSeats = false, manage, onInvite, onChangeRole, onRevoke, onRetry, remove }: WorkspaceMembersViewProps) {
   const [query, setQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -101,6 +112,8 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
   const seatDialog = usePopupCode(seatDialogCode, seatOpen, () => couldNotOpen("paid-seat", setSeatOpen));
   const searchRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
+  const [removal] = useState(() => createConfirmation<WorkspaceMember>());
+  const removing = useSyncExternalStore(removal.subscribe, removal.get, removal.get);
 
   /** Runs `add` now, or once the Admin confirms the paid seat it adds. `returnTo` is the control focus goes back to. */
   function withSeat(from: WorkspacePermission | null, change: PaidSeatChange, returnTo: string, add: (confirmed: boolean) => void) {
@@ -109,11 +122,17 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
     setSeatOpen(true);
   }
 
+  /** Clears the status line as a change starts, including the line a removal left. */
+  function quiet() {
+    setStatus("");
+    removal.forget();
+  }
+
   /** One change on a row: its failure stays on that row with Try again, which sends the same change once more. */
   async function runOnRow(key: string, change: () => Promise<Answer>, success: string) {
     setBusy(key);
     setRowError(null);
-    setStatus("");
+    quiet();
     const answer = await attempt(change);
     setBusy(null);
     if (answer.error) setRowError({ id: key, message: answer.error, retry: () => { void runOnRow(key, change, success); } });
@@ -122,7 +141,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
 
   async function send(address: string, role: WorkspacePermission, confirmed: boolean) {
     setBusy("invite");
-    setStatus("");
+    quiet();
     const answer = await attempt(() => onInvite(address, role, confirmed || undefined));
     setBusy(null);
     if (!answer.error) {
@@ -161,6 +180,8 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
   const shown = people.filter(person => matches(person, needle));
   // The count sits beside the group's name, outside what names the group.
   const count = (n: number) => <>{" "}<span className={members.groupCount} aria-hidden="true">{n}</span></>;
+  // Nikhil (2026-11-23): a removal says so in the status line, as a role change does, until another change starts.
+  const removed = remove && removing.done && removing.target ? `${removing.target.name} was removed from ${remove.workspaceName}.` : "";
 
   return <>
     <div className={members.membersBar}>
@@ -180,14 +201,17 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
           const options = [...offered, ...(person.role && !roles.includes(person.role) ? [{ value: person.role, label: ROLE_NAMES[person.role], disabled: true }] : [])];
           // An Admin's own role shows greyed, and its row says why (#325: no one changes their own role).
           const ownNote = canManage && self ? `own-role-${person.userId}` : undefined;
+          const role = canManage && person.role
+            ? <Select label={label} value={person.role} options={options} disabled={self || busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
+                onValueChange={next => { if (next !== person.role && isWorkspacePermission(next)) changeRole(person, next); }}
+                trigger={<Button type="button" variant="secondary" size="sm" disabled={self} loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`}
+                  aria-describedby={ownNote} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
+            : <Badge>{roleName(person.role)}</Badge>;
           return <SettingsRow as="li" key={person.userId} leading={<Avatar name={person.name} src={person.imageUrl} size="sm" unoptimized />}
             label={<>{person.name}{self && <span className={members.you}> (you)</span>}</>} hint={person.email}
-            control={canManage && person.role
-              ? <Select label={label} value={person.role} options={options} disabled={self || busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
-                  onValueChange={next => { if (next !== person.role && isWorkspacePermission(next)) changeRole(person, next); }}
-                  trigger={<Button type="button" variant="secondary" size="sm" disabled={self} loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`}
-                    aria-describedby={ownNote} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
-              : <Badge>{roleName(person.role)}</Badge>}>
+            control={remove && canManage && !self
+              ? <>{role}<Button type="button" variant="ghost" size="sm" aria-label={`Remove ${person.name}`} onClick={() => removal.ask(person)}>Remove</Button></>
+              : role}>
             {ownNote && <p id={ownNote} className={styles.note}>{OWN_ROLE}</p>}
             {failure(person.userId)}
           </SettingsRow>;
@@ -213,7 +237,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
       {state === "loading" && <SettingsBlock><Placeholder label="Loading invitations…" lines={1} /></SettingsBlock>}
     </SettingsGroup>}
 
-    <p role="status" className={members.membersStatus}>{status}</p>
+    <p role="status" className={members.membersStatus}>{status || removed}</p>
     {manage}
     <RoleGuide offered={roles} />
 
@@ -226,7 +250,24 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
 
     {seat && seatDialog && <seatDialog.PaidSeatDialog change={seat.change} open={seatOpen} onOpenChange={setSeatOpen} returnTo={seat.returnTo}
       onConfirm={() => { setSeatOpen(false); seat.add(); }} />}
+
+    {/* #381: the person stays named while the confirmation leaves; once they're gone from the list, focus goes to search. */}
+    {remove && removing.target && <RemovePersonConfirmation person={removing.target} workspaceName={remove.workspaceName} open={removing.open} busy={removing.busy}
+      error={removing.error} returnFocus={() => searchRef.current} onOpenChange={open => { if (!open) removal.dismiss(); }}
+      onConfirm={person => { setStatus(""); void removal.confirm(() => remove.onRemove(person.userId)); }} />}
   </>;
+}
+
+/** #381 (#346): "Remove <name>?", in the accepted prototype's words, with a red Remove <first name>. */
+function RemovePersonConfirmation({ person, workspaceName, open, busy, error, returnFocus, onOpenChange, onConfirm }: {
+  person: WorkspaceMember; workspaceName: string; open: boolean; busy: boolean; error: string | null;
+  returnFocus: () => HTMLElement | null; onOpenChange: (open: boolean) => void; onConfirm: (person: WorkspaceMember) => void;
+}) {
+  return <PermanentActionConfirmation open={open} onOpenChange={onOpenChange} busy={busy} returnFocus={returnFocus}
+    title={`Remove ${person.name}?`} description={`${person.name} loses access to ${workspaceName} straight away. Their Requests, comments and history stay.`}
+    confirmLabel={`Remove ${firstName(person.name)}`} onConfirm={() => onConfirm(person)}>
+    {error && <Alert role="alert" tone="danger" title={error} />}
+  </PermanentActionConfirmation>;
 }
 
 /**

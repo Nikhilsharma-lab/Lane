@@ -6,6 +6,7 @@
  */
 import { createHash, randomUUID } from "node:crypto"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { CODE_LIFETIME_SECONDS } from "@/lib/auth-code-rules"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import { RESEND_EMAILS_URL } from "@/lib/messenger"
 import {
@@ -90,6 +91,18 @@ describe("email codes through the auth route", () => {
       const right = await signInWithCode(browser, cody.email, code)
       expect([right.status, codeOf(right)]).toEqual([403, "TOO_MANY_ATTEMPTS"])
       expect(browser.cookies.size).toBe(0)
+    })
+
+    // #377: the lifetime lives in a browser-safe module the code step reads too.
+    it("keeps a code for the 5 minutes its email and the code step say", async () => {
+      const cody = person("lifetime")
+      await signUpVerified(outbound, cody)
+      await askForSignInCode(new AuthBrowser(), cody.email)
+      const [{ seconds }] = await connection`select extract(epoch from expires_at - now())::float as seconds from verification where identifier = ${`sign-in-otp-${cody.email}`}`
+      expect(seconds).toBeGreaterThan(5 * 60 - 30)
+      expect(seconds).toBeLessThanOrEqual(5 * 60)
+      expect(CODE_LIFETIME_SECONDS).toBe(5 * 60)
+      expect(outbound.emailsTo(cody.email).at(-1)!.text).toContain("5 minutes")
     })
 
     it("refuses an expired code", async () => {

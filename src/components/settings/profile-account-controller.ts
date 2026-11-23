@@ -1,0 +1,148 @@
+import { settle, type AuthAnswer } from "@/lib/auth-answer"
+import { NEW_PASSWORD_MISSING, PERSON_NAME_MISSING } from "@/lib/auth-code-rules"
+import { createExternalStore } from "@/lib/external-store"
+import { authErrorCopy, eachCode, forCode, googleConnectionCode, NEW_PASSWORD_REFUSALS, type AuthErrorCode } from "@/lib/auth-error-copy"
+
+/** Every account callback answers success or an error code (`AuthAnswer`), which the view reads with `authErrorCopy`. */
+export type ProfileAccountCallbacks = {
+  onSaveName: (name: string) => Promise<AuthAnswer>
+  onChangePassword: (change: { currentPassword: string; newPassword: string; signOutOtherDevices: boolean }) => Promise<AuthAnswer>
+  /** Increment 5 runs it as a Server Action (#346): Better Auth sets a first password only on the server. */
+  onSetPassword: (newPassword: string) => Promise<AuthAnswer>
+  onConnectGoogle: () => Promise<AuthAnswer>
+  onDisconnectGoogle: () => Promise<AuthAnswer>
+}
+
+const EMPTY_CURRENT = "Enter your current password."
+
+export type PasswordField = "current" | "new"
+// The wrong current password is that field's; the answers about the new password itself are the other's.
+const FIELD_OF: Partial<Record<AuthErrorCode, PasswordField>> = { INVALID_PASSWORD: "current", ...eachCode(NEW_PASSWORD_REFUSALS, "new") }
+const fieldFor = (code: string | undefined): PasswordField | null => forCode(FIELD_OF, code) ?? null
+
+/** A refused change's line, with Try again when sending it again could help. */
+export type Problem = { line: string; retry?: () => void }
+
+type PasswordState = {
+  open: boolean
+  /** Change needs the current password; set (Google only) has none. */
+  mode: "change" | "set"
+  current: string
+  next: string
+  /** Change only. Ticked by default, the safe choice (#346). */
+  signOutOthers: boolean
+  busy: boolean
+  errors: Partial<Record<PasswordField, string>>
+  error: string | null
+}
+
+export type ProfileAccountState = {
+  name: { draft: string; saved: string; busy: boolean; error: string | null }
+  password: PasswordState
+  google: { busy: "connect" | "disconnect" | null; problem: Problem | null }
+  status: string
+}
+
+const closedPassword = (mode: PasswordState["mode"]): PasswordState =>
+  ({ open: false, mode, current: "", next: "", signOutOthers: true, busy: false, errors: {}, error: null })
+
+/**
+ * #380: what Settings → Profile's account section shows, made once per mount. It holds only what the screen shows,
+ * never a password after its dialog is done with it. `googleError` is the `error` on Google's redirect back to
+ * Settings, if there was one. `keepCallbacks` keeps the callbacks the view was last given.
+ */
+export function createProfileAccount(initial: ProfileAccountCallbacks & { name: string; googleError?: string }) {
+  let current: ProfileAccountCallbacks = initial
+  const callbacks = () => current
+  const store = createExternalStore<ProfileAccountState>({
+    name: { draft: initial.name, saved: initial.name, busy: false, error: null },
+    password: closedPassword("change"),
+    google: { busy: null, problem: initial.googleError ? { line: authErrorCopy(googleConnectionCode(initial.googleError)) } : null },
+    status: "",
+  })
+  const set = (next: Partial<ProfileAccountState>) => store.set({ ...store.get(), ...next })
+  const name = (next: Partial<ProfileAccountState["name"]>) => ({ ...store.get().name, ...next })
+  const password = (next: Partial<PasswordState>) => ({ ...store.get().password, ...next })
+
+  return {
+    snapshot: store.get,
+    subscribe: store.subscribe,
+    keepCallbacks(next: ProfileAccountCallbacks) { current = next },
+
+    changeName(draft: string) {
+      set({ name: name({ draft, error: null }) })
+    },
+    async saveName() {
+      const draft = store.get().name.draft.trim()
+      if (store.get().name.busy || draft === store.get().name.saved) return
+      if (!draft) { set({ name: name({ error: PERSON_NAME_MISSING }) }); return }
+      set({ name: name({ busy: true, error: null }), status: "" })
+      const answer = await settle(() => callbacks().onSaveName(draft))
+      if (answer.ok) set({ name: name({ busy: false, draft, saved: draft }), status: "Name saved." })
+      else set({ name: name({ busy: false, error: authErrorCopy(answer.code) }) })
+    },
+
+    /** Opens the password dialog empty, with Sign out of my other devices ticked. */
+    openPassword(mode: PasswordState["mode"]) {
+      set({ password: { ...closedPassword(mode), open: true }, status: "" })
+    },
+    /** Closes it and drops what was typed. */
+    closePassword() {
+      if (!store.get().password.busy) set({ password: closedPassword(store.get().password.mode) })
+    },
+    changeCurrentPassword(current: string) {
+      set({ password: password({ current, errors: { ...store.get().password.errors, current: undefined }, error: null }) })
+    },
+    changeNewPassword(next: string) {
+      set({ password: password({ next, errors: { ...store.get().password.errors, new: undefined }, error: null }) })
+    },
+    setSignOutOthers(signOutOthers: boolean) {
+      set({ password: password({ signOutOthers }) })
+    },
+    /** Sends the change, or says what's missing. Answers the field a refusal belongs to, for focus. */
+    async submitPassword(): Promise<PasswordField | null> {
+      const { mode, current, next, signOutOthers, busy } = store.get().password
+      if (busy) return null
+      const errors: PasswordState["errors"] = {}
+      if (mode === "change" && !current) errors.current = EMPTY_CURRENT
+      if (!next) errors.new = NEW_PASSWORD_MISSING
+      if (errors.current || errors.new) {
+        set({ password: password({ errors, error: null }) })
+        return errors.current ? "current" : "new"
+      }
+      set({ password: password({ busy: true, errors: {}, error: null }), status: "" })
+      const answer = await settle(() => mode === "change"
+        ? callbacks().onChangePassword({ currentPassword: current, newPassword: next, signOutOtherDevices: signOutOthers })
+        : callbacks().onSetPassword(next))
+      if (answer.ok) {
+        const status = mode === "set" ? "Password set." : signOutOthers ? "Password changed. Your other devices are signed out." : "Password changed."
+        set({ password: closedPassword(mode), status })
+        return null
+      }
+      const field = fieldFor(answer.code)
+      const line = authErrorCopy(answer.code)
+      set({ password: password({ busy: false, errors: field ? { [field]: line } : {}, error: field ? null : line }) })
+      return field
+    },
+
+    /** Starts Google's connection; on success the page is on its way to Google, and comes back with its answer. */
+    connectGoogle() {
+      return google("connect", () => callbacks().onConnectGoogle(), "")
+    },
+    disconnectGoogle() {
+      return google("disconnect", () => callbacks().onDisconnectGoogle(), "Google disconnected.")
+    },
+  }
+
+  async function google(busy: "connect" | "disconnect", run: () => Promise<AuthAnswer>, success: string): Promise<void> {
+    if (store.get().google.busy) return
+    set({ google: { busy, problem: null }, status: "" })
+    const answer = await settle(run)
+    if (answer.ok) { set({ google: { busy: null, problem: null }, status: success }); return }
+    // The last sign-in method can't go, so sending it again can't help.
+    const retry = answer.code === "FAILED_TO_UNLINK_LAST_ACCOUNT" ? undefined : () => { void google(busy, run, success) }
+    set({ google: { busy: null, problem: { line: authErrorCopy(answer.code), retry } } })
+  }
+}
+
+export type ProfileAccount = ReturnType<typeof createProfileAccount>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { CODE_COULD_NOT_SEND, INVITATION_COULD_NOT_SEND } from "./auth-email"
-import { AUTH_ERROR_COPY, authErrorCode, authErrorCopy } from "./auth-error-copy"
+import { AUTH_ERROR_COPY, authErrorCode, authErrorCopy, googleConnectionCode } from "./auth-error-copy"
 
 /**
  * #371 (spec #369): what a person reads when an auth call fails. Better Auth's own message is never shown. The
@@ -82,6 +82,69 @@ describe("Auth error copy", () => {
     expect(new Set(words).size).toBe(own.length)
     // Two sentences: what happened, then what to do.
     for (const sentence of words) expect(sentence.split(". ").length).toBeGreaterThanOrEqual(2)
+  })
+
+  // #380: Settings → Profile's account section.
+  it("has Lane's words for every code Settings → Profile's account section meets", () => {
+    // #346's words.
+    expect(authErrorCopy("INVALID_PASSWORD")).toBe("That isn’t your current password.")
+    expect(authErrorCopy("FAILED_TO_UNLINK_LAST_ACCOUNT")).toBe("Google is your only sign-in method. Set a password before disconnecting it.")
+    // Proposed for Nikhil to confirm: Lane's codes for a Google connection that came back without connecting.
+    expect(authErrorCopy("GOOGLE_EMAIL_DOES_NOT_MATCH")).toBe("That Google account uses a different email, so nothing changed. Choose the Google account that uses your Lane email.")
+    expect(authErrorCopy("GOOGLE_NOT_CONNECTED")).toBe("Google didn’t connect, so nothing changed. Try again.")
+    // Nikhil's words (2026-11-23).
+    expect(authErrorCopy("GOOGLE_ALREADY_LINKED")).toBe("That Google account is already connected to another Lane account.")
+    // The password answers it shares with sign-up.
+    for (const code of ["PASSWORD_TOO_SHORT", "PASSWORD_COMPROMISED", "PASSWORD_CHECK_UNAVAILABLE", "UNAUTHORIZED"]) expect(authErrorCopy(code)).not.toBe("Something went wrong. Try again.")
+  })
+
+  it("names what came back from Google's redirect to Settings after Connect Google", () => {
+    expect(googleConnectionCode("email_does_not_match")).toBe("GOOGLE_EMAIL_DOES_NOT_MATCH")
+    expect(googleConnectionCode("account_already_linked_to_different_user")).toBe("GOOGLE_ALREADY_LINKED")
+    for (const error of ["access_denied", "state_mismatch", "unable_to_link_account"]) expect(googleConnectionCode(error)).toBe("GOOGLE_NOT_CONNECTED")
+  })
+
+  // #377: the sign-in screens' tests (src/components/auth/better-auth) meet these codes, from increment 3's route
+  // tests and the screens' own human check. Each has its own words: none falls back to the generic line.
+  it("has Lane's words for every code the sign-in screens' tests produce", () => {
+    expect(authErrorCopy("INVALID_EMAIL_OR_PASSWORD")).toBe("That email and password don’t match. Try again, or email yourself a code.")
+    expect(authErrorCopy("EMAIL_NOT_VERIFIED")).toBe("This email isn’t confirmed yet. Email yourself a code to confirm it.")
+    expect(authErrorCopy("access_denied")).toBe("Google sign-in didn’t finish. Try again, or use your email.")
+    expect(authErrorCopy("NO_ACCOUNT")).toBe("No Lane account uses this email.")
+    expect(authErrorCopy("CODE_NOT_SENT")).toBe("We couldn’t send the code right now. Sign in with your password or Google, or try again later.")
+    expect(authErrorCopy("TOO_MANY_CODES")).toBe("Too many codes sent to this email. Wait 10 minutes, then try again.")
+    expect(authErrorCopy("RATE_LIMITED")).toBe("Too many tries. Wait a minute, then try again.")
+    expect(authErrorCopy("INVALID_OTP")).toBe("That code isn’t right. Check the most recent email from Lane.")
+    expect(authErrorCopy("OTP_EXPIRED")).toBe("That code has expired. Send a new one.")
+    expect(authErrorCopy("MISSING_RESPONSE")).toBe("Finish the check that you’re human, then try again.")
+    expect(authErrorCopy("HUMAN_CHECK_NOT_SET_UP")).toBe("We can’t run the check that you’re human, so this is off for now. Continue with Google instead, or try again later.")
+    expect(authErrorCopy(undefined)).toBe("Something went wrong. Try again.")
+  })
+
+  // #379: the invitation page's and Onboarding's tests meet these codes. Each was already in the table.
+  it("has Lane's words for every code the invitation and Onboarding screens' tests produce", () => {
+    for (const code of [
+      "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED",
+      "INVITATION_NOT_FOUND",
+      "EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION",
+      "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION",
+      "ORGANIZATION_ALREADY_EXISTS",
+      "UNAUTHORIZED",
+    ]) expect([code, Object.hasOwn(AUTH_ERROR_COPY, code)]).toEqual([code, true])
+    expect(authErrorCopy("EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION")).toBe("Confirm your email before you accept. Email yourself a code to confirm it.")
+    expect(authErrorCopy("INVITATION_NOT_FOUND")).toBe("This invitation has expired or is no longer open. Ask the person who invited you to send a new one.")
+  })
+
+  // #378: the sign-up and forgot-and-reset screens' tests meet these codes besides the sign-in ones above. Every one
+  // was already in the table, so #378 adds no entry.
+  it("has Lane's words for every code the sign-up and reset screens' tests produce", () => {
+    expect(authErrorCopy("PASSWORD_TOO_SHORT")).toBe("Use at least 8 characters.")
+    expect(authErrorCopy("PASSWORD_COMPROMISED")).toBe("This password has appeared in a data breach elsewhere. Choose a different one.")
+    expect(authErrorCopy("PASSWORD_CHECK_UNAVAILABLE")).toBe("We couldn’t check this password right now. Try again in a minute.")
+    expect(authErrorCopy("USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL")).toBe("A Lane account already uses this email.")
+    expect(authErrorCopy("SIGN_UP_CODE_NOT_SENT")).toBe("We couldn’t send the code right now. Try again in a few minutes.")
+    expect(authErrorCopy("TOO_MANY_ATTEMPTS")).toBe("That code has expired. Send a new one.")
+    expect(authErrorCopy("HUMAN_CHECK_UNAVAILABLE")).toBe("We couldn’t run the check that you’re human right now. Try again in a minute.")
   })
 
   it("reads the code from a Better Auth or Lane error answer's body, and nothing from any other body", () => {
