@@ -20,7 +20,7 @@ import { TurnstileWidget } from "./turnstile-widget"
 import authStyles from "../auth.module.css"
 import styles from "./better-auth.module.css"
 
-/** Which screen the shared form draws. Sign-up mode joined in #378 without changing the props. */
+/** Which screen the shared form draws: sign-in (#377) or sign-up (#378). */
 export type AuthFormMode = "sign-in" | "sign-up"
 
 export type AuthFormProps = {
