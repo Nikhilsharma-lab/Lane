@@ -47,7 +47,7 @@ export function SignUp({ email, returnTo, errorCode }: SignUpProps) {
   </Alert>
 
   const shell = (title: string, description: string, body: ReactNode) => <AuthShell
-    headerAction={<AuthHeaderLink prompt="Have an account?" href={signInPage(undefined, returnTo)} label="Sign in" />}
+    headerAction={<AuthHeaderLink prompt="Have an account?" href={signInPage(state.email, returnTo)} label="Sign in" />}
     footer={<AuthTrust icon={ShieldCheckIcon}>Create or join a workspace after confirming your email.</AuthTrust>}>
     <AuthFormCard title={title} description={description}>{body}</AuthFormCard>
   </AuthShell>

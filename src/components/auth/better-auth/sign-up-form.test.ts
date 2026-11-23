@@ -86,6 +86,15 @@ describe("the sign-up screen (#378, #346 layout A)", () => {
     expect(input(mount({ email: MEI }).render(), "sign-up-email")).toContain(`value="${MEI}"`)
   })
 
+  // #376 story 48, as sign-in's Create an account does (Nikhil, 2026-11-23).
+  it("keeps the typed email and the return on the header's Sign in", () => {
+    const { flow, render } = mount({ email: MEI, returnTo: "/invite/inv_1" })
+    expect(render()).toContain(`href="/login?email=${encodeURIComponent(MEI)}&amp;redirect_url=%2Finvite%2Finv_1"`)
+    flow.setEmail("ada@example.test")
+    expect(render()).toContain(`href="/login?email=ada%40example.test&amp;redirect_url=%2Finvite%2Finv_1"`)
+    expect(mount().render()).toContain('href="/login"')
+  })
+
   it("refuses a 7-character password on the field", async () => {
     const { flow, render } = mount({ email: MEI })
     flow.setName("Mei Lin")
