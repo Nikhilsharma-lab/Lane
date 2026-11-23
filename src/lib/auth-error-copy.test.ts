@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { CODE_COULD_NOT_SEND, INVITATION_COULD_NOT_SEND } from "./auth-email"
-import { AUTH_ERROR_COPY, authErrorCode, authErrorCopy } from "./auth-error-copy"
+import { AUTH_ERROR_COPY, authErrorCode, authErrorCopy, googleConnectionCode } from "./auth-error-copy"
 
 /**
  * #371 (spec #369): what a person reads when an auth call fails. Better Auth's own message is never shown. The
@@ -92,8 +92,16 @@ describe("Auth error copy", () => {
     // Proposed for Nikhil to confirm: Lane's codes for a Google connection that came back without connecting.
     expect(authErrorCopy("GOOGLE_EMAIL_DOES_NOT_MATCH")).toBe("That Google account uses a different email, so nothing changed. Choose the Google account that uses your Lane email.")
     expect(authErrorCopy("GOOGLE_NOT_CONNECTED")).toBe("Google didn’t connect, so nothing changed. Try again.")
+    // Nikhil's words (2026-11-23).
+    expect(authErrorCopy("GOOGLE_ALREADY_LINKED")).toBe("That Google account is already connected to another Lane account.")
     // The password answers it shares with sign-up.
     for (const code of ["PASSWORD_TOO_SHORT", "PASSWORD_COMPROMISED", "PASSWORD_CHECK_UNAVAILABLE", "UNAUTHORIZED"]) expect(authErrorCopy(code)).not.toBe("Something went wrong. Try again.")
+  })
+
+  it("names what came back from Google's redirect to Settings after Connect Google", () => {
+    expect(googleConnectionCode("email_does_not_match")).toBe("GOOGLE_EMAIL_DOES_NOT_MATCH")
+    expect(googleConnectionCode("account_already_linked_to_different_user")).toBe("GOOGLE_ALREADY_LINKED")
+    for (const error of ["access_denied", "state_mismatch", "unable_to_link_account"]) expect(googleConnectionCode(error)).toBe("GOOGLE_NOT_CONNECTED")
   })
 
   // #377: the sign-in screens' tests (src/components/auth/better-auth) meet these codes, from increment 3's route

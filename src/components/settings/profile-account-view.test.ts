@@ -161,10 +161,13 @@ describe("Settings → Profile, Sign-in methods (#380)", () => {
     expect(button(html, "Try again")).toBeDefined()
   })
 
-  it("says nothing changed when Google comes back from a connection with a different email, or one that didn't finish", () => {
+  it("says why when Google comes back from a connection with a different email or another Lane account's Google, or one that didn't finish", () => {
     const different = render({ methods: { password: true, google: false }, googleError: "email_does_not_match" })
     expect(text(different)).toContain("That Google account uses a different email, so nothing changed. Choose the Google account that uses your Lane email.")
-    for (const error of ["access_denied", "state_mismatch", "account_already_linked_to_different_user"]) {
+    const linked = render({ methods: { password: true, google: false }, googleError: "account_already_linked_to_different_user" })
+    expect(text(linked)).toContain("That Google account is already connected to another Lane account.")
+    expect(text(linked)).not.toContain("use your email")
+    for (const error of ["access_denied", "state_mismatch"]) {
       const unfinished = render({ methods: { password: true, google: false }, googleError: error })
       expect(text(unfinished)).toContain("Google didn’t connect, so nothing changed. Try again.")
       expect(text(unfinished)).not.toContain("use your email")

@@ -135,10 +135,11 @@ export const AUTH_ERROR_COPY = {
   // last sign-in method: #346's words.
   INVALID_PASSWORD: "That isn’t your current password.",
   FAILED_TO_UNLINK_LAST_ACCOUNT: GOOGLE_ONLY_METHOD,
-  // Proposed for Nikhil: Lane's codes for Google's redirect back to Settings after Connect Google. Its
-  // `email_does_not_match` becomes the first; any other `error` the second (`googleConnectionCode`). The redirect's
-  // own codes keep the sign-in line, which tells a person to use their email instead.
+  // Lane's codes for Google's redirect back to Settings after Connect Google (`googleConnectionCode`): its
+  // `email_does_not_match`, its `account_already_linked_to_different_user`, and any other `error`. The redirect's own
+  // codes keep the sign-in line, which tells a person to use their email instead. Nikhil's words (2026-11-23).
   GOOGLE_EMAIL_DOES_NOT_MATCH: "That Google account uses a different email, so nothing changed. Choose the Google account that uses your Lane email.",
+  GOOGLE_ALREADY_LINKED: "That Google account is already connected to another Lane account.",
   GOOGLE_NOT_CONNECTED: "Google didn’t connect, so nothing changed. Try again.",
 } as const satisfies Record<string, string>
 
@@ -153,11 +154,14 @@ export function authErrorCode(body: unknown): string | undefined {
 
 /**
  * Lane's code for Google's redirect back to Settings after Connect Google (its `?error=`, one of
- * `GOOGLE_REDIRECT_ERRORS`): a Google account with a different email, or any other way the connection didn't
- * finish. Either way nothing changed.
+ * `GOOGLE_REDIRECT_ERRORS`): a Google account with a different email, one another Lane account already has, or any
+ * other way the connection didn't finish. Either way nothing changed. Better Auth 1.7 sends the redirect's
+ * `account_already_linked_to_different_user`; its `LINKED_ACCOUNT_ALREADY_EXISTS` is never thrown.
  */
-export function googleConnectionCode(redirectError: string): "GOOGLE_EMAIL_DOES_NOT_MATCH" | "GOOGLE_NOT_CONNECTED" {
-  return redirectError === "email_does_not_match" ? "GOOGLE_EMAIL_DOES_NOT_MATCH" : "GOOGLE_NOT_CONNECTED"
+export function googleConnectionCode(redirectError: string): "GOOGLE_EMAIL_DOES_NOT_MATCH" | "GOOGLE_ALREADY_LINKED" | "GOOGLE_NOT_CONNECTED" {
+  if (redirectError === "email_does_not_match") return "GOOGLE_EMAIL_DOES_NOT_MATCH"
+  if (redirectError === "account_already_linked_to_different_user") return "GOOGLE_ALREADY_LINKED"
+  return "GOOGLE_NOT_CONNECTED"
 }
 
 /** Lane's words for an auth error code. A code it doesn't know, or none, gets the generic line. */
