@@ -55,12 +55,11 @@ export type WorkspaceMembersViewProps = {
   onRevoke: (invitationId: string) => Promise<Answer>;
   onRetry: () => void;
   /**
-   * #381: with it, an Admin removes anyone but themselves after a red confirmation; it answers success or an error
-   * code. Without it (the Clerk adapter, which removes in Clerk through `manage`), the view is exactly as before.
+   * #381: with it, an Admin removes anyone but themselves after a red confirmation naming the workspace; `onRemove`
+   * answers success or an error code. Without it (the Clerk adapter, which removes in Clerk through `manage`), the
+   * view is exactly as before.
    */
-  onRemove?: (userId: string) => Promise<AuthAnswer>;
-  /** The workspace's name, which Remove's confirmation names; pass it with `onRemove`. */
-  workspaceName?: string;
+  remove?: { workspaceName: string; onRemove: (userId: string) => Promise<AuthAnswer> };
 };
 
 const FAILED = "Couldn’t reach Lane. Try again.";
@@ -98,7 +97,7 @@ async function attempt(run: () => Promise<Answer>): Promise<Answer> {
  * first asks the Admin to confirm "This adds a paid seat". Cancelling changes nothing; focus goes back to the
  * control that asked.
  */
-export function WorkspaceMembersView({ people, invitations, selfId, canManage, roles, state, confirmPaidSeats = false, manage, onInvite, onChangeRole, onRevoke, onRetry, onRemove, workspaceName = "this workspace" }: WorkspaceMembersViewProps) {
+export function WorkspaceMembersView({ people, invitations, selfId, canManage, roles, state, confirmPaidSeats = false, manage, onInvite, onChangeRole, onRevoke, onRetry, remove }: WorkspaceMembersViewProps) {
   const [query, setQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -202,7 +201,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
             : <Badge>{roleName(person.role)}</Badge>;
           return <SettingsRow as="li" key={person.userId} leading={<Avatar name={person.name} src={person.imageUrl} size="sm" unoptimized />}
             label={<>{person.name}{self && <span className={members.you}> (you)</span>}</>} hint={person.email}
-            control={onRemove && canManage && !self
+            control={remove && canManage && !self
               ? <>{role}<Button type="button" variant="ghost" size="sm" aria-label={`Remove ${person.name}`} onClick={() => removal.ask(person)}>Remove</Button></>
               : role}>
             {ownNote && <p id={ownNote} className={styles.note}>{OWN_ROLE}</p>}
@@ -245,9 +244,9 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
       onConfirm={() => { setSeatOpen(false); seat.add(); }} />}
 
     {/* #381: the person stays named while the confirmation leaves; once they're gone from the list, focus goes to search. */}
-    {onRemove && removing.target && <RemovePersonConfirmation person={removing.target} workspaceName={workspaceName} open={removing.open} busy={removing.busy}
+    {remove && removing.target && <RemovePersonConfirmation person={removing.target} workspaceName={remove.workspaceName} open={removing.open} busy={removing.busy}
       error={removing.error} returnFocus={() => searchRef.current} onOpenChange={open => { if (!open) removal.dismiss(); }}
-      onConfirm={person => { void removal.confirm(() => onRemove(person.userId)); }} />}
+      onConfirm={person => { void removal.confirm(() => remove.onRemove(person.userId)); }} />}
   </>;
 }
 

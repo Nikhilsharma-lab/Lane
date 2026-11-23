@@ -33,7 +33,7 @@ const base: WorkspaceMembersViewProps = {
 }
 const render = (props: Partial<WorkspaceMembersViewProps> = {}) => renderToStaticMarkup(createElement(WorkspaceMembersView, { ...base, ...props }))
 
-describe("Settings → Members without onRemove, as the Clerk adapter mounts it (#381)", () => {
+describe("Settings → Members without remove, as the Clerk adapter mounts it (#381)", () => {
   // Captured from the view before #381 changed it. A difference here is a change to what Clerk's Members shows.
   it("renders an Admin's list byte for byte as before", async () => {
     await expect(render()).toMatchFileSnapshot("./__snapshots__/members-view-admin.html")
@@ -45,7 +45,9 @@ describe("Settings → Members without onRemove, as the Clerk adapter mounts it 
 })
 
 const removed = async () => ({ ok: true as const })
-const removable = (props: Partial<WorkspaceMembersViewProps> = {}) => render({ workspaceName: "Acme Design", onRemove: removed, ...props })
+type OnRemove = NonNullable<WorkspaceMembersViewProps["remove"]>["onRemove"]
+const removable = ({ onRemove = removed, ...props }: Partial<WorkspaceMembersViewProps> & { onRemove?: OnRemove } = {}) =>
+  render({ remove: { workspaceName: "Acme Design", onRemove }, ...props })
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 const removeButtons = (html: string) => [...html.matchAll(/<button[^>]*aria-label="(Remove [^"]*)"[^>]*>/g)].map(match => match[1])
 const settle = () => new Promise(resolve => setTimeout(resolve))
@@ -66,7 +68,15 @@ describe("Settings → Members, Remove (#381)", () => {
     expect(html).not.toContain('role="dialog"')
   })
 
-  it("gives no one but an Admin a Remove, even with onRemove passed", () => {
+  // #381: "<name> loses access to <workspace>". The type checker holds this: there's no "this workspace" fallback.
+  it("can't be given Remove without the workspace's name", () => {
+    // @ts-expect-error: Remove's confirmation names the workspace, so onRemove needs workspaceName.
+    const nameless: WorkspaceMembersViewProps = { ...base, remove: { onRemove: removed } }
+    const named: WorkspaceMembersViewProps = { ...base, remove: { onRemove: removed, workspaceName: "Acme Design" } }
+    expect([nameless.remove?.onRemove, named.remove?.workspaceName]).toEqual([removed, "Acme Design"])
+  })
+
+  it("gives no one but an Admin a Remove, even with remove passed", () => {
     for (const role of WORKSPACE_ROLES.filter(role => !managesWorkspace(role))) {
       const html = removable({ canManage: managesWorkspace(role), selfId: "user_member", invitations: [] })
       expect([role, removeButtons(html)]).toEqual([role, []])
@@ -82,12 +92,6 @@ describe("Settings → Members, Remove (#381)", () => {
     expect(text(html)).toContain("Marguerite Okonkwo-Fairweather loses access to Acme Design straight away. Their Requests, comments and history stay.")
     expect(confirmation().title).toBe("Remove Marguerite Okonkwo-Fairweather?")
     expect(confirmation().confirmLabel).toBe("Remove Marguerite")
-  })
-
-  it("says \"this workspace\" when the caller doesn't name it", () => {
-    removable({ workspaceName: undefined })
-    removal().ask(people[1])
-    expect(text(removable({ workspaceName: undefined }))).toContain("Morgan Member loses access to this workspace straight away.")
   })
 
   it("calls onRemove with that person's id once confirmed, then closes", async () => {
