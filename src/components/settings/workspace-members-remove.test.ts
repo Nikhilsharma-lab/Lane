@@ -106,6 +106,19 @@ describe("Settings → Members, Remove (#381)", () => {
     expect(removable({ onRemove })).not.toContain('role="dialog"')
   })
 
+  // Nikhil (2026-11-23): Remove says what happened, in the status line a role change announces itself in.
+  it("says who was removed from the workspace once they're gone", async () => {
+    removable()
+    removal().ask(people[1])
+    removable()
+    confirmation().onConfirm()
+    await settle()
+    expect(removable()).toMatch(/<p role="status"[^>]*>Morgan Member was removed from Acme Design\.<\/p>/)
+    // Asking to remove someone else starts again with nothing said.
+    removal().ask(people[2])
+    expect(text(removable())).not.toContain("was removed")
+  })
+
   it("closes on Cancel without removing anyone", () => {
     const onRemove = vi.fn(removed)
     removable({ onRemove })
@@ -136,6 +149,7 @@ describe("Settings → Members, Remove (#381)", () => {
       expect(html).toMatch(/role="alert"/)
       expect([code, text(withoutHidden(html))]).toEqual([code, expect.stringContaining(line)])
       expect(html).not.toMatch(/owner/i)
+      expect(text(html)).not.toContain("was removed")
     }
   })
 })

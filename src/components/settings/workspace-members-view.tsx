@@ -122,11 +122,17 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
     setSeatOpen(true);
   }
 
+  /** Clears the status line as a change starts, including the line a removal left. */
+  function quiet() {
+    setStatus("");
+    removal.forget();
+  }
+
   /** One change on a row: its failure stays on that row with Try again, which sends the same change once more. */
   async function runOnRow(key: string, change: () => Promise<Answer>, success: string) {
     setBusy(key);
     setRowError(null);
-    setStatus("");
+    quiet();
     const answer = await attempt(change);
     setBusy(null);
     if (answer.error) setRowError({ id: key, message: answer.error, retry: () => { void runOnRow(key, change, success); } });
@@ -135,7 +141,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
 
   async function send(address: string, role: WorkspacePermission, confirmed: boolean) {
     setBusy("invite");
-    setStatus("");
+    quiet();
     const answer = await attempt(() => onInvite(address, role, confirmed || undefined));
     setBusy(null);
     if (!answer.error) {
@@ -174,6 +180,8 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
   const shown = people.filter(person => matches(person, needle));
   // The count sits beside the group's name, outside what names the group.
   const count = (n: number) => <>{" "}<span className={members.groupCount} aria-hidden="true">{n}</span></>;
+  // Nikhil (2026-11-23): a removal says so in the status line, as a role change does, until another change starts.
+  const removed = remove && removing.done && removing.target ? `${removing.target.name} was removed from ${remove.workspaceName}.` : "";
 
   return <>
     <div className={members.membersBar}>
@@ -229,7 +237,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
       {state === "loading" && <SettingsBlock><Placeholder label="Loading invitations…" lines={1} /></SettingsBlock>}
     </SettingsGroup>}
 
-    <p role="status" className={members.membersStatus}>{status}</p>
+    <p role="status" className={members.membersStatus}>{status || removed}</p>
     {manage}
     <RoleGuide offered={roles} />
 
@@ -246,7 +254,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
     {/* #381: the person stays named while the confirmation leaves; once they're gone from the list, focus goes to search. */}
     {remove && removing.target && <RemovePersonConfirmation person={removing.target} workspaceName={remove.workspaceName} open={removing.open} busy={removing.busy}
       error={removing.error} returnFocus={() => searchRef.current} onOpenChange={open => { if (!open) removal.dismiss(); }}
-      onConfirm={person => { void removal.confirm(() => remove.onRemove(person.userId)); }} />}
+      onConfirm={person => { setStatus(""); void removal.confirm(() => remove.onRemove(person.userId)); }} />}
   </>;
 }
 
