@@ -183,14 +183,13 @@ describe("the sign-up confirmation (#378)", () => {
     expect(html).toContain(AUTH_ERROR_COPY[code])
   })
 
-  it("says Email confirmed. Sign in to continue. with Sign in when the sign-in after it fails", async () => {
-    auth.refuse("/sign-in/email", 429, "RATE_LIMITED")
+  it("says Email confirmed. Sign in to continue. with Sign in when the confirmation's answer carries no session", async () => {
+    auth.succeed("/email-otp/verify-email", { status: true, token: null, user: { id: "user_1", email: MEI } })
     const { flow, render } = await created({ returnTo: "/invite/inv_1" })
     await flow.confirmEmail({ code: "482913" })
     const html = render()
     expect(markupWords(withoutHidden(html))).toContain("Email confirmed Sign in to continue.")
     expect(buttonsIn(html).map((button) => button.name)).toContain("Sign in")
-    expect(markupWords(html)).not.toContain(AUTH_ERROR_COPY.RATE_LIMITED)
     expect(html).not.toContain('aria-label="Confirmation code"')
   })
 

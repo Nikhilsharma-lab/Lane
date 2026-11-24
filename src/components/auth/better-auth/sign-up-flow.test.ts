@@ -180,12 +180,11 @@ describe("confirming the email (#378)", () => {
     expect(auth.to("/email-otp/send-verification-otp")).toHaveLength(2)
   })
 
-  it("confirms the code, signs in with the typed password, and goes to Onboarding", async () => {
+  it("confirms the code, which signs in with no password sent again, and goes to Onboarding", async () => {
     const { flow } = await confirming()
     await flow.confirmEmail({ code: "482913" })
     expect(auth.requests.slice(1)).toEqual([
       { path: "/email-otp/verify-email", method: "POST", body: { email: MEI, otp: "482913" }, captcha: null },
-      { path: "/sign-in/email", method: "POST", body: { email: MEI, password: PASSWORD }, captcha: null },
     ])
     expect(navigate).toHaveBeenCalledWith("/onboarding")
   })
@@ -202,16 +201,20 @@ describe("confirming the email (#378)", () => {
     expect(navigate).toHaveBeenCalledWith("/onboarding")
   })
 
-  it("moves to the confirmed step, offering Sign in, when the sign-in after it fails", async () => {
-    auth.refuse("/sign-in/email", 429, "RATE_LIMITED")
+  /** Better Auth's answer to a right code when no session came with it. */
+  const withoutSession = { status: true, token: null, user: { id: "user_1", email: MEI } }
+
+  it("moves to the confirmed step, offering Sign in with the email kept, when the answer carries no session", async () => {
+    auth.succeed("/email-otp/verify-email", withoutSession)
     const { flow } = await confirming()
     await flow.confirmEmail({ code: "482913" })
     expect(flow.snapshot()).toMatchObject({ step: "confirmed", email: MEI, alert: null })
+    expect(auth.to("/sign-in/email")).toEqual([])
     expect(navigate).not.toHaveBeenCalled()
   })
 
   it("sends Sign in to the sign-in page with the email and the return address", async () => {
-    auth.refuse("/sign-in/email", 429, "RATE_LIMITED")
+    auth.succeed("/email-otp/verify-email", withoutSession)
     const { flow } = await confirming({ returnTo: "/invite/inv_1" })
     await flow.confirmEmail({ code: "482913" })
     flow.goToSignIn()
@@ -222,14 +225,14 @@ describe("confirming the email (#378)", () => {
     ["INVALID_OTP", "That code isn’t right. Check the most recent email from Lane."],
     ["OTP_EXPIRED", "That code has expired. Send a new one."],
     ["TOO_MANY_ATTEMPTS", "That code has expired. Send a new one."],
-  ])("puts %s's line on the code field, and still signs in with the password after a right code", async (code, line) => {
+  ])("puts %s's line on the code field, and still goes on after a right code", async (code, line) => {
     auth.refuse("/email-otp/verify-email", code === "TOO_MANY_ATTEMPTS" ? 403 : 400, code)
     const { flow } = await confirming()
     await flow.confirmEmail({ code: "000000" })
     expect(flow.snapshot()).toMatchObject({ step: "code", fieldErrors: { code: line }, alert: null })
-    expect(auth.to("/sign-in/email")).toEqual([])
+    expect(navigate).not.toHaveBeenCalled()
     await flow.confirmEmail({ code: "482913" })
-    expect(auth.to("/sign-in/email").map((request) => request.body.password)).toEqual([PASSWORD])
+    expect(navigate).toHaveBeenCalledWith("/onboarding")
   })
 
   it("says a short code on the field and sends nothing", async () => {
@@ -240,29 +243,28 @@ describe("confirming the email (#378)", () => {
   })
 
   it.each([
-    ["signs in", () => {}],
-    ["fails to sign in", () => void auth.refuse("/sign-in/email", 401, "INVALID_EMAIL_OR_PASSWORD")],
-  ])("holds no password once it %s", async (_outcome, answer) => {
+    ["taken", () => {}],
+    ["taken with its code unsent", () => void auth.refuse("/sign-up/email", 502, "SIGN_UP_CODE_NOT_SENT")],
+    ["refused", () => void auth.refuse("/sign-up/email", 422, "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL")],
+  ])("keeps the typed password nowhere once the sign-up is %s: not in its state, not in a later request", async (_outcome, answer) => {
     answer()
-    const { flow } = await confirming()
-    await flow.confirmEmail({ code: "482913" })
-    expect(JSON.stringify(flow.snapshot())).not.toContain(PASSWORD)
-    expect(flow.holdsPassword()).toBe(false)
-  })
-
-  it("holds the password only from Create account to the sign-in after confirming", async () => {
-    const { flow } = signUp()
-    expect(flow.holdsPassword()).toBe(false)
+    const { flow, human } = signUp()
+    const states: unknown[] = []
+    flow.subscribe(() => states.push(flow.snapshot()))
     await flow.signUp({ password: PASSWORD })
-    expect(flow.holdsPassword()).toBe(true)
-    expect(JSON.stringify(flow.snapshot())).not.toContain(PASSWORD)
+    human.pass()
+    clock += 30_000
+    await flow.resendCode()
+    await flow.confirmEmail({ code: "482913" })
+    expect(states.length).toBeGreaterThan(0)
+    expect(JSON.stringify(states)).not.toContain(PASSWORD)
+    expect(JSON.stringify(auth.requests.slice(1))).not.toContain(PASSWORD)
   })
 
-  it("goes back to the details with the email kept, and drops the password", async () => {
+  it("goes back to the details with the name and email kept", async () => {
     const { flow } = await confirming()
     flow.useDifferentEmail()
     expect(flow.snapshot()).toMatchObject({ step: "details", email: MEI, name: "Mei Lin", alert: null })
-    expect(flow.holdsPassword()).toBe(false)
   })
 })
 
