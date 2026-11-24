@@ -230,6 +230,8 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
         await add.click();
         await expect(question).toHaveValue("Asked before the behaviour arrived");
         await page.keyboard.press("Escape");
+        // Gone, so the next Escape is the confirmation's.
+        await expect(popover).toHaveCount(0);
         await expect(page).toHaveURL(new RegExp(`/requests/${id}$`));
         const prompt = discardPrompt(page);
 

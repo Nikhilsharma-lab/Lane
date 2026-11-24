@@ -7,6 +7,7 @@ import {
   signInTestUser,
 } from "./helpers/test-user";
 import { createTestWorkspace } from "./helpers/workspaces";
+import { ROLE_STEP_URL } from "../src/lib/onboarding-address";
 
 const SURFACES = [
   {
@@ -50,7 +51,7 @@ test("the Lane role selector preserves keyboard and visual behavior", async ({
 
   try {
     await signInTestUser(page, user, orgId);
-    await page.goto("/onboarding");
+    await page.goto(ROLE_STEP_URL);
 
     // Arc's RadioGroup is a fieldset with a legend, so its role is "group".
     const roleGroup = page.getByRole("group", { name: "Your role" });

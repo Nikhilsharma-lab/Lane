@@ -65,6 +65,8 @@ export async function openCatalogueDraft(page: Page, orgId: string) {
   // #285 (C23): /intake's launcher reads New Request, like every other way to start one.
   const start = page.getByRole("region", { name: "Start a Request" }).getByRole("link", { name: "New Request", exact: true });
   await expect(composer(page).or(start)).toBeVisible();
+  // The composer's idle preload marks a hydrated page: before it, the link loads /intake again instead of opening it.
+  await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
   if (!await composer(page).isVisible()) await start.click();
   await composer(page).getByRole("textbox", { name: "Request title", exact: true }).fill(draftTitle);
 }

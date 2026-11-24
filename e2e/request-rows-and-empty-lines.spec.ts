@@ -13,7 +13,8 @@ import { provisionAndSignIn } from "./helpers/auth";
  */
 
 const SCHEMES = ["light", "dark"] as const;
-const row = (page: Page, id: string) => page.locator(`[data-request-grid] [data-request-id="${id}"]`);
+// The one on screen: just after a load its streamed copy can still be in the page, hidden.
+const row = (page: Page, id: string) => page.locator(`[data-request-grid] [data-request-id="${id}"]`).filter({ visible: true });
 const activeFilters = (page: Page) => page.locator('[aria-label="Active filters"]');
 
 async function withDatabase<T>(run: (sql: ReturnType<typeof e2eDatabase>) => Promise<T>) {

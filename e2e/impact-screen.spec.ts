@@ -266,9 +266,12 @@ test("Closed results lead My work; the Quarter note is a popup on desktop and a 
       const chart = panel(darkPage, "Outcome report").getByRole("img", { name: /^Conversion rate, / });
       await expect(chart).toBeVisible({ timeout: 30_000 });
       await expect(darkPage.locator("html.dark")).toHaveCount(1);
-      await darkPage.evaluate(() => window.dispatchEvent(new Event("beforeprint")));
       await darkPage.emulateMedia({ media: "print" });
-      await expect(darkPage.locator("html.dark")).toHaveCount(0);
+      // The report is in the server's HTML, so the first event may come before the page listens for it.
+      await expect(async () => {
+        await darkPage.evaluate(() => window.dispatchEvent(new Event("beforeprint")));
+        await expect(darkPage.locator("html.dark")).toHaveCount(0, { timeout: 1_000 });
+      }).toPass({ timeout: 15_000 });
       const bar = chart.locator("[data-series=result]").first();
       expect(await bar.evaluate(element => getComputedStyle(element).printColorAdjust)).toBe("exact");
       expect(await heightOf(bar)).toBeGreaterThan(0);

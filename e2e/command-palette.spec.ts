@@ -142,7 +142,7 @@ test("⌘K and Ctrl+K open the palette on the list, a Request and Settings, for 
       await expect(page.getByRole("button", { name: /Search settings/ })).toBeVisible();
       await run(page, "Preferences", "Settings");
       await expect(page).toHaveURL(/section=preferences/);
-      await expect(page.locator("#settings-preferences")).toBeFocused();
+      await expect(page.locator("#settings-preferences").filter({ visible: true })).toBeFocused();
 
       await testInfo.attach(`palette-${surfaceName(surface)}`, { body: await page.screenshot(), contentType: "image/png" });
 

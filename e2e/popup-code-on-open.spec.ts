@@ -2,6 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
+import { hydrated } from "./helpers/role-workspace";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 
 // #267 (Build 3): the popups whose code arrives when someone reaches for it (src/components/popup/lazy-popup.tsx:
@@ -14,19 +15,6 @@ const TEXT_KEPT = "Your text is still here.";
 
 const toasts = (page: Page) => page.getByRole("region", { name: /^Messages/ });
 const SCRIPT = /\/_next\/static\/.+\.js$/;
-
-/**
- * An old tab after a deploy: the scripts the page loaded with are there, every script it asks for later is gone.
- * Returns the switch that makes later scripts load again.
- */
-async function blockScriptsAfterLoad(page: Page) {
-  let loaded = false;
-  let blocking = true;
-  page.on("load", () => { loaded = true; });
-  const handler = (route: Route) => (loaded && blocking && SCRIPT.test(new URL(route.request().url()).pathname) ? route.abort("failed") : route.continue());
-  await page.route("**/*", handler);
-  return async () => { blocking = false; await page.unroute("**/*", handler); };
-}
 
 /** Fails every script whose text includes `marker`, as a deploy that removed that one file would. */
 async function blockScriptsCarrying(page: Page, marker: string) {
@@ -49,8 +37,11 @@ test("a popup whose code can't load says so inside Lane, keeps typed text, and o
     const thrownOut = page.getByRole("heading", { name: "This page couldn’t load" });
 
     await test.step("an old tab after a deploy: Edit Request says Lane couldn't open it, and nothing blank stays open", async () => {
-      const unblock = await blockScriptsAfterLoad(page);
+      // The form's own file is gone. Not every script after `load`: the page fires it before it has fetched all of the
+      // code it needs to answer a press.
+      const unblock = await blockScriptsCarrying(page, "Save changes");
       await page.goto(`/requests/${request.id}`, { waitUntil: "load" });
+      await hydrated(page.getByRole("button", { name: "Edit Request" }));
       await page.getByRole("button", { name: "Edit Request" }).click();
       await expect(toasts(page).getByText(COULDNT_OPEN).first()).toBeVisible();
       await expect(page.getByRole("dialog", { name: "Edit Request" })).toHaveCount(0);
