@@ -90,17 +90,28 @@ describe("setting a first password", () => {
     expect(await loadSignInMethods(userId)).toEqual({ password: false, google: true })
   })
 
-  // Better Auth's Have I Been Pwned plugin checks a fixed list of paths, and set-password, which has no path, isn't
-  // on it. Nikhil decides whether the server module's `paths` changes (#394); this says what happens until then.
-  it("accepts a breached one today, though changing to one is refused", async () => {
+  it("refuses a breached one, and writes nothing", async () => {
     const breached = "lane-breached-password-1"
     outbound.breached.add(breached)
-    const google = await googleOnly("breached")
-    expect(await google.browser.action(() => setFirstPassword(breached, { orgId: google.orgId }))).toEqual({ ok: true })
+    const { browser, userId, orgId, person: someone } = await googleOnly("breached")
+    expect(await browser.action(() => setFirstPassword(breached, { orgId }))).toEqual({ ok: false, code: "PASSWORD_COMPROMISED" })
+    expect(await loadSignInMethods(userId)).toEqual({ password: false, google: true })
+    expect((await signIn(new AuthBrowser(), { email: someone.email, password: breached })).status).toBe(401)
+    // Another one still works.
+    expect(await browser.action(() => setFirstPassword(NEW_PASSWORD, { orgId }))).toEqual({ ok: true })
+  })
 
-    const password = await withPassword("breached-change")
-    const changed = await password.browser.post("/change-password", { currentPassword: password.person.password, newPassword: breached })
-    expect(codeOf(changed)).toBe("PASSWORD_COMPROMISED")
+  it.each([
+    ["a 5xx", () => new Response("", { status: 503 })],
+    ["a thrown fetch", () => Promise.reject(new TypeError("fetch failed"))],
+    ["no answer at all", () => new Promise<never>(() => {})],
+  ])("refuses any while Have I Been Pwned can't be reached (%s), and writes nothing", async (_outage, answer) => {
+    const { browser, userId, orgId } = await googleOnly("hibp-down")
+    outbound.hibp = answer
+    const started = Date.now()
+    expect(await browser.action(() => setFirstPassword(NEW_PASSWORD, { orgId }))).toEqual({ ok: false, code: "PASSWORD_CHECK_UNAVAILABLE" })
+    expect(Date.now() - started).toBeLessThan(5_000)
+    expect(await loadSignInMethods(userId)).toEqual({ password: false, google: true })
   })
 
   it("needs the page's workspace to be the session's, and a session", async () => {
