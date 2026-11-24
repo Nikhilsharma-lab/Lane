@@ -196,6 +196,8 @@ describe("cleanup", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const user = await makeUser("history");
     const orgId = await provisionTestWorkspace({ userId: user.id, email: user.email, name: "History PM", workspaceName: "History" });
+    const teammate = await makeUser("history-teammate");
+    await addTestMember(orgId, teammate.id, "member");
     const { id } = await seedTestRequest(user.id, "A closed Request");
     const closure = { operationId: randomUUID(), fingerprint: "a".repeat(64), actorId: user.id, revision: 1 };
     await connection`update requests set status = 'done', agreement_revision = 1, exception_closure = ${connection.json({ ...closure, version: 1, kind: "exception", reasonCode: "other", reason: "Never launched", ownerId: user.id, closedAt: "2026-11-24T00:00:00.000Z", release: null })} where id = ${id}`;
@@ -207,6 +209,8 @@ describe("cleanup", () => {
       expect(await rows("profiles", "id", user.id)).toBe(1);
       expect(await sessionOf(browser)).toBeNull();
       expect(await rows("account", "user_id", user.id)).toBe(0);
+      await deleteTestUser(teammate.id);
+      expect(await rows("profiles", "id", teammate.id)).toBe(0);
     } finally {
       // This file's own row, gone with the test.
       await connection.begin(async (tx) => {

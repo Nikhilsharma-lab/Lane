@@ -33,19 +33,24 @@ export async function createTestUser(
  */
 export async function deleteTestUser(id: string): Promise<void> {
   const { user, orgIds } = await ownedUserScope(id);
-  if (user) await withE2EDatabase(async (sql) => {
-    await sql.begin(async (tx) => {
+  const kept = user !== null && await withE2EDatabase(async (sql) => {
+    const refused = await sql.begin(async (tx) => {
       for (const orgId of orgIds) await tx`delete from organizations where id = ${orgId} and owner_id = ${id}`;
       await tx`delete from profiles where id = ${id}`;
-    }).catch(async (error) => {
+    }).then(() => false, (error) => {
       if (!keptByHistory(error)) throw error;
+      return true;
+    });
+    if (refused) {
       console.warn("[e2e] Kept a person and their workspaces: their history can't be deleted.");
       await sql`delete from session where user_id = ${id}`;
       await sql`delete from account where user_id = ${id}`;
-    });
+    }
     await deleteEmailCodes(sql, user.email);
+    return refused;
   });
-  for (const orgId of orgIds) forgetOrganization(orgId);
+  // A kept workspace stays this run's, so its other people can still be deleted.
+  if (!kept) for (const orgId of orgIds) forgetOrganization(orgId);
   forgetUser(id);
 }
 
