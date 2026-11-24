@@ -72,7 +72,7 @@ async function teamWithMinaInTwo(browser: Browser, roles: WorkspaceRole[]) {
   }
 }
 
-test("a removal applies at once: the person's other workspace opens, or Onboarding says why, and their work stays", async ({ browser }) => {
+test("a removal applies on the next page: the person's other workspace opens, or Onboarding says why, and their work stays", async ({ browser }) => {
   test.setTimeout(240_000);
   const team = await teamWithMinaInTwo(browser, ["admin", "member", "guest"]);
   try {
@@ -117,28 +117,6 @@ test("a removal applies at once: the person's other workspace opens, or Onboardi
   }
 });
 
-test("a removed person's next in-app click lands whole in their other workspace", async ({ browser }) => {
-  test.setTimeout(240_000);
-  const team = await teamWithMinaInTwo(browser, ["admin", "member"]);
-  try {
-    const { admin, member } = team.people;
-    await member.page.goto("/");
-    await expect(requestLink(member.page, "Harbour request")).toBeVisible();
-    await removeFromWorkspace(admin.page, member.name, "Harbour");
-
-    await sidebar(member.page).getByRole("link", { name: "Impact", exact: true }).click();
-    await expect(member.page.getByRole("main").getByText("Lighthouse request")).toBeVisible();
-    await expect(member.page.getByText("Harbour request")).toHaveCount(0);
-    // #402 found this: the page is Lighthouse's, but an in-app click keeps the frame, so the sidebar and the Requests
-    // list in memory stay Harbour's until a full page load. Whoever fixes it deletes this line.
-    test.fail(true, "An in-app click after a removal leaves the old workspace's frame around the other one's page.");
-    await expect(inWorkspace(member.page, "Lighthouse")).toBeVisible();
-    await expect(inWorkspace(member.page, "Harbour")).toHaveCount(0);
-  } finally {
-    await team.close();
-  }
-});
-
 test("a role change applies on the person's next click, up and down", async ({ browser }) => {
   test.setTimeout(240_000);
   const team = await createRoleWorkspace(browser, "Harbour", ["admin", "member"]);
@@ -154,7 +132,8 @@ test("a role change applies on the person's next click, up and down", async ({ b
     await test.step("made a Viewer, their next click on the open page is refused, and the next page has no controls", async () => {
       await member.page.getByRole("button", { name: "Post comment", exact: true }).click();
       await expect(member.page.getByText(VIEWER_REFUSED, { exact: true })).toBeVisible();
-      await sidebar(member.page).getByRole("link", { name: "Inbox", exact: true }).click();
+      // The frame notices on this move and loads the page in full (stale-frame.spec.ts).
+      await Promise.all([member.page.waitForEvent("load"), sidebar(member.page).getByRole("link", { name: "Inbox", exact: true }).click()]);
       await expect(member.page).toHaveURL(/\/inbox$/);
       await member.page.goto(`/requests/${request}`);
       await expect(member.page.getByRole("heading", { name: "Harbour request", level: 1 })).toBeVisible();

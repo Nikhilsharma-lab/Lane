@@ -24,6 +24,7 @@ export default defineConfig({
       "src/components/shell/workspace-switcher.test.ts",
       "src/components/shell/sidebar-log-out.test.ts",
       "src/components/shell/session-request.test.ts",
+      "src/components/shell/frame-check.test.ts",
       "src/components/shell/project-tone.test.ts",
       "src/app/**/requests-welcome.test.ts",
       "src/app/**/intake/attachment-recovery.test.ts",

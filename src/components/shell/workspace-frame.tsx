@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { WorkspaceLabelsProvider } from "@/components/requests/workspace-labels";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
+import { FrameWatch } from "@/components/shell/frame-watch";
 import { requestSessionOnceUsable } from "@/components/shell/session-request";
 import { StableRouterProvider } from "@/components/shell/stable-router";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
@@ -85,6 +86,8 @@ export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceNam
     <OfflineGuard>
     {/* #267: where a popup whose code couldn't load says so. */}
     <PopupNotices />
+    {/* #402: after each move, whether the session is still in this frame's workspace and role. */}
+    <FrameWatch orgId={orgId} role={role} />
     <StableRouterProvider>
     <RequestListViewProvider key={`${orgId}:${userId}`}>
       {/* Pending Request changes live here, above every page, so a navigation

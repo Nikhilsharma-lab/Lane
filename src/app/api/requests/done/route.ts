@@ -1,4 +1,3 @@
-import { requireActiveMember } from "@/lib/auth-guard";
 import { FINISHED_VIEWS, loadOlderFinishedRequests, type FinishedView } from "@/lib/data/requests";
 import { authorizeReadRoute, json } from "../../_lib/read-route";
 
@@ -11,7 +10,7 @@ import { authorizeReadRoute, json } from "../../_lib/read-route";
  * carries the guard). Dates serialise as ISO strings.
  */
 export async function GET(request: Request) {
-  const access = await authorizeReadRoute(request, requireActiveMember);
+  const access = await authorizeReadRoute(request);
   if (!access.ok) return access.response;
 
   try {
