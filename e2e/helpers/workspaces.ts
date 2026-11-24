@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { isWorkspacePermission, type WORKSPACE_ROLES } from "../../src/lib/role-rules";
 import { testAuth } from "./better-auth";
 import { withE2EDatabase } from "./database";
-import { assertOwnedOrganization, assertOwnedUser, recordCreatedOrganization } from "./fixtures";
+import { assertOwnedOrganization, assertOwnedUser, assertReservedEmail, recordCreatedOrganization } from "./fixtures";
 
 /** Lane's four roles, and no other. */
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
@@ -51,4 +51,31 @@ export async function removeTestMember(orgId: string, userId: string): Promise<v
   await assertOwnedOrganization(orgId);
   const { count } = await withE2EDatabase((sql) => sql`delete from member where organization_id = ${orgId} and user_id = ${userId}`);
   if (count !== 1) throw new Error("[e2e] That person isn't in the workspace.");
+}
+
+/** The person's role in the workspace, as its member row says. Null when they aren't in it. */
+export async function testMemberRole(orgId: string, userId: string): Promise<string | null> {
+  const [row] = await withE2EDatabase((sql) => sql<{ role: string }[]>`select role from member where organization_id = ${orgId} and user_id = ${userId}`);
+  return row?.role ?? null;
+}
+
+/**
+ * An invitation to a workspace this run made, as an Admin's invite leaves it, with no email sent. Answers its id. Only
+ * an address this worker reserved is invited.
+ */
+export async function createTestInvitation(
+  orgId: string,
+  inviterId: string,
+  email: string,
+  { role = "member", status = "pending", expired = false }: { role?: WorkspaceRole; status?: "pending" | "accepted"; expired?: boolean } = {}
+): Promise<string> {
+  assertLaneRole(role);
+  assertReservedEmail(email);
+  await assertOwnedOrganization(orgId);
+  const id = randomUUID();
+  await withE2EDatabase((sql) => sql`
+    insert into invitation (id, organization_id, email, role, status, inviter_id, expires_at)
+    values (${id}, ${orgId}, ${email}, ${role}, ${status}, ${inviterId}, now() + make_interval(days => ${expired ? -1 : 7}))
+  `);
+  return id;
 }
