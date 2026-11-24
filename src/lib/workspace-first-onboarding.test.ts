@@ -13,7 +13,6 @@ vi.mock("./session", () => ({
   readAccount: vi.fn(async () => ({
     name: "Lane Test",
     email: "workspace-first@example.com",
-    imageUrl: "https://example.com/avatar.png",
   })),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -76,6 +75,7 @@ describe("workspace-first onboarding", () => {
     const [profile] = await db.select().from(profiles).where(eq(profiles.id, USER_ID));
     expect(profile.role).toBe("pm");
     expect(profile.fullName).toBe("Lane Test");
+    expect(profile.avatarUrl).toBeNull();
   });
 
   it("does not grant app access to an existing profile after its active workspace is lost", async () => {

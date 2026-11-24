@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { getMember, getWorkspace } from "@/lib/ensure-workspace"
+import { getMember, getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace"
 import { loadRequestList } from "@/lib/data/requests"
 import { loadSavedViews } from "@/lib/data/saved-views"
 import { firstRunSlot } from "@/components/first-run/first-run-slot"
@@ -16,7 +16,7 @@ import { canCreateRequests } from "@/lib/role-rules"
 export async function RequestsWorkspace() {
   void timePage("Requests list")
   const member = await getMember()
-  if (!member) redirect("/login")
+  if (!member) return sendAwayMemberless()
 
   // Plan item 1.8: the list read starts from the session seam and runs in parallel
   // with the profile/workspace join, so the page waits for one round trip.
@@ -32,7 +32,7 @@ export async function RequestsWorkspace() {
     timed("data", () => loadRequestList(member)),
     timed("data", () => loadSavedViews(member)).catch(() => []),
   ])
-  if (!workspace) redirect("/login")
+  if (!workspace) return sendAwayMemberless()
   if (workspace.needsOnboarding) redirect("/onboarding")
 
   // Plan item 2.1: an empty workspace renders the same list, whose records

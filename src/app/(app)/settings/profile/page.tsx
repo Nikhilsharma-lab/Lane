@@ -6,7 +6,7 @@ import { SettingsCommandAdapter } from "@/components/settings/settings-command-a
 import { SettingsEarlySearch } from "@/components/settings/settings-early-search";
 import { billingEnforced } from "@/lib/feature-switches";
 import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
-import { getWorkspace } from "@/lib/ensure-workspace";
+import { getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace";
 import { ProfileForm } from "./profile-form";
 import { ThemePreference } from "./theme-preference";
 import { sharedPanels } from "./shared-panels";
@@ -17,7 +17,7 @@ export const metadata = settingsMetadata;
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ section?: string; slack?: string; checkout?: string }> }) {
   void timePage("Settings: Profile");
   const workspace = await getWorkspace();
-  if (!workspace) redirect("/login");
+  if (!workspace) return sendAwayMemberless();
   if (workspace.needsOnboarding) redirect("/onboarding");
 
   // Plan item 1.9: the profile role arrived with the shell join. The page's one

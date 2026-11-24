@@ -123,9 +123,8 @@ describe("Settings → Metrics", () => {
     await expect(open()).rejects.toThrow("redirect:/");
   });
 
-  it("sends someone signed out to sign in, and someone new to onboarding", async () => {
-    session.workspace = null;
-    await expect(open()).rejects.toThrow("redirect:/login");
+  // Signed out, or with no workspace: src/app/member-less-visitors.test.ts.
+  it("sends someone new to onboarding", async () => {
     session.workspace = { needsOnboarding: true };
     await expect(open()).rejects.toThrow("redirect:/onboarding");
   });

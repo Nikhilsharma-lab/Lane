@@ -1,4 +1,5 @@
 import { clerkClient } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { cache } from "react";
 
 import { db, workspaces } from "@/db";
@@ -7,7 +8,7 @@ import { loadShell } from "@/lib/data/shell";
 import { accountNameOf } from "@/lib/account-name";
 import { decideFreeRequests } from "@/lib/billing";
 import { timed } from "@/lib/request-timings";
-import { readAccount, readSession } from "@/lib/session";
+import { readAccount, readSession, sendToSignIn } from "@/lib/session";
 
 export type WorkspaceContext = {
   userId: string;
@@ -28,15 +29,28 @@ type OnboardingContext = {
 };
 
 
+/** The session seam's one read, cached per request, so the layout and the page share it. */
+export const getSession = cache(async function getSession() {
+  return timed("session", () => readSession());
+});
+
 /**
- * Identity and workspace permission from the session alone: no database
- * round trip. Plan item 1.8 starts the page's reads from this so they run in
- * parallel with the profile/workspace join in getWorkspace. Cached per
- * request, so the layout and the page share one session read.
+ * Identity and workspace permission from the session alone. Plan item 1.8
+ * starts the page's reads from this so they run in parallel with the
+ * profile/workspace join in getWorkspace.
  */
 export const getMember = cache(async function getMember(): Promise<MemberAuth | null> {
-  return activeMemberOf(await timed("session", () => readSession()));
+  return activeMemberOf(await getSession());
 });
+
+/**
+ * Where a page or layout sends someone `getMember` knows no membership for: signed in, to Onboarding, which joins or
+ * starts a workspace; signed out, to sign in and back (#387).
+ */
+export async function sendAwayMemberless(): Promise<never> {
+  if (await getSession()) redirect("/onboarding");
+  return sendToSignIn();
+}
 
 export const getWorkspace = cache(async function getWorkspace(): Promise<
   | (WorkspaceContext & { needsOnboarding: false })
@@ -51,7 +65,7 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
   const shell = await timed("workspace", () => loadShell(member));
 
   if (!shell) {
-    const account = await timed("clerk", () => readAccount());
+    const account = await timed("session", () => readAccount());
     return {
       needsOnboarding: true,
       userId,
@@ -64,7 +78,7 @@ export const getWorkspace = cache(async function getWorkspace(): Promise<
 
   if (workspaceName === null) {
     const client = await clerkClient();
-    const organization = await timed("clerk", () => client.organizations.getOrganization({
+    const organization = await timed("workspace", () => client.organizations.getOrganization({
       organizationId: orgId,
     }));
 

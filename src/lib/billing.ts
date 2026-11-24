@@ -95,11 +95,11 @@ export async function decideFreeRequests(ws: Workspace, known?: { createdBy: str
   try {
     if (await freeRequestsDecided(ws)) return;
     const client = await clerkClient();
-    const createdBy = known ? known.createdBy : (await timed("clerk", () => client.organizations.getOrganization({ organizationId: ws.orgId }))).createdBy;
+    const createdBy = known ? known.createdBy : (await timed("workspace", () => client.organizations.getOrganization({ organizationId: ws.orgId }))).createdBy;
     if (!createdBy) return;
     const email = known && createdBy === known.userId
       ? known.email
-      : await timed("clerk", () => client.users.getUser(createdBy)).then((user) => user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null);
+      : await timed("workspace", () => client.users.getUser(createdBy)).then((user) => user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null);
     await claimFreeRequests(ws, email);
   } catch (error) {
     console.error("[billing] Free Requests allowance not decided:", error instanceof Error ? error.message : "unknown error");

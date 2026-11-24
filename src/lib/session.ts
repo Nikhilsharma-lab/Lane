@@ -1,45 +1,43 @@
 import "server-only";
 
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { accountNameOf } from "./account-name";
+import { eq } from "drizzle-orm";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { db, profiles } from "@/db";
 import type { WorkspacePermission } from "./auth-guard";
-import { clerkWorkspacePermission } from "./role-rules";
+import { RETURN_ADDRESS_HEADER, signInReturningTo } from "./auth-return-address";
+import { readBetterAuthSession } from "./better-auth-session";
 
 /**
- * #350 / #351: the session seam, the only Lane server code that reads who is signed in from Clerk. It speaks
- * Lane's terms (person, workspace, Lane role) and takes nothing from the browser (#333 Q19): everything comes
- * from the server session. It caches nothing; `getMember` keeps the per-request cache.
+ * #350 / #387: the session seam, the only Lane server code that reads who is signed in. It speaks Lane's terms
+ * (person, workspace, Lane role) and takes nothing from the browser but Better Auth's signed, httpOnly session cookie
+ * (#333 Q19). It caches nothing; `getSession` keeps the per-request cache.
  */
 
-/** The signed-in person, their active workspace and their role in it. A role Lane doesn't know is null: no access. */
+/** The signed-in person, the workspace their session is in and their role there. A role Lane doesn't know is null: no access. */
 export type Session = { userId: string; orgId: string | null; role: WorkspacePermission | null };
 
-type SessionReadOptions = {
-  /** A session still waiting on Clerk's choose-a-workspace step counts as signed in. Only "Page not found" asks. */
-  pendingCountsAsSignedIn?: boolean;
-};
-
-/** The signed-in person's session, or null for anyone signed out (by default, a pending session too). */
-export async function readSession(options: SessionReadOptions = {}): Promise<Session | null> {
-  const { userId, orgId, orgRole } = await (options.pendingCountsAsSignedIn ? auth({ treatPendingAsSignedOut: false }) : auth());
-  if (!userId) return null;
-  return { userId, orgId: orgId ?? null, role: orgId ? clerkWorkspacePermission(orgRole) : null };
+/** The signed-in person's session, or null for anyone signed out. */
+export async function readSession(): Promise<Session | null> {
+  return readBetterAuthSession(await cookies());
 }
 
-/** Sends a signed-out visitor to sign in, and back to the page they opened afterwards. */
+/** Sends a signed-out visitor to sign in, and back to the page they opened (the proxy names it) afterwards. */
 export async function sendToSignIn(): Promise<never> {
-  return (await auth()).redirectToSignIn();
+  redirect(signInReturningTo((await headers()).get(RETURN_ADDRESS_HEADER)));
 }
 
-/**
- * The signed-in account: its name (by the account-name rule), primary email ("" when it has none) and image.
- * The image is kept only because Onboarding still saves `avatarUrl` (avatars are dropped later, #345).
- */
-export type Account = { name: string; email: string; imageUrl: string };
+/** The signed-in account: the person's name and email, from their profile. */
+export type Account = { name: string; email: string };
 
-/** The signed-in account, or null when no account can be read. */
+/** The signed-in account, or null for anyone signed out. */
 export async function readAccount(): Promise<Account | null> {
-  const user = await currentUser();
-  if (!user) return null;
-  return { name: accountNameOf(user), email: user.primaryEmailAddress?.emailAddress ?? "", imageUrl: user.imageUrl };
+  const session = await readSession();
+  if (!session) return null;
+  const [account] = await db
+    .select({ name: profiles.fullName, email: profiles.email })
+    .from(profiles)
+    .where(eq(profiles.id, session.userId))
+    .limit(1);
+  return account ?? null;
 }

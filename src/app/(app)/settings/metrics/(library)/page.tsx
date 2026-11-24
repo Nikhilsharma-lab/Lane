@@ -9,7 +9,7 @@ import { SettingsBlock, SettingsGroup } from "@/components/settings/settings-gro
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { SettingsEarlySearch } from "@/components/settings/settings-early-search";
 import { billingEnforced } from "@/lib/feature-switches";
-import { getWorkspace } from "@/lib/ensure-workspace";
+import { getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace";
 import { listMetricDefinitions } from "@/lib/metrics-library";
 import { ProfileForm } from "../../profile/profile-form";
 import { ThemePreference } from "../../profile/theme-preference";
@@ -27,7 +27,7 @@ export const metadata = settingsMetadata;
 export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ section?: string; show?: string }> }) {
   void timePage("Settings: Metrics");
   const workspace = await getWorkspace();
-  if (!workspace) redirect("/login");
+  if (!workspace) return sendAwayMemberless();
   if (workspace.needsOnboarding) redirect("/onboarding");
   if (workspace.role === "guest") redirect("/");
 

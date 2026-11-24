@@ -41,7 +41,7 @@ describe("syncAccountName", () => {
     await remember(MEMBER_ID, OWNER_ID);
     const ownerBefore = await nameOf(OWNER_ID);
     mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
-    mockAccount = { name: "Daniel Okafor", email: "daniel@example.com", imageUrl: "" };
+    mockAccount = { name: "Daniel Okafor", email: "daniel@example.com" };
 
     expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ success: true });
     expect(await nameOf(MEMBER_ID)).toBe("Daniel Okafor");
@@ -53,7 +53,7 @@ describe("syncAccountName", () => {
     mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
     // The seam names the account by the real account-name rule; this one has only an email.
     const nameless = { firstName: null, lastName: null, username: null, primaryEmailAddress: { emailAddress: "daniel@example.com" } };
-    mockAccount = { name: accountNameOf(nameless), email: "daniel@example.com", imageUrl: "" };
+    mockAccount = { name: accountNameOf(nameless), email: "daniel@example.com" };
 
     expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ success: true });
     expect(await nameOf(MEMBER_ID)).toBe("daniel@example.com");
@@ -62,7 +62,7 @@ describe("syncAccountName", () => {
   it("never takes a name from the browser", async () => {
     await remember(MEMBER_ID);
     mockSession = { userId: MEMBER_ID, orgId: ORG_ID, role: "member" };
-    mockAccount = { name: "Daniel Okafor", email: "", imageUrl: "" };
+    mockAccount = { name: "Daniel Okafor", email: "" };
 
     // A forged argument is ignored: the name only ever comes from the sign-in account.
     await (syncAccountName as unknown as (forged: unknown) => Promise<unknown>)({ orgId: ORG_ID, name: "Someone Else", fullName: "Someone Else", userId: OWNER_ID });
@@ -73,7 +73,7 @@ describe("syncAccountName", () => {
     await remember(MEMBER_ID);
     const before = await nameOf(MEMBER_ID);
     mockSession = null;
-    mockAccount = { name: "Someone Else", email: "", imageUrl: "" };
+    mockAccount = { name: "Someone Else", email: "" };
 
     expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ error: SESSION_ENDED, sessionExpired: true });
     expect(await nameOf(MEMBER_ID)).toBe(before);
@@ -84,7 +84,7 @@ describe("syncAccountName", () => {
     const member = await nameOf(MEMBER_ID);
     const owner = await nameOf(OWNER_ID);
     mockSession = { userId: OUTSIDER_ID, orgId: "org_test_b", role: "member" };
-    mockAccount = { name: "Someone Else", email: "", imageUrl: "" };
+    mockAccount = { name: "Someone Else", email: "" };
 
     expect(await syncAccountName({ orgId: ORG_ID })).toEqual({ error: "You do not have access to this workspace." });
     expect(await nameOf(MEMBER_ID)).toBe(member);

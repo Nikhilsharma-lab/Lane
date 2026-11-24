@@ -62,6 +62,40 @@ describe("the browser auth client's fence", () => {
   })
 })
 
+describe("the session read's fence (#387)", () => {
+  const READ = "@/lib/better-auth-session"
+
+  it("lets the session seam import it, by name", async () => {
+    expect(await refusals("src/lib/session.ts", importing("./better-auth-session"))).toEqual([])
+    expect(await refusals("src/lib/session.ts", importing(READ))).toEqual([])
+  })
+
+  it.each([
+    "src/lib/auth-guard.ts",
+    "src/lib/ensure-workspace.ts",
+    "src/lib/session.test.ts",
+    "src/proxy.ts",
+    "src/app/(app)/layout.tsx",
+    "src/app/(auth)/onboarding/actions.ts",
+    "src/components/auth/better-auth/auth-form.tsx",
+    "src/components/shell/command-palette.tsx",
+  ])("refuses it in %s", async (filePath) => {
+    expect((await refusals(filePath, importing(READ))).join("\n")).toContain("Only the session seam")
+    expect((await refusals(filePath, loading(READ))).join("\n")).toContain("Only the session seam")
+  })
+
+  it("lets the seam import nothing else that was refused: Better Auth's server, Clerk's session", async () => {
+    const seam = "src/lib/session.ts"
+    expect(await refusals(seam, importing("@/lib/auth-server"))).not.toEqual([])
+    expect(await refusals(seam, importing("better-auth/plugins"))).not.toEqual([])
+    expect(await refusals(seam, loading("@/lib/auth-server"))).not.toEqual([])
+    expect(await refusals(seam, loading(READ))).not.toEqual([])
+    expect(await refusals(seam, `import { auth as imported } from "@clerk/nextjs/server"`)).not.toEqual([])
+    expect(await refusals(seam, loading("@clerk/nextjs/server"))).not.toEqual([])
+    expect(await refusals(seam, importing("next/link"))).not.toEqual([])
+  })
+})
+
 describe("the new auth screens' fence", () => {
   it.each([
     "src/app/(auth)/login/page.tsx",
@@ -112,6 +146,11 @@ describe("the new auth screens' fence", () => {
 })
 
 describe("what ships", () => {
+  it("has a session seam that imports nothing of Clerk's", () => {
+    expect(readFileSync("src/lib/session.ts", "utf8")).not.toMatch(/clerk/i)
+    expect(readFileSync("src/lib/better-auth-session.ts", "utf8")).not.toMatch(/clerk/i)
+  })
+
   /** Every source file under src, as a path from the repo root. */
   function sources(dir = "src"): string[] {
     return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
