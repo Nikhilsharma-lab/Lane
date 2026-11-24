@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { addsPaidSeat, freeRolesNote, inviteInputSchema, inviteSeatNote, paidSeatSummary, ROLE_GUIDE, unavailableRolesNote } from "./member-role-rules"
+import { addsPaidSeat, FREE_ROLES_NOTE, inviteInputSchema, INVITE_SEAT_NOTE, paidSeatSummary, ROLE_GUIDE } from "./member-role-rules"
 
 /** #215: which role changes add a paid seat, and what the Admin is asked to confirm. */
 describe("Paid seats", () => {
@@ -38,17 +38,9 @@ describe("Inviting", () => {
     expect(inviteInputSchema.parse({ email: "  New.Person@Example.test ", role: "member" }).email).toBe("new.person@example.test")
   })
 
-  it("names the free roles that can be given, for Billing's seats too", () => {
-    expect(freeRolesNote(["admin", "member"])).toBe("")
-    expect(freeRolesNote(["admin", "member", "guest", "viewer"])).toBe("Guests and Viewers are free.")
-  })
-
-  it("calls Guests and Viewers free only while they can be given", () => {
-    expect(inviteSeatNote(["admin", "member"])).toBe("Admins and Members are paid seats.")
-    expect(inviteSeatNote(["admin", "member", "guest", "viewer"])).toBe("Admins and Members are paid seats. Guests and Viewers are free.")
-    expect(unavailableRolesNote(["admin", "member"])).toBe("Guest and Viewer aren’t available in this workspace yet.")
-    expect(unavailableRolesNote(["admin", "member", "guest", "viewer"])).toBeNull()
-    expect(unavailableRolesNote(["admin", "member", "viewer"])).toBe("Guests aren’t available in this workspace yet.")
+  it("calls Guests and Viewers free, for Billing's seats too, in every workspace (#393)", () => {
+    expect(FREE_ROLES_NOTE).toBe("Guests and Viewers are free.")
+    expect(INVITE_SEAT_NOTE).toBe("Admins and Members are paid seats. Guests and Viewers are free.")
   })
 })
 

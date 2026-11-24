@@ -5,10 +5,9 @@ import { setMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 
 /**
- * #210 Settings → Members: Admins invite people as, and change people to, Admin, Member, Guest or Viewer. Clerk
- * keeps every membership and invitation; these actions only ask Clerk. Until Clerk Enhanced B2B is approved the
- * `LANE_CUSTOM_ROLES` switch stays off and only Admin and Member are allowed. The Clerk client here is a recording
- * stand-in: nothing reaches Clerk and no invitation email is sent.
+ * #210 Settings → Members: Admins invite people as, and change people to, Admin, Member, Guest or Viewer, in every
+ * workspace (#393). Clerk keeps every membership and invitation; these actions only ask Clerk. The Clerk client here
+ * is a recording stand-in: nothing reaches Clerk and no invitation email is sent.
  */
 
 const ORG = "org_members_actions";
@@ -66,6 +65,7 @@ vi.mock("@clerk/nextjs/server", () => {
 const memberRows = () => setMembers(PAYING, Object.fromEntries([...clerk.members].map(([id, role]) => [id, role.replace("org:", "")])));
 const api = () => import("./actions");
 const ctx = { orgId: ORG };
+const VIEWER_REFUSED = "You’re a Viewer in this workspace, so you can read everything but can’t change anything. Ask an Admin if you need to.";
 const as = (userId: string, role: string) => Object.assign(session, { userId, orgId: ORG, role });
 
 beforeEach(() => {
@@ -83,25 +83,29 @@ describe("inviting someone", () => {
     expect(clerk.calls).toEqual([{ method: "invite", params: { organizationId: ORG, emailAddress: "new.person@example.test", role: "org:member", inviterUserId: "user_members_admin" } }]);
   });
 
-  it("offers Guest and Viewer only while the custom roles switch is on", async () => {
-    const { inviteToWorkspace } = await api();
-    for (const role of ["viewer", "guest"]) {
-      expect(await inviteToWorkspace({ email: "leader@example.test", role }, ctx)).toEqual({ error: "Guest and Viewer aren’t available in this workspace yet. Invite them as a Member, or ask whoever runs Lane to turn these roles on." });
-    }
-    expect(clerk.calls).toEqual([]);
-    vi.stubEnv("LANE_CUSTOM_ROLES", "1");
-    expect(await inviteToWorkspace({ email: "leader@example.test", role: "viewer" }, ctx)).toEqual({ success: true });
-    expect(clerk.calls[0].params).toMatchObject({ role: "org:viewer" });
+  it.each(["admin", "member", "guest", "viewer"])("invites someone as %s in any workspace, with nothing to switch on (#393)", async (role) => {
+    expect(await (await api()).inviteToWorkspace({ email: "new.person@example.test", role }, ctx)).toEqual({ success: true });
+    expect(clerk.calls).toEqual([{ method: "invite", params: expect.objectContaining({ organizationId: ORG, role: `org:${role}` }) }]);
   });
 
-  it("refuses a Member, a missing or bad address and an unknown role, and sends nothing", async () => {
+  it.each(["owner", "org:guest", "Guest", ""])("refuses %j, which isn't one of the four roles, and sends nothing", async (role) => {
+    expect(await (await api()).inviteToWorkspace({ email: "x@example.test", role }, ctx)).toEqual({ error: "Choose Admin, Member, Guest or Viewer." });
+    expect(clerk.calls).toEqual([]);
+  });
+
+  it.each([["member", "Only Admins can invite people to this workspace."], ["guest", "Only Admins can invite people to this workspace."], ["viewer", VIEWER_REFUSED]])("refuses a %s inviting anyone as any role, and sends nothing", async (sender, refusal) => {
+    as("user_members_member", sender);
+    const { inviteToWorkspace } = await api();
+    for (const role of ["admin", "member", "guest", "viewer"])
+      expect(await inviteToWorkspace({ email: "x@example.test", role }, ctx)).toEqual({ error: refusal });
+    expect(clerk.calls).toEqual([]);
+  });
+
+  it("refuses a missing or bad address, and sends nothing", async () => {
     const { inviteToWorkspace } = await api();
     // #288 (D27): the same two messages the invite field shows.
     expect(await inviteToWorkspace({ email: "  ", role: "member" }, ctx)).toEqual({ error: "Enter an email address.", field: "email" });
     expect(await inviteToWorkspace({ email: "not-an-address", role: "member" }, ctx)).toEqual({ error: "Enter a valid email address.", field: "email" });
-    expect(await inviteToWorkspace({ email: "x@example.test", role: "owner" }, ctx)).toEqual({ error: "Choose Admin, Member, Guest or Viewer." });
-    as("user_members_member", "member");
-    expect(await inviteToWorkspace({ email: "x@example.test", role: "member" }, ctx)).toEqual({ error: "Only Admins can invite people to this workspace." });
     expect(clerk.calls).toEqual([]);
   });
 
@@ -120,21 +124,28 @@ describe("changing someone's role", () => {
     expect(clerk.calls).toEqual([{ method: "changeRole", params: { organizationId: ORG, userId: "user_members_member", role: "org:admin" } }]);
   });
 
-  it("makes someone a Viewer or Guest only while the switch is on, and always lets an Admin move them back to a paid seat", async () => {
-    const { changeMemberRole } = await api();
-    expect(await changeMemberRole({ userId: "user_members_member", role: "viewer" }, ctx)).toHaveProperty("error");
-    expect(await changeMemberRole({ userId: "user_members_viewer", role: "member" }, ctx)).toEqual({ success: true });
-    vi.stubEnv("LANE_CUSTOM_ROLES", "1");
-    expect(await changeMemberRole({ userId: "user_members_member", role: "viewer" }, ctx)).toEqual({ success: true });
-    expect(clerk.calls.map((c) => c.params.role)).toEqual(["org:member", "org:viewer"]);
+  it.each(["admin", "member", "guest", "viewer"])("changes someone to %s in any workspace, with nothing to switch on (#393)", async (role) => {
+    expect(await (await api()).changeMemberRole({ userId: "user_members_member", role }, ctx)).toEqual({ success: true });
+    expect(clerk.calls).toEqual([{ method: "changeRole", params: { organizationId: ORG, userId: "user_members_member", role: `org:${role}` } }]);
   });
 
-  it("refuses an Admin's own role, someone outside the workspace, and a Member", async () => {
+  it.each(["owner", "org:viewer", "Viewer", ""])("refuses %j, which isn't one of the four roles, and changes nothing", async (role) => {
+    expect(await (await api()).changeMemberRole({ userId: "user_members_member", role }, ctx)).toEqual({ error: "Choose Admin, Member, Guest or Viewer." });
+    expect(clerk.calls).toEqual([]);
+  });
+
+  it.each([["member", "Only Admins can change people’s roles."], ["guest", "Only Admins can change people’s roles."], ["viewer", VIEWER_REFUSED]])("refuses a %s changing anyone to any role, and changes nothing", async (sender, refusal) => {
+    as("user_members_member", sender);
+    const { changeMemberRole } = await api();
+    for (const role of ["admin", "member", "guest", "viewer"])
+      expect(await changeMemberRole({ userId: "user_members_viewer", role }, ctx)).toEqual({ error: refusal });
+    expect(clerk.calls).toEqual([]);
+  });
+
+  it("refuses an Admin's own role and someone outside the workspace", async () => {
     const { changeMemberRole } = await api();
     expect(await changeMemberRole({ userId: "user_members_admin", role: "member" }, ctx)).toEqual({ error: "You can’t change your own role. Ask another Admin to do it." });
     expect(await changeMemberRole({ userId: "user_elsewhere", role: "member" }, ctx)).toEqual({ error: "That person isn’t in this workspace any more. Reload to see who is." });
-    as("user_members_member", "member");
-    expect(await changeMemberRole({ userId: "user_members_viewer", role: "member" }, ctx)).toEqual({ error: "Only Admins can change people’s roles." });
     expect(clerk.calls).toEqual([]);
   });
 });
@@ -184,7 +195,6 @@ describe("paid seats", () => {
     const { inviteToWorkspace } = await api();
     expect(await inviteToWorkspace({ email: "pilot@example.test", role: "member" }, ctx)).toEqual({ success: true });
     enforce();
-    vi.stubEnv("LANE_CUSTOM_ROLES", "1");
     expect(await inviteToWorkspace({ email: "leader@example.test", role: "viewer" }, ctx)).toEqual({ success: true });
     expect(clerk.calls).toHaveLength(2);
   });
@@ -201,7 +211,6 @@ describe("paid seats", () => {
 
   it("charges a paying workspace part-month for the seat a promotion adds, and lowers the next bill for one made a Viewer", async () => {
     enforce();
-    vi.stubEnv("LANE_CUSTOM_ROLES", "1");
     Object.assign(session, { userId: "user_members_admin", orgId: PAYING, role: "admin" });
     clerk.members = new Map([["user_members_admin", "org:admin"], ["user_members_member", "org:member"], ["user_members_other", "org:member"], ["user_members_viewer", "org:viewer"]]);
     await memberRows();

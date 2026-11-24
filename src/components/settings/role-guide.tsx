@@ -1,6 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import type { WorkspacePermission } from "@/lib/auth-guard";
-import { ROLE_GUIDE, unavailableRolesNote, WORKSPACE_ROLES } from "@/lib/member-role-rules";
+import { ROLE_GUIDE, WORKSPACE_ROLES } from "@/lib/member-role-rules";
 import { ROLE_NAMES } from "@/lib/role-rules";
 import { SettingsGroup } from "./settings-group";
 import styles from "./settings.module.css";
@@ -12,8 +11,7 @@ import members from "./members.module.css";
  * A native fold like Billing's "How Free Requests work" (#287), so one decision covers both. The table scrolls inside
  * its own region on a phone, its first column staying put.
  */
-export function RoleGuide({ offered }: { offered: readonly WorkspacePermission[] }) {
-  const unavailable = unavailableRolesNote(offered);
+export function RoleGuide() {
   return <SettingsGroup as="div">
     <details className={styles.fold}>
       <summary><span>What each role can do</span><ChevronDown data-icon-size="sm" aria-hidden="true" /></summary>
@@ -24,7 +22,6 @@ export function RoleGuide({ offered }: { offered: readonly WorkspacePermission[]
             <tbody>{ROLE_GUIDE.map(row => <tr key={row.label}><th scope="row">{row.label}</th>{WORKSPACE_ROLES.map(role => <td key={role}>{row.answer(role)}</td>)}</tr>)}</tbody>
           </table>
         </div>
-        {unavailable && <p>{unavailable} They’re shown here for reference.</p>}
         <p>What someone can do on a Request also depends on its status and their part in it. PM, Designer and Developer are profile labels; they don’t change access.</p>
       </div>
     </details>

@@ -12,7 +12,6 @@ import type { WorkspaceFreeRequests } from "@/lib/billing";
 import { FIRST_REQUEST_STEPS, type FirstRequestStep, type FirstRunChange, type FirstRunView } from "@/lib/first-run-rules";
 import { FIRST_RUN_HELP } from "@/lib/first-run-help-link";
 import { FirstRunGuideView, STEP_TITLES } from "./first-run-guide-view";
-import type { FirstRunInviteRole } from "./first-run-invite-form";
 import { clearHelpHash, consumeFocusRequest, useFirstRunHelp } from "./first-run-help";
 
 /** Loaded when an Admin reaches the Reviewers step, so the form adds nothing to the page's first load. */
@@ -26,8 +25,8 @@ export type FirstRunGuideProps = {
   view: FirstRunView;
   workspaceName: string;
   free: WorkspaceFreeRequests | null;
-  /** The roles an Admin can invite as from the first run; null for anyone else. */
-  invite: { roles: FirstRunInviteRole[]; confirmPaidSeats: boolean } | null;
+  /** An Admin can invite from the first run; null for anyone else. */
+  invite: { confirmPaidSeats: boolean } | null;
   readsNeedsYou: boolean;
   placement: "list" | "intake";
 };
@@ -102,7 +101,7 @@ export function FirstRunGuide({ orgId, view, workspaceName, free, invite, readsN
   const showAgain = () => { moved.current = true; setStep(FIRST_REQUEST_STEPS[0]); setShowSteps(true); };
 
   const inviteForm = invite && step === "reviewers"
-    ? <FirstRunInviteForm roles={invite.roles} confirmPaidSeats={invite.confirmPaidSeats}
+    ? <FirstRunInviteForm confirmPaidSeats={invite.confirmPaidSeats}
         onInvite={(email, role, confirmedPaidSeat) => callAction(() => inviteToWorkspace({ email, role, confirmedPaidSeat }, { orgId }))} />
     : undefined;
 

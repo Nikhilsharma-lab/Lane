@@ -21,7 +21,6 @@
 .invite { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); width: 100%; min-width: 0; padding-top: var(--space-4); border-top: var(--border-width) solid var(--border-subtle); }
 .invite h4 { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-medium); }
 .invite > div, .invite fieldset { width: 100%; }
-.role { display: grid; gap: var(--space-1); }
 .status:empty { display: none; }
 @media (max-width: 640px) {
   .slot { padding: var(--space-3) var(--space-4) 0; }
