@@ -13,7 +13,8 @@ import { RoleSelection, roleForKey, type FunctionalRole } from "@/components/aut
 import styles from "@/components/auth/auth.module.css";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
 import Link from "@/components/link";
-import { SESSION_TASK_URLS, SIGN_IN_URL } from "@/lib/session-task-urls";
+import { SIGN_IN_URL } from "@/lib/auth-return-address";
+import { SESSION_TASK_URLS } from "@/lib/session-task-urls";
 import { saveOnboardingRole } from "./actions";
 
 const TYPING_SELECTOR = 'textarea, select, [role="textbox"], [role="combobox"]';

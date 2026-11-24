@@ -11,7 +11,8 @@ import { ReducedMotion } from "@/components/motion/reduced-motion";
 import { MotionFeatures } from "@/components/motion/motion-features";
 import { LoadingFeel } from "@/components/loading/loading-feel";
 import { reportsSpeedInsights } from "@/lib/speed-insights";
-import { SESSION_TASK_URLS, SIGN_IN_URL, SIGN_UP_URL } from "@/lib/session-task-urls";
+import { SIGN_IN_URL, SIGN_UP_URL } from "@/lib/auth-return-address";
+import { SESSION_TASK_URLS } from "@/lib/session-task-urls";
 // The one theme file, Arc's foundation (in a lower cascade layer) and the bridge all load through
 // globals.css; src/styles/theme.css explains its two halves.
 import "./globals.css";

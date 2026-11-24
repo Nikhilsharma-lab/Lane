@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { getMember, getWorkspace } from "@/lib/ensure-workspace"
+import { getMember, getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace"
 import { readRequestPage } from "@/lib/data/request-page"
 import { requestListHref } from "@/lib/request-workspace"
 import { ListAnnouncerProvider } from "@/components/requests/list-announcer"
@@ -18,7 +18,7 @@ import { timePage } from "@/lib/request-timings"
 export async function RequestDetailWorkspace({ selectedRequestId }: { selectedRequestId: string }) {
   void timePage("Request page")
   const member = await getMember()
-  if (!member) redirect("/login")
+  if (!member) return sendAwayMemberless()
 
   // Plan items 1.8 and 1.10: the detail read starts from the session seam and runs
   // in parallel with the profile/workspace join, so the page waits for one
@@ -28,7 +28,7 @@ export async function RequestDetailWorkspace({ selectedRequestId }: { selectedRe
     getWorkspace(),
     readRequestPage(member, selectedRequestId),
   ])
-  if (!workspace) redirect("/login")
+  if (!workspace) return sendAwayMemberless()
   if (workspace.needsOnboarding) redirect("/onboarding")
 
   // The list context lives in the layout's list view state, so returning to

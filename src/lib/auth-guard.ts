@@ -2,7 +2,7 @@ import type { ActionFailure } from "./action-session-failure";
 import { canChangeThings } from "./role-rules";
 import { readSession, type Session } from "./session";
 
-/** Clerk owns workspace membership. Profile labels never grant these capabilities. */
+/** Roles come from the workspace membership behind the session. Profile labels never grant these capabilities. */
 export type WorkspacePermission = "admin" | "member" | "guest" | "viewer";
 export type MemberAuth = { userId: string; orgId: string; role: WorkspacePermission };
 export type AdminAuth = MemberAuth & { role: "admin" };

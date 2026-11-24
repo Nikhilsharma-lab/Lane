@@ -1,5 +1,4 @@
-import { HOME, RETURN_PARAM, safeReturnAddress } from "@/lib/auth-return-address"
-import { SIGN_IN_URL, SIGN_UP_URL } from "@/lib/session-task-urls"
+import { HOME, RETURN_PARAM, SIGN_IN_URL, SIGN_UP_URL, safeReturnAddress } from "@/lib/auth-return-address"
 import type { SignInStart } from "./sign-in-flow"
 
 /**

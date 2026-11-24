@@ -1,7 +1,7 @@
 "use client"
 
 import * as auth from "@/lib/auth-client"
-import { SIGN_IN_URL } from "@/lib/session-task-urls"
+import { SIGN_IN_URL } from "@/lib/auth-return-address"
 import { SignOutLink } from "../sign-out-link"
 
 /** Signs out through Lane's browser auth client, then goes to `path`; throws when the sign-out didn't happen. */

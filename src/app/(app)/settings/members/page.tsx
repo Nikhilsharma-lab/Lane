@@ -4,7 +4,7 @@ import { ThemePreference } from "../profile/theme-preference";
 import { sharedPanels } from "../profile/shared-panels";
 import { redirect } from "next/navigation";
 import { timePage } from "@/lib/request-timings";
-import { getWorkspace } from "@/lib/ensure-workspace";
+import { getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace";
 import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { membersPanel } from "./members-panel";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
@@ -17,7 +17,7 @@ export const metadata = settingsMetadata;
 export default async function MembersPage() {
   void timePage("Settings: Members");
   const workspace = await getWorkspace();
-  if (!workspace) redirect("/login");
+  if (!workspace) return sendAwayMemberless();
   if (workspace.needsOnboarding) redirect("/onboarding");
   if (workspace.role === "guest") redirect("/");
   // #210: a Viewer reads everything a Member reads except Members management. #288 (D30): Settings says so.

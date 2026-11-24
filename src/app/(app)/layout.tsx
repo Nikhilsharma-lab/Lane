@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { sendToSignIn } from "@/lib/session";
-import { getMember } from "@/lib/ensure-workspace";
+import { getMember, sendAwayMemberless } from "@/lib/ensure-workspace";
 import { loadWorkspaceFrame } from "@/lib/data/workspace-frame";
 import { WorkspaceFrame } from "@/components/shell/workspace-frame";
 import { followSeatChangesAfterResponse } from "@/lib/billing";
@@ -18,10 +17,10 @@ export default async function AppLayout({
   // Identity and permission come from the session alone, so the reads below can
   // start before any database round trip (plan item 1.8).
   const member = await getMember();
-  if (!member) return sendToSignIn();
+  if (!member) return sendAwayMemberless();
 
   const workspace = await loadWorkspaceFrame(member);
-  if (!workspace) return sendToSignIn();
+  if (!workspace) return sendAwayMemberless();
   if (workspace.needsOnboarding) redirect("/onboarding");
   // #215: a paying workspace's seats follow Clerk memberships; checked after the response, at most every 10 minutes.
   followSeatChangesAfterResponse({ orgId: workspace.orgId });
