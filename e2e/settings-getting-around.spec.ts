@@ -199,7 +199,7 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await field.fill("not-an-email");
       await dialog.getByRole("button", { name: "Send invitation" }).click();
       await expect(field).toHaveAccessibleDescription(/Enter a valid email address\./);
-      await expect(dialog).not.toContainText("Guests and Viewers are free.");
+      await expect(dialog).toContainText("Guests and Viewers are free.");
       await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();

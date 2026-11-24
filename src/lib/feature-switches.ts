@@ -70,16 +70,6 @@ export function appOrigin(env: Env = process.env): string {
 }
 
 /**
- * #210 `LANE_CUSTOM_ROLES`. Guest and Viewer are Clerk custom roles; in production they need Clerk's Enhanced B2B
- * plan, which isn't approved yet. Off, Lane's own invite and role controls offer Admin and Member only, and the
- * server refuses the other two. Turn it on for staging and local work once the Clerk instance defines
- * `org:guest` and `org:viewer`.
- */
-export function customRoles(env: Env = process.env): boolean {
-  return env.LANE_CUSTOM_ROLES === "1"
-}
-
-/**
  * #213 `LANE_BILLING_ENFORCED`. All billing enforcement sits behind this one switch, off by default: Free Requests
  * (and later seats) are counted and shown, but nothing is blocked. On, a workspace whose Free Requests are used
  * without a paid plan (or whose plan lapsed) can't create a new Request or take on a Guest submission.

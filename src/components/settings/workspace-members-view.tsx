@@ -18,10 +18,10 @@ import { emailAddressProblem } from "@/lib/email-address-rules";
 import { thrownMessage, TRY_AGAIN } from "@/lib/failure-messages";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 import {
-  addsPaidSeat, inviteSeatNote, ROLE_DESCRIPTIONS, unavailableRolesNote,
+  addsPaidSeat, INVITE_SEAT_NOTE, ROLE_DESCRIPTIONS,
   type PaidSeatChange, type PendingInvitation, type WorkspaceMember,
 } from "@/lib/member-role-rules";
-import { isWorkspacePermission, ROLE_NAMES } from "@/lib/role-rules";
+import { isWorkspacePermission, ROLE_NAMES, WORKSPACE_ROLES } from "@/lib/role-rules";
 import { RoleGuide } from "./role-guide";
 import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowFailure, SettingsRowList } from "./settings-group";
 import { createConfirmation } from "./workspace-rows-state";
@@ -43,8 +43,6 @@ export type WorkspaceMembersViewProps = {
   selfId: string;
   /** An Admin: invites, changes roles and revokes invitations. */
   canManage: boolean;
-  /** The roles an Admin can give now: Admin and Member, plus Guest and Viewer once Clerk Enhanced B2B is approved. */
-  roles: WorkspacePermission[];
   state: "loading" | "ready" | "error";
   /** #215: while billing is enforced, adding a paid seat (Admin or Member) is confirmed first. */
   confirmPaidSeats?: boolean;
@@ -65,8 +63,8 @@ export type WorkspaceMembersViewProps = {
 const FAILED = "Couldn’t reach Lane. Try again.";
 const OWN_ROLE = "Your own role can’t be changed here. Ask another Admin to change it.";
 const roleName = (role: WorkspacePermission | null) => role ? ROLE_NAMES[role] : "Another role";
-/** The roles an Admin can give, as the role picker and the invite's Role choice list them. */
-const roleOptions = (roles: WorkspacePermission[]) => roles.map(role => ({ value: role, label: ROLE_NAMES[role], description: ROLE_DESCRIPTIONS[role] }));
+/** The roles an Admin can give (#393: all four, in every workspace), as the role picker and the invite's Role choice list them. */
+const ROLE_OPTIONS = WORKSPACE_ROLES.map(role => ({ value: role, label: ROLE_NAMES[role], description: ROLE_DESCRIPTIONS[role] }));
 const withArticle = (role: WorkspacePermission) => `${role === "admin" ? "an" : "a"} ${ROLE_NAMES[role]}`;
 /** The accepted prototype's rule (#346): a person's first name is their name up to its first space. */
 const firstName = (name: string) => name.trim().split(" ")[0];
@@ -97,7 +95,7 @@ async function attempt(run: () => Promise<Answer>): Promise<Answer> {
  * first asks the Admin to confirm "This adds a paid seat". Cancelling changes nothing; focus goes back to the
  * control that asked.
  */
-export function WorkspaceMembersView({ people, invitations, selfId, canManage, roles, state, confirmPaidSeats = false, manage, onInvite, onChangeRole, onRevoke, onRetry, remove }: WorkspaceMembersViewProps) {
+export function WorkspaceMembersView({ people, invitations, selfId, canManage, state, confirmPaidSeats = false, manage, onInvite, onChangeRole, onRevoke, onRetry, remove }: WorkspaceMembersViewProps) {
   const [query, setQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -175,7 +173,6 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
   }
 
   const failure = (id: string) => rowError?.id === id && <SettingsRowFailure title={rowError.message} onRetry={rowError.retry} />;
-  const offered = roleOptions(roles);
   const needle = query.trim().toLowerCase();
   const shown = people.filter(person => matches(person, needle));
   // The count sits beside the group's name, outside what names the group.
@@ -197,12 +194,10 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
         {shown.map(person => {
           const self = person.userId === selfId;
           const label = `Role for ${person.name}`;
-          // A role that can't be given right now (a Guest while the switch is off) still shows as the current value.
-          const options = [...offered, ...(person.role && !roles.includes(person.role) ? [{ value: person.role, label: ROLE_NAMES[person.role], disabled: true }] : [])];
           // An Admin's own role shows greyed, and its row says why (#325: no one changes their own role).
           const ownNote = canManage && self ? `own-role-${person.userId}` : undefined;
           const role = canManage && person.role
-            ? <Select label={label} value={person.role} options={options} disabled={self || busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
+            ? <Select label={label} value={person.role} options={ROLE_OPTIONS} disabled={self || busy === person.userId} onContentKeyDown={event => event.stopPropagation()}
                 onValueChange={next => { if (next !== person.role && isWorkspacePermission(next)) changeRole(person, next); }}
                 trigger={<Button type="button" variant="secondary" size="sm" disabled={self} loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`}
                   aria-describedby={ownNote} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
@@ -239,11 +234,11 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, r
 
     <p role="status" className={members.membersStatus}>{status || removed}</p>
     {manage}
-    <RoleGuide offered={roles} />
+    <RoleGuide />
 
     {canManage && <Dialog open={inviteOpen} dismissible={busy !== "invite"} onOpenChange={setInviteOpen}>
       <DialogContent className={members.inviteDialog} title="Invite people" description="Clerk emails them an invitation to this workspace.">
-        <InvitePeopleForm email={email} role={inviteRole} roles={roles} confirmPaidSeats={confirmPaidSeats} busy={busy === "invite"} fieldError={fieldError} error={inviteError} emailRef={emailRef}
+        <InvitePeopleForm email={email} role={inviteRole} confirmPaidSeats={confirmPaidSeats} busy={busy === "invite"} fieldError={fieldError} error={inviteError} emailRef={emailRef}
           onEmail={value => { setEmail(value); setFieldError(null); }} onRole={setInviteRole} onSubmit={invite} />
       </DialogContent>
     </Dialog>}
@@ -272,22 +267,20 @@ function RemovePersonConfirmation({ person, workspaceName, open, busy, error, re
 
 /**
  * #288 (D26, D27, D28): the one-person invite inside Invite people. The address takes the full width and shows its
- * problem on the field; the seat note names the free roles only while they can be given.
+ * problem on the field.
  */
-export function InvitePeopleForm({ email, role, roles, confirmPaidSeats, busy, fieldError, error, emailRef, onEmail, onRole, onSubmit }: {
-  email: string; role: WorkspacePermission; roles: WorkspacePermission[]; confirmPaidSeats: boolean; busy: boolean;
+export function InvitePeopleForm({ email, role, confirmPaidSeats, busy, fieldError, error, emailRef, onEmail, onRole, onSubmit }: {
+  email: string; role: WorkspacePermission; confirmPaidSeats: boolean; busy: boolean;
   fieldError: string | null; error: string | null; emailRef?: Ref<HTMLInputElement>;
   onEmail: (value: string) => void; onRole: (role: WorkspacePermission) => void; onSubmit: (event: FormEvent) => void;
 }) {
-  const unavailable = unavailableRolesNote(roles);
   return <form className={members.inviteForm} onSubmit={onSubmit} noValidate aria-label="Invite people" aria-busy={busy || undefined}>
     <Input ref={emailRef} label="Email address" type="email" name="email" autoComplete="off" spellCheck={false} value={email} readOnly={busy} error={fieldError ?? undefined}
       onChange={event => onEmail(event.target.value)} />
     <RadioGroup label="Role" name="invite-role" value={role} onValueChange={value => { if (isWorkspacePermission(value)) onRole(value); }}
-      options={roleOptions(roles)} />
+      options={ROLE_OPTIONS} />
     <div className={members.inviteNotes}>
-      <p>{inviteSeatNote(roles)}{confirmPaidSeats ? " You’ll confirm each paid seat before it’s added." : ""}</p>
-      {unavailable && <p>{unavailable}</p>}
+      <p>{INVITE_SEAT_NOTE}{confirmPaidSeats ? " You’ll confirm each paid seat before it’s added." : ""}</p>
       <p>PM, Designer and Developer are profile labels. They don’t change what anyone can do.</p>
     </div>
     {error && <Alert role="alert" tone="danger" title={error} />}
