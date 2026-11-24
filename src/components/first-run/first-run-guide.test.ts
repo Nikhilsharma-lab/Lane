@@ -129,10 +129,9 @@ describe("the short first run for people who join later", () => {
 })
 
 describe("inviting teammates from the first run", () => {
-  const form = (roles: ("member" | "viewer")[]) => renderToStaticMarkup(createElement(FirstRunInviteForm, { roles, onInvite: async () => ({ success: true as const }) }))
+  const html = renderToStaticMarkup(createElement(FirstRunInviteForm, { onInvite: async () => ({ success: true as const }) }))
 
-  it("invites a teammate as a Member, in Lane's own words and the real role (A218)", () => {
-    const html = form(["member"])
+  it("invites a teammate in Lane's own words and the real role (A218)", () => {
     expect(html).toMatch(/<form[^>]*aria-labelledby="first-run-invite-heading"/)
     expect(html).toContain(">Invite teammates<")
     expect(html).toContain(">Email address<")
@@ -144,12 +143,11 @@ describe("inviting teammates from the first run", () => {
     expect(html).not.toContain(">Reviewer<")
     expect(text(html)).not.toContain("Joins as a Member")
     expect(html).toContain(">Send invitation<")
-    expect(html).not.toContain(">Viewer<")
   })
 
-  it("offers Viewer too once Viewers are available", () => {
-    const html = form(["member", "viewer"])
-    expect(html).toContain(">Member · Paid seat<")
+  it("offers Member, then Viewer, in every workspace (#393)", () => {
+    const radios = [...html.matchAll(/<input[^>]*type="radio"[^>]*>/g)].map(([radio]) => ({ value: /value="([^"]*)"/.exec(radio)?.[1], checked: /\bchecked\b/.test(radio) }))
+    expect(radios).toEqual([{ value: "member", checked: true }, { value: "viewer", checked: false }])
     expect(html).toContain(">Viewer<")
     expect(text(html)).toContain("Free. Reads everything")
   })

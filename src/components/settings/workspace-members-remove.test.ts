@@ -28,13 +28,14 @@ const people: WorkspaceMember[] = [
 const invitations: PendingInvitation[] = [{ id: "orginv_1", email: "new@example.test", role: "member" }]
 const done = async () => ({ success: true as const })
 const base: WorkspaceMembersViewProps = {
-  people, invitations, selfId: "user_admin", canManage: true, roles: ["admin", "member"], state: "ready",
+  people, invitations, selfId: "user_admin", canManage: true, state: "ready",
   onInvite: done, onChangeRole: done, onRevoke: done, onRetry: () => {},
 }
 const render = (props: Partial<WorkspaceMembersViewProps> = {}) => renderToStaticMarkup(createElement(WorkspaceMembersView, { ...base, ...props }))
 
 describe("Settings → Members without remove, as the Clerk adapter mounts it (#381)", () => {
-  // Captured from the view before #381 changed it. A difference here is a change to what Clerk's Members shows.
+  // Captured from the view before #381 changed it, less the not-available line #393 took out. A difference here is a
+  // change to what Clerk's Members shows.
   it("renders an Admin's list byte for byte as before", async () => {
     await expect(render()).toMatchFileSnapshot("./__snapshots__/members-view-admin.html")
   })

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { ReactNode } from "react";
 import type { MemberAuth } from "@/lib/auth-guard";
-import { billingEnforced, customRoles } from "@/lib/feature-switches";
+import { billingEnforced } from "@/lib/feature-switches";
 import { loadFirstRun } from "@/lib/first-run";
 import { canChangeThings } from "@/lib/role-rules";
 import { FirstRunGuideLoader } from "./first-run-guide-loader";
@@ -29,9 +29,7 @@ export async function firstRunSlot(member: MemberAuth, workspaceName: string, pl
   if (!run.view) return placement === "list" ? { node: <FirstRunReopen orgId={member.orgId} />, replacesWelcome: false } : null;
   // New Request explains filing only until the first Request is filed; the list carries the rest.
   if (placement === "intake" && (run.view.guide !== "first_request" || run.view.filed)) return null;
-  const invite = member.role === "admin"
-    ? { roles: customRoles() ? ["member" as const, "viewer" as const] : ["member" as const], confirmPaidSeats: billingEnforced() }
-    : null;
+  const invite = member.role === "admin" ? { confirmPaidSeats: billingEnforced() } : null;
   return {
     node: <FirstRunGuideLoader orgId={member.orgId} view={run.view} workspaceName={workspaceName} free={run.free} invite={invite}
       readsNeedsYou={canChangeThings(member.role)} placement={placement} />,

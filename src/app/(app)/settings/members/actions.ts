@@ -4,19 +4,17 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { followSeatChanges } from "@/lib/billing";
-import { billingEnforced, customRoles } from "@/lib/feature-switches";
+import { billingEnforced } from "@/lib/feature-switches";
 import {
-  addsPaidSeat, clerkRoleOf, CONFIRM_PAID_SEAT, inviteInputSchema, revokeInvitationInputSchema, roleChangeInputSchema, rolesOffered,
+  addsPaidSeat, clerkRoleOf, CONFIRM_PAID_SEAT, inviteInputSchema, revokeInvitationInputSchema, roleChangeInputSchema,
 } from "@/lib/member-role-rules";
 import { clerkWorkspacePermission } from "@/lib/role-rules";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 
 /**
- * Settings → Members (#210): an Admin invites people as, and changes people to, Admin, Member, Guest or Viewer.
- * Clerk stays the only owner of memberships and invitations: these actions ask Clerk's Backend API and store
- * nothing. The workspace comes from the page; the Admin, and their role, only from the session. Guest and Viewer
- * are Clerk custom roles that production can't have until Clerk Enhanced B2B is approved, so they are refused
- * while the `LANE_CUSTOM_ROLES` switch is off.
+ * Settings → Members (#210): an Admin invites people as, and changes people to, Admin, Member, Guest or Viewer, in
+ * every workspace (#393). Clerk stays the only owner of memberships and invitations: these actions ask Clerk's
+ * Backend API and store nothing. The workspace comes from the page; the Admin, and their role, only from the session.
  *
  * #215: Admins and Members are paid seats. While billing is enforced, adding one needs the Admin's "This adds a paid
  * seat" confirmation (`confirmedPaidSeat`), and a paying workspace's billed seats follow each role change.
@@ -26,10 +24,6 @@ type Result = { success: true } | { error: string; sessionExpired?: true };
 /** An invitation's refusal; `field` says it is about the address, so Invite people shows it on the email field. */
 type InviteResult = Result | { error: string; field: "email" };
 
-const ROLES_UNAVAILABLE = "Guest and Viewer aren’t available in this workspace yet. Invite them as a Member, or ask whoever runs Lane to turn these roles on.";
-const CHANGE_UNAVAILABLE = "Guest and Viewer aren’t available in this workspace yet. Choose Admin or Member.";
-
-const offered = (role: WorkspacePermission) => rolesOffered(customRoles()).includes(role);
 /** A paid seat added while billing is enforced needs the Admin's confirmation. */
 const unconfirmedSeat = (from: WorkspacePermission | null, to: WorkspacePermission, confirmed?: boolean) => billingEnforced() && addsPaidSeat(from, to) && !confirmed;
 const firstIssue = (error: { issues: { message: string }[] }) => error.issues[0]?.message ?? "Check the form.";
@@ -49,7 +43,6 @@ export async function inviteToWorkspace(data: { email: string; role: string; con
   const auth = await guardOwnerOrAdmin(context.orgId, "Only Admins can invite people to this workspace.");
   if ("error" in auth) return auth;
   const { email, role, confirmedPaidSeat } = parsed.data;
-  if (!offered(role)) return { error: ROLES_UNAVAILABLE };
   if (unconfirmedSeat(null, role, confirmedPaidSeat)) return { error: CONFIRM_PAID_SEAT };
 
   try {
@@ -76,7 +69,6 @@ export async function changeMemberRole(data: { userId: string; role: string; con
   const { userId, role, confirmedPaidSeat } = parsed.data;
   // An Admin can't demote themselves, so a workspace always keeps the Admin who could undo a change.
   if (userId === auth.userId) return { error: "You can’t change your own role. Ask another Admin to do it." };
-  if (!offered(role)) return { error: CHANGE_UNAVAILABLE };
 
   try {
     const client = await clerkClient();
