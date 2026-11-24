@@ -8,7 +8,8 @@ Each item: what · why deferred · source review.
 
 **Authority update — 2026-09-28:** the confirmed Request pipeline and alignment-first planning decision live
 in `REQUIREMENTS.md` §§4–5/15 and `lane-roadmap.md` §3. This ledger preserves historical evidence and conditional
-work; older local membership/Owner/Resend descriptions are superseded by Clerk. No historical item reopens a
+work; older local membership/Owner/Resend descriptions are superseded, by Clerk on 2026-09-24 and then by Better Auth (ADR
+0008). No historical item reopens a
 Closed outcome, or proves the current production cutover. Pipeline approval does
 not authorize implementing these unrelated deferrals.
 
@@ -199,10 +200,14 @@ not authorize implementing these unrelated deferrals.
 
 ## AUTH SURFACE TOUCH — next time auth routes are modified
 
-- **SUPERSEDED 2026-09-24 by the Clerk clean cutover.** Clerk owns sign-in, sign-up, recovery, organizations,
-  memberships, roles, and invitations. Lane's legacy `/auth/callback` only redirects old links to `/`; the
-  Supabase `safeRedirectPath`, local invite-token, local membership, and Resend invitation paths were deleted.
-  Future auth work must use Clerk configuration and components rather than rebuilding these paths locally.
+- **REWRITTEN for Better Auth (ADR 0008; increment 5, on the integration branch; production moves at the cutover).**
+  Better Auth, inside Lane, is the authority for sign-in, sign-up, recovery, workspaces, memberships, roles and
+  invitations. Future auth work configures it in `src/lib/auth-server.ts`, reaches it through Lane's browser auth
+  client (`src/lib/auth-client.ts`) or a guarded Server Action, follows only return addresses `safeReturnAddress`
+  keeps (`src/lib/auth-return-address.ts`), and takes its error words from `src/lib/auth-error-copy.ts`. It never adds
+  a second membership, role or invitation table, invitation tokens of its own, or a parallel mailer. The Supabase-era
+  paths (`safeRedirectPath`, local invite tokens, local membership, Resend invitations) were deleted on 2026-09-24;
+  `/auth/callback` only redirects old links to `/`.
 
 ## E2E BRING-UP — Playwright uses Lane Staging
 
@@ -216,10 +221,10 @@ not authorize implementing these unrelated deferrals.
   setup, 1.9m, exit 0). The emailed invitation was accepted in Clerk; automatic return to Lane after
   the hosted portal is the remaining invite gate. Production is untouched; its
   backup, migration, deployment, and live verification remain open after the staging gate passes.
-- `playwright.config.ts` loads ignored Clerk Development keys from `.env.local`, overlays
-  `.env.staging.local`, and unconditionally maps `STAGING_DATABASE_URL` to `DATABASE_URL` so production cannot
-  leak into E2E. Clerk's official testing token and Backend API helpers now create disposable users and
-  organizations; the suite no longer creates Supabase Auth users or local membership/invite rows.
+- `playwright.config.ts` overlays `.env.staging.local` and unconditionally maps `STAGING_DATABASE_URL` to
+  `DATABASE_URL` so production cannot leak into E2E. On 2026-09-24 Clerk's testing token and Backend API helpers made
+  the disposable users and organizations; Better Auth increment 5 replaces them with a test-only Better Auth setup in
+  `e2e/` (#399).
 - **OPEN — port alignment.** `baseURL` is `localhost:3100` while `NEXT_PUBLIC_APP_URL` in staging
   env may still say `localhost:3000`. Trigger: if an e2e spec fails on invite-link or redirect
   assertions.
@@ -360,8 +365,8 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   each page shows its frame at once and fills in the rest. Why deferred: it is large and risky. It changes how
   every signed-in page reads the session, and how popups and tests behave. Build 9's live re-measure
   (2026-11-21, `main` 24e077e0, #291) found the server isn't where the time goes: every page renders in 140 ms
-  or less and none of 150 loads was slow. The misses are in the browser (reads after the page arrives, phone code
-  download, Clerk's own form), which Cache Components doesn't change. It would help only first paint on a
+  or less and none of 150 loads was slow. The misses were in the browser (reads after the page arrives, phone code
+  download, Clerk's form at the time), which Cache Components doesn't change. It would help only first paint on a
   returning desktop visit (0.51–0.62 s against 0.5 s, by about 0.1–0.2 s), and that miss is accepted for now.
   Trigger: a later re-measure still misses after the follow-up fixes (#366), or Vercel Pro is bought at the
   first-payment trigger. — speed plan #231, recorded by Build 1 (#256, #259), 2026-10-28; Build 9, Nikhil
@@ -373,21 +378,15 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   code loads after the page; desktop meets the target and phones have no keyboard shortcuts. Trigger: a phone or
   tablet keyboard becomes a target, or Cache Components is turned on.
 
-## SIGN-IN FORM SPEED — on Nikhil's go for a Lane-drawn sign-in form
+## SIGN-IN FORM SPEED — unblocked; at increment 6's speed check
 
-- **Speed fix 6: sign-in and sign-up form loading with the page.** What: start loading Clerk's form with the page so
-  sign-in and sign-up are usable sooner. Why deferred: the pinned bundled Clerk UI (@clerk/ui 1.33.1) documents only
-  `ui` and `prefetchUI` for how its UI loads (`prefetchUI` affects the CDN build only), and an undocumented
-  `ensureMounted({ preloadHint })` trial made no difference. A returning desktop visit is already about 1.0 s locally
-  (login 1,026 ms, signup 1,092 ms, #227 method); the rest of the time is Clerk's environment and client requests
-  (about 570 ms) and React's 300 ms Suspense reveal inside Clerk's lazy tree. Trigger: Clerk documents a load or
-  preload option for the bundled UI, or Build 9's re-measure finds sign-in short of its target on live.
-  — Build 8 (#289), Nikhil 2026-11-18.
-  **Build 9 (#291): the trigger has fired.** On live, sign-in and sign-up on a phone (4× CPU, slow 4G) are usable at
-  5.81 s and 5.47 s (target 3.5 s). About 3.0 s of that is Clerk's: two API calls (about 0.5 s), then 263 KB of
-  @clerk/ui chunks loading about six deep. Desktop meets its target (returning 0.93 s, first visit 1.24–1.29 s). The
-  fix is a Lane-drawn form on Clerk's documented `useSignIn` / `useSignUp` (the password-recovery form already
-  works this way), a medium-sized build. Nikhil 2026-11-21: decide later, as its own build with its own go.
+- **Sign-in and sign-up usable sooner on a phone.** What: sign-in and sign-up usable within 3.5 s on a phone (4× CPU,
+  slow 4G). Why it waited: Clerk drew the form and offered no documented way to load it with the page (Build 8, #289,
+  Nikhil 2026-11-18). Build 9 (#291, 2026-11-21) measured them live at 5.81 s and 5.47 s, about 3.0 s of it Clerk's;
+  desktop met its target (returning 0.93 s, first visit 1.24–1.29 s). The fix named then was a Lane-drawn form.
+  **Unblocked by Better Auth increment 5 (#383):** Lane draws the form itself (increment 4, #376), so nothing outside
+  Lane holds this up. Production gets it at the cutover. Trigger: increment 6's speed check. If sign-in or sign-up
+  still misses 3.5 s there, fix it as its own build on Nikhil's go; if both meet it, remove this entry.
 
 ## PHONE FIRST-LOAD SIZE — on Nikhil's go for a code diet
 
@@ -414,17 +413,10 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   a team wants to report as released operational work, or Nikhil's decision, whichever comes first.
   — #309, recorded by the Builds 5 and 6 handoff (#256), 2026-11-15.
 
-## CLERK BRANDING — when a paid Clerk plan is approved
-
-- **"Secured by Clerk" in Clerk's account and workspace popups.** What: hide the badge through Clerk's branding
-  setting. Why deferred: removing it needs a paid Clerk plan, and Nikhil approved no paid plans (2026-10-26).
-  Lane keeps every other part of the popups in its own look through Clerk's appearance options. Trigger: Nikhil
-  approves a paid Clerk plan. — Polish spec: Settings, sign-in and onboarding (#243), 2026-10-26.
-
 ## AFTER THE BETTER AUTH CUTOVER — when auth email or account changes outgrow the first version
 
 - **Resend Pro ($20/mo).** What: move Lane's email from Resend Free (3,000 a month, 100 a day) to Pro (50,000 a
-  month). Why deferred: once Better Auth replaces Clerk, Lane sends every auth email itself, and the free plan fits
+  month). Why deferred: on Better Auth, Lane sends every auth email itself, and the free plan fits
   the pilot. Auth email comes first: if Resend refuses a send, that day's Inbox email stops and auth email keeps
   trying. Nikhil approved no paid services before revenue. Trigger: about 70 sends a day on several days in a week,
   or Resend refuses a send, or the first payment, whichever comes first. Nikhil approves the purchase when it fires.
@@ -437,8 +429,10 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
 
 ## LOW PRIORITY / maybe never
 
-- **Auth form DRY.** login/signup are ~95% duplicated. Only worth extracting *if* a third auth screen
-  (password reset) is added. Until then, two small files is fine. — Day 1 #6.
+- ~~**Auth form DRY.** login/signup are ~95% duplicated. Only worth extracting *if* a third auth screen
+  (password reset) is added. Until then, two small files is fine.~~ RESOLVED: sign-in, sign-up and reset share one
+  auth form and one code step (`src/components/auth/better-auth/`, increment 4, #376); increment 5 mounts them and
+  deletes the duplicated files (#388). — Day 1 #6.
 
 ## SLUG ROUTING — when workspace slugs enter URLs
 
