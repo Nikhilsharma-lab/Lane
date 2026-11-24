@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto"
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { afterAll, beforeEach, describe, expect, it } from "vitest"
+import { claimFreeRequests, readFreeRequests } from "@/lib/billing"
 import { AuthBrowser, authRouteTestFile, codeOf, fakeOutbound, signIn, signInWithGoogle, switchOnAuthRoute, type GoogleProfile, type Outbound, type TestPerson } from "@/test/auth-route-browser"
 
 const DOMAIN = "account-deletion.test"
@@ -17,6 +18,12 @@ let outbound: Outbound
 beforeEach(() => {
   switchOnAuthRoute()
   outbound = fakeOutbound()
+})
+
+// Deleted people no longer have an address at DOMAIN, so the shared clean-up can't find them.
+afterAll(async () => {
+  await sql`delete from organizations where slug like ${`${DOMAIN.replace(/[^a-z0-9]+/g, "-")}-%`}`
+  await sql`delete from profiles where email like 'former-member-%@deleted.invalid'`
 })
 
 /** Runs one of the document's SQL blocks, stopping at the first error as `ON_ERROR_STOP` does. Answers each statement's rows. */
@@ -151,6 +158,14 @@ describe("deleting a person's account", () => {
     }
   })
 
+  it("removes the tokens Google returned with the sign-in method that holds them", async () => {
+    const { leavers: [leaver] } = await twoLeavers()
+    const tokens = () => sql`select access_token, id_token from account where user_id = ${leaver.userId} and provider_id = 'google'`
+    expect(await tokens()).toEqual([{ access_token: expect.any(String), id_token: expect.any(String) }])
+    await run("delete-person", variablesFor(leaver))
+    expect(await tokens()).toEqual([])
+  })
+
   it("finds the person, and names the workspaces whose only Admin they are", async () => {
     const admin = await signedIn(outbound, "only-admin")
     const alone = await createWorkspace(admin.browser)
@@ -164,6 +179,148 @@ describe("deleting a person's account", () => {
     expect(await onlyAdminOf()).toEqual(expect.arrayContaining([{ id: alone, others: 0 }, { id: shared, others: 1 }]))
     await run("make-admin", { org_id: shared, new_admin_id: member.userId })
     expect(await onlyAdminOf()).toEqual([{ id: alone, others: 0 }])
+  })
+})
+
+describe("what a deleted person's name and address are replaced in", () => {
+  const reviewer = (userId: string, name: string) => ({ id: randomUUID(), nominee: { kind: "member", userId }, displayNameAtSelection: name, addedBy: userId, note: `For ${name}`, decision: { kind: "concern", actorId: userId, at: "2026-11-24T00:00:00.000Z", reason: "Too slow" } })
+  type Reviewer = ReturnType<typeof reviewer>
+
+  /** Two people to delete and one who stays, all Reviewers of one Request, in the shapes the reviewer actions save. */
+  async function reviewed() {
+    const stayer = await signedIn(outbound, "review-stayer")
+    const orgId = await createWorkspace(stayer.browser)
+    const leavers: Someone[] = [await join(outbound, stayer.browser, "member", "fern"), await join(outbound, stayer.browser, "member", "oak")]
+    const requestId = await fileRequest(orgId, stayer.userId, "Reviewed")
+    const [fern, oak] = leavers.map((leaver) => reviewer(leaver.userId, leaver.person.name))
+    const stays = reviewer(stayer.userId, stayer.person.name)
+    await sql`insert into request_agreements (request_id, org_id, reviewers) values (${requestId}, ${orgId}, ${sql.json([fern, stays, oak])})`
+    const row = (reviewers: Reviewer[]) => ({ requestId, orgId, reviewers })
+    const payloads = [
+      { version: 1, fingerprint: "a".repeat(64), input: { nominees: [{ kind: "member", userId: fern.nominee.userId }], note: "" }, before: null, after: row([fern]), result: { success: true, revision: 1 } },
+      { version: 1, fingerprint: "b".repeat(64), input: { reviewerId: stays.id }, before: row([fern, stays, oak]), after: row([fern, oak]), result: { success: true, revision: 2 } },
+      { version: 1, fingerprint: "c".repeat(64), input: {}, before: row([]), after: row([stays]), result: { success: true, revision: 3 } },
+    ]
+    for (const [index, payload] of payloads.entries())
+      await sql`insert into request_agreement_events (org_id, request_id, revision, operation_id, actor_id, kind, payload) values (${orgId}, ${requestId}, ${index + 1}, ${randomUUID()}, ${stayer.userId}, 'reviewers_added', ${sql.json(payload)})`
+    const stored = async () => ({
+      reviewers: (await sql`select reviewers from request_agreements where request_id = ${requestId}`)[0].reviewers as Reviewer[],
+      payloads: (await sql`select payload from request_agreement_events where request_id = ${requestId} order by revision`).map((event) => event.payload as unknown),
+    })
+    return { orgId, requestId, leavers, fern, oak, stays, row, payloads, stored }
+  }
+  const former = (someone: Reviewer) => ({ ...someone, displayNameAtSelection: "Former member" })
+
+  it("a Reviewer's name, in the Request's Reviewers and their history, one person at a time and nobody else's", async () => {
+    const { leavers, fern, oak, stays, row, payloads, stored } = await reviewed()
+
+    await run("delete-person", variablesFor(leavers[0]))
+    expect(await stored()).toEqual({
+      reviewers: [former(fern), stays, oak],
+      payloads: [
+        { ...payloads[0], after: row([former(fern)]) },
+        { ...payloads[1], before: row([former(fern), stays, oak]), after: row([former(fern), oak]) },
+        payloads[2],
+      ],
+    })
+
+    await run("delete-person", variablesFor(leavers[1]))
+    const both = {
+      reviewers: [former(fern), stays, former(oak)],
+      payloads: [
+        { ...payloads[0], after: row([former(fern)]) },
+        { ...payloads[1], before: row([former(fern), stays, former(oak)]), after: row([former(fern), former(oak)]) },
+        payloads[2],
+      ],
+    }
+    expect(await stored()).toEqual(both)
+    for (const leaver of leavers) await run("delete-person", variablesFor(leaver))
+    expect(await stored()).toEqual(both)
+  })
+
+  /** A person whose address is a personal one, with two workspaces sharing its Free Requests and 1 and 2 of them used. */
+  async function personalCreator(label: string, address: string) {
+    const creator = await signedIn(outbound, label)
+    await sql`update profiles set email = ${address} where id = ${creator.userId}`
+    const workspaces = [await createWorkspace(creator.browser), await createWorkspace(creator.browser)]
+    for (const [index, orgId] of workspaces.entries()) {
+      for (let used = 0; used <= index; used++) await fileRequest(orgId, creator.userId, `${label} ${index}.${used}`)
+      await claimFreeRequests({ orgId }, address)
+    }
+    return { ...creator, person: { ...creator.person, email: address }, workspaces }
+  }
+  const keysOf = async (workspaces: string[]) => ({
+    billing: (await sql`select allowance_key, holds_allowance, free_requests_used from workspace_billing where org_id in ${sql(workspaces)} order by free_requests_used`).map((row) => ({ ...row })),
+    allowances: (await sql`select allowance_key, kind from free_request_allowances where org_id in ${sql(workspaces)}`).map((row) => ({ ...row })),
+  })
+
+  it("a personal address kept as a Free Requests key, keeping the counts and the sharing", async () => {
+    const tag = randomUUID().slice(0, 8)
+    const people = [await personalCreator("ivy", `i.vy.${tag}+lane@googlemail.com`), await personalCreator("elm", `elm-${tag}+work@fastmail.com`)]
+    const other = await personalCreator("stays", `stays-${tag}@gmail.com`)
+    const otherBefore = await keysOf(other.workspaces)
+    expect((await keysOf(people[0].workspaces)).allowances).toEqual([{ allowance_key: `ivy${tag}@gmail.com`, kind: "personal_email" }])
+    expect((await keysOf(people[1].workspaces)).allowances).toEqual([{ allowance_key: `elm-${tag}@fastmail.com`, kind: "personal_email" }])
+    const free = async () => Promise.all(people.flatMap(({ workspaces }) => workspaces).map((orgId) => readFreeRequests({ orgId })))
+    const counts = (await free()).map(({ planState, free: { total, used, left, usedElsewhere } }) => ({ planState, total, used, left, elsewhere: usedElsewhere && { kind: usedElsewhere.kind, used: usedElsewhere.used } }))
+    expect(counts.map(({ left }) => left)).toEqual([1, 1, 1, 1])
+
+    for (const someone of people) await run("delete-person", variablesFor(someone))
+    const after = [await keysOf(people[0].workspaces), await keysOf(people[1].workspaces)]
+    for (const { billing, allowances } of after) {
+      expect(allowances).toEqual([{ allowance_key: expect.stringMatching(/^former-member-[0-9a-f-]{36}@deleted\.invalid$/), kind: "personal_email" }])
+      expect(billing).toEqual([
+        { allowance_key: allowances[0].allowance_key, holds_allowance: true, free_requests_used: 1 },
+        { allowance_key: allowances[0].allowance_key, holds_allowance: false, free_requests_used: 2 },
+      ])
+    }
+    expect(after[0].allowances[0].allowance_key).not.toBe(after[1].allowances[0].allowance_key)
+    expect((await free()).map(({ planState, free: { total, used, left, usedElsewhere } }) => ({ planState, total, used, left, elsewhere: usedElsewhere && { kind: usedElsewhere.kind, used: usedElsewhere.used } }))).toEqual(counts)
+    expect(await keysOf(other.workspaces)).toEqual(otherBefore)
+
+    for (const someone of people) await run("delete-person", variablesFor(someone))
+    expect([await keysOf(people[0].workspaces), await keysOf(people[1].workspaces)]).toEqual(after)
+  })
+
+  it("a personal address still on another workspace when the one that held it is gone", async () => {
+    const ash = await personalCreator("gone-holder", `holder-${randomUUID().slice(0, 8)}@gmail.com`)
+    await run("delete-workspace", { org_id: ash.workspaces[0] })
+    await run("delete-person", variablesFor(ash))
+    expect((await keysOf([ash.workspaces[1]])).billing[0].allowance_key).toMatch(/^former-member-[0-9a-f-]{36}@deleted\.invalid$/)
+  })
+
+  it("but not a company domain's key, which others share", async () => {
+    const { userId, person, browser } = await signedIn(outbound, "company")
+    const orgId = await createWorkspace(browser)
+    const domain = `${randomUUID().slice(0, 8)}.test`
+    await claimFreeRequests({ orgId }, `someone@${domain}`)
+    await sql`update profiles set email = ${`someone@${domain}`} where id = ${userId}`
+    const before = await keysOf([orgId])
+    await run("delete-person", { person_id: userId, person_email: person.email })
+    expect(await keysOf([orgId])).toEqual(before)
+    expect(before.allowances).toEqual([{ allowance_key: domain, kind: "company_domain" }])
+  })
+
+  it("and the check sees both, and that the protections are back on", async () => {
+    const { leavers: [leaver], orgId, requestId } = await reviewed()
+    const address = `checked-${randomUUID().slice(0, 8)}@gmail.com`
+    await sql`update profiles set email = ${address} where id = ${leaver.userId}`
+    await claimFreeRequests({ orgId }, address)
+    const variables = { person_id: leaver.userId, person_email: address }
+    const stillThere = async () => (await run("check-person", variables))[0].filter((row) => Number(row.left_over) !== 0).map((row) => row.what)
+
+    expect(await stillThere()).toEqual(expect.arrayContaining(["reviews still naming them", "Free Requests keys with the address"]))
+    await run("delete-person", variables)
+    expect(await stillThere()).toEqual([])
+    await expect(sql`update request_agreement_events set kind = 'reviewed' where request_id = ${requestId}`).rejects.toThrow("Agreement events are immutable")
+    await expect(sql`update workspace_billing set allowance_key = 'else@gmail.com' where org_id = ${orgId}`).rejects.toThrow("allowance is decided once")
+
+    await sql`alter table workspace_billing disable trigger protect_workspace_billing`
+    try {
+      expect(await stillThere()).toEqual(["protections switched off"])
+    } finally {
+      await sql`alter table workspace_billing enable trigger protect_workspace_billing`
+    }
   })
 })
 

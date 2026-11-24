@@ -36,6 +36,12 @@ describe("Plan item L1: the Terms of service page", () => {
     expect(`${metadata.title} ${metadata.description}`).not.toMatch(dashes);
   });
 
+  // #404: Better Auth runs inside Lane.
+  it("says Lane handles accounts and workspaces itself, and never names Clerk", () => {
+    expect(text).toContain("Lane handles sign-in, sessions, workspaces, memberships and invitations.");
+    expect(html).not.toMatch(/clerk/i);
+  });
+
   it("numbers its sections in order", () => {
     const numbers = [...html.matchAll(/<h2>(\d+)\. /g)].map((match) => Number(match[1]));
     expect(numbers).toEqual(numbers.map((_, index) => index + 1));
@@ -79,6 +85,10 @@ describe("Plan item L1: the Privacy policy page", () => {
 
   it("says Have I Been Pwned receives only a 5-character prefix of the password's hash", () => {
     expect(privacyText).toContain("It receives only a 5-character prefix of the password’s hash.");
+  });
+
+  it("says Lane stores the tokens Google returns, and that account deletion removes them", () => {
+    expect(privacyText).toContain("Lane stores the sign-in tokens Google returns, which can contain basic profile details. Account deletion removes them.");
   });
 
   it("claims no picture of anyone", () => {
