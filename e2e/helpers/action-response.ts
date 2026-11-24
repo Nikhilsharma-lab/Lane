@@ -9,6 +9,9 @@ export type ActionResponse = { request: Request; ok: boolean; status: number; bo
  * it: DevTools then reports the request as net::ERR_ABORTED and keeps no body, so `response.text()` and
  * `response.finished()` fail although the page applied the result. Here the route fetches the real response, keeps
  * its text and hands it to the page unchanged, so a check reads the same bytes on a dev server and on a build.
+ *
+ * The route stays after it has the response, passing every other request on. Taking it away as the page was handed the
+ * response sometimes lost the action the page sent next: it never finished, and Next keeps every later action waiting.
  */
 export async function nextActionResponse(page: Page, matches: (request: Request) => boolean) {
   const answer = Promise.withResolvers<ActionResponse>();
@@ -33,7 +36,6 @@ export async function nextActionResponse(page: Page, matches: (request: Request)
       });
       try { return await Promise.race([answer.promise, late]); } finally {
         clearTimeout(timer);
-        await page.unroute("**/*", handler);
       }
     },
     stop: () => page.unroute("**/*", handler),

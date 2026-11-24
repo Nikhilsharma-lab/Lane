@@ -1,9 +1,10 @@
+import { randomInt } from "node:crypto";
 import type { Page } from "@playwright/test";
 
 import { testAuth, testSessionCookies } from "./better-auth";
 import { withE2EDatabase } from "./database";
 import { deleteEmailCodes } from "./email-codes";
-import { forgetOrganization, forgetUser, ownedUserIdByEmail, ownedUserScope, recordCreatedUser, testEmail } from "./fixtures";
+import { assertOwnedUser, forgetOrganization, forgetUser, ownedUserIdByEmail, ownedUserScope, recordCreatedUser, testEmail } from "./fixtures";
 import { assertE2ETarget } from "./safety";
 
 export type TestUser = {
@@ -73,9 +74,23 @@ export async function signInTestUser(
   await page.context().addCookies(await testSessionCookies(userId, organizationId));
 }
 
-/** Whose session the page's browser holds and its active workspace, as the app's `/api/auth` answers. Null signed out. */
+/** Ends every session the person has, as signing them out everywhere does. Their browsers keep cookies nothing answers to. */
+export async function endTestSessions(userId: string): Promise<void> {
+  await assertOwnedUser(userId);
+  const { count } = await withE2EDatabase((sql) => sql`delete from session where user_id = ${userId}`);
+  if (count === 0) throw new Error("[e2e] That person has no session to end.");
+}
+
+/**
+ * Whose session the page's browser holds and its active workspace, as the app's `/api/auth` answers. Null signed out.
+ * It asks from an address of its own: Better Auth counts every local browser as one, and a suite that loads pages
+ * without a ten-second pause reaches the hundred it allows.
+ */
 export async function readTestSession(page: Page): Promise<{ userId: string; orgId: string | null } | null> {
-  const response = await page.request.get(new URL("/api/auth/get-session", assertE2ETarget().baseURL).href);
+  const response = await page.request.get(new URL("/api/auth/get-session", assertE2ETarget().baseURL).href, {
+    headers: { "x-vercel-forwarded-for": `198.18.${randomInt(256)}.${randomInt(256)}` },
+  });
+  if (!response.ok()) throw new Error(`[e2e] The app's get-session answered ${response.status()}.`);
   const answer = (await response.json()) as { user: { id: string }; session: { activeOrganizationId?: string | null } } | null;
   return answer && { userId: answer.user.id, orgId: answer.session.activeOrganizationId ?? null };
 }

@@ -3,6 +3,7 @@ import { commandPalette, paletteOption, runPaletteCommand } from "./command-pale
 import { isItLivePrompt, isItLiveRelease, journeyStep } from "./journey";
 import { observeJourneyReads } from "./journey-read-observer";
 import { pauseInNativeBackground, showOnScreen } from "./native-visibility";
+import { assertE2ETarget } from "./safety";
 import { compiledUndoAction, flightResultShape } from "./server-action-identity";
 
 export type UndoRequest = { id: string; code: string; title: string };
@@ -41,8 +42,14 @@ function actionResult(body: string): Record<string, unknown> {
   throw new Error("Actual move response could not be reconciled. Stop before any retry.");
 }
 
+async function within<T>(ms: number, promise: Promise<T>, message: string) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); });
+  try { return await Promise.race([promise, late]); } finally { clearTimeout(timer); }
+}
+
 /** Records real action results before delivering them, leaving all app/server behavior intact. */
-export async function undoDriver(page: Page, orgId: string, request: UndoRequest, recorder: UndoRecorder, navigate = () => page.goto(new URL(`/requests/${request.id}`, page.url()).href).then(() => undefined)) {
+export async function undoDriver(page: Page, orgId: string, request: UndoRequest, recorder: UndoRecorder, navigate = () => page.goto(new URL(`/requests/${request.id}`, assertE2ETarget().baseURL).href).then(() => undefined)) {
   await navigate();
   await expect(page.locator("#request-title")).toBeVisible();
   const matches = (candidate: Request, move: UndoMove, id: string) => candidate.headers()["next-action"] === id && argsFor(candidate, orgId, request.id, move === "release");
@@ -87,7 +94,8 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
     return {
       operation,
       intercepted: () => expect.poll(() => claimed).toBe(true),
-      received: () => received.promise,
+      // A press that sent nothing fails here by name, rather than at the test's own limit.
+      received: () => within(30_000, received.promise, `No ${move} for ${request.code} answered.`),
       async finish() {
         delivery.resolve();
         try { await finished.promise; expect(count).toBe(1); } finally { await page.unroute(pattern, handler); }

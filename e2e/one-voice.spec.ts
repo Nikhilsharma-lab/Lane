@@ -3,7 +3,6 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, getProfileFullName, getTestWorkspaceId } from "./helpers/cleanup";
 import { journey } from "./helpers/journey";
-import { safeClerkClient } from "./helpers/clerk-only";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 
@@ -41,32 +40,26 @@ const accountMenu = (page: Page) => page.getByRole("button", { name: /^Account m
 const NOT_GOAL_WORDS = /predict|expected impact/i;
 
 test.describe("one name per person (D5, B6, C8)", () => {
-  test("after a rename through Clerk, the sidebar, a comment and Settings all show the new name; an old mismatch is fixed too", async ({ page }) => {
+  test("after a rename in Settings, the sidebar, a comment and Settings all show the new name", async ({ page }) => {
     test.setTimeout(240_000);
     const user = await createTestUser("one-name");
-    const clerk = await safeClerkClient();
-    const original = await clerk.users.getUser(user.id);
     try {
-      // Lane's saved copy starts out of step with the account ("Lane E2E"), as it was for everyone renamed before this build.
-      await provisionAndSignIn(page, user, { name: "Stale Lane Copy", workspaceName: "One Name" });
+      await provisionAndSignIn(page, user, { name: "Name Before", workspaceName: "One Name" });
       const requestId = await seedRequest(user.id, "Card details survive a failed payment", { comment: "Adding the payment logs here." });
 
-      // Settings → Profile shows the account's name and brings Lane's copy in step; the sidebar elsewhere follows.
+      await expect(accountMenu(page)).toHaveAccessibleName("Account menu, Name Before", { timeout: 20_000 });
       await page.goto("/settings/profile");
-      await expect(page.getByText(`${original.firstName} ${original.lastName}`, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
-      await expect.poll(() => getProfileFullName(user.id), { timeout: 20_000 }).toBe(`${original.firstName} ${original.lastName}`);
-      await page.goto("/");
-      await expect(accountMenu(page)).toHaveAccessibleName(`Account menu, ${original.firstName} ${original.lastName}`, { timeout: 20_000 });
+      const name = page.getByRole("textbox", { name: "Name", exact: true });
+      await expect(name).toHaveValue("Name Before", { timeout: 20_000 });
 
-      // A rename through Clerk ("Manage account" saves to Clerk the same way).
-      const renamed = { firstName: "Priya", lastName: `Raman ${randomUUID().slice(0, 4)}` };
-      const newName = `${renamed.firstName} ${renamed.lastName}`;
-      await clerk.users.updateUser(user.id, renamed);
-
-      await page.goto("/settings/profile");
-      await expect(page.getByText(newName, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
-      await page.screenshot({ path: test.info().outputPath("D5-settings-after-rename-1440-light.png"), fullPage: true });
+      const newName = `Priya Raman ${randomUUID().slice(0, 4)}`;
+      await name.fill(newName);
+      await page.getByRole("form", { name: "Name", exact: true }).getByRole("button", { name: "Save", exact: true }).click();
       await expect.poll(() => getProfileFullName(user.id), { timeout: 20_000 }).toBe(newName);
+
+      await page.goto("/settings/profile");
+      await expect(name).toHaveValue(newName, { timeout: 20_000 });
+      await page.screenshot({ path: test.info().outputPath("D5-settings-after-rename-1440-light.png"), fullPage: true });
       await page.goto("/");
       await expect(accountMenu(page)).toHaveAccessibleName(`Account menu, ${newName}`, { timeout: 20_000 });
 
@@ -74,10 +67,9 @@ test.describe("one name per person (D5, B6, C8)", () => {
       await expect(accountMenu(page)).toHaveAccessibleName(`Account menu, ${newName}`);
       const comments = page.getByRole("list", { name: "Request comments" });
       await expect(comments.getByText(newName, { exact: true })).toBeVisible();
-      await expect(page.getByText("Stale Lane Copy")).toHaveCount(0);
+      await expect(page.getByText("Name Before")).toHaveCount(0);
       await page.screenshot({ path: test.info().outputPath("D5-request-after-rename-1440-light.png"), fullPage: true });
     } finally {
-      await clerk.users.updateUser(user.id, { firstName: original.firstName ?? "", lastName: original.lastName ?? "" });
       try { await cleanupTestWorkspace(user.id); } finally { await deleteTestUser(user.id); }
     }
   });

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { nextActionResponse } from './helpers/action-response';
 import { createReviewTeam, createRequestThroughIntake } from './helpers/reviewers';
-import { assertOwnedOrganization, renewSessionToken } from './helpers/clerk-only';
+import { removeTestMember, setTestMemberRole } from './helpers/workspaces';
 import { answerIsItLive, chooseJourneyMore, journey, journeyPopup, journeyStep, recordReleaseInPrompt } from './helpers/journey';
 import { dispatchWindowReturn, expectOpenFormSurvivesReturn, holdNextJourneyRead, observeJourneyReads, saveReleaseCorrection } from './helpers/journey-refresh';
 
@@ -70,11 +71,10 @@ test('Is it live? records the release; the timeline, due tag, correction and han
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await testInfo.attach(`release-${width}-${colorScheme}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
     }
-    const client = await assertOwnedOrganization(team.orgId);
-    await client.organizations.updateOrganizationMembership({ organizationId: team.orgId, userId: team.users[1].id, role: 'org:admin' });
-    await client.organizations.deleteOrganizationMembership({ organizationId: team.orgId, userId: team.users[0].id });
-    // The new Admin's tab picks up the role change before it reads the Request.
-    const admin = team.pages[1]; await renewSessionToken(admin); await admin.goto(lastPath); await admin.reload();
+    await setTestMemberRole(team.orgId, team.users[1].id, 'admin');
+    await removeTestMember(team.orgId, team.users[0].id);
+    // The role change applies on the new Admin's next request.
+    const admin = team.pages[1]; await admin.goto(lastPath);
     const panel = admin.getByRole('region', { name: 'Journey', exact: true });
     await chooseJourneyMore(admin, 'Hand over to a new Requester');
     const handover = journeyPopup(admin, 'Hand over to a new Requester');
@@ -133,8 +133,8 @@ test('Journey rejects a read begun before editing and refreshes at the viewer\'s
     reads.stop();
     await writer.close();
 
-    // Control elapsed browser timers, while Date stays at the real current time
-    // for Clerk. This tests the scheduled callback, not a changed server day.
+    // Control elapsed browser timers, while Date stays at the real current time.
+    // This tests the scheduled callback, not a changed server day.
     // The server-clock tests own Due-in-7 -> Due-in-6 and the Close date gate.
     const fixedTime = Date.now();
     await page.clock.install({ time: fixedTime });
@@ -179,9 +179,9 @@ test('Journey rejects a read begun before editing and refreshes at the viewer\'s
     await expect(evidence).toHaveValue('Acceptance: preserve this draft across the date timer');
     await expect(evidence).toBeFocused();
     await page.clock.setSystemTime(Date.now());
-    const afterCancel = page.waitForResponse(response => reads.matches(response.request()));
+    const afterCancel = await nextActionResponse(page, reads.matches);
     await correction.getByRole('button', { name: 'Cancel', exact: true }).click();
-    expect(await (await afterCancel).finished()).toBeNull();
+    expect((await afterCancel.delivered()).ok).toBe(true);
     // The installed clock holds the popup's exit animation, so the modal popup still hides the Journey from the
     // accessibility tree; read it by its id.
     await expect(page.locator('#journey').getByText('Evidence: Acceptance: evidence saved in the other tab', { exact: true })).toBeVisible();

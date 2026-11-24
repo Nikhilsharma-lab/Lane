@@ -22,10 +22,11 @@ export async function showOnScreen(page: Page) {
 export async function withNativeVisibility<T>(run: (page: Page) => Promise<T>) {
   const profile = await mkdtemp(join(tmpdir(), "lane-undo-visibility-"));
   // Only a tab switch, which the checks make on purpose, should hide the page. Without the flag, macOS hides it whenever
-  // the window is covered (other runs' windows come and go on this machine) or the display sleeps: no frames, so a
-  // Pick up there never showed Mark Done, and React's streamed content stayed as a hidden second copy beside the
-  // hydrated page (two #request-title).
-  const child = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--disable-backgrounding-occluded-windows", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  // the window is covered (other runs' windows come and go on this machine): no frames, so a Pick up there never showed
+  // Mark Done, and React's streamed content stayed as a hidden second copy beside the hydrated page (two #request-title).
+  // With the display off or locked the page still says it is visible, but Chromium draws a frame only when the display
+  // asks for one, so there are none either. The last two flags have it draw on its own clock, at about 60 a second.
+  const child = spawn(chromium.executablePath(), ["--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--disable-backgrounding-occluded-windows", "--disable-gpu-vsync", "--disable-frame-rate-limit", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
   let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
   try {
     const endpoint = await new Promise<string>((resolve, reject) => {

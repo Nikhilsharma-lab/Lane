@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
-import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
+import { createTestUser, deleteTestUser, readTestSession, type TestUser } from "./helpers/test-user";
 import { intakeDraftScope, intakeDraftStorageKey, type IntakeDraft } from "../src/lib/intake-draft";
 import { createTriageToken } from "../src/lib/triage-token";
 
@@ -41,7 +41,7 @@ async function openReviewedDraft(page: Page, user: TestUser, orgId: string, titl
     key: intakeDraftStorageKey(intakeDraftScope(user.id, orgId)), value: draft,
   });
   await page.reload();
-  await page.waitForFunction(({ userId }) => window.Clerk?.loaded && window.Clerk.user?.id === userId, { userId: user.id }, { timeout: 30_000 });
+  expect(await readTestSession(page)).toEqual({ userId: user.id, orgId });
 }
 
 test("the New Request composer: the Open group's +, an overflowing paste, × asking first, the calendar, and Create offline (#285)", async ({ page, context }) => {

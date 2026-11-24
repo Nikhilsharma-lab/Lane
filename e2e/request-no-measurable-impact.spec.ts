@@ -70,7 +70,7 @@ test("#309: Pick up, Mark Done with no Is it live?, then Close without a result 
     await expect(closed).toContainText("Closed without a result at Done: Can’t be measured.", { timeout: 20_000 });
     await page.screenshot({ path: test.info().outputPath("309-closed-without-result.png"), fullPage: true });
   } finally {
-    // A closed Request's rows are immutable, so its workspace's rows stay; the user and their Clerk workspace go either way.
+    // A closed Request's rows are immutable, so its workspace stays; its person's sessions and sign-in methods go either way.
     try {
       await cleanupTestWorkspace(user.id).catch(error => console.warn(`[e2e] kept the local rows of ${user.id}'s workspace:`, (error as Error).message));
     } finally { await deleteTestUser(user.id); }

@@ -46,8 +46,8 @@ async function withWorkspace(page: Page, label: string, run: (user: TestUser) =>
     await provisionAndSignIn(page, user, { name: "Closing Tester", workspaceName: `#279 ${label}` });
     await run(user);
   } finally {
-    // A recorded release or a closed Request can never be deleted (both are immutable), so that workspace's rows stay
-    // in the test database; the Clerk organization goes and a borrowed user is given back either way.
+    // A recorded release or a closed Request can never be deleted (both are immutable), so that workspace stays in
+    // the test database; its person's sessions and sign-in methods go either way.
     await cleanupTestWorkspace(user.id).catch((error: unknown) => {
       if (!/^(Release history|Closed Request) is immutable$/.test(String((error as { message?: string }).message))) throw error;
     }).finally(() => deleteTestUser(user.id));

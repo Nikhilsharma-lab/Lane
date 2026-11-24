@@ -27,7 +27,7 @@ export async function holdNextAction(page: Page, filename: string, exportedName:
     await released.promise;
     await route.continue().finally(() => sent.resolve());
   };
-  // Only the Request page's own posts: Clerk's requests have routes of their own in these tests.
+  // Only the Request page's own posts.
   await page.route(path, handler);
   return {
     seen: seen.promise,

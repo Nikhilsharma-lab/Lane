@@ -53,7 +53,7 @@ async function replayAction(
   return response.text();
 }
 
-test("private attachments survive Clerk upload and download but reject anonymous and foreign workspaces", async ({
+test("private attachments survive upload and download but reject anonymous and foreign workspaces", async ({
   browser,
   baseURL,
 }, testInfo) => {
@@ -178,7 +178,7 @@ test("private attachments survive Clerk upload and download but reject anonymous
     }
 
     // A signed URL is a temporary bearer capability; it is not expected to
-    // recheck Clerk. The unsigned public-storage URL must still deny access.
+    // recheck the session. The unsigned public-storage URL must still deny access.
     const signedUrl = new URL(download.url());
     const publicUrl = new URL(
       `/storage/v1/object/public/request-attachments/${uploadedStoragePath}`,

@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { cleanupTestWorkspace, e2eDatabase, seedTestRequest } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
 import { compiledActionId } from "./helpers/held-action";
-import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
+import { createTestUser, deleteTestUser, readTestSession, type TestUser } from "./helpers/test-user";
 import { intakeDraftScope, intakeDraftStorageKey, type IntakeDraft } from "../src/lib/intake-draft";
 import { createTriageToken } from "../src/lib/triage-token";
 
@@ -43,9 +43,12 @@ async function keepReviewedDraft(page: Page, user: TestUser, orgId: string, inpu
     key: intakeDraftStorageKey(intakeDraftScope(user.id, orgId)), value: draft,
   });
   await page.reload();
-  await page.waitForFunction(({ userId }) => window.Clerk?.loaded && window.Clerk.user?.id === userId, { userId: user.id }, { timeout: 30_000 });
+  expect(await readTestSession(page)).toEqual({ userId: user.id, orgId });
   await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
-  await expect(page.locator('[role="row"][data-grid-row="g:status:open"]')).toBeVisible({ timeout: 30_000 });
+  // One copy: just after a load, the list's streamed copy can still be in the page beside it, hidden.
+  const openGroup = page.locator('[role="row"][data-grid-row="g:status:open"]');
+  await expect(openGroup).toHaveCount(1, { timeout: 30_000 });
+  await expect(openGroup).toBeVisible();
 }
 
 /** The page's next call of one server action (saveRequest by default), held until `settle` says what happens to it. */
@@ -192,6 +195,8 @@ test("instant Create: the row shows at once, sending, under its typed title, tak
       await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
       await page.keyboard.press("c");
       const title = "Files upload before the composer closes";
+      // The composer puts focus on the title as it opens; typing before that lands wherever focus ends up.
+      await expect(composer.getByRole("textbox", { name: "Request title", exact: true })).toBeFocused();
       await composer.getByRole("textbox", { name: "Request title", exact: true }).fill(title);
       await composer.getByRole("textbox", { name: "Description", exact: true }).fill("Customers cannot find the receipts they uploaded after returning to checkout.");
       await composer.getByRole("combobox", { name: "Metric", exact: true }).click();

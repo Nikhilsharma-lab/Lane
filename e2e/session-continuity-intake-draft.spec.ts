@@ -7,9 +7,9 @@ import {
 import {
   createTestUser,
   deleteTestUser,
+  endTestSessions,
 } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
-import { assertOwnedUser } from "./helpers/clerk-only";
 import {
   intakeDraftScope,
   intakeDraftStorageKey,
@@ -57,7 +57,10 @@ test("an expired session signs back in to the exact Intake review without anothe
       intakeDraftScope(user.id, orgId)
     );
 
-    for (const surface of SURFACES) {
+    for (const [index, surface] of SURFACES.entries()) {
+      // Better Auth allows three sign-ins in ten seconds from one address, and every local browser shares one: each
+      // surface signs in from its own.
+      await page.setExtraHTTPHeaders({ "x-vercel-forwarded-for": `198.18.0.${index + 1}` });
       await page.setViewportSize(surface.viewport);
       await page.emulateMedia({ colorScheme: surface.colorScheme });
 
@@ -137,40 +140,21 @@ test("an expired session signs back in to the exact Intake review without anothe
         geometry.viewport
       );
 
-      // Removing app cookies alone leaves Clerk's session active: its client can
-      // refresh them and immediately return from /login without a sign-in form.
-      // Revoke only this fixture's session to exercise genuine session recovery.
-      // The restored form can render before Clerk finishes hydrating its client.
-      await expect.poll(() => page.evaluate(() => window.Clerk?.session?.id)).toBeTruthy();
-      const sessionId = await page.evaluate(() => window.Clerk.session?.id);
-      expect(sessionId).toBeTruthy();
-      const clerkClient = await assertOwnedUser(user.id);
-      await clerkClient.sessions.revokeSession(sessionId!);
-      await page.context().clearCookies();
+      // Revoked as signing this device out elsewhere does: the session's row goes, and the browser keeps its cookie.
+      await endTestSessions(user.id);
       await page
         .getByRole("button", { name: "Create Request", exact: true })
         .click();
-      const signInAgain = page.getByRole("link", { name: "Sign in again" });
-      // Clerk can observe the revocation and redirect before the action's
-      // recovery link renders. Either path must retain the same continuation.
-      const signInHeading = page.getByRole("heading", { name: "Sign in to Lane", exact: true });
-      await expect(signInAgain.or(signInHeading)).toBeVisible();
-      if (await signInAgain.isVisible()) await signInAgain.click();
+      await page.getByRole("link", { name: "Sign in again" }).click();
       await page.waitForURL((url) => url.pathname === "/login");
 
-      // Reload the recovery URL to discard the expired Clerk client session,
-      // while retaining the link's continuation and this tab's Intake draft.
-      await page.reload();
-      await page.locator('input[name="identifier"]').fill(user.email);
-      await page.getByRole("button", { name: "Continue", exact: true }).click();
-      await page.locator('input[name="password"]').fill(user.password);
-      await page.getByRole("button", { name: "Continue", exact: true }).click();
-      const verificationCode = page.getByRole("textbox", { name: "Enter verification code" });
-      await expect(verificationCode.or(reviewHeading)).toBeVisible({ timeout: 30_000 });
-      if (await verificationCode.isVisible()) await verificationCode.pressSequentially("424242");
+      // The real one-page form, with the link's return address and this tab's Intake draft.
+      await page.getByLabel("Email address").fill(user.email);
+      await page.getByLabel("Password", { exact: true }).fill(user.password);
+      await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
       // No helper or manual navigation may supply the missing return route.
-      await expect(page).toHaveURL("/intake");
+      await expect(page).toHaveURL("/intake", { timeout: 30_000 });
 
       await expect(reviewHeading).toBeVisible();
       await expect(reviewHeading).toBeFocused();

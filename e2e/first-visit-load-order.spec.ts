@@ -105,25 +105,33 @@ test("on a cold first visit, Build 2's lazy parts wait for the page's load and t
   }
 });
 
-// Build 3: on the Request page the "Iterations of this problem" list's code came in during hydration. When the page
-// was drawn before Clerk's script had arrived (2 in 5 of main's staging phone loads, 6 in 15 of Build 3's), that held
-// `load` back, so the popups' loads ahead and Clerk's own windows' code all came before it too: usable at 6.1-6.5s
-// instead of about 4.2s. Clerk's script is held here to recreate that order every time.
-const CLERK_SCRIPT = /\/npm\/@clerk\/clerk-js@[^/]+\/dist\/clerk\.browser\.js/;
+// The three tests below recreate a page drawn and usable while the browser still waits for something before `load`. It
+// was Clerk's script when they were written, which came late on 2 in 5 of main's staging phone loads; Lane loads nothing
+// from another site now (#400), so its own font is held instead. The page draws without it, and `load` waits for it.
+const FONT = /\/_next\/static\/media\/[^/]+\.woff2$/;
+async function holdFont(page: Page, ms: number) {
+  await page.route(url => FONT.test(url.pathname), async route => { await new Promise(resolve => setTimeout(resolve, ms)); await route.continue(); });
+}
+
+// Build 3: on the Request page the "Iterations of this problem" list's code came in during hydration. When the page was
+// drawn well before `load`, that held `load` back, so the popups' loads ahead came before it too: usable at 6.1-6.5s
+// instead of about 4.2s.
 const REQUEST_PAGE_LAZY_PARTS = { ...LAZY_PARTS, "Iterations list": "Not linked as Same problem now." } as const;
 
-test("on a cold first visit to a Request drawn before Clerk's script arrives, its lazy parts still wait for load and the first idle moment after it", async ({ page }) => {
+test("on a cold first visit to a Request drawn well before load, its lazy parts still wait for load and the first idle moment after it", async ({ page }) => {
   test.setTimeout(300_000);
   const user = await createTestUser("load-order-request");
   try {
     await provisionAndSignIn(page, user, { name: "Load Order PM", workspaceName: "Lane E2E Load order request", role: "pm" });
     const { id } = await seedTestRequest(user.id, "Load order Request page");
     const { bodies, done } = await watchColdVisits(page);
-    await page.route(CLERK_SCRIPT, async route => { await new Promise(resolve => setTimeout(resolve, 3_000)); await route.continue(); });
+    await holdFont(page, 3_000);
 
     const path = `/requests/${id}`;
-    const { seen, early } = await lazyStarts(path, await coldVisit(page, path), bodies, REQUEST_PAGE_LAZY_PARTS);
+    const timing = await coldVisit(page, path);
+    const { seen, early } = await lazyStarts(path, timing, bodies, REQUEST_PAGE_LAZY_PARTS);
     await done();
+    expect(timing.load, "load waited for the held font").toBeGreaterThan(3_000);
 
     // The check means something only if the Iterations list's code did load on this visit.
     expect([...seen]).toContain("Iterations list");
@@ -135,23 +143,24 @@ test("on a cold first visit to a Request drawn before Clerk's script arrives, it
 });
 
 // Build 3: Next's links read the pages they point at ahead (viewport prefetch) as soon as they are on screen. When the
-// Requests list was drawn before Clerk's script arrived (about 1 in 15 staging phone loads), those reads, and the
-// Request page code their answers bring, came before `load` and held it back. Lane's links now wait for load and the
-// first idle moment after it (src/components/link.tsx). Clerk's script is held here to recreate that order every time.
-test("on a cold first visit to the Requests list drawn before Clerk's script arrives, its links read their pages ahead only after load and the first idle moment after it", async ({ page }) => {
+// Requests list was drawn well before `load` (about 1 in 15 staging phone loads), those reads, and the Request page code
+// their answers bring, came before it and held it back. Lane's links now wait for load and the first idle moment after
+// it (src/components/link.tsx).
+test("on a cold first visit to the Requests list drawn well before load, its links read their pages ahead only after load and the first idle moment after it", async ({ page }) => {
   test.setTimeout(300_000);
   const user = await createTestUser("load-order-links");
   try {
     await provisionAndSignIn(page, user, { name: "Load Order PM", workspaceName: "Lane E2E Load order links", role: "pm" });
     for (let i = 0; i < 3; i++) await seedTestRequest(user.id, `Load order link Request ${i + 1}`);
     const { done } = await watchColdVisits(page);
-    await page.route(CLERK_SCRIPT, async route => { await new Promise(resolve => setTimeout(resolve, 3_000)); await route.continue(); });
+    await holdFont(page, 3_000);
 
     const timing = await coldVisit(page, "/");
     const reads = await page.evaluate(() => performance.getEntriesByType("resource")
       .filter(entry => /[?&]_rsc=/.test(entry.name))
       .map(entry => ({ path: new URL(entry.name).pathname, start: entry.startTime })));
     await done();
+    expect(timing.load, "load waited for the held font").toBeGreaterThan(3_000);
 
     // The check means something only if the links did read ahead on this visit (a Request row's page among them).
     expect(reads.map(read => read.path)).toEqual(expect.arrayContaining([expect.stringMatching(/^\/requests\//)]));
@@ -166,27 +175,29 @@ test("on a cold first visit to the Requests list drawn before Clerk's script arr
 
 // Build 3 leftovers: the search pane with the ⌘K palette, and the New Request form, were loaded ahead on an idle
 // callback with a 3-4 s deadline. Idle comes early while a page waits on the network, and the deadline fires anyway,
-// so when Clerk's script was slow both came before `load`: about 160 KB on the phone's link, and the page usable about
+// so when `load` was slow to come both came before it: about 160 KB on the phone's link, and the page usable about
 // 1 s later (5 of 8 live phone loads of Settings → Profile). They now wait for load and the first idle after it, as
-// every other lazy part does. Clerk's script is held past both deadlines here, so `load` comes late every time.
+// every other lazy part does. The font is held past both deadlines here, so `load` comes late every time.
 const SHELL_LAZY_PARTS = {
   "search pane and ⌘K palette": "Find an action or place",
   "New Request form": "Your Request is ready to review.",
 } as const;
 
-test("on a cold first visit drawn long before Clerk's script arrives, search, the palette and the New Request form load ahead only after load and the first idle moment after it", async ({ page }) => {
+test("on a cold first visit drawn long before load, search, the palette and the New Request form load ahead only after load and the first idle moment after it", async ({ page }) => {
   test.setTimeout(300_000);
   const user = await createTestUser("load-order-shell");
   try {
     await provisionAndSignIn(page, user, { name: "Load Order PM", workspaceName: "Lane E2E Load order shell", role: "pm" });
     await seedTestRequest(user.id, "Load order shell Request");
     const { bodies, done } = await watchColdVisits(page);
-    await page.route(CLERK_SCRIPT, async route => { await new Promise(resolve => setTimeout(resolve, 6_000)); await route.continue(); });
+    await holdFont(page, 6_000);
 
     const early: string[] = [];
     const seen = new Set<string>();
     for (const path of ["/", "/settings/profile"]) {
-      const result = await lazyStarts(path, await coldVisit(page, path), bodies, SHELL_LAZY_PARTS);
+      const timing = await coldVisit(page, path);
+      expect(timing.load, `${path}: load waited for the held font`).toBeGreaterThan(6_000);
+      const result = await lazyStarts(path, timing, bodies, SHELL_LAZY_PARTS);
       result.seen.forEach(part => seen.add(`${path}: ${part}`));
       early.push(...result.early);
     }

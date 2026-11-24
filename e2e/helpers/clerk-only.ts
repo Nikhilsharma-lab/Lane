@@ -4,7 +4,6 @@
  */
 import { clerkClient } from "@clerk/nextjs/server";
 import type {} from "@clerk/testing/playwright";
-import type { Page } from "@playwright/test";
 import * as fixtures from "./fixtures";
 import { assertE2ETarget } from "./safety";
 
@@ -21,18 +20,7 @@ export async function safeClerkClient() {
   return client;
 }
 
-export async function assertOwnedUser(id: string) {
-  await fixtures.assertOwnedUser(id);
-  return safeClerkClient();
-}
-
 export async function assertOwnedOrganization(id: string) {
   await fixtures.assertOwnedOrganization(id);
   return safeClerkClient();
-}
-
-/** Better Auth reads the role from the member row on every request, so a ported spec needs no renewal. */
-export async function renewSessionToken(page: Page): Promise<void> {
-  await page.waitForFunction(() => Boolean(window.Clerk?.loaded && window.Clerk.session), undefined, { timeout: 30_000 });
-  await page.evaluate(async () => { await window.Clerk!.session!.getToken({ skipCache: true }); });
 }

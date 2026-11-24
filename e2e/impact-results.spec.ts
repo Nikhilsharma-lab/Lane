@@ -80,8 +80,8 @@ test("Impact words results against the goal, and the chart shows Request numbers
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await line.screenshot({ path: testInfo.outputPath("outcome-report-chart-390.png") });
   } finally {
-    // A recorded release or a closed Request can never be deleted, so its rows stay in the test database; the Clerk
-    // organization goes and a borrowed user is given back either way (as in request-closing.spec.ts).
+    // A recorded release or a closed Request can never be deleted, so its workspace stays in the test database;
+    // its person's sessions and sign-in methods go either way (as in request-closing.spec.ts).
     await cleanupTestWorkspace(user.id).catch((error: unknown) => {
       if (!/^(Release history|Closed Request) is immutable$/.test(String((error as { message?: string }).message))) throw error;
     }).finally(() => deleteTestUser(user.id));

@@ -7,8 +7,7 @@ import { commandPalette as palette, paletteOption as option, runPaletteCommand a
 // Issue #107 (spec #101, Testing Decisions): ⌘K and Ctrl+K on the list, a
 // Request and Settings, for a member, at desktop 1440/light and phone
 // 390/dark, each with and without reduced motion. What a guest is offered is
-// covered by command-palette-entries.test.ts: Clerk's development instance has
-// no org:guest role, so there is no guest session here (dropped 2026-10-23).
+// covered by command-palette-entries.test.ts (dropped here 2026-10-23).
 const SURFACES = [
   { width: 1440, height: 900, colorScheme: "light", reducedMotion: "no-preference" },
   { width: 1440, height: 900, colorScheme: "light", reducedMotion: "reduce" },

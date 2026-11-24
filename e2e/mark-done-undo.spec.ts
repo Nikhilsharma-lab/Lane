@@ -15,8 +15,8 @@ test("actual toast lifetime and palette agree across keyboard, touch, real time 
   test.setTimeout(900_000);
   assertLocalUndoTarget();
   const user = await createTestUser("undo-lifetime");
-  // The Requests and their history stay in the database (release history is immutable); the Clerk workspace goes,
-  // and a borrowed user goes back, so runs don't use up the development instance's 50 workspaces.
+  // The Requests and their history stay in the database (release history is immutable); the person's sessions and
+  // sign-in methods go.
   try {
     const setup = await browser.newContext();
     const page = await setup.newPage();

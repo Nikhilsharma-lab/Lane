@@ -330,8 +330,7 @@ async function holdResponse(page: Page, match: (request: Request) => boolean) {
   let error: unknown;
   let finished = false;
   const delivery = Promise.withResolvers<void>();
-  // Keep Clerk's context-level testing-token route intact. A broad page
-  // route with continue() would skip that existing handler on auth requests.
+  // fallback(), not continue(): another handler on this page or its context still sees every other request.
   const pattern = `${new URL(page.url()).origin}/**`;
   const handler = async (route: Route) => {
     if (claimed || !match(route.request())) return route.fallback();

@@ -130,6 +130,8 @@ test("Lane paints the same theme on every page in light and dark", async ({
       await page.goto("/settings/profile");
       // The loading skeleton also says "Settings"; only the loaded page has this region.
       await expect(page.getByRole("region", { name: "Settings content" })).toBeVisible();
+      // #394: the account section's Name field and its Save are the page's first input and submit.
+      await expect(page.getByRole("textbox", { name: "Name", exact: true })).toBeVisible();
     });
   } finally {
     await signedIn.close();

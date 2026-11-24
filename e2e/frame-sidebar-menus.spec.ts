@@ -3,7 +3,7 @@ import { expect, test, type Browser, type BrowserContextOptions, type Page, type
 
 import { cleanupTestWorkspace, e2eDatabase, finishFirstRuns, provisionTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { commandPalette, paletteOption } from "./helpers/command-palette";
-import { assertOwnedOrganization } from "./helpers/clerk-only";
+import { addTestMember } from "./helpers/workspaces";
 import { NAVIGATION_WIDTH } from "../src/components/shell/sidebar-motion";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 
@@ -128,23 +128,19 @@ async function signedIn(browser: Browser, user: TestUser, orgId: string, options
 }
 
 test("the sidebar, account menu and New Project: menus only close, names and limits are clear, offline never freezes", async ({ page, context, browser }, testInfo) => {
-  // Borrowing users at Clerk's cap walks many users through Clerk's API, which can take minutes.
   test.setTimeout(900_000);
   const admin = await createTestUser("frame-admin");
   let member: TestUser | undefined;
   try {
-    // Each person joins a workspace as soon as they're borrowed: at Clerk's cap, a parallel run borrows only people in no workspace.
     const otherOrgId = await provisionTestWorkspace({ userId: admin.id, email: admin.email, name: "Priya Raman", workspaceName: OTHER_WORKSPACE });
     const orgId = await provisionTestWorkspace({ userId: admin.id, email: admin.email, name: "Priya Raman", workspaceName: WORKSPACE });
     member = await createTestUser("frame-member");
-    const client = await assertOwnedOrganization(orgId);
-    await client.organizations.createOrganizationMembership({ organizationId: orgId, userId: member.id, role: "org:member" });
+    await addTestMember(orgId, member.id, "member");
     const request = await seedTestRequest(admin.id, "Frame check Request");
     const other = await seedTestRequest(admin.id, "Another frame Request");
     const sql = e2eDatabase();
     try {
-      await sql`insert into profiles(id, full_name, email, role) values (${member.id}, 'Daniel Okafor', ${member.email}, 'developer')
-        on conflict (id) do update set full_name = excluded.full_name, email = excluded.email, role = excluded.role`;
+      await sql`update profiles set full_name = 'Daniel Okafor', role = 'developer' where id = ${member.id}`;
       await finishFirstRuns(sql, orgId, [member.id], "joined");
       const longProject = randomUUID();
       await sql`insert into projects (id, org_id, name, created_by) values (${randomUUID()}, ${orgId}, 'Checkout', ${admin.id}), (${longProject}, ${orgId}, ${LONG_PROJECT}, ${admin.id})`;
