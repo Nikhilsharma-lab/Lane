@@ -127,7 +127,7 @@ actions, or collaboration rights.
 
 ### Workspace permission tiers
 
-- **Admin:** Clerk organization administration and membership control.
+- **Admin:** workspace administration and membership control.
 - **Member:** participates in the shared Request workflow.
 - **Guest:** sees and comments on only their own Requests; cannot pick up work or access Members. A Guest
   files without a goal (#195 item 4, #212, on the integration branch): the Request waits, Open, as a
@@ -147,15 +147,20 @@ actions, or collaboration rights.
   label and read state.
 
 Admins and Members are paid seats; Guests and Viewers are free. In Settings → Members an Admin invites people
-as, and changes anyone else's role to, Admin, Member, Guest or Viewer; Lane asks Clerk and stores nothing, and
-removing someone stays in Clerk. Guest and Viewer are offered (and accepted by the server) only while
-`LANE_CUSTOM_ROLES` is on, which waits for Clerk Enhanced B2B in production.
+as, and changes anyone else's role to, Admin, Member, Guest or Viewer, in every workspace (#333 Q15), and removes
+anyone but themselves after confirming (#333 Q14). Anyone can leave a workspace except its only Admin, so a
+workspace always keeps at least one Admin, and all Admins are equal (#333 Q4). A removed person's Requests,
+comments and history stay. A removal or role change applies on that person's next click (#333 Q5).
 
-Clerk is the sole authority for users, sessions, organizations, memberships, roles, and invitations. Identity,
-active organization, and organization role are always derived from the Clerk session; client-supplied user
-identifiers are never trusted. Lane does not duplicate Clerk membership or invitation state in Postgres.
-Every read and write is constrained to the active Clerk organization. Guest and Viewer remain conditional on a
-Clerk plan that exposes production `org:guest` and `org:viewer` custom roles (Enhanced B2B).
+Better Auth, running inside Lane with its tables in Lane's Postgres, is the one authority for accounts, sessions,
+workspaces, memberships, roles and invitations. No other Lane table duplicates membership, role or invitation
+state. Identity, the active workspace and the role come only from the server-side session and its membership row,
+never from client arguments. (#333 Q19, ADR 0008.) Client-supplied user identifiers are never trusted. Every read
+and write is constrained to the active workspace.
+
+The two paragraphs above, and what §10 says about accounts, workspaces and invitations, are built on the Better Auth
+increment 5 integration branch. Production moves to them at the cutover (increment 6, #349); until then production
+invitations are Admin or Member only.
 
 ### Responsibility versus permission
 
@@ -847,23 +852,28 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 
 - Email confirmation returns the person to the correct Lane environment and continuation point.
 - Authentication failures expose a recoverable, specific state.
-- **Approved 2026-09-24:** sign up → create/join a Clerk workspace → choose a PM / Designer / Developer
+- **Approved 2026-09-24:** sign up → create or join a workspace → choose a PM / Designer / Developer
   functional label → enter Requests. The label remains editable and grants no permissions.
-- Clerk Organizations uses **Membership required**. Clerk owns the pending `choose-organization` task;
-  interrupted organization setup resumes through the existing `/login` route, not a parallel Lane flow.
-- A pending or organization-less session cannot access Requests or save Lane's onboarding label. A valid
-  active Clerk organization must exist first; current scope remains one workspace.
-- Invitation and workspace-creation UI stays Clerk-owned; Lane does not recreate a post-create invite step.
-- Invitation acceptance handles signed-out, wrong-account, expired, revoked, accepted, and workspace-limit
-  branches.
+- **Accounts on Better Auth (#333 and #346; increment 5, #383, on the integration branch):** people sign in with a
+  password, an emailed code or Google, on Lane's own forms. Signing up confirms the email with a code, and that
+  confirmation signs the person in. A password reset emails a code, signs the person in and signs out their other
+  devices. Sessions last 7 days and are refreshed while in use. Settings → Profile has the person's name, password,
+  Google connection and their own signed-in devices; the email is read-only there (`DEFERRED.md`).
+- After sign-in Lane opens the workspace the person last used, else their oldest remaining one. **Membership
+  required:** a session with no workspace cannot access Requests or save Lane's onboarding label, and lands on
+  `/onboarding`, which lists the pending invitations for the person's verified email and offers to create a
+  workspace. Anyone can create a workspace, with no limit; its creator is its Admin.
+- The role step follows a person's first workspace, created or joined. Someone who closes it stays Designer and
+  changes it in Settings → Profile. Lane adds no invite step after creating a workspace.
+- `/invite/[id]` opens an invitation, signed in or out. Invitation acceptance handles signed-out, wrong-account,
+  expired, revoked, accepted, and workspace-limit branches.
 - **First run (#195 item 6, #217, 2026-10-25, on the integration branch):** after the onboarding above, the
-  workspace's first person (its Clerk creator) gets a first-run guide on the Requests list (the empty workspace's
+  workspace's first person (its creator) gets a first-run guide on the Requests list (the empty workspace's
   welcome) and on New Request: one step at a time it explains the problem framing, a goal from the Metrics
   library, Reviewers, the Free Requests left, and Release and Result due (Lane brings them back when the result is
   due), then files a first real Request; a composer opened from the guide explains each part as it goes. An Admin
-  can invite teammates from it as Reviewers (Members) or, while `LANE_CUSTOM_ROLES` is on, Viewers, through Lane's
-  Members action (Clerk still sends and owns every invitation; this supersedes the "no post-create invite step" line
-  above for the first run only). People who join later get a short first run that shows their Inbox. Anyone can
+  can invite teammates from it as Reviewers (Members) or Viewers, through Lane's Members action (this supersedes the
+  "no invite step" line above for the first run only). People who join later get a short first run that shows their Inbox. Anyone can
   skip it and find it again under "First-run guide" in the account menu. Progress (steps read, skipped, finished) is
   kept per person per workspace (`first_run_progress`, migration 0050) and the guide reopens at the step the person
   left on: going Back marks that step and the ones after it unread (#276, A220, decided 2026-11-08; no migration).
@@ -891,10 +901,13 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 
 ### Membership and notifications
 
-- Clerk organization admin/member/guest permissions are distinct from functional labels.
-- Clerk owns email-bound invitations, delivery, resend, revoke, acceptance and membership state.
-- Lane must recover routing/authorization failures without recreating invitation tokens or a parallel mailer.
-- Older local-invite copy-link/Resend behaviour is historical, not a current Clerk implementation requirement.
+- Workspace admin/member/guest/viewer permissions are distinct from functional labels.
+- Better Auth holds invitations and membership in Lane's Postgres (§2); Lane emails each invitation (#333; increment 5,
+  on the integration branch). An invitation is bound to its email and expires after 7 days; only a signed-in person
+  whose verified email matches can accept it. An Admin can cancel a pending one, and resends one by inviting the same
+  address again. A workspace holds at most 100 people and 100 pending invitations.
+- Lane must recover routing/authorization failures without a second set of invitation tokens or a parallel mailer.
+- Older local-invite copy-link behaviour is historical, not a current requirement.
 - In-app notifications support the shipped Request loop without a subscriber/watch-all-activity system.
 - **Inbox (#195 item 2, #204, 2026-10-25, on the integration branch):** "Inbox" replaces "Notifications" in all copy.
   The bell's popover is replaced by the `/inbox` page: the list on the left and the existing Request preview beside it
@@ -946,7 +959,7 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - Each new workspace gets 4 Free Requests with the whole product, any number of people and no time limit. Every
   Request created counts, deleted ones included; a follow-up Request counts; a Guest submission counts once a
   Member takes it on, not when it is filed. The database keeps the count (migration 0046), so no path skips it.
-- The allowance belongs to the company email domain of the workspace's Clerk creator; for a personal email domain
+- The allowance belongs to the company email domain of the workspace's creator; for a personal email domain
   (Gmail, Outlook, iCloud and the like) it belongs to that one address (read without `+tags`, and for Gmail without
   dots). **Shared, decided 2026-10-26 (review of #195; supersedes "a later one gets none"):** every workspace with
   the same company domain shares its 4, so a second one gets whatever is left (the first used 1: the second gets 3);
@@ -982,9 +995,10 @@ presented as evidence of an individual's performance or used to rank PMs, Design
   or that paying by card isn't available yet. Before switching on: ask about 10 target teams what they'd pay, move to
   Supabase Pro and Vercel Pro, and approve Stripe as an external service (`DEFERRED.md`).
 - **Seats are counted, never by hand (#215, on the integration branch):** paid seats are the workspace's Admins and
-  Members in Clerk, at least 3; Guests and Viewers are free. Lane stores no membership, only the number the provider
-  bills. A paying workspace's seats follow Clerk: after every role change in Settings → Members, and from page views
-  at most every 10 minutes (so an accepted invitation or someone removed in Clerk reaches the bill). An added seat is
+  Members in its member list (§2), at least 3; Guests and Viewers are free. Billing keeps no list of its own, only the
+  number the provider bills. A paying workspace's seats follow the member list: after every role change or removal in
+  Settings → Members, and from page views at most every 10 minutes (so an accepted invitation or someone who left
+  reaches the bill). An added seat is
   charged part-month from that day, straight away (for a yearly plan, the rest of the year); a removed seat, or a
   Member made a Viewer, lowers the next bill and nothing is refunded now. While `LANE_BILLING_ENFORCED` is `1`, an
   Admin confirms "This adds a paid seat" before inviting a Member or Admin or making a Guest or Viewer one, and the

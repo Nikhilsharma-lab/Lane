@@ -45,13 +45,16 @@ Launch, actual-result closure and quarterly/yearly totals remain target only.
 
 This describes the source-level MVP, not a fresh production verification. Its existing pickup/completion
 behaviour remains until an explicitly scoped increment changes it. Deployment and cutover evidence live in
-`lane-roadmap.md` and the Clerk cutover plan.
+`lane-roadmap.md` and the 2026-09-24 Clerk cutover plan; the move to Better Auth is planned on #349.
 
-PM / Designer / Developer is always a functional label, never a permission tier. Clerk is the sole
-authority for users, sessions, organizations, memberships, roles, and invitations. Lane recognizes
-Clerk **admin | member | guest** organization roles; invited guests are limited workspace members who
-see and discuss only their own Requests. Production guest invitations require Clerk Enhanced B2B, so
-free-plan production is Admin/Member only. Public or anonymous Intake is a different, deferred decision.
+PM / Designer / Developer is always a functional label, never a permission tier. Better Auth, running
+inside Lane with its tables in Lane's Postgres, is the one authority for accounts, sessions, workspaces,
+memberships, roles and invitations (ADR 0008; `REQUIREMENTS.md` §2). Lane's workspace roles are
+**admin | member | guest | viewer**; invited guests see and discuss only their own Requests, and viewers see
+everything a Member sees, except managing people, and change nothing. Every workspace can invite all four.
+This is built on the Better Auth increment 5 integration branch; production moves to it at the cutover
+(increment 6), and until then its invitations are Admin or Member only. Public or anonymous Intake is a
+different, deferred decision.
 
 ## Approved Product Direction — confirmed 2026-09-28; clarified 2026-10-06, not fully implemented
 
@@ -129,8 +132,8 @@ should feel like a sharp, helpful colleague, not a wizard.
 
 - **Support, not surveillance.** Never ship an affordance that measures, ranks, or times a person.
   When a feature could read as monitoring, cut it. The omission is the value.
-- **Same shared view.** PM/Designer/Developer is a label, not a permission or UI tier. Clerk membership
-  and Admin/Member/conditional Guest permissions define access. Named Request responsibilities define
+- **Same shared view.** PM/Designer/Developer is a label, not a permission or UI tier. Workspace membership
+  and the Admin, Member, Guest or Viewer role define access. Named Request responsibilities define
   specific review and closure actions, not per-role dashboards or separate applications.
 - **Make decisions legible.** Problem framing, reviews, readiness, and outcome closure should be clear
   without turning exploration into a stage machine or documentation exercise.
