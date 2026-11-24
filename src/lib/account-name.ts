@@ -1,7 +1,6 @@
 /**
  * #261: the one name a person goes by in Lane, from their sign-in (Clerk) account: first and last name, else the
- * username, else the email, else "User". Lane saves a copy on the profile, which every page reads; Settings →
- * Profile asks the server to resync it when the account's name changes (`syncAccountName`). Pure and client-safe.
+ * username, else the email, else "User".Pure and client-safe.
  */
 export type AccountNameSource = {
   firstName?: string | null

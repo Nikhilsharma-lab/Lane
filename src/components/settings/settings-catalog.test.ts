@@ -92,13 +92,21 @@ describe("Settings → Metrics (#196)", () => {
 describe("Settings catalog cleanup (#287)", () => {
   const soon = (role: string) => settingsEntries(role).filter(entry => entry.soon).map(entry => `${entry.group} → ${entry.label}`);
 
-  it("has one Manage account entry, which the connected-account words find (D32)", () => {
+  it.each(["admin", "member", "viewer", "guest"])("finds each of a %s's account rows in Profile by its own words (#394, D32)", (role) => {
+    const entries = settingsEntries(role);
+    for (const [query, target] of [
+      ["google", "account-google"], ["Google", "account-google"], ["connected accounts", "account-google"], ["login", "account-google"],
+      ["password", "account-password"], ["name", "account-name"], ["email", "account-email"],
+      ["devices", "devices-heading"], ["sessions", "devices-heading"], ["sign out", "devices-heading"],
+    ]) expect(searchSettings(entries, query)[0].def, `${role}: ${query}`).toMatchObject({ section: "profile", target });
+  });
+
+  it("still finds AI data use in Security & access, and promises no photo, avatar or Manage account (#394)", () => {
     for (const role of ["admin", "member", "viewer", "guest"]) {
       const entries = settingsEntries(role);
-      expect(entries.map(entry => entry.label)).not.toContain("Connected accounts");
-      for (const query of ["google", "Google", "connected accounts", "login"]) {
-        expect(searchSettings(entries, query)[0].def, `${role}: ${query}`).toMatchObject({ id: "manage-account", label: "Manage account", section: "profile", target: "manage-account" });
-      }
+      for (const query of ["ai data", "anthropic", "privacy"]) expect(searchSettings(entries, query)[0].def, `${role}: ${query}`).toMatchObject({ id: "ai-data", section: "account-security", target: "ai-data" });
+      for (const entry of entries) expect([entry.label, entry.description, ...(entry.keywords ?? [])].join(" ")).not.toMatch(/photo|avatar|picture|manage account/i);
+      for (const query of ["photo", "avatar"]) expect(searchSettings(entries, query), query).toEqual([]);
     }
   });
 

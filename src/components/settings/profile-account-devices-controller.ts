@@ -15,8 +15,8 @@ type Target = string | "others"
 
 export type SignedInDevicesState = {
   busy: Target | null
-  /** A refused sign-out, on the row it belongs to, with Try again. */
-  problem: { target: Target; line: string; retry: () => void } | null
+  /** A refused sign-out, on the row it belongs to, with Try again when sending it again could help. */
+  problem: { target: Target; line: string; retry?: () => void } | null
   /** Signed out here, so gone from the list before it's next read. */
   signedOut: readonly string[]
   /** Every other device was signed out here. */
@@ -36,7 +36,11 @@ export function createSignedInDevices(initial: SignedInDevicesCallbacks) {
     set({ busy: target, problem: null, status: "" })
     const answer = await settle(send)
     if (answer.ok) set({ busy: null, ...gone(), status: success })
-    else set({ busy: null, problem: { target, line: authErrorCopy(answer.code), retry: () => { void run(target, send, gone, success) } } })
+    else {
+      // A device that is already signed out stays so, so sending it again can't help.
+      const retry = answer.code === "DEVICE_NOT_FOUND" ? undefined : () => { void run(target, send, gone, success) }
+      set({ busy: null, problem: { target, line: authErrorCopy(answer.code), retry } })
+    }
   }
 
   return {

@@ -14,14 +14,14 @@ const TITLES = Object.fromEntries(settingsNavigation("admin").map(entry => [entr
 const PLANNED = settingsCatalog.filter(entry => entry.soon).map(entry => entry.id);
 /**
  * Rows per group, as each section draws them: the placeholder takes the shape of what is opening. Written out by
- * hand; change a count here when its panel changes: profile, AccountProfile's rows and the Role row; preferences,
- * ThemePreference; inbox-delivery, InboxDeliveryForm; account-security, AccountSecurity; workspace, the adapter's
+ * hand; change a count here when its panel changes: profile, ProfileAccountView's two groups, the Role row and the devices; preferences,
+ * ThemePreference; inbox-delivery, InboxDeliveryForm; account-security, AiDataUse; workspace, the adapter's
  * Workspace details group; members, WorkspaceMembersView's People and Pending invitations; metrics,
  * MetricDefinitionList; slack, SlackConnectionCard; billing, billingPanel's plan and Free Requests cards;
  * coming-soon, FutureSettings.
  */
 const SHAPES: Record<string, number[]> = {
-  profile: [4], preferences: [1], "inbox-delivery": [3], "account-security": [2], workspace: [4],
+  profile: [2, 2, 1, 2], preferences: [1], "inbox-delivery": [3], "account-security": [1], workspace: [4],
   members: [4, 2], metrics: [5], slack: [2], billing: [3, 1], "coming-soon": [3, 3],
 };
 const CLASSES = { section: styles.section, sectionHead: styles.sectionHead, group: styles.group, groupBox: styles.groupBox, groupRow: styles.groupRow };

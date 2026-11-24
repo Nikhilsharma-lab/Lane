@@ -38,7 +38,7 @@ export type SettingsCommandAdapterProps = {
   membership: string; workspaceName: string; workspaceId?: string; initialSection?: string; page?: "profile" | "members" | "metrics";
   /** `billingEnforced()` on the server: search then finds Billing's seats, bills and paying too (#287). */
   billingEnforced?: boolean;
-  account?: ReactNode; role?: ReactNode; appearance?: ReactNode; security?: ReactNode; members?: ReactNode; workspaceManagement?: ReactNode;
+  account?: ReactNode; devices?: ReactNode; role?: ReactNode; appearance?: ReactNode; security?: ReactNode; members?: ReactNode; workspaceManagement?: ReactNode;
   /** Rendered only by the Metrics page (/settings/metrics), which loads the library. */
   metrics?: ReactNode;
   /** #206 Inbox delivery: the person's choice for this workspace (Members and Admins). */
@@ -50,7 +50,7 @@ export type SettingsCommandAdapterProps = {
 };
 
 /** Arc SettingsCommand frame, section navigation and search composition; Lane supplies permission-filtered rows and immediate saves. */
-export function SettingsCommandAdapter({ membership, billingEnforced = false, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
+export function SettingsCommandAdapter({ membership, billingEnforced = false, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, devices, role, appearance, security, members, workspaceManagement, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
   const section = useSyncExternalStore(subscribe, snapshot, () => initialSection);
   const entries = useMemo(() => settingsEntries(membership, { billingEnforced }), [membership, billingEnforced]);
   const nav = useMemo(() => settingsNavigation(membership, { billingEnforced }), [membership, billingEnforced]);
@@ -161,8 +161,8 @@ export function SettingsCommandAdapter({ membership, billingEnforced = false, wo
   }, [entries, page, selected.id]);
 
   const panels: Record<string, ReactNode> = {
-    // #287: Profile's account rows and Role share one group; the Role row carries the "role" search target itself.
-    profile: <SettingsGroup>{account}{role}</SettingsGroup>,
+    // #394: the account's own groups, Role (its row carries the "role" search target), then the devices, which stream in last.
+    profile: <>{account}<SettingsGroup>{role}</SettingsGroup>{devices}</>,
     preferences: <SettingsGroup label="Appearance" labelId={`${uid}-appearance`}>{appearance}</SettingsGroup>,
     "account-security": security,
     workspace: <SettingsGroup>

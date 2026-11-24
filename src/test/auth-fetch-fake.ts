@@ -30,6 +30,11 @@ const SUCCESS: Record<string, unknown> = {
   "/sign-up/email": { token: null, user: { id: "user_1", email: "mei@example.test" } },
   "/sign-out": { success: true },
   "/get-session": { session: { id: "session_1", userId: "user_1" }, user: { id: "user_1", email: "mei@example.test" } },
+  "/update-user": { status: true },
+  "/change-password": { token: null, user: { id: "user_1", email: "mei@example.test" } },
+  "/link-social": { url: "https://accounts.google.com/o/oauth2/v2/auth?state=fake-link", redirect: true },
+  "/list-accounts": [{ id: "account_password", providerId: "credential" }, { id: "account_google", providerId: "google" }],
+  "/unlink-account": { status: true },
   "/organization/accept-invitation": { invitation: {}, member: {} },
   "/organization/reject-invitation": { invitation: {}, member: null },
 }
