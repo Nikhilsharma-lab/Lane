@@ -16,7 +16,7 @@ async function openWorkspace(
 }
 
 test("fresh users cannot read requests across workspaces", async ({ browser }) => {
-  // Two real Clerk accounts plus remote fixture teardown can exceed two minutes.
+  // On staging, fixtures and their teardown cross regions and can exceed two minutes.
   test.setTimeout(180_000);
   const userA = await createTestUser("isolation-a");
   const userB = await createTestUser("isolation-b");
@@ -40,7 +40,8 @@ test("fresh users cannot read requests across workspaces", async ({ browser }) =
     const request = await seedTestRequest(userA.id, "Workspace A private request");
 
     await pageA.reload();
-    await expect(pageA.getByText("Workspace A private request")).toBeVisible();
+    // Its row's link: while the page streams in, the row's hidden second copy holds the same text.
+    await expect(pageA.getByRole("link", { name: "Workspace A private request", exact: true })).toBeVisible();
 
     await pageB.reload();
     await expect(pageB.getByText("Workspace A private request")).toHaveCount(0);
