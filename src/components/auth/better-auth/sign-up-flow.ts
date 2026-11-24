@@ -3,13 +3,11 @@ import { CODE_MISSING, isWholeCode, PASSWORD_MIN_LENGTH, PERSON_NAME_MISSING } f
 import { authErrorCopy, CODE_REFUSALS, eachCode, GOOGLE_FAILED, NEW_PASSWORD_REFUSALS } from "@/lib/auth-error-copy"
 import { HOME, safeReturnAddress } from "@/lib/auth-return-address"
 import { emailAddressProblem } from "@/lib/email-address-rules"
+import { ONBOARDING_URL } from "@/lib/onboarding-address"
 import { signInPage, signUpPage } from "./auth-addresses"
 import { createAuthFlowStore } from "./auth-flow-store"
 import { createCodeSends } from "./code-sends"
 import { createHumanCheck, withHumanCheck, type HumanCheck } from "./human-check"
-
-/** Where a new account goes once signed in, unless it came from somewhere such as an invitation. */
-export const ONBOARDING_URL = "/onboarding"
 
 /** The details (name, email, password), the confirmation code, and the confirmed email that no session came with. */
 export type SignUpStep = "details" | "code" | "confirmed"

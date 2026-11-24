@@ -25,6 +25,7 @@ const CLERK_SESSION_DYNAMIC = {
 // `askAuthServer`, and only those named here may import it.
 const AUTH_SERVER_DOOR_FILES = [
   "src/app/(app)/workspace-actions.ts",
+  "src/app/(auth)/onboarding/actions.ts",
 ];
 const BETTER_AUTH_SESSION_MESSAGE = "Only the session seam (src/lib/session.ts) imports the Better Auth session read; read the session through it (#387).";
 const BETTER_AUTH_SESSION = { regex: "(^|/)better-auth-session$", message: BETTER_AUTH_SESSION_MESSAGE };

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { db, profiles } from "@/db";
 import type { WorkspacePermission } from "./auth-guard";
 import { RETURN_ADDRESS_HEADER, signInReturningTo } from "./auth-return-address";
-import { readBetterAuthSession } from "./better-auth-session";
+import { readBetterAuthSession, readBetterAuthWorkspaceLeft } from "./better-auth-session";
 
 /**
  * #350 / #387: the session seam, the only Lane server code that reads who is signed in. It speaks Lane's terms
@@ -20,6 +20,11 @@ export type Session = { userId: string; orgId: string | null; role: WorkspacePer
 /** The signed-in person's session, or null for anyone signed out. */
 export async function readSession(): Promise<Session | null> {
   return readBetterAuthSession(await cookies());
+}
+
+/** The name of the workspace the signed-in person is no longer in, when that left them with none (#391); else null. */
+export async function readWorkspaceLeft(): Promise<string | null> {
+  return readBetterAuthWorkspaceLeft(await cookies());
 }
 
 /** Sends a signed-out visitor to sign in, and back to the page they opened (the proxy names it) afterwards. */

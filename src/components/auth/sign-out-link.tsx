@@ -6,7 +6,7 @@ import styles from "./auth.module.css";
 
 /**
  * Decision 2026-10-21 (critique 2.2): onboarding's way out for a wrong account or workspace,
- * in AuthShell's header slot. Clerk-free so stories render it; `OnboardingSignOut` supplies Clerk.
+ * in AuthShell's header slot. `BetterAuthSignOut` supplies the sign-out.
  * aria-disabled, not disabled, while pending: a disabled button would drop the focus that pressed it.
  */
 export function SignOutLink({ onSignOut }: { onSignOut: () => Promise<unknown> }) {

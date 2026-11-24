@@ -24,7 +24,7 @@ export async function RequestsWorkspace() {
   // Project filter. The list loads every active Request (capped) plus the
   // latest Done, and the browser filters it. The loader keeps the workspace
   // and guest guards (src/lib/data/requests.ts).
-  // #217: the first run is read after getWorkspace, which records a workspace Lane hasn't seen before, and
+  // #217: the first run is read after getWorkspace, whose workspace name it shows, and
   // alongside the list.
   // #219: the person's own saved views (the layout's read, shared within this render).
   const [[workspace, firstRun], list, savedViews] = await Promise.all([

@@ -15,8 +15,8 @@ export async function signOutThenGo(path: string, navigate: (path: string) => vo
 export const signOutToSignIn = () => signOutThenGo(SIGN_IN_URL, (path) => window.location.assign(path))
 
 /**
- * #379 (#376 Q2): Onboarding's header Sign out, as `OnboardingSignOut` is for Clerk. Increment 5 passes it to the
- * workspace step's `signOut`; the step itself never imports the client.
+ * #379 (#376 Q2): Onboarding's header Sign out, on both its steps. The workspace step takes it as `signOut` and never
+ * imports the client itself.
  */
 export function BetterAuthSignOut() {
   return <SignOutLink onSignOut={signOutToSignIn} />

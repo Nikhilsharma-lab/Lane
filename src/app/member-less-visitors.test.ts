@@ -10,7 +10,7 @@ import type { Session } from "@/lib/session";
 import { AppProviders } from "@/test/app-providers";
 
 const visit = vi.hoisted(() => ({ session: null as Session | null, address: "/" }));
-vi.mock("@/lib/session", async (original) => ({ ...(await original<typeof import("@/lib/session")>()), readSession: async () => visit.session }));
+vi.mock("@/lib/session", async (original) => ({ ...(await original<typeof import("@/lib/session")>()), readSession: async () => visit.session, readWorkspaceLeft: async () => null }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ [RETURN_ADDRESS_HEADER]: visit.address }) }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),
@@ -36,7 +36,7 @@ const ADDRESSES: [name: string, address: string, open: () => Promise<unknown>][]
   ["Settings: Metrics", "/settings/metrics?show=archived", async () => (await import("./(app)/settings/metrics/(library)/page")).default({ searchParams: search })],
   ["Settings: a Metric", `/settings/metrics/${REQUEST}`, async () => (await import("./(app)/settings/metrics/[id]/page")).default({ params, searchParams: search })],
 ];
-const ONBOARDING: (typeof ADDRESSES)[number] = ["Onboarding", "/onboarding", async () => (await import("./(auth)/onboarding/page")).default()];
+const ONBOARDING: (typeof ADDRESSES)[number] = ["Onboarding", "/onboarding", async () => (await import("./(auth)/onboarding/page")).default({ searchParams: search })];
 
 /** Where opening it redirects to, or what it renders. */
 async function redirectOf(open: () => Promise<unknown>) {
@@ -74,11 +74,11 @@ describe.each<[string, Session]>([
     expect(await redirectOf(open)).toBe("/onboarding");
   });
 
-  it("sees Onboarding's role step, so nothing loops", async () => {
+  it("sees Onboarding's workspace step, so nothing loops", async () => {
     const opened = await redirectOf(ONBOARDING[2]);
     expect(opened).toHaveProperty("rendered");
     const { rendered } = opened as { rendered: React.ReactNode };
-    expect(renderToStaticMarkup(createElement(AppProviders, null, rendered))).toContain("Choose your role");
+    expect(renderToStaticMarkup(createElement(AppProviders, null, rendered))).toContain("Create your workspace");
   });
 });
 
