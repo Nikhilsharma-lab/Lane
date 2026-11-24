@@ -1,7 +1,6 @@
 import { expect, it, vi } from "vitest"
 import { toastStack } from "@/test/toast-stack"
 import { requestNavigation } from "@/test/request-navigation"
-import type { ActionSession } from "@/lib/action-call"
 import type { PickupConfirmation } from "@/lib/request-reviewer-rules"
 import { createRequestMoves, type RequestMoveActions } from "./request-moves-controller"
 import { createPendingMutationsStore } from "./pending-mutations-provider"
@@ -16,15 +15,14 @@ function pending<T>() {
   return { promise, resolve, reject }
 }
 
-function app(session: ActionSession = { current: async () => {}, renew: async () => {} }) {
+function app() {
   const navigation = requestNavigation()
   const stack = toastStack()
   const undoStore = createMarkDoneUndoStore()
   undoStore.bind(stack.state)
   const store = createPendingMutationsStore({ now: () => 1 })
   const refresh = vi.fn(), announce = vi.fn(), afterMove = vi.fn(), isItLive = vi.fn(), notifyError = vi.fn()
-  const execution = { overlay: store.view(store.getSnapshot()), refresh,
-    session, notifyError,
+  const execution = { overlay: store.view(store.getSnapshot()), refresh, notifyError,
   }
   const calls: { name: keyof RequestMoveActions; args: unknown[]; response: ReturnType<typeof pending<ActionResult & BatchResult>> }[] = []
   const action = (name: keyof RequestMoveActions) => (...args: unknown[]) => {
@@ -345,24 +343,18 @@ it("bulk Undo skipped behind a failed Release ends once and refreshes without se
   expect(a.calls).toHaveLength(1)
 })
 
-it("navigation during explicit session recovery detaches presentation but preserves submitted batch replay and settlement", async () => {
-  const renewal = pending<string>()
-  const renew = vi.fn(() => renewal.promise)
-  const a = app({ current: async () => "cached", renew })
+// #397: the batch is sent once; the ended session is said and every row goes back.
+it("a bulk move whose session ended is sent once, rolls back and says to sign in again", async () => {
+  const a = app()
   const move = a.moves.moveMany([{ ...request, status: "in_progress", requester: null }], "done", { isGuest: false, current: () => true })
-  const expired = { error: "Sign in again.", sessionExpired: true }
-  ;(await a.sent()).response.resolve(expired)
-  await vi.waitFor(() => expect(renew).toHaveBeenCalledTimes(1))
-  a.navigation.selectList({ project: "other" })
-  renewal.resolve("fresh")
-  const retry = await a.sent(1)
-  expect(retry.args).toEqual([["r1"], { orgId: "org1" }])
-  retry.response.resolve({ moved: ["r1"] })
-  expect(await move).toMatchObject({ status: "success", moved: ["r1"], detached: true })
+  const call = await a.sent()
   expect(a.shown("r1", "in_progress").status).toBe("done")
-  expect(a.stack.toasts).toEqual([])
+  const ended = { error: "Your session ended. Sign in again to continue.", sessionExpired: true }
+  call.response.resolve(ended)
+  expect(await move).toMatchObject({ status: "error", error: "Your session ended. Sign in again to continue." })
+  expect(a.calls).toHaveLength(1)
+  expect(a.shown("r1", "in_progress").status).toBe("in_progress")
 })
-
 
 it.each(["pick-up", "done"] as const)("opening a personal saved view invalidates the pending %s invocation", async kind => {
   const a = app()
