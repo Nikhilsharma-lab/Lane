@@ -19,7 +19,6 @@ vi.mock("next/navigation", async (original) => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock("@/components/auth/clerk-members-profile", () => ({ ClerkWorkspaceProfile: () => null }));
 vi.mock("@/components/settings/workspace-members-loader", () => ({ WorkspaceMembersLoader: () => null }));
 vi.mock("../../profile/account-panels", () => ({ accountPanels: async () => ({}) }));
 vi.mock("../../profile/profile-form", () => ({ ProfileForm: () => null }));

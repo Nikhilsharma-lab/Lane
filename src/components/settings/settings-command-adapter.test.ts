@@ -126,10 +126,14 @@ describe("Settings headings over row groups (#287)", () => {
   const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
   it("heads the open section with its name and one purpose line, above the groups", () => {
-    const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "member", workspaceName: "Lane Studio", initialSection: "workspace" }));
+    const rows = { workspaceNameRow: createElement("p", null, "Workspace name Lane Studio"), leaveWorkspace: createElement("p", null, "Leave Lane Studio") };
+    const html = renderToStaticMarkup(createElement(SettingsCommandAdapter, { membership: "member", workspaceName: "Lane Studio", initialSection: "workspace", ...rows }));
     const open = visible(html);
     expect(open).toMatch(/^<header[^>]*><h2[^>]*>Workspace details<\/h2><p>Your workspace and membership\.<\/p><\/header>/);
-    expect(text(open)).toContain("Workspace name Lane Studio");
+    // #395: the name row and the Leave row are the page's, each once.
+    expect(text(open).match(/Workspace name/g)).toHaveLength(1);
+    expect(text(open)).toContain("Workspace name Lane Studio Your access");
+    expect(text(open)).toMatch(/Leave Lane Studio$/);
     expect(text(open)).toContain("Your access Workspace access is separate from your profile role. Member");
   });
 
