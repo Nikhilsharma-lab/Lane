@@ -132,7 +132,8 @@ test("a role change applies on the person's next click, up and down", async ({ b
     await test.step("made a Viewer, their next click on the open page is refused, and the next page has no controls", async () => {
       await member.page.getByRole("button", { name: "Post comment", exact: true }).click();
       await expect(member.page.getByText(VIEWER_REFUSED, { exact: true })).toBeVisible();
-      await sidebar(member.page).getByRole("link", { name: "Inbox", exact: true }).click();
+      // The frame notices on this move and loads the page in full (stale-frame.spec.ts).
+      await Promise.all([member.page.waitForEvent("load"), sidebar(member.page).getByRole("link", { name: "Inbox", exact: true }).click()]);
       await expect(member.page).toHaveURL(/\/inbox$/);
       await member.page.goto(`/requests/${request}`);
       await expect(member.page.getByRole("heading", { name: "Harbour request", level: 1 })).toBeVisible();

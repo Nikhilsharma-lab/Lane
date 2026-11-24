@@ -66,6 +66,8 @@ export function createFrameCheck(tab: Tab) {
       else if (frame.role !== own.role) leave({ role: frame.role })
       else if (moved || returned) void ask(own, address)
     },
+    /** A newer move has started, whose own check will answer: a full load of this address would undo it. */
+    moving: drop,
     /** The frame is gone from the page. On Onboarding, the person has no workspace left, and Back would show this one. */
     unmounted() {
       mounted = false

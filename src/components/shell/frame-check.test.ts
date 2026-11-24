@@ -70,6 +70,16 @@ describe("what it asks", () => {
     expect(sent[1].aborted()).toBe(false)
   })
 
+  it("no further once a newer move starts, so its answer can't undo that move", async () => {
+    move(HARBOUR, "/impact")
+    check.moving()
+    expect(sent[0].aborted()).toBe(true)
+    await settled()
+    expect(browser.loads).toEqual([])
+    move(HARBOUR, "/inbox")
+    expect(sent).toHaveLength(2)
+  })
+
   it("nothing while offline, and drops what was in flight for the page before", () => {
     move(HARBOUR, "/impact")
     browser.offline = true

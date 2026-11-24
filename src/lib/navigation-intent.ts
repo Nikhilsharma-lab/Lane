@@ -7,7 +7,18 @@
  */
 let startedAt = -Infinity
 
-export const noteNavigation = () => { startedAt = performance.now() }
+const listeners = new Set<() => void>()
+
+export const noteNavigation = () => {
+  startedAt = performance.now()
+  for (const listener of listeners) listener()
+}
+
+/** Calls back as each move starts; returns the unsubscribe. */
+export const onNavigation = (listener: () => void) => {
+  listeners.add(listener)
+  return () => { listeners.delete(listener) }
+}
 
 /** When the last move started (performance.now() time). */
 export const navigationStartedAt = () => startedAt

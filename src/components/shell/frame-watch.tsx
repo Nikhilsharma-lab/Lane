@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { isOffline } from "@/lib/connection-status"
-import { routerMoves } from "@/lib/navigation-intent"
+import { onNavigation, routerMoves } from "@/lib/navigation-intent"
 import { createFrameCheck, type FrameCheck, type FrameSession } from "./frame-check"
 
 let pageCheck: FrameCheck | null = null
@@ -35,6 +35,7 @@ export function FrameWatch({ orgId, role }: FrameSession) {
     addEventListener("popstate", onPopState)
     return () => removeEventListener("popstate", onPopState)
   }, [])
+  useEffect(() => onNavigation(() => checkOfPage().moving()), [])
   useEffect(() => () => checkOfPage().unmounted(), [])
   useEffect(() => {
     const before = last.current
