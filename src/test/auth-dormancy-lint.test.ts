@@ -108,14 +108,10 @@ describe("the session read's fence (#387)", () => {
 
 describe("the server door's fence (#389)", () => {
   const ACTION = "src/app/(app)/workspace-actions.ts"
+  const ACTIONS = [ACTION, "src/app/(app)/settings/members/actions.ts", "src/app/(auth)/onboarding/actions.ts", "src/app/(app)/settings/profile/account-actions.ts"]
   const door = `import { askAuthServer as imported } from "@/lib/auth-server"`
 
-  it.each([
-    ACTION,
-    "src/app/(app)/settings/members/actions.ts",
-    // #394: Settings → Profile's account changes.
-    "src/app/(app)/settings/profile/account-actions.ts",
-  ])("lets a named Server Action import the door: %s", async (filePath) => {
+  it.each(ACTIONS)("lets a named Server Action import the door: %s", async (filePath) => {
     expect(await refusals(filePath, door)).toEqual([])
   })
 

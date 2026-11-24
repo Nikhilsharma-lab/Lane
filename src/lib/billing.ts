@@ -85,12 +85,6 @@ export async function claimFreeRequests(ws: Workspace, creatorEmail: string | nu
   });
 }
 
-/** A person's email, or null for someone without a profile. */
-async function emailOf(userId: string): Promise<string | null> {
-  const [profile] = await db.select({ email: profiles.email }).from(profiles).where(eq(profiles.id, userId));
-  return profile?.email ?? null;
-}
-
 /** The email of the workspace's creator (`organizations.owner_id`), or null when either isn't known. */
 async function creatorEmailOf(ws: Workspace): Promise<string | null> {
   const [creator] = await db.select({ email: profiles.email }).from(workspaces)
@@ -99,16 +93,13 @@ async function creatorEmailOf(ws: Workspace): Promise<string | null> {
 }
 
 /**
- * Decides the workspace's allowance from its creator's email, if it isn't decided yet. `known` is what the caller
- * already has: the workspace's creator and the signed-in person, whose address needs no lookup. Never throws: a
- * workspace whose creator isn't known stays undecided, and so keeps its 4 Free Requests.
+ * Decides the workspace's allowance from its creator's email, if it isn't decided yet. Never throws: a workspace whose
+ * creator isn't known stays undecided, and so keeps its 4 Free Requests.
  */
-export async function decideFreeRequests(ws: Workspace, known?: { createdBy: string | null | undefined; userId: string; email: string }): Promise<void> {
+export async function decideFreeRequests(ws: Workspace): Promise<void> {
   try {
     if (await freeRequestsDecided(ws)) return;
-    if (!known) return await claimFreeRequests(ws, await creatorEmailOf(ws));
-    if (!known.createdBy) return;
-    await claimFreeRequests(ws, known.createdBy === known.userId ? known.email : await emailOf(known.createdBy));
+    await claimFreeRequests(ws, await creatorEmailOf(ws));
   } catch (error) {
     console.error("[billing] Free Requests allowance not decided:", error instanceof Error ? error.message : "unknown error");
   }

@@ -20,6 +20,8 @@ export default defineConfig({
       "src/lib/auth-return-address.test.ts",
       // #388: the four pages that mount them, opened with a query.
       "src/app/**/signed-out-screens.test.ts",
+      // #391: the workspace step's calls.
+      "src/app/**/onboarding/workspace-step.test.ts",
       "src/app/terms/terms-page.test.ts",
       "src/components/shell/sidebar-workspace-name.test.ts",
       "src/components/shell/workspace-switcher.test.ts",

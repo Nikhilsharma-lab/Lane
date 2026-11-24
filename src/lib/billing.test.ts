@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { requireTestDatabase } from "@/test/test-database";
 
 
-const ORGS = ["org_billing_a", "org_billing_b", "org_billing_c", "org_billing_d", "org_billing_e", "org_billing_f", "org_billing_g", "org_billing_h", "org_billing_i", "org_billing_j", "org_billing_k"];
+const ORGS = ["org_billing_a", "org_billing_b", "org_billing_c", "org_billing_d", "org_billing_e", "org_billing_f", "org_billing_g", "org_billing_h", "org_billing_i"];
 const MEMBER = "billing_member", CREATOR = "billing_creator";
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
@@ -87,8 +87,6 @@ describe("finding the workspace's creator", () => {
     await expect(decideFreeRequests({ orgId: "org_billing_unknown" })).resolves.toBeUndefined();
     await connection`update organizations set owner_id = 'billing_nobody' where id = ${G.orgId}`;
     await decideFreeRequests(G);
-    await decideFreeRequests(G, { createdBy: null, userId: MEMBER, email: "member@billing.test" });
-    await decideFreeRequests(G, { createdBy: "billing_nobody", userId: MEMBER, email: "member@billing.test" });
     expect(await freeRequestsDecided(G)).toBe(false);
     expect(await free()).toMatchObject({ total: 4, usedElsewhere: null });
   });
@@ -97,14 +95,6 @@ describe("finding the workspace's creator", () => {
     await connection`update organizations set owner_id = ${CREATOR} where id = ${G.orgId}`;
     await (await billing()).decideFreeRequests(G);
     expect(await free()).toMatchObject({ left: 1, usedElsewhere: { domain: "billing-beta.example", used: 3 } });
-  });
-
-  it("takes a known creator's profile email, unless the person loading is the creator", async () => {
-    const { decideFreeRequests, readFreeRequests } = await billing();
-    await decideFreeRequests({ orgId: "org_billing_j" }, { createdBy: CREATOR, userId: "someone_else", email: "other@billing-new.example" });
-    expect((await readFreeRequests({ orgId: "org_billing_j" })).free).toMatchObject({ usedElsewhere: { domain: "billing-beta.example", used: 3 } });
-    await decideFreeRequests({ orgId: "org_billing_k" }, { createdBy: CREATOR, userId: CREATOR, email: "ana.billing@gmail.com" });
-    expect((await readFreeRequests({ orgId: "org_billing_k" })).free).toMatchObject({ usedElsewhere: { domain: "gmail.com" } });
   });
 });
 

@@ -1,16 +1,43 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { RedirectType, redirect } from "next/navigation";
 import * as z from "zod";
 
-import { db, profiles } from "@/db";
+import { rememberLastUsed } from "@/app/(app)/workspace-actions";
+import { db, profiles, workspaces } from "@/db";
+import type { DoorAnswer } from "@/lib/auth-answer";
 import { activeMemberOf } from "@/lib/auth-guard";
-import { readAccount, readSession } from "@/lib/session";
+import { askAuthServer } from "@/lib/auth-server";
+import { decideFreeRequests } from "@/lib/billing";
+import { readSession } from "@/lib/session";
 
 const onboardingRoleSchema = z.object({
   role: z.enum(["pm", "designer", "developer"]),
 });
+const workspaceNameSchema = z.string().trim().min(1);
+
+/**
+ * #391 (spec #383 "Onboarding"): creates a workspace with the session's person as its Admin and creator, and opens it.
+ * Its slug is generated and nobody sees it (workspaces aren't routed by slug), so two may have one name. `first` says
+ * it's the person's first workspace, which the role step follows.
+ */
+export async function createWorkspace(name: string): Promise<DoorAnswer<{ first: boolean }>> {
+  const parsed = workspaceNameSchema.safeParse(name);
+  if (!parsed.success) return { ok: false };
+  const session = await readSession();
+  if (!session) return { ok: false, code: "UNAUTHORIZED" };
+
+  const created = await askAuthServer((api, asCaller) => api.createOrganization({ ...asCaller, body: { name: parsed.data, slug: randomUUID() } }));
+  if (!created.ok) return created;
+  const orgId = created.data.id;
+  await db.update(workspaces).set({ ownerUserId: session.userId }).where(eq(workspaces.id, orgId));
+  await decideFreeRequests({ orgId });
+  const remembered = await rememberLastUsed();
+  return { ok: true, data: { first: remembered.ok && remembered.data.first } };
+}
 
 export async function saveOnboardingRole(data: { role: string }) {
   const parsed = onboardingRoleSchema.safeParse(data);
@@ -23,26 +50,7 @@ export async function saveOnboardingRole(data: { role: string }) {
     return { error: "Create or join a workspace before choosing your role.", needsWorkspace: true as const };
   }
 
-  const account = await readAccount();
-  if (!account) return { error: "Couldn’t load your profile. Refresh the page and try again." };
-
-  await db
-    .insert(profiles)
-    .values({
-      id: session.userId,
-      fullName: account.name,
-      email: account.email,
-      role: parsed.data.role,
-    })
-    .onConflictDoUpdate({
-      target: profiles.id,
-      set: {
-        fullName: account.name,
-        email: account.email,
-        role: parsed.data.role,
-        updatedAt: new Date(),
-      },
-    });
+  await db.update(profiles).set({ role: parsed.data.role, updatedAt: new Date() }).where(eq(profiles.id, session.userId));
 
   // Plan item 2.2: the saved role and the welcome arrive in one response.
   // Signing in soft-navigates to /, whose layout redirects here, and with

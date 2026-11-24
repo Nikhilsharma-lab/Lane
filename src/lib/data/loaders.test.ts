@@ -139,11 +139,9 @@ describe("loadShell", () => {
     expect(result).toEqual({ fullName: "Test Admin", email: "admin-a@test.local", profileRole: "pm", workspaceName: "Test Workspace A" });
   });
 
-  it("reports a missing profile as null and a missing workspace row as a null name", async () => {
+  it("reports a missing profile or workspace row as null", async () => {
     expect(await loadShell({ userId: "user_loaders_nobody", orgId: ORG, role: "member" })).toBeNull();
-    expect(await loadShell({ userId: MEMBER, orgId: "org_loaders_missing", role: "member" })).toEqual({
-      fullName: "Test Member", email: "member-a@test.local", profileRole: "designer", workspaceName: null,
-    });
+    expect(await loadShell({ userId: MEMBER, orgId: "org_loaders_missing", role: "member" })).toBeNull();
   });
 });
 

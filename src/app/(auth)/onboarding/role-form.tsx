@@ -14,7 +14,7 @@ import styles from "@/components/auth/auth.module.css";
 import { useRecoverableAction } from "@/hooks/use-recoverable-action";
 import Link from "@/components/link";
 import { SIGN_IN_URL } from "@/lib/auth-return-address";
-import { SESSION_TASK_URLS } from "@/lib/session-task-urls";
+import { ONBOARDING_URL } from "@/lib/onboarding-address";
 import { saveOnboardingRole } from "./actions";
 
 const TYPING_SELECTOR = 'textarea, select, [role="textbox"], [role="combobox"]';
@@ -36,14 +36,14 @@ function isRedirect(error: unknown) {
 
 type RoleError = { message: string; link?: { href: string; label: string } };
 
-/** #290: the two save errors that name a step link to it; the workspace step resumes on Clerk's task page. */
+/** #290: the two save errors that name a step link to it. */
 export function roleSaveError(failure: { error: string; sessionExpired?: true; needsWorkspace?: true }): RoleError {
   if (failure.sessionExpired) return { message: failure.error, link: { href: SIGN_IN_URL, label: "Sign in" } };
-  if (failure.needsWorkspace) return { message: failure.error, link: { href: SESSION_TASK_URLS["choose-organization"], label: "Create or join a workspace" } };
+  if (failure.needsWorkspace) return { message: failure.error, link: { href: ONBOARDING_URL, label: "Create or join a workspace" } };
   return { message: failure.error };
 }
 
-/** `headerAction` is the page's Sign out (decision 2026-10-21); stories pass the Clerk-free link. */
+/** `headerAction` is the page's Sign out (decision 2026-10-21). */
 export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
   const formRef = useRef<HTMLFormElement>(null);
   const [role, setRole] = useState<FunctionalRole | null>(null);
@@ -67,6 +67,10 @@ export function RoleForm({ headerAction }: { headerAction?: ReactNode } = {}) {
     flushSync(() => { setRole(next); setError(null); });
     formRef.current?.querySelector<HTMLInputElement>(`input[type="radio"][value="${next}"]`)?.focus();
   });
+  // #391: the role step is shown once, so its marker comes off the address. The history entry keeps its state, which
+  // Next's router reads.
+  useEffect(() => window.history.replaceState(window.history.state, "", ONBOARDING_URL), []);
+
   useEffect(() => {
     const listener = (event: KeyboardEvent) => onShortcut(event);
     window.addEventListener("keydown", listener);

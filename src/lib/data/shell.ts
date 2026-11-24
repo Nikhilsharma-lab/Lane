@@ -8,17 +8,16 @@ import type { MemberAuth } from "@/lib/auth-guard";
 export type ShellRow = {
   fullName: string;
   email: string;
-  /** The functional label saved at onboarding (pm, designer, developer), not the Clerk permission. */
+  /** The functional label saved at onboarding (pm, designer, developer), not the workspace role. */
   profileRole: "pm" | "designer" | "developer";
-  /** Null when the workspace row has not been created yet; `getWorkspace` then creates it from Clerk. */
-  workspaceName: string | null;
+  workspaceName: string;
 };
 
 /**
  * Plan item 1.9: the profile and the workspace in one statement. Identity and
  * the workspace permission come from the session seam (`auth.role`), so the only
- * database work on the shell's critical path is this join. Returns null when
- * the session user has no profile yet (onboarding).
+ * database work on the shell's critical path is this join. Returns null
+ * without a profile or workspace row, which a member row always has.
  */
 export async function loadShell(auth: MemberAuth): Promise<ShellRow | null> {
   const [row] = await db
@@ -29,7 +28,7 @@ export async function loadShell(auth: MemberAuth): Promise<ShellRow | null> {
       workspaceName: workspaces.name,
     })
     .from(profiles)
-    .leftJoin(workspaces, eq(workspaces.id, auth.orgId))
+    .innerJoin(workspaces, eq(workspaces.id, auth.orgId))
     .where(eq(profiles.id, auth.userId))
     .limit(1);
 

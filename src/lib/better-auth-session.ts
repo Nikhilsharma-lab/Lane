@@ -1,9 +1,9 @@
 import "server-only"
 
 import { createHmac, timingSafeEqual } from "node:crypto"
-import { and, asc, desc, eq, gt, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gt, notExists, or, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
-import { db, member, profiles, session } from "@/db"
+import { db, member, profiles, session, workspaces } from "@/db"
 import { betterAuthServer } from "./feature-switches"
 import { isWorkspacePermission } from "./role-rules"
 import type { Session, SignedInSession } from "./session"
@@ -40,6 +40,30 @@ export async function readBetterAuthSession(cookies: RequestCookies): Promise<Se
     .limit(1)
   if (!row) return null
   return { userId: row.userId, orgId: row.orgId, role: row.role && isWorkspacePermission(row.role) ? row.role : null }
+}
+
+/**
+ * #391 (#346): the name of the workspace the session's person is no longer in: the session's active one, else their
+ * last-used one (#344: both outlive a removal). Null while they are a member anywhere, or when neither names a
+ * workspace. One query. It doesn't say whether they left or were removed: nothing Lane keeps does. Only the seam
+ * calls it.
+ */
+export async function readBetterAuthWorkspaceLeft(cookies: RequestCookies): Promise<string | null> {
+  const token = sessionToken(cookies)
+  if (!token) return null
+  const [left] = await db
+    .select({ name: workspaces.name })
+    .from(session)
+    .innerJoin(profiles, eq(profiles.id, session.userId))
+    .innerJoin(workspaces, or(eq(workspaces.id, session.activeOrganizationId), eq(workspaces.id, profiles.lastWorkspaceId)))
+    .where(and(
+      eq(session.token, token),
+      gt(session.expiresAt, sql`now()`),
+      notExists(db.select({ one: sql`1` }).from(member).where(eq(member.userId, session.userId))),
+    ))
+    .orderBy(sql`(${workspaces.id} = ${session.activeOrganizationId}) is true desc`)
+    .limit(1)
+  return left?.name ?? null
 }
 
 /**

@@ -26,6 +26,7 @@ const CLERK_SESSION_DYNAMIC = {
 const AUTH_SERVER_DOOR_FILES = [
   "src/app/(app)/workspace-actions.ts",
   "src/app/(app)/settings/members/actions.ts",
+  "src/app/(auth)/onboarding/actions.ts",
   "src/app/(app)/settings/profile/account-actions.ts",
 ];
 const BETTER_AUTH_SESSION_MESSAGE = "Only the session seam (src/lib/session.ts) imports the Better Auth session read; read the session through it (#387).";
