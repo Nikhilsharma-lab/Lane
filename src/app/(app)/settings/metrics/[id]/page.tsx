@@ -2,7 +2,6 @@ import Link from "@/components/link";
 import { notFound, redirect } from "next/navigation";
 import { timePage, timed } from "@/lib/request-timings";
 import { ArrowLeft } from "lucide-react";
-import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { MetricDefinitionFacts } from "@/components/metrics/metric-definition-list";
 import { canChangeThings } from "@/lib/role-rules";
 import { membersPanel } from "../../members/members-panel";
@@ -101,7 +100,7 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
 
   return <><SettingsCommandAdapter billingEnforced={billingEnforced()} page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
     metrics={panel}
-    members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
+    members={membersPanel(workspace)}
     role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
     {...panels} />
     <SettingsEarlySearch /></>;

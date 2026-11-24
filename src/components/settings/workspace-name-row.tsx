@@ -22,7 +22,7 @@ export type WorkspaceNameRowProps = {
 /**
  * #381 (#376 stories 85, 86): the workspace name, replacing Clerk's. An Admin edits it in place, with Save offered
  * only once the name has changed and isn't empty. A refused rename says why on the field, keeps what was typed and
- * takes focus back to it. Everyone else reads the name and who can change it. Dormant until increment 5 mounts it.
+ * takes focus back to it. Everyone else reads the name and who can change it.
  */
 export function WorkspaceNameRow({ name, role, onRename }: WorkspaceNameRowProps) {
   const admin = role !== null && managesWorkspace(role)
