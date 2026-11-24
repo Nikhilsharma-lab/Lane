@@ -19,7 +19,8 @@ const OFFLINE_LINE = /^You.re offline$/;
 
 const sidebar = (page: Page) => page.getByRole("complementary", { name: "Workspace sidebar" });
 const accountButton = (page: Page) => page.getByRole("button", { name: /^Account menu,/ });
-const row = (page: Page, id: string) => page.locator(`[role=row][data-request-id="${id}"]`);
+// The one on screen: just after a load its streamed copy can still be in the page, hidden.
+const row = (page: Page, id: string) => page.locator(`[role=row][data-request-id="${id}"]`).filter({ visible: true });
 const preview = (page: Page) => page.getByRole("region", { name: "Request preview" });
 
 /** Nothing under the press reacted: no page change, no preview, picker, menu or dialog. */

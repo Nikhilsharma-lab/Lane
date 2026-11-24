@@ -252,6 +252,8 @@ test("B27: while a Request loads, its skeleton holds the comments part, shaped l
     await expect(part.locator('[data-skeleton-part="composer"]')).toHaveCount(1);
     expect(await part.evaluate(node => Boolean(node.closest("[data-placeholder]")) && node.getAttribute("aria-hidden"))).toBe("true");
     const column = (node: Element) => { const rect = node.getBoundingClientRect(); return { left: Math.round(rect.left), width: Math.round(rect.width) }; };
+    // Measured once the address has moved: the skeleton is drawn again as it does, and the one before it measures 0.
+    await page.waitForURL(`**/requests/${id}`);
     const box = await part.evaluate(column);
     hold.release();
     await expect(page.locator("#request-title")).toHaveText("Comments placeholder", { timeout: 30_000 });
