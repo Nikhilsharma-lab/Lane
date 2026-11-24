@@ -1,4 +1,3 @@
-import { requireActiveMember } from "@/lib/auth-guard";
 import { loadWorkspaceSearch, workspaceSearchInputSchema } from "@/lib/data/search";
 import { authorizeReadRoute, json } from "../_lib/read-route";
 
@@ -10,7 +9,7 @@ function page(value: string | null) {
 
 /** GET /api/search?org=&q=&requestsPage=&projectsPage=&statuses=&types=&sort=&createdSince=&createdBefore= (plan items 1.16 and 2.8). */
 export async function GET(request: Request) {
-  const access = await authorizeReadRoute(request, requireActiveMember);
+  const access = await authorizeReadRoute(request);
   if (!access.ok) return access.response;
   const { auth, params } = access;
 

@@ -11,3 +11,13 @@ export const noteNavigation = () => { startedAt = performance.now() }
 
 /** When the last move started (performance.now() time). */
 export const navigationStartedAt = () => startedAt
+
+/**
+ * #402: how many moves the router has been asked for, so the app frame can tell one that keeps the page (Impact's
+ * period) from an address the page only rewrote (a list filter). A link's move changes the page, which says it all.
+ */
+let asked = 0
+
+export const noteRouterMove = () => { asked++; noteNavigation() }
+
+export const routerMoves = () => asked

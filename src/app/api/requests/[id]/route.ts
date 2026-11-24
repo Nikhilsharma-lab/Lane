@@ -1,4 +1,3 @@
-import { requireActiveMember } from "@/lib/auth-guard";
 import { loadRequestDetail } from "@/lib/data/requests";
 import { callTimings } from "@/lib/request-timings";
 import { authorizeReadRoute, json } from "../../_lib/read-route";
@@ -13,7 +12,7 @@ import { authorizeReadRoute, json } from "../../_lib/read-route";
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const timings = callTimings("Request preview");
-  const access = await timings.time("session", () => authorizeReadRoute(request, requireActiveMember));
+  const access = await timings.time("session", () => authorizeReadRoute(request));
   if (!access.ok) return timings.respond(access.response);
 
   try {
