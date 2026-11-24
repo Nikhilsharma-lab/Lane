@@ -1,7 +1,7 @@
 /**
- * #371 (spec #369): Lane's one Better Auth server, dormant. Only `/api/auth/[...all]` uses it, and only once
- * BETTER_AUTH_SECRET is set, which isn't on staging or production until increment 6. Lint keeps every other file
- * from importing this module or Better Auth's server entry points.
+ * #371 (spec #369): Lane's one Better Auth server. `/api/auth/[...all]` uses it, and Lane's Server Actions through
+ * its one door (`askAuthServer`, #389), only once BETTER_AUTH_SECRET is set, which isn't on staging or production
+ * until increment 6. Lint keeps every other file from importing this module or Better Auth's server entry points.
  *
  * The instance is built the first time it's asked for, so importing this module opens no connection and needs no
  * secret. Its settings are the ones #333 and #344 settled; the comments name where each came from.
@@ -16,12 +16,14 @@ import { nextCookies } from "better-auth/next-js"
 import { captcha, emailOTP, haveIBeenPwned, organization } from "better-auth/plugins"
 import { createAccessControl } from "better-auth/plugins/access"
 import { and, eq, gt, inArray, sql } from "drizzle-orm"
+import { headers } from "next/headers"
 import { account, db, invitation, member, organizations, profiles, rateLimit, session, verification } from "@/db"
+import type { DoorAnswer } from "./auth-answer"
 import { CODE_LIFETIME_MINUTES, CODE_LIFETIME_SECONDS } from "./auth-code-rules"
 import { sendAuthEmail, type AuthEmail } from "./auth-email"
 import { AUTH_ERROR_COPY, authErrorCode } from "./auth-error-copy"
 import { isWorkspacePermission, managesWorkspace } from "./role-rules"
-import type { BetterAuthServer } from "./feature-switches"
+import { betterAuthServer, type BetterAuthServer } from "./feature-switches"
 
 type Config = Extract<BetterAuthServer, { on: true }>
 
@@ -417,6 +419,35 @@ function getAuth(config: Config): Auth {
  */
 export async function handleAuthRequest(config: Config, request: Request): Promise<Response> {
   return withLaneCode(config, request, await requestEmails.run({ codeCounted: false }, () => getAuth(config).handler(request)))
+}
+
+/** What every door call passes on from the request: spread it into the call's argument. */
+type AsCaller = { headers: Headers }
+
+/**
+ * #389 (spec #383): Lane's door to Better Auth for Server Actions. Runs one `auth.api` call as the person whose
+ * request this is, in its own email store as the route does, and answers as the browser auth client does: Better
+ * Auth's answer, or the code of its refusal. Anything else that goes wrong is thrown, as from any action. Lint lets
+ * the Server Actions that need it import it, by name. It checks nothing itself: the action's guard comes first, and
+ * the call names its workspace rather than leaving Better Auth its active one.
+ *
+ *   askAuthServer((api, asCaller) => api.setActiveOrganization({ ...asCaller, body: { organizationId } }))
+ *
+ * It writes no cookie and renews no session; the app frame's session request does (`auth-client.ts`). No call made
+ * here changes the session's token, and a cookie written in a Server Action makes Next draw the page again in the
+ * action's answer, which after a switch would be the old page in the new workspace.
+ */
+export async function askAuthServer<T>(call: (api: Auth["api"], asCaller: AsCaller) => Promise<T>): Promise<DoorAnswer<T>> {
+  const config = betterAuthServer()
+  if (!config.on) return { ok: false }
+  // `_flag` is how Better Auth's router tells nextCookies that the caller handles cookies.
+  const asCaller = { headers: new Headers(await headers()), query: { disableRefresh: true }, _flag: "router" } satisfies AsCaller & Record<string, unknown>
+  try {
+    return { ok: true, data: await requestEmails.run({ codeCounted: false }, () => call(getAuth(config).api, asCaller)) }
+  } catch (error) {
+    if (!isAPIError(error)) throw error
+    return { ok: false, code: errorCode(error) }
+  }
 }
 
 /** The path under `/api/auth`, as Better Auth matches it. */

@@ -5,6 +5,7 @@ import { getWorkspace } from "@/lib/ensure-workspace";
 import { loadProjects } from "@/lib/data/projects";
 import { loadLabels } from "@/lib/data/labels";
 import { loadSavedViews } from "@/lib/data/saved-views";
+import { loadWorkspaces } from "@/lib/data/workspaces";
 import { countNeedsYou } from "@/lib/data/inbox";
 import { canChangeThings, canCreateRequests, membersItemLabel } from "@/lib/role-rules";
 import { timed } from "@/lib/request-timings";
@@ -25,8 +26,9 @@ export async function loadWorkspaceFrame(member: MemberAuth): Promise<
   // empty, as a failed client fetch did before; it never breaks the shell.
   const needsYouCount = timed("shell", () => countNeedsYou(member)).catch(() => 0);
   // #219: the person's own saved views for the navigation. A failed read leaves the group out; it never breaks the shell.
+  // #389: the switcher's list. A failed read leaves the switcher saying so, with Try again.
   // #265: the frame's own reads are the `shell` step of the server timings.
-  const [result, projects, labels, savedViews] = await Promise.all([getWorkspace(), timed("shell", () => loadProjects(member)), timed("shell", () => loadLabels(member)), timed("shell", () => loadSavedViews(member)).catch(() => [])]);
+  const [result, projects, labels, savedViews, workspaces] = await Promise.all([getWorkspace(), timed("shell", () => loadProjects(member)), timed("shell", () => loadLabels(member)), timed("shell", () => loadSavedViews(member)).catch(() => []), timed("shell", () => loadWorkspaces(member.userId)).catch(() => null)]);
   if (!result) return null;
   if (result.needsOnboarding) return { needsOnboarding: true };
   return {
@@ -41,6 +43,7 @@ export async function loadWorkspaceFrame(member: MemberAuth): Promise<
       fullName: result.fullName,
       email: result.email,
       needsYouCount,
+      workspaces,
       savedViews,
       projects,
       labels,

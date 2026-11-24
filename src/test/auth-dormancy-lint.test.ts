@@ -28,6 +28,8 @@ describe("the browser auth client's fence", () => {
     "src/components/settings/profile-account.tsx",
     "src/components/settings/profile-account.test.ts",
     "src/lib/session.ts",
+    "src/components/shell/sidebar.tsx",
+    "src/components/shell/workspace-frame.tsx",
     "src/components/popup/adaptive-dialog.tsx",
   ])("refuses it in %s", async (filePath) => {
     expect((await refusals(filePath, importing(CLIENT))).join("\n")).toContain("browser auth client")
@@ -48,6 +50,8 @@ describe("the browser auth client's fence", () => {
     // #379: the invitation page's controller and Onboarding's header Sign out.
     "src/components/auth/better-auth/invitation-flow.ts",
     "src/components/auth/better-auth/sign-out.tsx",
+    // #389: the app frame's session request.
+    "src/components/shell/session-keeper.ts",
     // #388: the files that mount them.
     "src/app/(auth)/login/page.tsx",
     "src/app/(auth)/reset-password/page.tsx",
@@ -100,6 +104,37 @@ describe("the session read's fence (#387)", () => {
   })
 })
 
+describe("the server door's fence (#389)", () => {
+  const ACTION = "src/app/(app)/workspace-actions.ts"
+  const door = `import { askAuthServer as imported } from "@/lib/auth-server"`
+
+  it("lets a named Server Action import the door", async () => {
+    expect(await refusals(ACTION, door)).toEqual([])
+  })
+
+  it.each([
+    "src/app/(app)/settings/metrics/actions.ts",
+    "src/app/(app)/saved-view-actions.ts",
+    "src/app/(app)/layout.tsx",
+    "src/app/(auth)/onboarding/page.tsx",
+    "src/app/(app)/workspace-actions.test.ts",
+    "src/components/shell/sidebar.tsx",
+    "src/lib/auth-guard.ts",
+  ])("refuses it in %s", async (filePath) => {
+    expect((await refusals(filePath, door)).join("\n")).toContain("AUTH_SERVER_DOOR_FILES")
+    expect((await refusals(filePath, loading("@/lib/auth-server"))).join("\n")).toContain("AUTH_SERVER_DOOR_FILES")
+  })
+
+  it("lets that action import nothing else that was refused", async () => {
+    expect(await refusals(ACTION, `import { handleAuthRequest as imported } from "@/lib/auth-server"`)).not.toEqual([])
+    expect(await refusals(ACTION, importing("@/lib/auth-server"))).not.toEqual([])
+    for (const path of ["better-auth", "better-auth/plugins", "@/lib/better-auth-session", CLIENT, "next/link", "@/components/arc/dialog/dialog"])
+      expect(await refusals(ACTION, importing(path)), path).not.toEqual([])
+    for (const path of ["@/lib/auth-server", "better-auth/plugins", CLIENT]) expect(await refusals(ACTION, loading(path)), path).not.toEqual([])
+    expect(await refusals(ACTION, `import { auth as imported } from "@clerk/nextjs/server"`)).not.toEqual([])
+  })
+})
+
 describe("the auth screens' mount (#388)", () => {
   it.each([
     ["src/app/(auth)/login/page.tsx", SCREEN],
@@ -139,8 +174,20 @@ describe("what ships", () => {
     })
   }
 
-  it("imports the client only from the auth screens and the files that mount them", () => {
-    const shipped = sources().filter((path) => !/^src\/(components\/auth\/better-auth|app\/\(auth\))\//.test(path) && !/\.test\.tsx?$/.test(path) && !path.startsWith("src/test/"))
+  it("has a shell that imports nothing of Clerk's", () => {
+    const shell = sources("src/components/shell").filter((path) => /["']@clerk\//.test(readFileSync(path, "utf8")))
+    expect(shell).toEqual([])
+  })
+
+  // #389: the frame asks for the session, and Log out loads the sign-out; each on demand, never in the first load.
+  it("loads the sign-out and the session request on demand", () => {
+    expect(readFileSync("src/components/shell/sidebar.tsx", "utf8")).not.toMatch(/from ["'][^"']*(auth-client|better-auth)/)
+    expect(readFileSync("src/components/shell/workspace-frame.tsx", "utf8")).toContain("useEffect(requestSessionOnceUsable, [])")
+    expect(readFileSync("src/components/shell/session-request.ts", "utf8")).not.toMatch(/from ["'][^"']*session-keeper/)
+  })
+
+  it("imports the client only from the auth screens and the files that mount them, and the frame's session request", () => {
+    const shipped = sources().filter((path) => !/^src\/(components\/auth\/better-auth|app\/\(auth\))\//.test(path) && !/\.test\.tsx?$/.test(path) && !path.startsWith("src/test/") && path !== "src/components/shell/session-keeper.ts")
     const offenders = shipped.filter((path) => /from ["'][^"']*auth-client["']|import\(["'][^"']*auth-client["']/.test(readFileSync(path, "utf8")))
     expect(offenders).toEqual([])
   })

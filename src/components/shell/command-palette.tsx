@@ -22,7 +22,7 @@ import styles from "./command-palette.module.css"
 
 export type CommandPaletteWorkspace = {
   orgId: string
-  /** The Clerk workspace role. */
+  /** The workspace role. */
   role: PaletteRole
   /** Who a Pick up from Request detail names as Assignee. */
   viewer: { id: string; name: string }

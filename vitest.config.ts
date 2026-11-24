@@ -21,6 +21,8 @@ export default defineConfig({
     // Several sessions share this machine; a busy one must not fail a test on time alone.
     testTimeout: 20_000,
     globalSetup: "./src/test/global-setup.ts",
+    // #389: lets a test run a Server Action as a person (src/test/server-action-request.ts).
+    setupFiles: ["./src/test/next-async-storage.ts"],
   },
   resolve: {
     alias: {
