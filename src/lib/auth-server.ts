@@ -213,6 +213,22 @@ const beforeEndpoint = createAuthMiddleware(async (ctx) => {
 })
 
 /**
+ * Where Have I Been Pwned's plugin checks a new password: its own default paths, which the option replaces, and
+ * setting a first password (Nikhil, 2026-11-24, #394). That call is server-only and has no path, and Better Auth's
+ * endpoints without one run as "virtual:"; of those, only it sets a password.
+ */
+const CHECKED_PASSWORD_PATHS = [
+  "/sign-up/email",
+  "/change-password",
+  "/reset-password",
+  "/email-otp/reset-password",
+  "/phone-number/reset-password",
+  "/admin/create-user",
+  "/admin/set-user-password",
+  "virtual:",
+]
+
+/**
  * How long a new password's check may take before Lane gives up on it. Have I Been Pwned's range API is served
  * from Cloudflare's cache and usually answers in well under a second; 3 seconds leaves room for a slow answer while
  * someone waits on sign-up, reset or a password change, and is a third of the 10 seconds Turnstile's check gets.
@@ -220,8 +236,8 @@ const beforeEndpoint = createAuthMiddleware(async (ctx) => {
 const PASSWORD_CHECK_TIMEOUT_MS = 3_000
 
 /**
- * Have I Been Pwned's plugin checks a new password inside Better Auth's password hash, on sign-up, reset and
- * password change. When its range API can't be reached it fails closed (the password is refused, nothing is
+ * Have I Been Pwned's plugin checks a new password inside Better Auth's password hash, on sign-up, reset, password
+ * change and a first password. When its range API can't be reached it fails closed (the password is refused, nothing is
  * written, an emailed code isn't used up), but with a 500 that has no code, and a range API that never answers
  * holds the request open: its fetch has no timeout and takes no signal. This plugin runs after it, around the
  * same hash. It gives that failure Lane's code, and gives up on a check that takes longer than the timeout with the
@@ -392,7 +408,7 @@ function build(config: Config) {
         },
       }),
       captcha({ provider: "cloudflare-turnstile", secretKey: config.turnstileSecretKey ?? "", endpoints: [...TURNSTILE_PATHS] }),
-      haveIBeenPwned(),
+      haveIBeenPwned({ paths: CHECKED_PASSWORD_PATHS }),
       // After haveIBeenPwned, so it wraps the hash that plugin checks in.
       lanePasswordCheck,
       nextCookies(),
