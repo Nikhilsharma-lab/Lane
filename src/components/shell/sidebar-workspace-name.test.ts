@@ -3,23 +3,11 @@ import { AppProviders } from "@/test/app-providers";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const clerk = vi.hoisted(() => ({
-  pathname: "/",
-  status: "all" as string | null,
-  project: null as string | null,
-  resource: {
-    isLoaded: true,
-    organization: { id: "org_active", name: "Renamed workspace" } as { id: string; name: string } | null | undefined,
-  },
-}));
+const place = vi.hoisted(() => ({ pathname: "/", status: "all" as string | null, project: null as string | null }));
 
-vi.mock("@clerk/nextjs", () => ({
-  useOrganization: () => clerk.resource,
-  useClerk: () => ({ signOut: vi.fn() }),
-}));
 vi.mock("next/navigation", () => ({
-  usePathname: () => clerk.pathname,
-  useSearchParams: () => new URLSearchParams({ ...(clerk.status === null ? {} : { status: clerk.status }), ...(clerk.project ? { project: clerk.project } : {}) }),
+  usePathname: () => place.pathname,
+  useSearchParams: () => new URLSearchParams({ ...(place.status === null ? {} : { status: place.status }), ...(place.project ? { project: place.project } : {}) }),
   useRouter: () => ({ push: vi.fn() }),
 }));
 // The Inbox bell has its own database boundary and is unrelated to the label.
@@ -32,10 +20,9 @@ import { Sidebar } from "./sidebar";
 import { SidebarView } from "./sidebar-view";
 
 beforeEach(() => {
-  clerk.pathname = "/";
-  clerk.status = "all";
-  clerk.project = null;
-  clerk.resource = { isLoaded: true, organization: { id: "org_active", name: "Renamed workspace" } };
+  place.pathname = "/";
+  place.status = "all";
+  place.project = null;
 });
 
 function renderSidebar(role: "admin" | "member" | "guest" = "member") {
@@ -47,6 +34,7 @@ function renderSidebar(role: "admin" | "member" | "guest" = "member") {
     role,
     orgId: "org_active",
     userId: "user_1",
+    workspaces: [{ id: "org_active", name: "Saved workspace name" }],
   })));
 }
 
@@ -62,34 +50,8 @@ function renderedGroup(html: string, label: string): string | undefined {
   }
 }
 
-describe("sidebar workspace display freshness", () => {
-  it("renders the active Clerk organization's current name instead of the stale server name", () => {
-    const html = renderSidebar();
-    expect(html).toContain("Renamed workspace");
-    expect(html).not.toContain("Saved workspace name");
-  });
-
-  it("reflects a rename on the next render instead of retaining the earlier name", () => {
-    expect(renderSidebar()).toContain("Renamed workspace");
-    clerk.resource.organization = { id: "org_active", name: "Latest workspace name" };
-    const html = renderSidebar();
-    expect(html).toContain("Latest workspace name");
-    expect(html).not.toContain("Renamed workspace");
-  });
-
-  it.each([
-    { isLoaded: false, organization: undefined },
-    { isLoaded: false, organization: { id: "org_active", name: "Not loaded yet" } },
-    { isLoaded: true, organization: null },
-    { isLoaded: true, organization: { id: "org_other", name: "Wrong workspace" } },
-    { isLoaded: true, organization: { id: "org_active", name: "   " } },
-  ])("retains the safe server fallback when the matching resource is unavailable: %j", (resource) => {
-    clerk.resource = resource;
-    const html = renderSidebar();
-    expect(html).toContain("Saved workspace name");
-    expect(html).not.toContain("Wrong workspace");
-    expect(html).not.toContain("Not loaded yet");
-  });
+it("shows the server's workspace name", () => {
+  expect(renderSidebar()).toContain("Saved workspace name");
 });
 
 // Keep the persistent navigation discoverable to assistive technology.
@@ -110,13 +72,13 @@ describe("approved Requests navigation", () => {
   it("shows the real account actions in the identity menu rather than duplicate Settings rows", () => {
     const html = renderSidebar();
     expect(renderedGroup(html, "Settings")).toBeUndefined();
-    expect(renderedGroup(html, "Renamed workspace")).toBeDefined();
+    expect(renderedGroup(html, "Saved workspace name")).toBeDefined();
     expect(html).toContain('aria-label="Account menu, Test Member"');
     expect(html).not.toContain('href="/settings/members"');
     expect(html).not.toContain('href="/settings/profile"');
   });
   it("keeps the workspace Requests destination current inside a status-filtered detail", () => {
-    clerk.pathname = "/requests/example"; clerk.status = "in_progress";
+    place.pathname = "/requests/example"; place.status = "in_progress";
     const html = renderSidebar();
     expect(html).toMatch(/<a(?=[^>]*href="\/")(?=[^>]*aria-current="page")[^>]*>/);
   });
@@ -128,7 +90,7 @@ describe("approved Requests navigation", () => {
   });
 
   it.each([null, "", "not-a-status"])("falls back to All Requests for missing or invalid status: %j", (status) => {
-    clerk.status = status;
+    place.status = status;
     const html = renderSidebar();
     expect(html).toMatch(/<a(?=[^>]*href="\/")(?=[^>]*aria-current="page")[^>]*>/);
     expect(html).not.toMatch(/<a(?=[^>]*href="\/\?status=[^"]+")(?=[^>]*aria-current="page")[^>]*>/);
@@ -138,7 +100,7 @@ describe("approved Requests navigation", () => {
     ["guest", "My Requests", "All Requests"],
     ["member", "All Requests", "My Requests"],
     ["admin", "All Requests", "My Requests"],
-  ] as const)("uses the correct Requests label for Clerk %s", (role, label, otherLabel) => {
+  ] as const)("uses the correct Requests label for a workspace %s", (role, label, otherLabel) => {
     const html = renderSidebar(role);
     expect(html).toContain(label);
     expect(html).not.toContain(otherLabel);
@@ -146,7 +108,7 @@ describe("approved Requests navigation", () => {
 });
 
 it("links accessible Projects and retains the Project selection within a Request detail", () => {
-  clerk.status = "in_progress"; clerk.project = "11111111-1111-4111-8111-111111111111";
+  place.status = "in_progress"; place.project = "11111111-1111-4111-8111-111111111111";
   const html = renderToStaticMarkup(createElement(AppProviders, null, createElement(SidebarView, {
     workspaceName: "Lane Studio", fullName: "Test Member", email: "member@example.test",
     role: "member", pathname: "/requests/example",
@@ -161,7 +123,7 @@ it("links accessible Projects and retains the Project selection within a Request
 
 // #159: the Impact Dashboard is one entry in the workspace navigation, for every role (a guest sees only their own work on it).
 describe("Impact Dashboard navigation (#159)", () => {
-  it.each(["admin", "member", "guest"] as const)("lists the Impact screen in the workspace navigation for Clerk %s", (role) => {
+  it.each(["admin", "member", "guest"] as const)("lists the Impact screen in the workspace navigation for a workspace %s", (role) => {
     const html = renderSidebar(role);
     expect(html).toMatch(/<a(?=[^>]*href="\/impact")[^>]*>/);
     expect(html).toContain("Impact");

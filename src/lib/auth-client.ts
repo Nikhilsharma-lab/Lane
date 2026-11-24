@@ -1,7 +1,7 @@
 /**
  * #377 (spec #376): Lane's browser auth client. One Better Auth client from its browser entry, with the email-code
- * and organization client plugins, talking to increment 3's server at `/api/auth`. Dormant: only Lane's new auth
- * screens and their tests import it (eslint.config.mjs), and no route mounts those until increment 5.
+ * and organization client plugins, talking to increment 3's server at `/api/auth`. Only Lane's new auth screens, the
+ * app frame's session request (#389) and their tests import it (eslint.config.mjs).
  *
  * Each call answers an `AuthAnswer` (`auth-answer.ts`): `{ ok: true, data }` or `{ ok: false, code }`. The code is read
  * with `authErrorCode`, and a fetch that throws (offline, blocked) is a failure with no code, which `authErrorCopy`
@@ -87,6 +87,11 @@ export function signInWithGoogle({ returnTo, errorTo }: { returnTo: string; erro
 
 export function signOut() {
   return answer(() => client.signOut())
+}
+
+/** Asks for this browser's session. Better Auth renews it, and its cookie, when it is more than a day old. */
+export function requestSession() {
+  return answer(() => client.getSession())
 }
 
 export function acceptInvitation(invitationId: string) {

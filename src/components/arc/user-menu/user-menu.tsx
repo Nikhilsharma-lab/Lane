@@ -393,7 +393,7 @@ export function UserMenu({ user, status: statusProp, defaultStatus = "available"
     setRetryId(null);
     try {
       await workspaces.onSelect(workspaceId);
-      // Clerk may resolve setActive before the new workspace document replaces this one.
+      // The switch may resolve before the new workspace document replaces this one.
       if (mounted.current && session.current === started && !controlledPendingId.current) close(true, true);
     } catch (failure) {
       if (mounted.current) { setWorkspaceError(`Couldn’t switch workspace. ${failureWords(failure, CHECK_CONNECTION)}`); setRetryId(worthRetrying(failure) ? workspaceId : null); }

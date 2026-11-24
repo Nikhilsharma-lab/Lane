@@ -4,7 +4,6 @@ import { AppProviders } from "@/test/app-providers";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ isLoaded: false }), useClerk: () => ({ signOut: vi.fn() }) }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
   // The list view the layout reads from the URL: In progress in the Website Project.

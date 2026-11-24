@@ -19,26 +19,30 @@ const CLERK_SESSION_DYNAMIC = {
   selector: "ImportExpression[source.value='@clerk/nextjs/server']",
   message: "Import clerkClient statically, and read the session through src/lib/session.ts (#356).",
 };
-// #371: the Better Auth server stays dormant until increment 5 widens this list on purpose. Only the server module,
-// the auth route, the session read (#374) and their tests load Better Auth's server entry points, Lane's server
-// instance or the session read. The browser client entries (better-auth/client, better-auth/react) stay open for
-// the screens.
+// #371: only the server module, the auth route, the session read (#374) and their tests load Better Auth's server
+// entry points, Lane's server instance or the session read. The browser client entries (better-auth/client,
+// better-auth/react) stay open for the screens. #389: Lane's Server Actions reach the instance through its one door,
+// `askAuthServer`, and only those named here may import it.
+const AUTH_SERVER_DOOR_FILES = [
+  "src/app/(app)/workspace-actions.ts",
+];
 const BETTER_AUTH_SESSION_MESSAGE = "Only the session seam (src/lib/session.ts) imports the Better Auth session read; read the session through it (#387).";
 const BETTER_AUTH_SESSION = { regex: "(^|/)better-auth-session$", message: BETTER_AUTH_SESSION_MESSAGE };
-const BETTER_AUTH_INSTANCE = [
-  {
-    regex: "^better-auth(?!/(client|react|vue|svelte|solid)(/|$))(/.*)?$",
-    message: "Better Auth's server is dormant: only src/lib/auth-server.ts, the auth route and the session read (src/lib/better-auth-session.ts) load it (#371, #374).",
-  },
-  { regex: "(^|/)auth-server$", message: "Better Auth's server instance is dormant: only the auth route uses it (#371)." },
-];
+const BETTER_AUTH_PACKAGE = {
+  regex: "^better-auth(?!/(client|react|vue|svelte|solid)(/|$))(/.*)?$",
+  message: "Better Auth's server is dormant: only src/lib/auth-server.ts, the auth route and the session read (src/lib/better-auth-session.ts) load it (#371, #374).",
+};
+const AUTH_SERVER_MESSAGE = "Only the auth route, and the Server Actions AUTH_SERVER_DOOR_FILES names (its door, askAuthServer), import Better Auth's server instance (#371, #389).";
+const AUTH_SERVER = { regex: "(^|/)auth-server$", message: AUTH_SERVER_MESSAGE };
+const AUTH_SERVER_DOOR = { ...AUTH_SERVER, allowImportNames: ["askAuthServer"] };
+const BETTER_AUTH_INSTANCE = [BETTER_AUTH_PACKAGE, AUTH_SERVER];
 const BETTER_AUTH_SERVER = [...BETTER_AUTH_INSTANCE, BETTER_AUTH_SESSION];
 const BETTER_AUTH_SERVER_DYNAMIC = [
   {
     selector: "ImportExpression[source.value=/^better-auth/]",
     message: "Better Auth's server is dormant: only src/lib/auth-server.ts, the auth route and the session read (src/lib/better-auth-session.ts) load it (#371, #374).",
   },
-  { selector: "ImportExpression[source.value=/auth-server$/]", message: "Better Auth's server instance is dormant: only the auth route uses it (#371)." },
+  { selector: "ImportExpression[source.value=/auth-server$/]", message: AUTH_SERVER_MESSAGE },
   { selector: "ImportExpression[source.value=/better-auth-session$/]", message: BETTER_AUTH_SESSION_MESSAGE },
 ];
 // #374: the session read joins them. #387: only the session seam imports it (its own block below).
@@ -47,12 +51,13 @@ const BETTER_AUTH_SERVER_FILES = [
   "src/app/api/auth/**/*.ts",
   "src/lib/better-auth-session.ts",
 ];
-// #377: Lane's browser auth client is dormant like the server. Only the new auth screens and their tests import it;
-// the sign-up, reset and invitation screens (#378, #379) live in the same folder, so they need no change here.
-const BROWSER_AUTH_CLIENT_MESSAGE = "Lane's browser auth client is dormant: only the new auth screens in src/components/auth/better-auth and their tests use it (#377)."
+// #377: only the new auth screens and their tests import Lane's browser auth client; the sign-up, reset and
+// invitation screens (#378, #379) live in the same folder, so they need no change here. #389: and the app frame's
+// session request.
+const BROWSER_AUTH_CLIENT_MESSAGE = "Lane's browser auth client is dormant: only the new auth screens in src/components/auth/better-auth, the app frame's session request and their tests use it (#377, #389)."
 const BROWSER_AUTH_CLIENT = { regex: "(^|/)auth-client$", message: BROWSER_AUTH_CLIENT_MESSAGE };
 const BROWSER_AUTH_CLIENT_DYNAMIC = { selector: "ImportExpression[source.value=/auth-client$/]", message: BROWSER_AUTH_CLIENT_MESSAGE };
-const BROWSER_AUTH_CLIENT_USERS = ["src/components/auth/better-auth/**/*.{ts,tsx}"];
+const BROWSER_AUTH_CLIENT_USERS = ["src/components/auth/better-auth/**/*.{ts,tsx}", "src/components/shell/session-keeper.ts"];
 // #376 story 99: the one route rule. Increment 4's views are dormant until increment 5 mounts them, so nothing under
 // the app directory (a route, page or layout) imports them, statically or dynamically. Each entry names its views;
 // a ticket adds its own entry here.
@@ -155,7 +160,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/session.ts"],
     rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_INSTANCE, BROWSER_AUTH_CLIENT] }] },
   },
-  // #377: the new auth screens and their tests may import the browser auth client; every other rule still applies.
+  // #377, #389: the new auth screens and their tests, and the app frame's session request, may import the browser auth client; every other rule still applies.
   {
     files: BROWSER_AUTH_CLIENT_USERS,
     ignores: ["src/**/*.test.ts"],
@@ -184,6 +189,17 @@ const eslintConfig = defineConfig([
     rules: {
       "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC, ...DORMANT_VIEWS_DYNAMIC],
       "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, ...DORMANT_VIEWS_IMPORTS] }],
+    },
+  },
+  // #389: the Server Actions that need Lane's door to Better Auth import it, and nothing else of the server module.
+  // Every other rule the block above gives them stays. Last, so it decides for them.
+  {
+    files: AUTH_SERVER_DOOR_FILES,
+    rules: {
+      "no-restricted-imports": ["error", {
+        paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION],
+        patterns: [BETTER_AUTH_PACKAGE, AUTH_SERVER_DOOR, BETTER_AUTH_SESSION, BROWSER_AUTH_CLIENT, ...DORMANT_VIEWS_IMPORTS],
+      }],
     },
   },
   // Override default ignores of eslint-config-next.
