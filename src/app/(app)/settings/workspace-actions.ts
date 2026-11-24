@@ -5,6 +5,7 @@ import * as z from "zod";
 import type { AuthAnswer } from "@/lib/auth-answer";
 import { guardActiveMember, type MemberAuth } from "@/lib/auth-guard";
 import { askAuthServer } from "@/lib/auth-server";
+import { inMembershipTurn } from "@/lib/membership-turn";
 import { managesWorkspace } from "@/lib/role-rules";
 
 /**
@@ -41,6 +42,7 @@ export async function renameWorkspace(data: { name: string }, context: { orgId: 
 export async function leaveWorkspace(context: { orgId: string }): Promise<AuthAnswer> {
   const member = await memberHere(context.orgId);
   if ("ok" in member) return member;
-  const left = await askAuthServer((api, asCaller) => api.leaveOrganization({ ...asCaller, body: { organizationId: member.orgId } }));
+  const left = await inMembershipTurn(member.orgId, () =>
+    askAuthServer((api, asCaller) => api.leaveOrganization({ ...asCaller, body: { organizationId: member.orgId } })));
   return left.ok ? { ok: true } : left;
 }

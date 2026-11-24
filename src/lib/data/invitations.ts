@@ -6,13 +6,13 @@ import { alias } from "drizzle-orm/pg-core";
 import type { Invitation, InvitationStatus, InvitationViewer } from "@/components/auth/better-auth/invitation-flow";
 import type { PendingWorkspaceInvitation } from "@/components/auth/better-auth/onboarding-flow";
 import { db, invitation, profiles, workspaces } from "@/db";
-import { isWorkspacePermission } from "@/lib/role-rules";
+import { laneRole } from "@/lib/role-rules";
 
 /**
  * #391: the person's email and the invitations waiting for it, newest first, in one query. Only a verified email has
  * any (#333 Q12), matched ignoring case; only pending, unexpired ones with one of Lane's roles count.
  */
-export async function loadPendingInvitations(userId: string): Promise<{ email: string; invitations: PendingWorkspaceInvitation[] }> {
+export async function loadInvitationsFor(userId: string): Promise<{ email: string; invitations: PendingWorkspaceInvitation[] }> {
   const inviter = alias(profiles, "inviter");
   const rows = await db
     .select({ email: profiles.email, id: invitation.id, role: invitation.role, workspace: workspaces.name, inviter: inviter.fullName })
@@ -29,8 +29,10 @@ export async function loadPendingInvitations(userId: string): Promise<{ email: s
     .orderBy(desc(invitation.createdAt), desc(invitation.id));
   return {
     email: rows[0]?.email ?? "",
-    invitations: rows.flatMap(({ id, role, workspace, inviter: name }) =>
-      id !== null && workspace !== null && name !== null && role && isWorkspacePermission(role) ? [{ id, role, workspace, inviter: name }] : []),
+    invitations: rows.flatMap(({ id, role: stored, workspace, inviter: name }) => {
+      const role = laneRole(stored);
+      return id !== null && workspace !== null && name !== null && role ? [{ id, role, workspace, inviter: name }] : [];
+    }),
   };
 }
 
@@ -68,9 +70,10 @@ export async function loadInvitation(id: string, viewerId: string | null): Promi
     .limit(1);
   if (!row) return null;
 
-  const { email, role, workspace, workspaceId } = row;
+  const { email, workspace, workspaceId } = row;
+  const role = laneRole(row.role);
   const status = Object.hasOwn(STATUSES, row.status) ? STATUSES[row.status] : null;
-  if (!status || !role || !isWorkspacePermission(role)) return null;
+  if (!status || !role) return null;
   return {
     invitation: { id, email, role, workspace, inviter: row.inviter, expiresAt: row.expiresAt.toISOString(), status: status === "pending" && row.expired ? "expired" : status },
     viewer: row.viewerEmail === null ? { signedIn: false, hasAccount: row.hasAccount } : { signedIn: true, email: row.viewerEmail },

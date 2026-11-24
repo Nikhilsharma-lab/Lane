@@ -1,6 +1,6 @@
 /* Search ranking adapted from licensed Arc Pro Settings Command, for Lane only. */
 import type { SettingDefinition, Result } from "@/components/arc/blocks/settings-command/settings-command";
-import { canChangeThings, isWorkspacePermission, managesWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "@/lib/role-rules";
+import { canChangeThings, laneRole, managesWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "@/lib/role-rules";
 
 /** `href` marks a section with a page of its own (it loads its own data); every other section shows on Profile's page. */
 /** `membersOnly` hides a section from Guests; `changersOnly` also from Viewers (#210), who manage no people and get no Needs-you items. */
@@ -44,7 +44,7 @@ export const settingsCatalog: SettingsEntry[] = [
 ];
 
 export function availableSettings(role: string, { billingEnforced = false }: SettingsSwitches = {}): SettingsEntry[] {
-  const known = isWorkspacePermission(role) ? role : null;
+  const known = laneRole(role);
   const admin = !!known && managesWorkspace(known);
   return settingsCatalog.filter(entry => (!entry.adminOnly || admin) && (!entry.membersOnly || role !== "guest") && (!entry.changersOnly || (!!known && canChangeThings(known))))
     .map(entry => !admin && entry.nonAdminDescription ? { ...entry, description: entry.nonAdminDescription } : entry)

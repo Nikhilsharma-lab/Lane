@@ -6,7 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db, requests } from "@/db";
 import {
   workspaceRoster,
-  type WorkspacePerson,
+  type RosterPerson,
 } from "./workspace-roster";
 import { guardCanChange, type MemberAuth } from "./auth-guard";
 import type { RequestChangeContext } from "./request-reviewer-rules";
@@ -56,7 +56,7 @@ export type RequestChange<Extra> = {
    * update; `result` joins the success answer. */
   apply: (
     tx: RequestTx,
-    step: { request: StoredRequest; auth: MemberAuth; roster: WorkspacePerson[]; revision: number; fingerprint: string },
+    step: { request: StoredRequest; auth: MemberAuth; roster: RosterPerson[]; revision: number; fingerprint: string },
   ) => Promise<{ set?: Partial<typeof requests.$inferInsert>; result?: Extra } | void>;
 };
 

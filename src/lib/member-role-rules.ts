@@ -1,7 +1,7 @@
 import * as z from "zod"
 import type { WorkspacePermission } from "./auth-guard"
 import { emailAddressProblem } from "./email-address-rules"
-import { canChangeThings, canContribute, canCreateRequests, managesWorkspace, readsWholeWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "./role-rules"
+import { canChangeThings, canContribute, canCreateRequests, FREE_ROLES, isPaidSeat, managesWorkspace, PAID_ROLES, readsWholeWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "./role-rules"
 
 /**
  * Settings → Members (#210), safe in the browser: the roles an Admin can give, what each one means, and the
@@ -17,9 +17,6 @@ export const ROLE_DESCRIPTIONS: Record<WorkspacePermission, string> = {
   guest: "Free. Files Requests and sees and comments on only their own.",
   viewer: "Free. Reads everything a Member reads, including Impact, and changes nothing.",
 }
-
-/** #215: Admins and Members are the paid seats; Guests and Viewers are free. */
-export const isPaidSeat = (role: WorkspacePermission | null): boolean => role === "admin" || role === "member"
 
 /** Whether giving someone `to` (who has `from` now, or nothing yet) adds a paid seat: a Guest or Viewer made a Member or Admin, or a new one. */
 export const addsPaidSeat = (from: WorkspacePermission | null, to: WorkspacePermission): boolean => isPaidSeat(to) && !isPaidSeat(from)
@@ -49,8 +46,6 @@ const inviteEmailSchema = z.string().trim().toLowerCase().superRefine((email, co
   if (problem) context.addIssue({ code: "custom", message: problem })
 })
 
-const PAID_ROLES = WORKSPACE_ROLES.filter(isPaidSeat)
-const FREE_ROLES = WORKSPACE_ROLES.filter(role => !isPaidSeat(role))
 const plural = (roles: WorkspacePermission[]) => roles.map(role => `${ROLE_NAMES[role]}s`).join(" and ")
 
 /** #288 (D28): the free roles, named for the invite's seat note and Billing's seats. */

@@ -5,11 +5,9 @@ import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db, invitation, member, profiles } from "@/db";
 import type { WorkspacePermission, WorkspaceScope } from "@/lib/auth-guard";
 import type { PendingInvitation, WorkspaceMember } from "@/lib/member-role-rules";
-import { isWorkspacePermission, managesWorkspace } from "@/lib/role-rules";
+import { laneRole, managesWorkspace } from "@/lib/role-rules";
 
 export type MemberLists = { people: WorkspaceMember[]; invitations: PendingInvitation[] };
-
-const laneRole = (role: string | null) => (role !== null && isWorkspacePermission(role) ? role : null);
 
 async function loadPeople({ orgId }: WorkspaceScope): Promise<WorkspaceMember[]> {
   const rows = await db
@@ -22,7 +20,7 @@ async function loadPeople({ orgId }: WorkspaceScope): Promise<WorkspaceMember[]>
 }
 
 /** An expired invitation isn't waiting any more: its link no longer works, and the address can be invited again. */
-async function loadPendingInvitations({ orgId }: WorkspaceScope): Promise<PendingInvitation[]> {
+async function loadWorkspaceInvitations({ orgId }: WorkspaceScope): Promise<PendingInvitation[]> {
   const rows = await db
     .select({ id: invitation.id, email: invitation.email, role: invitation.role })
     .from(invitation)
@@ -36,6 +34,6 @@ async function loadPendingInvitations({ orgId }: WorkspaceScope): Promise<Pendin
  * pending invitations, which only an Admin is given. The caller has checked that they may see Members.
  */
 export async function loadMembers(workspace: WorkspaceScope, viewerRole: WorkspacePermission): Promise<MemberLists> {
-  const [people, invitations] = await Promise.all([loadPeople(workspace), managesWorkspace(viewerRole) ? loadPendingInvitations(workspace) : []]);
+  const [people, invitations] = await Promise.all([loadPeople(workspace), managesWorkspace(viewerRole) ? loadWorkspaceInvitations(workspace) : []]);
   return { people, invitations };
 }

@@ -17,10 +17,18 @@ export function isWorkspacePermission(value: string): value is WorkspacePermissi
   return (WORKSPACE_ROLES as readonly string[]).includes(value)
 }
 
+/** The Lane role a stored role names; null for none, or one Lane doesn't know, which grants nothing. */
+export const laneRole = (stored: string | null | undefined): WorkspacePermission | null => (stored && isWorkspacePermission(stored) ? stored : null)
+
 /** Admin or Member. */
 export function canChangeThings(role: WorkspacePermission): boolean {
   return role === "admin" || role === "member"
 }
+
+/** #215: the paid seats are the Admins and Members, who can change things; Guests and Viewers are free. */
+export const isPaidSeat = (role: WorkspacePermission | null): boolean => role !== null && canChangeThings(role)
+export const PAID_ROLES = WORKSPACE_ROLES.filter(isPaidSeat)
+export const FREE_ROLES = WORKSPACE_ROLES.filter((role) => !isPaidSeat(role))
 
 /** Admin only: invites people, changes roles and runs the workspace's settings (Billing, Slack). */
 export function managesWorkspace(role: WorkspacePermission): boolean {

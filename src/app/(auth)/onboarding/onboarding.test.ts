@@ -11,7 +11,7 @@ import { rememberLastUsed } from "@/app/(app)/workspace-actions"
 import { queryCounter } from "@/db"
 import { RETURN_ADDRESS_HEADER } from "@/lib/auth-return-address"
 import { readFreeRequests } from "@/lib/billing"
-import { loadPendingInvitations } from "@/lib/data/invitations"
+import { loadInvitationsFor } from "@/lib/data/invitations"
 import { addressAfterArriving } from "@/lib/onboarding-address"
 import { readSession } from "@/lib/session"
 import { AuthBrowser, authRouteTestFile, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
@@ -131,7 +131,7 @@ describe("a person's pending invitations", () => {
     const { userId, person } = await signedIn(outbound, "counted")
     await invite(person.email, "Acme Design")
     await invite(person.email, "Northwind")
-    const { result, statements } = await queryCounter.measure(() => loadPendingInvitations(userId))
+    const { result, statements } = await queryCounter.measure(() => loadInvitationsFor(userId))
     expect(result.invitations).toHaveLength(2)
     expect(statements).toBe(1)
   })

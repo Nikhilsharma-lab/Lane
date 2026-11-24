@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { BetterAuthSignOut } from "@/components/auth/better-auth/sign-out";
-import { loadPendingInvitations } from "@/lib/data/invitations";
+import { loadInvitationsFor } from "@/lib/data/invitations";
 import { getSession, getWorkspace } from "@/lib/ensure-workspace";
 import { asksForRoleStep } from "@/lib/onboarding-address";
 import { timePage, timed } from "@/lib/request-timings";
@@ -31,6 +31,6 @@ export default async function OnboardingPage({ searchParams }: Props) {
     return <RoleForm headerAction={<BetterAuthSignOut />} />;
   }
 
-  const [{ email, invitations }, workspaceLeft] = await timed("data", () => Promise.all([loadPendingInvitations(session.userId), readWorkspaceLeft()]));
+  const [{ email, invitations }, workspaceLeft] = await timed("data", () => Promise.all([loadInvitationsFor(session.userId), readWorkspaceLeft()]));
   return <WorkspaceStep email={email} invitations={invitations} removedFrom={workspaceLeft ?? undefined} />;
 }

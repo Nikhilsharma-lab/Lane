@@ -12,7 +12,7 @@ import {
   type RequestChangeContext,
   type Reviewer,
 } from "@/lib/request-reviewer-rules";
-import { workspaceRoster, type WorkspacePerson } from "@/lib/workspace-roster";
+import { workspaceRoster, type RosterPerson } from "@/lib/workspace-roster";
 import { appendReviewers, notifyReviewers, reviewerViews } from "@/lib/request-reviewers";
 import {
   changeRequest,
@@ -34,7 +34,7 @@ function changeReviewers(
   context: RequestChangeContext,
   input: unknown,
   kind: "reviewers_added" | "reviewer_removed" | "reviewed",
-  rule: (tx: RequestTx, request: StoredRequest, reviewersRow: ReviewersRow | undefined, auth: MemberAuth, roster: WorkspacePerson[]) => Promise<void>,
+  rule: (tx: RequestTx, request: StoredRequest, reviewersRow: ReviewersRow | undefined, auth: MemberAuth, roster: RosterPerson[]) => Promise<void>,
 ) {
   return changeRequest(context, {
     fingerprint: { requestId: context.requestId, kind, input },

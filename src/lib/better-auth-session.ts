@@ -5,7 +5,7 @@ import { and, asc, desc, eq, gt, notExists, or, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { db, member, profiles, session, workspaces } from "@/db"
 import { betterAuthServer } from "./feature-switches"
-import { isWorkspacePermission } from "./role-rules"
+import { laneRole } from "./role-rules"
 import type { Session, SignedInSession } from "./session"
 import { sessionCookie, type RequestCookies } from "./session-cookies"
 
@@ -39,7 +39,7 @@ export async function readBetterAuthSession(cookies: RequestCookies): Promise<Se
     )
     .limit(1)
   if (!row) return null
-  return { userId: row.userId, orgId: row.orgId, role: row.role && isWorkspacePermission(row.role) ? row.role : null }
+  return { userId: row.userId, orgId: row.orgId, role: laneRole(row.role) }
 }
 
 /**

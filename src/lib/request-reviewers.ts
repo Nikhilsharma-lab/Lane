@@ -5,7 +5,7 @@ import { db, profiles } from "@/db";
 import { notify } from "./notify";
 import type { MemberAuth } from "./auth-guard";
 import { MAX_REVIEWERS, PAID_SEATS_ONLY, reviewerKey, reviewStateOf, PROFILE_ROLE_LABELS, type ReviewerIdentity, type Reviewer } from "./request-reviewer-rules";
-import { workspaceRoster, type WorkspacePerson } from "./workspace-roster";
+import { workspaceRoster, type RosterPerson } from "./workspace-roster";
 import { insist, type RequestTx } from "./request-change-store";
 import { canChangeThings } from "./role-rules";
 
@@ -35,7 +35,7 @@ export async function appendReviewers({
   note: string;
   auth: MemberAuth;
   requesterId: string;
-  roster: WorkspacePerson[];
+  roster: RosterPerson[];
 }): Promise<{ reviewers: Reviewer[]; asked: ReviewNotification[] }> {
   const reviewers = [...existing];
   const asked: ReviewNotification[] = [];

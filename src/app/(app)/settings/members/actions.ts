@@ -12,7 +12,8 @@ import { billingEnforced } from "@/lib/feature-switches";
 import {
   addsPaidSeat, CONFIRM_PAID_SEAT, inviteInputSchema, removeMemberInputSchema, revokeInvitationInputSchema, roleChangeInputSchema,
 } from "@/lib/member-role-rules";
-import { isWorkspacePermission, managesWorkspace } from "@/lib/role-rules";
+import { inMembershipTurn } from "@/lib/membership-turn";
+import { laneRole, managesWorkspace } from "@/lib/role-rules";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 
 /**
@@ -86,11 +87,14 @@ export async function changeMemberRole(data: { userId: string; role: string; con
   // An Admin can't demote themselves, so a workspace always keeps the Admin who could undo a change.
   if (userId === auth.userId) return { error: "You can’t change your own role. Ask another Admin to do it." };
 
-  const target = await memberRow(auth.orgId, userId);
-  if (!target) return { error: "That person isn’t in this workspace any more. Reload to see who is." };
-  if (unconfirmedSeat(isWorkspacePermission(target.role) ? target.role : null, role, confirmedPaidSeat)) return { error: CONFIRM_PAID_SEAT };
-  const answer = await askAuthServer((api, asCaller) => api.updateMemberRole({ ...asCaller, body: { organizationId: auth.orgId, memberId: target.id, role } }));
-  if (!answer.ok) return refusal(answer.code, "The role couldn’t be changed. Try again.");
+  const refused = await inMembershipTurn(auth.orgId, async () => {
+    const target = await memberRow(auth.orgId, userId);
+    if (!target) return { error: "That person isn’t in this workspace any more. Reload to see who is." };
+    if (unconfirmedSeat(laneRole(target.role), role, confirmedPaidSeat)) return { error: CONFIRM_PAID_SEAT };
+    const answer = await askAuthServer((api, asCaller) => api.updateMemberRole({ ...asCaller, body: { organizationId: auth.orgId, memberId: target.id, role } }));
+    return answer.ok ? null : refusal(answer.code, "The role couldn’t be changed. Try again.");
+  });
+  if (refused) return refused;
   // The role is changed either way; a seat change the provider missed is made by the next check.
   await followSeatChanges(auth);
   changed();
@@ -125,9 +129,11 @@ export async function removeMember(data: { userId: string }, context: { orgId: s
   const { userId } = parsed.data;
   if (userId === auth.userId) return refused("CANNOT_REMOVE_YOURSELF");
 
-  const target = await memberRow(auth.orgId, userId);
-  if (!target) return refused("MEMBER_NOT_FOUND");
-  const answer = await askAuthServer((api, asCaller) => api.removeMember({ ...asCaller, body: { organizationId: auth.orgId, memberIdOrEmail: target.id } }));
+  const answer = await inMembershipTurn<AuthAnswer>(auth.orgId, async () => {
+    const target = await memberRow(auth.orgId, userId);
+    if (!target) return refused("MEMBER_NOT_FOUND");
+    return askAuthServer((api, asCaller) => api.removeMember({ ...asCaller, body: { organizationId: auth.orgId, memberIdOrEmail: target.id } }));
+  });
   if (!answer.ok) return answer;
   await followSeatChanges(auth);
   changed();
