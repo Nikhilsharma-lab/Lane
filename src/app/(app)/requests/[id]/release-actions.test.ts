@@ -406,18 +406,19 @@ it('does not ask for a value before release on a verified check', async () => {
     expect(await api.readRequestRelease(id, { orgId })).toMatchObject({ recordedValueBefore: null });
 });
 
-it('retains the operation id and workspace while a real expired release action renews once', async () => {
+it('records nothing while the session is ended, and the same operation once the person signs in again', async () => {
     const api = await import('./release-actions');
     const id = await fixture();
     const ctx = context(id);
-    const attempts: typeof ctx[] = [];
+    const run = vi.fn(() => api.changeRequestRelease(ctx, release));
     session.userId = '';
-    const result = await callAction(async () => {
-        attempts.push({ ...ctx });
-        return api.changeRequestRelease(ctx, release);
-    }, { current: async () => 'old', renew: async () => { session.userId = 'release_pm'; return 'renewed'; } });
+    expect(await callAction(run)).toEqual({ error: 'Your session ended. Sign in again to continue.', sessionExpired: true });
+    expect(run).toHaveBeenCalledTimes(1);
+    const [before] = await connection`select release_state from requests where id=${id}`;
+    expect(before.release_state?.history ?? []).toEqual([]);
+    session.userId = 'release_pm';
+    const result = await callAction(run);
     expect(result).toEqual({ success: true, revision: 1 });
-    expect(attempts).toEqual([ctx, ctx]);
     const [row] = await connection`select release_state, agreement_revision from requests where id=${id}`;
     expect(row.agreement_revision).toBe(1);
     expect(row.release_state.history).toHaveLength(1);

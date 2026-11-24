@@ -54,7 +54,7 @@ export type DiscardAttachmentResponse =
   | { success: true; alreadyUploaded?: boolean }
   | { success: false; error: AttachmentActionFailure };
 
-/** Only the initial guard's explicit expiry marker permits session replay. */
+/** Only the initial guard's explicit expiry marker becomes this. */
 function sessionFailure(): AttachmentActionFailure {
   return { code: "session_expired", message: "Your session ended. Sign in again to finish adding this file." };
 }
