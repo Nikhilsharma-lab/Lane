@@ -1,4 +1,11 @@
+---
+status: superseded by ADR-0008
+---
+
 # Clerk owns identity and tenancy
+
+Superseded by [ADR 0008](0008-better-auth-owns-identity-and-tenancy.md). The rest of this record is the decision as made
+on 2026-09-24, kept as history.
 
 Clerk is the only authority for users, sessions, organizations, memberships, roles and invitations; Supabase
 only hosts Postgres and private attachments (clean cutover, 2026-09-24). Lane stores Clerk's `user_*` and
