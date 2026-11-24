@@ -104,7 +104,7 @@ const TRIAGE_FAILURES: Record<TriageFailureKind, IntakeFailure> = {
   provider: { code: "provider", message: REVIEW_UNAVAILABLE },
 };
 
-/** Only the initial guard's explicit expiry marker permits session replay. */
+/** Only the initial guard's explicit expiry marker becomes this. */
 function sessionFailure(): IntakeFailure {
   return { code: "session_expired", message: "Your session ended. Sign in again to continue this Request." };
 }

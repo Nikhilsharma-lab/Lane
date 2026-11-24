@@ -142,21 +142,15 @@ it("keeps a guest's Request and follow-up queries scoped to their own workspace 
   expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn’t load the journey. Try again." });
 });
 
-it("refuses foreign workspaces before loading facts and uses explicit expiry recovery", async () => {
+it("refuses foreign workspaces and an ended session before loading facts", async () => {
   boundary.session.orgId = "foreign";
   expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn’t load the journey. Try again." });
   expect(boundary.queries).toHaveLength(0);
   boundary.session.userId = null;
-  const result = await callAction(() => readRequestJourney(id, context), {
-    current: async () => "stale",
-    renew: async () => {
-      boundary.session = { userId: "viewer", orgId: "org_journey", role: "member" };
-      return "usable";
-    },
-  });
-  expect(result).toHaveProperty("release.revision", 41);
-  expect(boundary.authReads).toBe(3);
-  expect(boundary.primaryReads).toBe(1);
+  const result = await callAction(() => readRequestJourney(id, context));
+  expect(result).toEqual({ error: "Your session ended. Sign in again to continue.", sessionExpired: true });
+  expect(boundary.authReads).toBe(2);
+  expect(boundary.queries).toHaveLength(0);
 });
 
 it("standalone Release avoids follow-up, event and parent queries", async () => {

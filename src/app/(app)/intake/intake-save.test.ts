@@ -12,21 +12,22 @@ afterEach(() => { vi.clearAllMocks(); vi.unstubAllGlobals(); });
 const source = { title: "Customers abandon checkout", description: "Delivery costs are not visible until the final checkout screen.", affectedPeople: "", desiredChange: "", observedEvidence: "", uncertainty: "", usefulLink: "", projectId: null, requestType: null, labelKeys: [], priority: "none", expectedImpact: null } satisfies RequestInput;
 const review = { token: "signed-review", triage: { classification: "problem" as const, reframedProblem: null, extractedSolution: null }, editedProblem: "" };
 const context = { orgId: "workspace" };
-const session = { current: async () => "current", renew: async () => "renewed" };
 const edit = { ...review, requestId: "saved-request", source, original: { ...source, expectedImpact: null, reframedProblem: null, extractedSolution: null }, initialImpact: null,
   noMeasurableImpactReason: null, unchanged: true, savedProblem: null, savedSolution: null, snapshot: "exact-saved-snapshot" };
-const optimistic = <R,>(options: OptimisticOptions<R>) => runOptimistic({ overlay: null, session, refresh: () => { throw new Error("Unexpected refresh"); }, notifyError: () => { throw new Error("Unexpected toast"); } }, options);
+const optimistic = <R,>(options: OptimisticOptions<R>) => runOptimistic({ overlay: null, refresh: () => { throw new Error("Unexpected refresh"); }, notifyError: () => { throw new Error("Unexpected toast"); } }, options);
 
-it("New keeps signed payload and advisory picks through the actual explicit-session recovery", async () => {
-  vi.stubGlobal("Clerk", { session: { getToken: async () => "usable-token" } });
-  vi.mocked(saveRequest).mockResolvedValueOnce({ success: false, error: { code: "session_expired", message: "Changed expiry copy" } }).mockResolvedValueOnce({ success: true, requestId: "saved-request" });
+it("New is sent once when the session ended, and the retry after signing in carries the same signed payload and picks", async () => {
+  const ended = { success: false as const, error: { code: "session_expired" as const, message: "Your session ended. Sign in again to continue this Request." } };
+  vi.mocked(saveRequest).mockResolvedValueOnce(ended).mockResolvedValueOnce({ success: true, requestId: "saved-request" });
   const input = { ...review, offerReviewers: true, reviewers: [{ nominee: { kind: "member" as const, userId: "reviewer" }, name: "Reviewer", email: "reviewer@example.test" }], reviewQuestion: "Any concern?" };
+  await expect(saveNewIntake(input, context)).resolves.toBe(ended);
+  expect(saveRequest).toHaveBeenCalledTimes(1);
   await expect(saveNewIntake(input, context)).resolves.toEqual({ success: true, requestId: "saved-request" });
   expect(vi.mocked(saveRequest).mock.calls).toEqual(Array(2).fill([{ token: "signed-review", editedProblemText: null }, context, { nominees: [{ kind: "member", userId: "reviewer" }], note: "Any concern?" }]));
   expect(runTriage).not.toHaveBeenCalled();
 });
 
-it("New does not replay an ambiguous save or add picks for a Guest", async () => {
+it("New sends an ambiguous save once or add picks for a Guest", async () => {
   vi.mocked(saveRequest).mockRejectedValueOnce(new Error("Response lost after commit"));
   await expect(saveNewIntake({ ...review, offerReviewers: false, reviewers: [], reviewQuestion: "" }, context)).rejects.toThrow("Response lost");
   expect(saveRequest).toHaveBeenCalledExactlyOnceWith({ token: "signed-review", editedProblemText: null }, context, undefined);
@@ -52,7 +53,7 @@ it("Edit waits for the actual same-Request optimistic predecessor and sends noth
   const overlay = store.view(store.getSnapshot());
   const pending = Promise.withResolvers<boolean>();
   overlay.track("saved-request", pending.promise);
-  const saving = saveEditedIntake(edit, context, options => runOptimistic({ overlay, session, refresh: () => {}, notifyError: () => {} }, options));
+  const saving = saveEditedIntake(edit, context, options => runOptimistic({ overlay, refresh: () => {}, notifyError: () => {} }, options));
   pending.resolve(false);
   await expect(saving).resolves.toEqual({ success: false, error: { code: "save_failed", message: "This Request has a pending change. Try again." } });
   expect(saveRequestEdits).not.toHaveBeenCalled();
