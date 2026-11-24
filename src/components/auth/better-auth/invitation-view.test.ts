@@ -2,6 +2,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { AuthAnswer } from "@/lib/auth-answer"
 import { ROLE_NAMES, WORKSPACE_ROLES } from "@/lib/role-rules"
 import { BETTER_AUTH_MESSAGE, fakeAuthFetch, type AuthFetchFake } from "@/test/auth-fetch-fake"
 import { buttonsIn, markupWords, withoutHidden } from "@/test/exposed-markup"
@@ -27,12 +28,13 @@ const invitation: Invitation = {
 const signedInAsSam: InvitationViewer = { signedIn: true, email: SAM }
 const navigate = vi.fn()
 const onJoined = vi.fn()
+const openWorkspace = vi.fn<() => Promise<AuthAnswer>>()
 let auth: AuthFetchFake
 let rendered: string[] = []
 
 /** The flow the view will pick up, made with the view's own props, so the test can drive it before rendering. */
 function mount(props: Partial<Invitation> = {}, viewer: InvitationViewer = signedInAsSam) {
-  const options = { invitation: { ...invitation, ...props }, viewer, onJoined, workspaceAddress: "/w/acme-design" }
+  const options = { invitation: { ...invitation, ...props }, viewer, onJoined, openWorkspace }
   const flow = actual.createInvitationFlow({ ...options, navigate })
   vi.mocked(createInvitationFlow).mockReturnValue(flow)
   const render = () => {
@@ -92,6 +94,16 @@ describe("the invitation page's states (#379, #346)", () => {
     expect(names(html)).toEqual(["Open Acme Design"])
   })
 
+  it("says why Open <workspace> was refused, in a box focus can reach", async () => {
+    openWorkspace.mockResolvedValueOnce({ ok: false, code: "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION" })
+    const { flow, render } = mount({ status: "accepted" })
+    await flow.openWorkspace()
+    const html = render()
+    expect(html).toMatch(/<div[^>]*id="invitation-alert"[^>]*tabindex="-1"|<div[^>]*tabindex="-1"[^>]*id="invitation-alert"/i)
+    expect(read(html)).toContain("You’re no longer in this workspace. Ask one of its Admins to invite you again.")
+    expect(names(html)).toEqual(["Open Acme Design"])
+  })
+
   it.each(["cancelled", "declined"] as const)("says a %s invitation can't be used, asking for a new one", (status) => {
     const html = mount({ status }).render()
     expect(read(html)).toContain("This invitation can’t be used It was cancelled or declined. Ask an Admin of Acme Design for a new one.")
@@ -123,6 +135,8 @@ describe("the invitation page's states (#379, #346)", () => {
     expect(onJoined).toHaveBeenCalledTimes(1)
     const html = render()
     expect(read(html)).toContain("You’re in Acme Design")
+    // #392: only a first workspace leads to the role step, so it promises none.
+    expect(read(html)).not.toContain("role")
     expect(names(html)).toEqual([])
   })
 
