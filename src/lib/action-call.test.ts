@@ -22,6 +22,14 @@ describe("callAction", () => {
     await expect(callAction(run)).rejects.toBe(failure)
     expect(run).toHaveBeenCalledTimes(1)
   })
+  // #400: in the router's own step (a hash change, say) Next discards an action's answer, so its page never shows it.
+  it("sends the action once the event that asked for it is over", async () => {
+    const run = vi.fn(async () => ({ success: true }))
+    const answered = callAction(run)
+    expect(run).not.toHaveBeenCalled()
+    await expect(answered).resolves.toEqual({ success: true })
+    expect(run).toHaveBeenCalledTimes(1)
+  })
   // #260: offline, nothing is sent or queued; the caller gets the shared offline answer.
   it("never calls the action while the browser is offline", async () => {
     vi.stubGlobal("navigator", { onLine: false })

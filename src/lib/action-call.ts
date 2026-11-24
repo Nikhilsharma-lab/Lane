@@ -17,5 +17,8 @@ export function isSessionFailure(outcome: { value: unknown } | { thrown: unknown
 
 export async function callAction<R>(run: () => Promise<R>): Promise<R> {
   if (isOffline()) throw new OfflineError()
+  // After the event that asked: sent inside the router's own step (help's hash change), Next discards the answer and the
+  // page never shows it. Waiting for Clerk's token used to leave this step.
+  await Promise.resolve()
   return run()
 }
