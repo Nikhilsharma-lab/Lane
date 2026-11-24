@@ -52,6 +52,8 @@ describe("the browser auth client's fence", () => {
     "src/components/auth/better-auth/sign-out.tsx",
     // #389: the app frame's session request.
     "src/components/shell/session-keeper.ts",
+    // #394: Settings → Profile's account calls.
+    "src/components/settings/account-calls.ts",
     // #388: the files that mount them.
     "src/app/(auth)/login/page.tsx",
     "src/app/(auth)/reset-password/page.tsx",
@@ -111,6 +113,8 @@ describe("the server door's fence (#389)", () => {
   it.each([
     ACTION,
     "src/app/(app)/settings/members/actions.ts",
+    // #394: Settings → Profile's account changes.
+    "src/app/(app)/settings/profile/account-actions.ts",
   ])("lets a named Server Action import the door: %s", async (filePath) => {
     expect(await refusals(filePath, door)).toEqual([])
   })
@@ -189,8 +193,8 @@ describe("what ships", () => {
     expect(readFileSync("src/components/shell/session-request.ts", "utf8")).not.toMatch(/from ["'][^"']*session-keeper/)
   })
 
-  it("imports the client only from the auth screens and the files that mount them, and the frame's session request", () => {
-    const shipped = sources().filter((path) => !/^src\/(components\/auth\/better-auth|app\/\(auth\))\//.test(path) && !/\.test\.tsx?$/.test(path) && !path.startsWith("src/test/") && path !== "src/components/shell/session-keeper.ts")
+  it("imports the client only from the auth screens and the files that mount them, the frame's session request and Profile's account calls", () => {
+    const shipped = sources().filter((path) => !/^src\/(components\/auth\/better-auth|app\/\(auth\))\//.test(path) && !/\.test\.tsx?$/.test(path) && !path.startsWith("src/test/") && !["src/components/shell/session-keeper.ts", "src/components/settings/account-calls.ts"].includes(path))
     const offenders = shipped.filter((path) => /from ["'][^"']*auth-client["']|import\(["'][^"']*auth-client["']/.test(readFileSync(path, "utf8")))
     expect(offenders).toEqual([])
   })

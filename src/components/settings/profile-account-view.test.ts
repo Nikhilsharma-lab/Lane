@@ -152,6 +152,15 @@ describe("Settings → Profile, Sign-in methods (#380)", () => {
     expect(button(html, "Try again")).toBeUndefined()
   })
 
+  it("offers no Try again when Google can't be disconnected from an old sign-in: only signing in again helps (#394)", async () => {
+    callbacks.onDisconnectGoogle.mockResolvedValue({ ok: false as const, code: "SESSION_NOT_FRESH" })
+    const { account, render } = mount()
+    await account.disconnectGoogle()
+    const html = render()
+    expect(text(html)).toContain("You signed in more than a day ago. Sign out and sign in again, then try this again.")
+    expect(button(html, "Try again")).toBeUndefined()
+  })
+
   it("offers Try again on any other refused Google change", async () => {
     callbacks.onConnectGoogle.mockResolvedValueOnce({ ok: false as const, code: "UNAUTHORIZED" })
     const { account, render } = mount({ methods: { password: true, google: false } })

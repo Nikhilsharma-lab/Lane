@@ -1,4 +1,3 @@
-import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
 import { ProfileForm } from "../profile/profile-form";
 import { ThemePreference } from "../profile/theme-preference";
 import { sharedPanels } from "../profile/shared-panels";
@@ -25,8 +24,7 @@ export default async function MembersPage() {
 
   const panels = await sharedPanels(workspace);
   return <><SettingsCommandAdapter billingEnforced={billingEnforced()} page="members" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection="members" members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
-    account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
-    security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
+    role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
     {...panels} />
     <SettingsEarlySearch /></>;
 }

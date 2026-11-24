@@ -77,6 +77,14 @@ describe("Settings → Profile, Signed-in devices (#380)", () => {
     expect(iphone).not.toContain("Try again")
   })
 
+  it("says a device is already signed out, with no Try again (#394)", async () => {
+    callbacks.onSignOutDevice.mockResolvedValueOnce({ ok: false as const, code: "DEVICE_NOT_FOUND" })
+    const { devices, render } = mount()
+    await devices.signOut(phone)
+    expect(rows(render())[1]).toContain("This device is already signed out. Reload the page to see where you’re signed in now.")
+    expect(button(render(), "Try again")).toBeUndefined()
+  })
+
   it("offers Sign out of all other devices only while another device is signed in", async () => {
     expect(button(render(), "Sign out of all other devices")).toBeDefined()
     expect(button(render({ devices: [thisMac] }), "Sign out of all other devices")).toBeUndefined()

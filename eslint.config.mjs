@@ -26,6 +26,7 @@ const CLERK_SESSION_DYNAMIC = {
 const AUTH_SERVER_DOOR_FILES = [
   "src/app/(app)/workspace-actions.ts",
   "src/app/(app)/settings/members/actions.ts",
+  "src/app/(app)/settings/profile/account-actions.ts",
 ];
 const BETTER_AUTH_SESSION_MESSAGE = "Only the session seam (src/lib/session.ts) imports the Better Auth session read; read the session through it (#387).";
 const BETTER_AUTH_SESSION = { regex: "(^|/)better-auth-session$", message: BETTER_AUTH_SESSION_MESSAGE };
@@ -52,12 +53,12 @@ const BETTER_AUTH_SERVER_FILES = [
   "src/app/api/auth/**/*.ts",
   "src/lib/better-auth-session.ts",
 ];
-// #377: only the auth screens, their tests and (#388) the files that mount them, and (#389) the app
-// frame's session request, import Lane's browser auth client.
-const BROWSER_AUTH_CLIENT_MESSAGE = "Only the auth screens in src/components/auth/better-auth and the files that mount them, and the app frame's session request, import Lane's browser auth client (#377, #388, #389)."
+// #377: only the auth screens, their tests and (#388) the files that mount them, (#389) the app frame's session
+// request and (#394) Settings → Profile's account calls import Lane's browser auth client.
+const BROWSER_AUTH_CLIENT_MESSAGE = "Only the auth screens in src/components/auth/better-auth and the files that mount them, the app frame's session request and Settings → Profile's account calls import Lane's browser auth client (#377, #388, #389, #394)."
 const BROWSER_AUTH_CLIENT = { regex: "(^|/)auth-client$", message: BROWSER_AUTH_CLIENT_MESSAGE };
 const BROWSER_AUTH_CLIENT_DYNAMIC = { selector: "ImportExpression[source.value=/auth-client$/]", message: BROWSER_AUTH_CLIENT_MESSAGE };
-const BROWSER_AUTH_CLIENT_USERS = ["src/components/auth/better-auth/**/*.{ts,tsx}", "src/components/shell/session-keeper.ts"];
+const BROWSER_AUTH_CLIENT_USERS = ["src/components/auth/better-auth/**/*.{ts,tsx}", "src/components/shell/session-keeper.ts", "src/components/settings/account-calls.ts"];
 const AUTH_SCREEN_MOUNTS = ["src/app/(auth)/**/*.{ts,tsx}"];
 // #376 story 99: the one route rule. Increment 4's views are dormant until increment 5 mounts them, so nothing under
 // the app directory (a route, page or layout) imports them, statically or dynamically. Each entry names its views;
@@ -68,12 +69,6 @@ const DORMANT_VIEWS = [
     message: "The workspace name and Leave rows are dormant: no route, page or layout imports them until increment 5 (#381).",
     regex: "(^|/)(workspace-name-row|leave-workspace-row)$",
     selector: "ImportExpression[source.value=/(workspace-name-row|leave-workspace-row)$/]",
-  },
-  // #380: Settings → Profile's account section (profile-account-view, -password, -devices and their controllers).
-  {
-    message: "Settings → Profile's account section is dormant until increment 5 mounts it (#380).",
-    regex: "(^|/)profile-account(-[\\w-]+)?$",
-    selector: "ImportExpression[source.value=/profile-account(-[\\w-]+)?$/]",
   },
 ];
 const DORMANT_VIEWS_IMPORTS = DORMANT_VIEWS.map(({ regex, message }) => ({ regex, message }));
@@ -155,7 +150,7 @@ const eslintConfig = defineConfig([
     files: ["src/lib/session.ts"],
     rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_INSTANCE, BROWSER_AUTH_CLIENT] }] },
   },
-  // #377: the auth screens and their tests, and the app frame's session request (#389), may import the browser auth client; every other rule still applies.
+  // #377: the auth screens and their tests, the app frame's session request (#389) and Settings → Profile's account calls (#394) may import the browser auth client; every other rule still applies.
   {
     files: BROWSER_AUTH_CLIENT_USERS,
     ignores: ["src/**/*.test.ts"],

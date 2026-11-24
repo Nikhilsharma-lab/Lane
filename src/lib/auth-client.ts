@@ -97,6 +97,34 @@ export function requestSession() {
   return answer(() => client.getSession())
 }
 
+/** Renames the signed-in person. */
+export function rename({ name }: { name: string }) {
+  return answer(() => client.updateUser({ name }))
+}
+
+/** Changes the signed-in person's password, ending their other sessions when asked to. */
+export function changePassword({ currentPassword, newPassword, signOutOthers }: { currentPassword: string; newPassword: string; signOutOthers: boolean }) {
+  return answer(() => client.changePassword({ currentPassword, newPassword, revokeOtherSessions: signOutOthers }))
+}
+
+/**
+ * Starts connecting a Google account, as `signInWithGoogle` starts a sign-in. Google comes back to `returnTo`, with
+ * `?error=<code>` when nothing changed.
+ */
+export function connectGoogle({ returnTo }: { returnTo: string }) {
+  return answer(() => client.linkSocial({ provider: "google", callbackURL: returnTo, errorCallbackURL: returnTo }))
+}
+
+/** Disconnects the signed-in person's Google account. One already disconnected elsewhere is a success. */
+export function disconnectGoogle() {
+  return answer<unknown>(async () => {
+    const { data, error } = await client.listAccounts()
+    if (error) return { data, error }
+    const google = data.find(({ providerId }) => providerId === "google")
+    return google ? client.unlinkAccount({ accountId: google.id }) : { data: null, error: null }
+  })
+}
+
 export function acceptInvitation(invitationId: string) {
   return answer(() => client.organization.acceptInvitation({ invitationId }))
 }

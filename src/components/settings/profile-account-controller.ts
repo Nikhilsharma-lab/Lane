@@ -7,7 +7,7 @@ import { authErrorCopy, eachCode, forCode, googleConnectionCode, NEW_PASSWORD_RE
 export type ProfileAccountCallbacks = {
   onSaveName: (name: string) => Promise<AuthAnswer>
   onChangePassword: (change: { currentPassword: string; newPassword: string; signOutOtherDevices: boolean }) => Promise<AuthAnswer>
-  /** Increment 5 runs it as a Server Action (#346): Better Auth sets a first password only on the server. */
+  /** A Server Action (#346): Better Auth sets a first password only on the server. */
   onSetPassword: (newPassword: string) => Promise<AuthAnswer>
   onConnectGoogle: () => Promise<AuthAnswer>
   onDisconnectGoogle: () => Promise<AuthAnswer>
@@ -139,8 +139,8 @@ export function createProfileAccount(initial: ProfileAccountCallbacks & { name: 
     set({ google: { busy, problem: null }, status: "" })
     const answer = await settle(run)
     if (answer.ok) { set({ google: { busy: null, problem: null }, status: success }); return }
-    // The last sign-in method can't go, so sending it again can't help.
-    const retry = answer.code === "FAILED_TO_UNLINK_LAST_ACCOUNT" ? undefined : () => { void google(busy, run, success) }
+    // The last sign-in method can't go, and an old sign-in needs a new one, so sending it again can't help.
+    const retry = answer.code === "FAILED_TO_UNLINK_LAST_ACCOUNT" || answer.code === "SESSION_NOT_FRESH" ? undefined : () => { void google(busy, run, success) }
     set({ google: { busy: null, problem: { line: authErrorCopy(answer.code), retry } } })
   }
 }
