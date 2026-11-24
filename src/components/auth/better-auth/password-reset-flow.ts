@@ -38,9 +38,8 @@ type Options = {
 }
 
 /**
- * #378 (#376 "Forgot and reset"): the forgot and reset screen's state, made once per mount, beside today's Clerk
- * recovery flow. Two steps in one flow: the reset code is asked for, then saved with a new password, and the flow
- * signs in with it. Both calls need the human check. Neither the code nor the password is ever in its state: each is
+ * #378 (#376 "Forgot and reset"): the forgot and reset screen's state, made once per mount. Two steps in one
+ * flow: the reset code is asked for, then saved with a new password, and the flow signs in with it. Both calls need the human check. Neither the code nor the password is ever in its state: each is
  * passed to the call that sends it, and the screen drops them after.
  */
 export function createPasswordResetFlow({ email = "", navigate, humanCheck = createHumanCheck(), now = Date.now }: Options) {

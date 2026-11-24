@@ -22,7 +22,7 @@ export const CODE_INPUT = `#${CODE_FIELD_ID} input`
 
 /**
  * #290 D12: the seconds change on screen only. The button's name stays the action while it waits, and the words on
- * screen start with that name (WCAG 2.5.3), as `password-recovery-view.tsx` does.
+ * screen start with that name (WCAG 2.5.3).
  */
 export function Countdown({ action, seconds }: { action: string; seconds: number }) {
   if (seconds === 0) return action

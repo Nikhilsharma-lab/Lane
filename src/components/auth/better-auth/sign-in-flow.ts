@@ -1,6 +1,6 @@
 import * as auth from "@/lib/auth-client"
 import { CODE_MISSING, isWholeCode } from "@/lib/auth-code-rules"
-import { authErrorCopy, CODE_REFUSALS, eachCode } from "@/lib/auth-error-copy"
+import { CODE_REFUSALS, eachCode, GOOGLE_FAILED } from "@/lib/auth-error-copy"
 import { safeReturnAddress } from "@/lib/auth-return-address"
 import { emailAddressProblem } from "@/lib/email-address-rules"
 import { signInPage } from "./auth-addresses"
@@ -36,7 +36,7 @@ type Options = {
   email?: string
   /** Where to go after signing in; anything but a path within Lane becomes `/`. */
   returnTo?: string
-  /** The `error` Google's redirect brought back to this screen. */
+  /** The `error` Google's redirect brought back to this screen. Only Google's redirect puts one here, so any code gets its line. */
   errorCode?: string
   /** Where the screen opens; email and password unless told otherwise. */
   start?: SignInStart
@@ -57,7 +57,7 @@ export function createSignInFlow({ email = "", returnTo, errorCode, start = "pas
     step: start,
     email,
     fieldErrors: {},
-    alert: errorCode ? { message: authErrorCopy(errorCode), offer: null } : null,
+    alert: errorCode ? { message: GOOGLE_FAILED, offer: null } : null,
     pending: null,
     nextSendAt: 0,
   }, {

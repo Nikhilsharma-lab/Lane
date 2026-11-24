@@ -15,7 +15,7 @@ export const isWholeCode = (code: string) => new RegExp(`^\\d{${CODE_LENGTH}}$`)
 
 // Proposed for Nikhil (#377): the prototype keeps Sign in disabled until six digits; Lane says it on the field instead.
 export const CODE_MISSING = "Enter the 6-digit code from the email."
-/** Today's recovery line for an empty new password (`password-recovery-flow.ts`): reset and Settings say it too. */
+/** The line for an empty new password: reset and Settings say it. */
 export const NEW_PASSWORD_MISSING = "Enter a new password."
 // Proposed for Nikhil (#378): the prototype's client-side line (auth-prototype.tsx:234), not in #346's ERR table.
 // Sign-up and Settings → Profile's name say it.
