@@ -26,7 +26,12 @@ vi.mock("next/navigation", async (original) => ({
   useSearchParams: () => new URLSearchParams(),
 }))
 vi.mock("@/components/settings/workspace-members-loader", () => ({ WorkspaceMembersLoader: () => null }))
-vi.mock("@/components/settings/account-profile", () => ({ AccountProfile: () => null, AccountSecurity: () => null }))
+vi.mock("./profile/account-panels", () => ({ accountPanels: async () => ({}) }))
+// Static markup can't wait for code that loads after the page, so the rows are drawn straight away.
+vi.mock("@/components/settings/workspace-rows-loader", async () => {
+  const { LeaveWorkspace, WorkspaceName } = await import("@/components/settings/workspace-rows")
+  return { LeaveWorkspaceLoader: LeaveWorkspace, WorkspaceNameLoader: WorkspaceName }
+})
 vi.mock("./profile/profile-form", () => ({ ProfileForm: () => null }))
 vi.mock("./profile/theme-preference", () => ({ ThemePreference: () => null }))
 

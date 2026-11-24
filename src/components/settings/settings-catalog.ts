@@ -10,15 +10,19 @@ export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOn
 /** The server's switches the catalog follows, passed down like the role; the catalog reads no environment itself. */
 export type SettingsSwitches = { billingEnforced?: boolean };
 export const settingsCatalog: SettingsEntry[] = [
-  { id: "profile", section: "profile", group: "Personal", label: "Profile", description: "Your personal details and role.", keywords: ["account", "name", "email", "photo", "avatar"] },
+  { id: "profile", section: "profile", group: "Personal", label: "Profile", description: "Your account, how you sign in, your devices and your role.", keywords: ["account", "name", "email"] },
   { id: "role", section: "profile", group: "Personal", label: "Role", description: "Your PM, Designer, or Developer label.", target: "role", keywords: ["designer", "developer", "pm"] },
   { id: "preferences", section: "preferences", group: "Personal", label: "Preferences", description: "Make Lane feel right for you." },
   { id: "theme", section: "preferences", group: "Personal", label: "Theme", description: "System, Light, or Dark for this browser.", target: "theme", keywords: ["appearance", "dark mode", "light mode"] },
   { id: "inbox-delivery", section: "inbox-delivery", group: "Personal", label: "Inbox delivery", description: "How items that need you reach you outside Lane, in this workspace.", membersOnly: true, changersOnly: true, keywords: ["inbox", "notifications", "email", "alerts", "needs you", "off"] },
-  { id: "account-security", section: "account-security", group: "Personal", label: "Security & access", description: "Manage sign-in methods and active sessions.", keywords: ["password", "sessions", "sign in"] },
+  { id: "account-security", section: "account-security", group: "Personal", label: "Security & access", description: "What Lane sends for the Request AI check. Your password and devices are in Profile." },
   { id: "connections", section: "connections", group: "Personal", label: "Personal integrations", description: "Connect external work tools to your personal Lane account. Sign-in connections are already managed in Profile.", soon: true, keywords: ["connected accounts", "slack", "calendar"] },
-  // #287 (D32): one row for the account, connected sign-in accounts included, so "Google" lands on it.
-  { id: "manage-account", section: "profile", group: "Personal", label: "Manage account", description: "Name, photo, email and connected accounts such as Google.", target: "manage-account", keywords: ["google", "connected accounts", "login"] },
+  // #394: the account's rows in Profile, each found by its own words; "Google" lands on the Google row (D32).
+  { id: "account-name", section: "profile", group: "Personal", label: "Name", description: "The name shown on your Requests and comments.", target: "account-name", keywords: ["account", "rename"] },
+  { id: "account-email", section: "profile", group: "Personal", label: "Email", description: "The email your account uses.", target: "account-email", keywords: ["account", "address"] },
+  { id: "account-google", section: "profile", group: "Personal", label: "Google", description: "Connect or disconnect the Google account you sign in with.", target: "account-google", keywords: ["connected accounts", "login", "sign in"] },
+  { id: "account-password", section: "profile", group: "Personal", label: "Password", description: "Change your password, or set one.", target: "account-password", keywords: ["account", "login", "sign in", "security"] },
+  { id: "signed-in-devices", section: "profile", group: "Personal", label: "Signed-in devices", description: "Where you’re signed in, and signing out.", target: "devices-heading", keywords: ["sessions", "security", "sign out", "log out"] },
   { id: "ai-data", section: "account-security", group: "Personal", label: "AI data use", description: "What Lane sends for the Request AI check.", target: "ai-data", keywords: ["privacy", "anthropic"] },
   { id: "leave-workspace", section: "workspace", group: "Workspace", label: "Leave workspace", description: "Give up your access to this workspace.", target: "leave-workspace" },
   { id: "intake-templates", section: "intake-templates", group: "Requests", label: "Intake templates", description: "Reusable starting points for a clear Request.", soon: true },

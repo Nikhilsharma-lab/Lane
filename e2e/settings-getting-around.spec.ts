@@ -78,9 +78,9 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await expect(searchDialog(page)).toBeHidden();
     });
 
-    await test.step("D21: a search jump marks the row it lands on; Google lands on Manage account", async () => {
+    await test.step("D21: a search jump marks the row it lands on; Google lands on the Google row", async () => {
       await settled(page);
-      for (const [query, target] of [["dark mode", "theme"], ["Google", "manage-account"]] as const) {
+      for (const [query, target] of [["dark mode", "theme"], ["Google", "account-google"]] as const) {
         await page.keyboard.press("/");
         await expect(searchDialog(page)).toBeVisible();
         await page.keyboard.type(query);
