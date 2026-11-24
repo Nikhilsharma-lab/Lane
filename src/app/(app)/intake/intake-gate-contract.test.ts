@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { SignInAgain } from "./sign-in-again";
 
 function source(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -84,6 +87,15 @@ describe("Intake Gate contract", () => {
   it("routes the AI check and save through the shared action boundary", () => {
     expect(FORM).toContain("run: () => callAction(() => editing ? runTriage(");
     expect(SAVE).toContain("return callAction(() => saveRequest(");
+  });
+
+  it("returns a person whose session ended to Intake after signing in, with the draft saved as they leave (#397)", () => {
+    const html = renderToStaticMarkup(createElement(SignInAgain, { onLeave: () => {} }));
+    expect(html).toContain('href="/login?redirect_url=%2Fintake"');
+    expect(html).toContain(">Sign in again</a>");
+    // The compose step and the review step each offer it, and both save the draft first.
+    expect(FORM.match(/<SignInAgain onLeave=\{preserveDraftForSignIn\} \/>/g)).toHaveLength(2);
+    expect(FORM).not.toContain("/login");
   });
 
   it("restores session-scoped drafts without trusting them as identity", () => {

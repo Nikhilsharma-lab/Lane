@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { createPendingMutationsStore } from "./pending-mutations-provider"
-import { runOptimistic, runOptimisticBatch, type OptimisticDeps } from "./use-optimistic-action"
+import { failureToast, runOptimistic, runOptimisticBatch, type OptimisticDeps } from "./use-optimistic-action"
 import type { OverviewRequest } from "@/lib/request-overview"
 import { OFFLINE_ANSWER } from "@/lib/failure-messages"
 
@@ -34,7 +34,6 @@ function depsFor(view: () => ReturnType<ReturnType<typeof setup>["view"]>) {
     overlay: view(),
     refresh: vi.fn<() => void>(),
     notifyError: vi.fn<OptimisticDeps["notifyError"]>(),
-    session: { current: vi.fn(async () => "current"), renew: vi.fn(async () => "renewed") },
     offline: vi.fn(() => false),
   } satisfies OptimisticDeps
 }
@@ -359,40 +358,39 @@ describe("useOptimisticAction core", () => {
     expect(view().patches.a).toBeUndefined()
     expect(onError).toHaveBeenCalledWith("Check your connection and try again.", expect.objectContaining({ thrown: true, auth: false, offline: false }))
     expect(deps.notifyError).not.toHaveBeenCalled()
-    expect(deps.session.renew).not.toHaveBeenCalled()
   })
 
-  // Critique 2.7: a session that is still expired after the one token refresh is not a connection problem.
-  it("tells onError about an ambiguous throw without replay", async () => {
+  it("tells onError about an ambiguous throw", async () => {
     const { view } = setup()
     const deps = depsFor(view)
     const onError = vi.fn()
     await runOptimistic(deps, { id: "a", run: async () => { throw new Error("401 Unauthorized") }, onError })
-    expect(deps.session.renew).not.toHaveBeenCalled()
     expect(onError).toHaveBeenCalledWith("Check your connection and try again.", expect.objectContaining({ thrown: true, auth: false }))
   })
 
-  it("refreshes the Clerk token and retries once on an explicit expiry", async () => {
+  // Critique 2.7, #397: an ended session is not a connection problem. It is said once, in the sign-in-again line.
+  const ended = { error: "Your session ended. Sign in again to continue.", sessionExpired: true as const }
+  it("sends a change once, rolls it back and says to sign in again when the session ended", async () => {
     const { view } = setup()
     const deps = depsFor(view)
-    const run = vi.fn()
-      .mockResolvedValueOnce({ error: "Please sign in again", sessionExpired: true })
-      .mockResolvedValueOnce({ success: true })
+    const run = vi.fn(async () => ended)
     const outcome = await runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run })
-    expect(outcome.status).toBe("success")
-    expect(deps.session.renew).toHaveBeenCalledTimes(1)
-    expect(run).toHaveBeenCalledTimes(2)
-    expect(view().patches.a).toBeDefined()
+    expect(outcome).toEqual({ status: "error", error: "Your session ended. Sign in again to continue.", thrown: false })
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(view().patches.a).toBeUndefined()
+    expect(view().apply([row("a")])[0].status).toBe("in_progress")
+    expect(deps.notifyError).toHaveBeenCalledExactlyOnceWith("Your session ended. Sign in again to continue.", expect.objectContaining({ thrown: false, auth: true, offline: false }))
+    const [message, detail] = deps.notifyError.mock.calls[0]
+    expect(failureToast(message, detail)).toMatchObject({ type: "error", title: "Couldn’t save", description: "Your session ended. Sign in again to continue." })
   })
 
-  it("rolls back after the one retry also fails", async () => {
+  it("sends a bulk move once and rolls every row back when the session ended", async () => {
     const { view } = setup()
     const deps = depsFor(view)
-    const run = vi.fn().mockResolvedValue({ error: "Please sign in again", sessionExpired: true })
-    const outcome = await runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run })
-    expect(outcome.status).toBe("error")
-    expect(run).toHaveBeenCalledTimes(2)
-    expect(view().patches.a).toBeUndefined()
+    const run = vi.fn(async () => ended)
+    await expect(runOptimisticBatch(deps, { ids: ["a", "b"], patch: { kind: "done", status: "done" }, run })).resolves.toEqual({ status: "error", error: "Your session ended. Sign in again to continue.", thrown: false })
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(view().patches).toEqual({})
   })
 
   it("sends Undo only after the pending Done succeeds", async () => {
@@ -445,7 +443,7 @@ describe("useOptimisticAction core", () => {
   })
 
   it("runs without an overlay outside the provider", async () => {
-    const deps: OptimisticDeps = { overlay: null, refresh: vi.fn(), notifyError: vi.fn(), session: { current: vi.fn(async () => "current"), renew: vi.fn(async () => "renewed") } }
+    const deps: OptimisticDeps = { overlay: null, refresh: vi.fn(), notifyError: vi.fn() }
     await expect(runOptimistic(deps, { id: "a", patch: { kind: "done", status: "done" }, run: async () => ({ success: true }) })).resolves.toMatchObject({ status: "success" })
   })
 })
