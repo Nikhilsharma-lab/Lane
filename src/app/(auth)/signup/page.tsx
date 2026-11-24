@@ -1,25 +1,16 @@
 import type { Metadata } from "next";
-import { ClerkFailed, ClerkLoading, SignUp } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
 
-import { SignupFrame } from "@/components/auth/auth-frames";
-import { AuthCardSkeleton } from "@/components/auth/auth-card-skeleton";
-import { ClerkUnavailable } from "@/components/auth/clerk-unavailable";
-import { clerkEmbeddedAppearance } from "@/components/auth/clerk-appearance";
+import { authPageQuery, type AuthPageQuery } from "@/components/auth/better-auth/auth-addresses";
+import { AuthForm } from "@/components/auth/better-auth/auth-form";
+import { safeReturnAddress } from "@/lib/auth-return-address";
+import { getSession } from "@/lib/ensure-workspace";
 
 // #271 (A114): the tab reads "Sign up · Lane".
 export const metadata: Metadata = { title: "Sign up" };
 
-export default function SignupPage() {
-  return (
-    <SignupFrame>
-      <SignUp
-        routing="hash"
-        signInUrl="/login"
-        fallbackRedirectUrl="/onboarding"
-        appearance={clerkEmbeddedAppearance}
-        // Decision 2026-10-21: the skeleton while Clerk loads, a way out once Clerk reports it could not.
-        fallback={<><ClerkLoading><AuthCardSkeleton label="Loading account creation" fields={2} subtitle={false} /></ClerkLoading><ClerkFailed><ClerkUnavailable title="Sign up is unavailable right now" href="/signup" /></ClerkFailed></>}
-      />
-    </SignupFrame>
-  );
+export default async function SignupPage({ searchParams }: { searchParams: Promise<AuthPageQuery> }) {
+  const { email, returnTo, errorCode } = authPageQuery(await searchParams);
+  if (await getSession()) redirect(safeReturnAddress(returnTo));
+  return <AuthForm mode="sign-up" email={email} returnTo={returnTo} errorCode={errorCode} />;
 }

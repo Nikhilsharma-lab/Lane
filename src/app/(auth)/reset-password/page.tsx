@@ -1,16 +1,11 @@
-"use client";
+import type { Metadata } from "next";
 
-import { RecoveryFrame } from "@/components/auth/auth-frames";
-import { ClerkSessionTasks } from "@/components/auth/clerk-sign-in";
-import { PasswordRecoveryForm } from "@/components/auth/password-recovery-form";
-import { RecoveryLoginLink } from "@/components/auth/recovery-login-link";
-import { HiddenDuringSessionTask } from "@/components/auth/session-task-gate";
+import { authPageQuery, type AuthPageQuery } from "@/components/auth/better-auth/auth-addresses";
+import { PasswordResetForm } from "@/components/auth/better-auth/password-reset-form";
 
-// During Clerk's reset-password task, /login only resumes the task, so the way back is hidden.
-export default function ResetPasswordPage() {
-  return (
-    <RecoveryFrame headerAction={<HiddenDuringSessionTask><RecoveryLoginLink /></HiddenDuringSessionTask>}>
-      <ClerkSessionTasks fallback={<PasswordRecoveryForm />} />
-    </RecoveryFrame>
-  );
+// #271 (A114): the tab reads "Reset password · Lane".
+export const metadata: Metadata = { title: "Reset password" };
+
+export default async function ResetPasswordPage({ searchParams }: { searchParams: Promise<AuthPageQuery> }) {
+  return <PasswordResetForm email={authPageQuery(await searchParams).email} />;
 }

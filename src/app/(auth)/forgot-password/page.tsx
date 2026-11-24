@@ -1,13 +1,11 @@
-"use client";
+import type { Metadata } from "next";
 
-import { RecoveryFrame } from "@/components/auth/auth-frames";
-import { PasswordRecoveryForm } from "@/components/auth/password-recovery-form";
-import { RecoveryLoginLink } from "@/components/auth/recovery-login-link";
+import { authPageQuery, type AuthPageQuery } from "@/components/auth/better-auth/auth-addresses";
+import { PasswordResetForm } from "@/components/auth/better-auth/password-reset-form";
 
-export default function ForgotPasswordPage() {
-  return (
-    <RecoveryFrame headerAction={<RecoveryLoginLink />}>
-      <PasswordRecoveryForm />
-    </RecoveryFrame>
-  );
+// #271 (A114): the tab reads "Forgot password · Lane".
+export const metadata: Metadata = { title: "Forgot password" };
+
+export default async function ForgotPasswordPage({ searchParams }: { searchParams: Promise<AuthPageQuery> }) {
+  return <PasswordResetForm email={authPageQuery(await searchParams).email} />;
 }

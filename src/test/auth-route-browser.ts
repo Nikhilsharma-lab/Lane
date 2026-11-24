@@ -200,13 +200,15 @@ export function codesMet() {
 /** Signs up by password from a fresh browser, as the sign-up screen does. */
 export const signUp = (person: { email: string; password: string; name: string }, browser = new AuthBrowser()) => browser.post("/sign-up/email", person)
 
-/** Signs up and enters the emailed verification code. Returns a browser with no session, ready to sign in. */
+/** Signs up, enters the emailed verification code, and signs out of the session that makes. Returns a browser with no session, ready to sign in. */
 export async function signUpVerified(outbound: Outbound, person: { email: string; password: string; name: string }): Promise<AuthBrowser> {
   const browser = new AuthBrowser()
   const signedUp = await signUp(person, browser)
   if (signedUp.status !== 200) throw new Error(`Sign-up answered ${signedUp.status}`)
   const verified = await browser.post("/email-otp/verify-email", { email: person.email, otp: outbound.codeFor(person.email) })
   if (verified.status !== 200) throw new Error(`Verification answered ${verified.status}`)
+  const signedOut = await browser.post("/sign-out")
+  if (signedOut.status !== 200 || browser.cookies.size) throw new Error(`Signing out answered ${signedOut.status}`)
   return browser
 }
 

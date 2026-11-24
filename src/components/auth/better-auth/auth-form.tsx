@@ -41,7 +41,7 @@ const ALERT_ID = "sign-in-alert"
 /**
  * #377 (#376 "The shared auth form", #346 layout A): Lane's own sign-in, through Lane's browser auth client. Continue
  * with Google first, then email and password, with Forgot password? under the password and "Email me a sign-in code
- * instead". Dormant: no route mounts it until increment 5.
+ * instead".
  */
 export function AuthForm(props: AuthFormProps) {
   return props.mode === "sign-up" ? <SignUp {...props} /> : <SignIn {...props} />

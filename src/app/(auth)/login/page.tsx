@@ -1,22 +1,16 @@
 import type { Metadata } from "next";
-import { LoginFrame } from "@/components/auth/auth-frames";
-import {
-  ClerkHashSignIn,
-  ClerkSessionTasks,
-} from "@/components/auth/clerk-sign-in";
-import { LoginResetLink } from "@/components/auth/login-reset-link";
-import { HiddenDuringSessionTask } from "@/components/auth/session-task-gate";
-import { WorkspaceTaskSignOut } from "@/components/auth/workspace-task-sign-out";
+import { redirect } from "next/navigation";
+
+import { authPageQuery, type AuthPageQuery } from "@/components/auth/better-auth/auth-addresses";
+import { AuthForm } from "@/components/auth/better-auth/auth-form";
+import { safeReturnAddress } from "@/lib/auth-return-address";
+import { getSession } from "@/lib/ensure-workspace";
 
 // #271 (A114): the tab reads "Sign in · Lane".
 export const metadata: Metadata = { title: "Sign in" };
 
-// A server component, so the frame and its links render on the server and only
-// Clerk's card and the session check ship as client code.
-export default function LoginPage() {
-  return (
-    <LoginFrame headerAction={<HiddenDuringSessionTask><LoginResetLink /></HiddenDuringSessionTask>} taskAction={<WorkspaceTaskSignOut />}>
-      <ClerkSessionTasks fallback={<ClerkHashSignIn />} />
-    </LoginFrame>
-  );
+export default async function LoginPage({ searchParams }: { searchParams: Promise<AuthPageQuery> }) {
+  const { email, returnTo, errorCode, start } = authPageQuery(await searchParams);
+  if (await getSession()) redirect(safeReturnAddress(returnTo));
+  return <AuthForm mode="sign-in" email={email} returnTo={returnTo} errorCode={errorCode} start={start} />;
 }

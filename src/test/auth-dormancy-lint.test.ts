@@ -1,7 +1,6 @@
 /**
- * #377 (spec #376 story 99): Lane's browser auth client and its new auth screens stay dormant until increment 5.
- * Lint refuses the client outside the screens and their tests, and refuses the screens from anything under the app
- * directory. Each case lints a one-line file at a path, with the repo's own ESLint config.
+ * #377, #388: lint refuses Lane's browser auth client outside the auth screens, their tests and the files that mount
+ * them. Each case lints a one-line file at a path, with the repo's own ESLint config.
  */
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -23,8 +22,8 @@ const SCREEN = "@/components/auth/better-auth/auth-form"
 
 describe("the browser auth client's fence", () => {
   it.each([
-    "src/app/(auth)/login/page.tsx",
     "src/app/(app)/layout.tsx",
+    "src/app/(auth)/signed-out-screens.test.ts",
     "src/app/api/auth/[...all]/route.ts",
     "src/components/settings/profile-account.tsx",
     "src/components/settings/profile-account.test.ts",
@@ -33,11 +32,11 @@ describe("the browser auth client's fence", () => {
     "src/components/shell/workspace-frame.tsx",
     "src/components/popup/adaptive-dialog.tsx",
   ])("refuses it in %s", async (filePath) => {
-    expect((await refusals(filePath, importing(CLIENT))).join("\n")).toContain("browser auth client is dormant")
+    expect((await refusals(filePath, importing(CLIENT))).join("\n")).toContain("browser auth client")
   })
 
   it("refuses loading it with import()", async () => {
-    expect((await refusals("src/components/settings/profile-account.tsx", loading(CLIENT))).join("\n")).toContain("browser auth client is dormant")
+    expect((await refusals("src/components/settings/profile-account.tsx", loading(CLIENT))).join("\n")).toContain("browser auth client")
   })
 
   it.each([
@@ -53,12 +52,17 @@ describe("the browser auth client's fence", () => {
     "src/components/auth/better-auth/sign-out.tsx",
     // #389: the app frame's session request.
     "src/components/shell/session-keeper.ts",
-  ])("lets the new auth screens and their tests use it: %s", async (filePath) => {
+    // #388: the files that mount them.
+    "src/app/(auth)/login/page.tsx",
+    "src/app/(auth)/reset-password/page.tsx",
+  ])("lets the auth screens, their tests and the files that mount them use it: %s", async (filePath) => {
     expect(await refusals(filePath, importing(CLIENT))).toEqual([])
   })
 
-  it("keeps the other fences on the screens: Better Auth's server, Next's Link, Arc's dialog", async () => {
-    const screen = "src/components/auth/better-auth/auth-form.tsx"
+  it.each([
+    "src/components/auth/better-auth/auth-form.tsx",
+    "src/app/(auth)/login/page.tsx",
+  ])("keeps the other fences on %s: Better Auth's server, Next's Link, Arc's dialog", async (screen) => {
     expect(await refusals(screen, importing("@/lib/auth-server"))).not.toEqual([])
     expect(await refusals(screen, importing("next/link"))).not.toEqual([])
     expect(await refusals(screen, importing("@/components/arc/dialog/dialog"))).not.toEqual([])
@@ -124,47 +128,23 @@ describe("the server door's fence (#389)", () => {
   it("lets that action import nothing else that was refused", async () => {
     expect(await refusals(ACTION, `import { handleAuthRequest as imported } from "@/lib/auth-server"`)).not.toEqual([])
     expect(await refusals(ACTION, importing("@/lib/auth-server"))).not.toEqual([])
-    for (const path of ["better-auth", "better-auth/plugins", "@/lib/better-auth-session", CLIENT, SCREEN, "next/link", "@/components/arc/dialog/dialog"])
+    for (const path of ["better-auth", "better-auth/plugins", "@/lib/better-auth-session", CLIENT, "next/link", "@/components/arc/dialog/dialog"])
       expect(await refusals(ACTION, importing(path)), path).not.toEqual([])
-    for (const path of ["@/lib/auth-server", "better-auth/plugins", CLIENT, SCREEN]) expect(await refusals(ACTION, loading(path)), path).not.toEqual([])
+    for (const path of ["@/lib/auth-server", "better-auth/plugins", CLIENT]) expect(await refusals(ACTION, loading(path)), path).not.toEqual([])
     expect(await refusals(ACTION, `import { auth as imported } from "@clerk/nextjs/server"`)).not.toEqual([])
   })
 })
 
-describe("the new auth screens' fence", () => {
+describe("the auth screens' mount (#388)", () => {
   it.each([
-    "src/app/(auth)/login/page.tsx",
-    "src/app/(auth)/layout.tsx",
-    "src/app/invite/[id]/page.tsx",
-    "src/app/(auth)/login/login.test.ts",
-    "src/app/api/auth/[...all]/route.ts",
-  ])("refuses a screen in %s", async (filePath) => {
-    expect((await refusals(filePath, importing(SCREEN))).join("\n")).toContain("new auth screens are dormant")
-  })
-
-  // #379: the invitation page view and Onboarding's workspace step, which increment 5 mounts at /invite/[id] and
-  // /onboarding.
-  it.each([
-    ["@/components/auth/better-auth/invitation-view", "src/app/invite/[id]/page.tsx"],
-    ["@/components/auth/better-auth/onboarding-view", "src/app/(auth)/onboarding/page.tsx"],
-    ["@/components/auth/better-auth/sign-out", "src/app/(auth)/onboarding/page.tsx"],
-  ])("refuses %s in %s", async (view, filePath) => {
-    expect((await refusals(filePath, importing(view))).join("\n")).toContain("new auth screens are dormant")
-    expect((await refusals(filePath, loading(view))).join("\n")).toContain("new auth screens are dormant")
-  })
-
-  // #378's screens: sign-up rides in the auth form; forgot and reset is its own screen.
-  it.each([
-    ["src/app/(auth)/signup/page.tsx", "@/components/auth/better-auth/sign-up-form"],
-    ["src/app/(auth)/signup/page.tsx", "@/components/auth/better-auth/sign-up-flow"],
+    ["src/app/(auth)/login/page.tsx", SCREEN],
     ["src/app/(auth)/forgot-password/page.tsx", "@/components/auth/better-auth/password-reset-form"],
-    ["src/app/(auth)/reset-password/page.tsx", "@/components/auth/better-auth/password-reset-flow"],
-  ])("refuses #378's screens in %s: %s", async (filePath, screen) => {
-    expect((await refusals(filePath, importing(screen))).join("\n")).toContain("new auth screens are dormant")
-  })
-
-  it("refuses loading a screen with import() from the app", async () => {
-    expect((await refusals("src/app/(auth)/login/page.tsx", loading(SCREEN))).join("\n")).toContain("new auth screens are dormant")
+    ["src/app/(auth)/onboarding/page.tsx", "@/components/auth/better-auth/onboarding-view"],
+    ["src/app/invite/[id]/page.tsx", "@/components/auth/better-auth/invitation-view"],
+    ["src/app/(auth)/signed-out-screens.test.ts", SCREEN],
+  ])("lets %s import %s", async (filePath, screen) => {
+    expect(await refusals(filePath, importing(screen))).toEqual([])
+    expect(await refusals(filePath, loading(screen))).toEqual([])
   })
 
   it("keeps the app's other fences: Next's Link, Arc's dialog, Clerk's session, Better Auth's server", async () => {
@@ -200,17 +180,15 @@ describe("what ships", () => {
   })
 
   // #389: the frame asks for the session, and Log out loads the sign-out; each on demand, never in the first load.
-  const SHELL_USERS = ["src/components/shell/session-keeper.ts", "src/components/shell/sidebar.tsx"]
-
   it("loads the sign-out and the session request on demand", () => {
     expect(readFileSync("src/components/shell/sidebar.tsx", "utf8")).not.toMatch(/from ["'][^"']*(auth-client|better-auth)/)
     expect(readFileSync("src/components/shell/workspace-frame.tsx", "utf8")).toContain("useEffect(requestSessionOnceUsable, [])")
     expect(readFileSync("src/components/shell/session-request.ts", "utf8")).not.toMatch(/from ["'][^"']*session-keeper/)
   })
 
-  it("imports neither the client nor the new screens outside the screens' folder, the shell's two users and the tests", () => {
-    const shipped = sources().filter((path) => !path.startsWith("src/components/auth/better-auth/") && !/\.test\.tsx?$/.test(path) && !path.startsWith("src/test/") && !SHELL_USERS.includes(path))
-    const offenders = shipped.filter((path) => /from ["'][^"']*(auth-client|components\/auth\/better-auth\/)[^"']*["']|import\(["'][^"']*(auth-client|components\/auth\/better-auth\/)/.test(readFileSync(path, "utf8")))
+  it("imports the client only from the auth screens and the files that mount them, and the frame's session request", () => {
+    const shipped = sources().filter((path) => !/^src\/(components\/auth\/better-auth|app\/\(auth\))\//.test(path) && !/\.test\.tsx?$/.test(path) && !path.startsWith("src/test/") && path !== "src/components/shell/session-keeper.ts")
+    const offenders = shipped.filter((path) => /from ["'][^"']*auth-client["']|import\(["'][^"']*auth-client["']/.test(readFileSync(path, "utf8")))
     expect(offenders).toEqual([])
   })
 

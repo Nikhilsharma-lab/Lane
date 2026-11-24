@@ -314,6 +314,8 @@ function build(config: Config) {
       },
     },
     emailAndPassword: { enabled: true, minPasswordLength: 8, requireEmailVerification: true, autoSignIn: false, revokeSessionsOnPasswordReset: true },
+    // Nikhil, 2026-11-23 (#388): confirming an email with its code signs the person in.
+    emailVerification: { autoSignInAfterVerification: true },
     socialProviders: config.google ? { google: config.google } : {},
     // #333 Q11: Google links to an existing account only when Google says the email is verified. Google isn't a
     // trusted provider, because Better Auth links a trusted provider's account even when its email is unverified.

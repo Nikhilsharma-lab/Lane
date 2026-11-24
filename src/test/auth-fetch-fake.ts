@@ -26,7 +26,7 @@ const SUCCESS: Record<string, unknown> = {
   "/email-otp/send-verification-otp": { success: true },
   "/email-otp/request-password-reset": { success: true },
   "/email-otp/reset-password": { success: true },
-  "/email-otp/verify-email": { status: true, token: null, user: { id: "user_1", email: "mei@example.test" } },
+  "/email-otp/verify-email": { status: true, token: "session-token", user: { id: "user_1", email: "mei@example.test" } },
   "/sign-up/email": { token: null, user: { id: "user_1", email: "mei@example.test" } },
   "/sign-out": { success: true },
   "/get-session": { session: { id: "session_1", userId: "user_1" }, user: { id: "user_1", email: "mei@example.test" } },

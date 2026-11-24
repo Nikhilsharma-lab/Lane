@@ -17,7 +17,7 @@ export const GOOGLE_ONLY_METHOD = "Google is your only sign-in method. Set a pas
 const SLUG_TAKEN = "Another workspace already uses this URL. Choose a different one, then try again."
 
 /** #346's googleFailed line, for every way Google sign-in can come back unfinished. */
-const GOOGLE_FAILED = "Google sign-in didn’t finish. Try again, or use your email."
+export const GOOGLE_FAILED = "Google sign-in didn’t finish. Try again, or use your email."
 
 /**
  * Every `error` the redirect back from Google sign-in can carry (Better Auth 1.7). Each one means the sign-in didn't
