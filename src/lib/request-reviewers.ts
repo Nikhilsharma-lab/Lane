@@ -107,13 +107,12 @@ export async function notifyReviewers(
  * workspace. A reviewer who left, or is no longer on a paid seat, stays
  * listed, greyed out, and their answer no longer counts (REQUIREMENTS §4.4).
  * The list, the reviewers panel and pickup confirmation all read this.
- * Worked out at read time from the identity provider; if it is unreachable,
- * everyone counts and nobody is greyed out. Asks the provider only when there
- * is a reviewer.
+ * Worked out at read time from the roster; if it can't be read, everyone
+ * counts and nobody is greyed out. Read only when there is a reviewer.
  *
  * `name` (B6): each person has one name, their sign-in name now. The name
  * saved when they were picked shows only once they've left the workspace, or
- * while the provider can't be reached.
+ * while the roster can't be read.
  */
 export async function reviewerStanding(orgId: string, reviewers: Reviewer[]) {
   let active: Map<string, string> | null = null;

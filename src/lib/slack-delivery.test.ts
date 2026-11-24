@@ -1,11 +1,12 @@
 /**
  * #207 seam 4: Needs-you items by Slack DM. People who chose Slack DM get one DM per item, linking to the Request,
  * while Slack is connected (switch on and a connection saved); while it isn't, or when Slack can't reach them,
- * they get Email instead. Real database, a mocked Clerk roster, both messengers swapped for recording stand-ins.
+ * they get Email instead. Real database, member rows, both messengers swapped for recording stand-ins.
  */
 import { randomBytes, randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { addMembers } from "@/test/member-fixtures"
 import { requireTestDatabase } from "@/test/test-database"
 import { slackDelivery, type SlackDelivery } from "./feature-switches"
 import { recordingMessenger, type Messenger } from "./messenger"
@@ -18,19 +19,6 @@ const EMAILER = "slack_delivery_emailer"
 const TOKEN = "xoxb-5555-6666-deliverytoken"
 
 vi.mock("./session", () => ({ readSession: vi.fn(async () => null) }))
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async ({ organizationId }: { organizationId: string }) => {
-        const members = organizationId === "org_slack_delivery" ? ["slack_delivery_requester", "slack_delivery_reviewer", "slack_delivery_emailer"] : []
-        return {
-          totalCount: members.length,
-          data: members.map((userId) => ({ organization: { id: organizationId }, role: "org:member", publicUserData: { userId, identifier: `${userId}@example.test`, firstName: userId } })),
-        }
-      },
-    },
-  }),
-}))
 
 const url = new URL(process.env.DATABASE_URL!)
 requireTestDatabase(process.env.DATABASE_URL);
@@ -63,6 +51,7 @@ const connectSlack = async () => {
 beforeAll(async () => {
   await connection`insert into organizations(id,name,slug) values (${ORG},'Acme','slack-delivery')`
   for (const id of [REQUESTER, REVIEWER, EMAILER]) await connection`insert into profiles(id,full_name,email) values (${id},${id},${id + "@example.test"})`
+  await addMembers(ORG, { [REQUESTER]: "member", [REVIEWER]: "member", [EMAILER]: "member" })
 })
 beforeEach(async () => {
   await connection`delete from delivery_preferences where org_id = ${ORG}`

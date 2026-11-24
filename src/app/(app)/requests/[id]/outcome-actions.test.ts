@@ -1,26 +1,23 @@
+import { removeMember, setMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, afterEach, expect, it, vi } from 'vitest';
 import type { Session } from "@/lib/session";
 const session = vi.hoisted((): Session => ({ userId: 'outcome_owner', orgId: 'org_outcome', role: 'member' }));
-const everyone = ['outcome_owner', 'outcome_pm', 'outcome_designer', 'outcome_developer', 'outcome_admin', 'outcome_next'];
-const roster = vi.hoisted(() => ({ ids: [] as string[] }));
+const roles = { outcome_owner: 'member', outcome_pm: 'member', outcome_designer: 'member', outcome_developer: 'member', outcome_admin: 'admin', outcome_next: 'member' };
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/session', () => ({ readSession: async () => ({ ...session }) }));
-vi.mock('@clerk/nextjs/server', () => ({
-    clerkClient: async () => ({ organizations: { getOrganizationMembershipList: async () => ({ totalCount: roster.ids.length, data: roster.ids.map(userId => ({ organization: { id: 'org_outcome' }, role: userId === 'outcome_admin' ? 'org:admin' : 'org:member', publicUserData: { userId, firstName: userId, identifier: userId + '@example.test' } })) }) } }),
-}));
 const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, { max: 6, prepare: false });
 const orgId = 'org_outcome';
 beforeAll(async () => {
     await connection `insert into organizations(id,name,slug) values (${orgId},'Outcome tests','outcome-tests')`;
     await connection `insert into organizations(id,name,slug) values ('org_outcome_foreign','Foreign outcome tests','outcome-foreign')`;
-    for (const id of everyone)
+    for (const id of Object.keys(roles))
         await connection `insert into profiles(id,full_name,email) values (${id},${id},${id + '@example.test'})`;
+    await reset();
 });
-const reset = () => { vi.useRealTimers(); session.userId = 'outcome_owner'; session.orgId = orgId; session.role = 'member'; roster.ids = [...everyone]; };
-reset();
+const reset = async () => { vi.useRealTimers(); session.userId = 'outcome_owner'; session.orgId = orgId; session.role = 'member'; await setMembers(orgId, roles); };
 afterEach(reset);
 afterAll(() => connection.end());
 const context = (requestId: string, expectedRevision: number) => ({ orgId, requestId, expectedRevision, operationId: randomUUID() });
@@ -129,12 +126,12 @@ it('only the Requester closes; handover moves it, and admins, other members, gue
     expect(await api.changeRequestOutcome({ ...context(id, 1), orgId: session.orgId }, measured)).toHaveProperty('error');
     expect(await api.readRequestOutcome(id, { orgId: session.orgId })).toHaveProperty('error');
     session.orgId = orgId;
-    roster.ids = everyone.filter(u => u !== 'outcome_owner');
+    await removeMember(orgId, 'outcome_owner');
     expect(await api.changeRequestOutcome(context(id, 1), measured)).toEqual({ error: 'Your workspace membership is no longer active.' });
     session.userId = 'outcome_admin';
     session.role = 'admin';
     expect(await releaseApi.changeRequestRelease(context(id, 1), { kind: 'transfer', recipientId: 'outcome_next', reason: 'Owner left' })).toHaveProperty('success', true);
-    roster.ids = [...everyone];
+    await setMembers(orgId, roles);
     session.userId = 'outcome_owner';
     session.role = 'member';
     expect(await api.changeRequestOutcome(context(id, 2), measured)).toEqual({ error: 'Only the Requester, outcome_next, can close this.' });
@@ -149,7 +146,7 @@ it('serializes ownership transfer against closure: a stale owner never closes af
     const releaseApi = await import('./release-actions');
     await at('2026-10-28T00:00:00Z');
     const id = await fixture();
-    roster.ids = everyone.filter(u => u !== 'outcome_owner');
+    await removeMember(orgId, 'outcome_owner');
     session.userId = 'outcome_admin';
     session.role = 'admin';
     const transfer = releaseApi.changeRequestRelease(context(id, 1), { kind: 'transfer', recipientId: 'outcome_next', reason: 'Owner left' });
@@ -169,7 +166,7 @@ it('lets the admin transfer a closed Request after the owner leaves, so the new 
     await at('2026-10-28T00:00:00Z');
     const id = await fixture();
     await api.changeRequestOutcome(context(id, 1), measured);
-    roster.ids = everyone.filter(u => u !== 'outcome_owner');
+    await removeMember(orgId, 'outcome_owner');
     session.userId = 'outcome_admin';
     session.role = 'admin';
     expect(await releaseApi.readRequestRelease(id, { orgId })).toMatchObject({ actions: { handover: { allowed: true }, correctRelease: { allowed: false } } });
@@ -283,9 +280,9 @@ it('an owner whose closure locks first keeps it; the concurrent admin transfer i
     const releaseApi = await import('./release-actions');
     await at('2026-10-28T00:00:00Z');
     const id = await fixture();
-    // The owner's Clerk check passes just before access is revoked; Clerk and Postgres cannot share a transaction.
+    // The owner's membership check may pass just before they are removed: the roster is read before the Request is locked.
     const close = api.changeRequestOutcome(context(id, 1), { kind: 'exception', reasonCode: 'cannot_measure', reason: 'Owner closing' });
-    roster.ids = everyone.filter(u => u !== 'outcome_owner');
+    await removeMember(orgId, 'outcome_owner');
     session.userId = 'outcome_admin';
     session.role = 'admin';
     const transfer = releaseApi.changeRequestRelease(context(id, 1), { kind: 'transfer', recipientId: 'outcome_next', reason: 'Owner left' });

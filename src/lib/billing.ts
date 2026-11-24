@@ -1,10 +1,8 @@
 import "server-only";
 
-import { clerkClient } from "@clerk/nextjs/server";
-import { timed } from "@/lib/request-timings";
 import { and, count, eq, gt, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 
-import { db, freeRequestAllowances, workspaceBilling, workspaces } from "@/db";
+import { db, freeRequestAllowances, profiles, workspaceBilling, workspaces } from "@/db";
 import { FOUNDING_DISCOUNT, foundingDiscountFor, foundingEndsAt, paidSeats, type BillingPeriod } from "./billing-plan-rules";
 import { billingEnforced } from "./feature-switches";
 import { PLAN_FLOWS, paymentProvider, type BillingAccount, type CheckoutRequest, type PaymentEvent, type PaymentProvider, type PortalFlow } from "./payment-provider";
@@ -23,8 +21,9 @@ import { workspaceRoster } from "./workspace-roster";
  * #214 adds paying: checkout on the payment provider's hosted page (`src/lib/payment-provider.ts`), the plan state
  * the provider's events set, and the founding discount for the first 50 paying workspaces, for two years.
  *
- * #215 adds seat counting: paid seats are the workspace's Admins plus Members in Clerk, at least 3. Lane stores no
- * membership, only the number the provider bills; a paying workspace's seats follow Clerk (`followSeatChanges`).
+ * #215 adds seat counting: paid seats are the workspace's Admins plus Members, at least 3. This module stores no
+ * membership, only the number the provider bills; a paying workspace's seats follow its member rows
+ * (`followSeatChanges`).
  */
 
 type Workspace = WorkspaceScope;
@@ -86,21 +85,30 @@ export async function claimFreeRequests(ws: Workspace, creatorEmail: string | nu
   });
 }
 
+/** A person's email, or null for someone without a profile. */
+async function emailOf(userId: string): Promise<string | null> {
+  const [profile] = await db.select({ email: profiles.email }).from(profiles).where(eq(profiles.id, userId));
+  return profile?.email ?? null;
+}
+
+/** The email of the workspace's creator (`organizations.owner_id`), or null when either isn't known. */
+async function creatorEmailOf(ws: Workspace): Promise<string | null> {
+  const [creator] = await db.select({ email: profiles.email }).from(workspaces)
+    .innerJoin(profiles, eq(profiles.id, workspaces.ownerUserId)).where(eq(workspaces.id, ws.orgId));
+  return creator?.email ?? null;
+}
+
 /**
- * Decides the workspace's allowance from its creator in Clerk, if it isn't decided yet. `known` is what the caller
- * already has: the Clerk organization's creator and the signed-in person, whose address needs no lookup. Never
- * throws: a workspace whose creator can't be found stays undecided, and so keeps its 4 Free Requests.
+ * Decides the workspace's allowance from its creator's email, if it isn't decided yet. `known` is what the caller
+ * already has: the workspace's creator and the signed-in person, whose address needs no lookup. Never throws: a
+ * workspace whose creator isn't known stays undecided, and so keeps its 4 Free Requests.
  */
 export async function decideFreeRequests(ws: Workspace, known?: { createdBy: string | null | undefined; userId: string; email: string }): Promise<void> {
   try {
     if (await freeRequestsDecided(ws)) return;
-    const client = await clerkClient();
-    const createdBy = known ? known.createdBy : (await timed("workspace", () => client.organizations.getOrganization({ organizationId: ws.orgId }))).createdBy;
-    if (!createdBy) return;
-    const email = known && createdBy === known.userId
-      ? known.email
-      : await timed("workspace", () => client.users.getUser(createdBy)).then((user) => user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? null);
-    await claimFreeRequests(ws, email);
+    if (!known) return await claimFreeRequests(ws, await creatorEmailOf(ws));
+    if (!known.createdBy) return;
+    await claimFreeRequests(ws, known.createdBy === known.userId ? known.email : await emailOf(known.createdBy));
   } catch (error) {
     console.error("[billing] Free Requests allowance not decided:", error instanceof Error ? error.message : "unknown error");
   }
@@ -358,7 +366,7 @@ export async function newRequestBlock(ws: Workspace, tx?: RequestTx): Promise<st
 }
 
 export type WorkspaceSeats = {
-  /** Admins and Members in Clerk right now. Guests and Viewers are free. */
+  /** Admins and Members right now. Guests and Viewers are free. */
   adminsAndMembers: number;
   /** The paid seats: Admins and Members, at least 3. */
   paid: number;
@@ -366,7 +374,7 @@ export type WorkspaceSeats = {
   billed: number | null;
 };
 
-/** The workspace's seats, counted live from Clerk. Throws if Clerk can't be reached. */
+/** The workspace's seats, counted live from its member rows. Throws if they can't be read. */
 export async function readSeats(ws: Workspace): Promise<WorkspaceSeats> {
   const [people, [row]] = await Promise.all([
     workspaceRoster(ws.orgId),
@@ -381,16 +389,17 @@ export type SeatsFollowed =
   | { kind: "unchanged" | "set"; seats: number }
   | { kind: "added" | "removed"; from: number; to: number };
 
-/** How often a page view may compare a paying workspace's seats with Clerk. */
+/** How often a page view may compare a paying workspace's seats with its member rows. */
 const SEAT_CHECK_EVERY_MS = 10 * 60 * 1000;
 
 /**
- * Makes a paying workspace's billed seats follow its Clerk memberships: counts its Admins and Members (at least 3)
+ * Makes a paying workspace's billed seats follow its memberships: counts its Admins and Members (at least 3)
  * and tells the payment provider when that differs from what it bills. An added seat is charged part-month from
  * `now`; a removed one (or a Member made a Viewer) lowers the next bill. The provider is given the new total, so a
  * repeat changes nothing. Does nothing while billing isn't enforced or the workspace doesn't pay. `onlyIfDue` (a page
  * view) compares at most every 10 minutes; a change Lane itself makes (a role change) compares straight away.
- * Never throws: when Clerk or the provider can't be reached it reports `failed`, and a later check tries again.
+ * Never throws: when the members can't be read or the provider can't be reached it reports `failed`, and a later
+ * check tries again.
  */
 export async function followSeatChanges(
   ws: Workspace,
@@ -401,7 +410,7 @@ export async function followSeatChanges(
     const paying = and(eq(workspaceBilling.orgId, ws.orgId), eq(workspaceBilling.planState, "paying"), isNotNull(workspaceBilling.providerSubscriptionId));
     const due = or(isNull(workspaceBilling.seatsCheckedAt), lt(workspaceBilling.seatsCheckedAt, new Date(now.getTime() - SEAT_CHECK_EVERY_MS)));
     const columns = { subscriptionId: workspaceBilling.providerSubscriptionId, billed: workspaceBilling.billedSeats };
-    // A due check claims its turn in the same statement, so many page views at once ask Clerk once.
+    // A due check claims its turn in the same statement, so many page views at once count once.
     const [row] = onlyIfDue
       ? await db.update(workspaceBilling).set({ seatsCheckedAt: now }).where(and(paying, due)).returning(columns)
       : await db.select(columns).from(workspaceBilling).where(paying);
@@ -435,8 +444,8 @@ export async function followSeatChanges(
 
 /**
  * From any page view: follows the workspace's seats after the response, if a check is due. This is how a seat
- * changed in Clerk (an invitation accepted, someone removed) reaches the bill without Lane being told. Reads
- * nothing while billing isn't enforced.
+ * changed outside Lane's Server Actions (an invitation accepted) reaches the bill. Reads nothing while billing isn't
+ * enforced.
  */
 export function followSeatChangesAfterResponse(ws: Workspace): void {
   if (!billingEnforced()) return;

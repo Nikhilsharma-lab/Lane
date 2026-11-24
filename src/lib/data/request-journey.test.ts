@@ -23,13 +23,6 @@ vi.mock("@/lib/session", () => ({
     return userId ? { userId, ...rest } : null;
   },
 }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({ organizations: { getOrganizationMembershipList: async () => {
-    boundary.rosterReads++;
-    if (boundary.rosterFailed) throw new Error("Clerk unavailable");
-    return { totalCount: 1, data: [{ organization: { id: "org_journey" }, role: "org:member", publicUserData: { userId: "viewer", firstName: "Live viewer", lastName: "", identifier: "viewer@example.test" } }] };
-  } } }),
-}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/db", async () => {
   const { drizzle } = await import("drizzle-orm/pg-proxy");
@@ -37,6 +30,11 @@ vi.mock("@/db", async () => {
   const schema = await import("@/db/schema");
   return { ...schema, db: drizzle(async (sql, params) => {
     boundary.queries.push({ sql, params });
+    if (sql.includes('from "member"')) {
+      boundary.rosterReads++;
+      if (boundary.rosterFailed) throw new Error("Roster query failed");
+      return { rows: [["viewer", "member", "Live viewer", "viewer@example.test"]] };
+    }
     if (sql.includes('from "profiles"')) {
       boundary.nameReads++;
       if (boundary.namesFailed) throw new Error("Profile query failed");
@@ -165,7 +163,7 @@ it("standalone Release avoids follow-up, event and parent queries", async () => 
   boundary.row.follow_up_of = "parent";
   const result = await readRequestRelease(id, context);
   expect(result).toMatchObject({ revision: 41, today: "2026-10-24", requesterName: "Saved Requester" });
-  expect(boundary.queries).toHaveLength(2); // primary Request + missing saved name
+  expect(boundary.queries).toHaveLength(3); // primary Request + roster + missing saved name
   expect(boundary.primaryReads).toBe(1);
 });
 

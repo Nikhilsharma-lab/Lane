@@ -1,11 +1,12 @@
 /**
  * #212 seam 4: the Guest's two emails, through #206's delivery module with the recording stand-in. A Guest hears
  * exactly twice about their submission: when a Member takes it on and when it is Closed, whatever their delivery
- * choice, and nothing else ever. Real database, mocked Clerk, `after` run by the test; nothing touches the network.
+ * choice, and nothing else ever. Real database, member rows, `after` run by the test; nothing touches the network.
  */
 import { randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { addMembers, removeMember, setMembers } from "@/test/member-fixtures"
 import { requireTestDatabase } from "@/test/test-database"
 import { recordingMessenger } from "./messenger"
 
@@ -14,8 +15,6 @@ const [GUEST, MEMBER, REVIEWER] = ["guest_delivery_guest", "guest_delivery_membe
 const APP = "https://lane.example.test"
 
 const session = vi.hoisted(() => ({ userId: "guest_delivery_member", orgId: "org_guest_delivery", role: "member" as const }))
-/** The live Clerk roster: who is in the workspace, with which role. */
-const roster = vi.hoisted(() => new Map<string, string>())
 /** Work `after()` scheduled during an action; the test runs it as the response would finish. */
 const scheduled = vi.hoisted(() => [] as (() => Promise<unknown> | unknown)[])
 /** Every message the stand-in accepted, across runs the actions start themselves. */
@@ -29,17 +28,6 @@ vi.mock("./messenger", async (original) => {
   return { ...real, recordingMessenger: () => { const messenger = real.recordingMessenger(); return { ...messenger, send: async (message: { to: string; subject: string; text: string }) => { sent.push(message); return messenger.send(message as never) } } } }
 })
 vi.mock("./session", () => ({ readSession: async () => ({ ...session }) }))
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async ({ userId }: { userId?: string[] } = {}) => {
-        const people = [...roster].filter(([id]) => !userId || userId.includes(id))
-        return { totalCount: people.length, data: people.map(([id, role]) => ({ organization: { id: ORG }, role, publicUserData: { userId: id, identifier: `${id}@example.test`, firstName: id } })) }
-      },
-      getOrganizationInvitationList: async () => ({ totalCount: 0, data: [] }),
-    },
-  }),
-}))
 
 const url = new URL(process.env.DATABASE_URL!)
 requireTestDatabase(process.env.DATABASE_URL);
@@ -50,8 +38,7 @@ beforeAll(async () => {
   for (const id of [GUEST, MEMBER, REVIEWER]) await connection`insert into profiles(id,full_name,email) values (${id},${"Name " + id},${id + "@example.test"})`
 })
 beforeEach(async () => {
-  roster.clear()
-  roster.set(GUEST, "org:guest").set(MEMBER, "org:member").set(REVIEWER, "org:member")
+  await setMembers(ORG, { [GUEST]: "guest", [MEMBER]: "member", [REVIEWER]: "member" })
   scheduled.length = 0
   sent.length = 0
   session.userId = MEMBER
@@ -98,11 +85,13 @@ describe("the taken-on email", () => {
     expect((await send(await submission({ guestSubmission: false }), "taken_on")).messages).toEqual([])
   })
 
-  it("sends nothing to someone who has left the workspace or is now a Viewer", async () => {
+  it("sends nothing to someone who has left the workspace, has a role Lane doesn't know or is now a Viewer", async () => {
     const id = await submission({ takenOn: true })
-    roster.delete(GUEST)
+    await removeMember(ORG, GUEST)
     expect((await send(id, "taken_on")).messages).toEqual([])
-    roster.set(GUEST, "org:viewer")
+    await addMembers(ORG, { [GUEST]: "owner" })
+    expect((await send(id, "taken_on")).messages).toEqual([])
+    await addMembers(ORG, { [GUEST]: "viewer" })
     expect((await send(id, "taken_on")).messages).toEqual([])
     expect(await logged(id)).toEqual([])
   })

@@ -1,6 +1,6 @@
 import { callAction } from "@/lib/action-call";
 import { queryCounter } from "@/db";
-import { fixtureClerkClient } from "@/test/member-fixtures";
+import { addMembers } from "@/test/member-fixtures";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Session } from "@/lib/session";
 import {
@@ -21,9 +21,6 @@ let sessionQueue: Session[] = [];
 
 vi.mock("@/lib/session", () => ({
   readSession: vi.fn(async () => sessionQueue.shift() ?? null),
-}));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => fixtureClerkClient(WORKSPACE_ID, [REQUESTER_ID,FIRST_MEMBER_ID,SECOND_MEMBER_ID]),
 }));
 
 const WORKSPACE_ID = "00000000-0000-4000-a000-00000000a101";
@@ -69,6 +66,7 @@ beforeAll(async () => {
       role: "developer",
     },
   ]);
+  await addMembers(WORKSPACE_ID, { [REQUESTER_ID]: "member", [FIRST_MEMBER_ID]: "member", [SECOND_MEMBER_ID]: "member" });
   await db.insert(requests).values({
     id: REQUEST_ID,
     orgId: WORKSPACE_ID,

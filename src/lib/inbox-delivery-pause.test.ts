@@ -1,11 +1,12 @@
 /**
  * #362 (spec #358 seam 2): Inbox email gives way to auth email. Once Inbox email is really sending and Resend has
  * refused a send that day, Email items hold, unclaimed, until the pause ends; Slack DMs carry on. Real database,
- * a mocked Clerk roster, the pause injected through the delivery-run options; nothing touches the network.
+ * member rows, the pause injected through the delivery-run options; nothing touches the network.
  */
 import { randomBytes, randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { addMembers } from "@/test/member-fixtures"
 import { requireTestDatabase } from "@/test/test-database"
 import { createInMemoryEmailPause, type EmailPause } from "./email-pause"
 import { slackDelivery } from "./feature-switches"
@@ -16,18 +17,6 @@ const ORG = "org_delivery_pause"
 const [REQUESTER, REVIEWER, SECOND_REVIEWER, SLACKER, GUEST] = ["pause_requester", "pause_reviewer", "pause_second_reviewer", "pause_slacker", "pause_guest"]
 
 vi.mock("./session", () => ({ readSession: vi.fn(async () => null) }))
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async ({ userId }: { userId?: string[] } = {}) => {
-        const roster: [string, string][] = [["pause_requester", "org:member"], ["pause_reviewer", "org:member"], ["pause_second_reviewer", "org:member"], ["pause_slacker", "org:member"], ["pause_guest", "org:guest"]]
-        const people = roster.filter(([id]) => !userId || userId.includes(id))
-        return { totalCount: people.length, data: people.map(([id, role]) => ({ organization: { id: "org_delivery_pause" }, role, publicUserData: { userId: id, identifier: `${id}@example.test`, firstName: id } })) }
-      },
-      getOrganizationInvitationList: async () => ({ totalCount: 0, data: [] }),
-    },
-  }),
-}))
 
 const url = new URL(process.env.DATABASE_URL!)
 requireTestDatabase(process.env.DATABASE_URL);
@@ -60,6 +49,7 @@ const logged = (id: string) => connection`select user_id, channel, outcome from 
 beforeAll(async () => {
   await connection`insert into organizations(id,name,slug) values (${ORG},'Acme','delivery-pause')`
   for (const id of [REQUESTER, REVIEWER, SECOND_REVIEWER, SLACKER, GUEST]) await connection`insert into profiles(id,full_name,email) values (${id},${id},${id + "@example.test"})`
+  await addMembers(ORG, { [REQUESTER]: "member", [REVIEWER]: "member", [SECOND_REVIEWER]: "member", [SLACKER]: "member", [GUEST]: "guest" })
 })
 beforeEach(async () => {
   await connection`delete from delivery_preferences where org_id = ${ORG}`

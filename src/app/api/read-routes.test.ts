@@ -15,24 +15,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 const session = vi.hoisted(() => ({ userId: null as string | null, orgId: null as string | null, role: null as "admin" | "member" | "guest" | "viewer" | null }));
 // The session seam answers null for anyone signed out.
 vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
-const clerk = vi.hoisted(() => ({
-  memberships: [] as { userId: string; role: string; firstName: string; lastName: string }[],
-  calls: [] as { userId?: string[]; query?: string }[],
-}));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async (input: { organizationId: string; userId?: string[]; query?: string }) => {
-        clerk.calls.push({ userId: input.userId, query: input.query });
-        const data = clerk.memberships
-          .filter(member => !input.userId || input.userId.includes(member.userId))
-          .filter(member => !input.query || `${member.firstName} ${member.lastName}`.toLowerCase().includes(input.query.toLowerCase()))
-          .map(member => ({ role: member.role, organization: { id: input.organizationId }, publicUserData: { userId: member.userId, firstName: member.firstName, lastName: member.lastName } }));
-        return { totalCount: data.length, data };
-      },
-    },
-  }),
-}));
 
 import { db, notifications, profiles, projects, requests } from "@/db";
 import { GET as search } from "./search/route";
@@ -71,14 +53,7 @@ beforeAll(async () => {
     { id: notificationIds[7], userId: GUEST, orgId: ORG, type: "comment_added", requestId: guestRequest, actorId: ADMIN, readAt: new Date() },
   ]);
 });
-beforeEach(() => {
-  actAs(MEMBER);
-  clerk.calls = [];
-  clerk.memberships = [
-    { userId: ADMIN, role: "org:admin", firstName: "Test", lastName: "Admin" },
-    { userId: MEMBER, role: "org:member", firstName: "Test", lastName: "Member" },
-  ];
-});
+beforeEach(() => actAs(MEMBER));
 afterAll(async () => {
   await db.delete(notifications).where(inArray(notifications.id, notificationIds));
   await db.delete(requests).where(inArray(requests.id, [memberRequest, guestRequest, foreignRequest]));

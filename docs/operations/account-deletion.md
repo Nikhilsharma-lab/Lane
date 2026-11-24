@@ -1,10 +1,12 @@
 # Manual Account and Workspace Deletion Procedure
 
-> **For agentic workers:** This is an operating procedure. It authorizes nothing by itself. Every production write below needs Nikhil's explicit go-ahead for that run, and the SQL is a template with placeholders, never a script to execute unattended. Lane has no Clerk webhooks by design (`docs/superpowers/plans/2026-10-10-mvp-launch-linear.md` §6.1, G11), so nothing here happens automatically.
+> **For agentic workers:** This is an operating procedure. It authorizes nothing by itself. Every production write below needs Nikhil's explicit go-ahead for that run, and the SQL is a template with placeholders, never a script to execute unattended. Nothing here happens automatically. `src/db/account-deletion-procedure.test.ts` runs the blocks marked `-- step:` on a local test database; change a block and its test together.
 
-**Goal:** When a person asks Lane to delete their account, or a workspace admin asks to delete a workspace, remove what Lane and Clerk hold about them in a known order, within the window the Privacy page promises, without breaking the workspace they leave behind.
+**Goal:** When a person asks Lane to delete their account, or a workspace admin asks to delete a workspace, remove what Lane holds about them in a known order, within the window the Privacy page promises, without breaking the workspace they leave behind.
 
-**Authority:** Plan §6.1 row "Manual deletion procedure (no Clerk webhooks by design)", owner N+A, ref G11. Data shapes come from `src/db/migrations/0013_clerk_clean_cutover.sql`, `0015`–`0018` and `src/db/schema/*.ts`. The rule that a Request outlives its creator comes from `REQUIREMENTS.md` "Closure ownership" ("If the creator leaves or loses access, a Clerk organization admin explicitly transfers outcome ownership to another active member").
+**Authority:** Plan §6.1 row G11 (a manual procedure), owner N+A, and #345 Q7: the procedure works entirely in Lane's database. Data shapes come from `src/db/migrations/` (Better Auth's tables are `0055`) and `src/db/schema/*.ts`. The rule that a Request outlives its creator comes from `REQUIREMENTS.md` "Closure ownership".
+
+**Applies from the Better Auth cutover** (increment 6 of #349). Until then production runs the earlier build, whose procedure is this file at commit `f2045e17`.
 
 **Status:** Nikhil approved the privacy policy and deletion/retention rules on 2026-10-20. Operator: Nikhil Sharma, India. Privacy contact: uselaneapp@gmail.com. Acknowledge within 3 working days; aim to complete verified requests within 30 days, subject to applicable legal deadlines. Remove account identity and retain shared contributions under former-member attribution, separately reviewing personal information within content and removing it where required. Attribution changes alone do not anonymize content. No real-user deletion has been run against production.
 
@@ -14,31 +16,38 @@
 
 ## 1. Where a person's data lives
 
-Clerk is the only identity and tenancy authority. Lane's Postgres holds a thin profile plus the work the person did. The two never sync back: Lane copies name, email and avatar URL from Clerk at onboarding (`src/app/(auth)/onboarding/actions.ts:33-51`) and on profile save, and Clerk never reads Lane.
+Lane's Postgres is the only place a Lane account lives (ADR 0008). Better Auth's user is `profiles` and its workspace is `organizations`.
 
-### 1.1 In Clerk (production instance)
+### 1.1 The account (Supabase Postgres, schema `public`)
 
-| Object | What it holds | Deleted by |
+| Table | What it holds about the person | What the procedure does |
 |---|---|---|
-| User (`user_*`) | name, email, password hash, avatar image, OAuth links, sessions, sign-in history | Clerk Dashboard → Users → Delete user, or the Backend API `users.deleteUser` (the pattern `e2e/helpers/test-user.ts:45-53` uses on the dev instance) |
-| Organization memberships | which workspaces the person is in, with `org:admin` or `org:member` | removed with the user; or Dashboard → Organizations → Members → Remove to leave one workspace only |
-| Organization (`org_*`) | workspace name, slug, logo, members, pending invitations | Dashboard → Organizations → Delete, or `organizations.deleteOrganization` |
-| Invitations | email address of each invitee, inviter id, status | removed with the organization; revoke individually in the Dashboard |
+| `profiles` | `id`, `full_name`, `email`, `email_verified`, `role`, `last_workspace_id` | kept as the "Former member" tombstone, with a placeholder email |
+| `session` | `user_id`: their signed-in devices (token, IP address, browser) | deleted: every device is signed out |
+| `account` | `user_id`: their sign-in methods (password hash, Google account and its tokens) | deleted |
+| `member` | `user_id`, `role`: which workspaces they are in | deleted |
+| `invitation` | `email` (invitations to them), `inviter_id` (invitations they sent) | every invitation to their address is deleted, answered ones too because they hold the address; and the pending ones they sent |
+| `verification` | `identifier` = `<type>-otp-<email>`: hashed sign-up, sign-in and reset codes | deleted |
 
-### 1.2 In Lane (Supabase Postgres, schema `public`)
+`session`, `account`, `member` and sent invitations would cascade from a deleted profile, but the profile is kept, so each is deleted explicitly.
+
+### 1.2 Their work
 
 | Table | Columns naming the person | Delete rule from the schema | Meaning |
 |---|---|---|---|
-| `profiles` | `id` (= Clerk user id), `full_name`, `email`, `avatar_url`, `role` | primary key | the only row that is purely about the person |
-| `requests` | `created_by`, `assigned_to` | `REFERENCES profiles(id)` with no `ON DELETE` (no action) | deleting the profile fails while any Request names it |
+| `requests` | `created_by`, `assigned_to`, `taken_on_by` | `REFERENCES profiles(id)` with no `ON DELETE` (no action) | deleting the profile fails while any Request names it |
 | `comments` | `author_id` | no action | same |
 | `request_attachments` | `uploaded_by` | no action; `request_id` and `org_id` cascade | same; the file itself is a storage object (1.3) |
-| `projects` | `created_by` | no action (`0015`) | same |
-| `notifications` | `user_id` (recipient), `actor_id` (who did the thing) | both `ON DELETE CASCADE` | these go away with the profile on their own |
-| `requests.design_reviews` (jsonb, `0018`) | `requestedBy {id, name}`, `reviewers[] {id, name}`, `responses[].reviewerId`, `withdrawal.by {id, name}` | none (JSON) | name snapshots frozen at review time (`src/lib/request-review.ts:3-9`) |
-| `organizations` | `owner_id` (first admin's Clerk user id) | nullable, no FK | an id, not a name |
+| `projects`, `workspace_labels`, `metric_definitions` | `created_by` | no action | same |
+| `metric_definition_history`, `request_expected_impact_revisions` | `author_id` | no action | same; append-only records |
+| `notifications` | `user_id` (recipient), `actor_id` (who did the thing) | both `ON DELETE CASCADE` | deleted explicitly, because the profile stays |
+| `delivery_preferences`, `first_run_progress`, `saved_views` | `user_id`, `owner_id` | `ON DELETE CASCADE` | the person's own settings; they stay with the tombstone (5.1) |
+| `requests.design_reviews` (jsonb, `0018`) | `requestedBy {id, name}`, `reviewers[] {id, name}`, `responses[].reviewerId`, `withdrawal.by {id, name}` | none (JSON) | name snapshots from before 2026-10-18; nothing writes them now |
+| `request_agreements.reviewers`, `request_agreement_events.payload` (jsonb) | `nominee.userId`, `displayNameAtSelection` | none (JSON) | a Reviewer's name when they were asked (5.1) |
+| `requests` release and closure records (jsonb), `same_problem_members`, `same_problem_events`, `quarter_notes`, `delivery_log`, `slack_connections` | ids only | none | an id, not a name |
+| `organizations` | `owner_id` (who created the workspace) | nullable, no FK | an id, not a name |
 
-Free-text fields (`requests.description`, `comments.body`, `expected_impact`, Intake answers) may mention people by name. They are workspace content, not account data; see section 6.
+Free-text fields (`requests.description`, `comments.body`, `expected_impact`, Intake answers) may mention people by name. They are workspace content, not account data; see section 5.
 
 ### 1.3 In Supabase Storage
 
@@ -46,8 +55,11 @@ Bucket `request-attachments` (private). Object path is `<org_id>/<request_id>/<a
 
 ### 1.4 Elsewhere, transient
 
-| Processor | What | Expires |
+| Where | What | Expires |
 |---|---|---|
+| `rate_limit` (Lane's database) | sign-in limits keyed by IP address; code limits keyed by a SHA-256 of the address | Better Auth clears old rows as it counts |
+| `verification` (Lane's database) | a Google connection in progress, with the address | 10 minutes; it needs the session the procedure deletes, so it can't finish |
+| Resend | Lane's emails to the person (codes, invitations, Inbox) | Resend's retention for the plan; nothing to do |
 | Upstash Redis | rate-limit counter keyed `lane:ratelimit:ai:<user_id>` (`src/lib/rate-limit.ts:21-23`) | 60 seconds |
 | Vercel | request logs with IPs and paths | Vercel's log retention for the plan; nothing to do |
 | Anthropic | Intake text sent through the AI gate (`src/lib/ai/triage.ts`) | per Anthropic's API data-retention terms at the time; check the current terms when writing the Privacy page |
@@ -55,16 +67,13 @@ Bucket `request-attachments` (private). Object path is `<org_id>/<request_id>/<a
 
 ---
 
-## 2. Order of deletion for one person, and why
+## 2. One transaction, and why
 
-**Clerk first, then Lane.**
-
-1. Profile data flows one way, Clerk → Lane. `saveOnboardingRole` upserts `full_name`, `email` and `avatar_url` from Clerk every time it runs (`onboarding/actions.ts:33-51`). If Lane were cleaned first and the person could still sign in, one visit to `/onboarding` would write their name and email back.
-2. Deleting the Clerk user ends every session at once. From that moment no server action can run as that user, so the Lane rows are stable while the SQL runs.
-3. Nothing in Lane calls Clerk for a user that no longer exists. Profiles are read by id only; the Members page and reviewer picker list Clerk memberships and skip anyone without a profile or membership (`src/lib/request-review-members.ts:10-37`).
-4. The foreign keys without `ON DELETE` (section 1.2) mean a plain `DELETE FROM profiles` fails for anyone who created a Request, a comment, an attachment or a Project. The default is therefore to **anonymise** the profile row and **keep** the person's contributions attributed to a tombstone (section 6 is the open decision). Notifications cascade when a profile is deleted; for the anonymise path they are deleted explicitly.
-
-The e2e helper `deleteTestWorkspace` (`e2e/helpers/cleanup.ts:217-227`) deletes the Lane row before the Clerk organization. That order is fine for disposable fixtures with no live sessions. It is the wrong order for a real workspace: `ensure-workspace.ts:76-93` re-inserts the `organizations` row from Clerk on any member's next page load while the Clerk organization still exists.
+1. Everything that lets the person sign in goes in the same transaction as their name and email, so nobody can sign in to a half-deleted account.
+2. A sign-in already under way can finish just after the commit. So the check (3.4) runs after the commit, and 3.3 runs again if the check finds anything. Running 3.3 twice for the same person is safe.
+3. The foreign keys without `ON DELETE` (section 1.2) mean a plain `DELETE FROM profiles` fails for anyone who created a Request, a comment, an attachment or a Project. So the profile is **anonymised** and their contributions stay, attributed to "Former member" (section 5).
+4. `profiles.email` is unique, so each tombstone gets its own placeholder: `former-member-<id>@deleted.invalid`. `.invalid` is reserved and never receives mail.
+5. Their old address is free again. Someone who signs up with it, or with the same Google account, starts a new account that has nothing of the old one.
 
 ---
 
@@ -75,45 +84,100 @@ Steps marked **[N: authorize]** are production writes.
 ### 3.1 Receive and verify
 
 - [ ] The request arrives at `support@` (plan §6.1, H3) from the email address on the account, or from a signed-in session. Reply within 3 working days acknowledging it and stating the 30-day window (section 7).
-- [ ] Record: Clerk user id `user_…`, the email, the date received. Keep the record outside the repo.
+- [ ] Record: the person's Lane id (from `find-person`), the email, the date received. Keep the record outside the repo.
 - [ ] Look up what the person touched, read-only, with a session-mode connection string pasted into the shell for this run only (never into an env file; see the runbook, section 2):
 
-All SQL below is written for `psql -X -v ON_ERROR_STOP=1`. Set the id once; `:'person_id'` then expands to a correctly quoted literal everywhere.
+All SQL below is written for `psql -X -v ON_ERROR_STOP=1`. Set the variables once; `:'person_id'` then expands to a correctly quoted literal everywhere.
+
+```
+\set person_email REPLACE_ME
+\set person_id REPLACE_ME
+```
 
 ```sql
-\set person_id user_REPLACE_ME
+-- step: find-person
+SELECT id, full_name, email FROM public.profiles WHERE lower(email) = lower(:'person_email');  -- expect one row; its id is person_id
+```
 
+```sql
+-- step: look-up
 SELECT 'requests_created', count(*) FROM public.requests WHERE created_by = :'person_id' UNION ALL
 SELECT 'requests_assigned', count(*) FROM public.requests WHERE assigned_to = :'person_id' UNION ALL
 SELECT 'comments', count(*) FROM public.comments WHERE author_id = :'person_id' UNION ALL
 SELECT 'attachments', count(*) FROM public.request_attachments WHERE uploaded_by = :'person_id' UNION ALL
 SELECT 'projects', count(*) FROM public.projects WHERE created_by = :'person_id' UNION ALL
+SELECT 'workspaces', count(*) FROM public.member WHERE user_id = :'person_id' UNION ALL
+SELECT 'pending_invitations_sent', count(*) FROM public.invitation WHERE inviter_id = :'person_id' AND status = 'pending' UNION ALL
 SELECT 'notifications_received', count(*) FROM public.notifications WHERE user_id = :'person_id' UNION ALL
 SELECT 'notifications_as_actor', count(*) FROM public.notifications WHERE actor_id = :'person_id' UNION ALL
 SELECT 'reviews_named_in', count(*) FROM public.requests
   WHERE design_reviews::text LIKE '%' || :'person_id' || '%';
 ```
 
-### 3.2 Clerk **[N: authorize]**
+### 3.2 Workspaces they are the only Admin of **[N: authorize]**
 
-- [ ] If the person is the only admin of a workspace that other people still use, ask them (or promote another member) before deleting; otherwise the workspace is left without an admin. Clerk refuses to remove the last admin from an organization in some configurations; deleting the user removes the membership regardless.
-- [ ] Dashboard → Users → the user → **Delete user**. Confirm the user is gone (searching the email returns nothing).
-
-### 3.3 Lane: anonymise and remove **[N: authorize]**
-
-Run in one transaction with the same `\set person_id` as 3.1. The tombstone keeps the opaque Clerk id as the key because every FK points at it; the id is not personal data by itself.
+A workspace always keeps an Admin (#333 Q4), and 3.3 doesn't check. Look first:
 
 ```sql
-BEGIN;
+-- step: only-admin
+SELECT o.id, o.name,
+  (SELECT count(*) FROM public.member other WHERE other.organization_id = o.id AND other.user_id <> m.user_id) AS other_people
+FROM public.member m
+JOIN public.organizations o ON o.id = m.organization_id
+WHERE m.user_id = :'person_id' AND m.role = 'admin'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.member other_admin
+    WHERE other_admin.organization_id = o.id AND other_admin.user_id <> m.user_id AND other_admin.role = 'admin'
+  );
+```
 
--- 1. Their notifications. The profile stays, so the CASCADE does not fire; delete explicitly.
+- [ ] For each workspace other people still use, ask the person to make someone else an Admin in Settings → Members before going on. If they can't, agree with the workspace's people who it is, `\set org_id` and `\set new_admin_id`, and run:
+
+```sql
+-- step: make-admin
+UPDATE public.member SET role = 'admin' WHERE organization_id = :'org_id' AND user_id = :'new_admin_id';  -- expect UPDATE 1
+```
+
+- [ ] For each workspace nobody else is in, ask whether it should be deleted too (section 4, before this account). Otherwise nobody can open it again.
+- [ ] Run `only-admin` again. Go on when every row left has no other people.
+- [ ] If they sent pending invitations, tell each workspace's other Admins: those links stop working, and the people need inviting again.
+
+### 3.3 Delete the account and anonymise the profile **[N: authorize]**
+
+One transaction, with the same variables. The tombstone keeps the person's opaque id as its key because every FK points at it; the id is not personal data by itself.
+
+```sql
+-- step: delete-person
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+
+-- 1. Hold the profile while its rows go. Expect one row.
+SELECT id FROM public.profiles WHERE id = :'person_id' FOR UPDATE;
+
+-- 2. Every device, every sign-in method, every membership.
+DELETE FROM public.session WHERE user_id = :'person_id';
+DELETE FROM public.account WHERE user_id = :'person_id';
+DELETE FROM public.member WHERE user_id = :'person_id';
+
+-- 3. Invitations to their address, answered or not, and the pending ones they sent.
+DELETE FROM public.invitation
+WHERE lower(email) = (SELECT lower(email) FROM public.profiles WHERE id = :'person_id')
+   OR (inviter_id = :'person_id' AND status = 'pending');
+
+-- 4. Codes stored for their address: sign-up, sign-in and reset.
+DELETE FROM public.verification v
+USING public.profiles p
+WHERE p.id = :'person_id'
+  AND v.identifier IN ('email-verification-otp-' || lower(p.email), 'sign-in-otp-' || lower(p.email), 'forget-password-otp-' || lower(p.email));
+
+-- 5. Their notifications. The profile stays, so the CASCADE does not fire; delete explicitly.
 DELETE FROM public.notifications WHERE user_id = :'person_id' OR actor_id = :'person_id';
 
--- 2. Open assignments: unassign so the Request can be picked up by someone else.
+-- 6. Open assignments: unassign so the Request can be picked up by someone else.
 UPDATE public.requests SET assigned_to = NULL
 WHERE assigned_to = :'person_id' AND status <> 'done';
 
--- 3. Name snapshots inside design reviews (0018): requestedBy, reviewers[], withdrawal.by.
+-- 7. Name snapshots inside design reviews (0018): requestedBy, reviewers[], withdrawal.by.
 --    Order is preserved. design_review_version is bumped so a stale client save (which carries
 --    the old names in memory) is rejected by the conditional version update instead of winning.
 UPDATE public.requests
@@ -141,24 +205,39 @@ SET design_reviews = (
     design_review_version = design_review_version + 1
 WHERE design_reviews::text LIKE '%' || :'person_id' || '%';
 
--- 4. The profile becomes a tombstone. updated_at moves by trigger (set_updated_at_profiles).
+-- 8. The profile becomes a tombstone. updated_at moves by trigger (set_updated_at_profiles).
 UPDATE public.profiles
-SET full_name = 'Former member', email = '', avatar_url = NULL
+SET full_name = 'Former member', email = 'former-member-' || id || '@deleted.invalid', email_verified = false, last_workspace_id = NULL
 WHERE id = :'person_id';
 
--- 5. Check before commit: no name or email left anywhere.
-SELECT id, full_name, email, avatar_url FROM public.profiles WHERE id = :'person_id';
-SELECT count(*) FROM public.notifications WHERE user_id = :'person_id' OR actor_id = :'person_id';  -- expect 0
-SELECT count(*) FROM public.requests
-  WHERE design_reviews::text LIKE '%' || :'person_id' || '%'
-    AND design_reviews::text NOT LIKE '%Former member%';  -- expect 0
+-- 9. Look before commit: "Former member" and the placeholder.
+SELECT id, full_name, email FROM public.profiles WHERE id = :'person_id';
 
 COMMIT;
 ```
 
-Rehearse step 3 on staging (`jznepeqghjixcrpuddym`) against a Request with a review round before the first production use. The JSON shape is fixed by `src/lib/request-review.ts:3-9`; `requests_design_reviews_check` (array) and `requests_design_review_version_check` (`>= 0`) must still pass, and the review panel must still render that Request.
+Rehearse statement 7 on staging (`jznepeqghjixcrpuddym`) against a Request with a review round before the first production use. The JSON shape is fixed by `src/lib/request-review.ts:3-9`; `requests_design_reviews_check` (array) and `requests_design_review_version_check` (`>= 0`) must still pass, and the review panel must still render that Request.
 
-### 3.4 Storage (only if the section 6 decision says attachments go too)
+### 3.4 Check
+
+Run after the commit. Expect 0 in every row; if not, run 3.3 again, then this again.
+
+```sql
+-- step: check-person
+SELECT 'sessions' AS what, count(*) AS left_over FROM public.session WHERE user_id = :'person_id' UNION ALL
+SELECT 'sign-in methods', count(*) FROM public.account WHERE user_id = :'person_id' UNION ALL
+SELECT 'memberships', count(*) FROM public.member WHERE user_id = :'person_id' UNION ALL
+SELECT 'pending invitations', count(*) FROM public.invitation
+  WHERE lower(email) = lower(:'person_email') OR (inviter_id = :'person_id' AND status = 'pending') UNION ALL
+SELECT 'stored codes', count(*) FROM public.verification
+  WHERE identifier IN ('email-verification-otp-' || lower(:'person_email'), 'sign-in-otp-' || lower(:'person_email'), 'forget-password-otp-' || lower(:'person_email')) UNION ALL
+SELECT 'profiles with the address', count(*) FROM public.profiles WHERE lower(email) = lower(:'person_email') UNION ALL
+SELECT 'notifications', count(*) FROM public.notifications WHERE user_id = :'person_id' OR actor_id = :'person_id' UNION ALL
+SELECT 'design reviews still naming them', count(*) FROM public.requests
+  WHERE design_reviews::text LIKE '%' || :'person_id' || '%' AND design_reviews::text NOT LIKE '%Former member%';
+```
+
+### 3.5 Storage (only if the section 6 decision says attachments go too)
 
 Default: attachments the person uploaded stay with their Request. If Nikhil decides otherwise for a given request, remove the objects then the rows, in that order (the same order `attachment-actions.ts:378-388` uses):
 
@@ -172,7 +251,7 @@ Remove each path from `request-attachments` in Dashboard → Storage, or with `c
 DELETE FROM public.request_attachments WHERE uploaded_by = :'person_id';
 ```
 
-### 3.5 Close
+### 3.6 Close
 
 - [ ] Reply to the person: account deleted on `<date>`; contributions kept anonymised (or deleted, per the decision); backup copies expire within 28 days.
 - [ ] Note the completion date in the record from 3.1. Keep the record for the retention period the advice in plan §6.1 (DPDP/GDPR) recommends, then delete it.
@@ -181,24 +260,45 @@ DELETE FROM public.request_attachments WHERE uploaded_by = :'person_id';
 
 ## 4. Procedure: delete a whole workspace
 
-Requested by a Clerk `org:admin` of that workspace. **Clerk first**, for the reason in section 2.
+Requested by an Admin of that workspace.
 
-- [ ] Verify the requester is an admin of `org_…` (Clerk Dashboard → Organizations → Members).
-- [ ] **[N: authorize]** Dashboard → Organizations → the organization → **Delete**. Members lose the active organization immediately; every Lane read and write is scoped by it, so no one can reach the rows from now on.
-- [ ] **[N: authorize]** Lane rows. One statement; the cascades in 0013 and 0015 do the rest.
+- [ ] Find the workspace and check the requester is one of its Admins:
 
 ```sql
-\set org_id org_REPLACE_ME
+-- step: find-workspace
+SELECT o.id, o.name, (SELECT count(*) FROM public.member people WHERE people.organization_id = o.id) AS people
+FROM public.member m
+JOIN public.profiles p ON p.id = m.user_id
+JOIN public.organizations o ON o.id = m.organization_id
+WHERE lower(p.email) = lower(:'person_email') AND m.role = 'admin';
+```
 
+- [ ] **[N: authorize]** `\set org_id` and delete the row. The cascades do the rest: its Requests and everything on them, Projects, members, invitations, settings and billing state. Two triggers refuse to delete a released or Closed Request (`0029`, `0031`), so the transaction turns them off and on again. Writing Requests waits, in every workspace, while it runs; a failure rolls everything back, the triggers included.
+
+```sql
+-- step: delete-workspace
 BEGIN;
-SELECT 'requests', count(*) FROM public.requests WHERE org_id = :'org_id';   -- for the record
-DELETE FROM public.organizations WHERE id = :'org_id';
--- cascades: requests → comments, request_attachments, notifications; projects; notifications by org_id
-SELECT count(*) FROM public.requests WHERE org_id = :'org_id';   -- expect 0
+SET LOCAL lock_timeout = '5s';
+SELECT 'requests', count(*) FROM public.requests WHERE org_id = :'org_id';  -- for the record
+ALTER TABLE public.requests DISABLE TRIGGER protect_request_release, DISABLE TRIGGER protect_request_closure;
+DELETE FROM public.organizations WHERE id = :'org_id';  -- expect DELETE 1
+ALTER TABLE public.requests ENABLE TRIGGER protect_request_release, ENABLE TRIGGER protect_request_closure;
 COMMIT;
 ```
 
-- [ ] **[N: authorize]** Storage: delete the folder `<org_id>/` in bucket `request-attachments` (Dashboard → Storage), or list and remove with the service client. The database rows are already gone, so every object under that prefix is orphaned.
+- [ ] Check, after the commit:
+
+```sql
+-- step: check-workspace
+SELECT
+  (SELECT count(*) FROM public.organizations WHERE id = :'org_id') AS workspaces,  -- expect 0
+  (SELECT count(*) FROM public.requests WHERE org_id = :'org_id') AS requests,  -- expect 0
+  (SELECT count(*) FROM pg_trigger WHERE tgrelid = 'public.requests'::regclass AND tgenabled = 'O'
+    AND tgname IN ('protect_request_release', 'protect_request_closure')) AS protections_on;  -- expect 2
+```
+
+- [ ] **[N: authorize]** Storage: delete the folder `<org_id>/` in bucket `request-attachments` (Dashboard → Storage), or list and remove with the service client. The database rows are already gone, so every object under that prefix is orphaned. Look again the next day: an upload already under way can still land.
+- [ ] Its people stay signed in. Their next page opens another of their workspaces, or Onboarding.
 - [ ] Profiles are not per-workspace. Members who belong to no other workspace keep a profile row (name, email) until they delete their account. Tell the requester that members' accounts are separate and each person can ask for their own deletion.
 
 ---
@@ -210,15 +310,25 @@ COMMIT;
 - **Attachments** they uploaded stay (3.4 is the exception).
 - **Projects** they created stay; a Project belongs to the workspace.
 - **Design review rounds** stay, with their name replaced. Responses keep `reviewerId` (an opaque id).
-- **The `profiles` row** stays as a tombstone because seven columns across five tables point at it with no `ON DELETE` rule.
+- **The `profiles` row** stays as a tombstone because the columns in 1.2 point at it with no `ON DELETE` rule.
 - **Other people's data** that mentions the person in free text.
 - **Workspace rows** when one member leaves.
+
+### 5.1 Not covered: decide before the first real deletion
+
+The procedure doesn't touch these. Each needs Nikhil's decision before it runs for a real person.
+
+- **A Reviewer's name.** `request_agreements.reviewers[].displayNameAtSelection` keeps the name a Reviewer had when asked, and Lane shows it once they are no longer in the workspace. `request_agreement_events.payload` holds copies and refuses updates.
+- **A personal address as a Free Requests key.** A workspace created from a personal email address stores that address in `free_request_allowances.allowance_key` and `workspace_billing.allowance_key`, which is decided once and refuses updates.
+- **Their settings.** `delivery_preferences`, `first_run_progress`, `saved_views` (a saved view has a typed name) and `delivery_log` stay, keyed by the opaque id.
+- **A design review on a Closed Request.** Statement 7 of 3.3 stops with "Closed Request is immutable" if one names the person, and the whole transaction rolls back. The cutover starts from an empty database and nothing writes design reviews any more, so no such row is expected.
+- **Payments.** Deleting a workspace doesn't cancel its subscription or remove its customer record at the payment provider (`workspace_billing`). No payment is accepted while billing is off.
 
 ---
 
 ## 6. Decision history — superseded by approval above
 
-**Historical alternatives (not current policy).** The historical defaults below delete identity (Clerk account, name, email, avatar, notifications) and keep content (Requests, comments, attachments, Projects) anonymised. `REQUIREMENTS.md` and `PRODUCT.md` do not say whether a person may demand that their own content be erased from a workspace that still uses it. That is a legal and product call:
+**Historical alternatives (not current policy).** The historical defaults below delete identity (account, name, email, notifications) and keep content (Requests, comments, attachments, Projects) anonymised. `REQUIREMENTS.md` and `PRODUCT.md` do not say whether a person may demand that their own content be erased from a workspace that still uses it. That is a legal and product call:
 
 - Option A (default here): identity deleted, content anonymised and kept. Matches "Closed is permanent; corrections are append-only" and the closure-ownership transfer rule.
 - Option B: identity deleted and the person's own Requests, comments and attachments deleted on request, with cascades removing other members' comments and attachments on those Requests. Simpler to promise, lossy for the workspace.
@@ -233,10 +343,10 @@ The 2026-10-20 approval adopts retention of shared contributions with separate r
 Plain language, for the page the plan requires before any non-founder data (§6.1, P1–P5):
 
 - "To delete your account, email uselaneapp@gmail.com from the address on the account. We confirm within 3 working days and complete the deletion within 30 days."
-- "We delete your account in Clerk (identity) and remove your name, email and avatar from Lane. Requests, comments and files you added to a workspace stay with that workspace and are shown as from a former member." (Adjust if section 6 changes the default.)
+- "We delete your sign-in methods, sessions, workspace memberships and pending invitations, and remove your name and email from Lane's profile record. Requests, comments and files you added to a workspace stay with that workspace and are shown as from a former member." (Adjust if section 6 changes the default.)
 - "Backup copies are kept for up to 28 days after deletion and then expire."
 - "Workspace admins can ask us to delete a whole workspace, including all its Requests and files."
-- List the processors: Clerk, Supabase, Vercel, Anthropic, Upstash, and the monitoring provider chosen under decision 8.13.
+- List the processors: Supabase, Vercel, Resend, Cloudflare Turnstile, Google sign-in, Have I Been Pwned, Anthropic, Upstash, and the monitoring provider chosen under decision 8.13.
 
 The 3-working-day acknowledgement, 30-day target and 28-day maximum backup window were approved on 2026-10-20. The published privacy page is the current wording; these older examples are not stronger guarantees. Before executing a deletion, inventory every relevant local and off-machine copy and record its expiry deadline.
 

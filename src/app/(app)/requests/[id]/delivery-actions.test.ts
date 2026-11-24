@@ -2,12 +2,13 @@
  * #206: action-caused Needs-you items leave Lane when the action happens, after its response. Asking for a
  * review reaches the Reviewer, raising a Concern reaches the Requester, and an edit that resets answers asks
  * again. Email is switched off in tests, so the recording stand-in sends nothing and the delivery log records
- * "would send" for each person's item, once. Real database, mocked Clerk, `after` run by the test.
+ * "would send" for each person's item, once. Real database, member rows, `after` run by the test.
  */
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import type { Session } from "@/lib/session";
+import { addMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_delivery_actions";
@@ -18,17 +19,6 @@ const scheduled = vi.hoisted(() => [] as (() => Promise<unknown> | unknown)[]);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: (work: () => unknown) => { scheduled.push(work); } }));
 vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async () => {
-        const ids = ["delivery_owner", "delivery_designer", "delivery_developer"];
-        return { totalCount: ids.length, data: ids.map((userId) => ({ organization: { id: session.orgId }, role: "org:member", publicUserData: { userId, identifier: `${userId}@example.test`, firstName: userId } })) };
-      },
-      getOrganizationInvitationList: async () => ({ totalCount: 0, data: [] }),
-    },
-  }),
-}));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
@@ -37,6 +27,7 @@ const connection = postgres(url.toString(), { max: 2, prepare: false, onnotice: 
 beforeAll(async () => {
   await connection`insert into organizations(id,name,slug) values (${ORG},'Delivery actions','delivery-actions')`;
   for (const id of [OWNER, DESIGNER, DEVELOPER]) await connection`insert into profiles(id,full_name,email) values (${id},${id},${id + "@example.test"})`;
+  await addMembers(ORG, { [OWNER]: "member", [DESIGNER]: "member", [DEVELOPER]: "member" });
 });
 beforeEach(() => { scheduled.length = 0; });
 afterAll(async () => {

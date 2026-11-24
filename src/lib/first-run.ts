@@ -1,10 +1,8 @@
 import "server-only";
 
-import { clerkClient } from "@clerk/nextjs/server";
-import { timed } from "@/lib/request-timings";
 import { and, eq, sql } from "drizzle-orm";
 
-import { db, firstRunProgress, requests } from "@/db";
+import { db, firstRunProgress, requests, workspaces } from "@/db";
 import type { MemberAuth, WorkspacePerson } from "./auth-guard";
 import { readFreeRequests, type WorkspaceFreeRequests } from "./billing";
 import {
@@ -14,8 +12,8 @@ import {
 /**
  * #217 (spec #195, item 6): the first run's store. One row per person per workspace (`first_run_progress`),
  * started the first time the person reaches the Requests list. Which guide they get is decided then, once, from
- * the workspace's Clerk creator. Nothing else is created: no demo workspace and no sample data. Access is the
- * caller's job: pages pass the session's member, actions pass the guard's.
+ * the workspace's creator (`organizations.owner_id`). Nothing else is created: no demo workspace and no sample data.
+ * Access is the caller's job: pages pass the session's member, actions pass the guard's.
  */
 
 type Person = WorkspacePerson;
@@ -47,28 +45,21 @@ async function readProgress(person: Person): Promise<{ progress: FirstRunProgres
   return { progress, filed: Boolean(filed) };
 }
 
-/** The guide for someone without a first run yet, from the workspace's Clerk creator; null while Clerk can't say. */
-async function guideFor({ orgId, userId }: Person): Promise<FirstRunGuide | null> {
-  try {
-    const client = await clerkClient();
-    const organization = await timed("workspace", () => client.organizations.getOrganization({ organizationId: orgId }));
-    return firstRunGuideFor({ createdBy: organization.createdBy, userId });
-  } catch {
-    console.error("[first-run] workspace creator unavailable");
-    return null;
-  }
+/** The guide for someone without a first run yet. While the workspace's creator isn't known, everyone joined it. */
+async function guideFor({ orgId, userId }: Person): Promise<FirstRunGuide> {
+  const [workspace] = await db.select({ createdBy: workspaces.ownerUserId }).from(workspaces).where(eq(workspaces.id, orgId));
+  return firstRunGuideFor({ createdBy: workspace?.createdBy, userId });
 }
 
 /**
- * The signed-in person's first run in their workspace, started if this is their first visit. Null when it can't
- * be started yet (Clerk can't say who created the workspace); the next visit tries again.
+ * The signed-in person's first run in their workspace, started if this is their first visit. Null when it
+ * can't be started; the next visit tries again.
  */
 export async function loadFirstRun(member: MemberAuth): Promise<FirstRunData | null> {
   const person = { orgId: member.orgId, userId: member.userId };
   let stored = await readProgress(person);
   if (!stored) {
     const guide = await guideFor(person);
-    if (!guide) return null;
     const [{ filed }] = await db.select({ filed: filedSql(person) }).from(sql`(select 1) as visit`);
     const start = startingProgress({ guide, filed: Boolean(filed) });
     await db
