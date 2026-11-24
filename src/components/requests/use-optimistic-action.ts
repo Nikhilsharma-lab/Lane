@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from "react"
 import { useStableRouter } from "@/components/shell/stable-router"
 import { useToastStack, type ToastOptions } from "@/components/arc/toast-stack/toast-stack"
-import { callAction, clerkActionSession, isSessionFailure, type ActionSession } from "@/lib/action-call"
+import { callAction, isSessionFailure } from "@/lib/action-call"
 import { isOffline } from "@/lib/connection-status"
 import { CHECK_CONNECTION, OFFLINE_ANSWER, OFFLINE_ANSWER_TITLE, SAVE_FAILED_TITLE, TRY_AGAIN, isOfflineError, thrownMessage } from "@/lib/failure-messages"
 import { usePendingMutationWriter, type PendingMutations, type RequestPatch } from "./pending-mutations-provider"
@@ -25,7 +25,7 @@ export type OptimisticOptions<R> = {
   patch?: Omit<RequestPatch, "since">
   run: () => Promise<R>
   /** Replaces the default failure toast (an inline alert, or a toast the move already owns). */
-  /** `auth` is true only for an explicit expiry result after recovery stops. */
+  /** `auth` is true only when the action answered that the session ended. */
   onError?: (message: string, detail: FailureDetail) => void
   /** Waits for the action already in flight on this Request and is not sent if it failed (Undo after Mark Done). */
   waitForPending?: boolean
@@ -49,8 +49,6 @@ export type OptimisticDeps = {
   overlay: OverlayWriter | null
   /** Re-syncs the page with the server. Only failure paths call it; `useServerRefresh` skips it offline. */
   refresh: () => void
-  /** The session token every call refreshes first (`callAction`). */
-  session: ActionSession
   /** The default failure feedback: "Couldn’t save" (or the offline answer) with Try again. */
   notifyError: (message: string, detail: FailureDetail) => void
   /** Whether the browser is offline (src/lib/connection-status.ts by default). */
@@ -63,8 +61,8 @@ const errorOf = (result: unknown) =>
   result && typeof result === "object" && "error" in result && typeof result.error === "string" && result.error ? result.error : null
 
 /** `callAction`, settled: the action's result or what it threw. */
-async function attempt<R>(run: () => Promise<R>, session: ActionSession): Promise<{ value: R } | { thrown: unknown }> {
-  try { return { value: await callAction(run, session) } }
+async function attempt<R>(run: () => Promise<R>): Promise<{ value: R } | { thrown: unknown }> {
+  try { return { value: await callAction(run) } }
   catch (thrown) { return { thrown } }
 }
 
@@ -103,7 +101,7 @@ export async function runOptimistic<R>(deps: OptimisticDeps, options: Optimistic
     return { status: "skipped" }
   }
 
-  const outcome = await attempt(options.run, deps.session)
+  const outcome = await attempt(options.run)
   const error = "thrown" in outcome ? thrownError(outcome.thrown) : errorOf(outcome.value)
   if (error === null && "value" in outcome) {
     if (token !== null) overlay?.confirm(options.id, token)
@@ -142,7 +140,7 @@ export async function runOptimisticBatch(deps: OptimisticDeps, options: {
     finishers.get(id)?.(succeeded)
   }
 
-  const outcome = await attempt(options.run, deps.session)
+  const outcome = await attempt(options.run)
   const error = "thrown" in outcome ? thrownError(outcome.thrown) : errorOf(outcome.value)
   if (error !== null || !("value" in outcome)) {
     for (const id of options.ids) settle(id, false)
@@ -189,7 +187,6 @@ function useOptimisticDeps(): OptimisticDeps {
   return useMemo(() => ({
     overlay,
     refresh,
-    session: clerkActionSession,
     notifyError: (message: string, detail: FailureDetail) => { toast(failureToast(message, detail)) },
   }), [overlay, refresh, toast])
 }

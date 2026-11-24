@@ -1,4 +1,4 @@
-/** Only an initial authentication guard may mark a failure safe to replay.
+/** Only an initial authentication guard may say the session ended.
  * No mutation, provider request or transaction has started at that point. */
 export type ActionFailure = { error: string; sessionExpired?: true };
 

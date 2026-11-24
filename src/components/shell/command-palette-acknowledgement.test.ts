@@ -46,7 +46,7 @@ function app(saved: Partial<OverviewRequest> = {}, request: Partial<CurrentReque
   }
   const failures: string[] = []
   const refresh = vi.fn()
-  const optimisticDeps = { overlay, refresh, session: { current: async () => {}, renew: async () => {} }, notifyError: (message: string) => { failures.push(message) } }
+  const optimisticDeps = { overlay, refresh, notifyError: (message: string) => { failures.push(message) } }
 
   let asked: PickupConfirmation | null = null
   const confirmation = createPickupConfirmation(shown => { asked = shown })

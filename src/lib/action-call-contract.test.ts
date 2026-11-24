@@ -46,7 +46,7 @@ function actionCalls(file: string, source: string) {
 }
 
 describe("server action calls", () => {
-  it("go through callAction or the optimistic runner, so a lapsed session is refreshed first", () => {
+  it("go through callAction or the optimistic runner, so every one gets the offline answer (#260)", () => {
     const direct = sources(ROOT).flatMap((path) => {
       const source = readFileSync(path, "utf8")
       const file = relative(ROOT, path)

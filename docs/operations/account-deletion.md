@@ -43,9 +43,10 @@ Lane's Postgres is the only place a Lane account lives (ADR 0008). Better Auth's
 | `notifications` | `user_id` (recipient), `actor_id` (who did the thing) | both `ON DELETE CASCADE` | deleted explicitly, because the profile stays |
 | `delivery_preferences`, `first_run_progress`, `saved_views` | `user_id`, `owner_id` | `ON DELETE CASCADE` | the person's own settings; they stay with the tombstone (5.1) |
 | `requests.design_reviews` (jsonb, `0018`) | `requestedBy {id, name}`, `reviewers[] {id, name}`, `responses[].reviewerId`, `withdrawal.by {id, name}` | none (JSON) | name snapshots from before 2026-10-18; nothing writes them now |
-| `request_agreements.reviewers`, `request_agreement_events.payload` (jsonb) | `nominee.userId`, `displayNameAtSelection` | none (JSON) | a Reviewer's name when they were asked (5.1) |
+| `request_agreements.reviewers`, `request_agreement_events.payload` (jsonb) | `nominee.userId`, `displayNameAtSelection` | none (JSON) | a Reviewer's name when they were asked; replaced with "Former member" |
 | `requests` release and closure records (jsonb), `same_problem_members`, `same_problem_events`, `quarter_notes`, `delivery_log`, `slack_connections` | ids only | none | an id, not a name |
 | `organizations` | `owner_id` (who created the workspace) | nullable, no FK | an id, not a name |
+| `workspace_billing`, `free_request_allowances` | `allowance_key` | none | a personal email address when the workspace's creator had one (a company domain otherwise); the address is replaced with a placeholder |
 
 Free-text fields (`requests.description`, `comments.body`, `expected_impact`, Intake answers) may mention people by name. They are workspace content, not account data; see section 5.
 
@@ -73,7 +74,8 @@ Bucket `request-attachments` (private). Object path is `<org_id>/<request_id>/<a
 2. A sign-in already under way can finish just after the commit. So the check (3.4) runs after the commit, and 3.3 runs again if the check finds anything. Running 3.3 twice for the same person is safe.
 3. The foreign keys without `ON DELETE` (section 1.2) mean a plain `DELETE FROM profiles` fails for anyone who created a Request, a comment, an attachment or a Project. So the profile is **anonymised** and their contributions stay, attributed to "Former member" (section 5).
 4. `profiles.email` is unique, so each tombstone gets its own placeholder: `former-member-<id>@deleted.invalid`. `.invalid` is reserved and never receives mail.
-5. Their old address is free again. Someone who signs up with it, or with the same Google account, starts a new account that has nothing of the old one.
+5. Their old address is free again. Someone who signs up with it, or with the same Google account, starts a new account that has nothing of the old one, new Free Requests included.
+6. Two triggers refuse to change the history of reviews and a decided Free Requests key (`0031`, `0046`). The transaction turns each off only around its one statement, and a failure rolls everything back, the triggers included. While it runs, saving a review and creating a Request wait, in every workspace. If it stops on a lock timeout or a deadlock, nothing changed: run it again.
 
 ---
 
@@ -205,12 +207,62 @@ SET design_reviews = (
     design_review_version = design_review_version + 1
 WHERE design_reviews::text LIKE '%' || :'person_id' || '%';
 
--- 8. The profile becomes a tombstone. updated_at moves by trigger (set_updated_at_profiles).
+-- 8. Their name as a Reviewer, on the Request and in the history of its reviews. Other people's entries stay as they
+--    are. The Requests are held first, as saving a review holds them, so no review being saved writes the name back.
+SELECT r.id FROM public.requests r
+WHERE EXISTS (SELECT 1 FROM public.request_agreements a WHERE a.org_id = r.org_id AND a.request_id = r.id
+        AND jsonb_path_exists(a.reviewers, '$[*] ? (@.nominee.userId == $id)', jsonb_build_object('id', :'person_id')))
+   OR EXISTS (SELECT 1 FROM public.request_agreement_events e WHERE e.org_id = r.org_id AND e.request_id = r.id
+        AND jsonb_path_exists(e.payload, '$.*.reviewers[*] ? (@.nominee.userId == $id)', jsonb_build_object('id', :'person_id')))
+ORDER BY r.id
+FOR UPDATE;
+
+UPDATE public.request_agreements
+SET reviewers = (
+  SELECT jsonb_agg(CASE WHEN reviewer->'nominee'->>'userId' = :'person_id'
+      THEN reviewer || jsonb_build_object('displayNameAtSelection', 'Former member') ELSE reviewer END ORDER BY ord)
+  FROM jsonb_array_elements(reviewers) WITH ORDINALITY AS listed(reviewer, ord))
+WHERE jsonb_path_exists(reviewers, '$[*] ? (@.nominee.userId == $id)', jsonb_build_object('id', :'person_id'));
+
+ALTER TABLE public.request_agreement_events DISABLE TRIGGER protect_agreement_events;
+UPDATE public.request_agreement_events
+SET payload = payload || (
+  SELECT coalesce(jsonb_object_agg(side.key, side.value || jsonb_build_object('reviewers', (
+      SELECT coalesce(jsonb_agg(CASE WHEN reviewer->'nominee'->>'userId' = :'person_id'
+          THEN reviewer || jsonb_build_object('displayNameAtSelection', 'Former member') ELSE reviewer END ORDER BY ord), '[]'::jsonb)
+      FROM jsonb_array_elements(side.value->'reviewers') WITH ORDINALITY AS listed(reviewer, ord)))), '{}'::jsonb)
+  FROM jsonb_each(payload) AS side
+  WHERE side.key IN ('before', 'after') AND jsonb_typeof(side.value->'reviewers') = 'array')
+WHERE jsonb_path_exists(payload, '$.*.reviewers[*] ? (@.nominee.userId == $id)', jsonb_build_object('id', :'person_id'));
+ALTER TABLE public.request_agreement_events ENABLE TRIGGER protect_agreement_events;
+
+-- 9. Their personal address as a Free Requests key, written as `allowanceKeyOf` (src/lib/free-request-rules.ts) writes
+--    it. Every row with the key gets the same placeholder, so counts and sharing stay. A company domain has no "@" and
+--    never matches. The allowance is held first, as creating a Request holds it.
+SELECT allowance_key FROM public.free_request_allowances
+WHERE allowance_key = (SELECT CASE WHEN domain IN ('gmail.com', 'googlemail.com') THEN replace(mailbox, '.', '') || '@gmail.com' ELSE mailbox || '@' || domain END
+      FROM (SELECT split_part(split_part(address, '@', 1), '+', 1) AS mailbox, split_part(address, '@', 2) AS domain
+            FROM (SELECT lower(trim((SELECT email FROM public.profiles WHERE id = :'person_id'))) AS address) given) parts)
+FOR UPDATE;
+
+ALTER TABLE public.workspace_billing DISABLE TRIGGER protect_workspace_billing;
+WITH replaced AS MATERIALIZED (
+  SELECT (SELECT CASE WHEN domain IN ('gmail.com', 'googlemail.com') THEN replace(mailbox, '.', '') || '@gmail.com' ELSE mailbox || '@' || domain END
+      FROM (SELECT split_part(split_part(address, '@', 1), '+', 1) AS mailbox, split_part(address, '@', 2) AS domain
+            FROM (SELECT lower(trim((SELECT email FROM public.profiles WHERE id = :'person_id'))) AS address) given) parts) AS old_key,
+    'former-member-' || gen_random_uuid() || '@deleted.invalid' AS new_key
+), allowances AS (
+  UPDATE public.free_request_allowances a SET allowance_key = replaced.new_key FROM replaced WHERE a.allowance_key = replaced.old_key
+)
+UPDATE public.workspace_billing b SET allowance_key = replaced.new_key FROM replaced WHERE b.allowance_key = replaced.old_key;
+ALTER TABLE public.workspace_billing ENABLE TRIGGER protect_workspace_billing;
+
+-- 10. The profile becomes a tombstone. updated_at moves by trigger (set_updated_at_profiles).
 UPDATE public.profiles
 SET full_name = 'Former member', email = 'former-member-' || id || '@deleted.invalid', email_verified = false, last_workspace_id = NULL
 WHERE id = :'person_id';
 
--- 9. Look before commit: "Former member" and the placeholder.
+-- 11. Look before commit: "Former member" and the placeholder.
 SELECT id, full_name, email FROM public.profiles WHERE id = :'person_id';
 
 COMMIT;
@@ -234,7 +286,21 @@ SELECT 'stored codes', count(*) FROM public.verification
 SELECT 'profiles with the address', count(*) FROM public.profiles WHERE lower(email) = lower(:'person_email') UNION ALL
 SELECT 'notifications', count(*) FROM public.notifications WHERE user_id = :'person_id' OR actor_id = :'person_id' UNION ALL
 SELECT 'design reviews still naming them', count(*) FROM public.requests
-  WHERE design_reviews::text LIKE '%' || :'person_id' || '%' AND design_reviews::text NOT LIKE '%Former member%';
+  WHERE design_reviews::text LIKE '%' || :'person_id' || '%' AND design_reviews::text NOT LIKE '%Former member%' UNION ALL
+SELECT 'reviews still naming them',
+  (SELECT count(*) FROM public.request_agreements WHERE jsonb_path_exists(reviewers,
+    '$.** ? (@.nominee.userId == $id && @.displayNameAtSelection != "Former member")', jsonb_build_object('id', :'person_id')))
+  + (SELECT count(*) FROM public.request_agreement_events WHERE jsonb_path_exists(payload,
+    '$.** ? (@.nominee.userId == $id && @.displayNameAtSelection != "Former member")', jsonb_build_object('id', :'person_id'))) UNION ALL
+SELECT 'Free Requests keys with the address',
+  (SELECT count(*) FROM public.workspace_billing WHERE allowance_key = address_key)
+  + (SELECT count(*) FROM public.free_request_allowances WHERE allowance_key = address_key)
+  FROM (SELECT (SELECT CASE WHEN domain IN ('gmail.com', 'googlemail.com') THEN replace(mailbox, '.', '') || '@gmail.com' ELSE mailbox || '@' || domain END
+      FROM (SELECT split_part(split_part(address, '@', 1), '+', 1) AS mailbox, split_part(address, '@', 2) AS domain
+            FROM (SELECT lower(trim(:'person_email')) AS address) given) parts) AS address_key) keyed UNION ALL
+SELECT 'protections switched off', 2 - count(*) FROM pg_trigger
+  WHERE tgenabled = 'O' AND ((tgrelid = 'public.request_agreement_events'::regclass AND tgname = 'protect_agreement_events')
+    OR (tgrelid = 'public.workspace_billing'::regclass AND tgname = 'protect_workspace_billing'));
 ```
 
 ### 3.5 Storage (only if the section 6 decision says attachments go too)
@@ -309,6 +375,7 @@ SELECT
 - **Comments** they wrote stay, attributed to "Former member". Other people replied to them; removing them would hollow out the thread.
 - **Attachments** they uploaded stay (3.4 is the exception).
 - **Projects** they created stay; a Project belongs to the workspace.
+- **Reviews** stay, with their name replaced: the answer, its reason and its history are the workspace's record.
 - **Design review rounds** stay, with their name replaced. Responses keep `reviewerId` (an opaque id).
 - **The `profiles` row** stays as a tombstone because the columns in 1.2 point at it with no `ON DELETE` rule.
 - **Other people's data** that mentions the person in free text.
@@ -316,10 +383,9 @@ SELECT
 
 ### 5.1 Not covered: decide before the first real deletion
 
-The procedure doesn't touch these. Each needs Nikhil's decision before it runs for a real person.
+Nikhil decided on 2026-11-24 that a Reviewer's name and a personal Free Requests address go too (3.3, statements 8 and 9). The procedure doesn't touch these. Each needs Nikhil's decision before it runs for a real person.
 
-- **A Reviewer's name.** `request_agreements.reviewers[].displayNameAtSelection` keeps the name a Reviewer had when asked, and Lane shows it once they are no longer in the workspace. `request_agreement_events.payload` holds copies and refuses updates.
-- **A personal address as a Free Requests key.** A workspace created from a personal email address stores that address in `free_request_allowances.allowance_key` and `workspace_billing.allowance_key`, which is decided once and refuses updates.
+- **A workspace whose Free Requests were never decided.** If its creator is deleted first, Lane would decide them from the placeholder address, as a company domain called `deleted.invalid`. Lane decides them when a workspace is created, so this needs that step to have failed.
 - **Their settings.** `delivery_preferences`, `first_run_progress`, `saved_views` (a saved view has a typed name) and `delivery_log` stay, keyed by the opaque id.
 - **A design review on a Closed Request.** Statement 7 of 3.3 stops with "Closed Request is immutable" if one names the person, and the whole transaction rolls back. The cutover starts from an empty database and nothing writes design reviews any more, so no such row is expected.
 - **Payments.** Deleting a workspace doesn't cancel its subscription or remove its customer record at the payment provider (`workspace_billing`). No payment is accepted while billing is off.

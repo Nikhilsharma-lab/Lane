@@ -19,7 +19,7 @@ export function activeMemberOf(session: Session | null): MemberAuth | null {
 }
 
 /** One session snapshot decides identity, workspace and expiry before any change.
- * Wrong-workspace, role and validation refusals never permit a session replay. */
+ * Wrong-workspace, role and validation refusals never say the session ended. */
 export async function guardActiveMember(orgId: string, copy: string): Promise<MemberAuth | ActionFailure> {
   const session = await readSession();
   if (!session) return { error: SESSION_ENDED, sessionExpired: true };
