@@ -14,7 +14,7 @@ import labelStyles from "./request-labels.module.css";
 import pickerStyles from "./request-property-pickers.module.css";
 import { Placeholder } from "@/components/loading/placeholder";
 
-export type ReviewerChoice = Extract<Awaited<ReturnType<typeof loadReviewerPeople>>, { people: unknown }>["people"][number];
+export type ReviewerChoice = Omit<Extract<Awaited<ReturnType<typeof loadReviewerPeople>>, { people: unknown }>["people"][number], "role">;
 
 export const REVIEWERS_SUBTEXT = "Add people who should look at this before work starts. Optional.";
 

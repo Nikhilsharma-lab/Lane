@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { addMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 
 /**
@@ -13,25 +14,8 @@ import { requireTestDatabase } from "@/test/test-database";
 const ORG = "org_viewer_read_only";
 const VIEWER = "user_viewer_ro", MEMBER = "user_viewer_ro_member", ADMIN = "user_viewer_ro_admin";
 const session = vi.hoisted(() => ({ userId: "user_viewer_ro", orgId: "org_viewer_read_only", role: "viewer" }));
-const roster = vi.hoisted(() => new Map<string, string>([
-  ["user_viewer_ro", "org:viewer"], ["user_viewer_ro_member", "org:member"], ["user_viewer_ro_admin", "org:admin"],
-]));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async () => ({
-        totalCount: roster.size,
-        data: [...roster].map(([userId, role]) => ({
-          organization: { id: session.orgId }, role,
-          publicUserData: { userId, identifier: `${userId}@example.test`, firstName: userId },
-        })),
-      }),
-      getOrganizationInvitationList: async () => ({ totalCount: 0, data: [] }),
-    },
-  }),
-}));
 
 let connection: ReturnType<typeof postgres>;
 let ownRequest: string, membersRequest: string, guestSubmission: string, definitionId: string, otherDefinitionId: string, reviewerId: string;
@@ -73,6 +57,7 @@ beforeAll(async () => {
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Viewer read-only','viewer-read-only')`;
   for (const id of [VIEWER, MEMBER, ADMIN]) await connection`insert into profiles (id,full_name,email,role) values (${id},${id},${id + "@example.test"},'pm')`;
+  await addMembers(ORG, { [VIEWER]: "viewer", [MEMBER]: "member", [ADMIN]: "admin" });
   [{ id: ownRequest }] = await connection`insert into requests (org_id,title,description,created_by,agreement_revision) values (${ORG},'Filed while a Member','Checkout fails on mobile',${VIEWER},1) returning id`;
   [{ id: membersRequest }] = await connection`insert into requests (org_id,title,description,created_by,agreement_revision) values (${ORG},'A Member''s Request','Search is slow',${MEMBER},1) returning id`;
   [{ id: guestSubmission }] = await connection`insert into requests (org_id,title,description,created_by,agreement_revision,guest_submission) values (${ORG},'A Guest submission','Exports are hard to find',${MEMBER},1,true) returning id`;

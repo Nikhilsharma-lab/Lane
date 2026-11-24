@@ -1,51 +1,40 @@
 import "server-only";
-import { clerkClient } from "@clerk/nextjs/server";
-import { timed } from "@/lib/request-timings";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { db, member, profiles } from "@/db";
+import type { WorkspacePermission } from "./auth-guard";
 import type { ReviewerIdentity } from "./request-reviewer-rules";
-export type WorkspacePerson = { nominee: ReviewerIdentity; name: string; email: string; role?: string };
+import { canChangeThings, isWorkspacePermission, WORKSPACE_ROLES } from "./role-rules";
+
+/** Someone on a paid seat: an Admin or a Member of the workspace. */
+export type WorkspacePerson = { nominee: ReviewerIdentity; name: string; email: string; role: WorkspacePermission };
+
+const PAID_ROLES = WORKSPACE_ROLES.filter(canChangeThings);
+
 /**
- * The workspace's Admins and Members: the paid seats, and the only people who
- * can be Reviewers (#211). Guests and Viewers are left out. Fresh provider
- * data, never a Lane membership registry.
+ * The workspace's Admins and Members: the paid seats, and the only people who can be Reviewers (#211). Guests,
+ * Viewers and any role Lane doesn't know are left out. One query on Better Auth's member rows, read fresh each
+ * time and needing no session (#390). Newest first.
  */
-export async function workspaceRoster(
-  orgId: string,
-): Promise<WorkspacePerson[]> {
-  const client = await clerkClient();
-  const people: WorkspacePerson[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await timed("clerk", () => client.organizations.getOrganizationMembershipList({
-      organizationId: orgId,
-      limit: 100,
-      offset,
-    }));
-    for (const m of page.data) {
-      const u = m.publicUserData;
-      if (
-        m.organization.id === orgId &&
-        ["org:admin", "org:member"].includes(m.role) &&
-        u?.userId
-      )
-        people.push({
-          nominee: { kind: "member", userId: u.userId },
-          role: m.role,
-          email: (u.identifier ?? "").toLowerCase(),
-          name:
-            [u.firstName, u.lastName].filter(Boolean).join(" ") ||
-            u.identifier ||
-            u.userId,
-        });
-    }
-    if (offset + page.data.length >= page.totalCount) break;
-    if (!page.data.length)
-      throw new Error("Couldn’t verify workspace members. Try again.");
-  }
-  return people;
+export async function workspaceRoster(orgId: string): Promise<WorkspacePerson[]> {
+  const rows = await db
+    .select({ userId: member.userId, role: member.role, name: profiles.fullName, email: profiles.email })
+    .from(member)
+    .innerJoin(profiles, eq(profiles.id, member.userId))
+    .where(and(eq(member.organizationId, orgId), inArray(member.role, PAID_ROLES)))
+    .orderBy(desc(member.createdAt), member.id);
+  return rows.flatMap(({ userId, role, name, email }) =>
+    isWorkspacePermission(role) ? [{ nominee: { kind: "member" as const, userId }, role, name: name || email || userId, email: email.toLowerCase() }] : []);
 }
-/** One person's live membership of the workspace, any role, or null once they have left (#212). */
-export async function workspaceMember(orgId: string, userId: string): Promise<{ role: string; email: string } | null> {
-  const client = await clerkClient();
-  const page = await timed("clerk", () => client.organizations.getOrganizationMembershipList({ organizationId: orgId, userId: [userId], limit: 1 }));
-  const membership = page.data.find((m) => m.organization.id === orgId && m.publicUserData?.userId === userId);
-  return membership ? { role: membership.role, email: (membership.publicUserData?.identifier ?? "").toLowerCase() } : null;
+
+/**
+ * One person's live membership of the workspace, any of Lane's roles (#212). Null once they have left, or while they
+ * hold a role Lane doesn't know.
+ */
+export async function workspaceMember(orgId: string, userId: string): Promise<{ role: WorkspacePermission; email: string } | null> {
+  const [row] = await db
+    .select({ role: member.role, email: profiles.email })
+    .from(member)
+    .innerJoin(profiles, eq(profiles.id, member.userId))
+    .where(and(eq(member.organizationId, orgId), eq(member.userId, userId)));
+  return row && isWorkspacePermission(row.role) ? { role: row.role, email: row.email.toLowerCase() } : null;
 }

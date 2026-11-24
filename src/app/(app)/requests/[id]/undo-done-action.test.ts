@@ -1,4 +1,4 @@
-import { fixtureClerkClient } from "@/test/member-fixtures";
+import { addMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
@@ -8,7 +8,6 @@ import type { Session } from "@/lib/session";
 const session = vi.hoisted((): Session => ({ userId: "", orgId: "", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
-vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, REQUESTER]) }));
 
 const ORG = "org_undo_done_a", FOREIGN_ORG = "org_undo_done_b";
 const MEMBER = "user_undo_member", REQUESTER = "user_undo_requester", GUEST = "user_undo_guest", FOREIGN = "user_undo_foreign";
@@ -27,6 +26,7 @@ beforeAll(async () => {
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Undo Done','undo-done-a'),(${FOREIGN_ORG},'Other workspace','undo-done-b')`;
   for (const id of [MEMBER, REQUESTER, GUEST, FOREIGN]) await connection`insert into profiles (id,full_name,email) values (${id},${id},${id + "@example.test"})`;
+  await addMembers(ORG, { [MEMBER]: "member", [REQUESTER]: "member" });
 });
 beforeEach(async () => {
   actAs(MEMBER);

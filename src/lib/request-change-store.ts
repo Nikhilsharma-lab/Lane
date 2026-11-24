@@ -76,7 +76,7 @@ export async function changeRequest<Extra extends object = object>(
     insist(requestChangeContextSchema.safeParse(context).success, change.messages.invalid);
     const auth = await guardCanChange(context.orgId, change.messages.forbidden);
     if ("error" in auth) return auth;
-    // Fetched before locking; Clerk and Postgres cannot share a transaction.
+    // Read before locking, so the lock is held only for the change.
     const roster = await workspaceRoster(auth.orgId);
     insist(
       roster.some((p) => p.nominee.kind === "member" && p.nominee.userId === auth.userId),

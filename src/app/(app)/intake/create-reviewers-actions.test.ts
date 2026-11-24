@@ -1,3 +1,4 @@
+import { addMembers, setMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
@@ -5,38 +6,15 @@ import type { WorkspacePermission } from "@/lib/auth-guard";
 import { createTriageToken } from "@/lib/triage-token";
 
 const session = vi.hoisted(() => ({ userId: "create_owner", orgId: "org_create_reviewers", role: "member" as WorkspacePermission }));
-const users = vi.hoisted(() => ["create_owner", "create_design", "create_dev", "create_guest", "create_viewer"]);
-/** Clerk roster roles; a user missing from it has left the workspace. */
-const roster = vi.hoisted(() => new Map<string, string>());
+const users = ["create_owner", "create_design", "create_dev", "create_guest", "create_viewer"];
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async () => ({
-        totalCount: roster.size,
-        data: [...roster].map(([userId, role]) => ({
-          organization: { id: session.orgId },
-          role,
-          publicUserData: { userId, identifier: userId + "@example.test", firstName: userId },
-        })),
-      }),
-      getOrganizationInvitationList: async () => ({
-        totalCount: 1,
-        data: [{ id: "inv_create", organizationId: session.orgId, status: "pending", role: "org:member", emailAddress: "invited@example.test" }],
-      }),
-    },
-    users: {
-      getUser: async (userId: string) => ({
-        emailAddresses: [{ emailAddress: userId + "@example.test", verification: { status: "verified" } }],
-      }),
-    },
-  }),
-}));
 
 const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, { max: 2, prepare: false });
 const orgId = "org_create_reviewers";
 const [owner, designer, developer, guest, viewer] = users;
+/** Everyone's role to start with; a person without a member row has left the workspace. */
+const roles = Object.fromEntries(users.map((id) => [id, id === guest ? "guest" : id === viewer ? "viewer" : "member"]));
 const member = (userId: string) => ({ kind: "member", userId });
 const invite = { kind: "invitation", invitationId: "inv_create", email: "invited@example.test" };
 const impact = { kind: "metric" as const, metric: "Signup completion", baseline: null, target: 70, unit: "%", source: "Signup funnel", reviewAfterDays: 30 };
@@ -67,12 +45,11 @@ const notificationsFor = (id: string) =>
 beforeAll(async () => {
   await connection`insert into organizations(id,name,slug) values (${orgId},'Create reviewers test','create-reviewers-test')`;
   for (const [i, id] of users.entries())
-    await connection`insert into profiles(id,full_name,email,role) values (${id},${"Person " + i},${id + "@example.test"},${["pm", "designer", "developer", "pm", "pm"][i]})`;
+    await connection`insert into profiles(id,full_name,email,role) values (${id},${id},${id + "@example.test"},${["pm", "designer", "developer", "pm", "pm"][i]})`;
 });
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubEnv("TRIAGE_TOKEN_SECRET", "create-reviewers-test-secret".repeat(3));
-  roster.clear();
-  for (const id of users) roster.set(id, id === guest ? "org:guest" : id === viewer ? "org:viewer" : "org:member");
+  await setMembers(orgId, roles);
 });
 afterEach(() => {
   session.userId = owner;
@@ -118,7 +95,7 @@ it("creating without reviewers works as before, with no reviews and nobody asked
 
 it("an invalid reviewer is rejected and the Request is not created", async () => {
   const many = Array.from({ length: 21 }, (_, i) => `create_many_${i}`);
-  for (const userId of many) roster.set(userId, "org:member");
+  await addMembers(orgId, Object.fromEntries(many.map((userId) => [userId, "member"])));
   const cases: [unknown, string][] = [
     [[member(owner)], "You can’t add yourself as a reviewer."],
     [many.map(member), "A Request can have at most 20 reviewers."],
@@ -141,7 +118,7 @@ it("a guest can create a Request but can't add reviewers", async () => {
 });
 
 it("only Admins and Members can be Reviewers: Guests, Viewers, email addresses and invitations are refused and nothing is created", async () => {
-  roster.set(developer, "org:admin");
+  await addMembers(orgId, { [developer]: "admin" });
   for (const role of ["member", "admin"] as const)
     for (const reviewers of [[member(guest)], [member(viewer)], [invite], [{ kind: "email", email: "someone@example.test" }], ["someone@example.test"], [member(designer), invite]]) {
       const { result, requestId } = await create(reviewers, owner, role);
