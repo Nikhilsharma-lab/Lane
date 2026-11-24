@@ -15,7 +15,7 @@ import { SettingsEarlySearch } from "@/components/settings/settings-early-search
 import { billingEnforced } from "@/lib/feature-switches";
 import { loadDefinitionUses } from "@/lib/data/impact";
 import { readMetricPage } from "@/lib/data/metric-page";
-import { getWorkspace } from "@/lib/ensure-workspace";
+import { getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace";
 import { metricUnitName } from "@/lib/metric-definition-rules";
 import { listMetricDefinitions, metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
 import { ProfileForm } from "../../profile/profile-form";
@@ -34,7 +34,7 @@ export const metadata = settingsMetadata;
 export default async function MetricDefinitionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ section?: string }> }) {
   void timePage("Settings: a Metric");
   const workspace = await getWorkspace();
-  if (!workspace) redirect("/login");
+  if (!workspace) return sendAwayMemberless();
   if (workspace.needsOnboarding) redirect("/onboarding");
   if (workspace.role === "guest") redirect("/");
 

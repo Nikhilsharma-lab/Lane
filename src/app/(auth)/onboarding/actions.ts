@@ -33,7 +33,6 @@ export async function saveOnboardingRole(data: { role: string }) {
       fullName: account.name,
       email: account.email,
       role: parsed.data.role,
-      avatarUrl: account.imageUrl,
     })
     .onConflictDoUpdate({
       target: profiles.id,
@@ -41,7 +40,6 @@ export async function saveOnboardingRole(data: { role: string }) {
         fullName: account.name,
         email: account.email,
         role: parsed.data.role,
-        avatarUrl: account.imageUrl,
         updatedAt: new Date(),
       },
     });

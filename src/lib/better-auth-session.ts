@@ -1,41 +1,44 @@
 import "server-only"
 
 import { createHmac, timingSafeEqual } from "node:crypto"
-import { and, eq, gt, sql } from "drizzle-orm"
-import { db, member, session } from "@/db"
+import { and, asc, eq, gt, sql } from "drizzle-orm"
+import { db, member, profiles, session } from "@/db"
 import { betterAuthServer } from "./feature-switches"
 import { isWorkspacePermission } from "./role-rules"
 import type { Session } from "./session"
-
-/** A request's cookies, as Next's `cookies()` hands them to server code. */
-type RequestCookies = { get(name: string): { value: string } | undefined }
-
-// Better Auth adds the __Secure- prefix when its URL is https (staging, production). Like its getSessionCookie,
-// the read takes that cookie first and the plain one second; the signature is what's trusted, not the name.
-const SESSION_COOKIES = ["__Secure-better-auth.session_token", "better-auth.session_token"]
+import { sessionCookie, type RequestCookies } from "./session-cookies"
 
 /**
- * #374 (spec #369): the signed-in person, their active workspace and their Lane role from Better Auth's session, in
- * the session seam's own `Session` shape and one query. Dormant: nothing imports it until increment 5 makes
- * `readSession` call it (lint enforces this).
+ * #374 (spec #369): the signed-in person, the workspace their session is in and their Lane role from Better Auth's
+ * session, in the session seam's own `Session` shape and one query. Only the seam's `readSession` calls it (#387; lint
+ * enforces this).
  *
  * - No cookie, a signature that isn't Better Auth's, an unknown token or an expired session: null.
- * - The active workspace counts only with the person's member row in it. Better Auth leaves a removed person's
- *   `active_organization_id` in place (#344), so without the row `orgId` and `role` are null.
- * - A role Lane doesn't know is null: no access, as `clerkWorkspacePermission` does on the Clerk side.
- * - It never renews the session. Better Auth's own session calls do that; increment 5 decides where they run.
+ * - The workspace is the session's active one, else the person's last-used one, else their oldest membership, each
+ *   only with their member row in it, else none (#333 Q12). Better Auth leaves a removed person's
+ *   `active_organization_id` in place (#344), so a removal applies on the next read. The role is that row's.
+ * - A role Lane doesn't know is null: no access, as for anyone without a member row.
+ * - It never renews the session. Better Auth's own session calls do that.
  */
 export async function readBetterAuthSession(cookies: RequestCookies): Promise<Session | null> {
   const server = betterAuthServer()
-  const value = SESSION_COOKIES.map((name) => cookies.get(name)?.value).find(Boolean)
+  const value = sessionCookie(cookies)
   if (!server.on || !value) return null
   const token = verifiedToken(value, server.secret)
   if (!token) return null
   const [row] = await db
     .select({ userId: session.userId, orgId: member.organizationId, role: member.role })
     .from(session)
-    .leftJoin(member, and(eq(member.userId, session.userId), eq(member.organizationId, session.activeOrganizationId)))
+    .innerJoin(profiles, eq(profiles.id, session.userId))
+    .leftJoin(member, eq(member.userId, session.userId))
     .where(and(eq(session.token, token), gt(session.expiresAt, sql`now()`)))
+    // One session, so one row per membership: the one its workspace comes from sorts first.
+    .orderBy(
+      sql`(${member.organizationId} = ${session.activeOrganizationId}) is true desc`,
+      sql`(${member.organizationId} = ${profiles.lastWorkspaceId}) is true desc`,
+      asc(member.createdAt),
+      asc(member.id),
+    )
     .limit(1)
   if (!row) return null
   return { userId: row.userId, orgId: row.orgId, role: row.role && isWorkspacePermission(row.role) ? row.role : null }

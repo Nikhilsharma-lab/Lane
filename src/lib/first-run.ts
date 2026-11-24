@@ -51,7 +51,7 @@ async function readProgress(person: Person): Promise<{ progress: FirstRunProgres
 async function guideFor({ orgId, userId }: Person): Promise<FirstRunGuide | null> {
   try {
     const client = await clerkClient();
-    const organization = await timed("clerk", () => client.organizations.getOrganization({ organizationId: orgId }));
+    const organization = await timed("workspace", () => client.organizations.getOrganization({ organizationId: orgId }));
     return firstRunGuideFor({ createdBy: organization.createdBy, userId });
   } catch {
     console.error("[first-run] workspace creator unavailable");
