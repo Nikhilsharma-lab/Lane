@@ -8,7 +8,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { requireTestDatabase } from "@/test/test-database";
 import { recordingPaymentProvider } from "./payment-provider";
 
-vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => { throw new Error("Clerk is not used here"); } }));
 
 const PREFIX = "org_billing_pay_";
 const [NEW, PAID, FAILS, AGAIN, FULL, RETURNING] = ["new", "paid", "fails", "again", "full", "returning"].map((name) => PREFIX + name);

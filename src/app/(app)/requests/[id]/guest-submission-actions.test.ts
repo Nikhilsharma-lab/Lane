@@ -1,13 +1,14 @@
 /**
  * #212 (spec #195, item 4): Guest submissions taken on by a Member. A Guest files without a prediction and sees only
  * their own Requests; Members see the waiting submissions; taking one on makes that Member the Requester, who then
- * writes the prediction; the Guest keeps seeing and commenting. Real database, mocked Clerk, roles switched per call.
+ * writes the prediction; the Guest keeps seeing and commenting. Real database, member rows, roles switched per call.
  */
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Session } from "@/lib/session";
 import { createTriageToken } from "@/lib/triage-token";
+import { addMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_guest_take_on";
@@ -19,18 +20,6 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/ai/triage", () => ({ triageRequest: async () => ({ ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } }) }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
 vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async ({ userId }: { userId?: string[] } = {}) => {
-        const people = Object.entries({ take_on_guest: "org:guest", take_on_member: "org:member", take_on_other: "org:member", take_on_admin: "org:admin", take_on_viewer: "org:viewer" })
-          .filter(([id]) => !userId || userId.includes(id));
-        return { totalCount: people.length, data: people.map(([id, role]) => ({ organization: { id: session.orgId }, role, publicUserData: { userId: id, identifier: `${id}@example.test`, firstName: "Name", lastName: id } })) };
-      },
-      getOrganizationInvitationList: async () => ({ totalCount: 0, data: [] }),
-    },
-  }),
-}));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
@@ -39,6 +28,7 @@ const connection = postgres(url.toString(), { max: 2, prepare: false, onnotice: 
 beforeAll(async () => {
   await connection`insert into organizations(id,name,slug) values (${ORG},'Guest take on','guest-take-on')`;
   for (const id of Object.keys(ROLES)) await connection`insert into profiles(id,full_name,email) values (${id},${"Name " + id},${id + "@example.test"})`;
+  await addMembers(ORG, ROLES);
 });
 beforeEach(() => vi.stubEnv("TRIAGE_TOKEN_SECRET", "guest-take-on-test-secret".repeat(3)));
 afterEach(() => as(GUEST));

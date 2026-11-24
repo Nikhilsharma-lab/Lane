@@ -10,7 +10,6 @@ import { recordingPaymentProvider } from "@/lib/payment-provider";
 
 const ORG = "org_billing_webhook";
 const payments = vi.hoisted(() => ({ provider: null as ReturnType<typeof import("@/lib/payment-provider").recordingPaymentProvider> | null }));
-vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => { throw new Error("Clerk is not used here"); } }));
 vi.mock("@/lib/payment-provider", async (actual) => ({ ...(await actual<typeof import("@/lib/payment-provider")>()), paymentProvider: () => payments.provider }));
 
 const url = new URL(process.env.DATABASE_URL!);

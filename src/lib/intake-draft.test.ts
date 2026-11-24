@@ -214,8 +214,8 @@ describe("Intake draft recovery", () => {
     const storage = memoryStorage();
     const reviewers = {
       people: [
-        { nominee: { kind: "member" as const, userId: "user_sam" }, name: "Sam Lee", email: "sam@example.test", role: "org:member" },
-        { nominee: { kind: "member" as const, userId: "user_ana" }, name: "Ana Diaz", email: "ana@example.test", role: "org:admin" },
+        { nominee: { kind: "member" as const, userId: "user_sam" }, name: "Sam Lee", email: "sam@example.test", role: "member" },
+        { nominee: { kind: "member" as const, userId: "user_ana" }, name: "Ana Diaz", email: "ana@example.test", role: "admin" },
       ],
       question: "Can we build this with the current API?",
     };

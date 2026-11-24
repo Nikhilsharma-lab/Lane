@@ -30,6 +30,7 @@ import { countNeedsYou } from "./inbox";
 import { countInboxUnread } from "./notifications";
 import { DONE_PAGE_SIZE, loadOlderFinishedRequests, loadRequestDetail, loadRequestList } from "./requests";
 import { rowDue, rowJourney, type OverviewRequest } from "@/lib/request-overview";
+import { addMembers, removeMember } from "@/test/member-fixtures";
 
 const ORG = "org_test_a", OTHER_ORG = "org_test_b";
 const ADMIN = "user_test_admin_a", MEMBER = "user_test_member_a", OTHER_ADMIN = "user_test_admin_b";
@@ -67,6 +68,8 @@ const notificationIds = Array.from({ length: 7 }, () => randomUUID());
 
 beforeAll(async () => {
   await db.insert(profiles).values({ id: GUEST, fullName: "Loader Guest", email: "loader-guest@test.local", role: "designer" }).onConflictDoNothing();
+  // The reviewers below still count while they are on a paid seat here.
+  await addMembers(ORG, { [ADMIN]: "admin", [MEMBER]: "member", [OTHER_ADMIN]: "member", [GUEST]: "guest" });
   await db.insert(projects).values([
     { id: memberProject, orgId: ORG, name: "Loader member project", createdBy: MEMBER },
     { id: guestProject, orgId: ORG, name: "Loader guest project", createdBy: GUEST },
@@ -122,6 +125,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  for (const id of [ADMIN, MEMBER, OTHER_ADMIN, GUEST]) await removeMember(ORG, id);
   await db.delete(notifications).where(inArray(notifications.id, notificationIds));
   await db.delete(requests).where(inArray(requests.id, [memberRequest, guestRequest, reviewedRequest, foreignRequest, foreignDone, ...doneRequests, ...guestDone]));
   await db.delete(projects).where(inArray(projects.id, [memberProject, guestProject, foreignProject]));
@@ -195,9 +199,9 @@ describe("the Inbox's counts", () => {
 });
 
 describe("loadRequestList", () => {
-  it("reads a member's list in one statement, scoped to the workspace", async () => {
+  it("reads a member's list in one statement, plus the roster for its reviewers, scoped to the workspace", async () => {
     const { result, statements } = await queryCounter.measure(() => loadRequestList(member));
-    expect(statements).toBeLessThanOrEqual(1);
+    expect(statements).toBeLessThanOrEqual(2);
     const ids = result.rows.map(row => row.id);
     expect(ids).toEqual(expect.arrayContaining([memberRequest, guestRequest, FIXTURE_REQUEST]));
     expect(ids).not.toContain(foreignRequest);
@@ -308,9 +312,9 @@ describe("status views in the database (#133)", () => {
 describe("review state (#77)", () => {
   const expected = { concerns: [{ name: "Test Admin", reason: "The API cannot page this yet." }], unanswered: 1 };
 
-  it("gives each list row its open concerns and unanswered count, still in one statement", async () => {
+  it("gives each list row its open concerns and unanswered count, with one roster read for the whole list", async () => {
     const { result, statements } = await queryCounter.measure(() => loadRequestList(member));
-    expect(statements).toBeLessThanOrEqual(1);
+    expect(statements).toBeLessThanOrEqual(2);
     expect(result.rows.find(row => row.id === reviewedRequest)?.reviewState).toEqual(expected);
     expect(result.rows.find(row => row.id === memberRequest)?.reviewState).toBeNull();
   });

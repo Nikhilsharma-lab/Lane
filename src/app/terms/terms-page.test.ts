@@ -69,6 +69,27 @@ describe("Plan item L1: the Privacy policy page", () => {
     expect(privacyText).not.toContain("Intake AI check");
   });
 
+  // #404 (spec #383, #345 Q7): Better Auth runs inside Lane, so the processors are the services around it.
+  const listed = [...privacy.matchAll(/<li><strong>([^<]+?):<\/strong>/g)].map((match) => match[1]);
+
+  it("lists the services that handle accounts now, and not Clerk", () => {
+    expect(listed).toEqual(expect.arrayContaining(["Supabase", "Vercel", "Resend", "Cloudflare Turnstile", "Google sign-in", "Have I Been Pwned", "Upstash", "Anthropic"]));
+    expect(privacy).not.toMatch(/clerk/i);
+  });
+
+  it("says Have I Been Pwned receives only a 5-character prefix of the password's hash", () => {
+    expect(privacyText).toContain("It receives only a 5-character prefix of the password’s hash.");
+  });
+
+  it("claims no picture of anyone", () => {
+    expect(privacy).not.toMatch(/avatar|profile picture|photo/i);
+  });
+
+  it("keeps both deletion deadlines and says what account deletion removes", () => {
+    expect(privacyText).toContain("We acknowledge privacy requests within 3 working days and aim to complete verified deletion requests within 30 days.");
+    expect(privacyText).toContain("Account deletion removes your sign-in methods, sessions, workspace memberships and pending invitations, and removes your name and email address from Lane’s profile record.");
+  });
+
   // Nikhil, 2026-11-18: Terms use the same name.
   it("Terms call it the Request AI check too", () => {
     const termsText = renderToStaticMarkup(createElement(TermsPage)).replace(/<[^>]+>/g, "");

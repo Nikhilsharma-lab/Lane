@@ -1,7 +1,7 @@
 import { FREE_REQUESTS, freeRequestsSharedNote, freeRequestsUsedReason, type FreeRequests, type PlanState } from "./free-request-rules";
 
 /**
- * #217 (spec #195, item 6): the first run, safe in the browser. The workspace's first person (its Clerk creator)
+ * #217 (spec #195, item 6): the first run, safe in the browser. The workspace's first person (its creator)
  * gets the first Request guide: the problem framing, a prediction from the Metrics library, Reviewers, the Free
  * Requests left, and what happens at Release and Result due, then files a first real Request. Everyone who joins
  * later gets a short first run that shows their Inbox. Anyone can skip it and find it again from help; progress
@@ -27,7 +27,7 @@ export type FirstRunView =
   | { guide: "first_request"; step: FirstRequestStep; read: FirstRequestStep[]; filed: boolean }
   | { guide: "joined" };
 
-/** The workspace's first person is whoever created it in Clerk; everyone else joined later. */
+/** The workspace's first person is whoever created it; everyone else joined later. */
 export function firstRunGuideFor({ createdBy, userId }: { createdBy: string | null | undefined; userId: string }): FirstRunGuide {
   return createdBy && createdBy === userId ? "first_request" : "joined";
 }

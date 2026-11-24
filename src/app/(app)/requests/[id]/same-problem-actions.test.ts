@@ -2,7 +2,7 @@
  * #218: Same problem links. Admins and Members link two Requests as Same problem, at any status, Closed included,
  * without changing either record. Linking joins the whole group (two groups combine); removing a link takes only that
  * Request out; both are in the Request's history. Deleting an Open Request removes its membership. Guests see no
- * links; Viewers see them all. Real database, mocked Clerk session.
+ * links; Viewers see them all. Real database, faked session seam.
  */
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -15,9 +15,6 @@ const ADMIN = "same_problem_admin", MEMBER = "same_problem_member", GUEST = "sam
 const session = vi.hoisted((): Session => ({ userId: "same_problem_member", orgId: "org_same_problem", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({ organizations: { getOrganizationMembershipList: async () => ({ totalCount: 0, data: [] }) } }),
-}));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);

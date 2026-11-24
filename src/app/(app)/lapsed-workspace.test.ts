@@ -2,12 +2,13 @@
  * #216 (spec #195, seam 5): a workspace whose plan lapsed. Its record is never held hostage: everything already
  * filed keeps working (picking up, comments, Done, releasing, closing) and Result due reminders still go out;
  * nothing is deleted. Only creating new Requests waits for payment: new Requests, follow-ups and taking on a Guest
- * submission. Real database, faked session, mocked Clerk roster, roles switched per call, the payment provider swapped for the recording
+ * submission. Real database, faked session, real member rows, roles switched per call, the payment provider swapped for the recording
  * stand-in, billing enforced.
  */
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { addMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_lapsed_plan";
@@ -18,18 +19,6 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/ai/triage", () => ({ triageRequest: async () => ({ ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } }) }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
 vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async ({ organizationId, userId }: { organizationId?: string; userId?: string[] } = {}) => {
-        const people = organizationId && organizationId !== "org_lapsed_plan" ? []
-          : Object.entries({ lapsed_member: "org:member", lapsed_other: "org:member", lapsed_guest: "org:guest", lapsed_admin: "org:admin" }).filter(([id]) => !userId || userId.includes(id));
-        return { totalCount: people.length, data: people.map(([id, role]) => ({ organization: { id: "org_lapsed_plan" }, role, publicUserData: { userId: id, identifier: `${id}@lapsed.example`, firstName: "Name", lastName: id } })) };
-      },
-      getOrganizationInvitationList: async () => ({ totalCount: 0, data: [] }),
-    },
-  }),
-}));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
@@ -80,6 +69,7 @@ beforeAll(async () => {
   vi.stubEnv("LANE_BILLING_ENFORCED", "1");
   for (const id of Object.keys(ROLES)) await connection`insert into profiles(id,full_name,email) values (${id},${"Name " + id},${id + "@lapsed.example"}) on conflict (id) do nothing`;
   await connection`insert into organizations(id,name,slug) values (${ORG},'Lapsed plan','lapsed-plan')`;
+  await addMembers(ORG, ROLES);
   const billing = await import("@/lib/billing");
   await billing.claimFreeRequests(ctx, "founder@lapsed-plan.example");
 

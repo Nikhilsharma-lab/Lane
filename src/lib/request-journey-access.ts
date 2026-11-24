@@ -19,7 +19,7 @@ export const rosterMember = (roster: readonly WorkspacePerson[] | null, id: stri
 export function journeyViewer(auth: MemberAuth, roster: readonly WorkspacePerson[] | null): JourneyViewer {
   if (auth.role === "guest" || auth.role === "viewer") return { id: auth.userId, role: auth.role, active: false }
   const entry = rosterMember(roster, auth.userId)
-  return { id: auth.userId, role: auth.role === "admin" && entry?.role === "org:admin" ? "admin" : "member", active: Boolean(entry) }
+  return { id: auth.userId, role: auth.role === "admin" && entry?.role === "admin" ? "admin" : "member", active: Boolean(entry) }
 }
 
 /**
