@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, finishFirstRuns, provisionTestWorkspace } from "./helpers/cleanup";
 import { checkManageAccount, checkManageMembers, checkManageWorkspace, removeMemberInClerk } from "./helpers/clerk-windows";
-import { assertOwnedOrganization } from "./helpers/fixtures";
+import { assertOwnedOrganization } from "./helpers/clerk-only";
 import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
 
 // #257 D4 (walk finding D4): an Admin opens Clerk's Manage members and Manage workspace windows by keyboard, in

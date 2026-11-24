@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from './helpers/reviewers';
-import { assertOwnedOrganization } from './helpers/fixtures';
-import { renewSessionToken } from './helpers/test-user';
+import { assertOwnedOrganization, renewSessionToken } from './helpers/clerk-only';
 import { answerIsItLive, chooseJourneyMore, journey, journeyPopup, journeyStep } from './helpers/journey';
 import { expectOpenFormSurvivesReturn, observeJourneyReads } from './helpers/journey-refresh';
 

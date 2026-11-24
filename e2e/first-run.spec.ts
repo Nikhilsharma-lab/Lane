@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, provisionTestWorkspace } from "./helpers/cleanup";
 import { nextActionResponse } from "./helpers/action-response";
-import { assertOwnedOrganization, registerBrowserTestOrganization } from "./helpers/fixtures";
+import { assertOwnedOrganization } from "./helpers/clerk-only";
+import { registerBrowserTestOrganization } from "./helpers/fixtures";
 import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
 
 // The guide's Free Requests line before the first Request: all 4 left on a clean database; some left and shared

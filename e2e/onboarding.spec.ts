@@ -6,11 +6,11 @@ import {
   getProfileFullName,
 } from "./helpers/cleanup";
 import {
-  createClerkTestOrganization,
   createTestUser,
   deleteTestUser,
   signInTestUser,
 } from "./helpers/test-user";
+import { createTestWorkspace } from "./helpers/workspaces";
 import { registerBrowserTestOrganization } from "./helpers/fixtures";
 
 /** Plan item 2.2: the requests Continue causes. Server action POSTs go in
@@ -87,7 +87,7 @@ test("a Clerk user chooses a Lane role and enters their active workspace", async
   browser,
 }) => {
   const user = await createTestUser("onboarding-existing-org");
-  const orgId = await createClerkTestOrganization(
+  const orgId = await createTestWorkspace(
     user.id,
     "Lane E2E Existing Workspace"
   );
@@ -171,7 +171,7 @@ test("the role step names its 1, 2 and 3 keys on desktop and no keys on a phone"
   browser,
 }) => {
   const user = await createTestUser("onboarding-role-keys");
-  const orgId = await createClerkTestOrganization(user.id, "Lane E2E Role Keys Workspace");
+  const orgId = await createTestWorkspace(user.id, "Lane E2E Role Keys Workspace");
 
   try {
     await signInTestUser(page, user, orgId);
@@ -216,7 +216,7 @@ test("a role chosen right after signing in through the form stays on Requests", 
 }) => {
   test.setTimeout(180_000);
   const user = await createTestUser("onboarding-form-sign-in");
-  const orgId = await createClerkTestOrganization(
+  const orgId = await createTestWorkspace(
     user.id,
     "Lane E2E Form Sign-in Workspace"
   );

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, finishFirstRuns, provisionTestWorkspace } from "./helpers/cleanup";
-import { assertOwnedOrganization } from "./helpers/fixtures";
+import { assertOwnedOrganization } from "./helpers/clerk-only";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 
 // #288 (Build 8.2 of #256): Members, Metrics and getting around Settings, as a person uses them. An Admin and a

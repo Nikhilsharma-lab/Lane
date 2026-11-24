@@ -7,7 +7,7 @@ import {
   getProfileRole,
 } from "./helpers/cleanup";
 import { deleteTestUser } from "./helpers/test-user";
-import { safeClerkClient } from "./helpers/safety";
+import { safeClerkClient } from "./helpers/clerk-only";
 import { registerBrowserTestOrganization, registerBrowserTestUser, testEmail } from "./helpers/fixtures";
 
 test("real signup requires a Clerk workspace before the Lane role and Requests", async ({

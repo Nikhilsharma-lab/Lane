@@ -9,7 +9,7 @@ import {
   deleteTestUser,
 } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
-import { assertOwnedUser } from "./helpers/fixtures";
+import { assertOwnedUser } from "./helpers/clerk-only";
 import {
   intakeDraftScope,
   intakeDraftStorageKey,

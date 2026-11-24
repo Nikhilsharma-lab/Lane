@@ -6,7 +6,7 @@ import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 import { runningActionManifestPath } from "./helpers/server-action-identity";
-import { assertOwnedUser } from "./helpers/fixtures";
+import { assertOwnedUser } from "./helpers/clerk-only";
 
 /**
  * #280: an honest Edit Request. A title-only edit keeps "Problem to solve" and "Suggested change" (B8); before

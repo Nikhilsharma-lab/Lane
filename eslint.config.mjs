@@ -7,11 +7,15 @@ const ARC_DIALOGS = ["dialog/dialog", "drawer/drawer", "bottom-sheet/bottom-shee
   name: `@/components/arc/${path}`,
   message: "Use Dialog from @/components/popup/adaptive-dialog (#263).",
 }));
-// #398: Clerk is out of the app. Its packages stay installed until increment 7, and e2e/ still uses them until its
-// suites move, but nothing under src/ loads them, statically or with import().
+// #398: Clerk is out of the app. Its packages stay installed until increment 7, and the e2e specs not ported yet still
+// import them, but nothing under src/ loads them, statically or with import().
 const CLERK_MESSAGE = "Clerk is out of the app: Better Auth owns accounts, sessions and workspaces, read through src/lib/session.ts (#398).";
 const CLERK = { regex: "^@clerk(/|$)", message: CLERK_MESSAGE };
 const CLERK_DYNAMIC = { selector: "ImportExpression[source.value=/^@clerk/]", message: CLERK_MESSAGE };
+// #399: Better Auth's testUtils signs anyone in and writes any row, so the instance that has it lives in e2e/ only
+// (e2e/helpers/better-auth.ts). Nothing under src/, tests included, names it.
+const TEST_UTILS_MESSAGE = "Better Auth's testUtils holds test powers that never reach production: it lives only in e2e/helpers/better-auth.ts (#399).";
+const TEST_UTILS = ["Identifier[name='testUtils']", "Literal[value='testUtils']"].map((selector) => ({ selector, message: TEST_UTILS_MESSAGE }));
 // #371: only the server module, the auth route, the session read (#374) and their tests load Better Auth's server
 // entry points, Lane's server instance or the session read. The browser client entries (better-auth/client,
 // better-auth/react) stay open for the screens. #389: Lane's Server Actions reach the instance through its one door,
@@ -82,17 +86,17 @@ const eslintConfig = defineConfig([
   {
     files: ["src/**/*.{ts,tsx}"],
     ignores: REFRESH_OWNERS,
-    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_DYNAMIC, ...TEST_UTILS, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
   },
   // The files above that own the router refresh keep the other rules.
   {
     files: REFRESH_OWNERS,
-    rules: { "no-restricted-syntax": ["error", CLERK_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", CLERK_DYNAMIC, ...TEST_UTILS, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
   },
   // #371: the Better Auth server's own files may load it dynamically; the other rules still apply.
   {
     files: BETTER_AUTH_SERVER_FILES,
-    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_DYNAMIC, ...TEST_UTILS, BROWSER_AUTH_CLIENT_DYNAMIC] },
   },
   // All of src, tests and Arc included. Flat config keeps only the last matching block's options for a rule, so every
   // block below repeats CLERK, BETTER_AUTH_SERVER and (#377) BROWSER_AUTH_CLIENT; the blocks for the auth screens and
@@ -159,7 +163,7 @@ const eslintConfig = defineConfig([
     files: ["src/app/**/*.{ts,tsx}"],
     ignores: ["src/**/*.test.ts", ...BETTER_AUTH_SERVER_FILES],
     rules: {
-      "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC],
+      "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_DYNAMIC, ...TEST_UTILS, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC],
       "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, CLERK] }],
     },
   },

@@ -3,33 +3,13 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
-import { assertE2ETarget, safeClerkClient } from "./safety";
-import { waitForClerk } from "./test-user";
+import { assertE2ETarget } from "./safety";
+import { signInTestUser } from "./test-user";
 
-/**
- * Same normal Clerk test sign-in as test-user.ts; a native default context has no relative baseURL.
- * Clerk's load is awaited first (waitForClerk, polling on an interval): `clerk.signIn` waits only 15 s, polling on
- * animation frames, which a headed window behind other windows doesn't paint.
- */
+/** The same test sign-in as test-user.ts's, ending in the workspace; a native default context has no relative baseURL. */
 export async function signInNativeTestUser(page: Page, emailAddress: string, orgId: string) {
-  await safeClerkClient();
-  // Before the page asks Clerk for anything: this dedicated browser has no context set up by the test runner, and a
-  // first Clerk request without the testing token can leave Clerk never loading.
-  await setupClerkTestingToken({ context: page.context() });
-  await page.goto(new URL("/login", assertE2ETarget().baseURL).href);
-  await waitForClerk(page);
-  await clerk.signIn({ page, emailAddress });
-  await page.evaluate(async organization => { await window.Clerk.setActive({ organization }); }, orgId);
-  // Signed in, Clerk's sign-in card sometimes moves the page on from /login and sometimes stays. Go to the workspace
-  // either way, so no move of the card's is left to abort the next step's page.goto (net::ERR_ABORTED); a goto that
-  // races the card's move is aborted the same way, and goes again once that move has landed.
-  const workspace = new URL("/", assertE2ETarget().baseURL).href;
-  await page.goto(workspace).catch(async (error: Error) => {
-    if (!error.message.includes("ERR_ABORTED")) throw error;
-    await page.waitForLoadState("load");
-    await page.goto(workspace);
-  });
+  await signInTestUser(page, { email: emailAddress }, orgId);
+  await page.goto(new URL("/", assertE2ETarget().baseURL).href);
 }
 
 /** Brings the dedicated browser's page to the front and waits until the browser reports it visible. */

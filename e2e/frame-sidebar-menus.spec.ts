@@ -3,7 +3,7 @@ import { expect, test, type Browser, type BrowserContextOptions, type Page, type
 
 import { cleanupTestWorkspace, e2eDatabase, finishFirstRuns, provisionTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { commandPalette, paletteOption } from "./helpers/command-palette";
-import { assertOwnedOrganization } from "./helpers/fixtures";
+import { assertOwnedOrganization } from "./helpers/clerk-only";
 import { NAVIGATION_WIDTH } from "../src/components/shell/sidebar-motion";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 

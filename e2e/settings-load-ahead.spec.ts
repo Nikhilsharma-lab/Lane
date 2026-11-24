@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, provisionTestWorkspace } from "./helpers/cleanup";
-import { assertOwnedOrganization } from "./helpers/fixtures";
+import { assertOwnedOrganization } from "./helpers/clerk-only";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 
 // #258 speed fix 1 (Build 1 in #256). Settings reads the member list from Clerk only once Members is shown, from its

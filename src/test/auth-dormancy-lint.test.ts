@@ -171,6 +171,37 @@ describe("Clerk's fence (#398)", () => {
   })
 })
 
+describe("testUtils' fence (#399)", () => {
+  // One file under each block of the lint config that sets the rule, so no block's options drop it.
+  it.each([
+    "src/app/layout.tsx",
+    "src/app/(app)/workspace-actions.ts",
+    "src/app/api/auth/[...all]/route.ts",
+    "src/app/api/auth/[...all]/auth-route.test.ts",
+    "src/components/auth/better-auth/auth-form.tsx",
+    "src/components/requests/use-optimistic-action.ts",
+    "src/components/shell/stable-router.tsx",
+    "src/lib/auth-server.ts",
+    "src/lib/better-auth-session.ts",
+    "src/lib/session.ts",
+    "src/test/auth-route-browser.ts",
+    "src/test/e2e-fixtures.test.ts",
+  ])("refuses Better Auth's testUtils however %s reaches it", async (filePath) => {
+    for (const source of [
+      `import { testUtils as imported } from "better-auth/plugins"`,
+      `import * as plugins from "better-auth/plugins"; const imported = plugins.testUtils()`,
+      `const imported = (await import("better-auth/plugins")).testUtils()`,
+      `const { testUtils: imported } = await import("better-auth/plugins")`,
+      `export { testUtils } from "better-auth/plugins"; const imported = 1`,
+      `import * as plugins from "better-auth/plugins"; const imported = plugins["testUtils"]`,
+    ]) expect((await refusals(filePath, source)).join("\n"), source).toContain("test powers")
+  })
+
+  it("leaves the server module's own plugins alone", async () => {
+    expect(await refusals("src/lib/auth-server.ts", `import { organization as imported } from "better-auth/plugins"`)).toEqual([])
+  })
+})
+
 describe("the auth screens' mount (#388)", () => {
   it.each([
     ["src/app/(auth)/login/page.tsx", SCREEN],
@@ -204,10 +235,15 @@ describe("what ships", () => {
     })
   }
 
-  // #398: the one leftover is the e2e safety test's mock, until e2e moves to Better Auth (#399).
   it("imports, loads and mocks nothing of Clerk's, tests included", () => {
     const naming = sources().filter((path) => /(from|import|import\(|require\(|[mM]ock\(|importActual\(|typeof import\()\s*["'`]@clerk\//.test(readFileSync(path, "utf8")))
-    expect(naming.filter((path) => !path.endsWith("auth-dormancy-lint.test.ts"))).toEqual(["src/test/e2e-safety.test.ts"])
+    expect(naming.filter((path) => !path.endsWith("auth-dormancy-lint.test.ts"))).toEqual([])
+  })
+
+  // #399: e2e's powers, the test-only Better Auth instance among them, stay out of the app. Tests may use its helpers.
+  it("loads nothing from e2e", () => {
+    const shipped = sources().filter((path) => !/\.test\.tsx?$/.test(path) && !path.startsWith("src/test/"))
+    expect(shipped.filter((path) => /["'`](\.\.\/)+e2e\//.test(readFileSync(path, "utf8")))).toEqual([])
   })
 
   // #398: people show as initials. `profiles.avatar_url` stays, unread and unwritten, until increment 7.

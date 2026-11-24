@@ -1,20 +1,13 @@
 import { randomUUID } from "node:crypto";
-import postgres from "postgres";
-import { assertE2ETarget } from "./safety";
-import { assertOwnedOrganization, assertOwnedUser, borrowedUserNames, forgetOrganization, ownedUserScope } from "./fixtures";
-import { createClerkTestOrganization } from "./test-user";
+import type postgres from "postgres";
+import { e2eDatabase } from "./database";
+import { assertOwnedOrganization, assertOwnedUser, forgetOrganization, ownedUserScope, testEmail } from "./fixtures";
+import { deleteEmailCodes } from "./email-codes";
+import { createTestWorkspace } from "./workspaces";
+
+export { e2eDatabase } from "./database";
 
 type FunctionalRole = "pm" | "designer" | "developer";
-
-/** The checked e2e database (assertE2ETarget), on one connection. Callers end it. */
-export function e2eDatabase() {
-  const { databaseUrl, ssl } = assertE2ETarget();
-  return postgres(databaseUrl, {
-    ssl,
-    max: 1,
-    idle_timeout: 5,
-  });
-}
 
 /**
  * #217: marks these people's first runs in the workspace as finished, so journeys that don't test the first run
@@ -30,8 +23,10 @@ export async function finishFirstRuns(sql: postgres.Sql | postgres.TransactionSq
   `;
 }
 
+/** A workspace for the person, as its Admin, with their name and profile label saved and its first run finished. */
 export async function provisionTestWorkspace(options: {
   userId: string;
+  /** The person's own address, which createTestUser saved. */
   email: string;
   name: string;
   workspaceName: string;
@@ -39,71 +34,33 @@ export async function provisionTestWorkspace(options: {
   /** #217: leave the creator's first run to start fresh, as a new workspace's does. Finished by default. */
   freshFirstRun?: boolean;
 }): Promise<string> {
-  const organizationId = await createClerkTestOrganization(options.userId, options.workspaceName);
-  const client = await assertOwnedOrganization(organizationId);
-  const organization = await client.organizations.getOrganization({ organizationId });
+  const orgId = await createTestWorkspace(options.userId, options.workspaceName);
   const sql = e2eDatabase();
-
   try {
-    await sql.begin(async (tx) => {
-      await tx`
-        INSERT INTO profiles (id, full_name, email, role)
-        VALUES (
-          ${options.userId},
-          ${options.name},
-          ${options.email},
-          ${options.role ?? "designer"}
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          full_name = EXCLUDED.full_name,
-          email = EXCLUDED.email,
-          role = EXCLUDED.role,
-          updated_at = now()
-      `;
-      await tx`
-        INSERT INTO organizations (id, name, slug, owner_id)
-        VALUES (
-          ${organization.id},
-          ${organization.name},
-          ${organization.slug ?? organization.id},
-          ${options.userId}
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          name = EXCLUDED.name,
-          slug = EXCLUDED.slug,
-          owner_id = EXCLUDED.owner_id,
-          updated_at = now()
-      `;
-      if (!options.freshFirstRun) await finishFirstRuns(tx, organization.id, [options.userId], "first_request");
-    });
-    return organization.id;
-  } catch (error) {
-    // Keep the creation receipt if rollback itself fails; never sweep later.
-    try {
-      await client.organizations.deleteOrganization(organization.id);
-      forgetOrganization(organization.id);
-    } catch { console.warn("[e2e] Fixture rollback failed; explicit inspection required."); }
-    throw error;
+    await sql`
+      UPDATE profiles SET full_name = ${options.name}, role = ${options.role ?? "designer"}, updated_at = now()
+      WHERE id = ${options.userId}
+    `;
+    if (!options.freshFirstRun) await finishFirstRuns(sql, orgId, [options.userId], "first_request");
+    return orgId;
   } finally {
     await sql.end();
   }
 }
 
+/** Deletes the workspaces this run made for the person, then the person. `deleteTestUser` may still follow. */
 export async function cleanupTestWorkspace(userId: string): Promise<void> {
-  const { orgIds } = await ownedUserScope(userId);
+  const { user, orgIds } = await ownedUserScope(userId);
+  if (!user) return;
   const sql = e2eDatabase();
 
   try {
     for (const orgId of orgIds) {
       await sql`DELETE FROM organizations WHERE id = ${orgId} AND owner_id = ${userId}`;
+      forgetOrganization(orgId);
     }
-    try {
-      await sql`DELETE FROM profiles WHERE id = ${userId}`;
-    } catch (error) {
-      // A borrowed user (LANE_E2E_REUSE_USERS=1) may still be named on a workspace an earlier run had to keep (release
-      // history is immutable); its profile stays for those rows, and the next borrower's profile upsert reuses it.
-      if (!(borrowedUserNames(userId) && (error as { code?: string }).code === "23503")) throw error;
-    }
+    await sql`DELETE FROM profiles WHERE id = ${userId}`;
+    await deleteEmailCodes(sql, user.email);
   } finally {
     await sql.end();
   }
@@ -187,7 +144,7 @@ export async function seedRowIdentityFixtures(
   try {
     await sql`
       UPDATE profiles
-      SET email = 'row.identity+clerk_test@example.com'
+      SET email = ${testEmail("row-identity")}
       WHERE id = ${userId}
     `;
 
@@ -239,7 +196,7 @@ export async function seedRowIdentityFixtures(
 }
 
 export async function deleteTestWorkspace(orgId: string): Promise<void> {
-  const client = await assertOwnedOrganization(orgId);
+  await assertOwnedOrganization(orgId);
   const sql = e2eDatabase();
   try {
     await sql`DELETE FROM organizations WHERE id = ${orgId}`;
@@ -247,7 +204,6 @@ export async function deleteTestWorkspace(orgId: string): Promise<void> {
     await sql.end();
   }
 
-  await client.organizations.deleteOrganization(orgId);
   forgetOrganization(orgId);
 }
 

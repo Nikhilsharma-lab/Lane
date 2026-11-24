@@ -2,17 +2,17 @@ import { expect, test } from "@playwright/test";
 
 import { cleanupTestWorkspace, getProfileRole } from "./helpers/cleanup";
 import {
-  createClerkTestOrganization,
   createTestUser,
   deleteTestUser,
   signInTestUser,
 } from "./helpers/test-user";
+import { createTestWorkspace } from "./helpers/workspaces";
 
 test("role onboarding preserves the selection after a failed save", async ({
   page,
 }) => {
   const user = await createTestUser("role-recovery");
-  const orgId = await createClerkTestOrganization(
+  const orgId = await createTestWorkspace(
     user.id,
     "Lane E2E Recovery Workspace"
   );
@@ -59,7 +59,7 @@ test("role onboarding preserves the selection after a failed save", async ({
 
 test("one missing-session action response renews and saves the original role once", async ({ page }) => {
   const user = await createTestUser("explicit-expiry");
-  const orgId = await createClerkTestOrganization(user.id, "Lane E2E Explicit Recovery");
+  const orgId = await createTestWorkspace(user.id, "Lane E2E Explicit Recovery");
   try {
     await signInTestUser(page, user, orgId);
     await page.goto("/onboarding");

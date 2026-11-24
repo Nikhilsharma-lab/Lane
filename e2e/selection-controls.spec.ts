@@ -2,11 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace } from "./helpers/cleanup";
 import {
-  createClerkTestOrganization,
   createTestUser,
   deleteTestUser,
   signInTestUser,
 } from "./helpers/test-user";
+import { createTestWorkspace } from "./helpers/workspaces";
 
 const SURFACES = [
   {
@@ -43,7 +43,7 @@ test("the Lane role selector preserves keyboard and visual behavior", async ({
   page,
 }) => {
   const user = await createTestUser("selection-visual");
-  const orgId = await createClerkTestOrganization(
+  const orgId = await createTestWorkspace(
     user.id,
     "Lane E2E Selection Workspace"
   );

@@ -3,7 +3,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, getProfileFullName, getTestWorkspaceId } from "./helpers/cleanup";
 import { journey } from "./helpers/journey";
-import { safeClerkClient } from "./helpers/safety";
+import { safeClerkClient } from "./helpers/clerk-only";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 
@@ -43,8 +43,7 @@ const NOT_GOAL_WORDS = /predict|expected impact/i;
 test.describe("one name per person (D5, B6, C8)", () => {
   test("after a rename through Clerk, the sidebar, a comment and Settings all show the new name; an old mismatch is fixed too", async ({ page }) => {
     test.setTimeout(240_000);
-    // A borrowed user's name is changed here: borrow from the end of the list, and always give the name back.
-    const user = await createTestUser("one-name", undefined, { borrowFrom: "last" });
+    const user = await createTestUser("one-name");
     const clerk = await safeClerkClient();
     const original = await clerk.users.getUser(user.id);
     try {
@@ -78,7 +77,6 @@ test.describe("one name per person (D5, B6, C8)", () => {
       await expect(page.getByText("Stale Lane Copy")).toHaveCount(0);
       await page.screenshot({ path: test.info().outputPath("D5-request-after-rename-1440-light.png"), fullPage: true });
     } finally {
-      // Give the borrowed account its name back even when a step above failed (deleteTestUser restores its own name too).
       await clerk.users.updateUser(user.id, { firstName: original.firstName ?? "", lastName: original.lastName ?? "" });
       try { await cleanupTestWorkspace(user.id); } finally { await deleteTestUser(user.id); }
     }

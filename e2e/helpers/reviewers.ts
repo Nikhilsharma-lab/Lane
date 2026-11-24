@@ -4,10 +4,10 @@ import {
   type Page,
   type TestInfo,
 } from "@playwright/test";
-import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./test-user";
+import { createTestUser, deleteTestUser, readTestSession, signInTestUser, type TestUser } from "./test-user";
 import { provisionAndSignIn } from "./auth";
-import { cleanupTestWorkspace, e2eDatabase, finishFirstRuns } from "./cleanup";
-import { assertOwnedOrganization, assertOwnedUser, borrowedUserNames } from "./fixtures";
+import { e2eDatabase, finishFirstRuns } from "./cleanup";
+import { addTestMember } from "./workspaces";
 import {
   intakeDraftScope,
   intakeDraftStorageKey,
@@ -17,76 +17,25 @@ import { createTriageToken } from "../../src/lib/triage-token";
 
 // These fixtures have review history. Retain exact creation receipts
 // for staging inspection; do not disable history triggers for teardown.
-//
-// With LANE_E2E_REUSE_USERS=1 the users may be borrowed (e2e/helpers/test-user.ts). Borrowed users are
-// given back, never retained: when the team can't be completed, and when it closes.
 export async function createReviewTeam(browser: Browser, ownerPage: Page) {
-  // One at a time, so two borrows never pick the same free user.
   const users: TestUser[] = [];
   try {
     for (const label of ["PM", "Designer", "Developer"]) users.push(await createTestUser(`review-${label}`));
   } catch (error) {
-    // Nothing to inspect yet: hand back every user already got (a borrowed one keeps its own name).
+    // Nothing to inspect yet: delete everyone already made.
     await Promise.allSettled(users.map((user) => deleteTestUser(user.id)));
     throw error;
-  }
-  try {
-    return await assembleReviewTeam(browser, ownerPage, users);
-  } catch (error) {
-    await giveBackBorrowed(users);
-    throw error;
-  }
-}
-
-/**
- * Gives back the team's borrowed users; users this run created stay, with their receipts, for inspection. A borrowed
- * owner (users[0]) goes first, taking the workspace it owns with it; a borrowed teammate of a kept owner leaves the
- * workspace (`orgId`) before it goes back.
- */
-export async function giveBackBorrowed(users: TestUser[], orgId?: string) {
-  const ownerBorrowed = Boolean(users[0] && borrowedUserNames(users[0].id));
-  for (const user of ownerBorrowed ? users : users.slice(1)) {
-    if (!borrowedUserNames(user.id)) continue;
-    try {
-      if (!ownerBorrowed && orgId) {
-        const client = await assertOwnedOrganization(orgId);
-        await client.organizations.deleteOrganizationMembership({ organizationId: orgId, userId: user.id });
-      }
-      // The workspace's local rows go too where they can, so the next run that borrows this user starts clean. A
-      // workspace with release history keeps its rows (history is immutable); the user still goes back.
-      if (ownerBorrowed) await cleanupTestWorkspace(user.id).catch((error) => console.warn(`[e2e] kept the local rows of ${user.id}'s workspace:`, error.message));
-      await deleteTestUser(user.id);
-    } catch (error) {
-      console.warn(`[e2e] couldn't give back borrowed user ${user.id}:`, error);
-    }
-  }
-}
-
-async function assembleReviewTeam(browser: Browser, ownerPage: Page, users: TestUser[]) {
-  for (const [i, user] of users.entries()) {
-    const client = await assertOwnedUser(user.id);
-    await client.users.updateUser(user.id, {
-      firstName: `Review ${["PM", "Designer", "Developer"][i]}`,
-      lastName: "",
-    });
   }
   const orgId = await provisionAndSignIn(ownerPage, users[0], {
     name: "Review PM",
     workspaceName: "Review acceptance",
     role: "pm",
   });
-  const client = await assertOwnedOrganization(orgId);
   const sql = e2eDatabase();
   try {
     for (const [index, user] of users.slice(1).entries()) {
-      await client.organizations.createOrganizationMembership({
-        organizationId: orgId,
-        userId: user.id,
-        role: "org:member",
-      });
-      // A borrowed user (LANE_E2E_REUSE_USERS=1) may already have a profile from an earlier run on this database.
-      await sql`insert into profiles(id,full_name,email,role) values (${user.id},${`Review ${index === 0 ? "Designer" : "Developer"}`},${user.email},${index === 0 ? "designer" : "developer"})
-        on conflict (id) do update set full_name = excluded.full_name, email = excluded.email, role = excluded.role`;
+      await addTestMember(orgId, user.id, "member");
+      await sql`update profiles set full_name = ${`Review ${index === 0 ? "Designer" : "Developer"}`}, role = ${index === 0 ? "designer" : "developer"} where id = ${user.id}`;
     }
     // #217: these journeys aren't about the first run; the teammates have already seen theirs.
     await finishFirstRuns(sql, orgId, users.slice(1).map((user) => user.id), "joined");
@@ -113,7 +62,6 @@ async function assembleReviewTeam(browser: Browser, ownerPage: Page, users: Test
         contentType: "application/json",
       });
       await Promise.all(contexts.map((context) => context.close()));
-      await giveBackBorrowed(users, orgId);
     },
   };
 }
@@ -189,17 +137,8 @@ export async function createRequestThroughIntake(
     },
   );
   await page.reload();
-  // Reload starts a new Clerk client. Wait for the already signed-in fixture
-  // identity before submitting its restored review through the real action.
-  await page.waitForFunction(
-    ({ userId, orgId }) =>
-      window.Clerk?.loaded &&
-      window.Clerk.user?.id === userId &&
-      window.Clerk.session?.status === "active" &&
-      window.Clerk.organization?.id === orgId,
-    { userId: team.users[0].id, orgId: team.orgId },
-    { timeout: 30_000 },
-  );
+  // The real action submits the restored review as the fixture's person in the team's workspace.
+  expect(await readTestSession(page)).toEqual({ userId: team.users[0].id, orgId: team.orgId });
   const create = page.getByRole("button", { name: "Create Request", exact: true });
   if (reviewers.length) {
     await page.getByRole("button", { name: "Edit Request", exact: true }).click();
