@@ -94,14 +94,12 @@ describe("the session read's fence (#387)", () => {
     expect((await refusals(filePath, loading(READ))).join("\n")).toContain("Only the session seam")
   })
 
-  it("lets the seam import nothing else that was refused: Better Auth's server, Clerk's session", async () => {
+  it("lets the seam import nothing else that was refused", async () => {
     const seam = "src/lib/session.ts"
     expect(await refusals(seam, importing("@/lib/auth-server"))).not.toEqual([])
     expect(await refusals(seam, importing("better-auth/plugins"))).not.toEqual([])
     expect(await refusals(seam, loading("@/lib/auth-server"))).not.toEqual([])
     expect(await refusals(seam, loading(READ))).not.toEqual([])
-    expect(await refusals(seam, `import { auth as imported } from "@clerk/nextjs/server"`)).not.toEqual([])
-    expect(await refusals(seam, loading("@clerk/nextjs/server"))).not.toEqual([])
     expect(await refusals(seam, importing("next/link"))).not.toEqual([])
   })
 })
@@ -134,7 +132,42 @@ describe("the server door's fence (#389)", () => {
     for (const path of ["better-auth", "better-auth/plugins", "@/lib/better-auth-session", CLIENT, "next/link", "@/components/arc/dialog/dialog"])
       expect(await refusals(ACTION, importing(path)), path).not.toEqual([])
     for (const path of ["@/lib/auth-server", "better-auth/plugins", CLIENT]) expect(await refusals(ACTION, loading(path)), path).not.toEqual([])
-    expect(await refusals(ACTION, `import { auth as imported } from "@clerk/nextjs/server"`)).not.toEqual([])
+  })
+})
+
+describe("Clerk's fence (#398)", () => {
+  // One file under each block of the lint config, so no block's options drop the rule.
+  it.each([
+    "src/app/layout.tsx",
+    "src/app/(app)/settings/profile/page.tsx",
+    "src/app/(app)/workspace-actions.ts",
+    "src/app/(app)/workspace-actions.test.ts",
+    "src/app/(auth)/login/page.tsx",
+    "src/app/(auth)/signed-out-screens.test.ts",
+    "src/app/api/auth/[...all]/route.ts",
+    "src/components/arc/user-menu/user-menu.tsx",
+    "src/components/auth/better-auth/auth-form.tsx",
+    "src/components/auth/better-auth/auth-form.test.ts",
+    "src/components/popup/adaptive-dialog.tsx",
+    "src/components/requests/use-optimistic-action.ts",
+    "src/components/shell/command-palette.tsx",
+    "src/components/shell/session-keeper.ts",
+    "src/components/shell/stable-router.tsx",
+    "src/components/settings/account-calls.ts",
+    "src/lib/auth-server.ts",
+    "src/lib/better-auth-session.ts",
+    "src/lib/billing.ts",
+    "src/lib/session.ts",
+    "src/lib/session.test.ts",
+    "src/proxy.ts",
+    "src/test/e2e-safety.test.ts",
+  ])("refuses every Clerk package in %s", async (filePath) => {
+    for (const path of ["@clerk/nextjs", "@clerk/nextjs/server", "@clerk/ui", "@clerk/testing/playwright"]) {
+      expect((await refusals(filePath, importing(path))).join("\n"), path).toContain("Clerk is out of the app")
+      expect((await refusals(filePath, loading(path))).join("\n"), path).toContain("Clerk is out of the app")
+    }
+    expect((await refusals(filePath, `import type { LocalizationResource } from "@clerk/nextjs/types"; const imported = 1 as unknown as LocalizationResource`)).join("\n")).toContain("Clerk is out of the app")
+    expect((await refusals(filePath, `export { auth } from "@clerk/nextjs/server"; const imported = 1`)).join("\n")).toContain("Clerk is out of the app")
   })
 })
 
@@ -150,11 +183,10 @@ describe("the auth screens' mount (#388)", () => {
     expect(await refusals(filePath, loading(screen))).toEqual([])
   })
 
-  it("keeps the app's other fences: Next's Link, Arc's dialog, Clerk's session, Better Auth's server", async () => {
+  it("keeps the app's other fences: Next's Link, Arc's dialog, Better Auth's server", async () => {
     const page = "src/app/(auth)/login/page.tsx"
     expect(await refusals(page, importing("next/link"))).not.toEqual([])
     expect(await refusals(page, importing("@/components/arc/dialog/dialog"))).not.toEqual([])
-    expect(await refusals(page, `import { auth as imported } from "@clerk/nextjs/server"`)).not.toEqual([])
     expect(await refusals(page, importing("@/lib/auth-server"))).not.toEqual([])
   })
 
@@ -164,11 +196,6 @@ describe("the auth screens' mount (#388)", () => {
 })
 
 describe("what ships", () => {
-  it("has a session seam that imports nothing of Clerk's", () => {
-    expect(readFileSync("src/lib/session.ts", "utf8")).not.toMatch(/clerk/i)
-    expect(readFileSync("src/lib/better-auth-session.ts", "utf8")).not.toMatch(/clerk/i)
-  })
-
   /** Every source file under src, as a path from the repo root. */
   function sources(dir = "src"): string[] {
     return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -177,16 +204,19 @@ describe("what ships", () => {
     })
   }
 
-  it("has a shell that imports nothing of Clerk's", () => {
-    const shell = sources("src/components/shell").filter((path) => /["']@clerk\//.test(readFileSync(path, "utf8")))
-    expect(shell).toEqual([])
+  // #398: the one leftover is the e2e safety test's mock, until e2e moves to Better Auth (#399).
+  it("imports, loads and mocks nothing of Clerk's, tests included", () => {
+    const naming = sources().filter((path) => /(from|import|import\(|require\(|[mM]ock\(|importActual\(|typeof import\()\s*["'`]@clerk\//.test(readFileSync(path, "utf8")))
+    expect(naming.filter((path) => !path.endsWith("auth-dormancy-lint.test.ts"))).toEqual(["src/test/e2e-safety.test.ts"])
   })
 
-  // #395: the workspace name and Leave rows, their actions and the People list's link.
-  it("has workspace rows that import nothing of Clerk's", () => {
-    const rows = [...sources("src/components/settings"), ...sources("src/app/(app)/settings")].filter((path) => /\/(workspace-(rows|name-row|actions)|leave-workspace-row|people-list)[\w-]*\.tsx?$/.test(path) && !path.endsWith(".test.ts"))
-    expect(rows).toHaveLength(8)
-    expect(rows.filter((path) => /["']@clerk\//.test(readFileSync(path, "utf8")))).toEqual([])
+  // #398: people show as initials. `profiles.avatar_url` stays, unread and unwritten, until increment 7.
+  it("gives no Arc Avatar a person's picture, and reads and writes no avatar_url", () => {
+    const schema = ["src/db/better-auth-schema.test.ts", "src/db/schema/users.ts"]
+    const reading = sources().filter((path) => /avatar_?url/i.test(readFileSync(path, "utf8")))
+    expect(reading.filter((path) => path !== "src/test/auth-dormancy-lint.test.ts").sort()).toEqual(schema)
+    const product = sources().filter((path) => !path.startsWith("src/components/arc/"))
+    expect(product.filter((path) => /<Avatar\b[^>]*\ssrc=|avatarSrc/.test(readFileSync(path, "utf8"))).filter((path) => path !== "src/test/auth-dormancy-lint.test.ts")).toEqual([])
   })
 
   // #389: the frame asks for the session, and Log out loads the sign-out; each on demand, never in the first load.

@@ -42,10 +42,10 @@ export async function sendAwayMemberless(): Promise<never> {
 }
 
 /** The session's person and workspace, or null for anyone `getMember` knows no membership for. */
-export const getWorkspace = cache(async function getWorkspace(): Promise<(WorkspaceContext & { needsOnboarding: false }) | null> {
+export const getWorkspace = cache(async function getWorkspace(): Promise<WorkspaceContext | null> {
   const member = await getMember();
   if (!member) return null;
   // Plan item 1.9: profile and workspace in one statement.
   const shell = await timed("workspace", () => loadShell(member));
-  return shell && { needsOnboarding: false, ...member, ...shell };
+  return shell && { ...member, ...shell };
 });

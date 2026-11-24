@@ -1,5 +1,4 @@
 import { membersPanel } from "../members/members-panel";
-import { redirect } from "next/navigation";
 import { timePage } from "@/lib/request-timings";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { SettingsEarlySearch } from "@/components/settings/settings-early-search";
@@ -16,7 +15,6 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   void timePage("Settings: Profile");
   const workspace = await getWorkspace();
   if (!workspace) return sendAwayMemberless();
-  if (workspace.needsOnboarding) redirect("/onboarding");
 
   // Plan item 1.9: the profile role arrived with the shell join. The page's one
   // reads of its own are the Inbox delivery choice (#206; none for a Guest) and,

@@ -16,7 +16,6 @@ export default async function MembersPage() {
   void timePage("Settings: Members");
   const workspace = await getWorkspace();
   if (!workspace) return sendAwayMemberless();
-  if (workspace.needsOnboarding) redirect("/onboarding");
   if (workspace.role === "guest") redirect("/");
   // #210: a Viewer reads everything a Member reads except Members management. #288 (D30): Settings says so.
   if (workspace.role === "viewer") redirect("/settings/profile?section=members");

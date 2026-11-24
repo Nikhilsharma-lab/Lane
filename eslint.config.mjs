@@ -7,18 +7,11 @@ const ARC_DIALOGS = ["dialog/dialog", "drawer/drawer", "bottom-sheet/bottom-shee
   name: `@/components/arc/${path}`,
   message: "Use Dialog from @/components/popup/adaptive-dialog (#263).",
 }));
-// #356: who is signed in, and their workspace and role, come only through the session seam, so who owns identity
-// can change behind one file. clerkClient (the roster, billing) stays importable.
-const CLERK_SESSION = {
-  name: "@clerk/nextjs/server",
-  importNames: ["auth", "currentUser"],
-  message: "Read the session through readSession, readAccount or sendToSignIn from src/lib/session.ts (#356).",
-};
-// A dynamic import() hands over every export, auth included, so nothing loads Clerk's server module that way.
-const CLERK_SESSION_DYNAMIC = {
-  selector: "ImportExpression[source.value='@clerk/nextjs/server']",
-  message: "Import clerkClient statically, and read the session through src/lib/session.ts (#356).",
-};
+// #398: Clerk is out of the app. Its packages stay installed until increment 7, and e2e/ still uses them until its
+// suites move, but nothing under src/ loads them, statically or with import().
+const CLERK_MESSAGE = "Clerk is out of the app: Better Auth owns accounts, sessions and workspaces, read through src/lib/session.ts (#398).";
+const CLERK = { regex: "^@clerk(/|$)", message: CLERK_MESSAGE };
+const CLERK_DYNAMIC = { selector: "ImportExpression[source.value=/^@clerk/]", message: CLERK_MESSAGE };
 // #371: only the server module, the auth route, the session read (#374) and their tests load Better Auth's server
 // entry points, Lane's server instance or the session read. The browser client entries (better-auth/client,
 // better-auth/react) stay open for the screens. #389: Lane's Server Actions reach the instance through its one door,
@@ -34,7 +27,7 @@ const BETTER_AUTH_SESSION_MESSAGE = "Only the session seam (src/lib/session.ts) 
 const BETTER_AUTH_SESSION = { regex: "(^|/)better-auth-session$", message: BETTER_AUTH_SESSION_MESSAGE };
 const BETTER_AUTH_PACKAGE = {
   regex: "^better-auth(?!/(client|react|vue|svelte|solid)(/|$))(/.*)?$",
-  message: "Better Auth's server is dormant: only src/lib/auth-server.ts, the auth route and the session read (src/lib/better-auth-session.ts) load it (#371, #374).",
+  message: "Only src/lib/auth-server.ts, the auth route and the session read (src/lib/better-auth-session.ts) load Better Auth's server (#371, #374).",
 };
 const AUTH_SERVER_MESSAGE = "Only the auth route, and the Server Actions AUTH_SERVER_DOOR_FILES names (its door, askAuthServer), import Better Auth's server instance (#371, #389).";
 const AUTH_SERVER = { regex: "(^|/)auth-server$", message: AUTH_SERVER_MESSAGE };
@@ -44,7 +37,7 @@ const BETTER_AUTH_SERVER = [...BETTER_AUTH_INSTANCE, BETTER_AUTH_SESSION];
 const BETTER_AUTH_SERVER_DYNAMIC = [
   {
     selector: "ImportExpression[source.value=/^better-auth/]",
-    message: "Better Auth's server is dormant: only src/lib/auth-server.ts, the auth route and the session read (src/lib/better-auth-session.ts) load it (#371, #374).",
+    message: "Only src/lib/auth-server.ts, the auth route and the session read (src/lib/better-auth-session.ts) load Better Auth's server (#371, #374).",
   },
   { selector: "ImportExpression[source.value=/auth-server$/]", message: AUTH_SERVER_MESSAGE },
   { selector: "ImportExpression[source.value=/better-auth-session$/]", message: BETTER_AUTH_SESSION_MESSAGE },
@@ -89,24 +82,24 @@ const eslintConfig = defineConfig([
   {
     files: ["src/**/*.{ts,tsx}"],
     ignores: REFRESH_OWNERS,
-    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
   },
-  // The files above that own the router refresh still keep Clerk's server module static.
+  // The files above that own the router refresh keep the other rules.
   {
     files: REFRESH_OWNERS,
-    rules: { "no-restricted-syntax": ["error", CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", CLERK_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
   },
   // #371: the Better Auth server's own files may load it dynamically; the other rules still apply.
   {
     files: BETTER_AUTH_SERVER_FILES,
-    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
+    rules: { "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC] },
   },
-  // #356: all of src, tests and Arc included. Flat config keeps only the last matching block's options for a rule,
-  // so the dialog and link blocks below repeat CLERK_SESSION, and every block repeats BETTER_AUTH_SERVER and (#377)
-  // BROWSER_AUTH_CLIENT; the blocks for the auth screens and the app directory come after them.
+  // All of src, tests and Arc included. Flat config keeps only the last matching block's options for a rule, so every
+  // block below repeats CLERK, BETTER_AUTH_SERVER and (#377) BROWSER_AUTH_CLIENT; the blocks for the auth screens and
+  // the app directory come after them.
   {
     files: ["src/**/*.{ts,tsx}"],
-    rules: { "no-restricted-imports": ["error", { paths: [CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT] }] },
+    rules: { "no-restricted-imports": ["error", { patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, CLERK] }] },
   },
   // #263: Lane's dialogs go through the adaptive popup (a bottom panel on phones, focus return, the typed-text
   // guard). Only the popup itself and the pickers and menus that stay centred import Arc's dialog directly.
@@ -122,8 +115,8 @@ const eslintConfig = defineConfig([
     ],
     rules: {
       "no-restricted-imports": ["error", {
-        paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION],
-        patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT],
+        paths: [...ARC_DIALOGS, NEXT_LINK],
+        patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, CLERK],
       }],
     },
   },
@@ -132,33 +125,33 @@ const eslintConfig = defineConfig([
   {
     files: ["src/components/popup/**/*.{ts,tsx}", "src/components/shell/command-palette.tsx", "src/components/shell/workspace-search-results.tsx"],
     ignores: ["src/**/*.test.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [NEXT_LINK], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, CLERK] }] },
   },
   // #387: the seam, by name, imports the Better Auth session read. Every other rule still applies to it.
   {
     files: ["src/lib/session.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_INSTANCE, BROWSER_AUTH_CLIENT] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: [...BETTER_AUTH_INSTANCE, BROWSER_AUTH_CLIENT, CLERK] }] },
   },
   // #377: the auth screens and their tests, the app frame's session request (#389) and Settings → Profile's account calls (#394) may import the browser auth client; every other rule still applies.
   {
     files: BROWSER_AUTH_CLIENT_USERS,
     ignores: ["src/**/*.test.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: BETTER_AUTH_SERVER }] },
+    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: [...BETTER_AUTH_SERVER, CLERK] }] },
   },
   {
     files: ["src/components/auth/better-auth/**/*.test.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [CLERK_SESSION], patterns: BETTER_AUTH_SERVER }] },
+    rules: { "no-restricted-imports": ["error", { patterns: [...BETTER_AUTH_SERVER, CLERK] }] },
   },
   // #377: the app directory's tests don't import the browser auth client either.
   {
     files: ["src/app/**/*.test.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT] }] },
+    rules: { "no-restricted-imports": ["error", { patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, CLERK] }] },
   },
   // #371: only the Better Auth server module, the auth route, the session read (#374) and their tests load Better
   // Auth's server. #377: the auth route is under the app directory, so it keeps the route rule's fences.
   {
     files: BETTER_AUTH_SERVER_FILES,
-    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [BROWSER_AUTH_CLIENT] }] },
+    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: [BROWSER_AUTH_CLIENT, CLERK] }] },
   },
   // #381, #377: the route rule. The app directory keeps every rule the blocks above give it, plus the browser auth
   // client's fence. The Better Auth server's files keep their own allowance above.
@@ -166,8 +159,8 @@ const eslintConfig = defineConfig([
     files: ["src/app/**/*.{ts,tsx}"],
     ignores: ["src/**/*.test.ts", ...BETTER_AUTH_SERVER_FILES],
     rules: {
-      "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_SESSION_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC],
-      "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT] }],
+      "no-restricted-syntax": ["error", ROUTER_REFRESH, ZOD_NAMESPACE, CLERK_DYNAMIC, ...BETTER_AUTH_SERVER_DYNAMIC, BROWSER_AUTH_CLIENT_DYNAMIC],
+      "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: [...BETTER_AUTH_SERVER, BROWSER_AUTH_CLIENT, CLERK] }],
     },
   },
   // #388: the files that mount the auth screens may import the browser auth client; every other rule of the app
@@ -175,7 +168,7 @@ const eslintConfig = defineConfig([
   {
     files: AUTH_SCREEN_MOUNTS,
     ignores: ["src/**/*.test.ts"],
-    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION], patterns: BETTER_AUTH_SERVER }] },
+    rules: { "no-restricted-imports": ["error", { paths: [...ARC_DIALOGS, NEXT_LINK], patterns: [...BETTER_AUTH_SERVER, CLERK] }] },
   },
   // #389: the Server Actions that need Lane's door to Better Auth import it, and nothing else of the server module.
   // Every other rule of the app directory stays. Last, so it decides for them.
@@ -183,8 +176,8 @@ const eslintConfig = defineConfig([
     files: AUTH_SERVER_DOOR_FILES,
     rules: {
       "no-restricted-imports": ["error", {
-        paths: [...ARC_DIALOGS, NEXT_LINK, CLERK_SESSION],
-        patterns: [BETTER_AUTH_PACKAGE, AUTH_SERVER_DOOR, BETTER_AUTH_SESSION, BROWSER_AUTH_CLIENT],
+        paths: [...ARC_DIALOGS, NEXT_LINK],
+        patterns: [BETTER_AUTH_PACKAGE, AUTH_SERVER_DOOR, BETTER_AUTH_SESSION, BROWSER_AUTH_CLIENT, CLERK],
       }],
     },
   },

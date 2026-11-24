@@ -16,7 +16,7 @@ const request = {
   id: "request-1", requestNumber: 7, priority: "none", title: "Checkout fails on mobile", description: "People can't pay on phones.",
   affectedPeople: null, desiredChange: null, observedEvidence: null, uncertainty: null, usefulLink: null,
   reframedProblem: null, extractedSolution: null, classification: "problem", status: "open", assignedTo: null,
-  createdBy: "user_reader", createdAt: new Date("2026-10-20T10:00:00Z"), creatorName: "Robin", assigneeName: null, assigneeAvatarUrl: null,
+  createdBy: "user_reader", createdAt: new Date("2026-10-20T10:00:00Z"), creatorName: "Robin", assigneeName: null,
   agreementRevision: 1,
 } as unknown as RequestDetail
 

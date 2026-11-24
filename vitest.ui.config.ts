@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config"
 import path from "node:path"
 import { MOTION_ALIAS } from "./src/components/motion/motion-alias"
 
-// Requests UI checks isolate external Clerk/database boundaries; no database setup.
+// Requests UI checks isolate external and database boundaries; no database setup.
 export default defineConfig({
   test: {
     // Several sessions share this machine; a busy one must not fail a test on time alone.
@@ -11,10 +11,7 @@ export default defineConfig({
       "src/components/motion/motion-setup.test.ts",
       "src/components/settings/*.test.ts",
       "src/components/metrics/*.test.ts",
-      "src/components/auth/clerk-appearance.test.ts",
-      "src/components/auth/clerk-localization.test.ts",
       "src/test/theme-parity-contrast.test.ts",
-      "src/test/theme-parity-clerk-colours.test.ts",
       // #377: Lane's own auth screens, which fake only fetch to /api/auth/*.
       "src/components/auth/better-auth/*.test.ts",
       "src/lib/auth-return-address.test.ts",

@@ -1,6 +1,6 @@
 /**
  * #196: Settings → Metrics as the server renders it, with the library read from the real test database.
- * The session's workspace and role are faked; Clerk's own profile widgets are stubbed.
+ * The session's workspace and role are faked.
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import postgres from "postgres";
@@ -123,8 +123,4 @@ describe("Settings → Metrics", () => {
   });
 
   // Signed out, or with no workspace: src/app/member-less-visitors.test.ts.
-  it("sends someone new to onboarding", async () => {
-    session.workspace = { needsOnboarding: true };
-    await expect(open()).rejects.toThrow("redirect:/onboarding");
-  });
 });

@@ -33,9 +33,6 @@ export const REPRESENTATIVE_ELEMENTS: Record<string, string> = {
   pageStrip: '[data-slot="page-strip"]',
   requestRow: '[data-slot="row"]',
   identityMark: '[data-slot="identity-mark"]',
-  clerkCard: ".cl-card",
-  clerkPrimaryButton: ".cl-formButtonPrimary",
-  clerkFooterLink: ".cl-footerActionLink",
 };
 
 export const PAINTED_PROPERTIES = [

@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation"
 import { getMember, getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace"
 import { readRequestPage } from "@/lib/data/request-page"
 import { requestListHref } from "@/lib/request-workspace"
@@ -29,7 +28,6 @@ export async function RequestDetailWorkspace({ selectedRequestId }: { selectedRe
     readRequestPage(member, selectedRequestId),
   ])
   if (!workspace) return sendAwayMemberless()
-  if (workspace.needsOnboarding) redirect("/onboarding")
 
   // The list context lives in the layout's list view state, so returning to
   // "/" restores the status view and Project filter.

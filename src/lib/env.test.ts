@@ -17,7 +17,6 @@ function completeEnv(): Record<string, string> {
   for (const name of [
     ...REQUIRED_ENV_NAMES,
     ...PRODUCTION_ONLY_ENV_NAMES,
-    "CLERK_JWT_KEY",
     "NEXT_PUBLIC_SENTRY_DSN",
   ]) {
     env[name] = `${SENTINEL}_${name}`;
@@ -31,15 +30,21 @@ describe("checkServerEnv", () => {
     expect(check).toEqual({ ok: true, missing: [], warnings: [] });
   });
 
+  it("needs no Clerk name (#398)", () => {
+    const env = completeEnv();
+    for (const name of Object.keys(env)) expect(name).not.toMatch(/CLERK/);
+    expect(checkServerEnv({ env, vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] });
+  });
+
   it("lists every missing required name, including empty strings", () => {
     const env = completeEnv();
-    delete env.CLERK_SECRET_KEY;
+    delete env.SUPABASE_SECRET_KEY;
     delete env.DATABASE_URL;
     env.TRIAGE_TOKEN_SECRET = "";
 
     const check = checkServerEnv({ env, vercelEnv: "preview" });
     expect(check.ok).toBe(false);
-    expect(check.missing).toEqual(["CLERK_SECRET_KEY", "DATABASE_URL", "TRIAGE_TOKEN_SECRET"]);
+    expect(check.missing).toEqual(["SUPABASE_SECRET_KEY", "DATABASE_URL", "TRIAGE_TOKEN_SECRET"]);
   });
 
   it("does not require KV outside production", () => {
@@ -60,18 +65,6 @@ describe("checkServerEnv", () => {
     const check = checkServerEnv({ env, vercelEnv: "production" });
     expect(check.ok).toBe(false);
     expect(check.missing).toEqual(["KV_REST_API_URL", "KV_REST_API_TOKEN"]);
-  });
-
-  it("warns, but does not fail, when CLERK_JWT_KEY is missing in production", () => {
-    const env = completeEnv();
-    delete env.CLERK_JWT_KEY;
-
-    const production = checkServerEnv({ env, vercelEnv: "production" });
-    expect(production.ok).toBe(true);
-    expect(production.warnings).toHaveLength(1);
-    expect(production.warnings[0]).toContain("CLERK_JWT_KEY");
-
-    expect(checkServerEnv({ env, vercelEnv: "preview" }).warnings).toEqual([]);
   });
 
   it("warns, but does not fail, when NEXT_PUBLIC_SENTRY_DSN is missing in production", () => {
@@ -141,30 +134,42 @@ describe("checkServerEnv", () => {
     expect(checkServerEnv({ env: completeEnv(), vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] })
   });
 
-  it("warns, by the missing names only, when the Better Auth secret is set without the other auth names (#371, #377)", () => {
-    const others = ["BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TURNSTILE_SECRET_KEY", "NEXT_PUBLIC_TURNSTILE_SITE_KEY"];
-    for (const missing of others) {
-      const env: Record<string, string> = { ...completeEnv(), BETTER_AUTH_SECRET: SENTINEL };
-      for (const name of others) if (name !== missing) env[name] = `${SENTINEL}_${name}`;
-      const check = checkServerEnv({ env, vercelEnv: "production" });
-      expect(check.ok).toBe(true);
+  // #398: with Clerk gone these sign people in, so the server needs them as it needed Clerk's keys.
+  describe("the names Better Auth needs (#371, #377, #398)", () => {
+    const PAIRED = ["BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TURNSTILE_SECRET_KEY", "NEXT_PUBLIC_TURNSTILE_SITE_KEY"];
+
+    it.each([undefined, "", "  "])("needs the secret: %j", (value) => {
+      const env: Record<string, string | undefined> = { ...completeEnv(), BETTER_AUTH_SECRET: value };
+      expect(checkServerEnv({ env, vercelEnv: "production" })).toEqual({ ok: false, missing: ["BETTER_AUTH_SECRET"], warnings: [] });
+      expect(() => reportServerEnv({ env, nodeEnv: "production", vercelEnv: "production", log: { warn: vi.fn() } })).toThrow("BETTER_AUTH_SECRET");
+    });
+
+    it.each(PAIRED)("needs %s beside it, and says what its absence costs, by name only", (missing) => {
+      const check = checkServerEnv({ env: { ...completeEnv(), [missing]: " " }, vercelEnv: "production" });
+      expect(check.missing).toEqual([missing]);
+      expect(check.ok).toBe(false);
       expect(check.warnings).toHaveLength(1);
       expect(check.warnings[0]).toContain(missing);
-      for (const name of others.filter((name) => name !== missing)) expect(check.warnings[0]).not.toContain(name);
+      for (const name of PAIRED.filter((name) => name !== missing)) expect(check.warnings[0]).not.toContain(name);
       expect(check.warnings[0]).not.toContain(SENTINEL);
-    }
+    });
 
-    const onlySecret = checkServerEnv({ env: { ...completeEnv(), BETTER_AUTH_SECRET: SENTINEL, GOOGLE_CLIENT_ID: " " }, vercelEnv: "preview" });
-    expect(onlySecret.warnings).toHaveLength(1);
-    for (const name of others) expect(onlySecret.warnings[0]).toContain(name);
-    expect(onlySecret.warnings[0]).not.toContain(SENTINEL);
+    it("names all of the paired ones when only the secret is set", () => {
+      const env = completeEnv();
+      for (const name of PAIRED) delete env[name];
+      const check = checkServerEnv({ env, vercelEnv: "preview" });
+      expect([...check.missing].sort()).toEqual([...PAIRED].sort());
+      expect(check.warnings).toHaveLength(1);
+      for (const name of PAIRED) expect(check.warnings[0]).toContain(name);
+    });
 
-    // All six, or no secret: nothing to say, and none is required. The site key alone is never required either (#377).
-    const allSix = { ...completeEnv(), BETTER_AUTH_SECRET: SENTINEL, ...Object.fromEntries(others.map((name) => [name, SENTINEL])) };
-    expect(checkServerEnv({ env: allSix, vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] });
-    const noSecret = { ...completeEnv(), GOOGLE_CLIENT_ID: SENTINEL };
-    expect(checkServerEnv({ env: noSecret, vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] });
-    expect(checkServerEnv({ env: { ...noSecret, BETTER_AUTH_SECRET: "  " }, vercelEnv: "production" })).toEqual({ ok: true, missing: [], warnings: [] });
+    it("never stops local work: outside production it warns and starts", () => {
+      const env = completeEnv();
+      for (const name of ["BETTER_AUTH_SECRET", ...PAIRED]) delete env[name];
+      const log = { warn: vi.fn() };
+      expect(reportServerEnv({ env, nodeEnv: "development", log }).ok).toBe(false);
+      for (const name of ["BETTER_AUTH_SECRET", ...PAIRED]) expect(log.warn.mock.calls[0][0]).toContain(name);
+    });
   });
 
   it("reads VERCEL_ENV from the env when not given explicitly", () => {
@@ -233,7 +238,7 @@ describe("reportServerEnv", () => {
 
   it("never logs a value, only names", () => {
     const env = completeEnv();
-    delete env.CLERK_JWT_KEY;
+    delete env.BETTER_AUTH_URL;
     delete env.TRIAGE_TOKEN_SECRET;
     const log = { warn: vi.fn() };
 

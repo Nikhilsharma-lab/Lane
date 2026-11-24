@@ -1,6 +1,6 @@
 /**
  * #203: a Metric definition's page lists the Requests that used it, as the server renders it, with the Requests read
- * from the real test database. The session's workspace and role are faked; Clerk's own profile widgets are stubbed.
+ * from the real test database. The session's workspace and role are faked.
  */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";

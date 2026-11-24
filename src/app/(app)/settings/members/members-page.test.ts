@@ -53,7 +53,7 @@ async function section(browser: AuthBrowser): Promise<string | null> {
   const { membersPanel } = await import("./members-panel");
   const panel = await browser.action(async () => {
     const workspace = await getWorkspace();
-    if (!workspace || workspace.needsOnboarding) throw new Error("No workspace.");
+    if (!workspace) throw new Error("No workspace.");
     return membersPanel(workspace);
   });
   if (!panel) return null;
@@ -120,11 +120,11 @@ describe("the members read", () => {
     for (const role of ["member", "guest", "viewer"] as const) expect((await loadMembers(here, role)).invitations).toEqual([]);
   });
 
-  it("names people by name, else email, newest first, with Lane's roles only and no picture", async () => {
+  it("names people by name, else email, newest first, with Lane's roles only", async () => {
     const { here } = await twoWorkspaces();
     const add = async (name: string, role: string) => {
       const id = `user_${randomUUID()}`;
-      await connection`insert into profiles (id, full_name, email, avatar_url) values (${id}, ${name}, ${`${id}@${domain}`}, 'https://pictures.example/p.png')`;
+      await connection`insert into profiles (id, full_name, email) values (${id}, ${name}, ${`${id}@${domain}`})`;
       await connection`insert into member (id, organization_id, user_id, role, created_at) values (${randomUUID()}, ${here.orgId}, ${id}, ${role}, now())`;
       return id;
     };

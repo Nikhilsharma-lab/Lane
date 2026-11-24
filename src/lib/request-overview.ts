@@ -21,7 +21,6 @@ export type OverviewRequest = {
   canEdit?: boolean
   creatorName: string | null
   assigneeName: string | null
-  assigneeAvatarUrl?: string | null
   assignedTo?: string | null
   projectId?: string | null
   projectName?: string | null

@@ -1,4 +1,4 @@
-/** #377: Cloudflare Turnstile's public site key, which Lane's auth screens render the human check with. Optional. */
+/** #377: Cloudflare Turnstile's public site key, which Lane's auth screens render the human check with. */
 export const TURNSTILE_SITE_KEY_NAME = "NEXT_PUBLIC_TURNSTILE_SITE_KEY"
 
 /**

@@ -5,7 +5,7 @@ export type LifecycleMove = "pick-up" | "done"
 export type AllowedMove = { move: LifecycleMove; to: "in_progress" | "done"; label: "Pick up" | "Mark Done" }
 /** An offered move, and why it can't be made yet when it can't. */
 export type AvailableMove = AllowedMove & { blockedReason: PickupBlock | null }
-/** Who asks. Profile labels never gate actions (AGENTS.md); only the Clerk role does: a Guest and a Viewer
+/** Who asks. Profile labels never gate actions (AGENTS.md); only the workspace role does: a Guest and a Viewer
  * (`readOnly`, #210) make no lifecycle move. */
 export type MoveViewer = { isGuest: boolean; readOnly?: boolean }
 

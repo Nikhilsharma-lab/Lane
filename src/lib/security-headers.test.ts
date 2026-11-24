@@ -74,17 +74,22 @@ describe("buildContentSecurityPolicy", () => {
     expect(csp.get("frame-ancestors")).toEqual(["'none'"]);
   });
 
-  it("allows Clerk, Cloudflare bot protection and Clerk avatars", () => {
-    for (const host of ["https://*.clerk.accounts.dev", "https://clerk.uselane.app", "https://*.uselane.app"]) {
-      expect(csp.get("script-src")).toContain(host);
-      expect(csp.get("connect-src")).toContain(host);
-      expect(csp.get("frame-src")).toContain(host);
+  it("allows Turnstile's script, calls and frame", () => {
+    for (const directive of ["script-src", "connect-src", "frame-src"]) {
+      expect(csp.get(directive), directive).toContain("https://challenges.cloudflare.com");
     }
-    expect(csp.get("connect-src")).toContain("wss://*.clerk.accounts.dev");
-    expect(csp.get("connect-src")).toContain("wss://clerk.uselane.app");
-    expect(csp.get("script-src")).toContain("https://challenges.cloudflare.com");
-    expect(csp.get("frame-src")).toContain("https://challenges.cloudflare.com");
-    expect(csp.get("img-src")).toContain("https://img.clerk.com");
+  });
+
+  it("posts forms only to Lane", () => {
+    expect(csp.get("form-action")).toEqual(["'self'"]);
+  });
+
+  // Clerk is out of the app (#398): its instance hosts, its hosted pages' wildcard and its image host.
+  it("names no Clerk host in any directive", () => {
+    const everything = { development: true, supabaseUrl: "https://project.supabase.co", errorReportingDsn: "https://key@app.glitchtip.com/1" };
+    for (const policy of [buildContentSecurityPolicy(), buildContentSecurityPolicy(everything)]) {
+      for (const [name, sources] of directiveMap(policy)) expect(sources.join(" "), name).not.toMatch(/clerk|uselane\.app/i);
+    }
   });
 
   it("allows Supabase storage over https and wss", () => {

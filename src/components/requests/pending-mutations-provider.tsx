@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState, useSyncExterna
 import type { OverviewRequest } from "@/lib/request-overview"
 
 /** The fields a pending lifecycle or priority move can change on a row. */
-export type RequestPatch = Partial<Pick<OverviewRequest, "status" | "priority" | "assignedTo" | "assigneeName" | "assigneeAvatarUrl" | "title" | "projectId" | "projectName" | "labelKeys">> & {
+export type RequestPatch = Partial<Pick<OverviewRequest, "status" | "priority" | "assignedTo" | "assigneeName" | "title" | "projectId" | "projectName" | "labelKeys">> & {
   /** #280: "edit" is a saved Edit Request: its title, Project and labels show while the save runs. */
   kind: "pick-up" | "done" | "undo" | "priority" | "edit"
   /** performance.now() when the patch was applied; the no-revert gate reads it. */
@@ -78,8 +78,8 @@ export type PendingMutations = {
   settleComments(requestId: string, serverComments: { id: string }[]): void
 }
 
-type Field = "status" | "priority" | "assignedTo" | "assigneeName" | "assigneeAvatarUrl" | "title" | "projectId" | "projectName" | "labelKeys"
-const FIELDS: Field[] = ["status", "priority", "assignedTo", "assigneeName", "assigneeAvatarUrl", "title", "projectId", "projectName", "labelKeys"]
+type Field = "status" | "priority" | "assignedTo" | "assigneeName" | "title" | "projectId" | "projectName" | "labelKeys"
+const FIELDS: Field[] = ["status", "priority", "assignedTo", "assigneeName", "title", "projectId", "projectName", "labelKeys"]
 
 /** One action's change to one Request. Later layers win; a layer clears on its own. */
 type Layer = { token: number; patch: RequestPatch; confirmed: boolean }

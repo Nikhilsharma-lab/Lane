@@ -1,6 +1,6 @@
 /**
  * #197: one Metric definition's page under Settings → Metrics, as the server renders it, with the library
- * read from the real test database. The session's workspace and role are faked; Clerk's widgets are stubbed.
+ * read from the real test database. The session's workspace and role are faked.
  */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";

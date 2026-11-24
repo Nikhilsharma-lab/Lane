@@ -9,12 +9,12 @@ import { readMetricPage } from "@/lib/data/metric-page";
  * streams first, so the check sits here, on the page's own read. The Metrics list's own skeleton sits in its
  * (library) group so that it doesn't wrap this page and start the stream earlier. A move inside the app or a read ahead (an RSC
  * request) has no status to set and goes straight on; the page answers it with "Page not found" as before. Anyone
- * the page sends elsewhere (signed out, onboarding, a Guest) is left to the page.
+ * the page sends elsewhere (signed out, no workspace, a Guest) is left to the page.
  */
 export default async function MetricLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   if ((await headers()).get("rsc") !== "1") {
     const [{ id }, workspace] = await Promise.all([params, getWorkspace()]);
-    if (workspace && !workspace.needsOnboarding && workspace.role !== "guest" && !(await readMetricPage(workspace, id))) notFound();
+    if (workspace && workspace.role !== "guest" && !(await readMetricPage(workspace, id))) notFound();
   }
   return children;
 }

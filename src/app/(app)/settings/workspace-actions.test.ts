@@ -30,7 +30,7 @@ const sidebarName = (browser: AuthBrowser) =>
   browser.action(async () => {
     const member = activeMemberOf(await readSession())
     const loaded = member && (await loadWorkspaceFrame(member))
-    return loaded && !loaded.needsOnboarding ? loaded.frame.workspaceName : null
+    return loaded ? loaded.frame.workspaceName : null
   })
 
 /** A workspace with one person in each of Lane's four roles; the Admin is its only one. */

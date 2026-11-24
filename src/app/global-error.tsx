@@ -12,7 +12,7 @@ import "./globals.css";
 
 // Last resort (plan item 1.12): this replaces the root layout when it throws, so it
 // has to render <html> and <body> itself. Next only shows it in production; in
-// development the overlay takes over. Nothing here depends on Clerk or the
+// development the overlay takes over. Nothing here depends on the session or the
 // database, so it stays a plain button on the theme tokens. It does share the root
 // layout's theme provider, so it paints in the saved light/dark setting (#94).
 // The page strip imports only React and its CSS module (plan item 2.0); the shell

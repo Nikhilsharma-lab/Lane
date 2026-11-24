@@ -13,7 +13,7 @@ async function visitor() {
     const member = await getMember();
     if (member) {
       const workspace = await loadWorkspaceFrame(member);
-      if (workspace && !workspace.needsOnboarding) return workspace.frame;
+      if (workspace) return workspace.frame;
     }
     return (await getSession()) ? "signed-in" : null;
   } catch (error) {

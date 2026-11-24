@@ -12,7 +12,6 @@ vi.mock("react", async original => {
   const react = await original<typeof import("react")>()
   return { ...react, useEffect: (effect: () => void) => { try { effect() } catch { /* needs a browser */ } } }
 })
-vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ isLoaded: false }), useClerk: () => ({ signOut: vi.fn() }) }))
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),

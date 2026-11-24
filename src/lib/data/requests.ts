@@ -155,7 +155,6 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number, counts = fa
       creatorName: profiles.fullName,
       canEdit: sql<boolean>`${requests.status} = 'open' and ${changeableColumn(auth)}`,
       assigneeName: assignee.fullName,
-      assigneeAvatarUrl: assignee.avatarUrl,
       assignedTo: requests.assignedTo,
       projectId: requests.projectId,
       projectName: projects.name,
@@ -250,8 +249,8 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
       outcomeClosure: requests.outcomeClosure,
       releaseState: requests.releaseState,
       agreementRevision: requests.agreementRevision,
-        // Plan item 2.5: the strip's LAN-n, the panel's priority and the
-        // Assignee avatar. Same statement and joins, so no extra round trip.
+        // Plan item 2.5: the strip's LAN-n and the panel's priority. Same
+        // statement and joins, so no extra round trip.
         // The overlay needs priority to see a confirmed priority patch land.
         requestNumber: requests.requestNumber,
         priority: requests.priority,
@@ -278,7 +277,6 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
         takenOnBy: requests.takenOnBy,
         takenOnByName: taker.fullName,
         assigneeName: selectedAssignee.fullName,
-        assigneeAvatarUrl: selectedAssignee.avatarUrl,
         projectId: requests.projectId,
         projectName: projects.name,
         requestType: requests.requestType,

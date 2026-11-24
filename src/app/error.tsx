@@ -11,7 +11,7 @@ import frame from "./app-frame.module.css";
 
 // Catches a throw in (app)/layout.tsx, often getWorkspace() against a paused database (Supabase free tier
 // auto-pauses; plan item 1.12), but not only that, so it names no cause (#271, A121). The root layout stays
-// mounted, so ClerkProvider, the theme attributes and the fonts are still in place.
+// mounted, so the theme attributes and the fonts are still in place.
 // The (app) shell is not, so the page strip shows its title with no trail (plan item 2.0).
 export default function RootError({
   error,

@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * Service-role Supabase client for private Storage operations.
- * Clerk owns identity; this client must never be used as a second auth system.
+ * Better Auth owns identity (ADR 0008); this client must never be used as a second auth system.
  * Server-only. NEVER import this from client code.
  */
 export function createServiceClient() {

@@ -405,49 +405,7 @@
         "navigationLink": null,
         "pageStrip": null,
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": {
-          "color": "oklab(0.21 -0.0032 -0.0338)",
-          "background-color": "oklab(0 0 0 / 0)",
-          "background-image": "none",
-          "border-top-color": "oklab(0.928 -0.0006 -0.006 / 0.11)",
-          "border-top-width": "0px",
-          "border-top-left-radius": "0px",
-          "box-shadow": "none",
-          "font-family": "Geist, sans-serif",
-          "font-size": "16px",
-          "font-weight": "450",
-          "line-height": "24px",
-          "letter-spacing": "normal"
-        },
-        "clerkPrimaryButton": {
-          "color": "oklab(1 0 0)",
-          "background-color": "oklab(0.546 -0.0304 -0.2431)",
-          "background-image": "none",
-          "border-top-color": "oklab(0.546 -0.0304 -0.2431)",
-          "border-top-width": "1px",
-          "border-top-left-radius": "8.8615px",
-          "box-shadow": "oklab(0 0 0 / 0.0392) 0px 1px 3px 0px, oklab(0 0 0 / 0.0275) 0px 1px 0px 0px inset, oklab(0 0 0 / 0.0392) 0px 0px 0px 1px inset, oklab(0 0 0 / 0.0392) 0px -1px 0px 0px inset, oklab(0 0 0 / 0.0667) 0px 0px 0px 1px inset",
-          "font-family": "Geist, sans-serif",
-          "font-size": "14px",
-          "font-weight": "500",
-          "line-height": "19.3846px",
-          "letter-spacing": "normal"
-        },
-        "clerkFooterLink": {
-          "color": "oklab(0.488 -0.0238 -0.2418)",
-          "background-color": "oklab(0 0 0 / 0)",
-          "background-image": "none",
-          "border-top-color": "oklab(0.928 -0.0006 -0.006)",
-          "border-top-width": "0px",
-          "border-top-left-radius": "0px",
-          "box-shadow": "none",
-          "font-family": "Geist, sans-serif",
-          "font-size": "14px",
-          "font-weight": "500",
-          "line-height": "19.3846px",
-          "letter-spacing": "normal"
-        }
+        "identityMark": null
       }
     },
     "dark": {
@@ -855,49 +813,7 @@
         "navigationLink": null,
         "pageStrip": null,
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": {
-          "color": "oklab(1 0 0)",
-          "background-color": "oklab(0 0 0 / 0)",
-          "background-image": "none",
-          "border-top-color": "oklab(0.2478 0 0 / 0.11)",
-          "border-top-width": "0px",
-          "border-top-left-radius": "0px",
-          "box-shadow": "none",
-          "font-family": "Geist, sans-serif",
-          "font-size": "16px",
-          "font-weight": "450",
-          "line-height": "24px",
-          "letter-spacing": "normal"
-        },
-        "clerkPrimaryButton": {
-          "color": "oklab(1 0 0)",
-          "background-color": "oklab(0.546 -0.0304 -0.2431)",
-          "background-image": "none",
-          "border-top-color": "oklab(0.546 -0.0304 -0.2431)",
-          "border-top-width": "1px",
-          "border-top-left-radius": "8.8615px",
-          "box-shadow": "oklab(0 0 0 / 0.2) 0px 1px 3px 0px, oklab(1 0 0 / 0.0392) 0px 1px 0px 0px inset, oklab(0 0 0 / 0.0588) 0px 0px 0px 1px inset, oklab(0 0 0 / 0.0588) 0px -1px 0px 0px inset, oklab(1 0 0 / 0.102) 0px 0px 0px 1px inset",
-          "font-family": "Geist, sans-serif",
-          "font-size": "14px",
-          "font-weight": "500",
-          "line-height": "19.3846px",
-          "letter-spacing": "normal"
-        },
-        "clerkFooterLink": {
-          "color": "oklab(0.707 -0.0438 -0.1591)",
-          "background-color": "oklab(0 0 0 / 0)",
-          "background-image": "none",
-          "border-top-color": "oklab(0.2478 0 0)",
-          "border-top-width": "0px",
-          "border-top-left-radius": "0px",
-          "box-shadow": "none",
-          "font-family": "Geist, sans-serif",
-          "font-size": "14px",
-          "font-weight": "500",
-          "line-height": "19.3846px",
-          "letter-spacing": "normal"
-        }
+        "identityMark": null
       }
     }
   },
@@ -1320,10 +1236,7 @@
           "letter-spacing": "normal"
         },
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": null,
-        "clerkPrimaryButton": null,
-        "clerkFooterLink": null
+        "identityMark": null
       }
     },
     "dark": {
@@ -1746,10 +1659,7 @@
           "letter-spacing": "normal"
         },
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": null,
-        "clerkPrimaryButton": null,
-        "clerkFooterLink": null
+        "identityMark": null
       }
     }
   },
@@ -2224,10 +2134,7 @@
           "letter-spacing": "normal"
         },
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": null,
-        "clerkPrimaryButton": null,
-        "clerkFooterLink": null
+        "identityMark": null
       }
     },
     "dark": {
@@ -2702,10 +2609,7 @@
           "letter-spacing": "normal"
         },
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": null,
-        "clerkPrimaryButton": null,
-        "clerkFooterLink": null
+        "identityMark": null
       }
     }
   },
@@ -3128,10 +3032,7 @@
           "letter-spacing": "normal"
         },
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": null,
-        "clerkPrimaryButton": null,
-        "clerkFooterLink": null
+        "identityMark": null
       }
     },
     "dark": {
@@ -3554,10 +3455,7 @@
           "letter-spacing": "normal"
         },
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": null,
-        "clerkPrimaryButton": null,
-        "clerkFooterLink": null
+        "identityMark": null
       }
     }
   },
@@ -3967,10 +3865,7 @@
         "navigationLink": null,
         "pageStrip": null,
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": null,
-        "clerkPrimaryButton": null,
-        "clerkFooterLink": null
+        "identityMark": null
       }
     },
     "dark": {
@@ -4378,10 +4273,7 @@
         "navigationLink": null,
         "pageStrip": null,
         "requestRow": null,
-        "identityMark": null,
-        "clerkCard": null,
-        "clerkPrimaryButton": null,
-        "clerkFooterLink": null
+        "identityMark": null
       }
     }
   }

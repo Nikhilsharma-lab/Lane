@@ -13,7 +13,7 @@ import { organizations } from "./users";
  * provider reports (customer, subscription, billing period, first payment) and the founding discount's place:
  * `foundingReservedUntil` while a checkout with it is open, `foundingStartsAt` (set once) once paid with it. The
  * database refuses a 51st place. Migration 0048 (#215) adds the paid seats the provider bills now (`billedSeats`, at
- * least 3) and when the module last compared them with the workspace's Clerk memberships (`seatsCheckedAt`).
+ * least 3) and when the module last compared them with the workspace's members (`seatsCheckedAt`).
  * Migration 0049 (#216) adds what the provider says about the plan since:
  * `planEndsAt` while a cancelled plan runs to the end of its period (only a paying plan ends), and
  * `subscriptionChangedAt`, the provider's time of the last change recorded, so a late older change is ignored.

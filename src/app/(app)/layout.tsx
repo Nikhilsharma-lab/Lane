@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { getMember, sendAwayMemberless } from "@/lib/ensure-workspace";
 import { loadWorkspaceFrame } from "@/lib/data/workspace-frame";
 import { WorkspaceFrame } from "@/components/shell/workspace-frame";
@@ -21,8 +20,7 @@ export default async function AppLayout({
 
   const workspace = await loadWorkspaceFrame(member);
   if (!workspace) return sendAwayMemberless();
-  if (workspace.needsOnboarding) redirect("/onboarding");
-  // #215: a paying workspace's seats follow Clerk memberships; checked after the response, at most every 10 minutes.
+  // #215: a paying workspace's seats follow its members; checked after the response, at most every 10 minutes.
   followSeatChangesAfterResponse({ orgId: workspace.orgId });
 
   // #271: the sidebar and the shared providers live in WorkspaceFrame, which "Page not found" also draws.

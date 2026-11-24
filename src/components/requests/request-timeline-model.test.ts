@@ -335,7 +335,7 @@ describe("Live journey", () => {
   })
 })
 
-// #295: what the Journey draws from the Request alone, before its reads (which ask Clerk) arrive. Words the Request
+// #295: what the Journey draws from the Request alone, before its reads arrive. Words the Request
 // already holds are shown; null holds the place of a line the reads fill in, so nothing below moves when they land.
 function outline(facts: Facts, reader: { isGuest?: boolean; readOnly?: boolean; viewer?: JourneyViewer } = {}): OutlineInput {
   const saved = { status: facts.status, releaseState: facts.releaseState ?? null, outcomeClosure: facts.outcomeClosure ?? null, exceptionClosure: facts.exceptionClosure ?? null, createdBy: "ana", takenOnBy: null, noMeasurableImpactReason: facts.noMeasurableImpactReason ?? null }

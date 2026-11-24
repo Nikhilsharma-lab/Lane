@@ -24,7 +24,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const keep = isUuid(item) ? item : undefined;
 
   const [inbox, unread, workspace] = await Promise.all([timed("data", () => loadInbox(member, undefined, { keep })), timed("data", () => countInboxUnread(member)), getWorkspace()]);
-  const name = workspace && !workspace.needsOnboarding ? workspace.fullName : "";
+  const name = workspace?.fullName ?? "";
   const items = inbox.forYourInformation.map(toInboxItem);
   const needsYou = getsNeedsYou(member);
 

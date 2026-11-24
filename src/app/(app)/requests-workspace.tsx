@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation"
 import { getMember, getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace"
 import { loadRequestList } from "@/lib/data/requests"
 import { loadSavedViews } from "@/lib/data/saved-views"
@@ -28,12 +27,11 @@ export async function RequestsWorkspace() {
   // alongside the list.
   // #219: the person's own saved views (the layout's read, shared within this render).
   const [[workspace, firstRun], list, savedViews] = await Promise.all([
-    getWorkspace().then(async ws => [ws, ws && !ws.needsOnboarding ? await timed("data", () => firstRunSlot(member, ws.workspaceName, "list")) : null] as const),
+    getWorkspace().then(async ws => [ws, ws ? await timed("data", () => firstRunSlot(member, ws.workspaceName, "list")) : null] as const),
     timed("data", () => loadRequestList(member)),
     timed("data", () => loadSavedViews(member)).catch(() => []),
   ])
   if (!workspace) return sendAwayMemberless()
-  if (workspace.needsOnboarding) redirect("/onboarding")
 
   // Plan item 2.1: an empty workspace renders the same list, whose records
   // region shows the welcome, so the first Request lands in place.

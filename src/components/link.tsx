@@ -22,8 +22,8 @@ function subscribe(listener: () => void) {
 
 /**
  * Next's Link, whose reading ahead waits for the page (Build 3, Build 2's rule in src/lib/after-page-load.ts).
- * Next reads a link's page ahead as soon as the link is on screen. On a slow phone whose page is drawn before
- * Clerk's script arrives, those reads, and the page code their answers bring, came before `load` and held it back.
+ * Next reads a link's page ahead as soon as the link is on screen. On a slow phone whose page is drawn early,
+ * those reads, and the page code their answers bring, came before `load` and held it back.
  * A link now reads ahead once the page has loaded and is idle, or earlier when someone points at it, touches it
  * or tabs to it. Clicking works the same either way; after the first load every link reads ahead at once.
  */

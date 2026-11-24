@@ -15,7 +15,6 @@ export default async function IntakePage() {
   const result = await getWorkspace();
 
   if (!result) return sendAwayMemberless();
-  if (result.needsOnboarding) redirect("/onboarding");
   // #210: a Viewer reads everything and files nothing. #285: the shared "can create Requests" rule decides.
   if (!canCreateRequests(result.role)) redirect("/");
   // #217: the first Request guide also explains the steps here, beside the launcher, which files the Request.

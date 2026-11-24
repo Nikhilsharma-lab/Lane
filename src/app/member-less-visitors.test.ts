@@ -18,7 +18,6 @@ vi.mock("next/navigation", async (original) => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock("@clerk/nextjs", async (original) => ({ ...(await original<typeof import("@clerk/nextjs")>()), useClerk: () => ({ signOut: vi.fn() }) }));
 
 const REQUEST = "5f9a1c7e-3b52-4d08-9c61-7e2f4a8b0d13";
 const search = Promise.resolve({});

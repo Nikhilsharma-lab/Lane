@@ -13,13 +13,9 @@ import type { WorkspaceFrameProps } from "@/components/shell/workspace-frame";
 
 /**
  * The signed-in frame's reads (the (app) layout's, and since #271 the root not-found's for a signed-in person).
- * Null when the session has no workspace; `needsOnboarding` when the person has not finished onboarding.
+ * Null when the session has no workspace.
  */
-export async function loadWorkspaceFrame(member: MemberAuth): Promise<
-  | { needsOnboarding: true }
-  | { needsOnboarding: false; orgId: string; frame: Omit<WorkspaceFrameProps, "children" | "pageAddress"> }
-  | null
-> {
+export async function loadWorkspaceFrame(member: MemberAuth): Promise<{ orgId: string; frame: Omit<WorkspaceFrameProps, "children" | "pageAddress"> } | null> {
   // The bell's count (#205: Needs-you items, worked out from Request state;
   // nothing is written) is not awaited here. It streams to the Suspense-wrapped
   // bell, so it never holds up the first byte. A failed count leaves the badge
@@ -30,9 +26,7 @@ export async function loadWorkspaceFrame(member: MemberAuth): Promise<
   // #265: the frame's own reads are the `shell` step of the server timings.
   const [result, projects, labels, savedViews, workspaces] = await Promise.all([getWorkspace(), timed("shell", () => loadProjects(member)), timed("shell", () => loadLabels(member)), timed("shell", () => loadSavedViews(member)).catch(() => []), timed("shell", () => loadWorkspaces(member.userId)).catch(() => null)]);
   if (!result) return null;
-  if (result.needsOnboarding) return { needsOnboarding: true };
   return {
-    needsOnboarding: false,
     orgId: result.orgId,
     frame: {
       orgId: result.orgId,

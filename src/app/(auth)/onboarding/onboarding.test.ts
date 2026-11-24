@@ -342,5 +342,5 @@ it("has onboarding files and workspace reads that import nothing of Clerk's", ()
   const onboarding = readdirSync("src/app/(auth)/onboarding").filter((name) => !name.endsWith(".test.ts")).map((name) => `src/app/(auth)/onboarding/${name}`)
   const reads = ["src/lib/ensure-workspace.ts", "src/lib/data/shell.ts", "src/lib/data/workspaces.ts", "src/lib/data/workspace-frame.ts", "src/lib/data/invitations.ts"]
   for (const file of [...onboarding, ...reads, "src/components/auth/better-auth/onboarding-view.tsx"])
-    expect(readFileSync(file, "utf8"), file).not.toMatch(/["']@clerk\/|onboarding-sign-out|session-task-urls/)
+    expect(readFileSync(file, "utf8"), file).not.toMatch(/["']@clerk\/|onboarding-sign-out/)
 })

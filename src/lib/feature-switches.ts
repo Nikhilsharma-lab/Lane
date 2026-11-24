@@ -110,13 +110,13 @@ export type BetterAuthServer =
   | { on: true; secret: string; baseURL: string | undefined; google: { clientId: string; clientSecret: string } | null; turnstileSecretKey: string | undefined }
   | { on: false }
 
-/** The names #369's Better Auth server reads. Only the secret switches it on; none is required until increment 5. */
+/** The names #369's Better Auth server reads. Only the secret switches it on; src/lib/env.ts requires them all (#398). */
 export const BETTER_AUTH_NAMES = ["BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TURNSTILE_SECRET_KEY"] as const
 
 /**
  * #369 `BETTER_AUTH_SECRET` + `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TURNSTILE_SECRET_KEY`.
- * Dormant: while the secret is unset or blank, `/api/auth/*` answers 404 and Better Auth is never built. It isn't set
- * on staging or production until increment 6. Google is offered only with both of its names; without the Turnstile
+ * While the secret is unset or blank, `/api/auth/*` answers 404 and Better Auth is never built. It isn't set on
+ * staging or production until increment 6. Google is offered only with both of its names; without the Turnstile
  * secret every Turnstile-guarded call is refused.
  */
 export function betterAuthServer(env: Env = process.env): BetterAuthServer {

@@ -26,7 +26,6 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   void timePage("Settings: Metrics");
   const workspace = await getWorkspace();
   if (!workspace) return sendAwayMemberless();
-  if (workspace.needsOnboarding) redirect("/onboarding");
   if (workspace.role === "guest") redirect("/");
 
   const { section, show } = await searchParams;

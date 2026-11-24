@@ -1,6 +1,6 @@
 /**
  * Statement ceilings and guard checks for the server loaders (plan items 1.8,
- * 1.9 and 1.15a). Every loader takes the Clerk-derived MemberAuth explicitly,
+ * 1.9 and 1.15a). Every loader takes the session-derived MemberAuth explicitly,
  * and the count route also exercises session-derived authorization.
  *
  * ISOLATION: seeds its own guest, Projects, Requests, comments, attachments
@@ -351,10 +351,9 @@ describe("loadRequestDetail", () => {
     const { result, statements } = await queryCounter.measure(() => loadRequestDetail(member, memberRequest));
     expect(statements).toBeLessThanOrEqual(3);
     expect(result?.request).toMatchObject({ id: memberRequest, title: "Loader member Request", creatorName: "Test Member", assigneeName: "Test Admin", projectName: "Loader member project" });
-    // Plan item 2.5: the strip's code, the panel's priority and the Assignee avatar, from the same statement.
+    // Plan item 2.5: the strip's code, and the panel's priority, from the same statement.
     expect(result?.request.requestNumber).toBeGreaterThan(0);
     expect(REQUEST_PRIORITIES).toContain(result?.request.priority);
-    expect(result?.request).toHaveProperty("assigneeAvatarUrl");
     expect(result?.comments.map(comment => comment.body)).toEqual(["First comment", "Second comment"]);
     expect(result?.attachments.map(attachment => attachment.id)).toEqual([uploadedAttachment]);
   });

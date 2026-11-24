@@ -33,7 +33,6 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
   void timePage("Settings: a Metric");
   const workspace = await getWorkspace();
   if (!workspace) return sendAwayMemberless();
-  if (workspace.needsOnboarding) redirect("/onboarding");
   if (workspace.role === "guest") redirect("/");
 
   const [{ id }, { section }] = await Promise.all([params, searchParams]);
