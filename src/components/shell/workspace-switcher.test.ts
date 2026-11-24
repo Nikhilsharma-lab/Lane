@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AuthAnswer } from "@/lib/auth-answer";
 import { OfflineError } from "@/lib/offline-error";
 import { ShownFailure, worthRetrying } from "@/lib/failure-messages";
 import { createWorkspaceSwitch, type WorkspaceSwitchSnapshot } from "./workspace-switcher";
@@ -7,31 +8,32 @@ import { assertWorkspaceCanSwitch, WORKSPACE_SWITCH_EVENT } from "@/lib/workspac
 function fixture() {
   const events: string[] = [];
   let snapshot: WorkspaceSwitchSnapshot = {
-    loaded: true,
-    userId: "user-a",
     currentId: "org-a",
-    activeId: "org-a",
     items: [{ id: "org-a", name: "Lane" }, { id: "org-b", name: "Studio" }],
-    setActive: async ({ organization, navigate }) => {
-      events.push(`activate:${organization}`);
-      await navigate?.({ decorateUrl: (path: string) => `${path}?clerk-refresh=1` } as Parameters<NonNullable<typeof navigate>>[0]);
-    },
   };
+  const switched = async (id: string): Promise<AuthAnswer> => { events.push(`switch:${id}`); return { ok: true }; };
+  let switchTo = switched;
   const target = new EventTarget();
   const select = createWorkspaceSwitch({
     getSnapshot: () => snapshot,
+    switchTo: id => switchTo(id),
     beforeSwitch: () => assertWorkspaceCanSwitch(target),
     onPendingChange: id => events.push(`pending:${id}`),
     replace: href => events.push(`replace:${href}`),
   });
-  return { events, target, select, snapshot: () => snapshot, update: (values: Partial<WorkspaceSwitchSnapshot>) => { snapshot = { ...snapshot, ...values }; } };
+  return {
+    events, target, select, switched,
+    snapshot: () => snapshot,
+    update: (values: Partial<WorkspaceSwitchSnapshot>) => { snapshot = { ...snapshot, ...values }; },
+    answering: (answer: typeof switched) => { switchTo = answer; },
+  };
 }
 
-describe("Clerk workspace switching boundary", () => {
-  it("activates only the selected membership then replaces the document using Clerk's decorated destination", async () => {
+describe("the workspace switch", () => {
+  it("switches to the selected workspace, then loads its Requests as a new document", async () => {
     const f = fixture();
     await f.select("org-b");
-    expect(f.events).toEqual(["pending:org-b", "activate:org-b", "replace:/?clerk-refresh=1"]);
+    expect(f.events).toEqual(["pending:org-b", "switch:org-b", "replace:/"]);
   });
 
   it("does nothing for the current workspace", async () => {
@@ -40,36 +42,25 @@ describe("Clerk workspace switching boundary", () => {
     expect(f.events).toEqual([]);
   });
 
-  it("rejects a workspace that was not returned by Clerk memberships", async () => {
+  it("refuses a workspace that isn’t in the person’s list", async () => {
     const f = fixture();
     await expect(f.select("org-forged")).rejects.toThrow(/no longer available/i);
     expect(f.events).toEqual([]);
   });
 
   // #269 (A111): the menu offers Try again only when trying again can work.
-  it("answers a workspace that's gone for good with no Try again; a refusal or a slow answer from Clerk keeps it", async () => {
+  it("answers a workspace that's gone for good with no Try again; a refusal or a failed call keeps it", async () => {
     const f = fixture();
     const gone = await f.select("org-forged").catch((failure: unknown) => failure);
     expect(worthRetrying(gone)).toBe(false);
-    f.update({ setActive: async () => { throw new Error("private provider payload"); } });
-    const refused = await f.select("org-b").catch((failure: unknown) => failure);
-    expect(worthRetrying(refused)).toBe(true);
+    f.answering(async () => ({ ok: false, code: "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION" }));
+    expect(worthRetrying(await f.select("org-b").catch((failure: unknown) => failure))).toBe(true);
+    f.answering(async () => { throw new Error("private provider payload"); });
+    expect(worthRetrying(await f.select("org-b").catch((failure: unknown) => failure))).toBe(true);
     expect(worthRetrying(new OfflineError())).toBe(true);
   });
 
-  it.each([
-    { loaded: false },
-    { userId: null },
-    { activeId: "org-other" },
-    { setActive: undefined },
-  ])("never activates from unresolved or stale authenticated context: %j", async values => {
-    const f = fixture();
-    f.update(values);
-    await expect(f.select("org-b")).rejects.toThrow(/workspace.*loading|reload/i);
-    expect(f.events).toEqual([]);
-  });
-
-  it.each([WORKSPACE_SWITCH_EVENT, "beforeunload"])("honors %s veto before Clerk can change the active workspace", async eventName => {
+  it.each([WORKSPACE_SWITCH_EVENT, "beforeunload"])("honors %s veto before the workspace changes", async eventName => {
     const f = fixture();
     f.target.addEventListener(eventName, event => event.preventDefault());
     const vetoed = f.select("org-b");
@@ -82,38 +73,41 @@ describe("Clerk workspace switching boundary", () => {
   it("blocks duplicate activation while a previous switch is unresolved", async () => {
     const f = fixture();
     let finish!: () => void;
-    f.update({ setActive: async () => { f.events.push("activate:org-b"); await new Promise<void>(resolve => { finish = resolve; }); } });
+    f.answering(async id => { await new Promise<void>(resolve => { finish = resolve; }); return f.switched(id); });
     const pending = f.select("org-b");
     await Promise.resolve();
     await f.select("org-b");
-    expect(f.events).toEqual(["pending:org-b", "activate:org-b"]);
+    expect(f.events).toEqual(["pending:org-b"]);
     finish();
     await pending;
-  });
-
-  it("sanitizes an activation failure and allows the same workspace to be retried", async () => {
-    const f = fixture();
-    const original = f.snapshot().setActive;
-    f.update({ setActive: async () => { throw new Error("private provider payload"); } });
-    const failed = f.select("org-b");
-    await expect(failed).rejects.toThrow("Couldn’t switch workspace. Try again.");
-    // #269: Clerk's failure is never shown as it is; the menu says it in Lane's words.
-    await expect(failed).rejects.not.toBeInstanceOf(ShownFailure);
-    expect(f.events).toEqual(["pending:org-b", "pending:null"]);
-    f.update({ setActive: original });
-    await f.select("org-b");
-    expect(f.events.slice(-3)).toEqual(["pending:org-b", "activate:org-b", "replace:/?clerk-refresh=1"]);
+    expect(f.events).toEqual(["pending:org-b", "switch:org-b", "replace:/"]);
   });
 
   it.each([
-    { change: { userId: "user-other" }, error: /reload/i },
-    { change: { activeId: "org-other" }, error: /reload/i },
+    ["refused", async (): Promise<AuthAnswer> => ({ ok: false, code: "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION" })],
+    ["a call that fails", async (): Promise<AuthAnswer> => { throw new Error("private provider payload"); }],
+  ])("says a switch that is %s failed in Lane's words, stays, and can be tried again", async (_what, answer) => {
+    const f = fixture();
+    f.answering(answer);
+    const failed = f.select("org-b");
+    await expect(failed).rejects.toThrow("Couldn’t switch workspace. Try again.");
+    // #269: the failure is never shown as it is; the menu says it in Lane's words.
+    await expect(failed).rejects.not.toBeInstanceOf(ShownFailure);
+    expect(f.events).toEqual(["pending:org-b", "pending:null"]);
+    f.answering(f.switched);
+    await f.select("org-b");
+    expect(f.events.slice(-3)).toEqual(["pending:org-b", "switch:org-b", "replace:/"]);
+  });
+
+  it.each([
+    { change: { currentId: "org-c" }, error: /reload/i },
     { change: { items: [{ id: "org-a", name: "Lane" }] }, error: /no longer available/i },
-  ])("rechecks authenticated context and membership after an asynchronous draft guard: %j", async ({ change, error }) => {
+  ])("rechecks the page's workspace and the list after an asynchronous draft guard: %j", async ({ change, error }) => {
     const f = fixture();
     let finish!: () => void;
     const select = createWorkspaceSwitch({
       getSnapshot: f.snapshot,
+      switchTo: f.switched,
       beforeSwitch: () => new Promise<void>(resolve => { finish = resolve; }),
       onPendingChange: id => f.events.push(`pending:${id}`),
       replace: href => f.events.push(`replace:${href}`),
@@ -132,16 +126,15 @@ describe("Clerk workspace switching boundary", () => {
     function failing(options: { offline?: boolean; timeoutMs?: number } = {}) {
       const f = fixture();
       const calls: string[] = [];
-      let finish!: () => void;
+      const finishes: (() => void)[] = [];
       let goOffline: () => void = () => {};
-      f.update({ setActive: (async ({ organization, navigate }: { organization: string; navigate?: (input: { decorateUrl: (path: string) => string }) => Promise<void> }) => {
-        calls.push(`activate:${organization}`);
-        if (organization === "org-a") return;
-        await new Promise<void>(resolve => { finish = resolve; });
-        await navigate?.({ decorateUrl: (path: string) => path });
-      }) as WorkspaceSwitchSnapshot["setActive"] });
       const select = createWorkspaceSwitch({
         getSnapshot: f.snapshot,
+        switchTo: async id => {
+          calls.push(`switch:${id}`);
+          if (id === "org-a") return { ok: true };
+          return new Promise<AuthAnswer>(resolve => { finishes.push(() => resolve({ ok: true })); });
+        },
         beforeSwitch: () => {},
         onPendingChange: id => f.events.push(`pending:${id}`),
         replace: href => f.events.push(`replace:${href}`),
@@ -149,7 +142,7 @@ describe("Clerk workspace switching boundary", () => {
         watchOffline: onOffline => { goOffline = onOffline; return () => { goOffline = () => {}; }; },
         timeoutMs: options.timeoutMs ?? 10_000,
       });
-      return { ...f, calls, select, finish: () => finish(), goOffline: () => goOffline() };
+      return { ...f, calls, select, finish: () => finishes.shift()!(), goOffline: () => goOffline() };
     }
 
     it("says it's offline at once and never starts the switch", async () => {
@@ -162,7 +155,7 @@ describe("Clerk workspace switching boundary", () => {
     it("ends the switch when the connection drops while it waits", async () => {
       const f = failing();
       const pending = f.select("org-b");
-      await vi.waitFor(() => expect(f.calls).toEqual(["activate:org-b"]));
+      await vi.waitFor(() => expect(f.calls).toEqual(["switch:org-b"]));
       f.goOffline();
       await expect(pending).rejects.toBeInstanceOf(OfflineError);
       expect(f.events).toEqual(["pending:org-b", "pending:null"]);
@@ -176,11 +169,11 @@ describe("Clerk workspace switching boundary", () => {
       await vi.advanceTimersByTimeAsync(10_000);
       await outcome;
       expect(f.events).toEqual(["pending:org-b", "pending:null"]);
-      // Clerk finishes the old switch after all: no move to the other workspace, and the session goes back.
+      // The old switch goes through after all: no move to the other workspace, and the session goes back.
       f.finish();
       await vi.runAllTimersAsync();
       expect(f.events).not.toContain("replace:/");
-      expect(f.calls).toEqual(["activate:org-b", "activate:org-a"]);
+      expect(f.calls).toEqual(["switch:org-b", "switch:org-a"]);
     });
 
     it("can be tried again once it has given up", async () => {
@@ -191,9 +184,13 @@ describe("Clerk workspace switching boundary", () => {
       await first;
       const second = f.select("org-b");
       await vi.advanceTimersByTimeAsync(0);
+      // The first switch's late answer doesn't undo the second.
+      f.finish();
+      await vi.advanceTimersByTimeAsync(0);
       f.finish();
       await second;
       expect(f.events.at(-1)).toBe("replace:/");
+      expect(f.calls).toEqual(["switch:org-b", "switch:org-b"]);
     });
   });
 });

@@ -6,6 +6,9 @@
  */
 export type AuthAnswer<T = unknown> = { ok: true; data?: T } | { ok: false; code?: string }
 
+/** What Lane's server door (`askAuthServer`) answers: an `AuthAnswer` whose success always carries what was answered. */
+export type DoorAnswer<T> = { ok: true; data: T } | { ok: false; code?: string }
+
 /** Runs a call that answers an `AuthAnswer`. One that throws (offline, blocked, an old tab) is a failure with no code. */
 export async function settle<T>(call: () => Promise<AuthAnswer<T>>): Promise<AuthAnswer<T>> {
   try {

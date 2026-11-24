@@ -92,6 +92,11 @@ export function signOut() {
   return answer(() => client.signOut())
 }
 
+/** Asks for this browser's session. Better Auth renews it, and its cookie, when it is more than a day old. */
+export function requestSession() {
+  return answer(() => client.getSession())
+}
+
 export function acceptInvitation(invitationId: string) {
   return answer(() => client.organization.acceptInvitation({ invitationId }))
 }

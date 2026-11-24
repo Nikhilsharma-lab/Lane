@@ -29,6 +29,7 @@ const SUCCESS: Record<string, unknown> = {
   "/email-otp/verify-email": { status: true, token: "session-token", user: { id: "user_1", email: "mei@example.test" } },
   "/sign-up/email": { token: null, user: { id: "user_1", email: "mei@example.test" } },
   "/sign-out": { success: true },
+  "/get-session": { session: { id: "session_1", userId: "user_1" }, user: { id: "user_1", email: "mei@example.test" } },
   "/organization/accept-invitation": { invitation: {}, member: {} },
   "/organization/reject-invitation": { invitation: {}, member: null },
 }

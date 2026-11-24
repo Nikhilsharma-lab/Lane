@@ -2,7 +2,6 @@
 
 import { callAction } from "@/lib/action-call";
 import { CHECK_CONNECTION, ShownFailure, thrownMessage } from "@/lib/failure-messages";
-import { useClerk, useOrganization } from "@clerk/nextjs";
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useRequestNavigation } from "@/components/requests/request-navigation";
@@ -17,6 +16,7 @@ import { CommandPaletteHost } from "./command-palette-lazy";
 import type { PaletteRole } from "./command-palette-entries";
 import { fetchWorkspaceSearch } from "./workspace-search-fetch";
 import { useWorkspaceSwitcher } from "./use-workspace-switcher";
+import type { OwnWorkspace } from "@/lib/data/workspaces";
 import type { SavedView } from "@/lib/saved-view-nav";
 
 const noViews: SavedView[] = [];
@@ -32,6 +32,7 @@ export function Sidebar({
   orgId,
   userId,
   needsYouCount,
+  workspaces,
   savedViews,
   pageAddress,
 }: {
@@ -46,6 +47,8 @@ export function Sidebar({
   userId: string;
   /** The (app) layout's unread count, streamed to the bell (plan item 1.8). */
   needsYouCount?: Promise<number>;
+  /** #389: the person's workspaces, for the switcher; null when they couldn't be read. */
+  workspaces: OwnWorkspace[] | null;
   /** #219: the person's own saved views, for the navigation. */
   savedViews?: SavedView[];
   /** #271: the address the frame treats as current, in place of the browser's. "Page not found" passes its own, so
@@ -58,24 +61,16 @@ export function Sidebar({
   const labels = useWorkspaceLabels();
   const navigation = useRequestNavigation();
   const projectState = useSharedWorkspaceProjects();
-  const { isLoaded, organization } = useOrganization();
-  const { signOut } = useClerk();
-  const workspaceSwitcher = useWorkspaceSwitcher(orgId);
+  const workspaceSwitcher = useWorkspaceSwitcher(orgId, workspaces);
   const views = useShownSavedViews(savedViews ?? noViews);
   // Plan item 1.16: search reads the GET route, so it never queues behind a mutation.
   const search = useMemo(() => fetchWorkspaceSearch(orgId), [orgId]);
-  // Clerk owns the current name. Only a matching loaded organization may
-  // replace the server fallback; a display update never selects a workspace.
   const projects = projectState.projects;
   const viewer = useMemo(() => ({ id: userId, name: fullName }), [userId, fullName]);
-  const displayedWorkspaceName =
-    isLoaded && organization?.id === orgId && organization.name.trim()
-      ? organization.name
-      : workspaceName;
 
   return (
     <SidebarView
-      workspaceName={displayedWorkspaceName}
+      workspaceName={workspaceName}
       fullName={fullName}
       email={email}
       role={role}
@@ -107,7 +102,8 @@ export function Sidebar({
       }}
       notifications={<InboxBell orgId={orgId} needsYouCount={needsYouCount} current={pathname === "/inbox"} />}
       palette={<CommandPaletteHost orgId={orgId} role={role} viewer={viewer} projects={projects} pathname={pathname} />}
-      onSignOut={() => signOut({ redirectUrl: "/login" })}
+      // Lane's browser auth client stays out of the first load; offline it can't load, and the menu says sign-out failed.
+      onSignOut={async () => { const { signOutToSignIn } = await import("@/components/auth/better-auth/sign-out"); await signOutToSignIn(); }}
       onSearch={search}
       workspaceSwitcher={workspaceSwitcher}
       savedViews={views}
