@@ -32,7 +32,8 @@ async function visitor() {
 // then ran on every page (the frame twice, and with the database refusing connections they kept the root error
 // screen's tab loading for up to two minutes), and its session check made /login, /privacy and /terms dynamic.
 // As the boundary Next passes it no props, so there it reads nothing; only the page for an address no route answers
-// (Next's /_not-found, which gets `params`) reads who is visiting. No page outside (app) throws a 404 today.
+// (Next's /_not-found, which gets `params`) reads who is visiting. The one page outside (app) that
+// throws a 404, /invite/[id], has its own not-found (#392).
 export default async function NotFound(props: { params?: Promise<unknown> }) {
   if (!("params" in props)) return <MissingPageNoWorkspace signedIn={false} />;
   const shown = await visitor();

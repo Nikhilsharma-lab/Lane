@@ -1,3 +1,4 @@
+import { settle, type AuthAnswer } from "@/lib/auth-answer"
 import * as auth from "@/lib/auth-client"
 import { authErrorCopy, forCode, type AuthErrorCode } from "@/lib/auth-error-copy"
 import type { WorkspacePermission } from "@/lib/auth-guard"
@@ -6,7 +7,7 @@ import { createExternalStore } from "@/lib/external-store"
 import { signInPage, signUpPage } from "./auth-addresses"
 
 /**
- * Where the invitation stands, as increment 5's `/invite/[id]` reads it: Better Auth's `rejected` is declined and
+ * Where the invitation stands, as `/invite/[id]` reads it: Better Auth's `rejected` is declined and
  * `canceled` cancelled, and a pending invitation past its expiry is expired (#376 Q3: the view decides from the
  * status, and shows the expiry date only).
  */
@@ -43,7 +44,7 @@ export type InvitationScreen =
 
 /** What the box beside the actions offers with its line: the code path, for an email that isn't confirmed. */
 export type InvitationOffer = "code" | null
-export type InvitationPending = "accept" | "decline" | "sign-out" | null
+export type InvitationPending = "accept" | "decline" | "sign-out" | "open" | null
 
 export type InvitationState = {
   screen: InvitationScreen
@@ -54,10 +55,10 @@ export type InvitationState = {
 type Options = {
   invitation: Invitation
   viewer: InvitationViewer
-  /** Where Open <workspace> goes: an address that opens the invitation's workspace, which increment 5 knows. */
-  workspaceAddress: string
+  /** Switches to the invitation's workspace, for Open <workspace>. */
+  openWorkspace: () => Promise<AuthAnswer>
   navigate: (path: string) => void
-  /** Called once the person has joined; increment 5 sends them to the role step. */
+  /** Called once the person has joined; it sends them to the role step or home. */
   onJoined: () => void
 }
 
@@ -70,7 +71,7 @@ const OFFER_OF: Partial<Record<AuthErrorCode, InvitationOffer>> = {
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "code",
 }
 
-/** Increment 5's invitation page, where sign-in and sign-up come back to. */
+/** The invitation page, where sign-in and sign-up come back to. */
 export const invitationAddress = (id: string) => `/invite/${encodeURIComponent(id)}`
 
 const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
@@ -87,7 +88,7 @@ function firstScreen({ status, email }: Invitation, viewer: InvitationViewer): I
  * #379: the invitation page's state, made once per mount. Accept, Decline and the switch to the invited email go
  * through Lane's browser auth client; every refusal reads `authErrorCopy`.
  */
-export function createInvitationFlow({ invitation, viewer, workspaceAddress, navigate, onJoined }: Options) {
+export function createInvitationFlow({ invitation, viewer, openWorkspace, navigate, onJoined }: Options) {
   const store = createExternalStore<InvitationState>({ screen: firstScreen(invitation, viewer), alert: null, pending: null })
   const set = (next: Partial<InvitationState>) => store.set({ ...store.get(), ...next })
   const signInHere = signInPage(invitation.email, invitationAddress(invitation.id))
@@ -147,8 +148,18 @@ export function createInvitationFlow({ invitation, viewer, workspaceAddress, nav
     createAccount: () => navigate(signUpHere),
     /** "Stay signed in as <email>" and Go to Lane: Lane's home, which opens the last workspace used. */
     goToLane: () => navigate(HOME),
-    /** Open <workspace>, from an invitation already accepted: that workspace itself (#376 story 52). */
-    openWorkspace: () => navigate(workspaceAddress),
+    /**
+     * Open <workspace>, from an invitation already accepted: that workspace itself (#376 story 52), then home. Signed
+     * out, sign-in comes first, with the invited email, and comes back here (#392).
+     */
+    async openWorkspace() {
+      if (!viewer.signedIn) return navigate(signInHere)
+      await run("open", async () => {
+        const answer = await settle(openWorkspace)
+        if (answer.ok) navigate(HOME)
+        else refuse(answer.code)
+      })
+    },
   }
 }
 

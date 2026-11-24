@@ -86,6 +86,19 @@ describe("Settings → Profile, Change password (#380)", () => {
     expect(input(html, "current-password")).not.toMatch(/aria-invalid="true"/)
   })
 
+  it.each([
+    ["PASSWORD_COMPROMISED", "This password has appeared in a data breach elsewhere. Choose a different one."],
+    ["PASSWORD_CHECK_UNAVAILABLE", "We couldn’t check this password right now. Try again in a minute."],
+  ])("puts %s's line on a first password too (#394)", async (code, line) => {
+    callbacks.onSetPassword.mockResolvedValue({ ok: false as const, code })
+    account.openPassword("set")
+    account.changeNewPassword("new-secret-1")
+    expect(await account.submitPassword()).toBe("new")
+    const html = render("set")
+    expect(described(html, "new-password")).toContain(line)
+    expect(input(html, "new-password")).toMatch(/aria-invalid="true"/)
+  })
+
   it("shows any other refusal above the buttons", async () => {
     callbacks.onChangePassword.mockRejectedValue(new TypeError("Failed to fetch"))
     await change("old-secret", "new-secret-1")

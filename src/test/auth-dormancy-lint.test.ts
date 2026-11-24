@@ -143,7 +143,7 @@ describe("the auth screens' mount (#388)", () => {
     ["src/app/(auth)/login/page.tsx", SCREEN],
     ["src/app/(auth)/forgot-password/page.tsx", "@/components/auth/better-auth/password-reset-form"],
     ["src/app/(auth)/onboarding/page.tsx", "@/components/auth/better-auth/onboarding-view"],
-    ["src/app/invite/[id]/page.tsx", "@/components/auth/better-auth/invitation-view"],
+    ["src/app/(auth)/invite/[id]/invitation-screen.tsx", "@/components/auth/better-auth/invitation-view"],
     ["src/app/(auth)/signed-out-screens.test.ts", SCREEN],
   ])("lets %s import %s", async (filePath, screen) => {
     expect(await refusals(filePath, importing(screen))).toEqual([])

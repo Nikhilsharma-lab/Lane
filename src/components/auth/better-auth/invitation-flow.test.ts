@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { AuthAnswer } from "@/lib/auth-answer"
 import { AUTH_ERROR_COPY } from "@/lib/auth-error-copy"
 import { answeredCodes, fakeAuthFetch, type AuthFetchFake } from "@/test/auth-fetch-fake"
 import { createInvitationFlow, type Invitation, type InvitationViewer } from "./invitation-flow"
@@ -15,8 +16,7 @@ const invitation: Invitation = {
   status: "pending",
 }
 const signedInAsSam: InvitationViewer = { signedIn: true, email: SAM }
-/** Where increment 5 would open Acme Design: any address of its choosing. */
-const ACME_ADDRESS = "/w/acme-design"
+const openWorkspace = vi.fn<() => Promise<AuthAnswer>>()
 /** A code Lane has no words for, which must read as the generic line. */
 const UNKNOWN_CODE = "SOMETHING_LANE_HAS_NO_WORDS_FOR"
 
@@ -30,7 +30,7 @@ describe("which invitation state a person meets (#379, #346's state list)", () =
   const navigate = vi.fn()
   const onJoined = vi.fn()
   const screen = (props: Partial<Invitation> = {}, viewer: InvitationViewer = signedInAsSam) =>
-    createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation: { ...invitation, ...props }, viewer, navigate, onJoined }).snapshot().screen
+    createInvitationFlow({ openWorkspace, invitation: { ...invitation, ...props }, viewer, navigate, onJoined }).snapshot().screen
 
   it("asks a signed-out person with an account to sign in, and one without to create an account", () => {
     expect(screen({}, { signedIn: false, hasAccount: true })).toBe("sign-in")
@@ -60,7 +60,7 @@ describe("accepting and declining (#379)", () => {
   let auth: AuthFetchFake
   const navigate = vi.fn()
   const onJoined = vi.fn()
-  const flowFor = (viewer: InvitationViewer = signedInAsSam) => createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation, viewer, navigate, onJoined })
+  const flowFor = (viewer: InvitationViewer = signedInAsSam) => createInvitationFlow({ openWorkspace, invitation, viewer, navigate, onJoined })
   beforeEach(() => {
     auth = fakeAuthFetch()
     navigate.mockReset()
@@ -148,7 +148,7 @@ describe("accepting and declining (#379)", () => {
 describe("signed in as someone else (#379)", () => {
   let auth: AuthFetchFake
   const navigate = vi.fn()
-  const flowFor = () => createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation, viewer: { signedIn: true, email: "sam.lee@example.test" }, navigate, onJoined: vi.fn() })
+  const flowFor = () => createInvitationFlow({ openWorkspace, invitation, viewer: { signedIn: true, email: "sam.lee@example.test" }, navigate, onJoined: vi.fn() })
   beforeEach(() => {
     auth = fakeAuthFetch()
     navigate.mockReset()
@@ -176,19 +176,50 @@ describe("signed in as someone else (#379)", () => {
     expect(auth.requests).toEqual([])
   })
 
-  // #376 story 52: Open <workspace> opens that workspace, not whichever Lane's home would.
-  it("opens the invitation's own workspace from an accepted invitation", () => {
-    const flow = createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation: { ...invitation, status: "accepted" }, viewer: signedInAsSam, navigate, onJoined: vi.fn() })
-    flow.openWorkspace()
-    expect(navigate).toHaveBeenCalledExactlyOnceWith(ACME_ADDRESS)
-    expect(auth.requests).toEqual([])
+})
+
+// #376 story 52: Open <workspace> opens that workspace, not whichever Lane's home would.
+describe("Open <workspace>, from an accepted invitation (#392)", () => {
+  const navigate = vi.fn()
+  beforeEach(() => {
+    navigate.mockReset()
+    openWorkspace.mockReset()
+  })
+  const flowFor = (viewer: InvitationViewer = signedInAsSam) =>
+    createInvitationFlow({ openWorkspace, invitation: { ...invitation, status: "accepted" }, viewer, navigate, onJoined: vi.fn() })
+
+  it("opens the workspace once, staying busy, then goes to Lane's home", async () => {
+    openWorkspace.mockImplementation(async () => {
+      expect(navigate).not.toHaveBeenCalled()
+      return { ok: true }
+    })
+    const flow = flowFor()
+    const opening = flow.openWorkspace()
+    expect(flow.snapshot().pending).toBe("open")
+    await Promise.all([opening, flow.openWorkspace()])
+    expect(openWorkspace).toHaveBeenCalledTimes(1)
+    expect(navigate).toHaveBeenCalledExactlyOnceWith("/")
+  })
+
+  it("stays put with the line when it's refused", async () => {
+    openWorkspace.mockResolvedValue({ ok: false, code: "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION" })
+    const flow = flowFor()
+    await flow.openWorkspace()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(flow.snapshot()).toEqual({ screen: "already-accepted", alert: { message: "You’re no longer in this workspace. Ask one of its Admins to invite you again.", offer: null }, pending: null })
+  })
+
+  it.each([true, false])("asks someone signed out to sign in as the invited email first, and back to the invitation (account: %s)", async (hasAccount) => {
+    await flowFor({ signedIn: false, hasAccount }).openWorkspace()
+    expect(openWorkspace).not.toHaveBeenCalled()
+    expect(navigate).toHaveBeenCalledExactlyOnceWith("/login?email=sam%40example.test&redirect_url=%2Finvite%2Finv_1")
   })
 })
 
 describe("the ways on from a signed-out invitation (#379)", () => {
   const navigate = vi.fn()
   beforeEach(() => navigate.mockReset())
-  const flowFor = (hasAccount: boolean) => createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation, viewer: { signedIn: false, hasAccount }, navigate, onJoined: vi.fn() })
+  const flowFor = (hasAccount: boolean) => createInvitationFlow({ openWorkspace, invitation, viewer: { signedIn: false, hasAccount }, navigate, onJoined: vi.fn() })
 
   it("goes to sign-in or sign-up with the invited email and a return to the invitation", () => {
     flowFor(true).signIn()
@@ -202,7 +233,7 @@ describe("the ways on from a signed-out invitation (#379)", () => {
   })
 
   it("keeps an invitation id that needs escaping inside its own path", () => {
-    createInvitationFlow({ workspaceAddress: ACME_ADDRESS, invitation: { ...invitation, id: "a/b?c" }, viewer: { signedIn: false, hasAccount: true }, navigate, onJoined: vi.fn() }).signIn()
+    createInvitationFlow({ openWorkspace, invitation: { ...invitation, id: "a/b?c" }, viewer: { signedIn: false, hasAccount: true }, navigate, onJoined: vi.fn() }).signIn()
     expect(navigate).toHaveBeenCalledWith("/login?email=sam%40example.test&redirect_url=%2Finvite%2Fa%252Fb%253Fc")
   })
 })
