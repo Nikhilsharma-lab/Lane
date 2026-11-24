@@ -2,14 +2,15 @@
  * #371 (spec #369): what the auth route tests share. A browser that keeps its cookies and sends Requests to
  * `/api/auth/[...all]`'s GET and POST as a real one would, and a fake for every outbound call Better Auth and the
  * auth email make: Turnstile's siteverify, Have I Been Pwned's range API, Google's token and userinfo endpoints, and
- * Resend. Anything else that leaves the process fails the test. And each test file's people, workspaces and
- * clean-up (`authRouteTestFile`).
+ * Resend. Anything else that leaves the process fails the test. The browser can also call a Server Action as its
+ * person (`action`, #389). And each test file's people, workspaces and clean-up (`authRouteTestFile`).
  */
 import { createHash, randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, afterEach, vi } from "vitest"
 import { SOMETHING_WENT_WRONG, authErrorCode, authErrorCopy } from "@/lib/auth-error-copy"
 import { RESEND_EMAILS_URL } from "@/lib/messenger"
+import { asServerAction } from "./server-action-request"
 import { requireTestDatabase } from "./test-database"
 
 export const AUTH_ORIGIN = "http://localhost:3000"
@@ -121,6 +122,17 @@ export class AuthBrowser {
     public turnstile = true,
   ) {}
 
+  /** Keeps the cookies a response or an action set, as a browser does. */
+  private keep(setCookies: string[]) {
+    for (const cookie of setCookies) {
+      const [pair, ...attributes] = cookie.split(";")
+      const at = pair.indexOf("=")
+      const [name, value] = [pair.slice(0, at).trim(), pair.slice(at + 1).trim()]
+      if (!value || attributes.some((attribute) => /max-age=0\b/i.test(attribute.trim()))) this.cookies.delete(name)
+      else this.cookies.set(name, value)
+    }
+  }
+
   async call(method: "GET" | "POST", path: string, body?: unknown, extraHeaders: Record<string, string> = {}): Promise<AuthAnswer> {
     const headers = new Headers({ origin: AUTH_ORIGIN, "x-vercel-forwarded-for": this.ip, ...extraHeaders })
     if (this.turnstile) headers.set("x-captcha-response", TURNSTILE_TOKEN)
@@ -129,19 +141,27 @@ export class AuthBrowser {
     const { GET, POST } = await import("@/app/api/auth/[...all]/route")
     const request = new Request(`${AUTH_ORIGIN}/api/auth${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), redirect: "manual" })
     const response = await (method === "GET" ? GET : POST)(request)
-    for (const cookie of response.headers.getSetCookie()) {
-      const [pair, ...attributes] = cookie.split(";")
-      const at = pair.indexOf("=")
-      const [name, value] = [pair.slice(0, at).trim(), pair.slice(at + 1).trim()]
-      if (!value || attributes.some((attribute) => /max-age=0\b/i.test(attribute.trim()))) this.cookies.delete(name)
-      else this.cookies.set(name, value)
-    }
+    this.keep(response.headers.getSetCookie())
     const text = await response.text()
     let parsed: unknown = text
     try {
       parsed = text ? JSON.parse(text) : null
     } catch {}
     return { status: response.status, body: parsed, location: response.headers.get("location"), headers: response.headers }
+  }
+
+  /**
+   * Runs `run` as a Server Action this browser's person calls (#389). The request carries the browser's cookies, IP
+   * and origin; `cookies()` and `headers()` read it, in Lane's code and Better Auth's, and a cookie the action writes
+   * lands in the jar. Returns what the action returns and throws what it throws. `extraHeaders` adds to the request's
+   * headers. A file that uses it must not mock `next/headers`.
+   */
+  async action<T>(run: () => Promise<T>, extraHeaders: Record<string, string> = {}): Promise<T> {
+    const headers = new Headers({ origin: AUTH_ORIGIN, "next-action": "lane-test-action", "x-vercel-forwarded-for": this.ip, ...extraHeaders })
+    if (this.cookies.size) headers.set("cookie", this.cookieHeader())
+    const { result, setCookies } = await asServerAction(`${AUTH_ORIGIN}/`, headers, run)
+    this.keep(setCookies)
+    return result()
   }
 
   /** The Cookie header this browser sends. */
