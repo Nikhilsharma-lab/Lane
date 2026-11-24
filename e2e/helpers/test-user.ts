@@ -4,7 +4,10 @@ import type { Page } from "@playwright/test";
 import { testAuth, testSessionCookies } from "./better-auth";
 import { withE2EDatabase } from "./database";
 import { deleteEmailCodes } from "./email-codes";
-import { assertOwnedUser, forgetOrganization, forgetUser, ownedUserIdByEmail, ownedUserScope, recordCreatedUser, testEmail } from "./fixtures";
+import {
+  assertOwnedUser, assertReservedEmail, forgetOrganization, forgetUser, ownedUserIdByEmail, ownedUserScope, recordCreatedUser,
+  registerBrowserTestOrganization, registerBrowserTestUser, testEmail,
+} from "./fixtures";
 import { assertE2ETarget } from "./safety";
 
 export type TestUser = {
@@ -53,6 +56,22 @@ export async function deleteTestUser(id: string): Promise<void> {
   // A kept workspace stays this run's, so its other people can still be deleted.
   if (!kept) for (const orgId of orgIds) forgetOrganization(orgId);
   forgetUser(id);
+}
+
+/**
+ * Deletes whoever the browser signed up at an address this worker reserved, with the workspaces they created there,
+ * however far the test got. Nobody signed up is fine.
+ */
+export async function deleteSignedUpUser(email: string): Promise<void> {
+  assertReservedEmail(email);
+  const [person, workspaces] = await withE2EDatabase(async (sql) => {
+    const [row] = await sql<{ id: string }[]>`select id from profiles where email = ${email}`;
+    return [row, row ? await sql<{ id: string; name: string }[]>`select id, name from organizations where owner_id = ${row.id}` : []] as const;
+  });
+  if (!person) return;
+  await registerBrowserTestUser(person.id, email);
+  for (const workspace of workspaces) await registerBrowserTestOrganization(workspace.id, person.id, workspace.name);
+  await deleteTestUser(person.id);
 }
 
 /** A history trigger refused the delete, or a row of a workspace that stays still names the person. */

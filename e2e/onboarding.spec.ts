@@ -1,9 +1,8 @@
-import { randomUUID } from "node:crypto";
-import { expect, test, type Page, type Request } from "@playwright/test";
+import { expect, type Page, type Request } from "@playwright/test";
 
+import { openForm, test } from "./helpers/auth-forms";
 import {
   cleanupTestWorkspace,
-  e2eDatabase,
   getProfileFullName,
   getProfileRole,
 } from "./helpers/cleanup";
@@ -13,7 +12,7 @@ import {
   readTestSession,
   signInTestUser,
 } from "./helpers/test-user";
-import { addTestMember, createTestWorkspace, removeTestMember } from "./helpers/workspaces";
+import { addTestMember, createTestInvitation, createTestWorkspace, removeTestMember } from "./helpers/workspaces";
 import { registerBrowserTestOrganization } from "./helpers/fixtures";
 import { ROLE_STEP_URL } from "../src/lib/onboarding-address";
 
@@ -229,7 +228,7 @@ test("a role chosen right after signing in through the form and creating a works
   const workspaceName = `Lane E2E Form Sign-in ${Date.now()}`;
 
   try {
-    await page.goto("/login");
+    await openForm(page, "/login");
     await page.getByLabel("Email address").fill(user.email);
     await page.getByLabel("Password", { exact: true }).fill(user.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -325,24 +324,17 @@ test("someone invited joins from Onboarding, chooses a role and lands in that wo
   try {
     const orgId = await createTestWorkspace(admin.id, workspaceName);
     const otherOrgId = await createTestWorkspace(admin.id, "Lane E2E Not Pending");
-    const sql = e2eDatabase();
-    try {
-      const invitation = { email: invited.email, role: "member", inviter_id: admin.id, expires_at: new Date(Date.now() + 86_400_000) };
-      await sql`insert into invitation ${sql([
-        { ...invitation, id: randomUUID(), organization_id: orgId, status: "pending" },
-        { ...invitation, id: randomUUID(), organization_id: otherOrgId, status: "canceled" },
-        { ...invitation, id: randomUUID(), organization_id: otherOrgId, status: "pending", expires_at: new Date(Date.now() - 60_000) },
-      ])}`;
-    } finally {
-      await sql.end();
-    }
+    const inviteTo = (id: string, options?: Parameters<typeof createTestInvitation>[3]) => createTestInvitation(id, admin.id, invited.email, options);
+    await inviteTo(orgId);
+    await inviteTo(otherOrgId, { status: "accepted" });
+    await inviteTo(otherOrgId, { expired: true });
 
     await signInTestUser(page, invited);
     await page.goto("/");
     await expect(page).toHaveURL("/onboarding");
     await expect(page.getByRole("heading", { name: "Join your team" })).toBeVisible();
     await expect(page.getByText(`You’ve been invited to these workspaces as ${invited.email}.`, { exact: true })).toBeVisible();
-    // Only the one still pending: not the cancelled or the expired one.
+    // Only the one still pending: not the one already answered, nor the expired one.
     const row = page.getByRole("list", { name: "Invitations" }).getByRole("listitem");
     await expect(row).toHaveCount(1);
     await expect(row).toContainText(workspaceName);

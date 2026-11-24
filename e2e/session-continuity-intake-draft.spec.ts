@@ -10,6 +10,7 @@ import {
   endTestSessions,
 } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
+import { formReady } from "./helpers/auth-forms";
 import {
   intakeDraftScope,
   intakeDraftStorageKey,
@@ -148,6 +149,7 @@ test("an expired session signs back in to the exact Intake review without anothe
       await page.getByRole("link", { name: "Sign in again" }).click();
       await page.waitForURL((url) => url.pathname === "/login");
 
+      await formReady(page);
       // The real one-page form, with the link's return address and this tab's Intake draft.
       await page.getByLabel("Email address").fill(user.email);
       await page.getByLabel("Password", { exact: true }).fill(user.password);
