@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode, type Ref } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode, type Ref } from "react";
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import { Dialog, DialogClose, DialogContent } from "@/components/popup/adaptive-dialog";
 import { PermanentActionConfirmation } from "@/components/popup/permanent-action-confirmation";
@@ -22,6 +22,7 @@ import {
   type PaidSeatChange, type PendingInvitation, type WorkspaceMember,
 } from "@/lib/member-role-rules";
 import { isWorkspacePermission, ROLE_NAMES, WORKSPACE_ROLES } from "@/lib/role-rules";
+import { followPeopleList, PEOPLE_LIST } from "./people-list";
 import { RoleGuide } from "./role-guide";
 import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowFailure, SettingsRowList } from "./settings-group";
 import { createConfirmation } from "./workspace-rows-state";
@@ -112,6 +113,8 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, s
   const emailRef = useRef<HTMLInputElement>(null);
   const [removal] = useState(() => createConfirmation<WorkspaceMember>());
   const removing = useSyncExternalStore(removal.subscribe, removal.get, removal.get);
+  // #395: the only Admin's "Make someone an Admin" lands focus on the People group.
+  useEffect(followPeopleList, []);
 
   /** Runs `add` now, or once the Admin confirms the paid seat it adds. `returnTo` is the control focus goes back to. */
   function withSeat(from: WorkspacePermission | null, change: PaidSeatChange, returnTo: string, add: (confirmed: boolean) => void) {
@@ -186,7 +189,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, s
       {canManage && <Button type="button" disabled={state !== "ready"} onClick={() => { setInviteError(null); setInviteOpen(true); }}>Invite people</Button>}
     </div>
 
-    <SettingsGroup label={<><span id="people-heading">People</span>{state === "ready" && count(shown.length)}</>} aria-labelledby="people-heading"
+    <SettingsGroup id={PEOPLE_LIST} tabIndex={-1} label={<><span id="people-heading">People</span>{state === "ready" && count(shown.length)}</>} aria-labelledby="people-heading"
       description={canManage ? "Everyone in this workspace. Change someone’s role to change what they can do." : "Everyone in this workspace and their role. Only Admins invite people or change roles."}>
       {state === "loading" && <SettingsBlock><Placeholder label="Loading people…" lines={3} avatar /></SettingsBlock>}
       {state === "error" && <SettingsBlock><Alert role="alert" tone="danger" title="People couldn’t be loaded" /><Button variant="secondary" size="sm" onClick={onRetry}>{TRY_AGAIN}</Button></SettingsBlock>}

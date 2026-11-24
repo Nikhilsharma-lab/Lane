@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { sectionNotForRole, settingsEntries, settingsHref, settingsNavigation, searchSettings, settingsSectionAt, showsSettingsInPlace } from "./settings-catalog";
+import { WORKSPACE_ROLES } from "@/lib/role-rules";
+import { sectionNotForRole, settingsCatalog, settingsEntries, settingsHref, settingsNavigation, searchSettings, settingsSectionAt, showsSettingsInPlace } from "./settings-catalog";
 describe("Settings search availability", () => {
   it("does not reveal member or administrative destinations to a guest", () => {
     for (const query of ["invite", "billing", "api", "workspace security"]) expect(searchSettings(settingsEntries("guest"), query)).toEqual([]);
@@ -121,17 +122,30 @@ describe("Settings catalog cleanup (#287)", () => {
   });
 });
 
+describe("Leaving the workspace (#395)", () => {
+  it("is found by every role, on the Leave row in Workspace details", () => {
+    for (const role of WORKSPACE_ROLES) {
+      expect(settingsNavigation(role).map(entry => entry.id), role).toContain("workspace");
+      expect(searchSettings(settingsEntries(role), "leave")[0].def, role).toMatchObject({ section: "workspace", target: "leave-workspace" });
+    }
+  });
+  it("isn't said to be in Clerk by any entry", () => {
+    expect(settingsCatalog.filter(entry => /clerk/i.test(JSON.stringify(entry)) && /leav/i.test(JSON.stringify(entry)))).toEqual([]);
+  });
+});
+
 describe("A section someone's role can't open (#288, D30)", () => {
   it("says who it is for, from the catalog", () => {
     expect(sectionNotForRole("billing", "member")).toBe("Billing is for Admins of this workspace.");
     expect(sectionNotForRole("slack", "viewer")).toBe("Slack is for Admins of this workspace.");
     expect(sectionNotForRole("members", "viewer")).toBe("Members is for Admins and Members of this workspace.");
     expect(sectionNotForRole("inbox-delivery", "guest")).toBe("Inbox delivery is for Admins and Members of this workspace.");
-    expect(sectionNotForRole("workspace", "guest")).toBe("Workspace details is for Admins, Members and Viewers of this workspace.");
+    expect(sectionNotForRole("metrics", "guest")).toBe("Metrics is for Admins, Members and Viewers of this workspace.");
   });
   it("says nothing when the section opens, doesn't exist, or is only planned", () => {
     expect(sectionNotForRole("billing", "admin")).toBeNull();
     expect(sectionNotForRole("members", "member")).toBeNull();
+    expect(sectionNotForRole("workspace", "guest")).toBeNull();
     expect(sectionNotForRole("nonsense", "member")).toBeNull();
     expect(sectionNotForRole("api", "member")).toBeNull();
     expect(sectionNotForRole("role", "member")).toBeNull();

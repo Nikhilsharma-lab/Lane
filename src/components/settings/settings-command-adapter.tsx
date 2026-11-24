@@ -38,7 +38,9 @@ export type SettingsCommandAdapterProps = {
   membership: string; workspaceName: string; workspaceId?: string; initialSection?: string; page?: "profile" | "members" | "metrics";
   /** `billingEnforced()` on the server: search then finds Billing's seats, bills and paying too (#287). */
   billingEnforced?: boolean;
-  account?: ReactNode; role?: ReactNode; appearance?: ReactNode; security?: ReactNode; members?: ReactNode; workspaceManagement?: ReactNode;
+  account?: ReactNode; role?: ReactNode; appearance?: ReactNode; security?: ReactNode; members?: ReactNode;
+  /** #395 Workspace details: the workspace's name, which Admins edit, and leaving it. */
+  workspaceNameRow?: ReactNode; leaveWorkspace?: ReactNode;
   /** Rendered only by the Metrics page (/settings/metrics), which loads the library. */
   metrics?: ReactNode;
   /** #206 Inbox delivery: the person's choice for this workspace (Members and Admins). */
@@ -50,7 +52,7 @@ export type SettingsCommandAdapterProps = {
 };
 
 /** Arc SettingsCommand frame, section navigation and search composition; Lane supplies permission-filtered rows and immediate saves. */
-export function SettingsCommandAdapter({ membership, billingEnforced = false, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
+export function SettingsCommandAdapter({ membership, billingEnforced = false, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceNameRow, leaveWorkspace, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
   const section = useSyncExternalStore(subscribe, snapshot, () => initialSection);
   const entries = useMemo(() => settingsEntries(membership, { billingEnforced }), [membership, billingEnforced]);
   const nav = useMemo(() => settingsNavigation(membership, { billingEnforced }), [membership, billingEnforced]);
@@ -166,10 +168,10 @@ export function SettingsCommandAdapter({ membership, billingEnforced = false, wo
     preferences: <SettingsGroup label="Appearance" labelId={`${uid}-appearance`}>{appearance}</SettingsGroup>,
     "account-security": security,
     workspace: <SettingsGroup>
-      <SettingsRow label="Workspace name" control={workspaceName} />
+      {workspaceNameRow}
       <SettingsRow label="Your access" hint="Workspace access is separate from your profile role." control={<Badge>{ROLE_NAMES[membership as WorkspacePermission] ?? "Member"}</Badge>} />
       {workspaceId && <WorkspaceIdentifier value={workspaceId} />}
-      {workspaceManagement}
+      {leaveWorkspace}
     </SettingsGroup>,
     members: membersShown ? members : null,
     metrics,

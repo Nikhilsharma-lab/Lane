@@ -5,7 +5,6 @@ import { sharedPanels } from "../profile/shared-panels";
 import { redirect } from "next/navigation";
 import { timePage } from "@/lib/request-timings";
 import { getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace";
-import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { membersPanel } from "./members-panel";
 import { SettingsCommandAdapter } from "@/components/settings/settings-command-adapter";
 import { SettingsEarlySearch } from "@/components/settings/settings-early-search";
@@ -24,7 +23,7 @@ export default async function MembersPage() {
   if (workspace.role === "viewer") redirect("/settings/profile?section=members");
 
   const panels = await sharedPanels(workspace);
-  return <><SettingsCommandAdapter billingEnforced={billingEnforced()} page="members" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection="members" members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
+  return <><SettingsCommandAdapter billingEnforced={billingEnforced()} page="members" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection="members" members={membersPanel(workspace)}
     account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
     security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
     {...panels} />

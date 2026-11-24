@@ -25,6 +25,7 @@ const CLERK_SESSION_DYNAMIC = {
 // `askAuthServer`, and only those named here may import it.
 const AUTH_SERVER_DOOR_FILES = [
   "src/app/(app)/workspace-actions.ts",
+  "src/app/(app)/settings/workspace-actions.ts",
 ];
 const BETTER_AUTH_SESSION_MESSAGE = "Only the session seam (src/lib/session.ts) imports the Better Auth session read; read the session through it (#387).";
 const BETTER_AUTH_SESSION = { regex: "(^|/)better-auth-session$", message: BETTER_AUTH_SESSION_MESSAGE };
@@ -62,12 +63,6 @@ const AUTH_SCREEN_MOUNTS = ["src/app/(auth)/**/*.{ts,tsx}"];
 // the app directory (a route, page or layout) imports them, statically or dynamically. Each entry names its views;
 // a ticket adds its own entry here.
 const DORMANT_VIEWS = [
-  // #381: the workspace name and Leave rows.
-  {
-    message: "The workspace name and Leave rows are dormant: no route, page or layout imports them until increment 5 (#381).",
-    regex: "(^|/)(workspace-name-row|leave-workspace-row)$",
-    selector: "ImportExpression[source.value=/(workspace-name-row|leave-workspace-row)$/]",
-  },
   // #380: Settings → Profile's account section (profile-account-view, -password, -devices and their controllers).
   {
     message: "Settings → Profile's account section is dormant until increment 5 mounts it (#380).",

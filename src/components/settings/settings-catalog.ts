@@ -20,11 +20,11 @@ export const settingsCatalog: SettingsEntry[] = [
   // #287 (D32): one row for the account, connected sign-in accounts included, so "Google" lands on it.
   { id: "manage-account", section: "profile", group: "Personal", label: "Manage account", description: "Name, photo, email and connected accounts such as Google.", target: "manage-account", keywords: ["google", "connected accounts", "login"] },
   { id: "ai-data", section: "account-security", group: "Personal", label: "AI data use", description: "What Lane sends for the Request AI check.", target: "ai-data", keywords: ["privacy", "anthropic"] },
-  { id: "leave-workspace", section: "workspace", group: "Workspace", label: "Leave workspace", description: "Review the Leave workspace option in Clerk.", target: "workspace-management", membersOnly: true },
+  { id: "leave-workspace", section: "workspace", group: "Workspace", label: "Leave workspace", description: "Give up your access to this workspace.", target: "leave-workspace" },
   { id: "intake-templates", section: "intake-templates", group: "Requests", label: "Intake templates", description: "Reusable starting points for a clear Request.", soon: true },
   { id: "project-labels", section: "project-labels", group: "Projects", label: "Labels", description: "Organize Projects with shared labels.", soon: true },
   { id: "project-templates", section: "project-templates", group: "Projects", label: "Templates", description: "Reusable starting points for Projects.", soon: true },
-  { id: "workspace", section: "workspace", group: "Workspace", label: "Workspace details", description: "Your workspace and membership.", membersOnly: true },
+  { id: "workspace", section: "workspace", group: "Workspace", label: "Workspace details", description: "Your workspace and membership." },
   { id: "members", section: "members", group: "Workspace", label: "Members", description: "Manage workspace members and invitations.", nonAdminDescription: "People in this workspace and their roles.", membersOnly: true, changersOnly: true, keywords: ["invite", "teammates"] },
   { id: "metrics", section: "metrics", group: "Workspace", label: "Metrics", description: "What your workspace measures, and how each metric is counted.", membersOnly: true, href: "/settings/metrics", keywords: ["metrics library", "metric definitions", "units", "conversion rate", "adoption", "customer satisfaction"] },
   { id: "slack", section: "slack", group: "Workspace", label: "Slack", description: "Connect Slack so people here can choose Slack DM for items that need them.", adminOnly: true, keywords: ["slack", "slack dm", "direct message", "connect", "disconnect", "integrations", "inbox delivery"] },
@@ -125,11 +125,12 @@ export const SETTINGS_SECTION_EVENT = "lane-settings-navigation"
 /**
  * Shows a Settings section in place, as the frame's own sidebar and search do and as the ⌘K palette does
  * when already on Settings: the URL takes the section (a history entry, so Back returns) and the frame follows.
+ * `target` is a place in it, which the URL's fragment then names.
  */
-export function showSettingsSection(id: string) {
+export function showSettingsSection(id: string, target = "") {
   const url = new URL(window.location.href)
   url.searchParams.set("section", id)
-  url.hash = ""
+  url.hash = target
   window.history.pushState(null, "", url)
   window.dispatchEvent(new Event(SETTINGS_SECTION_EVENT))
 }

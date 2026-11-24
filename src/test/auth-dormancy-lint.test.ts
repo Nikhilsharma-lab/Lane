@@ -108,8 +108,12 @@ describe("the server door's fence (#389)", () => {
   const ACTION = "src/app/(app)/workspace-actions.ts"
   const door = `import { askAuthServer as imported } from "@/lib/auth-server"`
 
-  it("lets a named Server Action import the door", async () => {
-    expect(await refusals(ACTION, door)).toEqual([])
+  it.each([
+    ACTION,
+    // #395: renaming and leaving the workspace.
+    "src/app/(app)/settings/workspace-actions.ts",
+  ])("lets a named Server Action import the door: %s", async (filePath) => {
+    expect(await refusals(filePath, door)).toEqual([])
   })
 
   it.each([
@@ -177,6 +181,13 @@ describe("what ships", () => {
   it("has a shell that imports nothing of Clerk's", () => {
     const shell = sources("src/components/shell").filter((path) => /["']@clerk\//.test(readFileSync(path, "utf8")))
     expect(shell).toEqual([])
+  })
+
+  // #395: the workspace name and Leave rows, their actions and the People list's link.
+  it("has workspace rows that import nothing of Clerk's", () => {
+    const rows = [...sources("src/components/settings"), ...sources("src/app/(app)/settings")].filter((path) => /\/(workspace-(rows|name-row|actions)|leave-workspace-row|people-list)[\w-]*\.tsx?$/.test(path) && !path.endsWith(".test.ts"))
+    expect(rows).toHaveLength(7)
+    expect(rows.filter((path) => /["']@clerk\//.test(readFileSync(path, "utf8")))).toEqual([])
   })
 
   // #389: the frame asks for the session, and Log out loads the sign-out; each on demand, never in the first load.

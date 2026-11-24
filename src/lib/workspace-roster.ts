@@ -26,6 +26,12 @@ export async function workspaceRoster(orgId: string): Promise<WorkspacePerson[]>
     isWorkspacePermission(role) ? [{ nominee: { kind: "member" as const, userId }, role, name: name || email || userId, email: email.toLowerCase() }] : []);
 }
 
+/** Whether the person is the workspace's only Admin, who can't leave it (#333 Q4, #395). Better Auth's refusal decides. */
+export async function isOnlyAdmin(orgId: string, userId: string): Promise<boolean> {
+  const admins = await db.select({ userId: member.userId }).from(member).where(and(eq(member.organizationId, orgId), eq(member.role, "admin"))).limit(2);
+  return admins.length === 1 && admins[0].userId === userId;
+}
+
 /**
  * One person's live membership of the workspace, any of Lane's roles (#212). Null once they have left, or while they
  * hold a role Lane doesn't know.

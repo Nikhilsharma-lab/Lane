@@ -1,11 +1,11 @@
-import { createElement } from "react"
+import { createElement, type ComponentProps, type MouseEvent as ReactMouseEvent } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { AUTH_ERROR_COPY } from "@/lib/auth-error-copy"
 import { withoutHidden } from "@/test/exposed-markup"
 import { forgetConfirmations, renderedConfirmations } from "@/test/inline-confirmation"
 import type { Confirmation } from "./workspace-rows-state"
-import { LeaveWorkspaceRow, focusOnThisPage, type LeaveWorkspaceRowProps } from "./leave-workspace-row"
+import { LeaveWorkspaceRow, type LeaveWorkspaceRowProps } from "./leave-workspace-row"
 
 vi.mock("@/components/popup/permanent-action-confirmation", () => import("@/test/inline-confirmation"))
 // No DOM here: the test drives the confirmation the row made, the way pressing Leave workspace would.
@@ -14,12 +14,18 @@ vi.mock("./workspace-rows-state", async importOriginal => {
   const actual = await importOriginal<typeof import("./workspace-rows-state")>()
   return { ...actual, createConfirmation: () => row.leave ??= actual.createConfirmation() }
 })
+// The links the row rendered, so the test can click one.
+const links = vi.hoisted(() => [] as ComponentProps<"a">[])
+vi.mock("@/components/link", async importOriginal => {
+  const { default: Link } = await importOriginal<typeof import("@/components/link")>()
+  return { default: (props: ComponentProps<typeof Link>) => { links.push(props as ComponentProps<"a">); return createElement(Link, props) } }
+})
 const leave = () => { if (!row.leave) throw new Error("The row made no confirmation."); return row.leave }
 const confirmation = () => { const last = renderedConfirmations().at(-1); if (!last) throw new Error("No confirmation rendered."); return last }
 
 const ONLY_ADMIN = "You’re the only Admin. Make someone else an Admin before you leave."
 const left = async () => ({ ok: true as const })
-const base: LeaveWorkspaceRowProps = { workspaceName: "Acme Design", onlyAdmin: false, peopleList: "#people", onLeave: left }
+const base: LeaveWorkspaceRowProps = { workspaceName: "Acme Design", onlyAdmin: false, peopleList: "/settings/profile?section=members#people", onPeopleList: () => {}, onLeave: left }
 const render = (props: Partial<LeaveWorkspaceRowProps> = {}) => renderToStaticMarkup(createElement(LeaveWorkspaceRow, { ...base, ...props }))
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 const leaveButton = (html: string) => /<button[^>]*>(?:<[^>]+>)*Leave workspace/.exec(html)?.[0] ?? ""
@@ -39,6 +45,10 @@ describe("Settings → Leave the workspace (#381)", () => {
     expect(text(html)).toContain("You lose access straight away. Your Requests and comments stay.")
     expect(text(html)).not.toContain(ONLY_ADMIN)
     expect(html).not.toContain('role="dialog"')
+  })
+
+  it("is the row settings search lands on (#395)", () => {
+    expect(render()).toMatch(/<div id="leave-workspace" tabindex="-1"/)
   })
 
   it("asks first in #346's words, and leaves once confirmed", async () => {
@@ -73,20 +83,21 @@ describe("Settings → Leave the workspace (#381)", () => {
     const reason = /aria-describedby="([^"]+)"/.exec(button)?.[1]
     expect(reason).toBeTruthy()
     expect(text(new RegExp(`<span id="${reason}"[^>]*>.*?</span>`).exec(html)?.[0] ?? "")).toBe(`${ONLY_ADMIN} Make someone an Admin`)
-    expect(html).toMatch(/<a [^>]*href="#people"[^>]*>Make someone an Admin<\/a>/)
+    expect(html).toMatch(/<a [^>]*href="\/settings\/profile\?section=members#people"[^>]*>Make someone an Admin<\/a>/)
     expect(text(html)).not.toContain("Your Requests and comments stay.")
   })
 
-  it("moves focus to the People list when it's on this page, and leaves the link to navigate when it isn't", () => {
-    const people = { focus: vi.fn() }
-    const page = { location: { href: "https://app.example.test/settings/profile", pathname: "/settings/profile" }, getElementById: (id: string) => id === "people" ? people : null }
-    expect(focusOnThisPage("#people", page)).toBe(true)
-    expect(people.focus).toHaveBeenCalledOnce()
-    expect(focusOnThisPage("/settings/profile#people", page)).toBe(true)
-    expect(people.focus).toHaveBeenCalledTimes(2)
-    expect(focusOnThisPage("/settings/members#people", page)).toBe(false)
-    expect(focusOnThisPage("#nobody", page)).toBe(false)
-    expect(people.focus).toHaveBeenCalledTimes(2)
+  it("shows the People list from its link, and leaves a click that opens a new tab to the browser", () => {
+    const onPeopleList = vi.fn<() => void>()
+    render({ onlyAdmin: true, onPeopleList })
+    const click = (keys: Partial<MouseEvent> = {}) => {
+      const preventDefault = vi.fn()
+      links.at(-1)?.onClick?.({ button: 0, preventDefault, ...keys } as unknown as ReactMouseEvent<HTMLAnchorElement>)
+      return preventDefault.mock.calls.length
+    }
+    expect([click(), onPeopleList.mock.calls.length]).toEqual([1, 1])
+    for (const keys of [{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }]) expect([keys, click(keys)]).toEqual([keys, 0])
+    expect(onPeopleList).toHaveBeenCalledOnce()
   })
 
   it("shows the only-Admin sentence when the server refuses, for Lane's code and both of Better Auth's", async () => {

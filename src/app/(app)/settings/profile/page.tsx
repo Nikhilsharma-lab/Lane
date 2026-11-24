@@ -1,4 +1,3 @@
-import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { membersPanel } from "../members/members-panel";
 import { redirect } from "next/navigation";
 import { timePage } from "@/lib/request-timings";
@@ -29,7 +28,6 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   return <>
       <SettingsCommandAdapter billingEnforced={billingEnforced()} membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section}
         members={membersPanel(workspace)}
-        workspaceManagement={workspace.role !== "guest" ? <ClerkWorkspaceProfile /> : undefined}
         account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
         security={<AccountSecurity />}
         role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />}
