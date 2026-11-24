@@ -224,7 +224,7 @@ describe("deleting a workspace", () => {
       select c.table_name, c.column_name from information_schema.columns c
       join pg_tables t on t.schemaname = c.table_schema and t.tablename = c.table_name
       where c.table_schema = 'public' and c.column_name in ('org_id', 'organization_id') order by c.table_name`
-    const rows: Record<string, unknown[]> = {
+    const rows: Record<string, readonly unknown[]> = {
       organizations: await sql`select * from organizations where id = ${orgId}`,
       comments: await sql`select comments.* from comments join requests on requests.id = comments.request_id where requests.org_id = ${orgId} order by comments.id`,
     }
@@ -232,7 +232,7 @@ describe("deleting a workspace", () => {
       rows[table] = (await sql`select to_jsonb(t) as row from ${sql(table)} t where ${sql(column)} = ${orgId} order by to_jsonb(t)::text`).map((found) => found.row)
     return rows
   }
-  const tablesWithRows = (rows: Record<string, unknown[]>) => Object.keys(rows).filter((table) => rows[table].length > 0).sort()
+  const tablesWithRows = (rows: Record<string, readonly unknown[]>) => Object.keys(rows).filter((table) => rows[table].length > 0).sort()
 
   it("leaves no row for the workspace, with released and Closed Requests in it, and touches no other workspace's rows", async () => {
     const { orgId, admin } = await filledWorkspace("closing")
