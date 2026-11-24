@@ -4,8 +4,8 @@
 .column { display: grid; min-width: 0; width: 100%; max-width: calc(var(--spacing) * 100); gap: var(--space-4); }
 .form { display: grid; min-width: 0; width: 100%; gap: var(--space-8); }
 .heading { display: grid; gap: var(--space-3); }
-.title { margin: 0; font-family: var(--font-display); font-size: var(--text-2xl); line-height: var(--leading-display); letter-spacing: var(--tracking-display); font-weight: var(--weight-semibold); }
-.description, .notice { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
+.title { margin: 0; font-family: var(--font-display); font-size: var(--text-2xl); line-height: var(--leading-display); letter-spacing: var(--tracking-display); font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+.description, .notice { margin: 0; overflow-wrap: anywhere; color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--leading-body); }
 /* D16 (#290): the password field's message matches Arc input's error size, so both recovery fields read alike. */
 .error { margin: 0; color: var(--danger); font-size: var(--text-xs); line-height: var(--leading-body); overflow-wrap: anywhere; }
 .headerLink { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); }
@@ -22,7 +22,10 @@
 .textButton[aria-disabled] { cursor: default; }
 .trust { display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); line-height: var(--leading-body); }
 .field { display: grid; gap: var(--space-2); }
-.fieldExtra { display: flex; justify-content: flex-end; }
+/* #405: 16px text on phones and touch screens, so focusing a field doesn't zoom the page. */
+@media (max-width: 640px), (pointer: coarse) { .field input { font-size: var(--text-base); } }
+/* #405: "Forgot password?" reads at the screen's 14px, as #346's prototype has it. */
+.fieldExtra { display: flex; justify-content: flex-end; font-size: var(--text-sm); }
 .disabled { margin: 0; padding: 0; border: 0; min-width: 0; }
 .disabled:disabled { opacity: var(--opacity-disabled); }
 /* D10 (#290): the line naming the role keys; fine pointers only, as the key caps are. */

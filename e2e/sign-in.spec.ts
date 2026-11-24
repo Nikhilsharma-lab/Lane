@@ -119,6 +119,29 @@ test("a wrong password shows its line on the password", async ({ page }) => {
   });
 });
 
+// #405: iOS zooms the page in when a field's text is under 16 px.
+test("on a phone, the signed-out forms fit the screen and focusing a field doesn't zoom it", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage();
+    for (const [address, fields] of [
+      ["/login", ["Email address", "Password"]],
+      ["/login?start=code-request", ["Email address"]],
+      ["/signup", ["Your name", "Email address", "Choose a password"]],
+      ["/forgot-password", ["Email address"]],
+    ] as const) {
+      await openForm(page, address);
+      for (const label of fields) {
+        const size = await page.getByLabel(label, { exact: true }).evaluate((field) => parseFloat(getComputedStyle(field).fontSize));
+        expect(size, `${label} on ${address}`).toBeGreaterThanOrEqual(16);
+      }
+      expect(await page.evaluate(() => document.scrollingElement!.scrollWidth), address).toBe(390);
+    }
+  } finally {
+    await context.close();
+  }
+});
+
 test("an unknown email shows its line, with sign-up one press away and the email kept", async ({ page }) => {
   const unknown = testEmail("unknown");
   await openForm(page, "/login");

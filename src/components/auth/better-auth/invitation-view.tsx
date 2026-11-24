@@ -26,6 +26,9 @@ export type InvitationViewProps = {
 const ALERT_ID = "invitation-alert"
 const SCREEN_ID = "invitation-screen"
 
+/** A button's words when they name an email or a workspace, which may be long. */
+const LongLabel = ({ children }: { children: ReactNode }) => <span className={invitations.longLabel}>{children}</span>
+
 /** #376 story 94: after a refused press, focus goes to the box, or to the new screen a refusal moved to. */
 function focusRefusal(before: InvitationState, after: InvitationState) {
   const target = after.alert ? ALERT_ID : after.screen !== before.screen && after.screen !== "joined" ? SCREEN_ID : null
@@ -91,14 +94,14 @@ export function InvitationView({ invitation, viewer, openWorkspace, onJoined }: 
       return shell("This invitation is for someone else", <>It was sent to <strong>{email}</strong>, and you’re signed in as <strong>{current}</strong>.</>, <>
         {card}
         {box}
-        <AuthAction type="button" loading={pending === "sign-out"} onClick={() => void act(flow.signInAsInvited)}>Sign out and sign in as {email}</AuthAction>
-        <AuthAction type="button" kind="tertiary" onClick={flow.goToLane}>Stay signed in as {current}</AuthAction>
+        <AuthAction type="button" loading={pending === "sign-out"} onClick={() => void act(flow.signInAsInvited)}><LongLabel>Sign out and sign in as {email}</LongLabel></AuthAction>
+        <AuthAction type="button" kind="tertiary" onClick={flow.goToLane}><LongLabel>Stay signed in as {current}</LongLabel></AuthAction>
       </>)
     }
     case "expired": return shell("This invitation has expired", `Invitations last 7 days. Ask an Admin of ${workspace} to send it again.`, goToLane)
     case "already-accepted": return shell(`You’re already in ${workspace}`, "This invitation has been accepted.", <>
       {box}
-      <AuthAction type="button" loading={pending === "open"} onClick={() => void act(flow.openWorkspace)}>Open {workspace}</AuthAction>
+      <AuthAction type="button" loading={pending === "open"} onClick={() => void act(flow.openWorkspace)}><LongLabel>Open {workspace}</LongLabel></AuthAction>
     </>)
     case "cancelled": return shell("This invitation can’t be used", `It was cancelled or declined. Ask an Admin of ${workspace} for a new one.`, goToLane)
     case "closed": {
