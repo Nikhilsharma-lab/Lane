@@ -3,7 +3,6 @@
 import { useOrganization } from "@clerk/nextjs";
 import { useCallback, useEffect } from "react";
 import { changeMemberRole, inviteToWorkspace, revokeInvitation } from "@/app/(app)/settings/members/actions";
-import type { WorkspacePermission } from "@/lib/auth-guard";
 import { clerkWorkspacePermission } from "@/lib/role-rules";
 import type { PendingInvitation, WorkspaceMember } from "@/lib/member-role-rules";
 import { WorkspaceMembersView } from "./workspace-members-view";
@@ -16,7 +15,7 @@ const PAGE = { infinite: true, pageSize: 100, keepPreviousData: true } as const;
  * invitations from Clerk's invitations (Admins only), read in the browser like Clerk's own members page. Every
  * change goes through Lane's server actions, which ask Clerk; the lists reload afterwards. Lane stores none of it.
  */
-export function WorkspaceMembers({ orgId, selfId, canManage, roles, confirmPaidSeats = false }: { orgId: string; selfId: string; canManage: boolean; roles: WorkspacePermission[]; confirmPaidSeats?: boolean }) {
+export function WorkspaceMembers({ orgId, selfId, canManage, confirmPaidSeats = false }: { orgId: string; selfId: string; canManage: boolean; confirmPaidSeats?: boolean }) {
   const { isLoaded, memberships, invitations } = useOrganization({
     memberships: PAGE,
     invitations: canManage ? { ...PAGE, status: ["pending"] } : undefined,
@@ -39,7 +38,7 @@ export function WorkspaceMembers({ orgId, selfId, canManage, roles, confirmPaidS
 
   const after = <T extends { success?: true; error?: string }>(answer: T) => { if (answer.success) reload(); return answer; };
 
-  return <WorkspaceMembersView people={people} invitations={pending} selfId={selfId} canManage={canManage} roles={roles} manage={canManage ? <ClerkMembersRemove /> : undefined}
+  return <WorkspaceMembersView people={people} invitations={pending} selfId={selfId} canManage={canManage} manage={canManage ? <ClerkMembersRemove /> : undefined}
     state={failed ? "error" : loading ? "loading" : "ready"} onRetry={reload} confirmPaidSeats={confirmPaidSeats}
     onInvite={async (email, role, confirmedPaidSeat) => after(await inviteToWorkspace({ email, role, confirmedPaidSeat }, { orgId }))}
     onChangeRole={async (userId, role, confirmedPaidSeat) => after(await changeMemberRole({ userId, role, confirmedPaidSeat }, { orgId }))}
