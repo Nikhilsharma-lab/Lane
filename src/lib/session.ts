@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { db, profiles } from "@/db";
 import type { WorkspacePermission } from "./auth-guard";
 import { RETURN_ADDRESS_HEADER, signInReturningTo } from "./auth-return-address";
-import { readBetterAuthSession, readBetterAuthWorkspaceLeft } from "./better-auth-session";
+import { readBetterAuthSession, readBetterAuthSessions, readBetterAuthWorkspaceLeft } from "./better-auth-session";
 
 /**
  * #350 / #387: the session seam, the only Lane server code that reads who is signed in. It speaks Lane's terms
@@ -45,4 +45,12 @@ export async function readAccount(): Promise<Account | null> {
     .where(eq(profiles.id, session.userId))
     .limit(1);
   return account ?? null;
+}
+
+/** One of the person's signed-in sessions. `current` is the one making this request. */
+export type SignedInSession = { id: string; userAgent: string | null; signedInAt: Date; lastUsedAt: Date; current: boolean };
+
+/** The signed-in person's own unexpired sessions, for Settings → Profile's devices (#394), or null for anyone signed out. */
+export async function readSignedInDevices(): Promise<SignedInSession[] | null> {
+  return readBetterAuthSessions(await cookies());
 }

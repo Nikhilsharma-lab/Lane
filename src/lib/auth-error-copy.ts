@@ -135,6 +135,11 @@ export const AUTH_ERROR_COPY = {
   // last sign-in method: #346's words.
   INVALID_PASSWORD: "That isn’t your current password.",
   FAILED_TO_UNLINK_LAST_ACCOUNT: GOOGLE_ONLY_METHOD,
+  // Proposed for Nikhil (#394): a first password sent from a page opened before one was set; Better Auth disconnects
+  // Google only within a day of signing in; a device another tab, or that device, already signed out.
+  PASSWORD_ALREADY_SET: "Your account already has a password. Reload the page to change it.",
+  SESSION_NOT_FRESH: "You signed in more than a day ago. Sign out and sign in again, then try this again.",
+  DEVICE_NOT_FOUND: "This device is already signed out. Reload the page to see where you’re signed in now.",
   // Lane's codes for Google's redirect back to Settings after Connect Google (`googleConnectionCode`): its
   // `email_does_not_match`, its `account_already_linked_to_different_user`, and any other `error`. The redirect's own
   // codes keep the sign-in line, which tells a person to use their email instead. Nikhil's words (2026-11-23).

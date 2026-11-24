@@ -1,11 +1,12 @@
 import "server-only"
 
 import { createHmac, timingSafeEqual } from "node:crypto"
-import { and, asc, eq, gt, notExists, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gt, notExists, or, sql } from "drizzle-orm"
+import { alias } from "drizzle-orm/pg-core"
 import { db, member, profiles, session, workspaces } from "@/db"
 import { betterAuthServer } from "./feature-switches"
 import { isWorkspacePermission } from "./role-rules"
-import type { Session } from "./session"
+import type { Session, SignedInSession } from "./session"
 import { sessionCookie, type RequestCookies } from "./session-cookies"
 
 /**
@@ -65,7 +66,26 @@ export async function readBetterAuthWorkspaceLeft(cookies: RequestCookies): Prom
   return left?.name ?? null
 }
 
-/** The session token in the request's cookie, when Better Auth is on and signed it; else null. */
+/**
+ * #394: the signed-in person's unexpired sessions, this request's first and then the last used, or null for anyone
+ * signed out. One query, from the same verified token as the session read. It selects no token, IP address or place:
+ * only its id goes to the browser (#346 point 5).
+ */
+export async function readBetterAuthSessions(cookies: RequestCookies): Promise<SignedInSession[] | null> {
+  const token = sessionToken(cookies)
+  if (!token) return null
+  const own = alias(session, "own")
+  const current = sql<boolean>`${session.token} = ${own.token}`
+  const rows = await db
+    .select({ id: session.id, userAgent: session.userAgent, signedInAt: session.createdAt, lastUsedAt: session.updatedAt, current })
+    .from(own)
+    .innerJoin(session, eq(session.userId, own.userId))
+    .where(and(eq(own.token, token), gt(own.expiresAt, sql`now()`), gt(session.expiresAt, sql`now()`)))
+    .orderBy(desc(current), desc(session.updatedAt), asc(session.id))
+  return rows.length ? rows : null
+}
+
+/** The session token in the request's cookie, when Better Auth's server is on and signed it. */
 function sessionToken(cookies: RequestCookies): string | null {
   const server = betterAuthServer()
   const value = sessionCookie(cookies)
