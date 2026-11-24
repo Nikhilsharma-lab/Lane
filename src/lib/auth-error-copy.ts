@@ -132,6 +132,9 @@ export const AUTH_ERROR_COPY = {
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "Confirm your email before you accept. Email yourself a code to confirm it.",
   // Workspace rows (#381). Lane's own last-Admin refusal reads as Better Auth's only-owner codes do.
   ONLY_ADMIN,
+  // Proposed for Nikhil (#395): a Settings page whose workspace the session isn't in now. The person opened another
+  // workspace in another tab, or was removed from this one.
+  WORKSPACE_NOT_OPEN: "This page’s workspace isn’t open any more. Reload the page to continue.",
   // Proposed for Nikhil (#381): removing someone another Admin removed first.
   MEMBER_NOT_FOUND: "This person is no longer in this workspace. Reload the page to see who’s in it now.",
   // Proposed for Nikhil (#396): Lane's code for an Admin removing themselves, which the screen never offers.

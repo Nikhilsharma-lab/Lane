@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { timePage, timed } from "@/lib/request-timings";
-import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { canChangeThings } from "@/lib/role-rules";
 import { membersPanel } from "../../members/members-panel";
 import { MetricDefinitionList } from "@/components/metrics/metric-definition-list";
@@ -44,7 +43,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
           addDefinition={canEdit ? ({ id, name, unit, link, howCounted }) => <AddHowCountedDialog orgId={workspace.orgId} definition={{ id, name, unit, link, howCounted }} /> : undefined} />
       </SettingsBlock>
     </SettingsGroup>}
-    members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
+    members={membersPanel(workspace)}
     role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
     {...panels} />
     <SettingsEarlySearch /></>;

@@ -5,14 +5,14 @@ import { revalidatePath } from "next/cache";
 import { db, invitation, member } from "@/db";
 import type { AuthAnswer } from "@/lib/auth-answer";
 import { AUTH_ERROR_COPY, isAuthErrorCode, type AuthErrorCode } from "@/lib/auth-error-copy";
-import { guardOwnerOrAdmin } from "@/lib/auth-guard";
+import { guardActiveMember, guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { askAuthServer } from "@/lib/auth-server";
 import { followSeatChanges } from "@/lib/billing";
 import { billingEnforced } from "@/lib/feature-switches";
 import {
   addsPaidSeat, CONFIRM_PAID_SEAT, inviteInputSchema, removeMemberInputSchema, revokeInvitationInputSchema, roleChangeInputSchema,
 } from "@/lib/member-role-rules";
-import { isWorkspacePermission } from "@/lib/role-rules";
+import { isWorkspacePermission, managesWorkspace } from "@/lib/role-rules";
 import type { WorkspacePermission } from "@/lib/auth-guard";
 
 /**
@@ -117,8 +117,9 @@ export async function revokeInvitation(data: { invitationId: string }, context: 
 /** #396: takes someone else out of the workspace. Their Requests, comments and profile stay. */
 export async function removeMember(data: { userId: string }, context: { orgId: string }): Promise<AuthAnswer> {
   const refused = (code: AuthErrorCode) => ({ ok: false, code }) as const;
-  const auth = await guardOwnerOrAdmin(context.orgId, AUTH_ERROR_COPY.YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER);
-  if ("error" in auth) return refused(auth.sessionExpired ? "UNAUTHORIZED" : "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER");
+  const auth = await guardActiveMember(context.orgId, "");
+  if ("error" in auth) return refused(auth.sessionExpired ? "UNAUTHORIZED" : "WORKSPACE_NOT_OPEN");
+  if (!managesWorkspace(auth.role)) return refused("YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER");
   const parsed = removeMemberInputSchema.safeParse(data);
   if (!parsed.success) return refused("MEMBER_NOT_FOUND");
   const { userId } = parsed.data;

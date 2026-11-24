@@ -322,7 +322,7 @@ describe("removing someone", () => {
     const elsewhere = await seated(other.orgId, "member");
     expect(await remove(admin, elsewhere)).toEqual(NOT_HERE);
     expect(await remove(admin, "")).toEqual(NOT_HERE);
-    expect(await remove({ browser: admin.browser, ctx: other.ctx }, elsewhere)).toEqual(NOT_ALLOWED);
+    expect(await remove({ browser: admin.browser, ctx: other.ctx }, elsewhere)).toEqual({ ok: false, code: "WORKSPACE_NOT_OPEN" });
     expect(await remove({ browser: new AuthBrowser(), ctx: other.ctx }, elsewhere)).toEqual({ ok: false, code: "UNAUTHORIZED" });
     expect(await roleOf(other.orgId, elsewhere)).toBe("member");
   });

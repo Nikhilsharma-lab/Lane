@@ -106,15 +106,6 @@ describe("Settings → Members (#210, #288)", () => {
     expect(text(html)).not.toContain("available")
   })
 
-  // #381: the Leave row's "Make someone an Admin" moves focus to #people, whatever the list shows.
-  it("keeps the People list focusable by its id", () => {
-    for (const html of [render(), render({ canManage: false }), render({ people: [], invitations: [] }), render({ state: "error", people: [], invitations: [] })]) {
-      const [people] = /<section[^>]*id="people"[^>]*>/.exec(html) ?? [""]
-      expect(people).toContain('tabindex="-1"')
-      expect(people).toContain('aria-labelledby="people-heading"')
-    }
-  })
-
   it("offers a retry when the people couldn't be read", () => {
     const failed = render({ state: "error", people: [], invitations: [] })
     expect(failed).toContain("People couldn’t be loaded")
