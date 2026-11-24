@@ -1,18 +1,23 @@
 import { expect, type Page } from "@playwright/test";
 import { formReady, openForm, passHumanCheck, test, typeCode } from "./helpers/auth-forms";
-import { cleanupTestWorkspace, provisionTestWorkspace } from "./helpers/cleanup";
+import { cleanupTestWorkspace, provisionTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { replaceEmailCode } from "./helpers/email-codes";
 import { testEmail } from "./helpers/fixtures";
 import { createTestUser, deleteTestUser, readTestSession, type TestUser } from "./helpers/test-user";
 
+const REQUEST = "The Request behind the link";
 const RETURN_ADDRESS = "/?status=open";
 const SIGN_IN_THEN_RETURN = `/login?${new URLSearchParams({ redirect_url: RETURN_ADDRESS })}`;
 
-/** Runs with a person in a workspace, who is deleted after. */
+/**
+ * Runs with a person in a workspace, who is deleted after. The workspace has a Request, because an empty one drops the
+ * status view from the list's address.
+ */
 async function withPerson(label: string, run: (user: TestUser) => Promise<void>) {
   const user = await createTestUser(label);
   try {
     await provisionTestWorkspace({ userId: user.id, email: user.email, name: "Lane E2E", workspaceName: `Lane E2E ${label}` });
+    await seedTestRequest(user.id, REQUEST);
     await run(user);
   } finally {
     await cleanupTestWorkspace(user.id);
@@ -26,8 +31,8 @@ const signIn = (page: Page) => page.getByRole("button", { name: "Sign in", exact
 
 /** Signed in as this person, on the page they were sent from. */
 async function expectReturned(page: Page, user: TestUser) {
+  await expect(page.getByRole("link", { name: REQUEST, exact: true })).toBeVisible();
   await expect(page).toHaveURL(RETURN_ADDRESS);
-  await expect(page.getByRole("heading", { name: "Requests", exact: true })).toBeVisible();
   expect((await readTestSession(page))?.userId).toBe(user.id);
 }
 
