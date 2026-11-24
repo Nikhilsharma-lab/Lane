@@ -122,6 +122,9 @@ export const AUTH_ERROR_COPY = {
   ROLE_NOT_IN_LANE: "Lane has no such role. Choose Admin, Member, Guest or Viewer.",
   // Invitations (#373).
   INVITATION_LIMIT_REACHED: "This workspace already has 100 invitations waiting. Cancel some on the Members page in Settings, then invite again.",
+  // Proposed for Nikhil (#396): Lane's code for inviting someone into a workspace that has 100 people. Better Auth
+  // refuses only as they accept, with the next one.
+  WORKSPACE_FULL: "This workspace already has 100 people, Lane’s limit. Remove someone, then invite again.",
   ORGANIZATION_MEMBERSHIP_LIMIT_REACHED: "This workspace already has 100 people, Lane’s limit. Ask an Admin to remove someone, then accept again.",
   // Expired, cancelled, or already accepted.
   INVITATION_NOT_FOUND: "This invitation has expired or is no longer open. Ask the person who invited you to send a new one.",
@@ -131,6 +134,8 @@ export const AUTH_ERROR_COPY = {
   ONLY_ADMIN,
   // Proposed for Nikhil (#381): removing someone another Admin removed first.
   MEMBER_NOT_FOUND: "This person is no longer in this workspace. Reload the page to see who’s in it now.",
+  // Proposed for Nikhil (#396): Lane's code for an Admin removing themselves, which the screen never offers.
+  CANNOT_REMOVE_YOURSELF: "You can’t remove yourself. Leave the workspace in Settings instead.",
   // Settings → Profile's account section (#380). Changing a password with the wrong current one, and unlinking the
   // last sign-in method: #346's words.
   INVALID_PASSWORD: "That isn’t your current password.",

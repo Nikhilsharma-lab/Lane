@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode, type Ref } from "react";
+import { useRef, useState, useSyncExternalStore, type FormEvent, type Ref } from "react";
 import { couldNotOpen, popupCode, usePopupCode } from "@/components/popup/lazy-popup";
 import { Dialog, DialogClose, DialogContent } from "@/components/popup/adaptive-dialog";
 import { PermanentActionConfirmation } from "@/components/popup/permanent-action-confirmation";
@@ -27,7 +27,6 @@ import { SettingsBlock, SettingsGroup, SettingsRow, SettingsRowFailure, Settings
 import { createConfirmation } from "./workspace-rows-state";
 import styles from "./settings.module.css";
 import members from "./members.module.css";
-import { Placeholder } from "@/components/loading/placeholder";
 
 /** #215: loaded the first time a paid seat is confirmed, so the confirmation adds nothing to any first load. */
 // If it can't load, Lane says so and nobody is added.
@@ -43,21 +42,19 @@ export type WorkspaceMembersViewProps = {
   selfId: string;
   /** An Admin: invites, changes roles and revokes invitations. */
   canManage: boolean;
-  state: "loading" | "ready" | "error";
+  /** `error`: the lists couldn't be read. */
+  state: "ready" | "error";
   /** #215: while billing is enforced, adding a paid seat (Admin or Member) is confirmed first. */
   confirmPaidSeats?: boolean;
-  /** An Admin's way to remove people, which stays in Clerk; shown under the lists, above the role guide. */
-  manage?: ReactNode;
   onInvite: (email: string, role: WorkspacePermission, confirmedPaidSeat?: boolean) => Promise<Answer>;
   onChangeRole: (userId: string, role: WorkspacePermission, confirmedPaidSeat?: boolean) => Promise<Answer>;
   onRevoke: (invitationId: string) => Promise<Answer>;
   onRetry: () => void;
   /**
-   * #381: with it, an Admin removes anyone but themselves after a red confirmation naming the workspace; `onRemove`
-   * answers success or an error code. Without it (the Clerk adapter, which removes in Clerk through `manage`), the
-   * view is exactly as before.
+   * #381: an Admin removes anyone but themselves after a red confirmation naming the workspace; `onRemove` answers
+   * success or an error code.
    */
-  remove?: { workspaceName: string; onRemove: (userId: string) => Promise<AuthAnswer> };
+  remove: { workspaceName: string; onRemove: (userId: string) => Promise<AuthAnswer> };
 };
 
 const FAILED = "Couldn’t reach Lane. Try again.";
@@ -84,10 +81,10 @@ async function attempt(run: () => Promise<Answer>): Promise<Answer> {
 /**
  * #210 Settings → Members, for Admins and Members (Viewers and Guests don't get this section). Everyone here sees
  * and searches the people and their roles. An Admin also invites one person at a time from Invite people, changes
- * anyone else's role and revokes pending invitations. Clerk holds every membership and invitation.
+ * anyone else's role, revokes pending invitations and removes people (#381).
  *
- * #288 (#325, accepted design A, stacked groups): search over People, Pending invitations below, the Clerk removal
- * row, then "What each role can do" folded at the bottom. A failed role change or revoke says so on its row with Try
+ * #288 (#325, accepted design A, stacked groups): search over People, Pending invitations below, then
+ * "What each role can do" folded at the bottom. A failed role change or revoke says so on its row with Try
  * again, and the row keeps its role or invitation. The invite form's address and role stay while Settings switches
  * sections in place, and after a failed send; a sent invitation closes the form and appears under Pending invitations.
  *
@@ -95,7 +92,7 @@ async function attempt(run: () => Promise<Answer>): Promise<Answer> {
  * first asks the Admin to confirm "This adds a paid seat". Cancelling changes nothing; focus goes back to the
  * control that asked.
  */
-export function WorkspaceMembersView({ people, invitations, selfId, canManage, state, confirmPaidSeats = false, manage, onInvite, onChangeRole, onRevoke, onRetry, remove }: WorkspaceMembersViewProps) {
+export function WorkspaceMembersView({ people, invitations, selfId, canManage, state, confirmPaidSeats = false, onInvite, onChangeRole, onRevoke, onRetry, remove }: WorkspaceMembersViewProps) {
   const [query, setQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -178,7 +175,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, s
   // The count sits beside the group's name, outside what names the group.
   const count = (n: number) => <>{" "}<span className={members.groupCount} aria-hidden="true">{n}</span></>;
   // Nikhil (2026-11-23): a removal says so in the status line, as a role change does, until another change starts.
-  const removed = remove && removing.done && removing.target ? `${removing.target.name} was removed from ${remove.workspaceName}.` : "";
+  const removed = removing.done && removing.target ? `${removing.target.name} was removed from ${remove.workspaceName}.` : "";
 
   return <>
     <div className={members.membersBar}>
@@ -186,9 +183,9 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, s
       {canManage && <Button type="button" disabled={state !== "ready"} onClick={() => { setInviteError(null); setInviteOpen(true); }}>Invite people</Button>}
     </div>
 
-    <SettingsGroup label={<><span id="people-heading">People</span>{state === "ready" && count(shown.length)}</>} aria-labelledby="people-heading"
+    {/* Focusable: the Leave row's "Make someone an Admin" moves focus here (#381). */}
+    <SettingsGroup id="people" tabIndex={-1} label={<><span id="people-heading">People</span>{state === "ready" && count(shown.length)}</>} aria-labelledby="people-heading"
       description={canManage ? "Everyone in this workspace. Change someone’s role to change what they can do." : "Everyone in this workspace and their role. Only Admins invite people or change roles."}>
-      {state === "loading" && <SettingsBlock><Placeholder label="Loading people…" lines={3} avatar /></SettingsBlock>}
       {state === "error" && <SettingsBlock><Alert role="alert" tone="danger" title="People couldn’t be loaded" /><Button variant="secondary" size="sm" onClick={onRetry}>{TRY_AGAIN}</Button></SettingsBlock>}
       {state === "ready" && (shown.length ? <SettingsRowList label="People in this workspace">
         {shown.map(person => {
@@ -202,9 +199,9 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, s
                 trigger={<Button type="button" variant="secondary" size="sm" disabled={self} loading={busy === person.userId} aria-label={`${label}: ${roleName(person.role)}`}
                   aria-describedby={ownNote} data-seat-return={person.userId}>{roleName(person.role)}</Button>} />
             : <Badge>{roleName(person.role)}</Badge>;
-          return <SettingsRow as="li" key={person.userId} leading={<Avatar name={person.name} src={person.imageUrl} size="sm" unoptimized />}
+          return <SettingsRow as="li" key={person.userId} leading={<Avatar name={person.name} size="sm" />}
             label={<>{person.name}{self && <span className={members.you}> (you)</span>}</>} hint={person.email}
-            control={remove && canManage && !self
+            control={canManage && !self
               ? <>{role}<Button type="button" variant="ghost" size="sm" aria-label={`Remove ${person.name}`} onClick={() => removal.ask(person)}>Remove</Button></>
               : role}>
             {ownNote && <p id={ownNote} className={styles.note}>{OWN_ROLE}</p>}
@@ -229,15 +226,13 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, s
             </SettingsRow>)}
           </SettingsRowList>
         : <SettingsBlock><p>No invitations are waiting.</p></SettingsBlock>)}
-      {state === "loading" && <SettingsBlock><Placeholder label="Loading invitations…" lines={1} /></SettingsBlock>}
     </SettingsGroup>}
 
     <p role="status" className={members.membersStatus}>{status || removed}</p>
-    {manage}
     <RoleGuide />
 
     {canManage && <Dialog open={inviteOpen} dismissible={busy !== "invite"} onOpenChange={setInviteOpen}>
-      <DialogContent className={members.inviteDialog} title="Invite people" description="Clerk emails them an invitation to this workspace.">
+      <DialogContent className={members.inviteDialog} title="Invite people" description="Lane emails them an invitation to this workspace.">
         <InvitePeopleForm email={email} role={inviteRole} confirmPaidSeats={confirmPaidSeats} busy={busy === "invite"} fieldError={fieldError} error={inviteError} emailRef={emailRef}
           onEmail={value => { setEmail(value); setFieldError(null); }} onRole={setInviteRole} onSubmit={invite} />
       </DialogContent>
@@ -247,7 +242,7 @@ export function WorkspaceMembersView({ people, invitations, selfId, canManage, s
       onConfirm={() => { setSeatOpen(false); seat.add(); }} />}
 
     {/* #381: the person stays named while the confirmation leaves; once they're gone from the list, focus goes to search. */}
-    {remove && removing.target && <RemovePersonConfirmation person={removing.target} workspaceName={remove.workspaceName} open={removing.open} busy={removing.busy}
+    {removing.target && <RemovePersonConfirmation person={removing.target} workspaceName={remove.workspaceName} open={removing.open} busy={removing.busy}
       error={removing.error} returnFocus={() => searchRef.current} onOpenChange={open => { if (!open) removal.dismiss(); }}
       onConfirm={person => { setStatus(""); void removal.confirm(() => remove.onRemove(person.userId)); }} />}
   </>;

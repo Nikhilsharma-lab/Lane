@@ -58,7 +58,7 @@ export function SettingsCommandAdapter({ membership, billingEnforced = false, wo
   const resolvedSection = requested?.soon ? "coming-soon" : section;
   const selected = nav.find(e => e.id === resolvedSection) ?? nav[0];
   const current = selected.id;
-  // #258: Members' content (and Clerk's member list) mounts the first time Members is shown, however it is
+  // #258: Members' content mounts the first time Members is shown, however it is
   // reached (its own page, an in-place switch or a search result), then stays mounted for the visit.
   const [membersShown, setMembersShown] = useState(current === "members");
   if (current === "members" && !membersShown) setMembersShown(true);

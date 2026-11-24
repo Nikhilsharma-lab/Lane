@@ -23,6 +23,7 @@ const done = async () => ({ success: true as const })
 const base: WorkspaceMembersViewProps = {
   people, invitations, selfId: "user_admin", canManage: true, state: "ready",
   onInvite: done, onChangeRole: done, onRevoke: done, onRetry: () => {},
+  remove: { workspaceName: "Acme Design", onRemove: async () => ({ ok: true }) },
 }
 const render = (props: Partial<WorkspaceMembersViewProps> = {}) => renderToStaticMarkup(createElement(WorkspaceMembersView, { ...base, ...props }))
 
@@ -81,11 +82,10 @@ describe("Settings → Members (#210, #288)", () => {
     expect(text(html)).toContain("Only Admins invite people or change roles.")
   })
 
-  it("puts the Clerk removal row under the lists and the role guide, folded, at the bottom", () => {
-    const html = render({ manage: createElement("p", null, "Manage members in Clerk") })
+  it("puts the role guide, folded, under the lists", () => {
+    const html = render()
     const at = (needle: string) => html.indexOf(needle)
-    expect(at('aria-label="Pending invitations"')).toBeLessThan(at("Manage members in Clerk"))
-    expect(at("Manage members in Clerk")).toBeLessThan(at("What each role can do"))
+    expect(at('aria-label="Pending invitations"')).toBeLessThan(at("What each role can do"))
     expect(html).toMatch(/<details(?![^>]*\bopen\b)[^>]*><summary>/)
   })
 
@@ -106,8 +106,16 @@ describe("Settings → Members (#210, #288)", () => {
     expect(text(html)).not.toContain("available")
   })
 
-  it("says so while loading, and offers a retry when Clerk can't be reached", () => {
-    expect(render({ state: "loading", people: [], invitations: [] })).toContain("Loading people…")
+  // #381: the Leave row's "Make someone an Admin" moves focus to #people, whatever the list shows.
+  it("keeps the People list focusable by its id", () => {
+    for (const html of [render(), render({ canManage: false }), render({ people: [], invitations: [] }), render({ state: "error", people: [], invitations: [] })]) {
+      const [people] = /<section[^>]*id="people"[^>]*>/.exec(html) ?? [""]
+      expect(people).toContain('tabindex="-1"')
+      expect(people).toContain('aria-labelledby="people-heading"')
+    }
+  })
+
+  it("offers a retry when the people couldn't be read", () => {
     const failed = render({ state: "error", people: [], invitations: [] })
     expect(failed).toContain("People couldn’t be loaded")
     expect(failed).toContain(">Try again<")

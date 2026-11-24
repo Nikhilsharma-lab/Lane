@@ -5,7 +5,7 @@ import { canChangeThings, canContribute, canCreateRequests, managesWorkspace, re
 
 /**
  * Settings → Members (#210), safe in the browser: the roles an Admin can give, what each one means, and the
- * shapes the invite and role actions accept. Clerk stores every membership and invitation; Lane only asks it.
+ * shapes the Members actions accept. Better Auth stores every membership and invitation; Lane only asks it.
  */
 
 export { WORKSPACE_ROLES }
@@ -16,11 +16,6 @@ export const ROLE_DESCRIPTIONS: Record<WorkspacePermission, string> = {
   member: "Paid seat. Files, reviews, picks up, releases and closes Requests.",
   guest: "Free. Files Requests and sees and comments on only their own.",
   viewer: "Free. Reads everything a Member reads, including Impact, and changes nothing.",
-}
-
-/** The Clerk role key for a Lane role. */
-export function clerkRoleOf(role: WorkspacePermission): `org:${WorkspacePermission}` {
-  return `org:${role}`
 }
 
 /** #215: Admins and Members are the paid seats; Guests and Viewers are free. */
@@ -96,7 +91,11 @@ export const revokeInvitationInputSchema = z.object({
   invitationId: z.string().trim().min(1).max(200),
 }).strict()
 
+export const removeMemberInputSchema = z.object({
+  userId: z.string().trim().min(1).max(200),
+}).strict()
+
 /** A pending invitation as Settings → Members lists it. */
 export type PendingInvitation = { id: string; email: string; role: WorkspacePermission | null }
 /** A person in the workspace as Settings → Members lists it. `role` is null for a role Lane doesn't know. */
-export type WorkspaceMember = { userId: string; name: string; email: string; role: WorkspacePermission | null; imageUrl?: string }
+export type WorkspaceMember = { userId: string; name: string; email: string; role: WorkspacePermission | null }

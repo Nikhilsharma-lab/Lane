@@ -19,7 +19,6 @@ vi.mock("./workspace-rows-state", async importOriginal => {
 const removal = () => { if (!view.removal) throw new Error("The view made no confirmation."); return view.removal }
 const confirmation = () => { const last = renderedConfirmations().at(-1); if (!last) throw new Error("No confirmation rendered."); return last }
 
-// The fixtures of workspace-members-view.test.ts, so the Clerk build's render is compared on the same people.
 const people: WorkspaceMember[] = [
   { userId: "user_admin", name: "Avery Admin", email: "avery@example.test", role: "admin" },
   { userId: "user_member", name: "Morgan Member", email: "morgan@example.test", role: "member" },
@@ -27,28 +26,14 @@ const people: WorkspaceMember[] = [
 ]
 const invitations: PendingInvitation[] = [{ id: "orginv_1", email: "new@example.test", role: "member" }]
 const done = async () => ({ success: true as const })
+const removed = async () => ({ ok: true as const })
 const base: WorkspaceMembersViewProps = {
   people, invitations, selfId: "user_admin", canManage: true, state: "ready",
-  onInvite: done, onChangeRole: done, onRevoke: done, onRetry: () => {},
+  onInvite: done, onChangeRole: done, onRevoke: done, onRetry: () => {}, remove: { workspaceName: "Acme Design", onRemove: removed },
 }
-const render = (props: Partial<WorkspaceMembersViewProps> = {}) => renderToStaticMarkup(createElement(WorkspaceMembersView, { ...base, ...props }))
-
-describe("Settings → Members without remove, as the Clerk adapter mounts it (#381)", () => {
-  // Captured from the view before #381 changed it, less the not-available line #393 took out. A difference here is a
-  // change to what Clerk's Members shows.
-  it("renders an Admin's list byte for byte as before", async () => {
-    await expect(render()).toMatchFileSnapshot("./__snapshots__/members-view-admin.html")
-  })
-
-  it("renders a Member's list byte for byte as before", async () => {
-    await expect(render({ canManage: false, selfId: "user_member", invitations: [] })).toMatchFileSnapshot("./__snapshots__/members-view-member.html")
-  })
-})
-
-const removed = async () => ({ ok: true as const })
-type OnRemove = NonNullable<WorkspaceMembersViewProps["remove"]>["onRemove"]
+type OnRemove = WorkspaceMembersViewProps["remove"]["onRemove"]
 const removable = ({ onRemove = removed, ...props }: Partial<WorkspaceMembersViewProps> & { onRemove?: OnRemove } = {}) =>
-  render({ remove: { workspaceName: "Acme Design", onRemove }, ...props })
+  renderToStaticMarkup(createElement(WorkspaceMembersView, { ...base, remove: { workspaceName: "Acme Design", onRemove }, ...props }))
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
 const removeButtons = (html: string) => [...html.matchAll(/<button[^>]*aria-label="(Remove [^"]*)"[^>]*>/g)].map(match => match[1])
 const settle = () => new Promise(resolve => setTimeout(resolve))

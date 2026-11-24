@@ -1,7 +1,7 @@
 import type { WorkspacePermission } from "./auth-guard"
 
 /**
- * What each Clerk role may do, safe in the browser (#210). The server guards in auth-guard.ts enforce the same
+ * What each workspace role may do, safe in the browser (#210). The server guards in auth-guard.ts enforce the same
  * rules; screens read these only to hide controls a person can't use.
  *
  * - Admin and Member are paid seats and can change things.
@@ -15,15 +15,6 @@ export const WORKSPACE_ROLES = ["admin", "member", "guest", "viewer"] as const s
 /** A Lane role, for a value that arrives as a string (a picker's value, a role prop). */
 export function isWorkspacePermission(value: string): value is WorkspacePermission {
   return (WORKSPACE_ROLES as readonly string[]).includes(value)
-}
-
-/** The Lane role for a Clerk role key; anything else (a role Lane doesn't know) is null, which means no access. */
-export function clerkWorkspacePermission(orgRole: string | null | undefined): WorkspacePermission | null {
-  if (orgRole === "org:admin") return "admin"
-  if (orgRole === "org:member") return "member"
-  if (orgRole === "org:guest") return "guest"
-  if (orgRole === "org:viewer") return "viewer"
-  return null
 }
 
 /** Admin or Member. */

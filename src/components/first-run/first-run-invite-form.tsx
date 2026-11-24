@@ -32,7 +32,7 @@ export type FirstRunInviteFormProps = {
 
 /**
  * #217: an Admin invites teammates from the first run, as Members (who can review) or Viewers. The invitation goes
- * out through the same Members action as Settings (Clerk sends it; A218: the guide says Lane, as people see it). A teammate can be picked as a
+ * out through the same Members action as Settings (Lane sends it, A218). A teammate can be picked as a
  * Reviewer once they have joined.
  */
 export function FirstRunInviteForm({ confirmPaidSeats = false, onInvite }: FirstRunInviteFormProps) {
