@@ -1,4 +1,4 @@
-import { fixtureClerkClient } from "@/test/member-fixtures";
+import { addMembers } from "@/test/member-fixtures";
 /**
  * Notification creation forge proof.
  *
@@ -30,9 +30,6 @@ let mockSession: Session | null = null;
 vi.mock("@/lib/session", () => ({
   readSession: vi.fn(async () => mockSession),
 }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => fixtureClerkClient(WS_ID, [REQUESTER_ID,PICKER_ID,THIRD_PARTY_ID]),
-}));
 
 // Unique UUIDs for this test file (0xF0xx range)
 const WS_ID = "00000000-0000-4000-a000-00000000f001";
@@ -63,6 +60,7 @@ beforeAll(async () => {
       { id: GUEST_ID, fullName: "Guest User", email: "guest@notify.test", role: "designer" },
     ])
     .onConflictDoNothing();
+  await addMembers(WS_ID, { [REQUESTER_ID]: "member", [PICKER_ID]: "member", [THIRD_PARTY_ID]: "member" });
 
   await db
     .insert(requests)

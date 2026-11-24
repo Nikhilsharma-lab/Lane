@@ -82,8 +82,8 @@ function withoutReviewers<T extends { reviewers: unknown }>({ reviewers, ...rest
 
 /**
  * #295: the journey as the saved Request and its reader draw it, for the Request page to show until the journey's
- * reads arrive. The roster isn't read here (it asks Clerk), so the reader counts as active and the Requester's name is
- * the saved creator's; both only size what is held.
+ * reads arrive. The roster isn't read here (one query fewer), so the reader counts as active and the Requester's name
+ * is the saved creator's; both only size what is held.
  */
 function outlineFor(auth: MemberAuth, request: Parameters<typeof journeyActions>[0] & {
   outcomeClosure: OutcomeClosure | null; exceptionClosure: OutcomeException | null

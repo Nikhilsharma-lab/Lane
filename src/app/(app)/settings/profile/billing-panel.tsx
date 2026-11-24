@@ -24,14 +24,14 @@ const day = (at: Date | null) => at && zoneFreeDay(at);
  * allowance decided here, from its creator. `checkout` is how the return from the checkout page went.
  *
  * #287: while billing isn't enforced, Billing is the pilot line, the plan with its prices (nothing to pay), then the
- * Free Requests; seats and invoices are neither shown nor read (no Clerk roster, no payment provider). Once billing
+ * Free Requests; seats and invoices are neither shown nor read (no roster, no payment provider). Once billing
  * is enforced, a paying workspace sees its plan, seats and invoices, then Free Requests; any other, Free Requests
  * first.
  */
 export async function billingPanel(workspace: Pick<WorkspaceContext, "orgId" | "role">, checkout?: string): Promise<ReactNode> {
   if (workspace.role !== "admin") return undefined;
   const enforced = billingEnforced();
-  // #265: Clerk's roster for the seats is asked first, so it runs alongside the reads below, not after them.
+  // #265: the roster for the seats is asked first, so it runs alongside the reads below, not after them.
   const seats = enforced ? seatsOf(workspace.orgId) : null;
   await decideFreeRequests(workspace);
   const [{ planState, free }, plan] = await Promise.all([readFreeRequests(workspace), readPlan(workspace)]);

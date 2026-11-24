@@ -1,6 +1,6 @@
 /**
- * #213 (spec #195, seam 1): the Free Requests block, through the actions people use. Real database, faked session seam and
- * Clerk roster, roles switched per call. The first 4 Requests are free; once they are used (and there is no paid plan), creating a
+ * #213 (spec #195, seam 1): the Free Requests block, through the actions people use. Real database, faked session seam,
+ * member rows, roles switched per call. The first 4 Requests are free; once they are used (and there is no paid plan), creating a
  * new Request, a follow-up, or taking on a Guest submission is refused with "an Admin needs to pay", and nothing else
  * is. All of it only while `LANE_BILLING_ENFORCED` is on; with it off no workspace is ever blocked.
  */
@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspacePermission } from "@/lib/auth-guard";
+import { addMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORGS = ["org_fr_block", "org_fr_race", "org_fr_deleted", "org_fr_guests", "org_fr_follow", "org_fr_off", "org_fr_paid"] as const;
@@ -19,17 +20,6 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/ai/triage", () => ({ triageRequest: async () => ({ ok: true, triage: { classification: "problem", reframedProblem: null, extractedSolution: null } }) }));
 vi.mock("@/lib/rate-limit", () => ({ checkAiRateLimit: async () => ({ allowed: true }) }));
 vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async ({ userId }: { userId?: string[] } = {}) => {
-        const people = Object.entries({ fr_member: "org:member", fr_other: "org:member", fr_guest: "org:guest", fr_admin: "org:admin" }).filter(([id]) => !userId || userId.includes(id));
-        return { totalCount: people.length, data: people.map(([id, role]) => ({ organization: { id: session.orgId }, role, publicUserData: { userId: id, identifier: `${id}@example.test`, firstName: "Name", lastName: id } })) };
-      },
-      getOrganizationInvitationList: async () => ({ totalCount: 0, data: [] }),
-    },
-  }),
-}));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
@@ -40,6 +30,7 @@ beforeAll(async () => {
   for (const id of Object.keys(ROLES)) await connection`insert into profiles(id,full_name,email) values (${id},${"Name " + id},${id + "@example.test"})`;
   for (const org of ORGS) {
     await connection`insert into organizations(id,name,slug) values (${org},'Free Requests',${org})`;
+    await addMembers(org, ROLES);
     // Each workspace's creator works at their own company, so each holds its own 4 Free Requests.
     await claimFreeRequests({ orgId: org }, `founder@${org.replaceAll("_", "-")}.example`);
   }

@@ -1,6 +1,6 @@
 /**
- * #213: a new workspace's Free Requests are decided when Lane first sees it, from the Clerk creator's email
- * address. Real database, mocked Clerk.
+ * #213: a new workspace's Free Requests are decided when Lane first sees it, from its creator's profile
+ * email. Real database; the workspace backfill still asks Clerk who created the workspace.
  */
 import postgres from "postgres";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
@@ -14,7 +14,6 @@ vi.mock("./session", () => ({ readSession: async () => ({ ...session }), readAcc
 vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: async () => ({
     organizations: { getOrganization: async ({ organizationId }: { organizationId: string }) => ({ id: organizationId, name: "Acme", slug: organizationId, createdBy: creators[organizationId] }) },
-    users: { getUser: async (userId: string) => ({ primaryEmailAddress: { emailAddress: `${userId.slice(4)}@wfr-acme.example` }, emailAddresses: [] }) },
   }),
 }));
 

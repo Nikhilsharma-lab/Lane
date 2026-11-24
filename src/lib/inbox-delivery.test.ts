@@ -1,12 +1,13 @@
 /**
  * #206 seam 4: delivery, with the messenger swapped for the recording stand-in. Needs-you items leave Lane one
  * message per item, once: action-caused items (a review asked, a Concern raised) when the action happens,
- * time-caused ones (Record the release, Result due) from the daily job. Real database, a mocked Clerk roster and
+ * time-caused ones (Record the release, Result due) from the daily job. Real database, member rows and
  * a controlled `now`; nothing touches the network.
  */
 import { randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { addMembers, removeMember, setMembers } from "@/test/member-fixtures"
 import { requireTestDatabase } from "@/test/test-database"
 import { createInMemoryEmailPause } from "./email-pause"
 import { recordingMessenger, type Messenger } from "./messenger"
@@ -19,22 +20,7 @@ const REVIEWER = "delivery_reviewer"
 const GUEST = "delivery_guest"
 const SECOND_REQUESTER = "delivery_second_requester"
 
-/** The live Clerk roster: who is in the workspace, with which role. A Guest is filtered out like any non-member. */
-const roster = vi.hoisted(() => new Map<string, string>())
 vi.mock("./session", () => ({ readSession: vi.fn(async () => null) }))
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async ({ organizationId }: { organizationId: string }) => {
-        const members = organizationId === ORG ? [...roster] : []
-        return {
-          totalCount: members.length,
-          data: members.map(([userId, role]) => ({ organization: { id: organizationId }, role, publicUserData: { userId, identifier: `${userId}@example.test`, firstName: userId } })),
-        }
-      },
-    },
-  }),
-}))
 
 const url = new URL(process.env.DATABASE_URL!)
 requireTestDatabase(process.env.DATABASE_URL);
@@ -64,9 +50,7 @@ beforeAll(async () => {
   for (const id of [REQUESTER, REVIEWER, GUEST, SECOND_REQUESTER]) await connection`insert into profiles(id,full_name,email) values (${id},${id},${id + "@example.test"})`
 })
 beforeEach(async () => {
-  roster.clear()
-  for (const id of [REQUESTER, REVIEWER, SECOND_REQUESTER]) roster.set(id, "org:member")
-  roster.set(GUEST, "org:guest")
+  await setMembers(ORG, { [REQUESTER]: "member", [REVIEWER]: "member", [SECOND_REQUESTER]: "member", [GUEST]: "guest" })
   await connection`delete from delivery_preferences where org_id = ${ORG}`
   // Each case starts from Requests no one has been sent anything about.
   await connection`delete from requests where org_id in (${ORG}, ${OTHER_ORG}) and status in ('open','in_progress')`
@@ -135,7 +119,7 @@ describe("action-caused items: sent when the action happens", () => {
   })
 
   it("sends nothing to someone who left the workspace or is not a Member or Admin", async () => {
-    roster.delete(REVIEWER)
+    await removeMember(ORG, REVIEWER)
     const id = await request({ title: "Left", createdBy: GUEST, reviewers: [review(REVIEWER), review(SECOND_REQUESTER, { kind: "concern", reason: "No", at: "2026-10-28T11:00:00.000Z" })] })
     const messenger = recordingMessenger()
     await sendFor(id, messenger)
@@ -200,7 +184,7 @@ describe("time-caused items: the daily job", () => {
 
   // #210: a Viewer is never asked to act, even about Requests they filed or were asked to review as a Member.
   it("sends nothing to a Viewer, by action or by the daily job", async () => {
-    roster.set(SECOND_REQUESTER, "org:viewer")
+    await addMembers(ORG, { [SECOND_REQUESTER]: "viewer" })
     await request({ title: "Viewer's Done work", createdBy: SECOND_REQUESTER, status: "done", doneAt: "2026-10-01T09:00:00Z" })
     await request({ title: "Viewer's due result", createdBy: SECOND_REQUESTER, status: "done", doneAt: "2026-10-01T09:00:00Z", releaseState: released("2026-10-27", SECOND_REQUESTER) })
     const asked = await request({ title: "Asked as a Member", reviewers: [review(SECOND_REQUESTER)] })

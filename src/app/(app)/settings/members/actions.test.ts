@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { recordingPaymentProvider, type PaymentProvider, type SeatChange } from "@/lib/payment-provider";
+import { setMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 
 /**
@@ -47,9 +48,11 @@ vi.mock("@clerk/nextjs/server", () => {
           return { id: invitationId, ...invitation };
         },
         createOrganizationInvitation: record("invite"),
-        updateOrganizationMembership: async (params: { userId: string; role: string }) => {
+        updateOrganizationMembership: async (params: { organizationId: string; userId: string; role: string }) => {
           const answer = await record("changeRole")(params);
           clerk.members.set(params.userId, params.role);
+          // Seats are counted from Lane's member rows (#390), which the Members ticket makes this call change itself.
+          if (params.organizationId === PAYING) await memberRows();
           return answer;
         },
         revokeOrganizationInvitation: record("revoke"),
@@ -58,6 +61,8 @@ vi.mock("@clerk/nextjs/server", () => {
   };
 });
 
+/** The paying workspace's member rows, holding the stand-in's members. */
+const memberRows = () => setMembers(PAYING, Object.fromEntries([...clerk.members].map(([id, role]) => [id, role.replace("org:", "")])));
 const api = () => import("./actions");
 const ctx = { orgId: ORG };
 const VIEWER_REFUSED = "You’re a Viewer in this workspace, so you can read everything but can’t change anything. Ask an Admin if you need to.";
@@ -208,6 +213,7 @@ describe("paid seats", () => {
     enforce();
     Object.assign(session, { userId: "user_members_admin", orgId: PAYING, role: "admin" });
     clerk.members = new Map([["user_members_admin", "org:admin"], ["user_members_member", "org:member"], ["user_members_other", "org:member"], ["user_members_viewer", "org:viewer"]]);
+    await memberRows();
     const { changeMemberRole } = await api();
     expect(await changeMemberRole({ userId: "user_members_viewer", role: "member", confirmedPaidSeat: true }, paying)).toEqual({ success: true });
     expect(stand.provider!.seatChanges).toEqual([expect.objectContaining({ subscriptionId: "sub_members_paying", seats: 4, charge: "part_month_now" })]);

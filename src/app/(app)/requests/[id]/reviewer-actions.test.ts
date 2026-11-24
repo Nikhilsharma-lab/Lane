@@ -1,3 +1,4 @@
+import { addMembers, removeMember, setMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
@@ -8,84 +9,24 @@ const session = vi.hoisted((): Session => ({
   orgId: "org_agreement",
   role: "member",
 }));
-const invitationState = vi.hoisted(() => ({
-  status: "pending",
-  verified: true,
-}));
-const users = vi.hoisted(() => [
+const users = [
   "agreement_owner",
   "agreement_design",
   "agreement_dev",
   "agreement_other",
   "agreement_guest",
   "agreement_viewer",
-]);
-/** Clerk roster roles; a user missing from it has left the workspace. */
-const roster = vi.hoisted(() => new Map<string, string>());
-/** Sign-in names changed since a reviewer was picked; everyone else is named by their user id. */
-const signInNames = vi.hoisted(() => new Map<string, string>());
+];
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganizationMembershipList: async () => ({
-        totalCount: roster.size,
-        data: [...roster].map(([userId, role]) => ({
-          organization: { id: session.orgId },
-          role,
-          publicUserData: {
-            userId,
-            identifier: userId + "@example.test",
-            firstName: signInNames.get(userId) ?? userId,
-          },
-        })),
-      }),
-      getOrganizationInvitationList: async () => ({
-        totalCount: invitationState.status === "pending" ? 1 : 0,
-        data:
-          invitationState.status === "pending"
-            ? [
-                {
-                  id: "inv_agreement",
-                  organizationId: session.orgId,
-                  status: "pending",
-                  role: "org:member",
-                  emailAddress: "invited@example.test",
-                },
-              ]
-            : [],
-      }),
-      getOrganizationInvitation: async () => ({
-        id: "inv_agreement",
-        organizationId: session.orgId,
-        status: invitationState.status,
-        emailAddress: "invited@example.test",
-      }),
-    },
-    users: {
-      getUser: async (userId: string) => ({
-        emailAddresses: [
-          {
-            emailAddress:
-              userId === users[3]
-                ? "invited@example.test"
-                : userId + "@example.test",
-            verification: {
-              status: invitationState.verified ? "verified" : "unverified",
-            },
-          },
-        ],
-      }),
-    },
-  }),
-}));
 const connection = postgres(requireTestDatabase(process.env.DATABASE_URL).url, {
   max: 6,
   prepare: false,
 });
 const orgId = "org_agreement";
 const [owner, designer, developer, other, guest, viewer] = users;
+/** Everyone's role to start with; a person without a member row has left the workspace. */
+const roles = Object.fromEntries(users.map((id) => [id, id === guest ? "guest" : id === viewer ? "viewer" : "member"]));
 const member = (userId: string) => ({ kind: "member", userId });
 const invite = {
   kind: "invitation",
@@ -133,18 +74,15 @@ async function answer(id: string, userId: string, kind: "looks_good" | "concern"
 beforeAll(async () => {
   await connection`insert into organizations(id,name,slug) values (${orgId},'Agreement test','agreement-test')`;
   for (const [i, id] of users.entries())
-    await connection`insert into profiles(id,full_name,email,role) values (${id},${"Person " + i},${id + "@example.test"},${["pm", "designer", "developer", "designer", "pm", "pm"][i]})`;
+    await connection`insert into profiles(id,full_name,email,role) values (${id},${id},${id + "@example.test"},${["pm", "designer", "developer", "designer", "pm", "pm"][i]})`;
 });
-beforeEach(() => {
-  roster.clear();
-  signInNames.clear();
-  for (const id of users) roster.set(id, id === guest ? "org:guest" : id === viewer ? "org:viewer" : "org:member");
+beforeEach(async () => {
+  await connection`update profiles set full_name = id where id = any(${users})`;
+  await setMembers(orgId, roles);
 });
 afterEach(() => {
   as(owner);
   session.orgId = orgId;
-  invitationState.status = "pending";
-  invitationState.verified = true;
 });
 afterAll(() => connection.end());
 
@@ -177,10 +115,10 @@ it("only Admins and Members can be Reviewers: Guests, Viewers, email addresses a
     expect(await add(id, ["someone@example.test"], other, role)).toEqual(PAID_SEATS_ONLY);
     expect(await add(id, [member(developer), invite], other, role)).toEqual(PAID_SEATS_ONLY);
   }
-  roster.delete(developer);
+  await removeMember(orgId, developer);
   expect(await add(id, [member(developer)], other)).toEqual(PAID_SEATS_ONLY);
   expect(await reviewersOf(id)).toEqual([]);
-  roster.set(developer, "org:admin");
+  await addMembers(orgId, { [developer]: "admin" });
   expect(await add(id, [member(developer)], other)).toMatchObject({ success: true });
   expect(await add(id, [member(designer)], other, "admin")).toMatchObject({ success: true });
   expect((await reviewersOf(id)).map((r) => r.nominee)).toEqual([member(developer), member(designer)]);
@@ -188,14 +126,14 @@ it("only Admins and Members can be Reviewers: Guests, Viewers, email addresses a
 
 it("the picker offers only Admins and Members, never Guests, Viewers or pending invitations", async () => {
   const api = await import("./reviewer-actions");
-  roster.set(other, "org:admin");
+  await addMembers(orgId, { [other]: "admin" });
   for (const role of ["member", "admin"] as const) {
     as(designer, role);
     const loaded = await api.loadReviewerPeople({ orgId });
-    expect(loaded).toEqual({
-      people: [owner, designer, developer, other].map((userId) => expect.objectContaining({ nominee: member(userId), name: userId })),
-      canInvite: role === "admin",
-    });
+    if ("error" in loaded) throw new Error(loaded.error);
+    expect(loaded.canInvite).toBe(role === "admin");
+    expect(loaded.people).toHaveLength(4);
+    expect(loaded.people).toEqual(expect.arrayContaining([owner, designer, developer, other].map((userId) => expect.objectContaining({ nominee: member(userId), name: userId }))));
   }
   as(guest, "guest");
   expect(await api.loadReviewerPeople({ orgId })).toHaveProperty("error");
@@ -218,19 +156,37 @@ it("a Reviewer who becomes a Guest or Viewer can no longer answer", async () => 
   await add(id, [member(designer), member(developer)]);
   const api = await import("./reviewer-actions");
   const [first, second] = await reviewersOf(id);
-  roster.set(designer, "org:guest");
+  await addMembers(orgId, { [designer]: "guest" });
   as(designer, "guest");
   expect(await api.answerReview(contextFor(id, await revisionOf(id)), { reviewerId: first.id, kind: "looks_good", reason: "" })).toHaveProperty("error");
-  roster.set(developer, "org:viewer");
+  await addMembers(orgId, { [developer]: "viewer" });
   as(developer, "viewer");
   expect(await api.answerReview(contextFor(id, await revisionOf(id)), { reviewerId: second.id, kind: "looks_good", reason: "" })).toHaveProperty("error");
   expect((await reviewersOf(id)).map((r) => r.decision)).toEqual([null, null]);
 });
 
+it("a member row with a role Lane doesn't know gives nothing: no change, no pickup, no answer, no place in the picker", async () => {
+  const api = await import("./reviewer-actions");
+  const { pickUpRequest } = await import("./actions");
+  const id = await freshRequest();
+  await add(id, [member(designer)]);
+  await addMembers(orgId, { [designer]: "owner", [developer]: "org:admin" });
+  expect(await add(id, [member(other)], developer, "admin")).toEqual({ error: "Your workspace membership is no longer active." });
+  expect(await add(id, [member(developer)], other)).toEqual({ error: "Only Admins and Members can be Reviewers." });
+  expect(await answer(id, designer, "looks_good")).toEqual({ error: "Your workspace membership is no longer active." });
+  as(developer);
+  expect(await pickUpRequest(id, { orgId })).toEqual({ error: "Couldn’t verify active workspace membership. Try again." });
+  as(owner);
+  expect(await api.readReviews(id, { orgId })).toMatchObject({ reviewers: [{ active: false, decision: null }] });
+  const loaded = await api.loadReviewerPeople({ orgId });
+  if ("error" in loaded) throw new Error(loaded.error);
+  expect(loaded.people.map((person) => person.nominee.userId).sort()).toEqual([other, owner].sort());
+});
+
 it("a Request holds at most twenty reviewers", async () => {
   const id = await freshRequest();
   const many = Array.from({ length: 21 }, (_, i) => `agreement_many_${i}`);
-  for (const userId of many) roster.set(userId, "org:member");
+  await addMembers(orgId, Object.fromEntries(many.map((userId) => [userId, "member"])));
   expect(await add(id, many.slice(0, 20).map(member))).toMatchObject({ success: true });
   expect(await add(id, [member(many[20])])).toEqual({ error: "A Request can have at most 20 reviewers." });
   expect(await reviewersOf(id)).toHaveLength(20);
@@ -283,7 +239,7 @@ it("a reviewer who left stays listed, greyed out, and a retried answer replays",
   expect(first).toMatchObject({ success: true });
   expect(await api.answerReview(context, input)).toEqual(first);
   expect(await api.answerReview(context, { ...input, kind: "concern", reason: "x" })).toHaveProperty("error");
-  roster.delete(designer);
+  await removeMember(orgId, designer);
   as(owner);
   expect(await api.readReviews(id, { orgId })).toMatchObject({ reviewers: [{ name: "agreement_design", active: false, canAnswer: false }] });
 });
@@ -303,8 +259,8 @@ it("a reviewer who left no longer counts: the list, detail and panel agree nothi
     return reviewStateOf(view.reviewers.map((r) => ({ ...r, counts: r.active })));
   };
   expect(await listed()).toEqual({ concerns: [{ name: "agreement_design", reason: "No API yet." }], unanswered: 1 });
-  roster.delete(designer);
-  roster.delete(developer);
+  await removeMember(orgId, designer);
+  await removeMember(orgId, developer);
   expect(await listed()).toBeNull();
   expect((await loadRequestDetail(auth, id))?.request.reviewState).toBeNull();
   expect(await panel()).toBeNull();
@@ -317,8 +273,8 @@ it("B6: reviewers are named by their sign-in name now, in the panel, the list, d
   await add(id, [member(designer), member(developer)]);
   await answer(id, designer, "concern", "No API yet.");
   await answer(id, developer, "looks_good");
-  signInNames.set(designer, "Dana Reyes");
-  signInNames.set(developer, "Dev Patel");
+  await connection`update profiles set full_name = ${"Dana Reyes"} where id = ${designer}`;
+  await connection`update profiles set full_name = ${"Dev Patel"} where id = ${developer}`;
   const auth = { userId: owner, orgId, role: "member" as const };
   const named = async () => ({
     panel: await api.readReviews(id, { orgId }),
@@ -331,7 +287,7 @@ it("B6: reviewers are named by their sign-in name now, in the panel, the list, d
   expect(now.detail?.reviewState).toEqual({ concerns: [{ name: "Dana Reyes", reason: "No API yet." }], unanswered: 0 });
   expect(now.detail?.answeredReviews).toEqual({ concerns: ["Dana Reyes"], others: 1 });
   // Someone who left the workspace keeps the name saved when they were picked.
-  roster.delete(designer);
+  await removeMember(orgId, designer);
   now = await named();
   expect(now.panel).toMatchObject({ reviewers: [{ name: "agreement_design", active: false }, { name: "Dev Patel" }] });
   expect(now.detail?.answeredReviews).toEqual({ concerns: ["agreement_design"], others: 1 });
