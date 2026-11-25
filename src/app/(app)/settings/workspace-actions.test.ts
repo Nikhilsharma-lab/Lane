@@ -79,6 +79,8 @@ describe("renaming the workspace", () => {
     const orgId = await createWorkspace(browser)
     const [before] = await connection`select slug, plan from organizations where id = ${orgId}`
     for (const name of ["", "   ", 7 as never, undefined as never]) expect(await browser.action(() => renameWorkspace({ name }, { orgId }))).toEqual({ ok: false })
+    for (const [name, code] of [["Acme\nYour account is locked", "NAME_NOT_PLAIN"], ["n".repeat(101), "NAME_TOO_LONG"]])
+      expect(await browser.action(() => renameWorkspace({ name }, { orgId }))).toEqual({ ok: false, code })
     expect(await nameOf(orgId)).toBe(NAME)
 
     const forged = { name: "Renamed", slug: "forged", plan: "enterprise" }

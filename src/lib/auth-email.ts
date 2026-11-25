@@ -1,5 +1,5 @@
 /**
- * #358 the auth-email sender, dormant: nothing in the app calls it until increment 3 wires it into Better Auth.
+ * #358 the auth-email sender, which Better Auth's server (auth-server.ts) calls.
  * It writes the plain-text sign-up, sign-in and reset codes and the workspace invitation, and sends each through
  * the Resend adapter Inbox email uses. Every send comes back sent or couldn't send; it never throws.
  */
@@ -9,6 +9,7 @@ import type { WorkspacePermission } from "./auth-guard"
 import { emailPause, type EmailPause } from "./email-pause"
 import { authEmail } from "./feature-switches"
 import { isResendRefusal, resendMessenger } from "./messenger"
+import { plainName } from "./name-rules"
 
 type CodeEmail = { to: string; code: string; expiresInMinutes: number }
 
@@ -52,14 +53,15 @@ const twoDigits = (value: number) => String(value).padStart(2, "0")
 /** Written out by hand in UTC, so every server says the same thing whatever its locale or zone. */
 const utcMoment = (at: Date) => `${at.getUTCDate()} ${MONTHS[at.getUTCMonth()]} ${at.getUTCFullYear()} at ${twoDigits(at.getUTCHours())}:${twoDigits(at.getUTCMinutes())} UTC`
 
-/** Plain text, built only from the email's own inputs. The code comes first, so a notification preview shows it. */
+/** Plain text, built only from the email's own inputs. A name someone typed keeps to its own line. The code comes first, so a notification preview shows it. */
 function messageOf(email: AuthEmail): { subject: string; text: string } {
   if (email.kind === "invitation")
     return {
       // Fixed: nothing the inviter typed goes into the subject of mail from Lane's domain.
       subject: "You’re invited to a Lane workspace",
       text: [
-        `${email.inviterName} invited you to join ${email.workspaceName} on Lane ${AS_ROLE[email.role]}.`,
+        // Proposed for Nikhil: the words for a name that shows nothing.
+        `${plainName(email.inviterName) || "Someone"} invited you to join ${plainName(email.workspaceName) || "a workspace"} on Lane ${AS_ROLE[email.role]}.`,
         `Accept the invitation:\n${email.acceptUrl}`,
         `The invitation expires on ${utcMoment(email.expiresAt)}.`,
       ].join("\n\n"),

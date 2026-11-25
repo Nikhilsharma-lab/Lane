@@ -1,6 +1,7 @@
+import { switchWorkspace } from "@/app/(app)/workspace-actions"
 import { setFirstPassword, signOutDevice, signOutOtherDevices } from "@/app/(app)/settings/profile/account-actions"
 import { callAction } from "@/lib/action-call"
-import type { AuthAnswer } from "@/lib/auth-answer"
+import { settle, type AuthAnswer } from "@/lib/auth-answer"
 import type { ProfileAccountCallbacks } from "./profile-account-controller"
 import type { SignedInDevicesCallbacks } from "./profile-account-devices-controller"
 
@@ -22,7 +23,15 @@ export function accountCallbacks({ orgId, refresh }: Page): ProfileAccountCallba
   }
   return {
     onSaveName: async (name) => changed((await calls()).onSaveName(name)),
-    onChangePassword: async (change) => changed((await calls()).onChangePassword(change)),
+    onChangePassword: async (change) => {
+      const answer = await (await calls()).onChangePassword(change)
+      if (!answer.ok) return answer
+      // Signing out the other devices gives this one a new session, which would open the last-used workspace. The
+      // password is changed whether or not this one's can be opened again.
+      if (change.signOutOtherDevices) await settle(() => callAction(() => switchWorkspace(orgId)))
+      refresh()
+      return answer
+    },
     onSetPassword: (newPassword) => changed(callAction(() => setFirstPassword(newPassword, { orgId }))),
     onConnectGoogle: async () => (await calls()).onConnectGoogle(),
     onDisconnectGoogle: async () => changed((await calls()).onDisconnectGoogle()),

@@ -6,6 +6,8 @@ import { accountCallbacks, deviceCallbacks } from "./account-callbacks"
 // Actions answer through the real route in src/app/(app)/settings/profile/account-actions.test.ts.
 const actions = vi.hoisted(() => ({ setFirstPassword: vi.fn(), signOutDevice: vi.fn(), signOutOtherDevices: vi.fn() }))
 vi.mock("@/app/(app)/settings/profile/account-actions", () => actions)
+const switchWorkspace = vi.hoisted(() => vi.fn())
+vi.mock("@/app/(app)/workspace-actions", () => ({ switchWorkspace }))
 
 let network: AuthFetchFake
 let refresh: ReturnType<typeof vi.fn<() => void>>
@@ -13,7 +15,7 @@ const callbacks = () => accountCallbacks({ orgId: "org_1", refresh })
 beforeEach(() => {
   network = fakeAuthFetch()
   refresh = vi.fn()
-  for (const action of Object.values(actions)) action.mockReset().mockResolvedValue({ ok: true })
+  for (const action of [...Object.values(actions), switchWorkspace]) action.mockReset().mockResolvedValue({ ok: true })
 })
 afterEach(() => { vi.unstubAllGlobals() })
 
@@ -28,6 +30,29 @@ describe("Settings → Profile's account calls (#394)", () => {
     expect(await callbacks().onChangePassword({ currentPassword: "old-secret", newPassword: "new-secret-1", signOutOtherDevices })).toMatchObject({ ok: true })
     expect(network.requests).toMatchObject([{ path: "/change-password", body: { currentPassword: "old-secret", newPassword: "new-secret-1", revokeOtherSessions: signOutOtherDevices } }])
     expect(refresh).toHaveBeenCalledOnce()
+  })
+
+  // Signing out the other devices gives this one a new session, in no workspace.
+  it("opens the page's workspace again before reading the page, when the other devices were signed out", async () => {
+    const order: string[] = []
+    switchWorkspace.mockImplementation(async (id: string) => { order.push(`switch ${id}`); return { ok: true } })
+    refresh.mockImplementation(() => { order.push("refresh") })
+    const change = (signOutOtherDevices: boolean) => callbacks().onChangePassword({ currentPassword: "old-secret", newPassword: "new-secret-1", signOutOtherDevices })
+    await change(true)
+    expect(order).toEqual(["switch org_1", "refresh"])
+    await change(false)
+    expect(order).toEqual(["switch org_1", "refresh", "refresh"])
+    network.refuse("/change-password", 400, "INVALID_PASSWORD")
+    await change(true)
+    expect(order).toHaveLength(3)
+  })
+
+  it("still says the password changed when the workspace couldn't be opened again", async () => {
+    for (const fail of [async () => ({ ok: false }), async () => { throw new TypeError("Failed to fetch") }]) {
+      switchWorkspace.mockImplementation(fail)
+      expect(await callbacks().onChangePassword({ currentPassword: "old-secret", newPassword: "new-secret-1", signOutOtherDevices: true })).toMatchObject({ ok: true })
+    }
+    expect(refresh).toHaveBeenCalledTimes(2)
   })
 
   it("sets a first password on the server, for the page's workspace", async () => {

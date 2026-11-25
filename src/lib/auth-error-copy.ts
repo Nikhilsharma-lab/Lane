@@ -1,4 +1,5 @@
 import { CODE_COULD_NOT_SEND, INVITATION_COULD_NOT_SEND } from "./auth-email-copy"
+import { NAME_MAX } from "./name-rules"
 
 /**
  * #369: what a person reads when an auth call fails, keyed by the error code in Better Auth's answer (or the
@@ -109,6 +110,9 @@ export const AUTH_ERROR_COPY = {
   // code; checking or changing a URL, the second.
   ORGANIZATION_ALREADY_EXISTS: SLUG_TAKEN,
   ORGANIZATION_SLUG_ALREADY_TAKEN: SLUG_TAKEN,
+  // Proposed for Nikhil: a workspace's or person's name past Lane's rule (name-rules.ts).
+  NAME_TOO_LONG: `Use at most ${NAME_MAX} characters.`,
+  NAME_NOT_PLAIN: "Use one line of plain text.",
   ORGANIZATION_DELETION_DISABLED:"Workspaces can’t be deleted in Lane. To stop someone using this one, remove them on the Members page in Settings.",
   YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER: ONLY_ADMIN,
   YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER: ONLY_ADMIN,

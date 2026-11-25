@@ -99,6 +99,14 @@ describe("creating an account (#378)", () => {
   })
 
   // #290 D11: Lane's words on the field, not the browser's tooltip, and nothing sent.
+  it.each([["n".repeat(101), "Use at most 100 characters."], ["Mei\u2028Lin", "Use one line of plain text."]])("says on the field why a name can't be used, and sends nothing: %j", async (name, line) => {
+    const { flow } = signUp()
+    flow.setName(name)
+    await flow.signUp({ password: PASSWORD })
+    expect(flow.snapshot().fieldErrors).toEqual({ name: line })
+    expect(auth.requests).toEqual([])
+  })
+
   it("says an empty name, an empty or badly formed email and an empty password on their fields", async () => {
     const flow = createSignUpFlow({ navigate, humanCheck: passedHumanCheck().check })
     await flow.signUp({ password: "" })

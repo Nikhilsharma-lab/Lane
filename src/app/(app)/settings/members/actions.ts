@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, invitation, member } from "@/db";
 import type { AuthAnswer } from "@/lib/auth-answer";
 import { AUTH_ERROR_COPY, isAuthErrorCode, type AuthErrorCode } from "@/lib/auth-error-copy";
-import { guardActiveMember, guardOwnerOrAdmin } from "@/lib/auth-guard";
+import { activeMemberOrCode, guardOwnerOrAdmin } from "@/lib/auth-guard";
 import { askAuthServer } from "@/lib/auth-server";
 import { followSeatChanges } from "@/lib/billing";
 import { billingEnforced } from "@/lib/feature-switches";
@@ -19,7 +19,7 @@ import type { WorkspacePermission } from "@/lib/auth-guard";
 /**
  * Settings → Members (#210): an Admin invites people as, and changes people to, Admin, Member, Guest or Viewer, in
  * every workspace (#393), cancels invitations and removes people (#396). Better Auth owns memberships and
- * invitations: these actions ask it through Lane's server door and write nothing themselves. The workspace comes from
+ * invitations: these actions ask it through Lane's server door, and write only a pending invitation's cancelling. The workspace comes from
  * the page; the Admin, and their role, only from the session.
  *
  * #215: Admins and Members are paid seats. While billing is enforced, adding one needs the Admin's "This adds a paid
@@ -108,12 +108,12 @@ export async function revokeInvitation(data: { invitationId: string }, context: 
   if ("error" in auth) return auth;
   const { invitationId } = parsed.data;
 
-  // Better Auth takes only the invitation's id, so this holds it to the page's workspace.
-  const [pending] = await db.select({ id: invitation.id }).from(invitation)
-    .where(and(eq(invitation.id, invitationId), eq(invitation.organizationId, auth.orgId), eq(invitation.status, "pending")));
-  if (!pending) return { error: "That invitation isn’t pending any more. Reload to see the latest." };
-  const answer = await askAuthServer((api, asCaller) => api.cancelInvitation({ ...asCaller, body: { invitationId } }));
-  if (!answer.ok) return refusal(answer.code, "The invitation couldn’t be revoked. Try again.");
+  // Better Auth cancels whatever the invitation's status, even one accepted a moment before, and in any workspace the
+  // person is an Admin of. Its own accept takes only a pending one, so this and that can't both happen.
+  const [canceled] = await db.update(invitation).set({ status: "canceled" })
+    .where(and(eq(invitation.id, invitationId), eq(invitation.organizationId, auth.orgId), eq(invitation.status, "pending")))
+    .returning({ id: invitation.id });
+  if (!canceled) return { error: "That invitation isn’t pending any more. Reload to see the latest." };
   changed();
   return { success: true };
 }
@@ -121,8 +121,8 @@ export async function revokeInvitation(data: { invitationId: string }, context: 
 /** #396: takes someone else out of the workspace. Their Requests, comments and profile stay. */
 export async function removeMember(data: { userId: string }, context: { orgId: string }): Promise<AuthAnswer> {
   const refused = (code: AuthErrorCode) => ({ ok: false, code }) as const;
-  const auth = await guardActiveMember(context.orgId, "");
-  if ("error" in auth) return refused(auth.sessionExpired ? "UNAUTHORIZED" : "WORKSPACE_NOT_OPEN");
+  const auth = await activeMemberOrCode(context.orgId);
+  if ("ok" in auth) return auth;
   if (!managesWorkspace(auth.role)) return refused("YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER");
   const parsed = removeMemberInputSchema.safeParse(data);
   if (!parsed.success) return refused("MEMBER_NOT_FOUND");

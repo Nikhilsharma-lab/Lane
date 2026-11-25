@@ -3,6 +3,7 @@ import { CODE_MISSING, isWholeCode, PASSWORD_MIN_LENGTH, PERSON_NAME_MISSING } f
 import { authErrorCopy, CODE_REFUSALS, eachCode, GOOGLE_FAILED, NEW_PASSWORD_REFUSALS } from "@/lib/auth-error-copy"
 import { HOME, safeReturnAddress } from "@/lib/auth-return-address"
 import { emailAddressProblem } from "@/lib/email-address-rules"
+import { readName } from "@/lib/name-rules"
 import { ONBOARDING_URL } from "@/lib/onboarding-address"
 import { signInPage, signUpPage } from "./auth-addresses"
 import { createAuthFlowStore } from "./auth-flow-store"
@@ -91,13 +92,14 @@ export function createSignUpFlow({ email = "", returnTo, errorCode, navigate, hu
       run("sign-up", async () => {
         if (get().step !== "details") return
         const fieldErrors: SignUpFieldErrors = {}
-        if (!get().name.trim()) fieldErrors.name = PERSON_NAME_MISSING
+        const named = readName(get().name)
+        if (!named.ok) fieldErrors.name = named.code ? authErrorCopy(named.code) : PERSON_NAME_MISSING
         const emailProblem = emailAddressProblem(get().email)
         if (emailProblem) fieldErrors.email = emailProblem
         if (password.length < PASSWORD_MIN_LENGTH) fieldErrors.password = authErrorCopy("PASSWORD_TOO_SHORT")
-        if (Object.keys(fieldErrors).length) return flow.refuseFields(fieldErrors)
+        if (!named.ok || Object.keys(fieldErrors).length) return flow.refuseFields(fieldErrors)
         const answer = await withHumanCheck(humanCheck, (token) =>
-          auth.signUp({ name: get().name.trim(), email: typedEmail(), password }, token))
+          auth.signUp({ name: named.name, email: typedEmail(), password }, token))
         if (answer.ok) {
           sends.sent(typedEmail())
           return set({ step: "code", fieldErrors: {}, alert: null, nextSendAt: sends.nextSendAt(typedEmail()) })

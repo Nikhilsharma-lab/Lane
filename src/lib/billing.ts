@@ -72,10 +72,10 @@ export async function freeRequestsDecided(ws: Workspace): Promise<boolean> {
  * holds it (`holds_allowance`, kept as a record). Decided once; an address that names no allowance (or none at all)
  * leaves it undecided.
  */
-export async function claimFreeRequests(ws: Workspace, creatorEmail: string | null): Promise<void> {
+export async function claimFreeRequests(ws: Workspace, creatorEmail: string | null, exec: Exec = db): Promise<void> {
   const allowance = creatorEmail ? allowanceKeyOf(creatorEmail) : null;
   if (!allowance) return;
-  await db.transaction(async (tx) => {
+  await exec.transaction(async (tx) => {
     await tx.insert(workspaceBilling).values({ orgId: ws.orgId }).onConflictDoNothing();
     const [row] = await tx.select({ held: workspaceBilling.holdsAllowance }).from(workspaceBilling).where(eq(workspaceBilling.orgId, ws.orgId)).for("update");
     if (row?.held !== null) return;
@@ -86,10 +86,15 @@ export async function claimFreeRequests(ws: Workspace, creatorEmail: string | nu
 }
 
 /** The email of the workspace's creator (`organizations.owner_id`), or null when either isn't known. */
-async function creatorEmailOf(ws: Workspace): Promise<string | null> {
-  const [creator] = await db.select({ email: profiles.email }).from(workspaces)
+async function creatorEmailOf(exec: Exec, ws: Workspace): Promise<string | null> {
+  const [creator] = await exec.select({ email: profiles.email }).from(workspaces)
     .innerJoin(profiles, eq(profiles.id, workspaces.ownerUserId)).where(eq(workspaces.id, ws.orgId));
   return creator?.email ?? null;
+}
+
+/** Decides a new workspace's allowance in the transaction that saves its creator. Throws, so neither is saved alone. */
+export async function decideFreeRequestsWithCreator(tx: RequestTx, ws: Workspace): Promise<void> {
+  await claimFreeRequests(ws, await creatorEmailOf(tx, ws), tx);
 }
 
 /**
@@ -99,7 +104,7 @@ async function creatorEmailOf(ws: Workspace): Promise<string | null> {
 export async function decideFreeRequests(ws: Workspace): Promise<void> {
   try {
     if (await freeRequestsDecided(ws)) return;
-    await claimFreeRequests(ws, await creatorEmailOf(ws));
+    await claimFreeRequests(ws, await creatorEmailOf(db, ws));
   } catch (error) {
     console.error("[billing] Free Requests allowance not decided:", error instanceof Error ? error.message : "unknown error");
   }

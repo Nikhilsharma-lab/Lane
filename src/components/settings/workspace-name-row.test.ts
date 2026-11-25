@@ -68,6 +68,17 @@ describe("Settings → workspace name (#381)", () => {
     expect(html).toMatch(/<input[^>]*value="Acme Studio"/)
   })
 
+  it("says on the field why a name can't be used, and sends nothing", async () => {
+    const rename = vi.fn()
+    render()
+    for (const [name, line] of [["n".repeat(101), "Use at most 100 characters."], ["Acme\u2028Design", "Use one line of plain text."]]) {
+      draft().type(name)
+      expect(await draft().save(rename)).toBe(false)
+      expect(draft().get()).toMatchObject({ value: name, error: line })
+    }
+    expect(rename).not.toHaveBeenCalled()
+  })
+
   it("says Lane couldn't save when the rename never answers", async () => {
     const onRename = async () => { throw new TypeError("Failed to fetch") }
     render({ onRename })

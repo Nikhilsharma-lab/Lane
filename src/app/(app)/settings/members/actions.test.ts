@@ -261,6 +261,22 @@ describe("cancelling an invitation", () => {
     expect(await cancel(admin, invitationId)).toEqual(gone);
   });
 
+  // The accept is written, and not yet visible, as the Admin's cancel starts.
+  it("leaves one being accepted at that moment accepted, and says it isn't pending", async () => {
+    const admin = await adminWithWorkspace();
+    const email = newAddress();
+    await admin.browser.action(() => inviteToWorkspace({ email, role: "member" }, admin.ctx));
+    const invitationId = await invitationTo(email);
+    let answer: ReturnType<typeof cancel>;
+    await connection.begin(async (accepting) => {
+      await accepting`update invitation set status = 'accepted' where id = ${invitationId}`;
+      answer = cancel(admin, invitationId);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    expect(await answer!).toEqual(gone);
+    expect(await invitations(admin.orgId)).toEqual([{ email, role: "member", status: "accepted" }]);
+  });
+
   it("refuses another workspace's invitation, even from someone who is an Admin there too", async () => {
     const admin = await adminWithWorkspace();
     const email = newAddress();

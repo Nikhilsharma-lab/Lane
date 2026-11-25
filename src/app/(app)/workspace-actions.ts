@@ -1,10 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
-import { db, profiles } from "@/db";
+import { db } from "@/db";
 import type { AuthAnswer, DoorAnswer } from "@/lib/auth-answer";
 import { askAuthServer } from "@/lib/auth-server";
 import { loadWorkspaces } from "@/lib/data/workspaces";
+import { saveLastUsed } from "@/lib/last-workspace";
 import { readSession } from "@/lib/session";
 
 /**
@@ -38,9 +38,5 @@ export async function rememberLastUsed(): Promise<DoorAnswer<{ first: boolean }>
   if (!session) return SIGNED_OUT;
   const { userId, orgId } = session;
   if (!orgId) return NOT_A_MEMBER;
-  return db.transaction(async (tx) => {
-    const [before] = await tx.select({ saved: profiles.lastWorkspaceId }).from(profiles).where(eq(profiles.id, userId)).for("update");
-    await tx.update(profiles).set({ lastWorkspaceId: orgId }).where(eq(profiles.id, userId));
-    return { ok: true, data: { first: before.saved === null } };
-  });
+  return { ok: true, data: await db.transaction((tx) => saveLastUsed(tx, { userId, orgId })) };
 }

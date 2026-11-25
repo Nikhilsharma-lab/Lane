@@ -8,6 +8,7 @@ import { authErrorCopy } from "@/lib/auth-error-copy"
 import { loadSignInMethods } from "@/lib/data/sign-in-methods"
 import { readAccount, readSession, readSignedInDevices } from "@/lib/session"
 import { AuthBrowser, authRouteTestFile, codeOf, fakeOutbound, googleErrorOf, signIn, signInWithGoogle, switchOnAuthRoute, type Outbound, type TestPerson } from "@/test/auth-route-browser"
+import { switchWorkspace } from "@/app/(app)/workspace-actions"
 import { setFirstPassword, signOutDevice, signOutOtherDevices } from "./account-actions"
 
 const { connection, person, signedIn, createWorkspace } = authRouteTestFile("account-actions.test")
@@ -117,7 +118,7 @@ describe("setting a first password", () => {
   it("needs the page's workspace to be the session's, and a session", async () => {
     const { browser, userId, orgId } = await googleOnly("guarded")
     const other = await withPassword("guarded-other")
-    expect(await browser.action(() => setFirstPassword(NEW_PASSWORD, { orgId: other.orgId }))).toEqual({ ok: false, code: "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION" })
+    expect(await browser.action(() => setFirstPassword(NEW_PASSWORD, { orgId: other.orgId }))).toEqual({ ok: false, code: "WORKSPACE_NOT_OPEN" })
     expect(await new AuthBrowser().action(() => setFirstPassword(NEW_PASSWORD, { orgId }))).toEqual({ ok: false, code: "UNAUTHORIZED" })
     expect(await loadSignInMethods(userId)).toEqual({ password: false, google: true })
   })
@@ -139,9 +140,21 @@ describe("changing the password", () => {
     expect((await browser.post("/change-password", { currentPassword: someone.password, newPassword: NEW_PASSWORD, revokeOtherSessions: true })).status).toBe(200)
 
     expect([await isSignedIn(browser), await isSignedIn(phone)]).toEqual([true, false])
-    // Better Auth makes a new session for this device; it opens the same workspace.
     expect((await browser.action(() => readSession()))?.orgId).toBe(orgId)
     expect(await devicesOf(browser)).toHaveLength(1)
+  })
+
+  // Better Auth makes this device a new session, in no workspace, so on its own it opens the last-used one. The page
+  // then opens its own again (account-callbacks.ts).
+  it("opens the page's workspace again, though another device last used another one", async () => {
+    const { browser, person: someone, orgId } = await withPassword("stays")
+    const phone = await anotherDevice(someone)
+    const elsewhere = await createWorkspace(phone)
+    await phone.action(() => switchWorkspace(elsewhere))
+    expect((await browser.post("/change-password", { currentPassword: someone.password, newPassword: NEW_PASSWORD, revokeOtherSessions: true })).status).toBe(200)
+
+    expect(await browser.action(() => switchWorkspace(orgId))).toEqual({ ok: true })
+    expect((await browser.action(() => readSession()))?.orgId).toBe(orgId)
   })
 
   it("keeps the other sessions with the box unticked", async () => {
@@ -275,7 +288,7 @@ describe("signing out devices", () => {
     const elsewhere = await withPassword("device-guard-other")
     const phoneId = (await devicesOf(browser))!.find((device) => !device.current)!.id
     for (const refused of [() => signOutDevice(phoneId, { orgId: elsewhere.orgId }), () => signOutOtherDevices({ orgId: elsewhere.orgId })])
-      expect(await browser.action(refused)).toEqual({ ok: false, code: "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION" })
+      expect(await browser.action(refused)).toEqual({ ok: false, code: "WORKSPACE_NOT_OPEN" })
     for (const refused of [() => signOutDevice(phoneId, { orgId }), () => signOutOtherDevices({ orgId })])
       expect(await new AuthBrowser().action(refused)).toEqual({ ok: false, code: "UNAUTHORIZED" })
     expect(await isSignedIn(phone)).toBe(true)

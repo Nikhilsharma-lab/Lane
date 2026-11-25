@@ -6,37 +6,48 @@ import { revalidatePath } from "next/cache";
 import { RedirectType, redirect } from "next/navigation";
 import * as z from "zod";
 
-import { rememberLastUsed } from "@/app/(app)/workspace-actions";
 import { db, profiles, workspaces } from "@/db";
 import type { DoorAnswer } from "@/lib/auth-answer";
 import { activeMemberOf } from "@/lib/auth-guard";
 import { askAuthServer } from "@/lib/auth-server";
-import { decideFreeRequests } from "@/lib/billing";
+import { decideFreeRequestsWithCreator } from "@/lib/billing";
+import { saveLastUsed } from "@/lib/last-workspace";
+import { readName } from "@/lib/name-rules";
 import { readSession } from "@/lib/session";
 
 const onboardingRoleSchema = z.object({
   role: z.enum(["pm", "designer", "developer"]),
 });
-const workspaceNameSchema = z.string().trim().min(1);
 
 /**
  * #391 (spec #383 "Onboarding"): creates a workspace with the session's person as its Admin and creator, and opens it.
  * Its slug is generated and nobody sees it (workspaces aren't routed by slug), so two may have one name. `first` says
- * it's the person's first workspace, which the role step follows.
+ * it's the person's first workspace, which the role step follows. Its creator, Free Requests and last used are saved
+ * together; when they can't be, the workspace goes again, so none is left without them.
  */
 export async function createWorkspace(name: string): Promise<DoorAnswer<{ first: boolean }>> {
-  const parsed = workspaceNameSchema.safeParse(name);
-  if (!parsed.success) return { ok: false };
+  const read = readName(name);
+  if (!read.ok) return read;
   const session = await readSession();
   if (!session) return { ok: false, code: "UNAUTHORIZED" };
 
-  const created = await askAuthServer((api, asCaller) => api.createOrganization({ ...asCaller, body: { name: parsed.data, slug: randomUUID() } }));
+  const created = await askAuthServer((api, asCaller) => api.createOrganization({ ...asCaller, body: { name: read.name, slug: randomUUID() } }));
   if (!created.ok) return created;
+  // The new workspace, which Better Auth made the session's.
   const orgId = created.data.id;
-  await db.update(workspaces).set({ ownerUserId: session.userId }).where(eq(workspaces.id, orgId));
-  await decideFreeRequests({ orgId });
-  const remembered = await rememberLastUsed();
-  return { ok: true, data: { first: remembered.ok && remembered.data.first } };
+  const { userId } = session;
+  try {
+    const data = await db.transaction(async (tx) => {
+      await tx.update(workspaces).set({ ownerUserId: userId }).where(eq(workspaces.id, orgId));
+      await decideFreeRequestsWithCreator(tx, { orgId });
+      return saveLastUsed(tx, { userId, orgId });
+    });
+    return { ok: true, data };
+  } catch (error) {
+    console.error("[onboarding] workspace not finished, removed:", error instanceof Error ? error.name : "unknown error");
+    await db.delete(workspaces).where(eq(workspaces.id, orgId));
+    return { ok: false };
+  }
 }
 
 export async function saveOnboardingRole(data: { role: string }) {

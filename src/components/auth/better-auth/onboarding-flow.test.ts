@@ -57,6 +57,14 @@ describe("creating a workspace in Onboarding (#379)", () => {
     expect(flow.snapshot().pending).toBeNull()
   })
 
+  it.each([["n".repeat(101), "Use at most 100 characters."], ["Acme\u2028Design", "Use one line of plain text."]])("says on the field why a name can't be used, and sends nothing: %j", async (name, line) => {
+    const onCreate = vi.fn(done)
+    const flow = createOnboardingFlow({ invitations: [], onJoin: done, onCreate })
+    await flow.create(name)
+    expect(flow.snapshot()).toMatchObject({ nameError: line, alert: null })
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
   it("forgets what it said about the name once the person types", async () => {
     const flow = createOnboardingFlow({ invitations, onJoin: done, onCreate: done })
     await flow.create("")

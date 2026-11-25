@@ -206,6 +206,35 @@ describe("creating a workspace", () => {
     expect((await readFreeRequests({ orgId: second })).free).toEqual({ total: 4, used: 0, left: 3, usedElsewhere: { kind: "company_domain", domain, used: 1 } })
   })
 
+  // Each write Lane makes after Better Auth's, refused by the database while the test runs.
+  it.each([
+    ["its creator", "update of owner_id on organizations"],
+    ["its Free Requests", "insert on free_request_allowances"],
+    ["last used", "update of last_workspace_id on profiles"],
+  ])("takes the workspace away again when %s couldn't be saved, and only that one", async (_what, write) => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    const { browser, userId } = await signedIn(outbound, "interrupted")
+    const first = await makeWorkspace(browser)
+    await browser.action(() => rememberLastUsed())
+    await connection.unsafe(`create or replace function lane_test_refuse() returns trigger language plpgsql as $$ begin raise exception 'refused by the test'; end $$`)
+    await connection.unsafe(`create trigger lane_test_refuse before ${write} for each row execute function lane_test_refuse()`)
+    try {
+      expect(await browser.action(() => createWorkspace("Half made"))).toEqual({ ok: false })
+    } finally {
+      await connection.unsafe(`drop trigger lane_test_refuse on ${write.split(" on ")[1]}`)
+      await connection.unsafe(`drop function lane_test_refuse()`)
+    }
+    expect(await connection`select 1 from organizations where name = 'Half made'`).toHaveLength(0)
+    expect([...(await connection`select organization_id from member where user_id = ${userId}`)]).toEqual([{ organization_id: first }])
+    expect(await sessionOf(browser)).toEqual({ userId, orgId: first, role: "admin" })
+
+    // A second try makes a whole one.
+    expect(await browser.action(() => createWorkspace("Half made"))).toEqual({ ok: true, data: { first: false } })
+    const [made] = await connection`select o.owner_id, b.allowance_key from organizations o join workspace_billing b on b.org_id = o.id where o.name = 'Half made' and o.owner_id = ${userId}`
+    expect(made).toEqual({ owner_id: userId, allowance_key: domain })
+    await connection`delete from organizations where name = 'Half made' and owner_id = ${userId}`
+  })
+
   it("lets two workspaces have the same name", async () => {
     const [first, second] = [await signedIn(outbound, "same"), await signedIn(outbound, "same")]
     for (const { browser } of [first, second, first]) expect(await browser.action(() => createWorkspace("Same name"))).toMatchObject({ ok: true })
@@ -232,6 +261,13 @@ describe("creating a workspace", () => {
   ])("refuses %s and makes nothing", async (_what, name) => {
     const { browser, userId } = await signedIn(outbound, "nameless")
     expect(await browser.action(() => createWorkspace(name as string))).toEqual({ ok: false })
+    expect(await membershipsOf(userId)).toBe(0)
+  })
+
+  it("refuses a name of several lines or over 100 characters, and makes nothing", async () => {
+    const { browser, userId } = await signedIn(outbound, "misnamer")
+    expect(await browser.action(() => createWorkspace("Acme\nYour account is locked"))).toEqual({ ok: false, code: "NAME_NOT_PLAIN" })
+    expect(await browser.action(() => createWorkspace("n".repeat(101)))).toEqual({ ok: false, code: "NAME_TOO_LONG" })
     expect(await membershipsOf(userId)).toBe(0)
   })
 

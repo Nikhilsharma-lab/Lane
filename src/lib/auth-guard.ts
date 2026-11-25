@@ -28,6 +28,13 @@ export async function guardActiveMember(orgId: string, copy: string): Promise<Me
   return member;
 }
 
+/** `guardActiveMember` for an action that answers codes: a tab whose workspace isn't the session's any more gets `WORKSPACE_NOT_OPEN`. */
+export async function activeMemberOrCode(orgId: string): Promise<MemberAuth | { ok: false; code: "UNAUTHORIZED" | "WORKSPACE_NOT_OPEN" }> {
+  const member = await guardActiveMember(orgId, "");
+  if (!("error" in member)) return member;
+  return { ok: false, code: member.sessionExpired ? "UNAUTHORIZED" : "WORKSPACE_NOT_OPEN" };
+}
+
 /** Admin or Member may change shared workspace data. */
 export async function guardCanChange(orgId: string, copy: string): Promise<MemberAuth | ActionFailure> {
   const membership = await guardActiveMember(orgId, copy);

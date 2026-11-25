@@ -1,6 +1,7 @@
 import { settle, type AuthAnswer } from "@/lib/auth-answer"
 import { NEW_PASSWORD_MISSING, PERSON_NAME_MISSING } from "@/lib/auth-code-rules"
 import { createExternalStore } from "@/lib/external-store"
+import { readName } from "@/lib/name-rules"
 import { authErrorCopy, eachCode, forCode, googleConnectionCode, NEW_PASSWORD_REFUSALS, type AuthErrorCode } from "@/lib/auth-error-copy"
 
 /** Every account callback answers success or an error code (`AuthAnswer`), which the view reads with `authErrorCopy`. */
@@ -73,9 +74,11 @@ export function createProfileAccount(initial: ProfileAccountCallbacks & { name: 
       set({ name: name({ draft, error: null }) })
     },
     async saveName() {
-      const draft = store.get().name.draft.trim()
-      if (store.get().name.busy || draft === store.get().name.saved) return
-      if (!draft) { set({ name: name({ error: PERSON_NAME_MISSING }) }); return }
+      const typed = store.get().name.draft
+      if (store.get().name.busy || typed.trim() === store.get().name.saved) return
+      const read = readName(typed)
+      if (!read.ok) { set({ name: name({ error: read.code ? authErrorCopy(read.code) : PERSON_NAME_MISSING }) }); return }
+      const draft = read.name
       set({ name: name({ busy: true, error: null }), status: "" })
       const answer = await settle(() => callbacks().onSaveName(draft))
       if (answer.ok) set({ name: name({ busy: false, draft, saved: draft }), status: "Name saved." })
