@@ -3,7 +3,8 @@ import { formReady, openForm, passHumanCheck, test, typeCode } from "./helpers/a
 import { cleanupTestWorkspace, provisionTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { replaceEmailCode } from "./helpers/email-codes";
 import { testEmail } from "./helpers/fixtures";
-import { createTestUser, deleteTestUser, readTestSession, type TestUser } from "./helpers/test-user";
+import { hydrated } from "./helpers/role-workspace";
+import { createTestUser, deleteTestUser, readTestSession, signInTestUser, type TestUser } from "./helpers/test-user";
 
 const REQUEST = "The Request behind the link";
 const RETURN_ADDRESS = "/?status=open";
@@ -117,6 +118,60 @@ test("a wrong password shows its line on the password", async ({ page }) => {
     await expect(page).toHaveURL("/login");
     expect(await readTestSession(page)).toBeNull();
   });
+});
+
+// #405: the button a person pressed goes with the devices it signed out, so their place moves to the group's heading.
+test("signing out of other devices ends them, and keeps a keyboard's place on the page", async ({ page, browser }) => {
+  await withPerson("devices", async (user) => {
+    const others = await Promise.all([browser.newContext(), browser.newContext()]);
+    try {
+      const [first, second] = await Promise.all(others.map((each) => each.newPage()));
+      for (const each of [page, first, second]) await signInTestUser(each, user);
+      await page.goto("/settings/profile");
+      const devices = page.getByRole("list", { name: "Signed-in devices" });
+      await expect(devices.getByRole("listitem")).toHaveCount(3);
+      const heading = page.locator("#devices-heading");
+
+      const one = devices.getByRole("button", { name: /^Sign out of / }).first();
+      await hydrated(one);
+      await one.press("Enter");
+      await expect(devices.getByRole("listitem")).toHaveCount(2);
+      await expect(heading).toBeFocused();
+
+      await page.getByRole("button", { name: "Sign out of all other devices", exact: true }).press("Enter");
+      await expect(devices.getByRole("listitem")).toHaveCount(1);
+      await expect(heading).toBeFocused();
+      expect((await readTestSession(page))?.userId).toBe(user.id);
+      for (const each of [first, second]) expect(await readTestSession(each)).toBeNull();
+    } finally {
+      for (const each of others) await each.close();
+    }
+  });
+});
+
+// #405: iOS zooms the page in when a field's text is under 16 px.
+test("on a phone, the signed-out forms fit the screen and focusing a field doesn't zoom it", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage();
+    for (const [address, fields] of [
+      ["/login", ["Email address", "Password"]],
+      ["/login?start=code-request", ["Email address"]],
+      ["/signup", ["Your name", "Email address", "Choose a password"]],
+      ["/forgot-password", ["Email address"]],
+    ] as const) {
+      await openForm(page, address);
+      for (const label of fields) {
+        const size = await page.getByLabel(label, { exact: true }).evaluate((field) => parseFloat(getComputedStyle(field).fontSize));
+        expect(size, `${label} on ${address}`).toBeGreaterThanOrEqual(16);
+      }
+      expect(await page.evaluate(() => document.scrollingElement!.scrollWidth), address).toBe(390);
+    }
+    await openForm(page, "/login");
+    expect((await page.getByRole("link", { name: "Forgot password?" }).boundingBox())!.height, "a finger's target").toBeGreaterThanOrEqual(24);
+  } finally {
+    await context.close();
+  }
 });
 
 test("an unknown email shows its line, with sign-up one press away and the email kept", async ({ page }) => {

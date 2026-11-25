@@ -33,6 +33,11 @@
       "uncompressedBytes": 1224212,
       "chunks": 17
     },
+    "/invite/[id]": {
+      "gzipBytes": 235091,
+      "uncompressedBytes": 743896,
+      "chunks": 12
+    },
     "/login": {
       "gzipBytes": 284036,
       "uncompressedBytes": 937160,

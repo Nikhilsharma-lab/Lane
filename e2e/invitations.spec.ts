@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { formReady, passHumanCheck, test, typeCode } from "./helpers/auth-forms";
 import { provisionTestWorkspace } from "./helpers/cleanup";
+import { withE2EDatabase } from "./helpers/database";
 import { replaceEmailCode } from "./helpers/email-codes";
 import { testEmail } from "./helpers/fixtures";
 import { createTestUser, deleteSignedUpUser, deleteTestUser, readTestSession, signInTestUser, type TestUser } from "./helpers/test-user";
@@ -138,6 +139,31 @@ test("signed in with a different email: told whose it is, and not let in", async
     expect(await readTestSession(page)).toBeNull();
     expect(await testMemberRole(orgId, other.id)).toBeNull();
     expect(await testMemberRole(orgId, invited.id)).toBeNull();
+  });
+});
+
+test("on a phone, a long email or workspace name wraps instead of widening the screen", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await withInviting("invite-long", async ({ orgId, admin }, person) => {
+    const invited = await person("someone-with-a-long-name");
+    const other = await person("somebody-else-entirely");
+    await createTestWorkspace(other.id, "Lane E2E someone else's");
+    const workspace = `Lane${"longworkspacename".repeat(4)}`;
+    await withE2EDatabase((sql) => sql`update organizations set name = ${workspace} where id = ${orgId}`);
+    const fits = async () => expect(await page.evaluate(() => document.scrollingElement!.scrollWidth)).toBe(390);
+
+    const id = await createTestInvitation(orgId, admin.id, invited.email);
+    await page.goto(`/invite/${id}`);
+    await expect(heading(page, `Join ${workspace}`)).toBeVisible();
+    await fits();
+    await signInTestUser(page, other);
+    await page.goto(`/invite/${id}`);
+    await expect(button(page, `Sign out and sign in as ${invited.email}`)).toBeVisible();
+    await fits();
+    await addTestMember(orgId, other.id, "member");
+    await page.goto(`/invite/${await createTestInvitation(orgId, admin.id, other.email, { status: "accepted" })}`);
+    await expect(button(page, `Open ${workspace}`)).toBeVisible();
+    await fits();
   });
 });
 
