@@ -5,7 +5,7 @@ import { alias } from "drizzle-orm/pg-core";
 
 import type { Invitation, InvitationStatus, InvitationViewer } from "@/components/auth/better-auth/invitation-flow";
 import type { PendingWorkspaceInvitation } from "@/components/auth/better-auth/onboarding-flow";
-import { db, invitation, profiles, workspaces } from "@/db";
+import { db, invitation, member, profiles, workspaces } from "@/db";
 import { laneRole } from "@/lib/role-rules";
 
 /**
@@ -41,7 +41,7 @@ const STATUSES: Record<string, InvitationStatus> = { pending: "pending", accepte
 
 /**
  * #392: one invitation and who is looking at it, for anyone holding its link (#346): its workspace and inviter, and
- * the signed-in person's email, else whether the invited email has a Lane account, matched ignoring case. Null for an
+ * the signed-in person's email and whether they're in that workspace, else whether the invited email has a Lane account, matched ignoring case. Null for an
  * unknown id, or a role or status Lane doesn't know. One query.
  */
 export async function loadInvitation(id: string, viewerId: string | null): Promise<{ invitation: Invitation; viewer: InvitationViewer; workspaceId: string } | null> {
@@ -60,6 +60,8 @@ export async function loadInvitation(id: string, viewerId: string | null): Promi
       workspace: workspaces.name,
       inviter: inviter.fullName,
       viewerEmail: viewer.email,
+      // A member row of nobody's, for anyone signed out.
+      member: sql<boolean>`${exists(db.select({ one: sql`1` }).from(member).where(and(eq(member.organizationId, invitation.organizationId), eq(member.userId, viewerId ?? ""))))}`,
       hasAccount: sql<boolean>`${exists(db.select({ one: sql`1` }).from(account).where(sql`lower(${account.email}) = lower(${invitation.email})`))}`,
     })
     .from(invitation)
@@ -76,7 +78,7 @@ export async function loadInvitation(id: string, viewerId: string | null): Promi
   if (!status || !role) return null;
   return {
     invitation: { id, email, role, workspace, inviter: row.inviter, expiresAt: row.expiresAt.toISOString(), status: status === "pending" && row.expired ? "expired" : status },
-    viewer: row.viewerEmail === null ? { signedIn: false, hasAccount: row.hasAccount } : { signedIn: true, email: row.viewerEmail },
+    viewer: row.viewerEmail === null ? { signedIn: false, hasAccount: row.hasAccount } : { signedIn: true, email: row.viewerEmail, member: row.member },
     workspaceId,
   };
 }

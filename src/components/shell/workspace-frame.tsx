@@ -87,7 +87,7 @@ export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceNam
     {/* #267: where a popup whose code couldn't load says so. */}
     <PopupNotices />
     {/* #402: after each move, whether the session is still in this frame's workspace and role. */}
-    <FrameWatch orgId={orgId} role={role} />
+    <FrameWatch orgId={orgId} userId={userId} role={role} />
     <StableRouterProvider>
     <RequestListViewProvider key={`${orgId}:${userId}`}>
       {/* Pending Request changes live here, above every page, so a navigation

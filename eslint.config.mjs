@@ -7,8 +7,8 @@ const ARC_DIALOGS = ["dialog/dialog", "drawer/drawer", "bottom-sheet/bottom-shee
   name: `@/components/arc/${path}`,
   message: "Use Dialog from @/components/popup/adaptive-dialog (#263).",
 }));
-// #398: Clerk is out of the app. Its packages stay installed until increment 7, and the e2e specs not ported yet still
-// import them, but nothing under src/ loads them, statically or with import().
+// #398: Clerk is out of the app. Its packages stay installed until increment 7, but nothing under src/ loads them,
+// statically or with import().
 const CLERK_MESSAGE = "Clerk is out of the app: Better Auth owns accounts, sessions and workspaces, read through src/lib/session.ts (#398).";
 const CLERK = { regex: "^@clerk(/|$)", message: CLERK_MESSAGE };
 const CLERK_DYNAMIC = { selector: "ImportExpression[source.value=/^@clerk/]", message: CLERK_MESSAGE };

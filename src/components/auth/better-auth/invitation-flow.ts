@@ -26,10 +26,16 @@ export type Invitation = {
   status: InvitationStatus
 }
 
-/** Who is looking: signed out with or without a Lane account for the invited email, or signed in with an email. */
-export type InvitationViewer = { signedIn: false; hasAccount: boolean } | { signedIn: true; email: string }
+/**
+ * Who is looking: signed out with or without a Lane account for the invited email, or signed in with an email.
+ * `member`: they're in the invitation's workspace.
+ */
+export type InvitationViewer = { signedIn: false; hasAccount: boolean } | { signedIn: true; email: string; member: boolean }
 
-/** #346's invitation states, plus `closed`: an accept or decline refused because the invitation is no longer open. */
+/**
+ * #346's invitation states, plus `closed`: an accept or decline refused because the invitation is no longer open, and
+ * `accepted`: one already accepted, for anyone Lane doesn't know to be in its workspace.
+ */
 export type InvitationScreen =
   | "sign-in"
   | "create-account"
@@ -37,6 +43,7 @@ export type InvitationScreen =
   | "someone-else"
   | "expired"
   | "already-accepted"
+  | "accepted"
   | "cancelled"
   | "closed"
   | "full"
@@ -62,10 +69,14 @@ type Options = {
   onJoined: () => void
 }
 
-/** Refusals that mean the invitation can't be accepted at all, so the page moves to that state. */
+/**
+ * Refusals that move the page to another state: the invitation can't be accepted at all, or (Open <workspace>) the
+ * person isn't in its workspace any more.
+ */
 const SCREEN_OF: Partial<Record<AuthErrorCode, InvitationScreen>> = {
   ORGANIZATION_MEMBERSHIP_LIMIT_REACHED: "full",
   INVITATION_NOT_FOUND: "closed",
+  USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION: "accepted",
 }
 const OFFER_OF: Partial<Record<AuthErrorCode, InvitationOffer>> = {
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "code",
@@ -78,7 +89,7 @@ const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().
 
 function firstScreen({ status, email }: Invitation, viewer: InvitationViewer): InvitationScreen {
   if (status === "expired") return "expired"
-  if (status === "accepted") return "already-accepted"
+  if (status === "accepted") return viewer.signedIn && viewer.member ? "already-accepted" : "accepted"
   if (status === "cancelled" || status === "declined") return "cancelled"
   if (!viewer.signedIn) return viewer.hasAccount ? "sign-in" : "create-account"
   return sameEmail(viewer.email, email) ? "accept" : "someone-else"

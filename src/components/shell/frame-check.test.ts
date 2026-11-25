@@ -4,11 +4,11 @@ import { createFrameCheck, type FrameCheck, type FrameSession } from "./frame-ch
 // #402: the frame asks the server, after each in-app move, whose workspace and role it is. `browser` stands for the
 // tab: its connection, its address, and the full loads it makes. The server's own answers are frame-answer.test.ts's.
 
-const HARBOUR: FrameSession = { orgId: "org_harbour", role: "member" }
-const LIGHTHOUSE: FrameSession = { orgId: "org_lighthouse", role: "admin" }
+const HARBOUR: FrameSession = { orgId: "org_harbour", userId: "user_mei", role: "member" }
+const LIGHTHOUSE: FrameSession = { orgId: "org_lighthouse", userId: "user_mei", role: "admin" }
 
-const says = (role: string) => Response.json({ role })
-const CHANGED = () => Response.json({ error: "Your workspace session changed. Refresh the page to continue." }, { status: 403 })
+const says = (role: string, userId = "user_mei") => Response.json({ role, userId })
+const CHANGED = () => Response.json({ error: "Your workspace session changed. Refresh the page to continue.", code: "WORKSPACE_CHANGED" }, { status: 403 })
 
 let browser: { offline: boolean; path: string; loads: string[] }
 /** Each request the frame sent: its address, whether it was aborted, and how to answer it. */
@@ -121,6 +121,16 @@ describe("what it does about the answer", () => {
     expect(browser.loads).toEqual(["reload"])
   })
 
+  it("loads the address it is on in full once someone else is signed in, in the same workspace and role", async () => {
+    move(HARBOUR, "/impact")
+    await answered(says("member", "user_sam"))
+    expect(browser.loads).toEqual(["reload"])
+    // The same person again, should this one stay on the page.
+    move(HARBOUR, "/inbox")
+    await answered(says("member", "user_sam"))
+    expect(browser.loads).toEqual(["reload"])
+  })
+
   it("leaves an ended session to the page", async () => {
     move(HARBOUR, "/impact")
     await answered(Response.json({ error: "Sign in to continue." }, { status: 401 }))
@@ -130,9 +140,11 @@ describe("what it does about the answer", () => {
   it.each([
     ["a 500", () => Response.json({ error: "Your Inbox couldn’t be loaded. Try again." }, { status: 500 })],
     ["a 503", () => new Response("busy", { status: 503 })],
+    ["a 403 of Lane's for something else", () => Response.json({ error: "You can’t open this." }, { status: 403 })],
     ["a 403 that isn't Lane's, such as a firewall's page", () => new Response("<html>Forbidden</html>", { status: 403 })],
     ["a 200 that isn't Lane's, such as a sign-in page of a network's", () => new Response("<html>Welcome to the Wi-Fi</html>")],
-    ["a 200 with no role", () => Response.json({})],
+    ["a 200 with no role", () => Response.json({ userId: "user_mei" })],
+    ["a 200 with no person", () => Response.json({ role: "viewer" })],
   ])("does nothing about %s", async (_, response) => {
     move(HARBOUR, "/impact")
     await answered(response())
@@ -184,12 +196,15 @@ describe("what it does about the answer", () => {
 })
 
 describe("a frame drawn again in the same page", () => {
-  it("loads in full, without asking, when a refresh brings another workspace or role", () => {
+  it("loads in full, without asking, when a refresh brings another workspace, person or role", () => {
     check.shown(LIGHTHOUSE, "/", false)
     expect(browser.loads).toEqual(["/"])
     fullLoad(HARBOUR)
     check.shown({ ...HARBOUR, role: "viewer" }, "/", false)
     expect(browser.loads).toEqual(["/", "reload"])
+    fullLoad(HARBOUR)
+    check.shown({ ...HARBOUR, userId: "user_sam" }, "/", false)
+    expect(browser.loads).toEqual(["/", "reload", "reload"])
     expect(sent).toEqual([])
   })
 

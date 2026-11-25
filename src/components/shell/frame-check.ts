@@ -1,10 +1,11 @@
-import type { WorkspacePermission } from "@/lib/auth-guard"
+import { readFrameAnswer } from "@/app/api/_lib/read-route-answers"
+import type { MemberAuth } from "@/lib/auth-guard"
 import { ONBOARDING_URL } from "@/lib/onboarding-address"
 
 /** What a frame was drawn for. */
-export type FrameSession = { orgId: string; role: WorkspacePermission }
-/** Where the session no longer agrees with the frame: in another workspace or none, or here with this other role. */
-type Mismatch = "workspace" | { role: string }
+export type FrameSession = MemberAuth
+/** Where the session no longer agrees with the frame: in another workspace or none, or here as someone else or in another role. */
+type Mismatch = "workspace" | { userId: string; role: string }
 
 type Tab = {
   offline: () => boolean
@@ -16,9 +17,9 @@ type Tab = {
 
 /**
  * #402 (#383 stories 59, 60 and 72): Next keeps the (app) layout across in-app moves, so after a removal, a role
- * change or a workspace switch in another tab, the page it moves to is the session's and the frame around it isn't.
- * After each move, Back and Forward included, the frame asks the server for the person's role in its own workspace
- * (the session read alone) and, on a difference, loads Lane in full: `/` in another workspace, where this address
+ * change, or a workspace switch or someone else signing in in another tab, the page it moves to is the session's and
+ * the frame around it isn't. After each move, Back and Forward included, the frame asks the server for the person and
+ * their role in its own workspace (the session read alone) and, on a difference, loads Lane in full: `/` in another workspace, where this address
  * means nothing, else the address it is on. It never holds up a move. An ended session, a failure or no connection
  * changes nothing. A full load draws a frame from the session that answers, so it never meets a mismatch of its own.
  */
@@ -32,7 +33,7 @@ export function createFrameCheck(tab: Tab) {
   let mounted = false
 
   function leave(mismatch: Mismatch) {
-    const key = mismatch === "workspace" ? mismatch : mismatch.role
+    const key = mismatch === "workspace" ? mismatch : `${mismatch.userId} ${mismatch.role}`
     if (key === leftFor) return
     leftFor = key
     if (mismatch === "workspace") tab.openHome()
@@ -63,7 +64,7 @@ export function createFrameCheck(tab: Tab) {
       mounted = true
       if (!own) { own = frame; return }
       if (frame.orgId !== own.orgId) leave("workspace")
-      else if (frame.role !== own.role) leave({ role: frame.role })
+      else if (differs(frame, own)) leave(frame)
       else if (moved || returned) void ask(own, address)
     },
     /** A newer move has started, whose own check will answer: a full load of this address would undo it. */
@@ -86,12 +87,12 @@ export function createFrameCheck(tab: Tab) {
 }
 export type FrameCheck = ReturnType<typeof createFrameCheck>
 
-/** Lane's own answers only: a firewall's 403 or a network's sign-in page says nothing about the session. */
+const differs = (session: { userId: string; role: string }, frame: FrameSession) => session.userId !== frame.userId || session.role !== frame.role
+
 async function readMismatch(frame: FrameSession, signal: AbortSignal): Promise<Mismatch | null> {
   const response = await fetch(`/api/notifications/unread?${new URLSearchParams({ org: frame.orgId, only: "role" })}`, {
     signal, headers: { accept: "application/json" }, credentials: "same-origin",
   })
-  const body: { role?: unknown; error?: unknown } = await response.json()
-  if (response.status === 403) return typeof body.error === "string" ? "workspace" : null
-  return response.ok && typeof body.role === "string" && body.role !== frame.role ? { role: body.role } : null
+  const answer = readFrameAnswer(response.status, await response.json())
+  return answer === null || answer === "workspace" || differs(answer, frame) ? answer : null
 }

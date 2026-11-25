@@ -24,7 +24,7 @@ function checkOfPage(): FrameCheck {
 const tabAddress = () => `${location.pathname}${location.search}`
 
 /** #402: tells the frame's check (frame-check.ts) which address the frame shows, and whether an in-app move brought it. */
-export function FrameWatch({ orgId, role }: FrameSession) {
+export function FrameWatch({ orgId, userId, role }: FrameSession) {
   const pathname = usePathname()
   const search = useSearchParams()?.toString() ?? ""
   const last = useRef({ pathname, address: "", moves: 0, stepped: false })
@@ -41,7 +41,7 @@ export function FrameWatch({ orgId, role }: FrameSession) {
     const before = last.current
     last.current = { pathname, address: tabAddress(), moves: routerMoves(), stepped: false }
     const moved = before.pathname !== pathname || before.moves !== last.current.moves || before.stepped
-    checkOfPage().shown({ orgId, role }, `${pathname}?${search}`, moved)
-  }, [orgId, role, pathname, search])
+    checkOfPage().shown({ orgId, userId, role }, `${pathname}?${search}`, moved)
+  }, [orgId, userId, role, pathname, search])
   return null
 }

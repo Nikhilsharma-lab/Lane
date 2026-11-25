@@ -24,21 +24,21 @@ async function ask(browser: AuthBrowser, orgId: string | null) {
   return { status: result.status, body: await result.json(), cache: result.headers.get("cache-control"), statements }
 }
 
-it("answers the person's role in the frame's workspace, with the session read alone and uncacheable", async () => {
-  const { browser } = await signedIn(outbound, "admin")
+it("answers the person and their role in the frame's workspace, with the session read alone and uncacheable", async () => {
+  const { browser, userId } = await signedIn(outbound, "admin")
   const orgId = await createWorkspace(browser)
-  expect(await ask(browser, orgId)).toEqual({ status: 200, body: { role: "admin" }, cache: "private, no-store", statements: 1 })
+  expect(await ask(browser, orgId)).toEqual({ status: 200, body: { role: "admin", userId }, cache: "private, no-store", statements: 1 })
 })
 
-it("says the same workspace and role as the frame a full load draws, so a full load never meets a mismatch", async () => {
+it("says the same workspace, person and role as the frame a full load draws, so a full load never meets a mismatch", async () => {
   const admin = await signedIn(outbound, "admin")
   const orgId = await createWorkspace(admin.browser)
   for (const role of ["admin", "member", "guest", "viewer"]) {
     const person = await join(outbound, admin.browser, role)
     const loaded = await person.browser.action(async () => loadWorkspaceFrame((await getMember())!))
     await loaded!.frame.needsYouCount
-    expect(loaded!.frame).toMatchObject({ orgId, role })
-    expect(await ask(person.browser, loaded!.frame.orgId)).toMatchObject({ status: 200, body: { role: loaded!.frame.role } })
+    expect(loaded!.frame).toMatchObject({ orgId, role, userId: person.userId })
+    expect(await ask(person.browser, loaded!.frame.orgId)).toMatchObject({ status: 200, body: { role: loaded!.frame.role, userId: loaded!.frame.userId } })
   }
 })
 
@@ -55,7 +55,7 @@ it("refuses the frame's workspace after a removal, with another workspace or non
   const admin = await signedIn(outbound, "admin")
   const orgId = await createWorkspace(admin.browser)
   const member = await join(outbound, admin.browser, "member")
-  const changed = { status: 403, body: { error: "Your workspace session changed. Refresh the page to continue." }, cache: "private, no-store", statements: 1 }
+  const changed = { status: 403, body: { error: "Your workspace session changed. Refresh the page to continue.", code: "WORKSPACE_CHANGED" }, cache: "private, no-store", statements: 1 }
 
   await connection`delete from member where organization_id = ${orgId} and user_id = ${member.userId}`
   expect(await ask(member.browser, orgId)).toEqual(changed)
@@ -64,6 +64,17 @@ it("refuses the frame's workspace after a removal, with another workspace or non
   // Another tab of the Admin's opens another workspace.
   await createWorkspace(admin.browser)
   expect(await ask(admin.browser, orgId)).toEqual(changed)
+})
+
+// Another tab of the browser signs in as someone else, whose last-used workspace is the same one.
+it("answers the other person once someone else is signed in, in the same workspace and role", async () => {
+  const admin = await signedIn(outbound, "admin")
+  const orgId = await createWorkspace(admin.browser)
+  const first = await join(outbound, admin.browser, "member", "first")
+  const second = await join(outbound, admin.browser, "member", "second")
+  first.browser.cookies.clear()
+  for (const [name, value] of second.browser.cookies) first.browser.cookies.set(name, value)
+  expect(await ask(first.browser, orgId)).toMatchObject({ status: 200, body: { role: "member", userId: second.userId }, statements: 1 })
 })
 
 it("answers 401 to a session that ended, and 400 without a workspace, as before", async () => {

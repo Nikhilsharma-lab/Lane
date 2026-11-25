@@ -1,5 +1,5 @@
 /**
- * #371 (spec #369): `/api/auth/[...all]`, Better Auth's dormant route. While BETTER_AUTH_SECRET is unset it answers
+ * #371 (spec #369): `/api/auth/[...all]`, Better Auth's route. While BETTER_AUTH_SECRET is unset it answers
  * 404 and builds nothing. With the secret set inside the test, Requests built as the browser sends them go to the
  * route's GET and POST on a local lane_test database, and only outbound HTTP is faked.
  */
@@ -34,7 +34,7 @@ const route = () => import("./route")
 const hung = () => new Promise<Response>(() => {})
 const profileOf = async (email: string) => (await connection`select id, full_name, email_verified, role, image from profiles where email = ${email}`)[0]
 
-describe("the auth route while dormant", () => {
+describe("the auth route without its secret", () => {
   for (const [label, secret] of [["unset", undefined], ["blank", "  "]] as const)
     it(`answers 404 to GET and POST and runs no query with the secret ${label}`, async () => {
       vi.stubEnv("BETTER_AUTH_SECRET", secret)

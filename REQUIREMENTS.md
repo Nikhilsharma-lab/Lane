@@ -904,8 +904,8 @@ presented as evidence of an individual's performance or used to rank PMs, Design
 - Workspace admin/member/guest/viewer permissions are distinct from functional labels.
 - Better Auth holds invitations and membership in Lane's Postgres (§2); Lane emails each invitation (#333; increment 5,
   on the integration branch). An invitation is bound to its email and expires after 7 days; only a signed-in person
-  whose verified email matches can accept it. An Admin can cancel a pending one, and resends one by inviting the same
-  address again. A workspace holds at most 100 people and 100 pending invitations.
+  whose verified email matches can accept it. An address with a pending invitation can't be invited again: an Admin
+  revokes the pending one, then invites the address again. A workspace holds at most 100 people and 100 pending invitations.
 - Lane must recover routing/authorization failures without a second set of invitation tokens or a parallel mailer.
 - Older local-invite copy-link behaviour is historical, not a current requirement.
 - In-app notifications support the shipped Request loop without a subscriber/watch-all-activity system.

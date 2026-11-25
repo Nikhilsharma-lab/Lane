@@ -69,7 +69,7 @@ const firstName = (name: string) => name.trim().split(" ")[0];
 /** The accepted prototype's matching (#325): a person's shown name or address contains what was typed. */
 const matches = (person: WorkspaceMember, needle: string) => !needle || `${person.name} ${person.email}`.toLowerCase().includes(needle);
 
-/** Runs one change through the session-renewing call, so every answer is `{ success }` or `{ error }`. */
+/** Runs one change, so every answer is `{ success }` or `{ error }`. */
 async function attempt(run: () => Promise<Answer>): Promise<Answer> {
   try {
     const answer = await callAction(run);

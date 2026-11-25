@@ -1,6 +1,6 @@
 /**
- * #377, #388: lint refuses Lane's browser auth client outside the auth screens, their tests and the files that mount
- * them. Each case lints a one-line file at a path, with the repo's own ESLint config.
+ * What lint keeps apart around sign-in: Lane's browser auth client (#377, #388), the session read (#387), Better
+ * Auth's server and its door (#371, #389), Clerk (#398) and testUtils (#399). Each case lints a one-line file at a path, with the repo's own ESLint config.
  */
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -237,7 +237,7 @@ describe("what ships", () => {
 
   it("imports, loads and mocks nothing of Clerk's, tests included", () => {
     const naming = sources().filter((path) => /(from|import|import\(|require\(|[mM]ock\(|importActual\(|typeof import\()\s*["'`]@clerk\//.test(readFileSync(path, "utf8")))
-    expect(naming.filter((path) => !path.endsWith("auth-dormancy-lint.test.ts"))).toEqual([])
+    expect(naming.filter((path) => !path.endsWith("auth-fences.test.ts"))).toEqual([])
   })
 
   // #399: e2e's powers, the test-only Better Auth instance among them, stay out of the app. Tests may use its helpers.
@@ -250,9 +250,9 @@ describe("what ships", () => {
   it("gives no Arc Avatar a person's picture, and reads and writes no avatar_url", () => {
     const schema = ["src/db/better-auth-schema.test.ts", "src/db/schema/users.ts"]
     const reading = sources().filter((path) => /avatar_?url/i.test(readFileSync(path, "utf8")))
-    expect(reading.filter((path) => path !== "src/test/auth-dormancy-lint.test.ts").sort()).toEqual(schema)
+    expect(reading.filter((path) => path !== "src/test/auth-fences.test.ts").sort()).toEqual(schema)
     const product = sources().filter((path) => !path.startsWith("src/components/arc/"))
-    expect(product.filter((path) => /<Avatar\b[^>]*\ssrc=|avatarSrc/.test(readFileSync(path, "utf8"))).filter((path) => path !== "src/test/auth-dormancy-lint.test.ts")).toEqual([])
+    expect(product.filter((path) => /<Avatar\b[^>]*\ssrc=|avatarSrc/.test(readFileSync(path, "utf8"))).filter((path) => path !== "src/test/auth-fences.test.ts")).toEqual([])
   })
 
   // #389: the frame asks for the session, and Log out loads the sign-out; each on demand, never in the first load.

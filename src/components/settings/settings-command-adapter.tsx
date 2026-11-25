@@ -34,21 +34,26 @@ export function opensSettingsSearch(event: { key: string; metaKey: boolean; ctrl
   return event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey;
 }
 
-export type SettingsCommandAdapterProps = {
+/** The sections every Settings page renders from its own reads. */
+export type SharedPanels = {
+  account: ReactNode; devices: ReactNode; security: ReactNode;
+  /** #206 Inbox delivery: the person's choice for this workspace (Members and Admins). */
+  delivery: ReactNode;
+  /** #207 Slack: the workspace's Slack connection (Admins only; pages render nothing for anyone else). */
+  slack: ReactNode;
+  /** #213 Billing: the workspace's Free Requests left (Admins only; pages render nothing for anyone else). */
+  billing: ReactNode;
+  /** #395 Workspace details: the workspace's name, which Admins edit, and leaving it. */
+  workspaceNameRow: ReactNode; leaveWorkspace: ReactNode;
+};
+
+export type SettingsCommandAdapterProps = Partial<SharedPanels> & {
   membership: string; workspaceName: string; workspaceId?: string; initialSection?: string; page?: "profile" | "members" | "metrics";
   /** `billingEnforced()` on the server: search then finds Billing's seats, bills and paying too (#287). */
   billingEnforced?: boolean;
-  account?: ReactNode; devices?: ReactNode; role?: ReactNode; appearance?: ReactNode; security?: ReactNode; members?: ReactNode;
-  /** #395 Workspace details: the workspace's name, which Admins edit, and leaving it. */
-  workspaceNameRow?: ReactNode; leaveWorkspace?: ReactNode;
+  role?: ReactNode; appearance?: ReactNode; members?: ReactNode;
   /** Rendered only by the Metrics page (/settings/metrics), which loads the library. */
   metrics?: ReactNode;
-  /** #206 Inbox delivery: the person's choice for this workspace (Members and Admins). */
-  delivery?: ReactNode;
-  /** #207 Slack: the workspace's Slack connection (Admins only; pages render nothing for anyone else). */
-  slack?: ReactNode;
-  /** #213 Billing: the workspace's Free Requests left (Admins only; pages render nothing for anyone else). */
-  billing?: ReactNode;
 };
 
 /** Arc SettingsCommand frame, section navigation and search composition; Lane supplies permission-filtered rows and immediate saves. */

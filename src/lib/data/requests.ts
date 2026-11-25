@@ -25,7 +25,7 @@ import type { RequestAttachment, RequestComment, RequestDetail } from "@/compone
 // Plan item 1.9: the Requests workspace reads moved here from
 // src/app/(app)/requests-workspace.tsx without changing the SQL or the
 // workspace and guest guards. Every statement is scoped by auth.orgId, and a
-// guest (org:guest) only ever reads Requests they created.
+// Guest only ever reads Requests they created.
 
 /**
  * Plan item 1.7: the list loads every Open and In progress Request under a hard

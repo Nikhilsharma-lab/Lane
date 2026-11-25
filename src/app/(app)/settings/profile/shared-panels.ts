@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { SharedPanels } from "@/components/settings/settings-command-adapter";
 import type { WorkspaceContext } from "@/lib/ensure-workspace";
 import { timed } from "@/lib/request-timings";
 import { accountPanels } from "./account-panels";
@@ -13,7 +13,7 @@ import { workspaceRowsPanel } from "./workspace-rows-panel";
  * rather than one after another. `slack`, `checkout` and `googleError` are how a return from Slack, from the payment provider's checkout or from connecting
  * Google went (Settings → Profile only).
  */
-export async function sharedPanels(workspace: WorkspaceContext, returns: { slack?: string; checkout?: string; googleError?: string } = {}): Promise<{ account: ReactNode; devices: ReactNode; security: ReactNode; delivery: ReactNode; slack: ReactNode; billing: ReactNode; workspaceNameRow: ReactNode; leaveWorkspace: ReactNode }> {
+export async function sharedPanels(workspace: WorkspaceContext, returns: { slack?: string; checkout?: string; googleError?: string } = {}): Promise<SharedPanels> {
   const [account, delivery, slack, billing, workspaceRows] = await Promise.all([
     timed("data", () => accountPanels(workspace, returns.googleError)),
     timed("data", () => inboxDeliveryPanel(workspace)),

@@ -1,5 +1,5 @@
 /**
- * #361 (spec #358): the dormant auth-email sender, through its one public entry point. Resend is a fake `fetch`
+ * #361 (spec #358): the auth-email sender, through its one public entry point. Resend is a fake `fetch`
  * and the Inbox email pause is the in-memory one, so no test reaches Resend or Upstash.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"

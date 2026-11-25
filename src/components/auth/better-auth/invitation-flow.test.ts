@@ -15,7 +15,8 @@ const invitation: Invitation = {
   expiresAt: "2026-11-27T10:00:00.000Z",
   status: "pending",
 }
-const signedInAsSam: InvitationViewer = { signedIn: true, email: SAM }
+const signedInAsSam: InvitationViewer = { signedIn: true, email: SAM, member: false }
+const samInside: InvitationViewer = { ...signedInAsSam, member: true }
 const openWorkspace = vi.fn<() => Promise<AuthAnswer>>()
 /** A code Lane has no words for, which must read as the generic line. */
 const UNKNOWN_CODE = "SOMETHING_LANE_HAS_NO_WORDS_FOR"
@@ -40,18 +41,20 @@ describe("which invitation state a person meets (#379, #346's state list)", () =
   it("offers Accept to the invited email, and the switch to anyone else", () => {
     expect(screen()).toBe("accept")
     // An email reads the same whatever its case.
-    expect(screen({}, { signedIn: true, email: "Sam@Example.test" })).toBe("accept")
-    expect(screen({}, { signedIn: true, email: "sam.lee@example.test" })).toBe("someone-else")
+    expect(screen({}, { signedIn: true, email: "Sam@Example.test", member: false })).toBe("accept")
+    expect(screen({}, { signedIn: true, email: "sam.lee@example.test", member: false })).toBe("someone-else")
   })
 
   // #376 Q3: the status the server read decides; the expiry date is only shown.
   it("follows the invitation's status over who is looking", () => {
     for (const viewer of [signedInAsSam, { signedIn: false, hasAccount: true } as const]) {
       expect(screen({ status: "expired" }, viewer)).toBe("expired")
-      expect(screen({ status: "accepted" }, viewer)).toBe("already-accepted")
       expect(screen({ status: "cancelled" }, viewer)).toBe("cancelled")
       expect(screen({ status: "declined" }, viewer)).toBe("cancelled")
     }
+    // Accepted: only someone in the workspace is told they're in it.
+    expect(screen({ status: "accepted" }, samInside)).toBe("already-accepted")
+    for (const viewer of [signedInAsSam, { signedIn: false, hasAccount: true } as const]) expect(screen({ status: "accepted" }, viewer)).toBe("accepted")
     expect(screen({ status: "pending", expiresAt: "2020-01-01T00:00:00.000Z" })).toBe("accept")
   })
 })
@@ -148,7 +151,7 @@ describe("accepting and declining (#379)", () => {
 describe("signed in as someone else (#379)", () => {
   let auth: AuthFetchFake
   const navigate = vi.fn()
-  const flowFor = () => createInvitationFlow({ openWorkspace, invitation, viewer: { signedIn: true, email: "sam.lee@example.test" }, navigate, onJoined: vi.fn() })
+  const flowFor = () => createInvitationFlow({ openWorkspace, invitation, viewer: { signedIn: true, email: "sam.lee@example.test", member: false }, navigate, onJoined: vi.fn() })
   beforeEach(() => {
     auth = fakeAuthFetch()
     navigate.mockReset()
@@ -185,7 +188,7 @@ describe("Open <workspace>, from an accepted invitation (#392)", () => {
     navigate.mockReset()
     openWorkspace.mockReset()
   })
-  const flowFor = (viewer: InvitationViewer = signedInAsSam) =>
+  const flowFor = (viewer: InvitationViewer = samInside) =>
     createInvitationFlow({ openWorkspace, invitation: { ...invitation, status: "accepted" }, viewer, navigate, onJoined: vi.fn() })
 
   it("opens the workspace once, staying busy, then goes to Lane's home", async () => {
@@ -202,11 +205,19 @@ describe("Open <workspace>, from an accepted invitation (#392)", () => {
   })
 
   it("stays put with the line when it's refused", async () => {
+    openWorkspace.mockResolvedValue({ ok: false, code: "UNAUTHORIZED" })
+    const flow = flowFor()
+    await flow.openWorkspace()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(flow.snapshot()).toEqual({ screen: "already-accepted", alert: { message: "You’re signed out. Sign in, then try again.", offer: null }, pending: null })
+  })
+
+  it("stops saying they're in it when they were removed after the page opened", async () => {
     openWorkspace.mockResolvedValue({ ok: false, code: "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION" })
     const flow = flowFor()
     await flow.openWorkspace()
     expect(navigate).not.toHaveBeenCalled()
-    expect(flow.snapshot()).toEqual({ screen: "already-accepted", alert: { message: "You’re no longer in this workspace. Ask one of its Admins to invite you again.", offer: null }, pending: null })
+    expect(flow.snapshot()).toEqual({ screen: "accepted", alert: null, pending: null })
   })
 
   it.each([true, false])("asks someone signed out to sign in as the invited email first, and back to the invitation (account: %s)", async (hasAccount) => {

@@ -440,7 +440,7 @@ export async function followSeatChanges(
 
 /**
  * From any page view: follows the workspace's seats after the response, if a check is due. This is how a seat
- * changed outside Lane's Server Actions (an invitation accepted) reaches the bill. Reads nothing while billing isn't
+ * changed with no check of its own (an invitation accepted, someone who left) reaches the bill. Reads nothing while billing isn't
  * enforced.
  */
 export function followSeatChangesAfterResponse(ws: Workspace): void {

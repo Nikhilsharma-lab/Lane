@@ -80,11 +80,11 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
       );
   }
 
-  // #358: auth email (src/lib/auth-email.ts) sends only with both names.
+  // #358: auth email (src/lib/auth-email.ts) sends only with both names. Outside production neither is needed.
   const authEmailUnset = ["RESEND_API_KEY", "LANE_AUTH_EMAIL_FROM"].filter((name) => !env[name]?.trim());
-  if (authEmailUnset.length === 1)
+  if (authEmailUnset.length === 1 || (production && authEmailUnset.length))
     warnings.push(
-      `Auth email is half configured: ${authEmailUnset[0]} is not set, so no sign-up, sign-in, reset or invitation email is sent.`,
+      `Auth email is ${authEmailUnset.length === 1 ? "half configured" : "not configured"}: ${authEmailUnset.join(", ")} ${authEmailUnset.length === 1 ? "is" : "are"} not set, so no sign-up, sign-in, reset or invitation email is sent.`,
     );
 
   // #371, #377: the schema above names what's missing; this says what each one's absence costs.

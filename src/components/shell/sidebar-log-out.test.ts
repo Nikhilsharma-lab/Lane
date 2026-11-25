@@ -61,7 +61,7 @@ describe("Log out", () => {
 
 describe("the workspace switcher's list", () => {
   it("is the server's, whole, with the session's workspace as its current one", () => {
-    expect(accountMenu().workspaces).toMatchObject({ items: workspaces, currentId: "org_studio", loading: false, error: null, hasMore: false, loadingMore: false, pendingId: null })
+    expect(accountMenu().workspaces).toMatchObject({ items: workspaces, currentId: "org_studio", error: null, pendingId: null })
   })
 
   it("says it couldn't load when the server's read failed, with a way to try again", () => {

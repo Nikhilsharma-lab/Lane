@@ -100,6 +100,11 @@ export function InvitationView({ invitation, viewer, openWorkspace, onJoined }: 
       {box}
       <AuthAction type="button" loading={pending === "open"} onClick={() => void act(flow.openWorkspace)}>Open {workspace}</AuthAction>
     </>)
+    // Proposed for Nikhil: someone who was never in the workspace, or isn't any more, can hold the link.
+    case "accepted": return viewer.signedIn
+      ? shell("This invitation has been accepted", `You’re not in ${workspace}. Ask one of its Admins to invite you.`, goToLane)
+      : shell("This invitation has been accepted", `Sign in as ${email} to open ${workspace}.`,
+        <AuthAction type="button" onClick={() => void flow.openWorkspace()}>Open {workspace}</AuthAction>)
     case "cancelled": return shell("This invitation can’t be used", `It was cancelled or declined. Ask an Admin of ${workspace} for a new one.`, goToLane)
     case "closed": {
       const { title, detail } = invitationRefusal("INVITATION_NOT_FOUND", workspace)!

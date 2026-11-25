@@ -244,6 +244,13 @@ describe("Open <workspace>", () => {
     return { ...joined, admin, workspaceId, ownId, id: id as string }
   }
 
+  it("is offered to anyone in the workspace, whoever the invitation was sent to", async () => {
+    const { admin, id } = await acceptedThenElsewhere()
+    const { text, buttons } = await open(admin.browser, id)
+    expect(text()).toContain("You’re already in Acme Design")
+    expect(buttons()).toEqual(["Open Acme Design"])
+  })
+
   it("changes nothing when the page opens, then switches to the workspace and goes to /", async () => {
     const { browser, userId, id, workspaceId, ownId } = await acceptedThenElsewhere()
     const { press } = await open(browser, id)
@@ -256,7 +263,7 @@ describe("Open <workspace>", () => {
     expect(await lastUsedOf(userId)).toBe(workspaceId)
   })
 
-  it.each(["someone removed since", "someone else holding the link"])("is refused for %s, with no member row there, and changes nothing", async (who) => {
+  it.each(["someone removed since", "someone else holding the link"])("isn't offered to %s, with no member row there, and is refused", async (who) => {
     const sam = await acceptedThenElsewhere()
     let viewer: { browser: AuthBrowser; userId: string; ownId: string } = sam
     if (who === "someone removed since") {
@@ -268,9 +275,12 @@ describe("Open <workspace>", () => {
       await lee.browser.action(() => rememberLastUsed())
     }
     const { text, buttons, press } = await open(viewer.browser, sam.id)
+    // Proposed for Nikhil.
+    const NOT_IN_IT = "This invitation has been accepted You’re not in Acme Design. Ask one of its Admins to invite you."
+    expect(text()).toContain(NOT_IN_IT)
+    expect(buttons()).toEqual(["Go to Lane"])
     expect(await press((flow) => flow.openWorkspace())).toEqual([])
-    expect(text()).toContain("You’re no longer in this workspace. Ask one of its Admins to invite you again.")
-    expect(buttons()).toEqual(["Open Acme Design"])
+    expect(text()).toContain(NOT_IN_IT)
     expect(await activeOf(viewer.userId)).toEqual([{ active_organization_id: viewer.ownId }])
     expect(await lastUsedOf(viewer.userId)).toBe(viewer.ownId)
     expect(await roleIn(sam.workspaceId, viewer.userId)).toBeUndefined()
@@ -278,7 +288,9 @@ describe("Open <workspace>", () => {
 
   it("asks someone signed out to sign in as the invited email, and back here", async () => {
     const { id, person: sam } = await acceptedThenElsewhere()
-    const { press } = await open(SIGNED_OUT(), id)
+    const { text, press } = await open(SIGNED_OUT(), id)
+    // Proposed for Nikhil: anyone can hold the link, so it doesn't say they're in the workspace.
+    expect(text()).toContain(`This invitation has been accepted Sign in as ${sam.email} to open Acme Design.`)
     expect(await press((flow) => flow.openWorkspace())).toEqual([`/login?${new URLSearchParams({ email: sam.email, redirect_url: `/invite/${id}` })}`])
   })
 })

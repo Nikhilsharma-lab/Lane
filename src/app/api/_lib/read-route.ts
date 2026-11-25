@@ -1,7 +1,9 @@
 import "server-only";
 
 import { guardActiveMember, type MemberAuth } from "@/lib/auth-guard";
+import { SESSION_CHANGED } from "@/lib/failure-messages";
 import { readSession } from "@/lib/session";
+import { WORKSPACE_CHANGED_CODE } from "./read-route-answers";
 
 /**
  * Plan item 1.16 (decision 8.15): read-only GET route handlers. Next runs
@@ -22,17 +24,16 @@ export function json(body: unknown, init: { status?: number } = {}) {
 }
 
 const SIGNED_OUT = "Sign in to continue.";
-const WORKSPACE_CHANGED = "Your workspace session changed. Refresh the page to continue.";
 
 export type ReadRouteAuth = { ok: true; auth: MemberAuth; params: URLSearchParams } | { ok: false; response: Response };
 
 export async function authorizeReadRoute(request: Request): Promise<ReadRouteAuth> {
   const params = new URL(request.url).searchParams;
   const orgId = params.get("org");
-  const refuse = (error: string, status: number) => ({ ok: false, response: json({ error }, { status }) }) as const;
+  const refuse = (error: string, status: number, code?: string) => ({ ok: false, response: json({ error, code }, { status }) }) as const;
   // The guard's one session read decides everything (#402); without a workspace there is none to ask it about.
   if (!orgId) return (await readSession()) ? refuse("A workspace is required.", 400) : refuse(SIGNED_OUT, 401);
-  const member = await guardActiveMember(orgId, WORKSPACE_CHANGED);
+  const member = await guardActiveMember(orgId, SESSION_CHANGED);
   if (!("error" in member)) return { ok: true, auth: member, params };
-  return member.sessionExpired ? refuse(SIGNED_OUT, 401) : refuse(member.error, 403);
+  return member.sessionExpired ? refuse(SIGNED_OUT, 401) : refuse(member.error, 403, WORKSPACE_CHANGED_CODE);
 }

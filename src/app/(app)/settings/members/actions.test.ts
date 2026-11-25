@@ -161,19 +161,23 @@ describe("inviting someone", () => {
     expect(await invite(admin, newAddress(), "member")).toEqual({ error: "This workspace already has 100 invitations waiting. Cancel some on the Members page in Settings, then invite again." });
   });
 
-  // Better Auth would send the invitation, and refuse the person as they accept it.
-  it("refuses inviting anyone into a workspace of 100 people", async () => {
+  // Better Auth would send the invitation, and refuse the person as they accept it: its limit and Lane's are the same.
+  it("refuses inviting anyone into a workspace of 100 people, where Better Auth lets nobody else join", async () => {
     const admin = await adminWithWorkspace();
+    const [last, late] = [await signedIn(outbound, "last"), await signedIn(outbound, "late")];
+    outbound.calls.length = 0;
     const others = await connection`
       insert into profiles (id, full_name, email)
       select gen_random_uuid()::text, 'Filler ' || n, 'filler-' || n || '-' || ${admin.orgId} || '@' || ${domain} from generate_series(1, 98) n returning id`;
     await connection`insert into member ${connection(others.map(({ id }) => ({ id: randomUUID(), organization_id: admin.orgId, user_id: id, role: "viewer", created_at: new Date() })))}`;
-    expect(await invite(admin, newAddress(), "member")).toEqual({ success: true });
-    await seated(admin.orgId, "guest");
+    for (const { person } of [last, late]) expect(await invite(admin, person.email, "guest")).toEqual({ success: true });
+    const join = async ({ browser, person }: typeof last) => browser.post("/organization/accept-invitation", { invitationId: await invitationTo(person.email) });
+    expect((await join(last)).status).toBe(200);
+    expect((await join(late)).body).toMatchObject({ code: "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED" });
     // Proposed for Nikhil (#396).
     expect(await invite(admin, newAddress(), "member")).toEqual({ error: "This workspace already has 100 people, Lane’s limit. Remove someone, then invite again." });
-    expect(await invitations(admin.orgId)).toHaveLength(1);
-    expect(outbound.emails()).toHaveLength(1);
+    expect(await invitations(admin.orgId)).toHaveLength(2);
+    expect(outbound.emails()).toHaveLength(2);
   });
 
   it("says when the invitation couldn't be sent, and how to send it again, which then works", async () => {

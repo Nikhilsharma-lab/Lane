@@ -20,9 +20,8 @@ export type RoutePattern =
   | "Attachment download";
 
 /**
- * The named steps, in the order they're reported. `session` is the session seam's reads (the session, and the
- * signed-in account when one is needed), `workspace` finds the profile, the workspace and its people, `shell` is the
- * app frame's own reads (Projects, labels, saved views) and `data` is the page's own reads.
+ * The named steps, in the order they're reported. `session` is the session seam's read, `workspace` finds the profile,
+ * the workspace and its people, `shell` is the app frame's own reads (Projects, labels, saved views) and `data` is the page's own reads.
  */
 export const TIMING_STEPS = ["session", "workspace", "shell", "data"] as const;
 export type TimingStep = (typeof TIMING_STEPS)[number];

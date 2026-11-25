@@ -1,6 +1,7 @@
-import { Suspense, type ReactNode } from "react";
+import { Suspense } from "react";
 import { AiDataUse } from "@/components/settings/ai-data-use";
 import { ProfileAccountLoader, SignedInDevicesLoader } from "@/components/settings/profile-account-loader";
+import type { SharedPanels } from "@/components/settings/settings-command-adapter";
 import { readUserAgent } from "@/components/settings/signed-in-device-rules";
 import { loadSignInMethods } from "@/lib/data/sign-in-methods";
 import type { WorkspaceContext } from "@/lib/ensure-workspace";
@@ -11,7 +12,7 @@ import { readSignedInDevices } from "@/lib/session";
  * sign in, with the `error` Google came back with if connecting it changed nothing; their signed-in devices, streamed
  * after the page; and Security & access's AI data use.
  */
-export async function accountPanels(workspace: Pick<WorkspaceContext, "orgId" | "userId" | "fullName" | "email">, googleError?: string): Promise<{ account: ReactNode; devices: ReactNode; security: ReactNode }> {
+export async function accountPanels(workspace: Pick<WorkspaceContext, "orgId" | "userId" | "fullName" | "email">, googleError?: string): Promise<Pick<SharedPanels, "account" | "devices" | "security">> {
   const { orgId, userId, fullName, email } = workspace;
   const methods = await loadSignInMethods(userId);
   return {
