@@ -42,6 +42,11 @@ describe("Plan item L1: the Terms of service page", () => {
     expect(html).not.toMatch(/clerk/i);
   });
 
+  it("names the four roles as Lane does", () => {
+    expect(text).toContain("Each workspace has at least one Admin, and may have Members, Guests and Viewers:");
+    for (const role of ["Admins", "Members", "Guests", "Viewers"]) expect(html).toContain(`<strong>${role}</strong>`);
+  });
+
   it("numbers its sections in order", () => {
     const numbers = [...html.matchAll(/<h2>(\d+)\. /g)].map((match) => Number(match[1]));
     expect(numbers).toEqual(numbers.map((_, index) => index + 1));
