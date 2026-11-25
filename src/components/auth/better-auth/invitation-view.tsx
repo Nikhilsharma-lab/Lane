@@ -107,7 +107,7 @@ export function InvitationView({ invitation, viewer, openWorkspace, onJoined }: 
     case "accepted": return viewer.signedIn
       ? shell("This invitation has been accepted", `You’re not in ${workspace}. Ask one of its Admins to invite you.`, goToLane)
       : shell("This invitation has been accepted", `Sign in as ${email} to open ${workspace}.`,
-        <AuthAction type="button" onClick={() => void flow.openWorkspace()}>Open {workspace}</AuthAction>)
+        <AuthAction type="button" onClick={() => void flow.openWorkspace()}><LongLabel>Open {workspace}</LongLabel></AuthAction>)
     case "cancelled": return shell("This invitation can’t be used", `It was cancelled or declined. Ask an Admin of ${workspace} for a new one.`, goToLane)
     case "closed": {
       const { title, detail } = invitationRefusal("INVITATION_NOT_FOUND", workspace)!
