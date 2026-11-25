@@ -12,6 +12,7 @@ import { billingEnforced } from "@/lib/feature-switches";
 import {
   addsPaidSeat, CONFIRM_PAID_SEAT, inviteInputSchema, removeMemberInputSchema, revokeInvitationInputSchema, roleChangeInputSchema,
 } from "@/lib/member-role-rules";
+import { withinInvitationAllowance } from "@/lib/invitation-allowance";
 import { inMembershipTurn } from "@/lib/membership-turn";
 import { laneRole, managesWorkspace } from "@/lib/role-rules";
 import type { WorkspacePermission } from "@/lib/auth-guard";
@@ -19,8 +20,8 @@ import type { WorkspacePermission } from "@/lib/auth-guard";
 /**
  * Settings → Members (#210): an Admin invites people as, and changes people to, Admin, Member, Guest or Viewer, in
  * every workspace (#393), cancels invitations and removes people (#396). Better Auth owns memberships and
- * invitations: these actions ask it through Lane's server door, and write only a pending invitation's cancelling. The workspace comes from
- * the page; the Admin, and their role, only from the session.
+ * invitations: these actions ask it through Lane's server door, and write only a pending invitation's cancelling. The
+ * workspace comes from the page; the Admin, and their role, only from the session.
  *
  * #215: Admins and Members are paid seats. While billing is enforced, adding one needs the Admin's "This adds a paid
  * seat" confirmation (`confirmedPaidSeat`), and a paying workspace's billed seats follow each role change and removal.
@@ -66,7 +67,9 @@ export async function inviteToWorkspace(data: { email: string; role: string; con
   if (unconfirmedSeat(null, role, confirmedPaidSeat)) return { error: CONFIRM_PAID_SEAT };
   if (await db.$count(member, eq(member.organizationId, auth.orgId)) >= MEMBERSHIP_LIMIT) return { error: AUTH_ERROR_COPY.WORKSPACE_FULL };
 
-  const invited = await askAuthServer((api, asCaller) => api.createInvitation({ ...asCaller, body: { organizationId: auth.orgId, email, role } }));
+  const invited = await withinInvitationAllowance(auth.userId, () =>
+    askAuthServer((api, asCaller) => api.createInvitation({ ...asCaller, body: { organizationId: auth.orgId, email, role } })));
+  if ("error" in invited) return invited;
   if (!invited.ok) {
     if (invited.code === "USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION" || invited.code === "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION")
       return { error: `${email} already has an invitation or is already in this workspace.`, field: "email" };

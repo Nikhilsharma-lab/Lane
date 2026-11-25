@@ -156,8 +156,8 @@ describe("inviting someone", () => {
   it("refuses when 100 invitations are waiting", async () => {
     const admin = await adminWithWorkspace();
     await connection`
-      insert into invitation (id, organization_id, email, role, status, expires_at, inviter_id)
-      select gen_random_uuid()::text, ${admin.orgId}, 'waiting-' || n || '@' || ${domain}, 'guest', 'pending', now() + interval '7 days', ${admin.userId} from generate_series(1, 100) n`;
+      insert into invitation (id, organization_id, email, role, status, created_at, expires_at, inviter_id)
+      select gen_random_uuid()::text, ${admin.orgId}, 'waiting-' || n || '@' || ${domain}, 'guest', 'pending', now() - interval '2 days', now() + interval '5 days', ${admin.userId} from generate_series(1, 100) n`;
     expect(await invite(admin, newAddress(), "member")).toEqual({ error: "This workspace already has 100 invitations waiting. Cancel some on the Members page in Settings, then invite again." });
   });
 
@@ -178,6 +178,61 @@ describe("inviting someone", () => {
     expect(await invite(admin, newAddress(), "member")).toEqual({ error: "This workspace already has 100 people, Lane’s limit. Remove someone, then invite again." });
     expect(await invitations(admin.orgId)).toHaveLength(2);
     expect(outbound.emails()).toHaveLength(2);
+  });
+
+  describe("at most 30 in 24 hours from one person (#349)", () => {
+    /** Invitations this person sent so long ago, pending unless cancelled. */
+    const sent = (admin: Admin, count: number, ago: string, orgId = admin.orgId, status = "pending") => connection`
+      insert into invitation (id, organization_id, email, role, status, created_at, expires_at, inviter_id)
+      select gen_random_uuid()::text, ${orgId}, gen_random_uuid()::text || '@' || ${domain}, 'guest', ${status}, now() - ${ago}::interval, now() + interval '6 days', ${admin.userId} from generate_series(1, ${count}) n`;
+    const sentBy = async (admin: Admin) => (await connection`select count(*)::int as n from invitation where inviter_id = ${admin.userId}`)[0].n as number;
+    // Proposed for Nikhil.
+    const limit = (when: string) => ({ error: `You’ve sent 30 invitations in the last 24 hours, Lane’s limit. You can invite again in ${when}.` });
+
+    it("counts every workspace's, cancelled ones too, and says when it works again", async () => {
+      const admin = await adminWithWorkspace();
+      const elsewhere = await createWorkspace(admin.browser);
+      const ctx = { orgId: elsewhere };
+      await sent(admin, 5, "25 hours");
+      await sent(admin, 10, "19 hours 30 minutes", admin.orgId, "canceled");
+      await sent(admin, 19, "1 hour");
+      expect(await invite({ browser: admin.browser, ctx }, newAddress(), "guest")).toEqual({ success: true });
+      outbound.calls.length = 0;
+      expect(await invite({ browser: admin.browser, ctx }, newAddress(), "guest")).toEqual(limit("5 hours"));
+      expect(await invitations(elsewhere)).toHaveLength(1);
+      expect(outbound.emails()).toEqual([]);
+
+      await connection`update invitation set created_at = now() - interval '23 hours 47 minutes 30 seconds' where inviter_id = ${admin.userId} and status = 'canceled'`;
+      expect(await invite({ browser: admin.browser, ctx }, newAddress(), "guest")).toEqual(limit("13 minutes"));
+      await connection`update invitation set created_at = now() - interval '24 hours 1 second' where inviter_id = ${admin.userId} and status = 'canceled'`;
+      expect(await invite({ browser: admin.browser, ctx }, newAddress(), "guest")).toEqual({ success: true });
+    });
+
+    it("leaves another Admin of the workspace their own 30, and counts no refused invitation", async () => {
+      const admin = await adminWithWorkspace();
+      const other = { ...(await join(outbound, admin.browser, "admin")), ...admin.ctx, ctx: admin.ctx };
+      const taken = newAddress();
+      expect(await invite(other, taken, "guest")).toEqual({ success: true });
+      await sent(admin, 28, "1 hour");
+      // `join` sent one of the Admin's, so this is their 30th; the refusals before it made none.
+      for (const refused of [taken, "not-an-address"]) expect(await invite(admin, refused, "guest")).toMatchObject({ field: "email" });
+      expect(await invite(admin, newAddress(), "guest")).toEqual({ success: true });
+      expect(await invite(admin, newAddress(), "guest")).toEqual(limit("23 hours"));
+      expect(await invite(other, newAddress(), "guest")).toEqual({ success: true });
+    });
+
+    it("holds for invitations sent at the same moment, and lets the rest of the 30 through after", async () => {
+      const admin = await adminWithWorkspace();
+      await sent(admin, 25, "1 hour");
+      const answers = await Promise.all(Array.from({ length: 20 }, () => invite(admin, newAddress(), "guest")));
+      const through = answers.filter((answer) => "success" in answer).length;
+      expect(through).toBeGreaterThanOrEqual(1);
+      expect(await sentBy(admin)).toBe(25 + through);
+      expect(await sentBy(admin)).toBeLessThanOrEqual(30);
+
+      for (let left = 30 - (await sentBy(admin)); left > 0; left--) expect(await invite(admin, newAddress(), "guest")).toEqual({ success: true });
+      expect(await invite(admin, newAddress(), "guest")).toEqual(limit("23 hours"));
+    });
   });
 
   it("says when the invitation couldn't be sent, and how to send it again, which then works", async () => {
