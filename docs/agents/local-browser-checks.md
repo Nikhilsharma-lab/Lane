@@ -1,133 +1,174 @@
 # Signed-in browser checks on a local database
 
-How to walk a change in the running app, signed in, without touching Lane Staging's data or the Clerk user
-count. Use it for the browser half of "Verify production components in the running app".
+How to walk a change in the running app, signed in as any of Lane's four roles, without touching Lane Staging.
+Use it for the browser half of "Verify production components in the running app".
 
 Hard limits for every walk:
 
-- The app talks to a **local** database. `.env.local`'s `DATABASE_URL` is Lane Staging, which lags the repo's
-  migrations; hosted migrations are Nikhil-run.
-- Reuse an existing `lane-e2e-*` Clerk user. Never create or delete Clerk users: the development instance has a
-  100-user limit. If no `lane-e2e-*` user exists, stop and ask Nikhil.
-- Existing task authorization takes precedence over this recipe. Reuse an already owned team when instructed; do not create organizations, change memberships, enable providers, or simulate roles merely because an example below does so.
-- Any Clerk organization you create is temporary, marked in `privateMetadata`, and deleted before you hand back.
-- Walk scripts, logs and screenshots live in a scratch folder outside the repo (`/tmp/lane-<ticket>-scratch/`).
+- The app talks to a **local** `lane_test_*` database. Hosted databases and their migrations are Nikhil's to run.
+- The people, workspaces and invitations are local rows the e2e helpers make and delete. There is no cap and no
+  outside identity service, and every role is real: never simulate one by editing code.
+- Email goes only to Resend's test recipient (`delivered+<label>@resend.dev`, what `testEmail` and `createTestUser`
+  use), and only where the walk needs a send. Resend Free allows 100 a day for everyone, so sign in by test cookie
+  everywhere else.
+- Never open, print, log or commit the main checkout's `.env.local` values. Never touch `.env.staging.local`.
+- Screenshots, logs and notes live outside the repo, and not under `/tmp`, which macOS clears.
 
 ## 1. Local database with the full schema
 
 The main Vitest configuration resets only the database assigned to the real Git checkout by
 `src/test/test-database.ts`. It resolves the loopback `/lane_test` placeholder in `.env.test` to a
-checkout-specific name. Arbitrary names such as `lane_test_dev_<ticket>` are refused; never weaken that guard.
-Run the non-resetting safety suite first, then the bounded application suite that prepares the database:
+checkout-specific name. Never weaken that guard. Run the non-resetting safety suite first, then the one that
+prepares the database:
 
 ```sh
 pnpm exec vitest run --config vitest.architecture.config.ts
 pnpm exec vitest run src/lib/env.test.ts
 ```
 
-Use the exact name printed by `[test-setup]` for this checkout's browser environment. The canonical reset applies
-migrations 0013 through the latest migration, including their pre-migration fixtures. It is not a hosted restore.
-The test-run lease prevents concurrent resets, but does not protect a running browser server: once browser work
-starts, do not run reset-capable tests in that checkout until its runtime owner hands it back. Use another
-isolated checkout for independent tests. The UI configuration has no database setup.
+Use the exact name printed by `[test-setup]`. The reset applies migrations 0013 through the latest, with their
+pre-migration fixtures. It is not a hosted restore. Once browser work starts, don't run reset-capable tests in that
+checkout: the run lease stops two resets, but doesn't protect a running server. The UI configuration has no
+database setup.
 
-## 2. Dev server env
+## 2. Env
 
-Copy `.env.local` from the main checkout (read-only source) and swap only the database:
+Write the git-ignored `.env.local` in the worktree. Made-up values are enough to sign in and walk every screen:
+
+```sh
+cat > .env.local <<'EOF'
+BETTER_AUTH_SECRET=any-made-up-local-value-of-32-characters
+NEXT_PUBLIC_APP_URL=http://localhost:3400
+NEXT_PUBLIC_SUPABASE_URL=https://jznepeqghjixcrpuddym.supabase.co
+SUPABASE_SECRET_KEY=made-up
+ANTHROPIC_API_KEY=made-up
+TRIAGE_TOKEN_SECRET=made-up
+GOOGLE_CLIENT_ID=made-up
+GOOGLE_CLIENT_SECRET=made-up
+EOF
+chmod 600 .env.local
+```
+
+`NEXT_PUBLIC_SUPABASE_URL` is Lane Staging's on purpose: the safety check in `e2e/helpers/safety.ts` pins it, and
+nothing reads it until an attachment is used. Playwright gives the app `BETTER_AUTH_URL` and Cloudflare's published
+always-pass Turnstile keys, so `.env.local` holds neither.
+
+Some walks need real values. For those, copy the main checkout's file instead (read-only source), then set
+`BETTER_AUTH_SECRET` in your copy to a made-up value:
 
 ```sh
 cp /Users/nikhilsharma/Documents/Work/Lane/.env.local . && chmod 600 .env.local
-sed -E 's#^DATABASE_URL=.*#DATABASE_URL=postgresql://nikhilsharma@localhost:5432/<exact-checkout-test-database>#' .env.local > .env.dev-local
-chmod 600 .env.dev-local
-LANE_ENV_FILE=.env.dev-local pnpm dev            # add -p 3200 if :3000 is busy
+printf '\nBETTER_AUTH_SECRET=any-made-up-local-value-of-32-characters\n' >> .env.local
 ```
 
-`next.config.ts` loads `LANE_ENV_FILE`. Keep the default `.next` dist dir (a custom `NEXT_DIST_DIR` makes
-`next dev` edit `tsconfig.json`). Feature switches (`LANE_CUSTOM_ROLES`, `LANE_BILLING_ENFORCED`, …, see
-`.env.example`) go in `.env.dev-local` only for the walk.
+| The walk needs | Names |
+|---|---|
+| a code or invitation email that really sends | `RESEND_API_KEY`, `LANE_AUTH_EMAIL_FROM` |
+| the AI check when filing a Request | `ANTHROPIC_API_KEY`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` |
+| attachments (Lane Staging's private storage) | `SUPABASE_SECRET_KEY` |
+| a Google round trip (§5) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 
-Done when `curl -sI http://localhost:3000/login` is 200 and `/` redirects to `/login`.
+Feature switches (`LANE_BILLING_ENFORCED`, … see `.env.example`) go in `.env.local` only for the walk.
 
-## 3. Seed script: users, temporary organization, rows
+## 3. Walk as each of the four roles
 
-A Node script in the scratch folder loads packages from the worktree with
-`createRequire("<worktree>/package.json")` (`postgres`, `@clerk/backend` from `node_modules/.pnpm`) and reads
-`.env.dev-local`. Before anything else it refuses to run unless `DATABASE_URL` is exactly your local dev database
-and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` starts with `pk_test_`.
+A walk is a throwaway Playwright spec that uses the e2e helpers, so the safety check, the fixtures and their
+clean-up are the suites' own. Put it at `e2e/walk-<ticket>.spec.ts` and delete it before you commit:
 
-- `setup`:
-  1. Find users: `clerk.users.getUserList({ query: "lane-e2e", limit: 50 })`, keeping those with a `lane-e2e`
-     email. Take as many as the walk needs (Admin, Member, …).
-  2. Create the organization: `clerk.organizations.createOrganization({ name, createdBy: admin.id, privateMetadata: { lane<ticket>: true } })`,
-     then `createOrganizationMembership({ organizationId, userId, role: "org:member" })` per teammate.
-  3. Insert the local rows the way `provisionTestWorkspace` in `e2e/helpers/cleanup.ts` does: `profiles` (with a
-     `role` label, which skips onboarding), `organizations`, finished `first_run_progress` rows unless the walk
-     covers the first run, then whatever Projects/Requests the walk needs.
-  4. Write ids and emails to `state.json` in the scratch folder.
-- `teardown`: read `state.json`, fetch the organization, refuse unless its `privateMetadata` carries your marker,
-  `deleteOrganization`, then `delete from organizations where id = …` locally.
+```ts
+import { expect, test } from "@playwright/test";
+import { createRoleWorkspace } from "./helpers/role-workspace";
 
-To walk organization creation itself, sign in a reused user and create the workspace through Clerk's task in
-the browser; delete that organization in teardown the same way (check `createdBy` and its name first).
-
-## 4. Walk script: sign in with a Clerk testing token
-
-Use `@playwright/test`'s `chromium` and `@clerk/testing/playwright`. Set `process.env.CLERK_PUBLISHABLE_KEY` and
-`CLERK_SECRET_KEY` from `.env.dev-local`, then:
-
-```js
-await clerkSetup();                                   // once per script: fetches the testing token
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-const page = await context.newPage();
-await setupClerkTestingToken({ page });
-await page.goto(`${base}/login`);
-await clerk.signIn({ page, emailAddress: state.memberEmail });   // no password, no email sent
-await page.evaluate(async id => { await window.Clerk.setActive({ organization: id }); }, state.orgId);
+test("walk", async ({ browser }) => {
+  test.setTimeout(0);
+  // One workspace; an Admin, a Member, a Guest and a Viewer, each signed in in a browser of their own.
+  const team = await createRoleWorkspace(browser, "Walk Harbour");
+  try {
+    for (const { page, name } of Object.values(team.people)) {
+      await page.goto("/");
+      await expect(page.getByRole("heading", { name: "Requests", exact: true })).toBeVisible();
+      await page.screenshot({ path: `<scratch folder>/${name}.png` });
+    }
+  } finally {
+    await team.close(); // deletes everyone and everything in it
+  }
+});
 ```
 
-One context per person; log `pageerror` and console errors. Invitations in a walk go to `…+clerk_test@example.com`
-addresses so Clerk sends no email. To run a whole e2e spec on the local database, use §7 instead.
+Run it holding the shared browser lock (`~/Documents/Work/lane-build-notes/e2e-lock.md`):
 
-Cover: light and dark (Settings → Profile theme), 390/768/1024/1440 with no horizontal overflow, keyboard only
-(focus order, focus return after dialogs/menus, Escape), accessible names and live announcements in the DOM,
-and loading, empty, error (go offline with `context.setOffline(true)`) and long-content states.
+```sh
+LANE_E2E_ALLOW_REMOTE=1 LANE_E2E_LOCAL_DATABASE=1 \
+DATABASE_URL=postgresql://nikhilsharma@localhost:5432/<name from §1> E2E_BASE_URL=http://localhost:3400 \
+caffeinate -i pnpm exec playwright test e2e/walk-<ticket>.spec.ts --workers=1 --output=<scratch folder>/pw-out
+```
 
-## 5. Roles and providers the dev instance lacks
+Done when the spec passes and each role's screenshot shows Requests.
 
-The Clerk development instance has no `org:guest` or `org:viewer` role, and Stripe/Slack/email are off. For those
-walks, make an **uncommitted** local change (e.g. map `org:member` to `"guest"` in `clerkWorkspacePermission`, or a
-walk-only stand-in provider), walk, then revert it. Confirm `git status` is clean afterwards and say in the hand-back
-that the role was simulated; the action tests are the real coverage.
+- **By hand**: add `--headed`, and `await team.people.admin.page.pause()` where you want to take over. The people
+  exist until you press Resume. To sign in from another browser, print `email` and `password` and use the form (§4).
+- **More fixtures**: `createTestUser`, `createTestWorkspace`, `addTestMember`, `setTestMemberRole`,
+  `removeTestMember`, `createTestInvitation` (`e2e/helpers/{test-user,workspaces}.ts`), `seedRoleRequest`.
+  `signInTestUser(page, user, orgId?)` sets the session cookie and loads no page, so `goto` next.
+  `readTestSession(page)` says whose session the browser holds. To end a session as a revoke does, `endTestSessions(id)`.
+- A page is only its HTML until React has it. Before a press, wait with `hydrated(control)` or `formReady(page)`.
+- A run that is killed leaves its rows. They are local; the next §1 reset clears them.
 
-## 6. Clean up and record
+## 4. Sign in through the real form
 
-Run only the teardown authorized for this walk (do not delete reused organizations), stop the dev server, `dropdb -h localhost <exact-checkout-test-database>`, and remove `.env.dev-local` if
-you created it. Done when the temporary organization is gone from Clerk, `git status` shows only your intended
-changes, and the hand-back lists what was walked and what was not (VoiceOver itself, simulated roles, hosted runs).
+The fixture's `email` and `password` work on `/login`. Import `test` from `e2e/helpers/auth-forms.ts` instead of
+Playwright's: Better Auth limits sign-in calls by address and local browsers share one, so it gives each test an
+address of its own.
+
+- **Turnstile** passes by itself with the test keys; wait for it with `passHumanCheck(page)`. Its frame says "For
+  testing only". Every send spends the token.
+- **An emailed code**: press send, wait for the code screen, then `replaceEmailCode(email, "sign-in" |
+  "email-verification" | "forget-password")` puts a code you know in its place (246810). The send must succeed, so
+  this needs the Resend names. Without them the screen says it couldn't send, which is how you walk that state.
+- **A refused password** that is really in a breach list (`password123`) asks Have I Been Pwned over the network.
+
+## 5. Google
+
+The suites stop at Google's door. A real round trip needs a person at Google's screen:
+
+1. The local Google client's values are in `.env.local` (§2). Its redirect addresses are `localhost:3000` and
+   `localhost:3100` only, so the app must run on one of those ports.
+2. Start the app on the local database:
+   `DATABASE_URL=postgresql://nikhilsharma@localhost:5432/<name from §1> BETTER_AUTH_URL=http://localhost:3000 TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA pnpm dev`.
+3. The person opens `http://localhost:3000/login`, presses Continue with Google and finishes there.
+4. Delete their local rows with a §1 reset once the server is stopped.
+
+## 6. What to cover, and what to record
+
+- Light and dark; 390, 768, 1024 and 1440 with no sideways scroll; 200% zoom (a 720 px wide window).
+- Keyboard only: focus order, focus return after dialogs and menus, Escape, focus on the first refused field.
+- A touch phone (`isMobile`, `hasTouch`): a field's text is at least 16 px, or iOS zooms the page in on it.
+- Reduced motion, accessible names and live announcements, and loading, empty, error (`context.setOffline(true)`)
+  and long-content states. Long emails and workspace names are the ones that break a phone.
+
+The hand-back lists what was walked and what was not (VoiceOver itself, a physical phone, hosted runs). Before it:
+no walk spec, server or lock left behind, and `git status` shows only your intended changes.
 
 ## 7. Run e2e specs on the local database
 
-`pnpm exec playwright test` normally targets Lane Staging. Two opt-in switches run specs on your local database
-instead, with the app on any local port (Playwright starts it; nothing may already be listening there):
+`pnpm exec playwright test` normally targets Lane Staging. These switches run specs on your local database instead,
+with the app on any local port (Playwright starts it; nothing may already be listening there):
 
 ```sh
-LANE_E2E_ALLOW_REMOTE=1 LANE_E2E_LOCAL_DATABASE=1 LANE_E2E_REUSE_USERS=1 \
-DATABASE_URL=postgresql://nikhilsharma@localhost:5432/lane_test_<name> E2E_BASE_URL=http://localhost:<port> \
-pnpm exec playwright test e2e/<spec>.spec.ts --output=/tmp/lane-<ticket>-scratch/pw-out
+LANE_E2E_ALLOW_REMOTE=1 LANE_E2E_LOCAL_DATABASE=1 \
+DATABASE_URL=postgresql://nikhilsharma@localhost:5432/<name from §1> E2E_BASE_URL=http://localhost:<port> \
+caffeinate -i pnpm exec playwright test e2e/<spec>.spec.ts --output=<scratch folder>/pw-out
 ```
 
-- Needs `.env.local` in the worktree (§2) and a migrated `lane_test_*` database (§1). `LANE_E2E_LOCAL_DATABASE=1`
-  accepts only a `lane_test_*` database on `localhost`/`127.0.0.1` and a local `http://` app; every Clerk check in
-  `e2e/helpers/safety.ts` still applies.
-- `LANE_E2E_ALLOW_REMOTE=1` is still needed on a local run, on purpose: only the database is local. The run still
-  creates and deletes users and organizations in the remote Clerk development instance, and specs with
-  attachments write to Lane Staging's file storage. `LANE_E2E_ALLOW_REMOTE=1` is the consent to change those remote
-  services; `LANE_E2E_LOCAL_DATABASE=1` only moves the database and never stands in for that consent.
-- `LANE_E2E_REUSE_USERS=1`: when Clerk is at its user cap, fixtures borrow a free `lane-e2e-*` user (no
-  organization, the fixture password), mark it, and give it back with its own name instead of deleting it. It runs
-  one worker. A crashed run leaves `laneE2EBorrowedBy` in that user's `privateMetadata`, so it isn't borrowed again
-  until someone clears it.
-- `LANE_E2E_START=1`: serves the production build in `.next` (run `pnpm build` first) with `next start` instead of
-  `next dev`, for a run against what ships.
-- Only the database moves: Clerk and file storage stay the services `.env.local` names. Fixtures still create (and
-  delete) their own Clerk users while Clerk has room; borrowing starts only at the cap.
+- `LANE_E2E_LOCAL_DATABASE=1` accepts only a `lane_test_*` database on `localhost`/`127.0.0.1` and a local `http://`
+  app. The run signs its test sessions with `.env.local`'s `BETTER_AUTH_SECRET`; the setup project proves the app
+  accepts one before any suite runs.
+- `LANE_E2E_ALLOW_REMOTE=1` is still needed, on purpose: it is the consent for what stays remote. Specs with
+  attachments write to Lane Staging's file storage, and the few with a real send use Resend.
+- `LANE_E2E_START=1` serves the production build with `next start` instead of `next dev`, for a run against what
+  ships and steadier timing. Build first, with the Turnstile test key in the bundle:
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA pnpm build`.
+- Keep the Mac awake and its lid open: asleep, a run only fails its time limits. With the display off, headed
+  (native) suites draw no frames.
+- A staging run needs Lane Staging's own `BETTER_AUTH_SECRET` in `.env.staging.local`, which is checked by
+  fingerprint (`e2e/helpers/staging-pin.ts`). That file is Nikhil's.

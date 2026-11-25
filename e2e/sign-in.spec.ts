@@ -3,7 +3,8 @@ import { formReady, openForm, passHumanCheck, test, typeCode } from "./helpers/a
 import { cleanupTestWorkspace, provisionTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { replaceEmailCode } from "./helpers/email-codes";
 import { testEmail } from "./helpers/fixtures";
-import { createTestUser, deleteTestUser, readTestSession, type TestUser } from "./helpers/test-user";
+import { hydrated } from "./helpers/role-workspace";
+import { createTestUser, deleteTestUser, readTestSession, signInTestUser, type TestUser } from "./helpers/test-user";
 
 const REQUEST = "The Request behind the link";
 const RETURN_ADDRESS = "/?status=open";
@@ -116,6 +117,35 @@ test("a wrong password shows its line on the password", async ({ page }) => {
     await expect(password(page)).toBeFocused();
     await expect(page).toHaveURL("/login");
     expect(await readTestSession(page)).toBeNull();
+  });
+});
+
+// #405: the button a person pressed goes with the devices it signed out, so their place moves to the group's heading.
+test("signing out of other devices ends them, and keeps a keyboard's place on the page", async ({ page, browser }) => {
+  await withPerson("devices", async (user) => {
+    const others = await Promise.all([browser.newContext(), browser.newContext()]);
+    try {
+      const [first, second] = await Promise.all(others.map((each) => each.newPage()));
+      for (const each of [page, first, second]) await signInTestUser(each, user);
+      await page.goto("/settings/profile");
+      const devices = page.getByRole("list", { name: "Signed-in devices" });
+      await expect(devices.getByRole("listitem")).toHaveCount(3);
+      const heading = page.locator("#devices-heading");
+
+      const one = devices.getByRole("button", { name: /^Sign out of / }).first();
+      await hydrated(one);
+      await one.press("Enter");
+      await expect(devices.getByRole("listitem")).toHaveCount(2);
+      await expect(heading).toBeFocused();
+
+      await page.getByRole("button", { name: "Sign out of all other devices", exact: true }).press("Enter");
+      await expect(devices.getByRole("listitem")).toHaveCount(1);
+      await expect(heading).toBeFocused();
+      expect((await readTestSession(page))?.userId).toBe(user.id);
+      for (const each of [first, second]) expect(await readTestSession(each)).toBeNull();
+    } finally {
+      for (const each of others) await each.close();
+    }
   });
 });
 

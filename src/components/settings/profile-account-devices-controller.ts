@@ -30,9 +30,12 @@ export function createSignedInDevices(initial: SignedInDevicesCallbacks) {
   const store = createExternalStore<SignedInDevicesState>({ busy: null, problem: null, signedOut: [], othersSignedOut: false, status: "" })
   const set = (next: Partial<SignedInDevicesState>) => store.set({ ...store.get(), ...next })
 
-  /** One sign-out. `gone` is what leaves the list once it's done; a refusal stays on its row with Try again. */
-  async function run(target: Target, send: () => Promise<AuthAnswer>, gone: () => Partial<SignedInDevicesState>, success: string): Promise<void> {
-    if (store.get().busy) return
+  /**
+   * One sign-out. `gone` is what leaves the list once it's done; a refusal stays on its row with Try again. Answers
+   * whether it was done.
+   */
+  async function run(target: Target, send: () => Promise<AuthAnswer>, gone: () => Partial<SignedInDevicesState>, success: string): Promise<boolean> {
+    if (store.get().busy) return false
     set({ busy: target, problem: null, status: "" })
     const answer = await settle(send)
     if (answer.ok) set({ busy: null, ...gone(), status: success })
@@ -41,6 +44,7 @@ export function createSignedInDevices(initial: SignedInDevicesCallbacks) {
       const retry = answer.code === "DEVICE_NOT_FOUND" ? undefined : () => { void run(target, send, gone, success) }
       set({ busy: null, problem: { target, line: authErrorCopy(answer.code), retry } })
     }
+    return answer.ok
   }
 
   return {
