@@ -3,6 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 import { cleanupTestWorkspace, seedPreviewFixtures } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
+import { streamedIn } from "./helpers/streamed";
 
 // #284 (Build 7.3 of #256): the Inbox tells the truth after Back on a phone (C5), shows its own placeholder (C14),
 // keeps the open item in the address, says one thing when it is empty (C26), lines up its text, wraps rows on phones
@@ -113,6 +114,7 @@ test("the Inbox: its own placeholder, the open item kept in the address, one lef
 
     await test.step("C14: going to the Inbox from the Requests list shows the Inbox's placeholder, never the list's", async () => {
       await page.goto("/", { waitUntil: "domcontentloaded" });
+      await streamedIn(page);
       await expect(page.locator("[data-request-grid]")).toBeVisible({ timeout: 60_000 });
       await settle(page);
       let release!: () => void;

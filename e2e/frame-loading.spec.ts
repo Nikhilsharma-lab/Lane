@@ -3,6 +3,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 import { cleanupTestWorkspace, seedPreviewFixtures, seedTestRequest } from "./helpers/cleanup";
 import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
+import { streamedIn } from "./helpers/streamed";
 
 // #271 (Build 4 of #256, walk findings A115 and A116): opening a Request from Impact shows the Request's own
 // skeleton, never the Requests list's, and the Request preview draws its skeleton with Close from its first frame,
@@ -84,6 +85,7 @@ test("the Request preview draws its skeleton with Close from its first frame whi
 
     await page.mouse.move(5, 5);
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    await streamedIn(page);
     const title = page.locator(`[data-request-grid] [role="row"][data-request-id="${id}"] a[data-request-title]`);
     await expect(title).toBeVisible();
     await settle(page);

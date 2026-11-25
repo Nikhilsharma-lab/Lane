@@ -5,6 +5,7 @@ import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser, readTestSession, type TestUser } from "./helpers/test-user";
 import { intakeDraftScope, intakeDraftStorageKey, type IntakeDraft } from "../src/lib/intake-draft";
 import { createTriageToken } from "../src/lib/triage-token";
+import { streamedIn } from "./helpers/streamed";
 
 // #285 (Build 7.4, spec #256 "Composer" and "Opening the composer"): the New Request composer at the polish bar.
 // What a person sees and does: the Open group's + by Tab, a paste that doesn't fit, × asking before it drops text,
@@ -58,6 +59,7 @@ test("the New Request composer: the Open group's +, an overflowing paste, × ask
     await test.step("C24: Tab reaches the Open group's + from its header, and it opens the composer", async () => {
       await page.goto("/");
       await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
+      await streamedIn(page);
       const header = page.locator('[role="row"][data-grid-row="g:status:open"]');
       await expect(header).toBeVisible({ timeout: 30_000 });
       await header.focus();

@@ -3,6 +3,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { captureAction, sendAs, type ActionAnswer, type CapturedAction } from "./helpers/captured-action";
 import { testEmail } from "./helpers/fixtures";
 import { createRoleWorkspace, hydrated, seedComment, seedRoleRequest } from "./helpers/role-workspace";
+import { streamedIn } from "./helpers/streamed";
 
 /**
  * #402 (#383 stories 57–60, 68–72): what an Admin, a Member, a Guest and a Viewer read, change and invite, as
@@ -248,6 +249,7 @@ test("a Guest sees and comments on only their own Requests, and invites no one",
         expect(new URL(page.url()).pathname).toBe("/");
       }
       await page.goto("/settings/profile?section=members");
+      await streamedIn(page);
       await expect(page.getByText("Members is for Admins and Members of this workspace.", { exact: true })).toBeVisible();
       await expect(people(page)).toHaveCount(0);
       for (const section of ["Members", "Metrics", "Billing"]) await expect(settingsLink(page, section)).toHaveCount(0);

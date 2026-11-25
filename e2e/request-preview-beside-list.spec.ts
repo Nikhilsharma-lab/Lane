@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
+import { streamedIn } from "./helpers/streamed";
 
 /**
  * Build 5.2 of #256 (#273): the preview and the summary sit beside the list, never over it (A216, A231).
@@ -68,6 +69,7 @@ test("the preview and the summary sit beside the list (#273)", async ({ page, br
     const orgId = await provisionAndSignIn(page, owner, { name: "Beside Owner", workspaceName: "Preview beside the list" });
     const ids = await seed(orgId, owner.id);
     await page.goto("/");
+    await streamedIn(page);
     const rows = page.locator(ROW);
     await expect(rows).toHaveCount(TITLES.length);
     const preview = page.getByRole("region", { name: "Request preview" });
