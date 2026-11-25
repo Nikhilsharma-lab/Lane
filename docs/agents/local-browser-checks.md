@@ -86,7 +86,8 @@ test("walk", async ({ browser }) => {
   try {
     for (const { page, name } of Object.values(team.people)) {
       await page.goto("/");
-      await expect(page.getByRole("heading", { name: "Requests", exact: true })).toBeVisible();
+      // The frame names the workspace for every role; the page's heading is "My Requests" for a Guest.
+      await expect(page.getByRole("complementary", { name: "Workspace sidebar" }).getByRole("heading", { name: "Walk Harbour" })).toBeVisible();
       await page.screenshot({ path: `<scratch folder>/${name}.png` });
     }
   } finally {
@@ -103,7 +104,7 @@ DATABASE_URL=postgresql://nikhilsharma@localhost:5432/<name from §1> E2E_BASE_U
 caffeinate -i pnpm exec playwright test e2e/walk-<ticket>.spec.ts --workers=1 --output=<scratch folder>/pw-out
 ```
 
-Done when the spec passes and each role's screenshot shows Requests.
+Done when the spec passes and there is a signed-in screenshot for each role.
 
 - **By hand**: add `--headed`, and `await team.people.admin.page.pause()` where you want to take over. The people
   exist until you press Resume. To sign in from another browser, print `email` and `password` and use the form (§4).

@@ -167,6 +167,8 @@ test("on a phone, the signed-out forms fit the screen and focusing a field doesn
       }
       expect(await page.evaluate(() => document.scrollingElement!.scrollWidth), address).toBe(390);
     }
+    await openForm(page, "/login");
+    expect((await page.getByRole("link", { name: "Forgot password?" }).boundingBox())!.height, "a finger's target").toBeGreaterThanOrEqual(24);
   } finally {
     await context.close();
   }

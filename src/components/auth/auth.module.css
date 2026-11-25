@@ -33,5 +33,5 @@
 @media (pointer: fine) { .shortcuts { display: block; } }
 @media (max-width: 640px) { .main { align-items: flex-start; padding-top: var(--space-8); } .header { padding-block: var(--space-4); } }
 @media (pointer: coarse) {
-  .header .link, .headerLink .link, .legal .link { display: inline-flex; align-items: center; min-height: var(--size-inner-xlarge); }
+  .header .link, .headerLink .link, .legal .link, .fieldExtra .link { display: inline-flex; align-items: center; min-height: var(--size-inner-xlarge); }
 }

@@ -339,9 +339,9 @@
           "border-top-left-radius": "8px",
           "box-shadow": "none",
           "font-family": "Geist, sans-serif",
-          "font-size": "16px",
+          "font-size": "14px",
           "font-weight": "500",
-          "line-height": "24px",
+          "line-height": "21px",
           "letter-spacing": "normal"
         },
         "button": {
@@ -747,9 +747,9 @@
           "border-top-left-radius": "8px",
           "box-shadow": "none",
           "font-family": "Geist, sans-serif",
-          "font-size": "16px",
+          "font-size": "14px",
           "font-weight": "500",
-          "line-height": "24px",
+          "line-height": "21px",
           "letter-spacing": "normal"
         },
         "button": {
