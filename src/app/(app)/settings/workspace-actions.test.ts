@@ -9,7 +9,7 @@ import { loadWorkspaceFrame } from "@/lib/data/workspace-frame"
 import { sendAwayMemberless } from "@/lib/ensure-workspace"
 import { activeMemberOf } from "@/lib/auth-guard"
 import { readSession } from "@/lib/session"
-import { AuthBrowser, authRouteTestFile, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
+import { AuthBrowser, authRouteTestFile, doorData, doorOpen, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
 import { leaveWorkspace, renameWorkspace } from "./workspace-actions"
 
 const { connection, signedIn, createWorkspace, join } = authRouteTestFile("workspace-rows.test")
@@ -95,7 +95,7 @@ describe("leaving the workspace", () => {
     const second = await join(outbound, admin.browser, "admin", "second-admin")
     for (const leaver of [member, guest, viewer, second]) {
       const elsewhere = await createWorkspace(leaver.browser)
-      await leaver.browser.post("/organization/set-active", { organizationId: orgId })
+      doorData(await doorOpen(leaver.browser, orgId))
       const [request] = await connection`insert into requests (org_id, title, description, created_by) values (${orgId}, 'Search is slow', 'Fixture', ${leaver.userId}) returning id`
       const [comment] = await connection`insert into comments (request_id, author_id, body) values (${request.id}, ${leaver.userId}, 'Still slow') returning id`
       const before = await membersOf(orgId)

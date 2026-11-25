@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMembers } from "@/lib/data/members";
 import { getWorkspace } from "@/lib/ensure-workspace";
 import { AppProviders } from "@/test/app-providers";
-import { AuthBrowser, authRouteTestFile, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser";
+import { AuthBrowser, authRouteTestFile, doorData, doorInvite, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser";
 import { withoutHidden } from "@/test/exposed-markup";
 
 vi.mock("next/navigation", async (original) => ({
@@ -42,7 +42,7 @@ async function twoWorkspaces() {
     const orgId = await createWorkspace(admin.browser);
     await connection`update organizations set name = ${`${label}'s workspace`} where id = ${orgId}`;
     const waiting = `waiting-${randomUUID()}@${domain}`;
-    await admin.browser.post("/organization/invite-member", { email: waiting, role: "guest", organizationId: orgId });
+    doorData(await doorInvite(admin.browser, { email: waiting, role: "guest", organizationId: orgId }));
     return { ...admin, orgId, waiting };
   };
   return { here: await make("here"), elsewhere: await make("elsewhere") };

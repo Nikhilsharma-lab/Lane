@@ -143,10 +143,47 @@ const roles = {
 }
 
 /**
- * Better Auth endpoints Lane doesn't use. Each would send a code or set a password without Lane's checks, or
- * belongs to a flow that is off (link-based verification and reset, email change, account deletion).
+ * Better Auth's routes a browser can't reach (Nikhil on #349, 2026-11-25): all but the ones Lane's browser auth client
+ * calls. Lane's door (`askAuthServer`) still makes the calls it needs, behind the Server Actions' guards. The route's
+ * auth-routes.test.ts reads Better Auth's own table, so one an upgrade adds is turned off here or listed there.
  */
 const DISABLED_PATHS = [
+  // Workspaces, people and invitations, but for accepting and declining an invitation.
+  "/organization/create",
+  "/organization/update",
+  "/organization/delete",
+  "/organization/set-active",
+  "/organization/check-slug",
+  "/organization/has-permission",
+  "/organization/list",
+  "/organization/get-organization",
+  "/organization/get-full-organization",
+  "/organization/list-members",
+  "/organization/get-active-member",
+  "/organization/get-active-member-role",
+  "/organization/update-member-role",
+  "/organization/remove-member",
+  "/organization/leave",
+  "/organization/invite-member",
+  "/organization/cancel-invitation",
+  "/organization/get-invitation",
+  "/organization/list-invitations",
+  "/organization/list-user-invitations",
+  // Sessions and Google's tokens.
+  "/list-sessions",
+  "/revoke-session",
+  "/revoke-sessions",
+  "/revoke-other-sessions",
+  "/update-session",
+  "/get-access-token",
+  "/refresh-token",
+  "/account-info",
+  // Checks of a password or a code apart from what uses it, and a health check.
+  "/verify-password",
+  "/email-otp/check-verification-otp",
+  "/ok",
+  // Each would send a code or set a password without Lane's checks, or belongs to a flow that is off (link-based
+  // verification and reset, email change, account deletion).
   "/send-verification-email",
   "/verify-email",
   "/request-password-reset",
@@ -154,6 +191,7 @@ const DISABLED_PATHS = [
   "/forget-password/email-otp",
   "/change-email",
   "/delete-user",
+  "/delete-user/callback",
   "/email-otp/request-email-change",
   "/email-otp/change-email",
 ]
@@ -366,7 +404,6 @@ function build(config: Config) {
             workspaceName: organization.name,
             inviterName: inviter.user.name,
             role,
-            // Nothing serves /invite/<id> until increment 5.
             acceptUrl: `${config.baseURL}/invite/${id}`,
             expiresAt: invitation.expiresAt,
           })

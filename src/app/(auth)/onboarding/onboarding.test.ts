@@ -14,7 +14,7 @@ import { readFreeRequests } from "@/lib/billing"
 import { loadInvitationsFor } from "@/lib/data/invitations"
 import { addressAfterArriving } from "@/lib/onboarding-address"
 import { readSession } from "@/lib/session"
-import { AuthBrowser, authRouteTestFile, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
+import { AuthBrowser, authRouteTestFile, doorCancel, doorData, doorInvite, doorLeave, doorOpen, doorRemove, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
 import { markupWords, withoutHidden } from "@/test/exposed-markup"
 import { createWorkspace, saveOnboardingRole } from "./actions"
 import OnboardingPage, { generateMetadata } from "./page"
@@ -62,9 +62,8 @@ async function invite(to: string, name: string, role = "member") {
   const admin = await signedIn(outbound, "admin")
   const workspaceId = await makeWorkspace(admin.browser)
   await connection`update organizations set name = ${name} where id = ${workspaceId}`
-  const answer = await admin.browser.post("/organization/invite-member", { email: to, role })
-  expect(answer.status).toBe(200)
-  return { admin, id: (answer.body as { id: string }).id }
+  const { id } = doorData(await doorInvite(admin.browser, { email: to, role }))
+  return { admin, id }
 }
 
 /** Someone whose only workspace, "Wren's studio", was their last-used one, and who is out of it. */
@@ -75,9 +74,9 @@ async function outOfTheirOnlyWorkspace(how: "leave" | "removed") {
   await person.browser.action(() => rememberLastUsed())
   const answer =
     how === "leave"
-      ? await person.browser.post("/organization/leave", { organizationId })
-      : await admin.browser.post("/organization/remove-member", { organizationId, memberIdOrEmail: person.memberId })
-  expect(answer.status).toBe(200)
+      ? await doorLeave(person.browser, organizationId)
+      : await doorRemove(admin.browser, { organizationId, memberIdOrEmail: person.memberId })
+  expect(answer.ok).toBe(true)
   return person
 }
 
@@ -102,7 +101,7 @@ describe("a person's pending invitations", () => {
     const expired = await invite(person.email, "Expired")
     await connection`update invitation set expires_at = now() - interval '1 minute' where id = ${expired.id}`
     const cancelled = await invite(person.email, "Cancelled")
-    expect((await cancelled.admin.browser.post("/organization/cancel-invitation", { invitationId: cancelled.id })).status).toBe(200)
+    doorData(await doorCancel(cancelled.admin.browser, cancelled.id))
     const declined = await invite(person.email, "Declined")
     expect((await browser.post("/organization/reject-invitation", { invitationId: declined.id })).status).toBe(200)
     const accepted = await invite(person.email, "Accepted")
@@ -142,7 +141,7 @@ describe("a person with no workspace left", () => {
     const admin = await signedIn(outbound, "remover")
     const organizationId = await makeWorkspace(admin.browser)
     const { browser, userId, memberId } = await join(outbound, admin.browser, "member", "removed")
-    expect((await admin.browser.post("/organization/remove-member", { organizationId, memberIdOrEmail: memberId })).status).toBe(200)
+    doorData(await doorRemove(admin.browser, { organizationId, memberIdOrEmail: memberId }))
     expect((await profileOf(userId)).last_workspace_id).toBeNull()
     expect((await open(browser)).text).toContain("You’re no longer in Wren's studio Your Requests and comments stay in that workspace.")
   })
@@ -178,8 +177,8 @@ describe("a person with no workspace left", () => {
     const organizationId = await makeWorkspace(admin.browser)
     const { browser, memberId } = await join(outbound, admin.browser, "member", "still-in-one")
     await makeWorkspace(browser)
-    expect((await browser.post("/organization/set-active", { organizationId })).status).toBe(200)
-    expect((await admin.browser.post("/organization/remove-member", { organizationId, memberIdOrEmail: memberId })).status).toBe(200)
+    doorData(await doorOpen(browser, organizationId))
+    doorData(await doorRemove(admin.browser, { organizationId, memberIdOrEmail: memberId }))
     expect(await open(browser)).toEqual({ sentTo: "/" })
   })
 })

@@ -3,12 +3,14 @@
  * `/api/auth/[...all]`'s GET and POST as a real one would, and a fake for every outbound call Better Auth and the
  * auth email make: Turnstile's siteverify, Have I Been Pwned's range API, Google's token and userinfo endpoints, and
  * Resend. Anything else that leaves the process fails the test. The browser can also call a Server Action as its
- * person (`action`, #389). And each test file's people, workspaces and clean-up (`authRouteTestFile`).
+ * person (`action`, #389), and Better Auth itself through Lane's server door (`door`), for what the route doesn't take. And each test file's people, workspaces and clean-up (`authRouteTestFile`).
  */
 import { createHash, randomUUID } from "node:crypto"
 import postgres from "postgres"
 import { afterAll, afterEach, vi } from "vitest"
+import type { DoorAnswer } from "@/lib/auth-answer"
 import { SOMETHING_WENT_WRONG, authErrorCode, authErrorCopy } from "@/lib/auth-error-copy"
+import { askAuthServer } from "@/lib/auth-server"
 import { RESEND_EMAILS_URL } from "@/lib/messenger"
 import { asServerAction } from "./server-action-request"
 import { requireTestDatabase } from "./test-database"
@@ -164,6 +166,9 @@ export class AuthBrowser {
     return result()
   }
 
+  /** Asks Better Auth through Lane's server door as this browser's person, as a Server Action's door call does. */
+  door = <T>(call: Parameters<typeof askAuthServer<T>>[0]): Promise<DoorAnswer<T>> => this.action(() => askAuthServer(call))
+
   /** The Cookie header this browser sends. */
   cookieHeader = () => [...this.cookies].map(([name, value]) => `${name}=${value}`).join("; ")
 
@@ -173,6 +178,28 @@ export class AuthBrowser {
 
 /** The `code` of a Better Auth or Lane error answer, if it has one. */
 export const codeOf = (answer: AuthAnswer) => authErrorCode(answer.body)
+
+/**
+ * Better Auth's workspace calls, through the door: the route takes none of them from a browser (auth-routes.test.ts).
+ * Without an `organizationId`, the browser's active workspace. A role is any value, so a test can ask for one Lane
+ * doesn't have.
+ */
+export const doorInvite = (browser: AuthBrowser, body: { email: string; role: unknown; organizationId?: string; resend?: boolean }) =>
+  browser.door((api, asCaller) => api.createInvitation({ ...asCaller, body: body as { email: string; role: "member" } }))
+export const doorChangeRole = (browser: AuthBrowser, body: { memberId: string; role: unknown; organizationId?: string }) =>
+  browser.door((api, asCaller) => api.updateMemberRole({ ...asCaller, body: body as { memberId: string; role: "member" } }))
+export const doorRemove = (browser: AuthBrowser, body: { memberIdOrEmail: string; organizationId?: string }) => browser.door((api, asCaller) => api.removeMember({ ...asCaller, body }))
+export const doorLeave = (browser: AuthBrowser, organizationId: string) => browser.door((api, asCaller) => api.leaveOrganization({ ...asCaller, body: { organizationId } }))
+export const doorCancel = (browser: AuthBrowser, invitationId: string) => browser.door((api, asCaller) => api.cancelInvitation({ ...asCaller, body: { invitationId } }))
+export const doorOpen = (browser: AuthBrowser, organizationId: string) => browser.door((api, asCaller) => api.setActiveOrganization({ ...asCaller, body: { organizationId } }))
+export const doorUpdate = (browser: AuthBrowser, organizationId: string, data: { name?: string; slug?: string; logo?: string; metadata?: Record<string, unknown> }) =>
+  browser.door((api, asCaller) => api.updateOrganization({ ...asCaller, body: { organizationId, data } }))
+
+/** What a door call answered, or a failure of the test when it was refused. */
+export function doorData<T>(answer: DoorAnswer<T>): T {
+  if (!answer.ok) throw new Error(`The door answered ${answer.code ?? "no code"}`)
+  return answer.data
+}
 
 /** The `error` on the redirect back from Google sign-in, if it has one. */
 export const googleErrorOf = (answer: AuthAnswer) => (answer.location ? new URL(answer.location, AUTH_ORIGIN).searchParams.get("error") : null)
@@ -191,6 +218,8 @@ export function codesMet() {
   return {
     met,
     codeOf: (answer: AuthAnswer) => keep(codeOf(answer)),
+    /** The code a door call was refused with, if it was. */
+    doorCodeOf: (answer: DoorAnswer<unknown>) => keep(answer.ok ? undefined : answer.code),
     googleErrorOf: (answer: AuthAnswer) => keep(googleErrorOf(answer)),
     /** The codes met that have no words of Lane's, or only the generic line. */
     withoutLaneWords: () => [...met].filter((code) => authErrorCopy(code) === SOMETHING_WENT_WRONG),
@@ -265,18 +294,16 @@ export function authRouteTestFile(domain: string, name: (label: string) => strin
   }
 
   /** Creates a workspace from the browser, as onboarding will. It becomes the browser's active workspace. */
-  async function createWorkspace(browser: AuthBrowser, extra: Record<string, unknown> = {}) {
-    const answer = await browser.post("/organization/create", { name: "Wren's studio", slug: `${slugPrefix}${randomUUID().slice(0, 8)}`, ...extra })
-    if (answer.status !== 200) throw new Error(`Creating a workspace answered ${answer.status}: ${JSON.stringify(answer.body)}`)
-    return (answer.body as { id: string }).id
+  async function createWorkspace(browser: AuthBrowser, extra: { logo?: string; metadata?: Record<string, unknown> } = {}) {
+    const body = { name: "Wren's studio", slug: `${slugPrefix}${randomUUID().slice(0, 8)}`, ...extra }
+    return doorData(await browser.door((api, asCaller) => api.createOrganization({ ...asCaller, body }))).id
   }
 
   /** A new person, invited by the Admin as `role` and accepted. The workspace becomes their active one. */
   async function join(outbound: Outbound, admin: AuthBrowser, role: string, label: string = role) {
     const joiner = await signedIn(outbound, label)
-    const invited = await admin.post("/organization/invite-member", { email: joiner.person.email, role })
-    if (invited.status !== 200) throw new Error(`Inviting answered ${invited.status}: ${JSON.stringify(invited.body)}`)
-    const accepted = await joiner.browser.post("/organization/accept-invitation", { invitationId: (invited.body as { id: string }).id })
+    const invited = doorData(await doorInvite(admin, { email: joiner.person.email, role }))
+    const accepted = await joiner.browser.post("/organization/accept-invitation", { invitationId: invited.id })
     if (accepted.status !== 200) throw new Error(`Accepting answered ${accepted.status}: ${JSON.stringify(accepted.body)}`)
     return { ...joiner, memberId: (accepted.body as { member: { id: string } }).member.id }
   }

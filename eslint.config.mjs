@@ -26,6 +26,8 @@ const AUTH_SERVER_DOOR_FILES = [
   "src/app/(auth)/onboarding/actions.ts",
   "src/app/(app)/settings/workspace-actions.ts",
   "src/app/(app)/settings/profile/account-actions.ts",
+  // The route tests' browser, for the calls the route doesn't take from a browser (auth-routes.test.ts).
+  "src/test/auth-route-browser.ts",
 ];
 const BETTER_AUTH_SESSION_MESSAGE = "Only the session seam (src/lib/session.ts) imports the Better Auth session read; read the session through it (#387).";
 const BETTER_AUTH_SESSION = { regex: "(^|/)better-auth-session$", message: BETTER_AUTH_SESSION_MESSAGE };

@@ -11,7 +11,7 @@ import { queryCounter } from "@/db"
 import { loadInvitation } from "@/lib/data/invitations"
 import { ROLE_NAMES, WORKSPACE_ROLES } from "@/lib/role-rules"
 import { readSession } from "@/lib/session"
-import { AUTH_ORIGIN, AuthBrowser, authRouteTestFile, codeOf, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
+import { AUTH_ORIGIN, AuthBrowser, authRouteTestFile, codeOf, doorCancel, doorData, doorInvite, doorRemove, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
 import { buttonsIn, markupWords, withoutHidden } from "@/test/exposed-markup"
 import InvitationNotFound, { metadata as notFoundMetadata } from "./not-found"
 import InvitationPage, { generateMetadata } from "./page"
@@ -82,12 +82,11 @@ async function invite(to: string, role = "member") {
   const admin = await signedIn(outbound, "admin")
   const workspaceId = await createWorkspace(admin.browser)
   await connection`update organizations set name = 'Acme Design' where id = ${workspaceId}`
-  const answer = await admin.browser.post("/organization/invite-member", { email: to, role })
-  expect(answer.status).toBe(200)
-  return { admin, workspaceId, id: (answer.body as { id: string }).id }
+  const { id } = doorData(await doorInvite(admin.browser, { email: to, role }))
+  return { admin, workspaceId, id }
 }
 const accept = (browser: AuthBrowser, invitationId: string) => browser.post("/organization/accept-invitation", { invitationId })
-const cancel = async ({ admin, id }: Awaited<ReturnType<typeof invite>>) => expect((await admin.browser.post("/organization/cancel-invitation", { invitationId: id })).status).toBe(200)
+const cancel = async ({ admin, id }: Awaited<ReturnType<typeof invite>>) => doorData(await doorCancel(admin.browser, id))
 
 const CANCELLED = "This invitation can’t be used It was cancelled or declined. Ask an Admin of Acme Design for a new one."
 
@@ -267,8 +266,7 @@ describe("Open <workspace>", () => {
     const sam = await acceptedThenElsewhere()
     let viewer: { browser: AuthBrowser; userId: string; ownId: string } = sam
     if (who === "someone removed since") {
-      const removed = await sam.admin.browser.post("/organization/remove-member", { organizationId: sam.workspaceId, memberIdOrEmail: sam.memberId })
-      expect(removed.status).toBe(200)
+      doorData(await doorRemove(sam.admin.browser, { organizationId: sam.workspaceId, memberIdOrEmail: sam.memberId }))
     } else {
       const lee = await signedIn(outbound, "lee")
       viewer = { ...lee, ownId: await createWorkspace(lee.browser) }

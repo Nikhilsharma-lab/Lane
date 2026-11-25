@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs"
 import path from "node:path"
 import { afterAll, beforeEach, describe, expect, it } from "vitest"
 import { claimFreeRequests, readFreeRequests } from "@/lib/billing"
-import { AuthBrowser, authRouteTestFile, codeOf, fakeOutbound, signIn, signInWithGoogle, switchOnAuthRoute, type GoogleProfile, type Outbound, type TestPerson } from "@/test/auth-route-browser"
+import { AuthBrowser, authRouteTestFile, codeOf, doorData, doorInvite, fakeOutbound, signIn, signInWithGoogle, switchOnAuthRoute, type GoogleProfile, type Outbound, type TestPerson } from "@/test/auth-route-browser"
 
 const DOMAIN = "account-deletion.test"
 const { connection: sql, signedIn, createWorkspace, join } = authRouteTestFile(DOMAIN)
@@ -69,8 +69,8 @@ describe("deleting a person's account", () => {
       // Another workspace invites them and they haven't answered; they invite someone who hasn't answered either.
       const elsewhere = await signedIn(outbound, `elsewhere-${label}`)
       await createWorkspace(elsewhere.browser)
-      expect((await elsewhere.browser.post("/organization/invite-member", { email: leaver.person.email, role: "member" })).status).toBe(200)
-      expect((await leaver.browser.post("/organization/invite-member", { email: `invited-by-${label}@${DOMAIN}`, role: "member" })).status).toBe(200)
+      doorData(await doorInvite(elsewhere.browser, { email: leaver.person.email, role: "member" }))
+      doorData(await doorInvite(leaver.browser, { email: `invited-by-${label}@${DOMAIN}`, role: "member" }))
       // A sign-in code and a reset code wait in their mailbox.
       expect((await new AuthBrowser().post("/email-otp/send-verification-otp", { email: leaver.person.email, type: "sign-in" })).status).toBe(200)
       expect((await new AuthBrowser().post("/email-otp/request-password-reset", { email: leaver.person.email })).status).toBe(200)
@@ -338,7 +338,7 @@ describe("deleting a workspace", () => {
     filled.push(orgId)
     const userId = admin.userId
     const { userId: memberId } = await join(outbound, admin.browser, "member", `${label}-member`)
-    expect((await admin.browser.post("/organization/invite-member", { email: `pending-${label}@${DOMAIN}`, role: "guest" })).status).toBe(200)
+    doorData(await doorInvite(admin.browser, { email: `pending-${label}@${DOMAIN}`, role: "guest" }))
     const open = await fileRequest(orgId, userId, `${label} open`)
     const released = await fileRequest(orgId, memberId, `${label} released`)
     const closed = await fileRequest(orgId, userId, `${label} closed`)

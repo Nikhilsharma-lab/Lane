@@ -126,6 +126,11 @@ describe("the server door's fence (#389)", () => {
     expect((await refusals(filePath, loading("@/lib/auth-server"))).join("\n")).toContain("AUTH_SERVER_DOOR_FILES")
   })
 
+  it("lets the route tests' browser import it too, and no other test helper", async () => {
+    expect(await refusals("src/test/auth-route-browser.ts", door)).toEqual([])
+    expect(await refusals("src/test/member-fixtures.ts", door)).not.toEqual([])
+  })
+
   it("lets that action import nothing else that was refused", async () => {
     expect(await refusals(ACTION, `import { handleAuthRequest as imported } from "@/lib/auth-server"`)).not.toEqual([])
     expect(await refusals(ACTION, importing("@/lib/auth-server"))).not.toEqual([])

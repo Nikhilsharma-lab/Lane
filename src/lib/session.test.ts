@@ -1,20 +1,13 @@
 /**
  * The session seam on Better Auth (#387, spec #383; the read itself is #374's). Sessions and workspaces are made
- * through `/api/auth/[...all]` as the browser makes them, on a local lane_test database; the seam gets the browser's
- * cookies, and the headers the proxy adds, as Next hands them to server code.
+ * through Better Auth as the app makes them, on a local lane_test database; the seam gets the browser's cookies, and
+ * the headers the proxy adds, as Next hands them to server code.
  */
-import { NextRequest } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { queryCounter } from "@/db"
-import { AUTH_ORIGIN, AuthBrowser, authRouteTestFile, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
+import { AuthBrowser, authRouteTestFile, doorChangeRole, doorData, doorRemove, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
 import { RETURN_ADDRESS_HEADER } from "./auth-return-address"
 import { readAccount, readSession, sendToSignIn } from "./session"
-
-const request = vi.hoisted(() => ({ current: null as NextRequest | null }))
-vi.mock("next/headers", () => ({
-  cookies: async () => request.current!.cookies,
-  headers: async () => request.current!.headers,
-}))
 
 const { connection, signedIn, createWorkspace, join } = authRouteTestFile("session.test")
 const SESSION_COOKIE = "better-auth.session_token"
@@ -25,14 +18,7 @@ beforeEach(() => {
   outbound = fakeOutbound()
 })
 
-/** Makes the next server code run for a page request with this browser's cookies. */
-function asPageRequestFrom(browser: AuthBrowser, headers: Record<string, string> = {}) {
-  request.current = new NextRequest(`${AUTH_ORIGIN}/requests`, { headers: { cookie: browser.cookieHeader(), ...headers } })
-}
-async function read(browser: AuthBrowser) {
-  asPageRequestFrom(browser)
-  return readSession()
-}
+const read = (browser: AuthBrowser) => browser.action(() => readSession())
 
 describe("the session read", () => {
   it("returns the person, their active workspace and their Lane role, in one query", async () => {
@@ -176,7 +162,7 @@ describe("the session read", () => {
     const removed = await join(outbound, admin.browser, "member")
     expect(await read(removed.browser)).toEqual({ userId: removed.userId, orgId: workspaceId, role: "member" })
 
-    expect((await admin.browser.post("/organization/remove-member", { memberIdOrEmail: removed.memberId })).status).toBe(200)
+    doorData(await doorRemove(admin.browser, { memberIdOrEmail: removed.memberId }))
     // Better Auth leaves the removed person's session pointing at the workspace.
     expect((await connection`select active_organization_id from session where user_id = ${removed.userId}`)[0].active_organization_id).toBe(workspaceId)
     expect(await read(removed.browser)).toEqual({ userId: removed.userId, orgId: null, role: null })
@@ -195,8 +181,7 @@ describe("the session read", () => {
     const guest = await join(outbound, admin.browser, "guest")
     expect(await read(guest.browser)).toEqual({ userId: guest.userId, orgId: workspaceId, role: "guest" })
 
-    const changed = await admin.browser.post("/organization/update-member-role", { memberId: guest.memberId, role: "viewer" })
-    expect(changed.status).toBe(200)
+    doorData(await doorChangeRole(admin.browser, { memberId: guest.memberId, role: "viewer" }))
     expect(await read(guest.browser)).toEqual({ userId: guest.userId, orgId: workspaceId, role: "viewer" })
   })
 
@@ -222,10 +207,7 @@ describe("the session read", () => {
 })
 
 describe("the signed-in account", () => {
-  async function account(browser: AuthBrowser) {
-    asPageRequestFrom(browser)
-    return readAccount()
-  }
+  const account = (browser: AuthBrowser) => browser.action(() => readAccount())
 
   it("is the person's name and email from their profile, with no image", async () => {
     const { browser, person } = await signedIn(outbound, "account")
@@ -239,8 +221,8 @@ describe("the signed-in account", () => {
 
 describe("sending a signed-out visitor to sign in", () => {
   async function sentTo(address?: string) {
-    asPageRequestFrom(new AuthBrowser(), address === undefined ? {} : { [RETURN_ADDRESS_HEADER]: address })
-    const error = await sendToSignIn().catch((thrown: { digest: string }) => thrown)
+    const headers: Record<string, string> = address === undefined ? {} : { [RETURN_ADDRESS_HEADER]: address }
+    const error = await new AuthBrowser().action(() => sendToSignIn(), headers).catch((thrown: { digest: string }) => thrown)
     return error.digest.split(";")[2]
   }
 

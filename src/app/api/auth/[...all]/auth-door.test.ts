@@ -7,7 +7,7 @@ import { cookies, headers } from "next/headers"
 import { after } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { askAuthServer } from "@/lib/auth-server"
-import { AuthBrowser, authRouteTestFile, codeOf, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
+import { AuthBrowser, authRouteTestFile, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
 
 const { connection, domain, signedIn, createWorkspace } = authRouteTestFile("auth-door.test")
 
@@ -55,11 +55,9 @@ describe("the server door", () => {
     await expect(browser.action(() => askAuthServer(async () => Promise.reject(new Error("the database is away"))))).rejects.toThrow("the database is away")
   })
 
-  it("answers a failed email with the route's own Lane code", async () => {
+  it("answers a failed email with Lane's code for it", async () => {
     const { browser, workspaceId } = await adminWithWorkspace("inviter")
     outbound.resend = () => Response.json({ name: "application_error" }, { status: 500 })
-    const fromRoute = await browser.post("/organization/invite-member", { email: `routed@${domain}`, role: "member", organizationId: workspaceId })
-    expect(codeOf(fromRoute)).toBe("INVITATION_NOT_SENT")
     expect(await invite(browser, `doored@${domain}`, workspaceId)).toEqual({ ok: false, code: "INVITATION_NOT_SENT" })
   })
 

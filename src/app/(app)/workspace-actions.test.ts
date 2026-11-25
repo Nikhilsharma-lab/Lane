@@ -5,7 +5,7 @@
 import { randomUUID } from "node:crypto"
 import { beforeEach, describe, expect, it } from "vitest"
 import { readSession } from "@/lib/session"
-import { AuthBrowser, authRouteTestFile, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
+import { AuthBrowser, authRouteTestFile, doorData, doorLeave, doorRemove, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
 import { rememberLastUsed, switchWorkspace } from "./workspace-actions"
 
 const { connection, signedIn, createWorkspace, join } = authRouteTestFile("workspace-actions.test")
@@ -60,7 +60,7 @@ describe("switching workspace", () => {
     const theirs = await createWorkspace(admin.browser)
     const person = await join(outbound, admin.browser, "member", "removed")
     const own = await createWorkspace(person.browser)
-    await admin.browser.post("/organization/remove-member", { organizationId: theirs, memberIdOrEmail: person.memberId })
+    doorData(await doorRemove(admin.browser, { organizationId: theirs, memberIdOrEmail: person.memberId }))
 
     expect(await person.browser.action(() => switchWorkspace(theirs))).toEqual({ ok: false, code: "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION" })
     expect(await workspaceOf(person.browser)).toBe(own)
@@ -85,7 +85,7 @@ describe("remembering the last-used workspace", () => {
     const left = await createWorkspace(admin.browser)
     const person = await join(outbound, admin.browser, "member", "returning")
     await person.browser.action(() => rememberLastUsed())
-    expect((await person.browser.post("/organization/leave", { organizationId: left })).status).toBe(200)
+    doorData(await doorLeave(person.browser, left))
     expect(await workspaceOf(person.browser)).toBeNull()
 
     const joined = await createWorkspace(person.browser)
@@ -120,9 +120,9 @@ describe("remembering the last-used workspace", () => {
       await person.browser.action(() => rememberLastUsed())
       const answer =
         go === "leave"
-          ? await person.browser.post("/organization/leave", { organizationId: workspaceId })
-          : await admin.browser.post("/organization/remove-member", { organizationId: workspaceId, memberIdOrEmail: person.memberId })
-      expect(answer.status).toBe(200)
+          ? await doorLeave(person.browser, workspaceId)
+          : await doorRemove(admin.browser, { organizationId: workspaceId, memberIdOrEmail: person.memberId })
+      expect(answer.ok).toBe(true)
       expect(await workspaceOf(person.browser)).toBeNull()
       expect(await lastUsed(person.userId)).toBe(workspaceId)
     }
