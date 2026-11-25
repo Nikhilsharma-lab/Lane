@@ -53,13 +53,18 @@ chmod 600 .env.local
 nothing reads it until an attachment is used. Playwright gives the app `BETTER_AUTH_URL` and Cloudflare's published
 always-pass Turnstile keys, so `.env.local` holds neither.
 
-Some walks need real values. For those, copy the main checkout's file instead (read-only source), then set
-`BETTER_AUTH_SECRET` in your copy to a made-up value:
+Some walks need real values. For those, copy the main checkout's file instead (read-only source), take Lane Staging's
+database out of your copy, and set `BETTER_AUTH_SECRET` to a made-up value:
 
 ```sh
 cp /Users/nikhilsharma/Documents/Work/Lane/.env.local . && chmod 600 .env.local
+sed -i '' -E '/^(DATABASE_SSL_CA|BETTER_AUTH_SECRET)=/d; s#^DATABASE_URL=.*#DATABASE_URL=postgresql://nikhilsharma@localhost:5432/<name from §1>#' .env.local
 printf '\nBETTER_AUTH_SECRET=any-made-up-local-value-of-32-characters\n' >> .env.local
 ```
+
+Do the `sed` before you start anything: `next.config.ts` loads `.env.local` **over** the shell's variables, so a
+`DATABASE_URL` in front of `pnpm dev` or `pnpm build` doesn't win. Playwright's server is safe either way (it sets
+`LANE_ENV_FILE=/dev/null`).
 
 | The walk needs | Names |
 |---|---|
@@ -134,8 +139,8 @@ The suites stop at Google's door. A real round trip needs a person at Google's s
 
 1. The local Google client's values are in `.env.local` (§2). Its redirect addresses are `localhost:3000` and
    `localhost:3100` only, so the app must run on one of those ports.
-2. Start the app on the local database:
-   `DATABASE_URL=postgresql://nikhilsharma@localhost:5432/<name from §1> BETTER_AUTH_URL=http://localhost:3000 TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA pnpm dev`.
+2. Start the app on the local database (`LANE_ENV_FILE=/dev/null` is what makes this `DATABASE_URL` win):
+   `LANE_ENV_FILE=/dev/null DATABASE_URL=postgresql://nikhilsharma@localhost:5432/<name from §1> BETTER_AUTH_URL=http://localhost:3000 TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA pnpm dev`.
 3. The person opens `http://localhost:3000/login`, presses Continue with Google and finishes there.
 4. Delete their local rows with a §1 reset once the server is stopped.
 
