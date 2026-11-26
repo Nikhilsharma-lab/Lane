@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto"
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { afterAll, beforeEach, describe, expect, it } from "vitest"
-import { claimFreeRequests, readFreeRequests } from "@/lib/billing"
+import { claimFreeRequests, decideFreeRequests, readFreeRequests } from "@/lib/billing"
 import { AuthBrowser, authRouteTestFile, codeOf, doorData, doorInvite, fakeOutbound, signIn, signInWithGoogle, switchOnAuthRoute, type GoogleProfile, type Outbound, type TestPerson } from "@/test/auth-route-browser"
 
 const DOMAIN = "account-deletion.test"
@@ -164,6 +164,54 @@ describe("deleting a person's account", () => {
     expect(await tokens()).toEqual([{ access_token: expect.any(String), id_token: expect.any(String) }])
     await run("delete-person", variablesFor(leaver))
     expect(await tokens()).toEqual([])
+  })
+
+  it("deletes both people's own settings in every workspace, and nobody else's", async () => {
+    const stayer = await signedIn(outbound, "settings-stayer")
+    const workspaces = [await createWorkspace(stayer.browser), await createWorkspace(stayer.browser)]
+    const leavers = [await join(outbound, stayer.browser, "member", "birch"), await join(outbound, stayer.browser, "member", "rowan")]
+    for (const orgId of workspaces) {
+      const requestId = await fileRequest(orgId, stayer.userId, "Needs someone")
+      for (const { userId } of [stayer, ...leavers]) {
+        await sql`insert into delivery_preferences (org_id, user_id, channel) values (${orgId}, ${userId}, 'off')`
+        await sql`insert into first_run_progress (org_id, user_id, guide) values (${orgId}, ${userId}, 'joined')`
+        await sql`insert into saved_views (org_id, owner_id, name, filters) values (${orgId}, ${userId}, 'Mine', ${sql.json({ status: "done" })})`
+        await sql`insert into delivery_log (org_id, user_id, request_id, item_key, channel, outcome) values (${orgId}, ${userId}, ${requestId}, 'review', 'email', 'would_send')`
+      }
+    }
+    const settingsOf = async (userId: string) => {
+      const [rows] = await sql`
+        select
+          (select count(*)::int from delivery_preferences where user_id = ${userId}) as delivery_preferences,
+          (select count(*)::int from first_run_progress where user_id = ${userId}) as first_run_progress,
+          (select count(*)::int from saved_views where owner_id = ${userId}) as saved_views,
+          (select count(*)::int from delivery_log where user_id = ${userId}) as delivery_log`
+      return { ...rows }
+    }
+    const everyTable = { delivery_preferences: 2, first_run_progress: 2, saved_views: 2, delivery_log: 2 }
+    for (const { userId } of leavers) expect(await settingsOf(userId)).toEqual(everyTable)
+
+    for (let time = 0; time < 2; time++) for (const leaver of leavers) await run("delete-person", variablesFor(leaver))
+
+    for (const { userId } of leavers) expect(await settingsOf(userId)).toEqual({ delivery_preferences: 0, first_run_progress: 0, saved_views: 0, delivery_log: 0 })
+    expect(await settingsOf(stayer.userId)).toEqual(everyTable)
+  })
+
+  it("lists the workspaces the person created whose Free Requests were never decided, until they are", async () => {
+    const creator = await signedIn(outbound, "undecided-creator")
+    const [decided, undecided, neverCounted] = [await createWorkspace(creator.browser), await createWorkspace(creator.browser), await createWorkspace(creator.browser)]
+    const someoneElse = await signedIn(outbound, "undecided-other")
+    const notTheirs = await createWorkspace(someoneElse.browser)
+    // As Onboarding saves the creator; only `decided` then had its Free Requests decided. `neverCounted` has no billing row.
+    await sql`update organizations set owner_id = ${creator.userId} where id in ${sql([decided, undecided, neverCounted])}`
+    await sql`update organizations set owner_id = ${someoneElse.userId} where id = ${notTheirs}`
+    for (const orgId of [decided, undecided, notTheirs]) await fileRequest(orgId, creator.userId, "Counted")
+    await claimFreeRequests({ orgId: decided }, `founder@${randomUUID().slice(0, 8)}.test`)
+
+    const undecidedOf = async () => (await run("look-up", variablesFor(creator)))[1].map((row) => row.id).sort()
+    expect(await undecidedOf()).toEqual([undecided, neverCounted].sort())
+    for (const orgId of [undecided, neverCounted]) await decideFreeRequests({ orgId })
+    expect(await undecidedOf()).toEqual([])
   })
 
   it("finds the person, and names the workspaces whose only Admin they are", async () => {

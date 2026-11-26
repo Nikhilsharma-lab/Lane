@@ -41,10 +41,10 @@ Lane's Postgres is the only place a Lane account lives (ADR 0008). Better Auth's
 | `projects`, `workspace_labels`, `metric_definitions` | `created_by` | no action | same |
 | `metric_definition_history`, `request_expected_impact_revisions` | `author_id` | no action | same; append-only records |
 | `notifications` | `user_id` (recipient), `actor_id` (who did the thing) | both `ON DELETE CASCADE` | deleted explicitly, because the profile stays |
-| `delivery_preferences`, `first_run_progress`, `saved_views` | `user_id`, `owner_id` | `ON DELETE CASCADE` | the person's own settings; they stay with the tombstone (5.1) |
+| `delivery_preferences`, `first_run_progress`, `saved_views`, `delivery_log` | `user_id`, `owner_id` | `ON DELETE CASCADE` (`delivery_log`: none) | the person's own settings, in every workspace; deleted explicitly, because the profile stays |
 | `requests.design_reviews` (jsonb, `0018`) | `requestedBy {id, name}`, `reviewers[] {id, name}`, `responses[].reviewerId`, `withdrawal.by {id, name}` | none (JSON) | name snapshots from before 2026-10-18; nothing writes them now |
 | `request_agreements.reviewers`, `request_agreement_events.payload` (jsonb) | `nominee.userId`, `displayNameAtSelection` | none (JSON) | a Reviewer's name when they were asked; replaced with "Former member" |
-| `requests` release and closure records (jsonb), `same_problem_members`, `same_problem_events`, `quarter_notes`, `delivery_log`, `slack_connections` | ids only | none | an id, not a name |
+| `requests` release and closure records (jsonb), `same_problem_members`, `same_problem_events`, `quarter_notes`, `slack_connections` | ids only | none | an id, not a name |
 | `organizations` | `owner_id` (who created the workspace) | nullable, no FK | an id, not a name |
 | `workspace_billing`, `free_request_allowances` | `allowance_key` | none | a personal email address when the workspace's creator had one (a company domain otherwise); the address is replaced with a placeholder |
 
@@ -114,7 +114,15 @@ SELECT 'notifications_received', count(*) FROM public.notifications WHERE user_i
 SELECT 'notifications_as_actor', count(*) FROM public.notifications WHERE actor_id = :'person_id' UNION ALL
 SELECT 'reviews_named_in', count(*) FROM public.requests
   WHERE design_reviews::text LIKE '%' || :'person_id' || '%';
+
+-- Workspaces they created whose Free Requests were never decided (no allowance_key, or no workspace_billing row yet).
+-- Expect no rows.
+SELECT o.id, o.name FROM public.organizations o
+WHERE o.owner_id = :'person_id'
+  AND NOT EXISTS (SELECT 1 FROM public.workspace_billing b WHERE b.org_id = o.id AND b.allowance_key IS NOT NULL);
 ```
+
+- [ ] If the second query lists a workspace, stop. Lane decides Free Requests from the creator's address, so once 3.3 replaces it Lane would decide them from the placeholder, as a company domain called `deleted.invalid`. **[N: authorize]** Decide each one first, while the address is still on the profile: `decideFreeRequests({ orgId })` (`src/lib/billing.ts`) does it. Run `look-up` again, and go on when the second query lists none.
 
 ### 3.2 Workspaces they are the only Admin of **[N: authorize]**
 
@@ -172,8 +180,14 @@ USING public.profiles p
 WHERE p.id = :'person_id'
   AND v.identifier IN ('email-verification-otp-' || lower(p.email), 'sign-in-otp-' || lower(p.email), 'forget-password-otp-' || lower(p.email));
 
--- 5. Their notifications. The profile stays, so the CASCADE does not fire; delete explicitly.
+-- 5. Their notifications and their own settings, in every workspace: how Needs-you items reach them, their first-run
+--    guide, their saved views (a view has a typed name) and the record of what was sent to them. The profile stays,
+--    so the CASCADEs do not fire; delete explicitly.
 DELETE FROM public.notifications WHERE user_id = :'person_id' OR actor_id = :'person_id';
+DELETE FROM public.delivery_preferences WHERE user_id = :'person_id';
+DELETE FROM public.first_run_progress WHERE user_id = :'person_id';
+DELETE FROM public.saved_views WHERE owner_id = :'person_id';
+DELETE FROM public.delivery_log WHERE user_id = :'person_id';
 
 -- 6. Open assignments: unassign so the Request can be picked up by someone else.
 UPDATE public.requests SET assigned_to = NULL
@@ -381,14 +395,12 @@ SELECT
 - **Other people's data** that mentions the person in free text.
 - **Workspace rows** when one member leaves.
 
-### 5.1 Not covered: decide before the first real deletion
+### 5.1 Not covered
 
-Nikhil decided on 2026-11-24 that a Reviewer's name and a personal Free Requests address go too (3.3, statements 8 and 9). The procedure doesn't touch these. Each needs Nikhil's decision before it runs for a real person.
+Nikhil decided on 2026-11-24 that a Reviewer's name and a personal Free Requests address go too (3.3, statements 8 and 9), and on 2026-11-26 that the person's settings go (statement 5) and that a workspace they created whose Free Requests were never decided stops the deletion until they are (3.1). What the procedure still doesn't do:
 
-- **A workspace whose Free Requests were never decided.** If its creator is deleted first, Lane would decide them from the placeholder address, as a company domain called `deleted.invalid`. Lane decides them when a workspace is created, so this needs that step to have failed.
-- **Their settings.** `delivery_preferences`, `first_run_progress`, `saved_views` (a saved view has a typed name) and `delivery_log` stay, keyed by the opaque id.
 - **A design review on a Closed Request.** Statement 7 of 3.3 stops with "Closed Request is immutable" if one names the person, and the whole transaction rolls back. The cutover starts from an empty database and nothing writes design reviews any more, so no such row is expected.
-- **Payments.** Deleting a workspace doesn't cancel its subscription or remove its customer record at the payment provider (`workspace_billing`). No payment is accepted while billing is off.
+- **Payments.** Deleting a workspace doesn't cancel its Stripe subscription or delete its customer record (`workspace_billing`). Deferred until billing is switched on: `DEFERRED.md`, "BILLING SWITCHED ON".
 
 ---
 

@@ -427,6 +427,14 @@ Each was evaluated as Lane-simpler, thesis-refusal, or adopt-later.
   password, Google and signed-in devices only. Until then the change is made by hand. Trigger: the first person who
   asks. — #333, 2026-11-20.
 
+## BILLING SWITCHED ON — when LANE_BILLING_ENFORCED is turned on, or before the first payment
+
+- **Deleting a workspace leaves its payment records at Stripe.** What: the manual deletion procedure
+  (`docs/operations/account-deletion.md` §4) deletes the workspace's rows, `workspace_billing` included, but doesn't
+  cancel its Stripe subscription or delete its Stripe customer record. Why deferred: billing is off, so no workspace
+  has a subscription and nothing is charged. Trigger: `LANE_BILLING_ENFORCED` is turned on, or before the first
+  payment, whichever comes first; add the Stripe steps to §4 then. — Nikhil, this session, 2026-11-26.
+
 ## LOW PRIORITY / maybe never
 
 - ~~**Auth form DRY.** login/signup are ~95% duplicated. Only worth extracting *if* a third auth screen
