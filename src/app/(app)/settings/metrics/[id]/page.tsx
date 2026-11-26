@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "@/components/link";
 import { notFound, redirect } from "next/navigation";
 import { timePage, timed } from "@/lib/request-timings";
@@ -25,7 +26,16 @@ import { AddHowCountedDialog, ArchiveMetricControl, EditMetricForm, MergeMetricC
 import styles from "../metrics.module.css";
 import { settingsMetadata } from "../../settings-metadata";
 
-export const metadata = settingsMetadata;
+/**
+ * #408: a missing Metric's tab reads "Page not found". On a production build the 404 its layout answers keeps the page's
+ * own metadata in its Flight data, and the browser shows that, so the page names the missing case itself, as an unknown
+ * Request's does. Anyone the page sends elsewhere keeps "Settings".
+ */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const [{ id }, workspace] = await Promise.all([params, getWorkspace()]);
+  if (!workspace || workspace.needsOnboarding || workspace.role === "guest") return settingsMetadata;
+  return (await readMetricPage(workspace, id)) ? settingsMetadata : { title: "Page not found" };
+}
 
 /**
  * One Metric definition under Settings → Metrics (#197): edit it, archive, restore or merge it (Admins, #202),
