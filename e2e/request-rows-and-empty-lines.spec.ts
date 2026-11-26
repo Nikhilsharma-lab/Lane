@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
+import { streamedIn } from "./helpers/streamed";
 
 /**
  * Build 5.3 of #256 (#274): Request rows, status pills, empty lines and toolbar menus, driven as a person would.
@@ -305,6 +306,7 @@ test("each status pill has its own empty line; chips only for added filters (#27
 
     // On the whole list Add filter offers Project: a Project added there is a chip, and Clear all clears it (A215).
     await page.goto("/");
+    await streamedIn(page);
     await expect(row(page, seeded.done)).toBeVisible();
     await page.locator('[data-slot="requests-toolbar"] [data-filter-trigger]').click();
     const listFilter = page.getByRole("dialog", { name: "Add filter" });

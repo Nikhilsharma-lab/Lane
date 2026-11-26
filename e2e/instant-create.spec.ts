@@ -71,7 +71,8 @@ async function holdSave(page: Page, filename = ACTIONS, exportedName = "saveRequ
   await page.route("**/*", handler);
   return {
     seen: seen.promise,
-    async settle(what: "send" | "lose" | "offline") { answer.resolve(what); await done.promise; await page.unroute("**/*", handler); },
+    // Its route stays, passing everything on: taking a route off can lose a request the page sends that moment (helpers/action-response.ts).
+    async settle(what: "send" | "lose" | "offline") { answer.resolve(what); await done.promise; },
   };
 }
 

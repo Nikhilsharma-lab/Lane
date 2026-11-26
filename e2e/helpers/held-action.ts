@@ -31,6 +31,7 @@ export async function holdNextAction(page: Page, filename: string, exportedName:
   await page.route(path, handler);
   return {
     seen: seen.promise,
-    async release() { released.resolve(); await sent.promise; await page.unroute(path, handler); },
+    // Its route stays, passing everything on: taking a route off can lose a request the page sends that moment (helpers/action-response.ts).
+    async release() { released.resolve(); await sent.promise; },
   };
 }

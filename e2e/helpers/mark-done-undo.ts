@@ -98,7 +98,8 @@ export async function undoDriver(page: Page, orgId: string, request: UndoRequest
       received: () => within(30_000, received.promise, `No ${move} for ${request.code} answered.`),
       async finish() {
         delivery.resolve();
-        try { await finished.promise; expect(count).toBe(1); } finally { await page.unroute(pattern, handler); }
+        // Its route stays, passing everything on: taking a route off can lose a request the page sends that moment (helpers/action-response.ts).
+        await finished.promise; expect(count).toBe(1);
       },
     };
   }

@@ -59,7 +59,8 @@ async function holdNextAction(page: Page, requestId: string, move: "pickUpReques
     await route.abort("failed");
     failed.resolve();
   });
-  return { seen: seen.promise, count: () => count, async release() { released.resolve(); await failed.promise; await page.unroute(path); } };
+  // Its route stays, passing everything on: taking a route off can lose a request the page sends that moment (helpers/action-response.ts). After a refusal the page refreshes at once, and a lost refresh holds back the next move.
+  return { seen: seen.promise, count: () => count, async release() { released.resolve(); await failed.promise; } };
 }
 
 /**

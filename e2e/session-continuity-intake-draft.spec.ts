@@ -105,6 +105,9 @@ test("an expired session signs back in to the exact Intake review without anothe
       };
 
       await page.goto("/intake");
+      // The composer's form loads once the page is idle and saves the (empty) draft it starts with, which removes the
+      // draft key; the review below, put in before then, was erased before the reload.
+      await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
       await page.evaluate(
         ({ key, value }) => {
           window.sessionStorage.setItem(key, JSON.stringify(value));

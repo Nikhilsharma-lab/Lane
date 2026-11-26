@@ -24,12 +24,22 @@ const PHONE_NET = { offline: false, latency: 150, downloadThroughput: (1.6 * 102
 
 type Timing = { load: number; idle: number; scripts: { name: string; start: number }[] };
 
-/** A cold visit to `path`: when `load` fired, when the page was first idle after it, and when each script started. */
-async function coldVisit(page: Page, path: string): Promise<Timing> {
+/**
+ * A cold visit to `path`: when `load` fired, when the page was first idle after it, and when each script started.
+ * `arrived`, when given, is read again until it holds (or 30 s): the browser lists a script only once it has all of
+ * it, which on the phone's link can take longer than the wait.
+ */
+async function coldVisit(page: Page, path: string, arrived?: (timing: Timing) => Promise<boolean>): Promise<Timing> {
   await page.goto(path, { waitUntil: "load", timeout: 60_000 });
   await expect.poll(() => page.evaluate(() => (window as unknown as { __loadOrder?: { idle?: number } }).__loadOrder?.idle ?? null), { timeout: 30_000 }).not.toBeNull();
   // Whatever waits for idle has started by now.
   await page.waitForTimeout(1_500);
+  let timing = await readTiming(page);
+  if (arrived) await expect.poll(async () => arrived(timing = await readTiming(page)), { timeout: 30_000 }).toBe(true).catch(() => undefined);
+  return timing;
+}
+
+function readTiming(page: Page): Promise<Timing> {
   return page.evaluate(() => {
     const order = (window as unknown as { __loadOrder: { load: number; idle: number } }).__loadOrder;
     const scripts = performance.getEntriesByType("resource")
@@ -194,8 +204,10 @@ test("on a cold first visit drawn long before load, search, the palette and the 
 
     const early: string[] = [];
     const seen = new Set<string>();
+    const expected: Record<string, string[]> = { "/": Object.keys(SHELL_LAZY_PARTS), "/settings/profile": ["search pane and ⌘K palette"] };
     for (const path of ["/", "/settings/profile"]) {
-      const timing = await coldVisit(page, path);
+      const arrived = async (timing: Timing) => { const { seen } = await lazyStarts(path, timing, bodies, SHELL_LAZY_PARTS); return expected[path].every(part => seen.has(part)); };
+      const timing = await coldVisit(page, path, arrived);
       expect(timing.load, `${path}: load waited for the held font`).toBeGreaterThan(6_000);
       const result = await lazyStarts(path, timing, bodies, SHELL_LAZY_PARTS);
       result.seen.forEach(part => seen.add(`${path}: ${part}`));
