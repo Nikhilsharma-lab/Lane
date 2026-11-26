@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
     // 250 KB every page's first load is 0.1-3.4 KB (gzip) lighter than at 200 KB, and none is heavier.
     turbopackChunking: { minChunkSize: 400_000, maxMergeChunkSize: 250_000 },
   },
+  // #383: `next dev` logs every Server Action's arguments by default, and some carry a password (Settings → Profile).
+  // Production never logs them; this keeps them out of local terminals and walk logs too.
+  logging: { serverFunctions: false },
   // #266: Motion's split needs `motion/react` resolved to framer-motion (src/components/motion/motion-alias.ts).
   turbopack: { resolveAlias: MOTION_ALIAS },
   // Baseline security headers on every route; CSP stays Report-Only until
