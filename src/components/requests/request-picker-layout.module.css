@@ -4,10 +4,11 @@
   gap: 0;
 }
 
+/* #407: a minimum, never a fixed height, so a row that wraps (a reviewer's name over a long email) holds its content.
+   A fixed height here outranked the pickers' `height: auto` whenever this stylesheet loaded after theirs. */
 .row {
   box-sizing: border-box;
   min-height: var(--menu-row-height);
-  height: var(--menu-row-height);
   padding: var(--menu-item-padding);
   border: 0;
   border-radius: var(--radius-control);
