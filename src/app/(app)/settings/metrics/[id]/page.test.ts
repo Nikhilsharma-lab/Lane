@@ -181,3 +181,29 @@ describe("A Metric definition's page", () => {
     await expect(open("not-a-definition")).rejects.toThrow("not-found");
   });
 });
+
+// #408: a production build's 404 keeps the page's own metadata in its Flight data, and the browser then shows it, so
+// the page itself names the missing case, as an unknown Request's does.
+describe("A Metric definition's tab", () => {
+  const titleOf = async (id: string) => {
+    const { generateMetadata } = await import("./page");
+    return (await generateMetadata({ params: Promise.resolve({ id }) })).title;
+  };
+
+  it("reads Settings for a Metric of this workspace", async () => {
+    expect(await titleOf(trials)).toBe("Settings");
+  });
+
+  it("reads Page not found for another workspace's definition or a made-up id", async () => {
+    const [theirs] = await (await library()).listMetricDefinitions({ orgId: OTHER });
+    expect(await titleOf(theirs.id)).toBe("Page not found");
+    expect(await titleOf("not-a-definition")).toBe("Page not found");
+  });
+
+  it("reads Settings for anyone the page sends elsewhere", async () => {
+    for (const workspace of [null, { ...as("member"), needsOnboarding: true }, as("guest")]) {
+      session.workspace = workspace;
+      expect(await titleOf("not-a-definition")).toBe("Settings");
+    }
+  });
+});

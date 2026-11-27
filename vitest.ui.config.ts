@@ -92,6 +92,7 @@ export default defineConfig({
       "src/components/requests/same-problem-link-model.test.ts",
       "src/components/requests/is-it-live.test.ts",
       "src/components/requests/measurement-metric-picker.test.ts",
+      "src/components/requests/request-picker-rows.test.ts",
       "src/lib/prediction-metrics.test.ts",
       "src/lib/inbox-read-model.test.ts",
       "src/lib/guest-submission.test.ts",
