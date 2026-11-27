@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { folderBucket, supabaseBucket } from "./bucket.mts";
 import type { Command, Target } from "./command.mts";
 import { checkBlanks } from "./commands/check-blanks.mts";
+import { schemaDiff } from "./commands/schema-diff.mts";
 import { state } from "./commands/state.mts";
 import {
   databaseTarget,
@@ -27,7 +28,7 @@ import {
 import { SecretSession, systemClipboard } from "./secrets.mts";
 import { appendStep, describeStep, lastStep } from "./step-log.mts";
 
-export const COMMANDS: readonly Command[] = [state, checkBlanks];
+export const COMMANDS: readonly Command[] = [state, schemaDiff, checkBlanks];
 const DEFAULT_WORKING_FOLDER = path.resolve(import.meta.dirname, "../../backups/better-auth-cutover");
 const FLAGS = ["--dir", "--folder"] as const;
 

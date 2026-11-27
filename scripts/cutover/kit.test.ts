@@ -177,3 +177,54 @@ describe("check-blanks", () => {
     }
   });
 });
+
+describe("schema-diff", () => {
+  let other: Scratch;
+  beforeEach(async () => {
+    other = await makeScratch();
+  });
+  afterEach(async () => other?.drop());
+
+  it("reports no difference between identical schemas", async () => {
+    const run = await runKit(["schema-diff", "rehearsal", "rehearsal"], { dir, clipboard: [scratch.url, other.url] });
+
+    expect(run.code).toBe(0);
+    expect(run.stdout).toMatch(/No differences between rehearsal 1 and rehearsal 2/);
+    expect(stepLog(dir, "rehearsal")).toEqual([
+      expect.objectContaining({ environment: "rehearsal", against: "rehearsal", step: "schema-diff", result: "ok", counts: { differences: 0 } }),
+    ]);
+  });
+
+  it.each([
+    {
+      difference: "a grant only one has",
+      arrange: async () => void (await other.sql`grant select on public.projects to anon`),
+      reported: /only in rehearsal 2: grant on table public\.projects to anon: SELECT/,
+    },
+    {
+      difference: "a policy only one has",
+      arrange: async () => void (await scratch.sql`create policy made_up_policy on public.projects for select to authenticated using (true)`),
+      reported: /only in rehearsal 1: policy made_up_policy on public\.projects/,
+    },
+    {
+      difference: "a policy that reads differently",
+      arrange: async () => {
+        await scratch.sql`create policy made_up_policy on public.projects for select to authenticated using (true)`;
+        await other.sql`create policy made_up_policy on public.projects for select to authenticated using (false)`;
+      },
+      reported: /differs: policy made_up_policy on public\.projects\n {4}rehearsal 1: .*USING \(true\)\n {4}rehearsal 2: .*USING \(false\)/,
+    },
+  ])("reports $difference", async ({ arrange, reported }) => {
+    await arrange();
+    try {
+      const run = await runKit(["schema-diff", "rehearsal", "rehearsal"], { dir, clipboard: [scratch.url, other.url] });
+
+      expect(run.code).toBe(1);
+      expect(run.stdout).toMatch(reported);
+      expect(run.stdout).toMatch(/Schema diff: stop/);
+      expect(stepLog(dir, "rehearsal")).toEqual([expect.objectContaining({ step: "schema-diff", result: "stop", counts: { differences: 1 } })]);
+    } finally {
+      await scratch.sql`drop policy if exists made_up_policy on public.projects`;
+    }
+  });
+});
