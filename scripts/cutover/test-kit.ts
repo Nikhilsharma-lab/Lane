@@ -199,6 +199,40 @@ export function sealExport(exportFolder: string, opened: string, gnupg: Gnupg): 
   writeFileSync(path.join(exportFolder, "manifest.json"), JSON.stringify({ ...inside, archive: { ...beside.archive, sha256: sha256(bytes), bytes: bytes.length } }, null, 2));
 }
 
+/**
+ * Changes the rows in a custom-format dump: restores it into a scratch database, runs `change` there, and dumps it
+ * back over the same file, as pg_dump made it. For an export that is missing a row.
+ */
+export async function rewriteDump(dumpFile: string, change: (sql: Scratch["sql"]) => Promise<unknown>): Promise<void> {
+  const database = `lane_rehearsal_test_${randomBytes(6).toString("hex")}`;
+  const url = serverUrl(database);
+  const env = { PATH: process.env.PATH, NODE_ENV: process.env.NODE_ENV, PGPASSWORD: decodeURIComponent(url.password), PGPASSFILE: path.join(tmpdir(), "lane-no-pgpass") };
+  const connection = ["--host", url.hostname, "--port", url.port || "5432", "--username", decodeURIComponent(url.username), "--no-password"];
+  const run = (tool: string, args: string[]) => execFileSync(tool, [...connection, ...args], { env, stdio: ["ignore", "pipe", "pipe"] });
+  run("psql", ["-X", "-q", "-v", "ON_ERROR_STOP=1", "--dbname", "postgres", "-c", `create database "${database}" template template0`]);
+  try {
+    // The dump makes public itself.
+    run("psql", ["-X", "-q", "-v", "ON_ERROR_STOP=1", "--dbname", database, "-c", "drop schema public"]);
+    run("pg_restore", ["--no-owner", "--no-acl", "--exit-on-error", "--dbname", database, dumpFile]);
+    const sql = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
+    try {
+      await change(sql);
+    } finally {
+      await sql.end();
+    }
+    rmSync(dumpFile);
+    run("pg_dump", ["--dbname", database, "--format=custom", "--schema=public", "--file", dumpFile]);
+  } finally {
+    run("psql", ["-X", "-q", "--dbname", "postgres", "-c", `drop database if exists "${database}" with (force)`]);
+  }
+}
+
+/** Whether the local server has a database of that name. */
+export async function databaseExists(sql: Scratch["sql"], database: string): Promise<boolean> {
+  const rows = await sql`select 1 from pg_database where datname = ${database}`;
+  return rows.length > 0;
+}
+
 /** The SHA256 of some bytes, as `shasum -a 256` gives it. */
 export function sha256(bytes: string | Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");

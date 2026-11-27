@@ -4,21 +4,17 @@
 // and the plain copies, which only ever sit in the run's owner-only folder, are removed. The export holds password
 // hashes and sessions from now on (#333 Q9): it lives in the git-ignored working folder and is deleted at 28 days.
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { writeTar } from "../archive.mts";
 import type { Command } from "../command.mts";
 import { connect, type Sql } from "../database.mts";
-import { deleteBy, DUMP, exportName, FILES, KEEP_DAYS, MANIFEST, readTables, writeJsonOnce, type ExportedFile, type ExportRecord, type Manifest } from "../exports.mts";
+import { deleteBy, DUMP, exportName, FILES, fileSha256, KEEP_DAYS, MANIFEST, readTables, writeJsonOnce, type ExportedFile, type ExportRecord, type Manifest } from "../exports.mts";
 import { decrypt, encrypt } from "../gpg.mts";
 import { presentMigrations } from "../migrations.mts";
 import { pgConnection, runTool } from "../tools.mts";
 
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-
-function sha256OfFile(file: string): string {
-  return sha256(readFileSync(file));
-}
 
 export const exportCommand: Command = {
   name: "export",
@@ -78,7 +74,7 @@ export const exportCommand: Command = {
         latestMigration,
         tables,
         files,
-        dump: { file: DUMP, sha256: sha256OfFile(dumpFile), bytes: statSync(dumpFile).size },
+        dump: { file: DUMP, sha256: await fileSha256(dumpFile), bytes: statSync(dumpFile).size },
       };
       writeFileSync(path.join(plain, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
       const tar = path.join(plain, `${name}.tar`);
@@ -87,7 +83,7 @@ export const exportCommand: Command = {
         { name: DUMP, source: dumpFile },
         ...files.map((file) => ({ name: `${FILES}/${file.path}`, source: path.join(plain, FILES, file.path) })),
       ]);
-      const tarSha256 = sha256OfFile(tar);
+      const tarSha256 = await fileSha256(tar);
 
       const archiveFile = `${name}.tar.gpg`;
       const archive = path.join(folder, archiveFile);
@@ -101,7 +97,7 @@ export const exportCommand: Command = {
       if (decrypted.digest("hex") !== tarSha256) throw new Error("The archive doesn't decrypt to what was encrypted. The export was not kept.");
       removePlain();
 
-      const record: ExportRecord = { ...manifest, archive: { file: archiveFile, sha256: sha256OfFile(archive), bytes: statSync(archive).size } };
+      const record: ExportRecord = { ...manifest, archive: { file: archiveFile, sha256: await fileSha256(archive), bytes: statSync(archive).size } };
       writeJsonOnce(path.join(folder, MANIFEST), record);
       finished = true;
 

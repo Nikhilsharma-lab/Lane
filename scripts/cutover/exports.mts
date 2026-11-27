@@ -5,7 +5,8 @@
 //   lane-<environment>-<UTC time>.tar.gpg   the encrypted archive: manifest.json, public.dump, files/<object path>
 //   manifest.json                           the same manifest, plus the archive's own SHA256 (written last)
 // The manifest holds counts, timestamps, object paths (IDs, never file names, in Lane) and checksums: no row data.
-import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createReadStream, existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { StoredObject } from "./bucket.mts";
 import type { Sql } from "./database.mts";
@@ -63,6 +64,13 @@ export function latestExport(workingFolder: string, environment: Environment): F
     } catch {}
   }
   return undefined;
+}
+
+/** A file's SHA256, read in chunks so a large archive or dump isn't held in memory. */
+export async function fileSha256(file: string): Promise<string> {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(file)) hash.update(chunk as Buffer);
+  return hash.digest("hex");
 }
 
 /** Writes JSON so that a reader sees the whole file or none of it. */
