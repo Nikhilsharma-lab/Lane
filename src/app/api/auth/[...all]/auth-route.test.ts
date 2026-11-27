@@ -1,5 +1,5 @@
 /**
- * #371 (spec #369): `/api/auth/[...all]`, Better Auth's dormant route. While BETTER_AUTH_SECRET is unset it answers
+ * #371 (spec #369): `/api/auth/[...all]`, Better Auth's route. While BETTER_AUTH_SECRET is unset it answers
  * 404 and builds nothing. With the secret set inside the test, Requests built as the browser sends them go to the
  * route's GET and POST on a local lane_test database, and only outbound HTTP is faked.
  */
@@ -34,7 +34,7 @@ const route = () => import("./route")
 const hung = () => new Promise<Response>(() => {})
 const profileOf = async (email: string) => (await connection`select id, full_name, email_verified, role, image from profiles where email = ${email}`)[0]
 
-describe("the auth route while dormant", () => {
+describe("the auth route without its secret", () => {
   for (const [label, secret] of [["unset", undefined], ["blank", "  "]] as const)
     it(`answers 404 to GET and POST and runs no query with the secret ${label}`, async () => {
       vi.stubEnv("BETTER_AUTH_SECRET", secret)
@@ -78,10 +78,28 @@ describe("the auth route switched on", () => {
       const verified = await browser.post("/email-otp/verify-email", { email: rae.email, otp: outbound.codeFor(rae.email) })
       expect(verified.status).toBe(200)
       expect(await profileOf(rae.email)).toMatchObject({ email_verified: true })
-      const signedIn = await signIn(browser, rae)
+      const signedIn = await signIn(new AuthBrowser(), rae)
       expect(signedIn.status).toBe(200)
-      const session = await browser.get("/get-session")
-      expect(session.body).toMatchObject({ user: { email: rae.email } })
+    })
+
+    // #388 (Nikhil, 2026-11-23): confirming the email signs the person in, with no second password sign-in.
+    it("creates a session and sets its cookie when the emailed code confirms the email, and none on a wrong code", async () => {
+      const rae = person("confirm-signs-in")
+      const browser = new AuthBrowser()
+      await signUp(rae, browser)
+      const sessions = async () => (await connection`select count(*)::int as n from session s join profiles p on p.id = s.user_id where p.email = ${rae.email}`)[0].n as number
+      const code = outbound.codeFor(rae.email)
+      const wrong = await browser.post("/email-otp/verify-email", { email: rae.email, otp: code === "000000" ? "111111" : "000000" })
+      expect([wrong.status, codeOf(wrong)]).toEqual([400, "INVALID_OTP"])
+      expect(browser.cookies.size).toBe(0)
+      expect(await sessions()).toBe(0)
+
+      const confirmed = await browser.post("/email-otp/verify-email", { email: rae.email, otp: code })
+      expect(confirmed.status).toBe(200)
+      expect(confirmed.body).toMatchObject({ status: true, token: expect.any(String) })
+      expect([...browser.cookies.keys()]).toContain("better-auth.session_token")
+      expect(await sessions()).toBe(1)
+      expect((await browser.get("/get-session")).body).toMatchObject({ user: { email: rae.email } })
     })
 
     it("refuses a wrong password", async () => {

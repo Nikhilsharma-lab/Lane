@@ -10,7 +10,7 @@ const PASSED_ON: Record<string, string> = {
   "app/(app)/settings/profile/delivery-form.tsx": "InboxDeliveryForm saves through callAction",
   "app/(app)/settings/profile/slack-form.tsx": "SlackConnectionCard connects and disconnects through callAction",
   "app/(app)/settings/profile/billing-form.tsx": "BillingPlanCard starts checkout through callAction",
-  "components/settings/workspace-members.tsx": "WorkspaceMembersView sends each invite, role change and revoke through callAction",
+  "components/settings/workspace-members.tsx": "WorkspaceMembersView sends each invite, role change and revoke through callAction; the removal it is passed does too",
   "components/requests/request-moves.ts": "createRequestMoves (request-moves-controller.ts) runs each action through the optimistic runner",
   "components/requests/saved-view-menu.tsx": "Each saved-view change goes to send(), which runs it through the optimistic runner (#276)",
   "components/requests/request-timeline-forms.tsx": "Each journey form saves through useJourneyChange (use-journey-change.ts), which runs it through the optimistic runner",
@@ -46,7 +46,7 @@ function actionCalls(file: string, source: string) {
 }
 
 describe("server action calls", () => {
-  it("go through callAction or the optimistic runner, so a lapsed session is refreshed first", () => {
+  it("go through callAction or the optimistic runner, so every one gets the offline answer (#260)", () => {
     const direct = sources(ROOT).flatMap((path) => {
       const source = readFileSync(path, "utf8")
       const file = relative(ROOT, path)

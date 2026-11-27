@@ -98,6 +98,12 @@ describe("Auth error copy", () => {
     for (const code of ["PASSWORD_TOO_SHORT", "PASSWORD_COMPROMISED", "PASSWORD_CHECK_UNAVAILABLE", "UNAUTHORIZED"]) expect(authErrorCopy(code)).not.toBe("Something went wrong. Try again.")
   })
 
+  // Proposed for Nikhil to confirm: a workspace's or person's name past Lane's rule (name-rules.ts).
+  it("has Lane's words for a name that's too long or holds a line break", () => {
+    expect(authErrorCopy("NAME_TOO_LONG")).toBe("Use at most 100 characters.")
+    expect(authErrorCopy("NAME_NOT_PLAIN")).toBe("Use one line of plain text.")
+  })
+
   it("names what came back from Google's redirect to Settings after Connect Google", () => {
     expect(googleConnectionCode("email_does_not_match")).toBe("GOOGLE_EMAIL_DOES_NOT_MATCH")
     expect(googleConnectionCode("account_already_linked_to_different_user")).toBe("GOOGLE_ALREADY_LINKED")

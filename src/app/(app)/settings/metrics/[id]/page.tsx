@@ -2,8 +2,6 @@ import Link from "@/components/link";
 import { notFound, redirect } from "next/navigation";
 import { timePage, timed } from "@/lib/request-timings";
 import { ArrowLeft } from "lucide-react";
-import { AccountProfile, AccountSecurity } from "@/components/settings/account-profile";
-import { ClerkWorkspaceProfile } from "@/components/auth/clerk-members-profile";
 import { MetricDefinitionFacts } from "@/components/metrics/metric-definition-list";
 import { canChangeThings } from "@/lib/role-rules";
 import { membersPanel } from "../../members/members-panel";
@@ -15,7 +13,7 @@ import { SettingsEarlySearch } from "@/components/settings/settings-early-search
 import { billingEnforced } from "@/lib/feature-switches";
 import { loadDefinitionUses } from "@/lib/data/impact";
 import { readMetricPage } from "@/lib/data/metric-page";
-import { getWorkspace } from "@/lib/ensure-workspace";
+import { getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace";
 import { metricUnitName } from "@/lib/metric-definition-rules";
 import { listMetricDefinitions, metricDefinitionUnitLocked, readMetricDefinition, readMetricDefinitionHistory } from "@/lib/metrics-library";
 import { ProfileForm } from "../../profile/profile-form";
@@ -34,8 +32,7 @@ export const metadata = settingsMetadata;
 export default async function MetricDefinitionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ section?: string }> }) {
   void timePage("Settings: a Metric");
   const workspace = await getWorkspace();
-  if (!workspace) redirect("/login");
-  if (workspace.needsOnboarding) redirect("/onboarding");
+  if (!workspace) return sendAwayMemberless();
   if (workspace.role === "guest") redirect("/");
 
   const [{ id }, { section }] = await Promise.all([params, searchParams]);
@@ -102,9 +99,8 @@ export default async function MetricDefinitionPage({ params, searchParams }: { p
 
   return <><SettingsCommandAdapter billingEnforced={billingEnforced()} page="metrics" membership={workspace.role} workspaceName={workspace.workspaceName} workspaceId={workspace.orgId} initialSection={section ?? "metrics"}
     metrics={panel}
-    members={membersPanel(workspace)} workspaceManagement={<ClerkWorkspaceProfile />}
-    account={<AccountProfile orgId={workspace.orgId} fallbackName={workspace.fullName} fallbackEmail={workspace.email} />}
-    security={<AccountSecurity />} role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
+    members={membersPanel(workspace)}
+    role={<ProfileForm initialRole={workspace.profileRole} orgId={workspace.orgId} />} appearance={<ThemePreference compact />}
     {...panels} />
     <SettingsEarlySearch /></>;
 }

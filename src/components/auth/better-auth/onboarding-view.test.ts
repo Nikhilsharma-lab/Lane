@@ -63,9 +63,9 @@ describe("Onboarding's workspace step (#379, #346)", () => {
     expect(names(html)).toEqual(["Sign out", "Create workspace"])
   })
 
-  it("says the person is no longer in the workspace they were removed from, and that their work stays", () => {
+  it("says the person is no longer in the workspace they were removed from or left, and that their work stays", () => {
     const text = read(mount({ invitations: [], removedFrom: "Acme Design" }).render())
-    expect(text).toContain("You’re no longer in Acme Design An Admin removed you. Your Requests and comments stay in that workspace.")
+    expect(text).toContain("You’re no longer in Acme Design Your Requests and comments stay in that workspace.")
     expect(read(mount({ invitations: [] }).render())).not.toContain("no longer in")
   })
 

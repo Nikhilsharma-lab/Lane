@@ -23,7 +23,17 @@ describe("creating a workspace in Onboarding (#379)", () => {
     const flow = createOnboardingFlow({ invitations: [], onJoin: done, onCreate })
     await Promise.all([flow.create("  Acme Design "), flow.create("Acme Design")])
     expect(onCreate.mock.calls).toEqual([["Acme Design"]])
-    expect(flow.snapshot()).toMatchObject({ nameError: null, alert: null, pending: null })
+    expect(flow.snapshot()).toMatchObject({ nameError: null, alert: null })
+  })
+
+  it("stays busy once created, while the page loads, so a second press creates nothing", async () => {
+    const onCreate = vi.fn(done)
+    const flow = createOnboardingFlow({ invitations, onJoin: done, onCreate })
+    await flow.create("Acme Design")
+    await flow.create("Acme Design")
+    await flow.join("inv_1")
+    expect(onCreate).toHaveBeenCalledTimes(1)
+    expect(flow.snapshot()).toMatchObject({ alert: null, pending: "create" })
   })
 
   it("puts a taken workspace URL on the name field", async () => {
@@ -47,6 +57,14 @@ describe("creating a workspace in Onboarding (#379)", () => {
     expect(flow.snapshot().pending).toBeNull()
   })
 
+  it.each([["n".repeat(101), "Use at most 100 characters."], ["Acme\u2028Design", "Use one line of plain text."]])("says on the field why a name can't be used, and sends nothing: %j", async (name, line) => {
+    const onCreate = vi.fn(done)
+    const flow = createOnboardingFlow({ invitations: [], onJoin: done, onCreate })
+    await flow.create(name)
+    expect(flow.snapshot()).toMatchObject({ nameError: line, alert: null })
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
   it("forgets what it said about the name once the person types", async () => {
     const flow = createOnboardingFlow({ invitations, onJoin: done, onCreate: done })
     await flow.create("")
@@ -61,7 +79,7 @@ describe("joining a workspace from Onboarding (#379)", () => {
     const flow = createOnboardingFlow({ invitations, onJoin, onCreate: done })
     await Promise.all([flow.join("inv_2"), flow.join("inv_1")])
     expect(onJoin.mock.calls).toEqual([["inv_2"]])
-    expect(flow.snapshot()).toMatchObject({ alert: null, pending: null })
+    expect(flow.snapshot()).toMatchObject({ alert: null, pending: { join: "inv_2" } })
   })
 
   it("says a full workspace is full, in the invitation page's words", async () => {

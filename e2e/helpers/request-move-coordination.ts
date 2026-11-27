@@ -4,6 +4,7 @@ import { navigationSurfaces, type NavigationRequest } from "./request-navigation
 import { commandPalette, paletteOption, runPaletteCommand } from "./command-palette";
 import { doneToast, toastRegion } from "./mark-done-undo";
 import { isItLivePrompt } from "./journey";
+import { streamedIn } from "./streamed";
 
 export type MoveFixtures = { a: NavigationRequest; b: NavigationRequest; c: NavigationRequest; reviewerName: string };
 export type MoveCapture = (name: string, receipt?: unknown) => Promise<void>;
@@ -31,6 +32,7 @@ async function sidebar(page: Page, name: string) {
   await expect(page).toHaveURL(url => url.pathname === "/" && (name !== "No Project" || url.searchParams.get("project") === "none"));
 }
 export async function selectMoveRows(page: Page, requests: NavigationRequest[]) {
+  await streamedIn(page);
   for (const request of requests) {
     await expect(row(page, request)).toBeVisible();
     await row(page, request).focus(); await row(page, request).press("x");

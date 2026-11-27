@@ -5,7 +5,7 @@ import { db, profiles } from "@/db";
 import { notify } from "./notify";
 import type { MemberAuth } from "./auth-guard";
 import { MAX_REVIEWERS, PAID_SEATS_ONLY, reviewerKey, reviewStateOf, PROFILE_ROLE_LABELS, type ReviewerIdentity, type Reviewer } from "./request-reviewer-rules";
-import { workspaceRoster, type WorkspacePerson } from "./workspace-roster";
+import { workspaceRoster, type RosterPerson } from "./workspace-roster";
 import { insist, type RequestTx } from "./request-change-store";
 import { canChangeThings } from "./role-rules";
 
@@ -35,7 +35,7 @@ export async function appendReviewers({
   note: string;
   auth: MemberAuth;
   requesterId: string;
-  roster: WorkspacePerson[];
+  roster: RosterPerson[];
 }): Promise<{ reviewers: Reviewer[]; asked: ReviewNotification[] }> {
   const reviewers = [...existing];
   const asked: ReviewNotification[] = [];
@@ -107,13 +107,12 @@ export async function notifyReviewers(
  * workspace. A reviewer who left, or is no longer on a paid seat, stays
  * listed, greyed out, and their answer no longer counts (REQUIREMENTS §4.4).
  * The list, the reviewers panel and pickup confirmation all read this.
- * Worked out at read time from the identity provider; if it is unreachable,
- * everyone counts and nobody is greyed out. Asks the provider only when there
- * is a reviewer.
+ * Worked out at read time from the roster; if it can't be read, everyone
+ * counts and nobody is greyed out. Read only when there is a reviewer.
  *
  * `name` (B6): each person has one name, their sign-in name now. The name
  * saved when they were picked shows only once they've left the workspace, or
- * while the provider can't be reached.
+ * while the roster can't be read.
  */
 export async function reviewerStanding(orgId: string, reviewers: Reviewer[]) {
   let active: Map<string, string> | null = null;

@@ -1,5 +1,31 @@
 # Shared Claude / Codex handoff
 
+## November 25 — Increment 5 of Better Auth built: the switch from Clerk (#383)
+
+[PR #406](https://github.com/Nikhilsharma-lab/Lane/pull/406), a draft, on `better-auth-increment-5` (closes #383 and #387–#405); not merged. **Nothing is deployed:** no Vercel env set, no migration applied to a hosted database, and nothing is promoted except through increment 6. Approved on #349: increment 5 (2026-11-23); Lane's server door and Have I Been Pwned's check on a first password (2026-11-24); Better Auth's unused routes off and 30 invitations a day per person (2026-11-25).
+
+Better Auth is now Lane's only authority for accounts, sessions, workspaces, memberships, roles and invitations. `readSession` answers from it in one query; the proxy sends a visitor without a session cookie to sign-in; increment 4's screens are mounted on `/login`, `/signup`, `/forgot-password`, `/reset-password`, the new `/invite/[id]`, `/onboarding`, Settings → Profile, Workspace details and Members; all four roles can be invited in every workspace. Confirming an email signs you in (`autoSignInAfterVerification`). The app frame asks after each in-app move whether the person is still in its workspace with its role, and loads in full if not (#402). No file under `src/` imports `@clerk/*` (lint); the packages and env names stay until increment 7. A production server doesn't start without all six Better Auth, Google and Turnstile names (#398). For Build 9's scripts, the Server-Timing step `clerk` is gone: the session read, now a database query, is `session`. The e2e suites run on a test-only Better Auth instance in `e2e/`, pinned to staging by a fingerprint of its secret.
+
+The code review's fixes are in:
+- every Better Auth route Lane's browser client doesn't call answers 404, and a test reads Better Auth's own route table so an upgrade can't open one (`DISABLED_PATHS` in `src/lib/auth-server.ts`);
+- leaving, removing and role changes take turns per workspace (`src/lib/membership-turn.ts`), so two Admins at once can't leave it with none;
+- one person sends at most 30 invitations in 24 hours, counted from the invitation rows (`src/lib/invitation-allowance.ts`; no new table);
+- names are one line of plain text, at most 100 characters (`src/lib/name-rules.ts`), and emails clean stored ones;
+- an accepted invitation says so to someone signed out, or not in its workspace, instead of "already in".
+
+The browser walk (local database, production build) and its fixes are in #405's closing comment, one line per #346 state. Walk recipe: `docs/agents/local-browser-checks.md`. Final numbers: unit 4389 passed, 1 skipped; test:ui 1673. First load, gzip: `/settings/profile` and `/settings/members` 329,401 bytes each, from Build 8's 408,665 (limit 408,713). `/invite/[id]` was added to the bundle baseline (235,468 bytes); no other entry changed. The one full e2e run, local-database mode, production build: 135 of 150 passed, 15 failed. Ten met a race in the tests with React's hidden streamed copy, seen as often on the build before the review fixes; they now wait for it (`e2e/helpers/streamed.ts`) and pass, four times each. Four passed when rerun alone, cause not established. One is #408, kept failing. Each is named in #405.
+
+**A slip:** during the walk an agent started `next dev` twice with Lane Staging's `DATABASE_URL`, because `next.config.ts` loads `.env.local` over the shell's. Each start made one `SELECT` on `rate_limit`, which failed (staging has no such table); it wrote nothing. Its earlier builds had the same value loaded, with no query seen and no further check made. The recipe now takes the hosted database out of a copied env first.
+
+Still owed, in order:
+- Nikhil's Google round trip with the local client (exact commands in #405). Lane's side is covered by tests and a stand-in for Google.
+- Nikhil's read of the PR's "For Nikhil to confirm" and proposed lines.
+- VoiceOver, a physical phone, and the real Turnstile widget (the walk used Cloudflare's test key).
+- Increment 6: every staging run (the e2e suites have run only in local-database mode), a real Turnstile key on staging, the speed check, the Privacy and Terms effective dates, and the cutover.
+- Not from this increment: #408, a missing Metric's tab reads "Settings · Lane" on a production build (on `main` too, measured in #405), and #407, the Reviewers picker's overlapping rows.
+
+Build notes are in `~/.claude/lane-notes/better-auth-inc5/`, the walk's screenshots and specs in `~/Documents/Work/lane-build-notes/inc5-405/`.
+
 ## November 23 — Increment 4 of Better Auth built: Lane's own auth and account screens, unmounted (#376)
 
 [PR #382](https://github.com/Nikhilsharma-lab/Lane/pull/382) on `better-auth-increment-4` (closes #376–#381); not merged, nothing deployed, no Vercel env set. Approved on #349 (2026-11-22), with three dormant additions to its file list: Lane's browser auth client (`src/lib/auth-client.ts`), the Turnstile widget (`src/components/auth/better-auth/turnstile-widget.tsx`, no npm package) and the optional `NEXT_PUBLIC_TURNSTILE_SITE_KEY`. What's built, all in Arc and none of it mounted:

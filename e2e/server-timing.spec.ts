@@ -13,7 +13,7 @@ import { createTestUser, deleteTestUser } from "./helpers/test-user";
 // once with LANE_SERVER_TIMING_HEADER=1 in the shell (Playwright passes it to the server it starts), once without.
 const switchOn = process.env.LANE_SERVER_TIMING_HEADER === "1";
 
-const STEP_NAMES = ["proxy", "route", "cold", "session", "workspace", "shell", "data", "clerk", "render"];
+const STEP_NAMES = ["proxy", "route", "cold", "session", "workspace", "shell", "data", "render"];
 const ROUTE_NAMES = ["Requests list", "Request page", "Settings: Profile", "Request preview"];
 
 type Seen = { header: string | null; timing: { name: string; duration: number; description: string }[] };

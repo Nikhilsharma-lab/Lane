@@ -53,7 +53,7 @@ describe("paletteEntries", () => {
   it("gives a guest My Requests and only the Settings sections a guest can open", () => {
     const entries = paletteEntries({ ...base, role: "guest" })
     expect(entries.find(entry => entry.id === "view:all")?.label).toBe("My Requests")
-    expect(entries.filter(entry => entry.detail === "Settings").map(entry => entry.label)).toEqual(["Profile", "Preferences", "Security & access", "Coming soon"])
+    expect(entries.filter(entry => entry.detail === "Settings").map(entry => entry.label)).toEqual(["Profile", "Preferences", "Security & access", "Workspace details", "Coming soon"])
   })
 
   it("opens the Metrics page at its own address", () => {

@@ -2,13 +2,14 @@ import { expect, test } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, provisionTestWorkspace } from "./helpers/cleanup";
 import { nextActionResponse } from "./helpers/action-response";
-import { assertOwnedOrganization, registerBrowserTestOrganization } from "./helpers/fixtures";
-import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
+import { registerBrowserTestOrganization, testEmail } from "./helpers/fixtures";
+import { createTestUser, deleteTestUser, readTestSession, signInTestUser } from "./helpers/test-user";
+import { addTestMember } from "./helpers/workspaces";
 
 // The guide's Free Requests line before the first Request: all 4 left on a clean database; some left and shared
-// with another example.com workspace, which used the rest (3fad2ccf); or none left, used by that workspace.
-const FREE_LINE = /^(?:([1-4]) of 4 Free Requests left\.(?: They are shared with another workspace from example\.com, which used ([1-3])\.)?|The Free Requests for example\.com were already used by another workspace\.)$/;
-const ALL_USED_WITH_ANOTHER = "This workspace and another from example.com have used the 4 Free Requests for example.com.";
+// with another resend.dev workspace, which used the rest (3fad2ccf); or none left, used by that workspace.
+const FREE_LINE = /^(?:([1-4]) of 4 Free Requests left\.(?: They are shared with another workspace from resend\.dev, which used ([1-3])\.)?|The Free Requests for resend\.dev were already used by another workspace\.)$/;
+const ALL_USED_WITH_ANOTHER = "This workspace and another from resend.dev have used the 4 Free Requests for resend.dev.";
 
 /** The line once this workspace has filed one Request (billing isn't enforced, so the 5th is still filed). */
 function freeLineAfterFiling(before: string) {
@@ -17,11 +18,22 @@ function freeLineAfterFiling(before: string) {
   const leftAfter = Number(left) - 1;
   if (!usedElsewhere) return `${leftAfter} of 4 Free Requests left.`;
   if (leftAfter === 0) return ALL_USED_WITH_ANOTHER;
-  return `${leftAfter} of 4 Free Requests left. They are shared with another workspace from example.com, which used ${usedElsewhere}.`;
+  return `${leftAfter} of 4 Free Requests left. They are shared with another workspace from resend.dev, which used ${usedElsewhere}.`;
+}
+
+/** Whether the person's first run in the workspace is saved as finished. */
+async function finishedFirstRun(orgId: string, userId: string) {
+  const sql = e2eDatabase();
+  try {
+    const [row] = await sql<{ completed_at: Date | null }[]>`select completed_at from first_run_progress where org_id = ${orgId} and user_id = ${userId}`;
+    return Boolean(row?.completed_at);
+  } finally {
+    await sql.end();
+  }
 }
 
 // #217 (spec #195, item 6): one browser walkthrough of a new team's first run. Prior art: onboarding.spec.ts
-// (creating the workspace through Clerk's task) and request-outcome.spec.ts (a Request through the real app).
+// (creating the workspace on Onboarding) and request-outcome.spec.ts (a Request through the real app).
 // Hosted gate: needs migrations 0035–0050 on Lane Staging (the Metrics library, Free Requests and first-run
 // progress); until then it runs only against a local database by hand. The Request goes through the real
 // problem check (the AI gate), so the staging Anthropic key is used once.
@@ -35,24 +47,20 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     // Create the workspace and pick a profile label: the onboarding that was already there.
     await signInTestUser(page, founder);
     await page.goto("/onboarding");
-    await page.locator('input[name="name"]').fill(workspaceName);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByLabel("Workspace name").fill(workspaceName);
+    await page.getByRole("button", { name: "Create workspace", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Choose your role" })).toBeVisible();
-    const orgId = (await page.evaluate(() => window.Clerk.organization?.id))!;
+    const orgId = (await readTestSession(page))!.orgId!;
     await registerBrowserTestOrganization(orgId, founder.id, workspaceName);
     await page.getByRole("radio", { name: "PM" }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page).toHaveURL("/");
 
     // A teammate is in the workspace, so they can be picked as a Reviewer.
-    const client = await assertOwnedOrganization(orgId);
-    await client.organizations.createOrganizationMembership({ organizationId: orgId, userId: teammate.id, role: "org:member" });
-    await client.users.updateUser(teammate.id, { firstName: "Riley", lastName: "Reviewer" });
+    await addTestMember(orgId, teammate.id, "member");
     const sql = e2eDatabase();
     try {
-      // A borrowed user (LANE_E2E_REUSE_USERS) may already have a profile from an earlier run on this database.
-      await sql`insert into profiles(id,full_name,email,role) values (${teammate.id},'Riley Reviewer',${teammate.email},'designer')
-        on conflict (id) do update set full_name = excluded.full_name, email = excluded.email, role = excluded.role`;
+      await sql`update profiles set full_name = 'Riley Reviewer' where id = ${teammate.id}`;
     } finally {
       await sql.end();
     }
@@ -60,7 +68,8 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     // The first run is the empty workspace's welcome, one step at a time, with no sample data.
     // The composer's idle preload marks a hydrated page, so the guide's buttons answer clicks.
     const hydrated = () => expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
-    const guide = page.locator("[data-first-run='first_request']");
+    // The one on screen: just after a load its streamed copy can still be in the page, hidden.
+    const guide = page.locator("[data-first-run='first_request']").filter({ visible: true });
     await hydrated();
     await expect(guide.getByRole("heading", { name: "File your first Request" })).toBeVisible();
     await expect(guide.getByRole("progressbar")).toHaveAccessibleName("Step 1 of 5: Start with the problem");
@@ -78,16 +87,16 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
     await guide.getByRole("button", { name: "Next step" }).click();
     await expect(guide.getByRole("heading", { name: "Ask Reviewers" })).toBeVisible();
     await expect(guide).toContainText("Looks good or Raise a concern");
-    // Teammates can be invited from the first run (Clerk sends no email to a +clerk_test address).
+    // Teammates can be invited from the first run (the one email goes to Resend's test recipient).
     const invite = guide.getByRole("form", { name: "Invite teammates" });
-    await invite.getByLabel("Email address").fill(`lane-e2e-first-run-invitee-${Date.now()}+clerk_test@example.com`);
+    await invite.getByLabel("Email address").fill(testEmail("first-run-invitee"));
     await invite.getByRole("button", { name: "Send invitation" }).click();
     await expect(invite.getByRole("status")).toContainText("as a Member.");
 
-    // Free Requests belong to the creator's company domain (#213). Every e2e user is at example.com, so on a
+    // Free Requests belong to the creator's company domain (#213). Every e2e person is at resend.dev, so on a
     // shared database another fixture workspace may already have used some or all of them; the guide says so.
     await guide.getByRole("button", { name: "Next step" }).click();
-    const freeLine = guide.getByText(/Free Requests (left|for example\.com were already used)/);
+    const freeLine = guide.getByText(/Free Requests (left|for resend\.dev were already used)/);
     await expect(freeLine).toHaveText(FREE_LINE);
     const freeAfterFiling = freeLineAfterFiling((await freeLine.textContent())!);
     await guide.getByRole("button", { name: "Next step" }).click();
@@ -132,6 +141,8 @@ test("a new team's first run: create a workspace, follow the guide, file a Reque
       await joined.getByRole("link", { name: "Open your Inbox" }).click();
       await expect(teammatePage).toHaveURL("/inbox");
       await expect(teammatePage.getByRole("region", { name: /^Needs you/ })).toContainText("Returning customers lose their card details");
+      // Opening the Inbox finishes the first run in the background; loading another page before it is saved would end it.
+      await expect.poll(() => finishedFirstRun(orgId, teammate.id)).toBe(true);
       await teammatePage.goto("/");
       await expect(teammatePage.locator("[data-first-run]")).toHaveCount(0);
     } finally {

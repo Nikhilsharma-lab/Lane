@@ -2,9 +2,9 @@ import { handleAuthRequest } from "@/lib/auth-server"
 import { betterAuthServer } from "@/lib/feature-switches"
 
 /**
- * #371 (spec #369): Better Auth's route, dormant. While BETTER_AUTH_SECRET is unset or blank every call gets a plain
+ * #371 (spec #369): Better Auth's route. While BETTER_AUTH_SECRET is unset or blank every call gets a plain
  * 404 and nothing is built, so no database connection opens. The secret isn't set on staging or production until
- * increment 6. Clerk's middleware still runs in front of it, as for every route; it isn't added to proxy.ts.
+ * increment 6.
  */
 async function handle(request: Request): Promise<Response> {
   const config = betterAuthServer()

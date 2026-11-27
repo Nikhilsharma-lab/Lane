@@ -75,7 +75,6 @@ export type RequestDetail = {
   createdAt: Date
   creatorName: string | null
   assigneeName: string | null
-  assigneeAvatarUrl: string | null
   projectId?: string | null
   projectName?: string | null
   labelKeys?: string[] | null

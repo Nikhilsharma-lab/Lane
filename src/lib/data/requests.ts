@@ -25,7 +25,7 @@ import type { RequestAttachment, RequestComment, RequestDetail } from "@/compone
 // Plan item 1.9: the Requests workspace reads moved here from
 // src/app/(app)/requests-workspace.tsx without changing the SQL or the
 // workspace and guest guards. Every statement is scoped by auth.orgId, and a
-// guest (org:guest) only ever reads Requests they created.
+// Guest only ever reads Requests they created.
 
 /**
  * Plan item 1.7: the list loads every Open and In progress Request under a hard
@@ -82,8 +82,8 @@ function withoutReviewers<T extends { reviewers: unknown }>({ reviewers, ...rest
 
 /**
  * #295: the journey as the saved Request and its reader draw it, for the Request page to show until the journey's
- * reads arrive. The roster isn't read here (it asks Clerk), so the reader counts as active and the Requester's name is
- * the saved creator's; both only size what is held.
+ * reads arrive. The roster isn't read here (one query fewer), so the reader counts as active and the Requester's name
+ * is the saved creator's; both only size what is held.
  */
 function outlineFor(auth: MemberAuth, request: Parameters<typeof journeyActions>[0] & {
   outcomeClosure: OutcomeClosure | null; exceptionClosure: OutcomeException | null
@@ -155,7 +155,6 @@ function listRows(auth: MemberAuth, statusWhere: SQL, limit: number, counts = fa
       creatorName: profiles.fullName,
       canEdit: sql<boolean>`${requests.status} = 'open' and ${changeableColumn(auth)}`,
       assigneeName: assignee.fullName,
-      assigneeAvatarUrl: assignee.avatarUrl,
       assignedTo: requests.assignedTo,
       projectId: requests.projectId,
       projectName: projects.name,
@@ -250,8 +249,8 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
       outcomeClosure: requests.outcomeClosure,
       releaseState: requests.releaseState,
       agreementRevision: requests.agreementRevision,
-        // Plan item 2.5: the strip's LAN-n, the panel's priority and the
-        // Assignee avatar. Same statement and joins, so no extra round trip.
+        // Plan item 2.5: the strip's LAN-n and the panel's priority. Same
+        // statement and joins, so no extra round trip.
         // The overlay needs priority to see a confirmed priority patch land.
         requestNumber: requests.requestNumber,
         priority: requests.priority,
@@ -278,7 +277,6 @@ export async function loadRequestDetail(auth: MemberAuth, requestId: string): Pr
         takenOnBy: requests.takenOnBy,
         takenOnByName: taker.fullName,
         assigneeName: selectedAssignee.fullName,
-        assigneeAvatarUrl: selectedAssignee.avatarUrl,
         projectId: requests.projectId,
         projectName: projects.name,
         requestType: requests.requestType,

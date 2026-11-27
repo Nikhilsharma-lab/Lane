@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { PageStrip } from "@/components/shell/page-strip";
 import { ImpactScreenLive } from "@/components/impact/impact-screen-live";
 import { readImpactAddress, tabToOpen } from "@/components/impact/impact-href";
-import { getMember } from "@/lib/ensure-workspace";
+import { getMember, sendAwayMemberless } from "@/lib/ensure-workspace";
 import { loadImpactPage } from "@/lib/data/impact";
 import { timePage, timed } from "@/lib/request-timings";
 import { canCreateRequests } from "@/lib/role-rules";
@@ -18,7 +17,7 @@ type Query = Record<"tab" | "period" | "person", string | string[] | undefined>;
 export default async function ImpactPage({ searchParams }: { searchParams: Promise<Partial<Query>> }) {
   void timePage("Impact");
   const member = await getMember();
-  if (!member) redirect("/login");
+  if (!member) return sendAwayMemberless();
 
   const address = readImpactAddress(await searchParams);
   const { dashboard, teammates, person } = await timed("data", () => loadImpactPage(member, { period: address.period, personId: address.person ?? undefined }));

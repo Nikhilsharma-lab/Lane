@@ -55,8 +55,8 @@ async function holdAction(page: Page, marker: string, rewrite?: (body: string) =
   await page.route("**/*", handler);
   return {
     seen: seen.promise,
-    // The held request goes on before the route comes off, so nothing else answers it.
-    async release() { released.resolve(); await sent.promise; await page.unroute("**/*", handler); },
+    // Its route stays, passing everything on: taking a route off can lose a request the page sends that moment (helpers/action-response.ts).
+    async release() { released.resolve(); await sent.promise; },
   };
 }
 

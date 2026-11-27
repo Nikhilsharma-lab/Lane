@@ -2,11 +2,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace } from "./helpers/cleanup";
 import {
-  createClerkTestOrganization,
   createTestUser,
   deleteTestUser,
   signInTestUser,
 } from "./helpers/test-user";
+import { createTestWorkspace } from "./helpers/workspaces";
+import { ROLE_STEP_URL } from "../src/lib/onboarding-address";
 
 const SURFACES = [
   {
@@ -43,14 +44,14 @@ test("the Lane role selector preserves keyboard and visual behavior", async ({
   page,
 }) => {
   const user = await createTestUser("selection-visual");
-  const orgId = await createClerkTestOrganization(
+  const orgId = await createTestWorkspace(
     user.id,
     "Lane E2E Selection Workspace"
   );
 
   try {
     await signInTestUser(page, user, orgId);
-    await page.goto("/onboarding");
+    await page.goto(ROLE_STEP_URL);
 
     // Arc's RadioGroup is a fieldset with a legend, so its role is "group".
     const roleGroup = page.getByRole("group", { name: "Your role" });

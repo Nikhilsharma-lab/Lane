@@ -1,3 +1,4 @@
+import { settle, type AuthAnswer } from "@/lib/auth-answer"
 import * as auth from "@/lib/auth-client"
 import { authErrorCopy, forCode, type AuthErrorCode } from "@/lib/auth-error-copy"
 import type { WorkspacePermission } from "@/lib/auth-guard"
@@ -6,7 +7,7 @@ import { createExternalStore } from "@/lib/external-store"
 import { signInPage, signUpPage } from "./auth-addresses"
 
 /**
- * Where the invitation stands, as increment 5's `/invite/[id]` reads it: Better Auth's `rejected` is declined and
+ * Where the invitation stands, as `/invite/[id]` reads it: Better Auth's `rejected` is declined and
  * `canceled` cancelled, and a pending invitation past its expiry is expired (#376 Q3: the view decides from the
  * status, and shows the expiry date only).
  */
@@ -25,10 +26,16 @@ export type Invitation = {
   status: InvitationStatus
 }
 
-/** Who is looking: signed out with or without a Lane account for the invited email, or signed in with an email. */
-export type InvitationViewer = { signedIn: false; hasAccount: boolean } | { signedIn: true; email: string }
+/**
+ * Who is looking: signed out with or without a Lane account for the invited email, or signed in with an email.
+ * `member`: they're in the invitation's workspace.
+ */
+export type InvitationViewer = { signedIn: false; hasAccount: boolean } | { signedIn: true; email: string; member: boolean }
 
-/** #346's invitation states, plus `closed`: an accept or decline refused because the invitation is no longer open. */
+/**
+ * #346's invitation states, plus `closed`: an accept or decline refused because the invitation is no longer open, and
+ * `accepted`: one already accepted, for anyone Lane doesn't know to be in its workspace.
+ */
 export type InvitationScreen =
   | "sign-in"
   | "create-account"
@@ -36,6 +43,7 @@ export type InvitationScreen =
   | "someone-else"
   | "expired"
   | "already-accepted"
+  | "accepted"
   | "cancelled"
   | "closed"
   | "full"
@@ -43,7 +51,7 @@ export type InvitationScreen =
 
 /** What the box beside the actions offers with its line: the code path, for an email that isn't confirmed. */
 export type InvitationOffer = "code" | null
-export type InvitationPending = "accept" | "decline" | "sign-out" | null
+export type InvitationPending = "accept" | "decline" | "sign-out" | "open" | null
 
 export type InvitationState = {
   screen: InvitationScreen
@@ -54,30 +62,34 @@ export type InvitationState = {
 type Options = {
   invitation: Invitation
   viewer: InvitationViewer
-  /** Where Open <workspace> goes: an address that opens the invitation's workspace, which increment 5 knows. */
-  workspaceAddress: string
+  /** Switches to the invitation's workspace, for Open <workspace>. */
+  openWorkspace: () => Promise<AuthAnswer>
   navigate: (path: string) => void
-  /** Called once the person has joined; increment 5 sends them to the role step. */
+  /** Called once the person has joined; it sends them to the role step or home. */
   onJoined: () => void
 }
 
-/** Refusals that mean the invitation can't be accepted at all, so the page moves to that state. */
+/**
+ * Refusals that move the page to another state: the invitation can't be accepted at all, or (Open <workspace>) the
+ * person isn't in its workspace any more.
+ */
 const SCREEN_OF: Partial<Record<AuthErrorCode, InvitationScreen>> = {
   ORGANIZATION_MEMBERSHIP_LIMIT_REACHED: "full",
   INVITATION_NOT_FOUND: "closed",
+  USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION: "accepted",
 }
 const OFFER_OF: Partial<Record<AuthErrorCode, InvitationOffer>> = {
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "code",
 }
 
-/** Increment 5's invitation page, where sign-in and sign-up come back to. */
+/** The invitation page, where sign-in and sign-up come back to. */
 export const invitationAddress = (id: string) => `/invite/${encodeURIComponent(id)}`
 
 const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
 function firstScreen({ status, email }: Invitation, viewer: InvitationViewer): InvitationScreen {
   if (status === "expired") return "expired"
-  if (status === "accepted") return "already-accepted"
+  if (status === "accepted") return viewer.signedIn && viewer.member ? "already-accepted" : "accepted"
   if (status === "cancelled" || status === "declined") return "cancelled"
   if (!viewer.signedIn) return viewer.hasAccount ? "sign-in" : "create-account"
   return sameEmail(viewer.email, email) ? "accept" : "someone-else"
@@ -87,7 +99,7 @@ function firstScreen({ status, email }: Invitation, viewer: InvitationViewer): I
  * #379: the invitation page's state, made once per mount. Accept, Decline and the switch to the invited email go
  * through Lane's browser auth client; every refusal reads `authErrorCopy`.
  */
-export function createInvitationFlow({ invitation, viewer, workspaceAddress, navigate, onJoined }: Options) {
+export function createInvitationFlow({ invitation, viewer, openWorkspace, navigate, onJoined }: Options) {
   const store = createExternalStore<InvitationState>({ screen: firstScreen(invitation, viewer), alert: null, pending: null })
   const set = (next: Partial<InvitationState>) => store.set({ ...store.get(), ...next })
   const signInHere = signInPage(invitation.email, invitationAddress(invitation.id))
@@ -147,8 +159,18 @@ export function createInvitationFlow({ invitation, viewer, workspaceAddress, nav
     createAccount: () => navigate(signUpHere),
     /** "Stay signed in as <email>" and Go to Lane: Lane's home, which opens the last workspace used. */
     goToLane: () => navigate(HOME),
-    /** Open <workspace>, from an invitation already accepted: that workspace itself (#376 story 52). */
-    openWorkspace: () => navigate(workspaceAddress),
+    /**
+     * Open <workspace>, from an invitation already accepted: that workspace itself (#376 story 52), then home. Signed
+     * out, sign-in comes first, with the invited email, and comes back here (#392).
+     */
+    async openWorkspace() {
+      if (!viewer.signedIn) return navigate(signInHere)
+      await run("open", async () => {
+        const answer = await settle(openWorkspace)
+        if (answer.ok) navigate(HOME)
+        else refuse(answer.code)
+      })
+    },
   }
 }
 

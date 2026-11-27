@@ -1,8 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { fontVariables } from "@/lib/fonts";
-import { ClerkProvider } from "@clerk/nextjs";
-import { ui } from "@clerk/ui";
-import { clerkLocalization } from "@/components/auth/clerk-localization";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastStack, ToastStackProvider } from "@/components/arc/toast-stack/toast-stack";
 import { SpeedInsights } from "@/components/speed-insights";
@@ -11,7 +8,6 @@ import { ReducedMotion } from "@/components/motion/reduced-motion";
 import { MotionFeatures } from "@/components/motion/motion-features";
 import { LoadingFeel } from "@/components/loading/loading-feel";
 import { reportsSpeedInsights } from "@/lib/speed-insights";
-import { SESSION_TASK_URLS, SIGN_IN_URL, SIGN_UP_URL } from "@/lib/session-task-urls";
 // The one theme file, Arc's foundation (in a lower cascade layer) and the bridge all load through
 // globals.css; src/styles/theme.css explains its two halves.
 import "./globals.css";
@@ -48,21 +44,6 @@ export const viewport: Viewport = {
   ],
 };
 
-// Origins Clerk may redirect back to after sign-in, sign-up and invite flows.
-// NEXT_PUBLIC_APP_URL stays first. Localhost is only trusted outside the
-// production deployment (plan 6.1, G10).
-const isProductionDeployment = process.env.VERCEL_ENV === "production";
-const allowedRedirectOrigins = Array.from(
-  new Set(
-    [
-      process.env.NEXT_PUBLIC_APP_URL,
-      ...(isProductionDeployment ? [] : ["http://localhost:3000", "http://localhost:3100"]),
-      "https://lane-staging.vercel.app",
-      "https://app.uselane.app",
-    ].filter((origin): origin is string => Boolean(origin)),
-  ),
-);
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -86,27 +67,8 @@ export default function RootLayout({
         {/* Decision 8.13 (leftover plan L3): Speed Insights field metrics from app.uselane.app only, so
             staging, previews, local builds and tests send nothing. */}
         {reportsSpeedInsights({ VERCEL_ENV: process.env.VERCEL_ENV, NEXT_PUBLIC_APP_URL: appUrl }) ? <SpeedInsights /> : null}
-        {/* `ui` pins Clerk's components to the installed @clerk/ui version instead of the CDN build,
-            so the members table's .cl-* layout rules (clerk-profile.module.css) cannot break silently
-            and Clerk stops logging its structural_css_pin_clerk_ui warning on every page.
-            `prefetchUI={false}` drops the CDN preload of ui.browser.js, which the bundled UI never uses.
-            Keep `ui={ui}`: with it, Clerk's windows and Lane's own Members list share Clerk's in-memory
-            cache, so a person removed in Manage members drops from Lane's list when the window closes
-            (#257; e2e/clerk-member-windows.spec.ts is the guard). */}
         {/* #266: Motion's renderer, animations and gestures come with every page; the (app) layout adds layout and drag. */}
         <MotionFeatures>
-        {/* #289: Lane's words on every Clerk screen and popup (src/components/auth/clerk-localization.ts). */}
-        <ClerkProvider
-          ui={ui}
-          prefetchUI={false}
-          localization={clerkLocalization}
-          signInUrl={SIGN_IN_URL}
-          signUpUrl={SIGN_UP_URL}
-          signInFallbackRedirectUrl="/"
-          signUpFallbackRedirectUrl="/onboarding"
-          allowedRedirectOrigins={allowedRedirectOrigins}
-          taskUrls={SESSION_TASK_URLS}
-        >
           <ThemeProvider>
             <ToastStackProvider>
               {children}
@@ -115,7 +77,6 @@ export default function RootLayout({
               <ToastStack morph="plain" label="Messages" />
             </ToastStackProvider>
           </ThemeProvider>
-        </ClerkProvider>
         </MotionFeatures>
       </body>
     </html>

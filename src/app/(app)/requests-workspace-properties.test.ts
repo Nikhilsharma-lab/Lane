@@ -17,9 +17,9 @@ vi.mock("@/lib/first-run", () => ({ loadFirstRun: async () => null }))
 // #219: saved views have their own tests (saved-view-actions.test.ts); the layout reads them once per render.
 vi.mock("@/lib/data/saved-views", () => ({ loadSavedViews: async () => [] }))
 vi.mock("@/lib/ensure-workspace", () => ({
-  // Plan item 1.8: the page reads Clerk claims first, then runs its loaders in parallel.
+  // Plan item 1.8: the page reads the session first, then runs its loaders in parallel.
   getMember: async () => ({ userId: "person_current", orgId: "org_visible", role: recorded.role }),
-  getWorkspace: async () => ({ orgId: "org_visible", userId: "person_current", role: recorded.role, needsOnboarding: false }),
+  getWorkspace: async () => ({ orgId: "org_visible", userId: "person_current", role: recorded.role }),
 }))
 vi.mock("./requests/[id]/actions", () => ({ addComment: vi.fn(), pickUpRequest: vi.fn(), markDone: vi.fn(), getAttachmentDownloadUrl: vi.fn() }))
 
@@ -74,10 +74,9 @@ describe("Request property reads preserve workspace and guest boundaries", () =>
     const [detail, commentRows, attachmentRows] = recorded.queries
     expect(detail.sql).toMatch(/left join "projects" on \("requests"\."project_id" = "projects"\."id" and "projects"\."org_id" = \$\d+\)/)
     expect(detail.sql).toContain('"requests"."request_type"')
-    // Plan item 2.5: the code, priority and Assignee avatar ride the same statement.
+    // Plan item 2.5: the code and priority ride the same statement.
     expect(detail.sql).toContain('"requests"."request_number"')
     expect(detail.sql).toContain('"requests"."priority"')
-    expect(detail.sql).toContain('"request_detail_assignee"."avatar_url"')
     expect(commentRows.sql).toMatch(/from "comments" inner join "requests" on "comments"\."request_id" = "requests"\."id"/)
     expect(attachmentRows.sql).toMatch(/from "request_attachments" inner join "requests" on "request_attachments"\."request_id" = "requests"\."id"/)
   })

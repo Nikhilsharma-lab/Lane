@@ -141,7 +141,7 @@ export function createRequestMoves({ orgId, announce, afterMove, toast, update, 
     const outcome = optimistic({
       id: request.id,
       patch: kind === "done" ? { kind: "done", status: "done" }
-        : { kind: "pick-up", status: "in_progress", ...(assignee ? { assignedTo: assignee.id, assigneeName: assignee.name, assigneeAvatarUrl: null } : {}) },
+        : { kind: "pick-up", status: "in_progress", ...(assignee ? { assignedTo: assignee.id, assigneeName: assignee.name } : {}) },
       run: () => (kind === "done" ? actions.markDone : actions.pickUpRequest)(request.id, { orgId }),
       waitForPending: true,
       onError: toastId

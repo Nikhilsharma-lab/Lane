@@ -1,8 +1,6 @@
 import { BillingAccountCard, type BillingAccountCardProps } from "@/components/settings/billing-account-card";
 import { readBillingAccount, readSeats } from "@/lib/billing";
 import { money } from "@/lib/billing-plan-rules";
-import { customRoles } from "@/lib/feature-switches";
-import { rolesOffered } from "@/lib/member-role-rules";
 import type { PlanState } from "@/lib/free-request-rules";
 import { paymentProvider } from "@/lib/payment-provider";
 import { zoneFreeDay } from "@/lib/dates";
@@ -10,9 +8,9 @@ import { zoneFreeDay } from "@/lib/dates";
 export type AccountSeats = BillingAccountCardProps["seats"];
 
 /**
- * Admins and Members on the live Clerk roster (Guests and Viewers are free; #215 counts them), or null when Clerk
- * can't be read. Never rejects. #265: Clerk's roster is the slowest read on a Settings page, so the Billing section
- * asks for it as soon as it starts and hands the answer down to the streamed card.
+ * Admins and Members on the live roster (Guests and Viewers are free; #215 counts them), or null when it can't be
+ * read. Never rejects. The Billing section asks for it as soon as it starts and hands the answer down to the
+ * streamed card.
  */
 export async function seatsOf(orgId: string): Promise<AccountSeats> {
   try {
@@ -39,11 +37,10 @@ async function accountOf(orgId: string): Promise<BillingAccountCardProps["accoun
 
 /**
  * #216 Settings → Billing's seats and invoices, streamed after the page (the Settings page wraps it in Suspense):
- * the seats come live from Clerk and the next bill and invoices from the payment provider, so neither holds up
- * the page. Only an Admin's Billing section renders it. Guests and Viewers are called free only while they can be
- * given (`LANE_CUSTOM_ROLES`, D28).
+ * the seats come live from the roster and the next bill and invoices from the payment provider, so neither holds up
+ * the page. Only an Admin's Billing section renders it.
  */
 export async function BillingAccount({ orgId, planState, endsOn, seats: seatsRead }: { orgId: string; planState: PlanState; endsOn: string | null; seats: Promise<AccountSeats> }) {
   const [seats, account] = await Promise.all([seatsRead, accountOf(orgId)]);
-  return <BillingAccountCard planState={planState} endsOn={endsOn} seats={seats} account={account} roles={rolesOffered(customRoles())} />;
+  return <BillingAccountCard planState={planState} endsOn={endsOn} seats={seats} account={account} />;
 }

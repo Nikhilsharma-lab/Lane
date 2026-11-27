@@ -34,23 +34,30 @@ export function opensSettingsSearch(event: { key: string; metaKey: boolean; ctrl
   return event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey;
 }
 
-export type SettingsCommandAdapterProps = {
+/** The sections every Settings page renders from its own reads. */
+export type SharedPanels = {
+  account: ReactNode; devices: ReactNode; security: ReactNode;
+  /** #206 Inbox delivery: the person's choice for this workspace (Members and Admins). */
+  delivery: ReactNode;
+  /** #207 Slack: the workspace's Slack connection (Admins only; pages render nothing for anyone else). */
+  slack: ReactNode;
+  /** #213 Billing: the workspace's Free Requests left (Admins only; pages render nothing for anyone else). */
+  billing: ReactNode;
+  /** #395 Workspace details: the workspace's name, which Admins edit, and leaving it. */
+  workspaceNameRow: ReactNode; leaveWorkspace: ReactNode;
+};
+
+export type SettingsCommandAdapterProps = Partial<SharedPanels> & {
   membership: string; workspaceName: string; workspaceId?: string; initialSection?: string; page?: "profile" | "members" | "metrics";
   /** `billingEnforced()` on the server: search then finds Billing's seats, bills and paying too (#287). */
   billingEnforced?: boolean;
-  account?: ReactNode; role?: ReactNode; appearance?: ReactNode; security?: ReactNode; members?: ReactNode; workspaceManagement?: ReactNode;
+  role?: ReactNode; appearance?: ReactNode; members?: ReactNode;
   /** Rendered only by the Metrics page (/settings/metrics), which loads the library. */
   metrics?: ReactNode;
-  /** #206 Inbox delivery: the person's choice for this workspace (Members and Admins). */
-  delivery?: ReactNode;
-  /** #207 Slack: the workspace's Slack connection (Admins only; pages render nothing for anyone else). */
-  slack?: ReactNode;
-  /** #213 Billing: the workspace's Free Requests left (Admins only; pages render nothing for anyone else). */
-  billing?: ReactNode;
 };
 
 /** Arc SettingsCommand frame, section navigation and search composition; Lane supplies permission-filtered rows and immediate saves. */
-export function SettingsCommandAdapter({ membership, billingEnforced = false, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, role, appearance, security, members, workspaceManagement, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
+export function SettingsCommandAdapter({ membership, billingEnforced = false, workspaceName, workspaceId, initialSection = "profile", page = "profile", account, devices, role, appearance, security, members, workspaceNameRow, leaveWorkspace, metrics, delivery, slack, billing }: SettingsCommandAdapterProps) {
   const section = useSyncExternalStore(subscribe, snapshot, () => initialSection);
   const entries = useMemo(() => settingsEntries(membership, { billingEnforced }), [membership, billingEnforced]);
   const nav = useMemo(() => settingsNavigation(membership, { billingEnforced }), [membership, billingEnforced]);
@@ -58,7 +65,7 @@ export function SettingsCommandAdapter({ membership, billingEnforced = false, wo
   const resolvedSection = requested?.soon ? "coming-soon" : section;
   const selected = nav.find(e => e.id === resolvedSection) ?? nav[0];
   const current = selected.id;
-  // #258: Members' content (and Clerk's member list) mounts the first time Members is shown, however it is
+  // #258: Members' content mounts the first time Members is shown, however it is
   // reached (its own page, an in-place switch or a search result), then stays mounted for the visit.
   const [membersShown, setMembersShown] = useState(current === "members");
   if (current === "members" && !membersShown) setMembersShown(true);
@@ -161,15 +168,15 @@ export function SettingsCommandAdapter({ membership, billingEnforced = false, wo
   }, [entries, page, selected.id]);
 
   const panels: Record<string, ReactNode> = {
-    // #287: Profile's account rows and Role share one group; the Role row carries the "role" search target itself.
-    profile: <SettingsGroup>{account}{role}</SettingsGroup>,
+    // #394: the account's own groups, Role (its row carries the "role" search target), then the devices, which stream in last.
+    profile: <>{account}<SettingsGroup>{role}</SettingsGroup>{devices}</>,
     preferences: <SettingsGroup label="Appearance" labelId={`${uid}-appearance`}>{appearance}</SettingsGroup>,
     "account-security": security,
     workspace: <SettingsGroup>
-      <SettingsRow label="Workspace name" control={workspaceName} />
+      {workspaceNameRow}
       <SettingsRow label="Your access" hint="Workspace access is separate from your profile role." control={<Badge>{ROLE_NAMES[membership as WorkspacePermission] ?? "Member"}</Badge>} />
       {workspaceId && <WorkspaceIdentifier value={workspaceId} />}
-      {workspaceManagement}
+      {leaveWorkspace}
     </SettingsGroup>,
     members: membersShown ? members : null,
     metrics,

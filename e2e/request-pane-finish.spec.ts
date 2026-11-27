@@ -73,8 +73,8 @@ async function withWorkspace(page: Page, label: string, run: (user: TestUser) =>
     await provisionAndSignIn(page, user, { name: "Pane Tester", workspaceName: `#281 ${label}` });
     await run(user);
   } finally {
-    // A recorded release can never be deleted, so that workspace's rows stay; the Clerk organization goes and a
-    // borrowed user is given back either way.
+    // A recorded release can never be deleted, so that workspace stays; its person's sessions and sign-in
+    // methods go either way.
     await cleanupTestWorkspace(user.id).catch((error: unknown) => {
       if (!/^Release history is immutable$/.test(String((error as { message?: string }).message))) throw error;
     }).finally(() => deleteTestUser(user.id));

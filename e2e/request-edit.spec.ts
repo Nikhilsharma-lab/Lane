@@ -2,11 +2,10 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 
-import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
+import { cleanupTestWorkspace, e2eDatabase, getProfileFullName } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 import { runningActionManifestPath } from "./helpers/server-action-identity";
-import { assertOwnedUser } from "./helpers/fixtures";
 
 /**
  * #280: an honest Edit Request. A title-only edit keeps "Problem to solve" and "Suggested change" (B8); before
@@ -172,9 +171,8 @@ test("B6: the reviewers panel and the Edit warning name a reviewer by their sign
     await page.setViewportSize({ width: 1440, height: 900 });
     const orgId = await provisionAndSignIn(page, user, { name: "Edit Names", workspaceName: "Edit names" });
     // The sign-in name now, as the workspace's people list gives it.
-    const clerkUser = await (await assertOwnedUser(user.id)).users.getUser(user.id);
-    const signInName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ");
-    expect(signInName).not.toBe("");
+    const signInName = (await getProfileFullName(user.id))!;
+    expect(signInName).toBeTruthy();
     // Picked under an older name; Priya (seeded, not in the workspace) has left.
     id = await seedHybrid(orgId, user.id, "Delivery costs appear late", [{ name: "Priya", kind: "looks_good" }]);
     const sql = e2eDatabase();

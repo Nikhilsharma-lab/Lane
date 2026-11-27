@@ -4,7 +4,6 @@ import pickerLayout from "@/components/requests/request-picker-layout.module.css
 import { RequestLabels } from "@/components/requests/request-labels";
 import { RequestLabelsPicker } from "@/components/requests/request-labels-picker";
 import { requestLabelKeys, labelRequestType } from "@/lib/request-labels";
-import Link from "@/components/link";
 import { useStableRouter } from "@/components/shell/stable-router";
 import {
   Fragment,
@@ -103,6 +102,7 @@ import {
 import { composerDraft, restoredComposer, reviewedRequestId } from "./intake-session";
 import { createIntakeSession, uploadToSignedUrl, type QueuedAttachment } from "./intake-uploads";
 import { gateFailureNotice, thrownGateFailure, type GateFailure } from "./gate-failure";
+import { SignInAgain } from "./sign-in-again";
 import { OFFLINE_LINE, TEXT_KEPT, isOfflineError } from "@/lib/failure-messages";
 import { isOffline, useOffline } from "@/lib/connection-status";
 import { callAction } from "@/lib/action-call";
@@ -1221,7 +1221,7 @@ export default function RequestEditor({
                 <Alert tone={gateNotice.tone} title={gateNotice.title}>
                   <span>{gateNotice.body}</span>
                   {gateNotice.signIn && (
-                    <> <Link href="/login#/?redirect_url=%2Fintake" onClick={preserveDraftForSignIn} className="font-medium text-foreground underline underline-offset-4">Sign in again</Link></>
+                    <> <SignInAgain onLeave={preserveDraftForSignIn} /></>
                   )}
                 </Alert>
               </div>
@@ -1399,16 +1399,7 @@ export default function RequestEditor({
             <div ref={reviewFailureRef}><IntakeNotice error title={editing ? "Changes not saved" : "Request not created"}>
               <span>{failure.message}</span>
               {failure.code === "session_expired" && (
-                <>
-                  {" "}
-                  <Link
-                    href="/login#/?redirect_url=%2Fintake"
-                    onClick={preserveDraftForSignIn}
-                    className="font-medium text-foreground underline underline-offset-4"
-                  >
-                    Sign in again
-                  </Link>
-                </>
+                <> <SignInAgain onLeave={preserveDraftForSignIn} /></>
               )}
             </IntakeNotice></div>
           )}

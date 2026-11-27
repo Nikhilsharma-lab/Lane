@@ -13,7 +13,7 @@ import type { NeedsYouItem, NeedsYouKind } from "./inbox-read-model";
 import { idempotencyKeyOf, isResendRefusal, recordingMessenger, resendMessenger, slackMessenger, type Messenger, type SendResult } from "./messenger";
 import { slackTokenFor } from "./slack-connection";
 import { journeyStatusCondition, requesterColumn } from "./request-journey-sql";
-import { canChangeThings, canContribute, clerkWorkspacePermission } from "./role-rules";
+import { canContribute } from "./role-rules";
 import type { Reviewer } from "./request-reviewer-rules";
 import { workspaceMember, workspaceRoster } from "./workspace-roster";
 
@@ -29,7 +29,7 @@ import { workspaceMember, workspaceRoster } from "./workspace-roster";
  *
  * The person’s choice for the workspace decides the channel: Email (the default, no row), Slack DM (#207; it
  * goes by Email while Slack is not connected, or when Slack can’t reach the person) or Off. Off holds everything
- * except Result due. Only Admins and Members on the live Clerk roster get anything; Guests, Viewers and people
+ * except Result due. Only Admins and Members on the live roster get anything; Guests, Viewers and people
  * who left get nothing here.
  *
  * Auth email first (#358): while Inbox email really sends and Resend has refused a send that day, Email items
@@ -125,13 +125,7 @@ function emailGateOf(run: DeliveryRun): EmailGate {
 /** Admins and Members on the live roster, by id. Everyone else is never asked to act. */
 async function recipientsOf(orgId: string): Promise<Map<string, Recipient>> {
   const people = await workspaceRoster(orgId);
-  const recipients = new Map<string, Recipient>();
-  for (const person of people) {
-    const role = clerkWorkspacePermission(person.role);
-    if (person.nominee.kind === "member" && role && canChangeThings(role))
-      recipients.set(person.nominee.userId, { userId: person.nominee.userId, email: person.email, role });
-  }
-  return recipients;
+  return new Map(people.map(({ nominee, email, role }) => [nominee.userId, { userId: nominee.userId, email, role }]));
 }
 
 /** Each person’s saved channel in this workspace; no row is Email. Slack DM falls back to Email in `sendItems`. */
@@ -328,8 +322,7 @@ export async function deliverGuestEmail(target: { orgId: string; requestId: stri
   if (target.kind === "closed" && !closure) return report;
   const guest = await workspaceMember(target.orgId, row.createdBy);
   // A Guest made a Viewer since (or given a role Lane doesn't know) gets no Guest email.
-  const guestRole = guest && clerkWorkspacePermission(guest.role);
-  if (!guest || !guestRole || !canContribute(guestRole) || !guest.email) return report;
+  if (!guest || !canContribute(guest.role) || !guest.email) return report;
   const workspaceName = await workspaceNameOf(target.orgId);
   const copy = () => guestMessage(
     target.kind === "taken_on" ? { kind: "taken_on", takerName: row.takerName } : { kind: "closed", closure: closure! },

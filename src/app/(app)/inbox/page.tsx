@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { InboxScreen } from "@/components/inbox/inbox-screen";
 import { RequestDetailLoading } from "@/components/requests/detail-skeleton";
 import { toInboxItem, toNeedsYouItem } from "@/components/inbox/inbox-item";
 import { inboxAllClear, inboxDeliveryLink } from "@/components/inbox/inbox-empty";
-import { getMember, getWorkspace } from "@/lib/ensure-workspace";
+import { getMember, getWorkspace, sendAwayMemberless } from "@/lib/ensure-workspace";
 import { loadInbox } from "@/lib/data/inbox";
 import { getsNeedsYou } from "@/lib/inbox-read-model";
 import { countInboxUnread } from "@/lib/data/notifications";
@@ -20,12 +19,12 @@ export const metadata: Metadata = { title: "Inbox" };
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ item?: string | string[] }> }) {
   void timePage("Inbox");
   const member = await getMember();
-  if (!member) redirect("/login");
+  if (!member) return sendAwayMemberless();
   const { item } = await searchParams;
   const keep = isUuid(item) ? item : undefined;
 
   const [inbox, unread, workspace] = await Promise.all([timed("data", () => loadInbox(member, undefined, { keep })), timed("data", () => countInboxUnread(member)), getWorkspace()]);
-  const name = workspace && !workspace.needsOnboarding ? workspace.fullName : "";
+  const name = workspace?.fullName ?? "";
   const items = inbox.forYourInformation.map(toInboxItem);
   const needsYou = getsNeedsYou(member);
 

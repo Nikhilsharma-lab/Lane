@@ -15,7 +15,7 @@ import styles from "./impact-screen.module.css"
 // renders the read model's output and computes no totals. Read only: no add, edit, notify or export controls. Tabs and
 // Showing come from what the read model returns: no Outcome report means My work alone, no teammates means no Showing.
 
-/** Showing's value for the viewer's own list. Clerk user ids start "user_", so it never names a person. */
+/** Showing's value for the viewer's own list. A user id is a long random string, so it never names a person. */
 const YOU = "you"
 
 export type ImpactScreenProps = {

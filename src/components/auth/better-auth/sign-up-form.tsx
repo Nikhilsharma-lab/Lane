@@ -31,8 +31,7 @@ type SignUpProps = { email?: string; returnTo?: string; errorCode?: string }
 
 /**
  * #378 (#376 "The shared auth form", #346 layout A): the auth form's sign-up mode. Continue with Google, then name,
- * email, password, the human check and Create account; then the code step confirms the email, and the flow signs in
- * with the typed password. Dormant: no route mounts it until increment 5.
+ * email, password, the human check and Create account; then the code step confirms the email, which signs in.
  */
 export function SignUp({ email, returnTo, errorCode }: SignUpProps) {
   // A full page load after signing in, so every server read sees the new session.
@@ -61,7 +60,7 @@ export function SignUp({ email, returnTo, errorCode }: SignUpProps) {
       onCodeChange={(next) => { setCode(next); flow.clearFieldError("code") }}
       resendIn={secondsUntil(nextSendAt, now)} coolingDown={nextSendAt > 0}
       pending={pending === "code" ? "submit" : pending === "send" ? "send" : null} humanCheck={flow.humanCheck}
-      onSubmit={() => void act(async () => { await flow.confirmEmail({ code }); if (!flow.holdsPassword()) setCode("") })}
+      onSubmit={() => void act(async () => { await flow.confirmEmail({ code }); if (flow.snapshot().step === "confirmed") setCode("") })}
       onResend={() => void act(async () => { await flow.resendCode(); if (!flow.snapshot().alert) setCode("") })}
       onUseDifferentEmail={() => { setCode(""); flow.useDifferentEmail() }}
       alert={box} />)
@@ -73,8 +72,8 @@ export function SignUp({ email, returnTo, errorCode }: SignUpProps) {
     <OrDivider />
     <form className={styles.stack} noValidate onSubmit={(event) => {
       event.preventDefault()
-      // The flow keeps the password from here until the sign-in after confirming, so the field lets it go.
-      void act(async () => { await flow.signUp({ password }); if (flow.holdsPassword()) setPassword("") })
+      // The account is made, so nothing needs the typed password again and the field lets it go.
+      void act(async () => { await flow.signUp({ password }); if (flow.snapshot().step === "code") setPassword("") })
     }}>
       <AuthInputField id={FIELD_IDS.name} label="Your name" name="name" autoComplete="name" required autoFocus
         value={state.name} error={fieldErrors.name} disabled={Boolean(pending)} onChange={(event) => flow.setName(event.target.value)} />

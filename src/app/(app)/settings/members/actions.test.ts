@@ -1,145 +1,413 @@
-import postgres from "postgres";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { recordingPaymentProvider, type PaymentProvider, type SeatChange } from "@/lib/payment-provider";
-import { requireTestDatabase } from "@/test/test-database";
-
 /**
- * #210 Settings → Members: Admins invite people as, and change people to, Admin, Member, Guest or Viewer. Clerk
- * keeps every membership and invitation; these actions only ask Clerk. Until Clerk Enhanced B2B is approved the
- * `LANE_CUSTOM_ROLES` switch stays off and only Admin and Member are allowed. The Clerk client here is a recording
- * stand-in: nothing reaches Clerk and no invitation email is sent.
+ * #210, #396 (spec #383 "Settings", Members; stories 57–65): Admins invite people as, and change people to, Admin,
+ * Member, Guest or Viewer, in every workspace (#393), cancel invitations and remove people. The actions run as the
+ * person whose browser calls them, through Lane's server door and the session seam, on a local lane_test database.
+ * Only outbound HTTP and the payment provider are faked.
  */
+import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { guardOwnerOrAdmin } from "@/lib/auth-guard";
+import { AUTH_ERROR_COPY } from "@/lib/auth-error-copy";
+import { loadMembers } from "@/lib/data/members";
+import { recordingPaymentProvider, type PaymentProvider, type SeatChange } from "@/lib/payment-provider";
+import { readSession } from "@/lib/session";
+import { AuthBrowser, authRouteTestFile, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser";
+import { changeMemberRole, inviteToWorkspace, removeMember, revokeInvitation } from "./actions";
 
-const ORG = "org_members_actions";
-const PAYING = "org_members_paying";
 const stand = vi.hoisted(() => ({ provider: null as null | (PaymentProvider & { seatChanges: SeatChange[] }) }));
 vi.mock("@/lib/payment-provider", async (original) => ({ ...(await original<typeof import("@/lib/payment-provider")>()), paymentProvider: () => stand.provider }));
-const session = vi.hoisted(() => ({ userId: "user_members_admin", orgId: "org_members_actions", role: "admin" }));
-const clerk = vi.hoisted(() => ({
-  members: new Map<string, string>(),
-  invitations: new Map<string, { organizationId: string; status: string }>(),
-  calls: [] as { method: string; params: Record<string, unknown> }[],
-  failNext: null as null | { status: number; code: string },
-}));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
-vi.mock("@clerk/nextjs/server", () => {
-  const record = (method: string) => async (params: Record<string, unknown>) => {
-    clerk.calls.push({ method, params });
-    if (clerk.failNext) {
-      const { status, code } = clerk.failNext;
-      clerk.failNext = null;
-      throw Object.assign(new Error(code), { clerkError: true, status, errors: [{ code, message: code }] });
-    }
-    return { id: "orginv_new", ...params };
-  };
-  return {
-    clerkClient: async () => ({
-      organizations: {
-        getOrganizationMembershipList: async ({ organizationId, userId }: { organizationId: string; userId?: string[] }) => {
-          const data = [...clerk.members]
-            .filter(([id]) => [ORG, PAYING].includes(organizationId) && (!userId || userId.includes(id)))
-            .map(([id, role]) => ({ organization: { id: organizationId }, role, publicUserData: { userId: id, identifier: `${id}@example.test` } }));
-          return { totalCount: data.length, data };
-        },
-        getOrganizationInvitation: async ({ organizationId, invitationId }: { organizationId: string; invitationId: string }) => {
-          const invitation = clerk.invitations.get(invitationId);
-          if (!invitation || invitation.organizationId !== organizationId) throw Object.assign(new Error("not found"), { clerkError: true, status: 404, errors: [{ code: "resource_not_found" }] });
-          return { id: invitationId, ...invitation };
-        },
-        createOrganizationInvitation: record("invite"),
-        updateOrganizationMembership: async (params: { userId: string; role: string }) => {
-          const answer = await record("changeRole")(params);
-          clerk.members.set(params.userId, params.role);
-          return answer;
-        },
-        revokeOrganizationInvitation: record("revoke"),
-      },
-    }),
-  };
-});
 
-const api = () => import("./actions");
-const ctx = { orgId: ORG };
-const as = (userId: string, role: string) => Object.assign(session, { userId, orgId: ORG, role });
+vi.mock("next/cache", async (original) => ({ ...(await original<typeof import("next/cache")>()), revalidatePath: vi.fn() }));
 
+const { connection, domain, person, signedIn, createWorkspace, join } = authRouteTestFile("members-actions.test");
+
+const ROLES = ["admin", "member", "guest", "viewer"];
+const VIEWER_REFUSED = "You’re a Viewer in this workspace, so you can read everything but can’t change anything. Ask an Admin if you need to.";
+/** Non-Admin roles, and what each is told by an action whose own refusal is `line`. */
+const refusedAs = (line: string): [role: string, refusal: string][] => [["member", line], ["guest", line], ["viewer", VIEWER_REFUSED]];
+
+let outbound: Outbound;
 beforeEach(() => {
-  as("user_members_admin", "admin");
-  clerk.members = new Map([["user_members_admin", "org:admin"], ["user_members_member", "org:member"], ["user_members_viewer", "org:viewer"]]);
-  clerk.invitations = new Map([["orginv_here", { organizationId: ORG, status: "pending" }], ["orginv_elsewhere", { organizationId: "org_else", status: "pending" }]]);
-  clerk.calls = [];
-  clerk.failNext = null;
+  switchOnAuthRoute();
+  outbound = fakeOutbound();
 });
-afterEach(() => vi.unstubAllEnvs());
+
+/** A signed-in Admin with a new workspace. */
+async function adminWithWorkspace(label = "admin") {
+  const admin = await signedIn(outbound, label);
+  const orgId = await createWorkspace(admin.browser);
+  outbound.calls.length = 0;
+  return { ...admin, orgId, ctx: { orgId } };
+}
+type Admin = Awaited<ReturnType<typeof adminWithWorkspace>>;
+type Caller = Pick<Admin, "browser" | "ctx">;
+
+/** Someone in the workspace who never acts: their rows only. */
+async function seated(orgId: string, role: string) {
+  const userId = `user_${randomUUID()}`;
+  await connection`insert into profiles (id, full_name, email) values (${userId}, ${`Seated ${role}`}, ${`${userId}@${domain}`})`;
+  await connection`insert into member (id, organization_id, user_id, role, created_at) values (${randomUUID()}, ${orgId}, ${userId}, ${role}, now())`;
+  return userId;
+}
+const newAddress = () => person("invitee").email;
+const roleOf = async (orgId: string, userId: string) => (await connection`select role from member where organization_id = ${orgId} and user_id = ${userId}`)[0]?.role ?? null;
+const invitations = async (orgId: string) => (await connection`select email, role, status from invitation where organization_id = ${orgId} order by created_at`).map((row) => ({ ...row }));
+const invitationTo = async (email: string) => (await connection`select id from invitation where email = ${email}`)[0].id as string;
+
+/** A Request this person filed and a comment they wrote on it; answers how many of each are left. */
+async function requestAndComment(orgId: string, userId: string) {
+  const [{ id }] = await connection`insert into requests (org_id, title, description, created_by) values (${orgId}, 'Checkout fails', 'On mobile', ${userId}) returning id`;
+  await connection`insert into comments (request_id, author_id, body) values (${id}, ${userId}, 'Seen again today')`;
+  return async () => {
+    const [left] = await connection`
+      select (select count(*)::int from requests where id = ${id} and created_by = ${userId}) as requests,
+             (select count(*)::int from comments where request_id = ${id} and author_id = ${userId}) as comments`;
+    return { ...left };
+  };
+}
+
+// Revalidating is what makes Next send the page, read again, in the action's answer.
+describe("the lists after a change", () => {
+  it("are read again after each change, a failed send included, and not after a refusal", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const admin = await adminWithWorkspace();
+    const teammate = await seated(admin.orgId, "member");
+    const email = newAddress();
+    const readAgain = async (act: () => Promise<unknown>) => {
+      vi.mocked(revalidatePath).mockClear();
+      await admin.browser.action(act);
+      return vi.mocked(revalidatePath).mock.calls.length > 0;
+    };
+    const invite = () => inviteToWorkspace({ email, role: "guest" }, admin.ctx);
+    outbound.resend = () => Response.json({ name: "application_error" }, { status: 500 });
+    expect(await readAgain(invite)).toBe(true);
+    expect(await readAgain(invite)).toBe(false);
+    const invitationId = await invitationTo(email);
+    expect(await readAgain(() => revokeInvitation({ invitationId }, admin.ctx))).toBe(true);
+    outbound.resend = () => Response.json({ id: "email_sent" });
+    expect(await readAgain(invite)).toBe(true);
+    expect(await readAgain(() => changeMemberRole({ userId: teammate, role: "viewer" }, admin.ctx))).toBe(true);
+    expect(await readAgain(() => removeMember({ userId: admin.userId }, admin.ctx))).toBe(false);
+    expect(await readAgain(() => removeMember({ userId: teammate }, admin.ctx))).toBe(true);
+  });
+});
 
 describe("inviting someone", () => {
-  it("asks Clerk to invite them to this workspace, as the role the Admin chose, from the Admin", async () => {
-    expect(await (await api()).inviteToWorkspace({ email: "  New.Person@Example.test ", role: "member" }, ctx)).toEqual({ success: true });
-    expect(clerk.calls).toEqual([{ method: "invite", params: { organizationId: ORG, emailAddress: "new.person@example.test", role: "org:member", inviterUserId: "user_members_admin" } }]);
+  const invite = (admin: Caller, email: string, role: string) => admin.browser.action(() => inviteToWorkspace({ email, role }, admin.ctx));
+
+  it.each(ROLES)("as %s makes one pending invitation to this workspace and sends one email", async (role) => {
+    const admin = await adminWithWorkspace();
+    const email = newAddress();
+    expect(await invite(admin, `  ${email.toUpperCase()} `, role)).toEqual({ success: true });
+    expect(await invitations(admin.orgId)).toEqual([{ email, role, status: "pending" }]);
+    expect(outbound.emails().map((sent) => sent.to)).toEqual([[email]]);
   });
 
-  it("offers Guest and Viewer only while the custom roles switch is on", async () => {
-    const { inviteToWorkspace } = await api();
-    for (const role of ["viewer", "guest"]) {
-      expect(await inviteToWorkspace({ email: "leader@example.test", role }, ctx)).toEqual({ error: "Guest and Viewer aren’t available in this workspace yet. Invite them as a Member, or ask whoever runs Lane to turn these roles on." });
-    }
-    expect(clerk.calls).toEqual([]);
-    vi.stubEnv("LANE_CUSTOM_ROLES", "1");
-    expect(await inviteToWorkspace({ email: "leader@example.test", role: "viewer" }, ctx)).toEqual({ success: true });
-    expect(clerk.calls[0].params).toMatchObject({ role: "org:viewer" });
-  });
-
-  it("refuses a Member, a missing or bad address and an unknown role, and sends nothing", async () => {
-    const { inviteToWorkspace } = await api();
+  it("refuses a role that isn't one of the four, and a bad address, and sends nothing", async () => {
+    const admin = await adminWithWorkspace();
+    for (const role of ["owner", "org:guest", "Guest", "admin,member", ""])
+      expect(await invite(admin, newAddress(), role)).toEqual({ error: "Choose Admin, Member, Guest or Viewer." });
     // #288 (D27): the same two messages the invite field shows.
-    expect(await inviteToWorkspace({ email: "  ", role: "member" }, ctx)).toEqual({ error: "Enter an email address.", field: "email" });
-    expect(await inviteToWorkspace({ email: "not-an-address", role: "member" }, ctx)).toEqual({ error: "Enter a valid email address.", field: "email" });
-    expect(await inviteToWorkspace({ email: "x@example.test", role: "owner" }, ctx)).toEqual({ error: "Choose Admin, Member, Guest or Viewer." });
-    as("user_members_member", "member");
-    expect(await inviteToWorkspace({ email: "x@example.test", role: "member" }, ctx)).toEqual({ error: "Only Admins can invite people to this workspace." });
-    expect(clerk.calls).toEqual([]);
+    expect(await invite(admin, "  ", "member")).toEqual({ error: "Enter an email address.", field: "email" });
+    expect(await invite(admin, "not-an-address", "member")).toEqual({ error: "Enter a valid email address.", field: "email" });
+    expect(await invitations(admin.orgId)).toEqual([]);
+    expect(outbound.emails()).toEqual([]);
   });
 
-  it("says plainly when Clerk won't send it", async () => {
-    const { inviteToWorkspace } = await api();
-    clerk.failNext = { status: 400, code: "duplicate_record" };
-    expect(await inviteToWorkspace({ email: "dup@example.test", role: "member" }, ctx)).toEqual({ error: "dup@example.test already has an invitation or is already in this workspace.", field: "email" });
-    clerk.failNext = { status: 500, code: "internal_clerk_error" };
-    expect(await inviteToWorkspace({ email: "x@example.test", role: "member" }, ctx)).toEqual({ error: "The invitation couldn’t be sent. Try again." });
+  it.each(refusedAs("Only Admins can invite people to this workspace."))("refuses a %s inviting anyone as any role, and sends nothing", async (role, refusal) => {
+    const admin = await adminWithWorkspace();
+    const { browser } = await join(outbound, admin.browser, role);
+    outbound.calls.length = 0;
+    for (const asked of ROLES) expect(await invite({ browser, ctx: admin.ctx }, newAddress(), asked)).toEqual({ error: refusal });
+    expect((await loadMembers(admin.ctx, "admin")).invitations).toEqual([]);
+    expect(outbound.emails()).toEqual([]);
+  });
+
+  it("refuses an Admin of another workspace, and nobody signed in", async () => {
+    const admin = await adminWithWorkspace();
+    const other = await adminWithWorkspace("other");
+    expect(await invite({ browser: other.browser, ctx: admin.ctx }, newAddress(), "member")).toEqual({ error: "Only Admins can invite people to this workspace." });
+    expect(await invite({ browser: new AuthBrowser(), ctx: admin.ctx }, newAddress(), "member")).toMatchObject({ sessionExpired: true });
+    expect(await invitations(admin.orgId)).toEqual([]);
+  });
+
+  it("says on the field when the address is already invited or already here", async () => {
+    const admin = await adminWithWorkspace();
+    const email = newAddress();
+    await invite(admin, email, "guest");
+    const line = (address: string) => ({ error: `${address} already has an invitation or is already in this workspace.`, field: "email" });
+    expect(await invite(admin, email.toUpperCase(), "member")).toEqual(line(email));
+    const memberEmail = `${await seated(admin.orgId, "member")}@${domain}`;
+    expect(await invite(admin, memberEmail, "member")).toEqual(line(memberEmail));
+    expect(await invitations(admin.orgId)).toEqual([{ email, role: "guest", status: "pending" }]);
+    expect(outbound.emails()).toHaveLength(1);
+  });
+
+  it("sends a new invitation to an address whose last one expired", async () => {
+    const admin = await adminWithWorkspace();
+    const email = newAddress();
+    await invite(admin, email, "guest");
+    await connection`update invitation set expires_at = now() - interval '1 minute' where email = ${email}`;
+    expect(await invite(admin, email, "member")).toEqual({ success: true });
+    expect(outbound.emailsTo(email)).toHaveLength(2);
+  });
+
+  it("refuses when 100 invitations are waiting", async () => {
+    const admin = await adminWithWorkspace();
+    await connection`
+      insert into invitation (id, organization_id, email, role, status, created_at, expires_at, inviter_id)
+      select gen_random_uuid()::text, ${admin.orgId}, 'waiting-' || n || '@' || ${domain}, 'guest', 'pending', now() - interval '2 days', now() + interval '5 days', ${admin.userId} from generate_series(1, 100) n`;
+    expect(await invite(admin, newAddress(), "member")).toEqual({ error: "This workspace already has 100 invitations waiting. Cancel some on the Members page in Settings, then invite again." });
+  });
+
+  // Better Auth would send the invitation, and refuse the person as they accept it: its limit and Lane's are the same.
+  it("refuses inviting anyone into a workspace of 100 people, where Better Auth lets nobody else join", async () => {
+    const admin = await adminWithWorkspace();
+    const [last, late] = [await signedIn(outbound, "last"), await signedIn(outbound, "late")];
+    outbound.calls.length = 0;
+    const others = await connection`
+      insert into profiles (id, full_name, email)
+      select gen_random_uuid()::text, 'Filler ' || n, 'filler-' || n || '-' || ${admin.orgId} || '@' || ${domain} from generate_series(1, 98) n returning id`;
+    await connection`insert into member ${connection(others.map(({ id }) => ({ id: randomUUID(), organization_id: admin.orgId, user_id: id, role: "viewer", created_at: new Date() })))}`;
+    for (const { person } of [last, late]) expect(await invite(admin, person.email, "guest")).toEqual({ success: true });
+    const join = async ({ browser, person }: typeof last) => browser.post("/organization/accept-invitation", { invitationId: await invitationTo(person.email) });
+    expect((await join(last)).status).toBe(200);
+    expect((await join(late)).body).toMatchObject({ code: "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED" });
+    // Proposed for Nikhil (#396).
+    expect(await invite(admin, newAddress(), "member")).toEqual({ error: "This workspace already has 100 people, Lane’s limit. Remove someone, then invite again." });
+    expect(await invitations(admin.orgId)).toHaveLength(2);
+    expect(outbound.emails()).toHaveLength(2);
+  });
+
+  describe("at most 30 in 24 hours from one person (#349)", () => {
+    /** Invitations this person sent so long ago, pending unless cancelled. */
+    const sent = (admin: Admin, count: number, ago: string, orgId = admin.orgId, status = "pending") => connection`
+      insert into invitation (id, organization_id, email, role, status, created_at, expires_at, inviter_id)
+      select gen_random_uuid()::text, ${orgId}, gen_random_uuid()::text || '@' || ${domain}, 'guest', ${status}, now() - ${ago}::interval, now() + interval '6 days', ${admin.userId} from generate_series(1, ${count}) n`;
+    const sentBy = async (admin: Admin) => (await connection`select count(*)::int as n from invitation where inviter_id = ${admin.userId}`)[0].n as number;
+    // Proposed for Nikhil.
+    const limit = (when: string) => ({ error: `You’ve sent 30 invitations in the last 24 hours, Lane’s limit. You can invite again in ${when}.` });
+
+    it("counts every workspace's, cancelled ones too, and says when it works again", async () => {
+      const admin = await adminWithWorkspace();
+      const elsewhere = await createWorkspace(admin.browser);
+      const ctx = { orgId: elsewhere };
+      await sent(admin, 5, "25 hours");
+      await sent(admin, 10, "19 hours 30 minutes", admin.orgId, "canceled");
+      await sent(admin, 19, "1 hour");
+      expect(await invite({ browser: admin.browser, ctx }, newAddress(), "guest")).toEqual({ success: true });
+      outbound.calls.length = 0;
+      expect(await invite({ browser: admin.browser, ctx }, newAddress(), "guest")).toEqual(limit("5 hours"));
+      expect(await invitations(elsewhere)).toHaveLength(1);
+      expect(outbound.emails()).toEqual([]);
+
+      await connection`update invitation set created_at = now() - interval '23 hours 47 minutes 30 seconds' where inviter_id = ${admin.userId} and status = 'canceled'`;
+      expect(await invite({ browser: admin.browser, ctx }, newAddress(), "guest")).toEqual(limit("13 minutes"));
+      await connection`update invitation set created_at = now() - interval '24 hours 1 second' where inviter_id = ${admin.userId} and status = 'canceled'`;
+      expect(await invite({ browser: admin.browser, ctx }, newAddress(), "guest")).toEqual({ success: true });
+    });
+
+    it("leaves another Admin of the workspace their own 30, and counts no refused invitation", async () => {
+      const admin = await adminWithWorkspace();
+      const other = { ...(await join(outbound, admin.browser, "admin")), ...admin.ctx, ctx: admin.ctx };
+      const taken = newAddress();
+      expect(await invite(other, taken, "guest")).toEqual({ success: true });
+      await sent(admin, 28, "1 hour");
+      // `join` sent one of the Admin's, so this is their 30th; the refusals before it made none.
+      for (const refused of [taken, "not-an-address"]) expect(await invite(admin, refused, "guest")).toMatchObject({ field: "email" });
+      expect(await invite(admin, newAddress(), "guest")).toEqual({ success: true });
+      expect(await invite(admin, newAddress(), "guest")).toEqual(limit("23 hours"));
+      expect(await invite(other, newAddress(), "guest")).toEqual({ success: true });
+    });
+
+    it("holds for invitations sent at the same moment, and lets the rest of the 30 through after", async () => {
+      const admin = await adminWithWorkspace();
+      await sent(admin, 25, "1 hour");
+      const answers = await Promise.all(Array.from({ length: 20 }, () => invite(admin, newAddress(), "guest")));
+      const through = answers.filter((answer) => "success" in answer).length;
+      expect(through).toBeGreaterThanOrEqual(1);
+      expect(await sentBy(admin)).toBe(25 + through);
+      expect(await sentBy(admin)).toBeLessThanOrEqual(30);
+
+      for (let left = 30 - (await sentBy(admin)); left > 0; left--) expect(await invite(admin, newAddress(), "guest")).toEqual({ success: true });
+      expect(await invite(admin, newAddress(), "guest")).toEqual(limit("23 hours"));
+    });
+  });
+
+  it("says when the invitation couldn't be sent, and how to send it again, which then works", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const admin = await adminWithWorkspace();
+    const email = newAddress();
+    outbound.resend = () => Response.json({ name: "application_error" }, { status: 500 });
+    // The first sentence is the spec's; the second is proposed for Nikhil (#396).
+    expect(await invite(admin, email, "member")).toEqual({ error: "The invitation couldn’t be sent. Revoke it on the Members page in Settings, then invite them again." });
+    const listed = (await loadMembers(admin.ctx, "admin")).invitations;
+    expect(listed.map((invitation) => invitation.email)).toEqual([email]);
+
+    outbound.resend = () => Response.json({ id: "email_sent" });
+    expect(await admin.browser.action(() => revokeInvitation({ invitationId: listed[0].id }, admin.ctx))).toEqual({ success: true });
+    expect(await invite(admin, email, "member")).toEqual({ success: true });
   });
 });
 
 describe("changing someone's role", () => {
-  it("asks Clerk to change a person in this workspace", async () => {
-    expect(await (await api()).changeMemberRole({ userId: "user_members_member", role: "admin" }, ctx)).toEqual({ success: true });
-    expect(clerk.calls).toEqual([{ method: "changeRole", params: { organizationId: ORG, userId: "user_members_member", role: "org:admin" } }]);
+  const change = (admin: Caller, userId: string, role: string) => admin.browser.action(() => changeMemberRole({ userId, role }, admin.ctx));
+
+  it("applies on that person's next read, for each of the four roles, and keeps their Requests and comments", async () => {
+    const admin = await adminWithWorkspace();
+    const teammate = await join(outbound, admin.browser, "member");
+    const history = await requestAndComment(admin.orgId, teammate.userId);
+    for (const role of ["viewer", "guest", "admin", "member"]) {
+      expect(await change(admin, teammate.userId, role)).toEqual({ success: true });
+      expect(await teammate.browser.action(() => readSession())).toEqual({ userId: teammate.userId, orgId: admin.orgId, role });
+    }
+    expect(await history()).toEqual({ requests: 1, comments: 1 });
   });
 
-  it("makes someone a Viewer or Guest only while the switch is on, and always lets an Admin move them back to a paid seat", async () => {
-    const { changeMemberRole } = await api();
-    expect(await changeMemberRole({ userId: "user_members_member", role: "viewer" }, ctx)).toHaveProperty("error");
-    expect(await changeMemberRole({ userId: "user_members_viewer", role: "member" }, ctx)).toEqual({ success: true });
-    vi.stubEnv("LANE_CUSTOM_ROLES", "1");
-    expect(await changeMemberRole({ userId: "user_members_member", role: "viewer" }, ctx)).toEqual({ success: true });
-    expect(clerk.calls.map((c) => c.params.role)).toEqual(["org:member", "org:viewer"]);
+  it("refuses a role that isn't one of the four, and changes nothing", async () => {
+    const admin = await adminWithWorkspace();
+    const userId = await seated(admin.orgId, "member");
+    for (const role of ["owner", "org:viewer", "Viewer", "admin,member", ""]) expect(await change(admin, userId, role)).toEqual({ error: "Choose Admin, Member, Guest or Viewer." });
+    expect(await roleOf(admin.orgId, userId)).toBe("member");
   });
 
-  it("refuses an Admin's own role, someone outside the workspace, and a Member", async () => {
-    const { changeMemberRole } = await api();
-    expect(await changeMemberRole({ userId: "user_members_admin", role: "member" }, ctx)).toEqual({ error: "You can’t change your own role. Ask another Admin to do it." });
-    expect(await changeMemberRole({ userId: "user_elsewhere", role: "member" }, ctx)).toEqual({ error: "That person isn’t in this workspace any more. Reload to see who is." });
-    as("user_members_member", "member");
-    expect(await changeMemberRole({ userId: "user_members_viewer", role: "member" }, ctx)).toEqual({ error: "Only Admins can change people’s roles." });
-    expect(clerk.calls).toEqual([]);
+  it.each(refusedAs("Only Admins can change people’s roles."))("refuses a %s changing anyone to any role", async (role, refusal) => {
+    const admin = await adminWithWorkspace();
+    const { browser } = await join(outbound, admin.browser, role);
+    const target = await seated(admin.orgId, "viewer");
+    for (const asked of ROLES) expect(await change({ browser, ctx: admin.ctx }, target, asked)).toEqual({ error: refusal });
+    expect(await roleOf(admin.orgId, target)).toBe("viewer");
+  });
+
+  it("refuses an Admin's own role, though the workspace has another Admin, and someone in another workspace", async () => {
+    const admin = await adminWithWorkspace();
+    await seated(admin.orgId, "admin");
+    const other = await adminWithWorkspace("other");
+    const elsewhere = await seated(other.orgId, "member");
+    const gone = { error: "That person isn’t in this workspace any more. Reload to see who is." };
+    expect(await change(admin, admin.userId, "member")).toEqual({ error: "You can’t change your own role. Ask another Admin to do it." });
+    expect(await change(admin, elsewhere, "admin")).toEqual(gone);
+    expect(await change(admin, "user_nobody", "admin")).toEqual(gone);
+    // Naming the other workspace doesn't reach it either.
+    expect(await change({ browser: admin.browser, ctx: other.ctx }, elsewhere, "admin")).toEqual({ error: "Only Admins can change people’s roles." });
+    expect([await roleOf(admin.orgId, admin.userId), await roleOf(other.orgId, elsewhere)]).toEqual(["admin", "member"]);
+  });
+
+  it("gives a Lane role to someone holding a role Lane doesn't know", async () => {
+    const admin = await adminWithWorkspace();
+    const userId = await seated(admin.orgId, "owner");
+    expect(await change(admin, userId, "viewer")).toEqual({ success: true });
+    expect(await roleOf(admin.orgId, userId)).toBe("viewer");
   });
 });
 
-describe("revoking an invitation", () => {
-  it("revokes a pending invitation to this workspace only", async () => {
-    const { revokeInvitation } = await api();
-    expect(await revokeInvitation({ invitationId: "orginv_elsewhere" }, ctx)).toEqual({ error: "That invitation isn’t pending any more. Reload to see the latest." });
-    expect(await revokeInvitation({ invitationId: "orginv_here" }, ctx)).toEqual({ success: true });
-    expect(clerk.calls).toEqual([{ method: "revoke", params: { organizationId: ORG, invitationId: "orginv_here", requestingUserId: "user_members_admin" } }]);
+describe("cancelling an invitation", () => {
+  const cancel = (admin: Caller, invitationId: string) => admin.browser.action(() => revokeInvitation({ invitationId }, admin.ctx));
+  const gone = { error: "That invitation isn’t pending any more. Reload to see the latest." };
+
+  it("leaves a link that can't be accepted, and an invitation that isn't pending any more", async () => {
+    const admin = await adminWithWorkspace();
+    const invitee = await signedIn(outbound, "invitee");
+    await admin.browser.action(() => inviteToWorkspace({ email: invitee.person.email, role: "member" }, admin.ctx));
+    const invitationId = await invitationTo(invitee.person.email);
+    expect(await cancel(admin, invitationId)).toEqual({ success: true });
+    expect((await loadMembers(admin.ctx, "admin")).invitations).toEqual([]);
+
+    const accepted = await invitee.browser.post("/organization/accept-invitation", { invitationId });
+    expect([accepted.status, accepted.body]).toEqual([400, expect.objectContaining({ code: "INVITATION_NOT_FOUND" })]);
+    expect(await roleOf(admin.orgId, invitee.userId)).toBeNull();
+    expect(await cancel(admin, invitationId)).toEqual(gone);
+  });
+
+  // The accept is written, and not yet visible, as the Admin's cancel starts.
+  it("leaves one being accepted at that moment accepted, and says it isn't pending", async () => {
+    const admin = await adminWithWorkspace();
+    const email = newAddress();
+    await admin.browser.action(() => inviteToWorkspace({ email, role: "member" }, admin.ctx));
+    const invitationId = await invitationTo(email);
+    let answer: ReturnType<typeof cancel>;
+    await connection.begin(async (accepting) => {
+      await accepting`update invitation set status = 'accepted' where id = ${invitationId}`;
+      answer = cancel(admin, invitationId);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    expect(await answer!).toEqual(gone);
+    expect(await invitations(admin.orgId)).toEqual([{ email, role: "member", status: "accepted" }]);
+  });
+
+  it("refuses another workspace's invitation, even from someone who is an Admin there too", async () => {
+    const admin = await adminWithWorkspace();
+    const email = newAddress();
+    await admin.browser.action(() => inviteToWorkspace({ email, role: "member" }, admin.ctx));
+    const second = await createWorkspace(admin.browser);
+    expect(await cancel({ browser: admin.browser, ctx: { orgId: second } }, await invitationTo(email))).toEqual(gone);
+    expect(await invitations(admin.orgId)).toEqual([{ email, role: "member", status: "pending" }]);
+  });
+
+  it.each(refusedAs("Only Admins can revoke invitations."))("refuses a %s", async (role, refusal) => {
+    const admin = await adminWithWorkspace();
+    const { browser } = await join(outbound, admin.browser, role);
+    const email = newAddress();
+    await admin.browser.action(() => inviteToWorkspace({ email, role: "guest" }, admin.ctx));
+    expect(await cancel({ browser, ctx: admin.ctx }, await invitationTo(email))).toEqual({ error: refusal });
+    expect(await invitations(admin.orgId)).toContainEqual({ email, role: "guest", status: "pending" });
+  });
+});
+
+describe("removing someone", () => {
+  const remove = (admin: Caller, userId: string) => admin.browser.action(() => removeMember({ userId }, admin.ctx));
+  const NOT_ALLOWED = { ok: false, code: "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER" };
+  const NOT_HERE = { ok: false, code: "MEMBER_NOT_FOUND" };
+
+  it.each(ROLES)("takes a person who is %s out on their next read, and keeps their Requests, comments and profile", async (role) => {
+    const admin = await adminWithWorkspace();
+    const teammate = await join(outbound, admin.browser, role);
+    const history = await requestAndComment(admin.orgId, teammate.userId);
+    expect(await remove(admin, teammate.userId)).toEqual({ ok: true });
+
+    expect(await teammate.browser.action(() => readSession())).toEqual({ userId: teammate.userId, orgId: null, role: null });
+    expect(await teammate.browser.action(() => guardOwnerOrAdmin(admin.orgId, "no"))).toEqual({ error: "no" });
+    expect(await history()).toEqual({ requests: 1, comments: 1 });
+    expect(await connection`select id from profiles where id = ${teammate.userId}`).toHaveLength(1);
+    expect((await loadMembers(admin.ctx, "admin")).people.map((each) => each.userId)).toEqual([admin.userId]);
+    expect(await remove(admin, teammate.userId)).toEqual(NOT_HERE);
+  });
+
+  it("refuses removing yourself, though the workspace has another Admin", async () => {
+    const admin = await adminWithWorkspace();
+    await seated(admin.orgId, "admin");
+    expect(await remove(admin, admin.userId)).toEqual({ ok: false, code: "CANNOT_REMOVE_YOURSELF" });
+    expect(await roleOf(admin.orgId, admin.userId)).toBe("admin");
+    // Proposed for Nikhil (#396).
+    expect(AUTH_ERROR_COPY.CANNOT_REMOVE_YOURSELF).toBe("You can’t remove yourself. Leave the workspace in Settings instead.");
+  });
+
+  it.each(["member", "guest", "viewer"])("refuses a %s removing anyone", async (role) => {
+    const admin = await adminWithWorkspace();
+    const { browser } = await join(outbound, admin.browser, role);
+    const target = await seated(admin.orgId, "viewer");
+    for (const userId of [target, admin.userId]) expect(await remove({ browser, ctx: admin.ctx }, userId)).toEqual(NOT_ALLOWED);
+    expect([await roleOf(admin.orgId, target), await roleOf(admin.orgId, admin.userId)]).toEqual(["viewer", "admin"]);
+  });
+
+  it("refuses removing someone from another workspace, and nobody signed in", async () => {
+    const admin = await adminWithWorkspace();
+    const other = await adminWithWorkspace("other");
+    const elsewhere = await seated(other.orgId, "member");
+    expect(await remove(admin, elsewhere)).toEqual(NOT_HERE);
+    expect(await remove(admin, "")).toEqual(NOT_HERE);
+    expect(await remove({ browser: admin.browser, ctx: other.ctx }, elsewhere)).toEqual({ ok: false, code: "WORKSPACE_NOT_OPEN" });
+    expect(await remove({ browser: new AuthBrowser(), ctx: other.ctx }, elsewhere)).toEqual({ ok: false, code: "UNAUTHORIZED" });
+    expect(await roleOf(other.orgId, elsewhere)).toBe("member");
+  });
+
+  it("takes someone out of this workspace only", async () => {
+    const admin = await adminWithWorkspace();
+    const teammate = await join(outbound, admin.browser, "member");
+    const own = await createWorkspace(teammate.browser);
+    expect(await remove(admin, teammate.userId)).toEqual({ ok: true });
+    expect([await roleOf(admin.orgId, teammate.userId), await roleOf(own, teammate.userId)]).toEqual([null, "admin"]);
   });
 });
 
@@ -150,59 +418,66 @@ describe("revoking an invitation", () => {
  * recording stand-in).
  */
 describe("paid seats", () => {
-  const url = new URL(process.env.DATABASE_URL!);
-  requireTestDatabase(process.env.DATABASE_URL);
-  const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
-  const paying = { orgId: PAYING };
   const enforce = () => vi.stubEnv("LANE_BILLING_ENFORCED", "1");
-
-  beforeAll(async () => {
-    await connection`insert into organizations(id,name,slug) values (${PAYING},'Paying',${PAYING})`;
-    await connection`insert into workspace_billing(org_id, plan_state, provider_subscription_id, billed_seats) values (${PAYING}, 'paying', 'sub_members_paying', 3)`;
-  });
-  afterAll(async () => {
-    await connection`delete from organizations where id = ${PAYING}`;
-    await connection.end();
-  });
+  const confirm = { error: "Confirm that this adds a paid seat." };
   beforeEach(() => { stand.provider = recordingPaymentProvider(); });
 
   it("asks for the confirmation before inviting a Member or an Admin, and sends nothing without it", async () => {
+    const admin = await adminWithWorkspace();
     enforce();
-    const { inviteToWorkspace } = await api();
-    for (const role of ["member", "admin"]) expect(await inviteToWorkspace({ email: "seat@example.test", role }, ctx)).toEqual({ error: "Confirm that this adds a paid seat." });
-    expect(clerk.calls).toEqual([]);
-    expect(await inviteToWorkspace({ email: "seat@example.test", role: "member", confirmedPaidSeat: true }, ctx)).toEqual({ success: true });
-    expect(clerk.calls).toHaveLength(1);
+    const invite = (role: string, confirmedPaidSeat?: boolean) => admin.browser.action(() => inviteToWorkspace({ email: newAddress(), role, confirmedPaidSeat }, admin.ctx));
+    for (const role of ["member", "admin"]) expect(await invite(role)).toEqual(confirm);
+    expect(await invitations(admin.orgId)).toEqual([]);
+    expect(await invite("member", true)).toEqual({ success: true });
+    expect(await invitations(admin.orgId)).toHaveLength(1);
   });
 
   it("needs no confirmation to invite a Guest or Viewer, or while billing isn't enforced", async () => {
-    const { inviteToWorkspace } = await api();
-    expect(await inviteToWorkspace({ email: "pilot@example.test", role: "member" }, ctx)).toEqual({ success: true });
+    const admin = await adminWithWorkspace();
+    const invite = (role: string) => admin.browser.action(() => inviteToWorkspace({ email: newAddress(), role }, admin.ctx));
+    expect(await invite("member")).toEqual({ success: true });
     enforce();
-    vi.stubEnv("LANE_CUSTOM_ROLES", "1");
-    expect(await inviteToWorkspace({ email: "leader@example.test", role: "viewer" }, ctx)).toEqual({ success: true });
-    expect(clerk.calls).toHaveLength(2);
+    for (const role of ["guest", "viewer"]) expect(await invite(role)).toEqual({ success: true });
+    expect(await invitations(admin.orgId)).toHaveLength(3);
   });
 
   it("asks for the confirmation before making a Guest or Viewer a Member or Admin, but not between paid seats", async () => {
+    const admin = await adminWithWorkspace();
+    const viewer = await seated(admin.orgId, "viewer");
+    const teammate = await seated(admin.orgId, "member");
     enforce();
-    const { changeMemberRole } = await api();
-    expect(await changeMemberRole({ userId: "user_members_viewer", role: "member" }, ctx)).toEqual({ error: "Confirm that this adds a paid seat." });
-    expect(clerk.calls.filter((c) => c.method === "changeRole")).toEqual([]);
-    expect(await changeMemberRole({ userId: "user_members_member", role: "admin" }, ctx)).toEqual({ success: true });
-    expect(await changeMemberRole({ userId: "user_members_viewer", role: "member", confirmedPaidSeat: true }, ctx)).toEqual({ success: true });
-    expect(clerk.members.get("user_members_viewer")).toBe("org:member");
+    const change = (userId: string, role: string, confirmedPaidSeat?: boolean) => admin.browser.action(() => changeMemberRole({ userId, role, confirmedPaidSeat }, admin.ctx));
+    expect(await change(viewer, "member")).toEqual(confirm);
+    expect(await roleOf(admin.orgId, viewer)).toBe("viewer");
+    expect(await change(teammate, "admin")).toEqual({ success: true });
+    expect(await change(viewer, "member", true)).toEqual({ success: true });
+    expect(await roleOf(admin.orgId, viewer)).toBe("member");
   });
 
-  it("charges a paying workspace part-month for the seat a promotion adds, and lowers the next bill for one made a Viewer", async () => {
+  it("charges a paying workspace part-month for the seat a promotion adds, and lowers the next bill for one made a Viewer or removed", async () => {
+    const admin = await adminWithWorkspace();
+    await connection`insert into workspace_billing (org_id, plan_state, provider_subscription_id, billed_seats) values (${admin.orgId}, 'paying', 'sub_members_paying', 3)`;
+    const viewer = await seated(admin.orgId, "viewer");
+    const demoted = await seated(admin.orgId, "member");
+    const removed = await seated(admin.orgId, "member");
+    const promoted = await seated(admin.orgId, "viewer");
     enforce();
-    vi.stubEnv("LANE_CUSTOM_ROLES", "1");
-    Object.assign(session, { userId: "user_members_admin", orgId: PAYING, role: "admin" });
-    clerk.members = new Map([["user_members_admin", "org:admin"], ["user_members_member", "org:member"], ["user_members_other", "org:member"], ["user_members_viewer", "org:viewer"]]);
-    const { changeMemberRole } = await api();
-    expect(await changeMemberRole({ userId: "user_members_viewer", role: "member", confirmedPaidSeat: true }, paying)).toEqual({ success: true });
-    expect(stand.provider!.seatChanges).toEqual([expect.objectContaining({ subscriptionId: "sub_members_paying", seats: 4, charge: "part_month_now" })]);
-    expect(await changeMemberRole({ userId: "user_members_member", role: "viewer" }, paying)).toEqual({ success: true });
-    expect(stand.provider!.seatChanges.at(-1)).toMatchObject({ seats: 3, charge: "next_bill" });
+    const change = (userId: string, role: string) => admin.browser.action(() => changeMemberRole({ userId, role, confirmedPaidSeat: true }, admin.ctx));
+    const remove = (userId: string) => admin.browser.action(() => removeMember({ userId }, admin.ctx));
+    const seats = () => stand.provider!.seatChanges;
+
+    expect(await change(viewer, "member")).toEqual({ success: true });
+    expect(seats()).toEqual([expect.objectContaining({ subscriptionId: "sub_members_paying", seats: 4, charge: "part_month_now" })]);
+    expect(await change(demoted, "viewer")).toEqual({ success: true });
+    expect(seats().at(-1)).toMatchObject({ seats: 3, charge: "next_bill" });
+
+    expect(await change(promoted, "member")).toEqual({ success: true });
+    expect(seats().at(-1)).toMatchObject({ seats: 4, charge: "part_month_now" });
+    expect(await remove(removed)).toEqual({ ok: true });
+    expect(seats().at(-1)).toMatchObject({ seats: 3, charge: "next_bill" });
+    expect(seats()).toHaveLength(4);
+    // A Viewer is no seat.
+    expect(await remove(demoted)).toEqual({ ok: true });
+    expect(seats()).toHaveLength(4);
   });
 });

@@ -83,6 +83,16 @@ describe("Settings → Profile, Account (#380)", () => {
     expect(text(render())).toContain("Enter your name.")
   })
 
+  it("says on the field why a name can't be used, and sends nothing", async () => {
+    const { account } = mount()
+    for (const [name, line] of [["n".repeat(101), "Use at most 100 characters."], ["Sam\u2028Lee", "Use one line of plain text."]]) {
+      account.changeName(name)
+      await account.saveName()
+      expect(account.snapshot().name.error).toBe(line)
+    }
+    expect(callbacks.onSaveName).not.toHaveBeenCalled()
+  })
+
   it("shows the email read-only, saying it can't be changed yet", () => {
     const html = render()
     expect(text(html)).toContain("sam@acme.test")
@@ -149,6 +159,15 @@ describe("Settings → Profile, Sign-in methods (#380)", () => {
     const html = render()
     expect(text(html)).toContain("Google is your only sign-in method. Set a password before disconnecting it.")
     // Trying again can't help, so there's no Try again.
+    expect(button(html, "Try again")).toBeUndefined()
+  })
+
+  it("offers no Try again when Google can't be disconnected from an old sign-in: only signing in again helps (#394)", async () => {
+    callbacks.onDisconnectGoogle.mockResolvedValue({ ok: false as const, code: "SESSION_NOT_FRESH" })
+    const { account, render } = mount()
+    await account.disconnectGoogle()
+    const html = render()
+    expect(text(html)).toContain("You signed in more than a day ago. Sign out and sign in again, then try this again.")
     expect(button(html, "Try again")).toBeUndefined()
   })
 

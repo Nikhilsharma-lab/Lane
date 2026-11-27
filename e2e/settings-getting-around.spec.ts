@@ -1,17 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { cleanupTestWorkspace, e2eDatabase, finishFirstRuns, provisionTestWorkspace } from "./helpers/cleanup";
-import { assertOwnedOrganization } from "./helpers/fixtures";
+import { addTestMember } from "./helpers/workspaces";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 
 // #288 (Build 8.2 of #256): Members, Metrics and getting around Settings, as a person uses them. An Admin and a
 // Member share one temporary workspace. Nothing is invited for real (the invite checks stop at the field's messages)
 // and the Archive is undone; a merge is only opened and cancelled.
 
-const settled = async (page: Page) => {
-  await page.waitForFunction(() => Boolean(window.Clerk?.loaded && window.Clerk.organization), undefined, { timeout: 60_000 });
-  await page.waitForLoadState("networkidle");
-};
+const settled = (page: Page) => page.waitForLoadState("networkidle");
 const searchDialog = (page: Page) => page.getByRole("dialog", { name: "Search settings" });
 
 test("Settings: getting around, the Role row, Members' invite field, Metrics' Archive Undo and Merge, and who a section is for", async ({ page, browser }) => {
@@ -21,12 +18,10 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
   try {
     const orgId = await provisionTestWorkspace({ userId: admin.id, email: admin.email, name: "Lane E2E", workspaceName: `Lane E2E Settings 288 ${Date.now()}` });
     member = await createTestUser("settings-288-member");
-    const client = await assertOwnedOrganization(orgId);
-    await client.organizations.createOrganizationMembership({ organizationId: orgId, userId: member.id, role: "org:member" });
+    await addTestMember(orgId, member.id, "member");
     const sql = e2eDatabase();
     try {
-      await sql`insert into profiles(id,full_name,email,role) values (${member.id},'Lane E2E Member',${member.email},'designer')
-        on conflict (id) do update set full_name = excluded.full_name, email = excluded.email, role = excluded.role`;
+      await sql`update profiles set full_name = 'Lane E2E Member' where id = ${member.id}`;
       await finishFirstRuns(sql, orgId, [member.id], "joined");
       // #288: a metric saved before definitions were guided, with no "how it's counted" yet.
       await sql`insert into metric_definitions(org_id,name,unit,created_by) values (${orgId},'Trials started','count',${admin.id})`;
@@ -78,9 +73,9 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await expect(searchDialog(page)).toBeHidden();
     });
 
-    await test.step("D21: a search jump marks the row it lands on; Google lands on Manage account", async () => {
+    await test.step("D21: a search jump marks the row it lands on; Google lands on the Google row", async () => {
       await settled(page);
-      for (const [query, target] of [["dark mode", "theme"], ["Google", "manage-account"]] as const) {
+      for (const [query, target] of [["dark mode", "theme"], ["Google", "account-google"]] as const) {
         await page.keyboard.press("/");
         await expect(searchDialog(page)).toBeVisible();
         await page.keyboard.type(query);
@@ -199,7 +194,7 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
       await field.fill("not-an-email");
       await dialog.getByRole("button", { name: "Send invitation" }).click();
       await expect(field).toHaveAccessibleDescription(/Enter a valid email address\./);
-      await expect(dialog).not.toContainText("Guests and Viewers are free.");
+      await expect(dialog).toContainText("Guests and Viewers are free.");
       await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
@@ -214,8 +209,8 @@ test("Settings: getting around, the Role row, Members' invite field, Metrics' Ar
 
     await test.step("Members: search, and the role guide scrolls inside its own region on a phone", async () => {
       const people = page.getByRole("list", { name: "People in this workspace" });
-      // People are listed as Clerk knows them; an address is unique to the Member.
-      await page.getByRole("searchbox", { name: "Search people" }).fill(member!.email.slice(0, 24).toUpperCase());
+      // The whole address: every person a run makes shares how it starts.
+      await page.getByRole("searchbox", { name: "Search people" }).fill(member!.email.toUpperCase());
       await expect(people.getByRole("listitem")).toHaveCount(1);
       await page.getByRole("searchbox", { name: "Search people" }).fill("nobody-like-this");
       await expect(page.getByText("No one matches “nobody-like-this”.")).toBeVisible();

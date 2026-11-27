@@ -306,8 +306,8 @@ export type OutlineInput = Pick<TimelineInput, "journey" | "workStatus" | "isGue
 }
 
 /**
- * The journey as the Request alone draws it (#295), shown until the journey's reads arrive. Those ask Clerk for the
- * workspace's people, which can take half a second, so the page can't wait for them. The outline has the timeline's
+ * The journey as the Request alone draws it (#295), shown until the journey's reads arrive. Those read
+ * the workspace's people too, so the page doesn't wait for them. The outline has the timeline's
  * steps and lines in the same places, holding the ones that need a name, a date or the reader's actions, so the
  * Journey keeps its height when the reads fill it in and nothing below it moves.
  */

@@ -7,4 +7,7 @@
 .rowText { display: grid; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
 .rowText strong { font-size: var(--text-sm); font-weight: var(--weight-medium); }
 /* Wraps a screen's card so focus can move to it when a refusal changes the screen. */
+.screen { container-type: inline-size; }
 .screen:focus { outline: none; }
+/* #405: a button that names an email or a workspace wraps it inside the screen's width, so a long one fits a phone. */
+.longLabel { max-width: calc(100cqi - var(--space-4) * 2); padding-block: var(--space-1); white-space: normal; overflow-wrap: anywhere; }

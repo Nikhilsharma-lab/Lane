@@ -116,7 +116,7 @@ test("the Requests list's first load carries no form checking, and Motion's feat
     await test.step("the sign-in page's first load carries none of Motion's layout and drag", async () => {
       const visitor = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
       const signIn = await visitor.newPage();
-      // The response after any redirect (Clerk's development handshake) is the sign-in page itself.
+      // The response after any redirect is the sign-in page itself.
       const response = (await signIn.goto("/login", { waitUntil: "load", timeout: 60_000 }))!;
       expect(new URL(response.url()).pathname).toBe("/login");
       const html = await response.text();

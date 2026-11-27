@@ -1,5 +1,5 @@
 /**
- * #361 (spec #358): the dormant auth-email sender, through its one public entry point. Resend is a fake `fetch`
+ * #361 (spec #358): the auth-email sender, through its one public entry point. Resend is a fake `fetch`
  * and the Inbox email pause is the in-memory one, so no test reaches Resend or Upstash.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -122,6 +122,24 @@ const invitation: AuthEmail = {
 }
 const code: AuthEmail = { kind: "sign_in_code", to: "mei@example.test", code: "105277", expiresInMinutes: 5 }
 const timedOut = () => Promise.reject(Object.assign(new Error("The operation timed out."), { name: "TimeoutError" }))
+
+describe("a name in an invitation", () => {
+  // A person's name can be set on Better Auth's own route, past Lane's rule.
+  it("keeps to its own line of the email, however it was stored", async () => {
+    const resend = fakeResend()
+    await send({ ...invitation, inviterName: "Priya\r\n\r\nYour account is locked.\u2028Call us", workspaceName: "W".repeat(500) } as AuthEmail, { fetch: resend.fetch })
+    const lines = bodyOf(resend.calls[0]).text.split(/[\r\n\u2028]+/)
+    expect(lines[0]).toBe(`Priya Your account is locked. Call us invited you to join ${"W".repeat(99)}… on Lane as a Member.`)
+    expect(lines[1]).toBe("Accept the invitation:")
+    expect(lines).toHaveLength(4)
+  })
+
+  it("says someone, or a workspace, when nothing of it can be shown", async () => {
+    const resend = fakeResend()
+    await send({ ...invitation, inviterName: "\n", workspaceName: "\u200B" } as AuthEmail, { fetch: resend.fetch })
+    expect(bodyOf(resend.calls[0]).text.split("\n")[0]).toBe("Someone invited you to join a workspace on Lane as a Member.")
+  })
+})
 
 describe("the couldn't-send copy", () => {
   it("is #333 Q7's words for a code, and its own line for the Admin who sent an invitation", () => {

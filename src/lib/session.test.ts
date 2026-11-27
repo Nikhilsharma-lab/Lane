@@ -1,268 +1,241 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+/**
+ * The session seam on Better Auth (#387, spec #383; the read itself is #374's). Sessions and workspaces are made
+ * through Better Auth as the app makes them, on a local lane_test database; the seam gets the browser's cookies, and
+ * the headers the proxy adds, as Next hands them to server code.
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { queryCounter } from "@/db"
+import { AuthBrowser, authRouteTestFile, doorChangeRole, doorData, doorRemove, fakeOutbound, switchOnAuthRoute, type Outbound } from "@/test/auth-route-browser"
+import { RETURN_ADDRESS_HEADER } from "./auth-return-address"
+import { readAccount, readSession, sendToSignIn } from "./session"
 
-type MockClerkAuth = {
-  userId: string | null;
-  orgId: string | null;
-  orgRole: string | null;
-};
+const { connection, signedIn, createWorkspace, join } = authRouteTestFile("session.test")
+const SESSION_COOKIE = "better-auth.session_token"
 
-let session: MockClerkAuth = {
-  userId: null,
-  orgId: null,
-  orgRole: null,
-};
-
-// A session still waiting on Clerk's choose-a-workspace step: Clerk reads it as signed out unless asked not to.
-let pending = false;
-const signedOut: MockClerkAuth = { userId: null, orgId: null, orgRole: null };
-
-type MockClerkUser = {
-  firstName: string | null;
-  lastName: string | null;
-  username: string | null;
-  primaryEmailAddress: { emailAddress: string } | null;
-  imageUrl: string;
-};
-let account: MockClerkUser | null = null;
-
-vi.mock("@clerk/nextjs/server", () => ({
-  auth: vi.fn(async (options?: { treatPendingAsSignedOut?: boolean }) => ({
-    ...(pending && options?.treatPendingAsSignedOut !== false ? signedOut : session),
-    // Clerk's redirect throws Next's redirect, back to the page after sign-in.
-    redirectToSignIn: () => {
-      throw new Error("redirect to sign-in, returning to this page");
-    },
-  })),
-  currentUser: vi.fn(async () => account),
-}));
-
+let outbound: Outbound
 beforeEach(() => {
-  pending = false;
-  account = null;
-});
+  switchOnAuthRoute()
+  outbound = fakeOutbound()
+})
 
-it("sends a signed-out visitor to sign in through Clerk's redirect", async () => {
-  const { sendToSignIn } = await import("./session");
-  await expect(sendToSignIn()).rejects.toThrow("redirect to sign-in, returning to this page");
-});
+const read = (browser: AuthBrowser) => browser.action(() => readSession())
 
-describe("session seam: reading the signed-in account from Clerk", () => {
-  const ada: MockClerkUser = {
-    firstName: " Ada ",
-    lastName: "Lovelace",
-    username: "ada",
-    primaryEmailAddress: { emailAddress: "ada@example.com" },
-    imageUrl: "https://img.example/ada.png",
-  };
+describe("the session read", () => {
+  it("returns the person, their active workspace and their Lane role, in one query", async () => {
+    const admin = await signedIn(outbound, "admin")
+    const workspaceId = await createWorkspace(admin.browser)
 
-  it("reads nothing when no account can be read", async () => {
-    const { readAccount } = await import("./session");
-    await expect(readAccount()).resolves.toBeNull();
-  });
+    const { result, statements } = await queryCounter.measure(() => read(admin.browser))
+    expect(result).toEqual({ userId: admin.userId, orgId: workspaceId, role: "admin" })
+    expect(statements).toBe(1)
+  })
 
-  it("reads the account name, primary email and image", async () => {
-    account = ada;
-    const { readAccount } = await import("./session");
-    await expect(readAccount()).resolves.toEqual({ name: "Ada Lovelace", email: "ada@example.com", imageUrl: "https://img.example/ada.png" });
-  });
+  describe("is null", () => {
+    it("without a session cookie, and without a query", async () => {
+      const { result, statements } = await queryCounter.measure(() => read(new AuthBrowser()))
+      expect(result).toBeNull()
+      expect(statements).toBe(0)
+    })
 
-  it("names the account by the account-name rule when it has no first or last name", async () => {
-    const { readAccount } = await import("./session");
-    account = { ...ada, firstName: null, lastName: null };
-    await expect(readAccount()).resolves.toMatchObject({ name: "ada" });
-    account = { ...ada, firstName: null, lastName: null, username: null };
-    await expect(readAccount()).resolves.toMatchObject({ name: "ada@example.com" });
-  });
+    it("when the cookie's signature has been tampered with", async () => {
+      const { browser } = await signedIn(outbound, "tampered")
+      const [token, signature] = decodeURIComponent(browser.cookies.get(SESSION_COOKIE)!).split(".")
+      const forged = `${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`
+      browser.cookies.set(SESSION_COOKIE, encodeURIComponent(`${token}.${forged}`))
+      expect(await read(browser)).toBeNull()
 
-  it("reads an empty email and the name User for an account with no name and no primary email", async () => {
-    account = { ...ada, firstName: null, lastName: null, username: null, primaryEmailAddress: null };
-    const { readAccount } = await import("./session");
-    await expect(readAccount()).resolves.toEqual({ name: "User", email: "", imageUrl: "https://img.example/ada.png" });
-  });
-});
+      browser.cookies.set(SESSION_COOKIE, encodeURIComponent(token))
+      expect(await read(browser)).toBeNull()
+    })
 
-describe("session seam: reading the session from Clerk", () => {
-  beforeEach(() => {
-    session = { userId: null, orgId: null, orgRole: null };
-  });
+    it("for a signed cookie whose session no longer exists", async () => {
+      const { browser } = await signedIn(outbound, "signed-out")
+      const cookie = browser.cookies.get(SESSION_COOKIE)!
+      expect((await browser.post("/sign-out")).status).toBe(200)
+      browser.cookies.set(SESSION_COOKIE, cookie)
+      expect(await read(browser)).toBeNull()
+    })
 
-  it("reads no session for a signed-out visitor", async () => {
-    const { readSession } = await import("./session");
-    await expect(readSession()).resolves.toBeNull();
-  });
+    it("once the session has expired", async () => {
+      const { browser, userId } = await signedIn(outbound, "expired")
+      await createWorkspace(browser)
+      await connection`update session set expires_at = now() - interval '1 second' where user_id = ${userId}`
+      expect(await read(browser)).toBeNull()
+    })
 
-  it.each([
-    ["org:admin", "admin"],
-    ["org:member", "member"],
-    ["org:guest", "guest"],
-    ["org:viewer", "viewer"],
-  ])("translates the Clerk role key %s into Lane's %s", async (orgRole, role) => {
-    session = { userId: "user_real", orgId: "org_lane", orgRole };
-    const { readSession } = await import("./session");
-    await expect(readSession()).resolves.toEqual({ userId: "user_real", orgId: "org_lane", role });
-  });
+    it("while the Better Auth server is switched off", async () => {
+      const { browser } = await signedIn(outbound, "switched-off")
+      vi.stubEnv("BETTER_AUTH_SECRET", "")
+      expect(await read(browser)).toBeNull()
+    })
+  })
 
-  it("reads an unknown Clerk role key as no role", async () => {
-    session = { userId: "user_real", orgId: "org_lane", orgRole: "org:billing" };
-    const { readSession } = await import("./session");
-    await expect(readSession()).resolves.toEqual({ userId: "user_real", orgId: "org_lane", role: null });
-  });
-
-  it("counts a pending session as signed in only when asked to", async () => {
-    pending = true;
-    session = { userId: "user_pending", orgId: null, orgRole: null };
-    const { readSession } = await import("./session");
-    await expect(readSession()).resolves.toBeNull();
-    await expect(readSession({ pendingCountsAsSignedIn: true })).resolves.toEqual({ userId: "user_pending", orgId: null, role: null });
-  });
-
-  it("reads a person with no active workspace", async () => {
-    session = { userId: "user_real", orgId: null, orgRole: null };
-    const { readSession } = await import("./session");
-    await expect(readSession()).resolves.toEqual({ userId: "user_real", orgId: null, role: null });
-  });
-});
-
-describe("Clerk-backed workspace guards", () => {
-  beforeEach(() => {
-    session = { userId: null, orgId: null, orgRole: null };
-    vi.resetModules();
-  });
-
-  it("rejects an unauthenticated caller", async () => {
-    const { requireActiveMember } = await import("./auth-guard");
-
-    await expect(requireActiveMember("org_lane")).resolves.toBeNull();
-  });
-
-  it("rejects a forged organization context", async () => {
-    session = {
-      userId: "user_real",
-      orgId: "org_real",
-      orgRole: "org:admin",
-    };
-    const { requireActiveMember } = await import("./auth-guard");
-
-    await expect(requireActiveMember("org_forged")).resolves.toBeNull();
-  });
-
-  it("binds identity and organization role to the Clerk session", async () => {
-    session = {
-      userId: "user_real",
-      orgId: "org_lane",
-      orgRole: "org:member",
-    };
-    const { requireActiveMember } = await import("./auth-guard");
-
-    await expect(requireActiveMember("org_lane")).resolves.toEqual({
-      userId: "user_real",
-      orgId: "org_lane",
-      role: "member",
-    });
-  });
-
-  it("permits only Clerk admins to manage members", async () => {
-    session = {
-      userId: "user_admin",
-      orgId: "org_lane",
-      orgRole: "org:admin",
-    };
-    const { requireOwnerOrAdmin } = await import("./auth-guard");
-
-    await expect(requireOwnerOrAdmin("org_lane")).resolves.toEqual({
-      userId: "user_admin",
-      orgId: "org_lane",
-      role: "admin",
-    });
-
-    session = {
-      userId: "user_member",
-      orgId: "org_lane",
-      orgRole: "org:member",
-    };
-    await expect(requireOwnerOrAdmin("org_lane")).resolves.toBeNull();
-  });
-
-  it("honors a Clerk guest role without recreating guest membership state", async () => {
-    session = {
-      userId: "user_guest",
-      orgId: "org_lane",
-      orgRole: "org:guest",
-    };
-    const { requireActiveMember, requireCanChange, requireCanContribute } = await import(
-      "./auth-guard"
-    );
-
-    await expect(requireActiveMember("org_lane")).resolves.toEqual({
-      userId: "user_guest",
-      orgId: "org_lane",
-      role: "guest",
-    });
-    await expect(requireCanContribute("org_lane")).resolves.toMatchObject({ role: "guest" });
-    await expect(requireCanChange("org_lane")).resolves.toBeNull();
-  });
-
-  // #210: a Viewer reads everything a Member reads and changes nothing.
-  it("lets a Clerk Viewer read but never change things", async () => {
-    session = { userId: "user_viewer", orgId: "org_lane", orgRole: "org:viewer" };
-    const { requireActiveMember, requireCanChange, requireCanContribute, requireOwnerOrAdmin } = await import("./auth-guard");
-
-    await expect(requireActiveMember("org_lane")).resolves.toEqual({ userId: "user_viewer", orgId: "org_lane", role: "viewer" });
-    await expect(requireCanChange("org_lane")).resolves.toBeNull();
-    await expect(requireCanContribute("org_lane")).resolves.toBeNull();
-    await expect(requireOwnerOrAdmin("org_lane")).resolves.toBeNull();
-  });
-
-  it("lets Admins and Members change things", async () => {
-    const { requireCanChange, requireCanContribute } = await import("./auth-guard");
-    for (const role of ["admin", "member"] as const) {
-      session = { userId: `user_${role}`, orgId: "org_lane", orgRole: `org:${role}` };
-      await expect(requireCanChange("org_lane")).resolves.toMatchObject({ role });
-      await expect(requireCanContribute("org_lane")).resolves.toMatchObject({ role });
-      await expect(requireCanChange("org_other")).resolves.toBeNull();
+  describe("the workspace a session is in", () => {
+    const setActive = async (userId: string, workspaceId: string | null) => {
+      await connection`update session set active_organization_id = ${workspaceId} where user_id = ${userId}`
     }
-  });
-
-  it("gives an unknown Clerk role no access at all", async () => {
-    session = { userId: "user_x", orgId: "org_lane", orgRole: "org:billing" };
-    const { requireActiveMember } = await import("./auth-guard");
-    await expect(requireActiveMember("org_lane")).resolves.toBeNull();
-  });
-});
-
-describe("action guard classification", () => {
-  it("classifies expiry and copy from one session snapshot", async () => {
-    session = { userId: null, orgId: null, orgRole: null };
-    const { auth } = await import("@clerk/nextjs/server");
-    const { guardActiveMember, SESSION_ENDED } = await import("./auth-guard");
-    vi.mocked(auth).mockClear();
-    await expect(guardActiveMember("org_lane", "Not found")).resolves.toEqual({ error: SESSION_ENDED, sessionExpired: true });
-    expect(auth).toHaveBeenCalledTimes(1);
-  });
-  it.each([
-    { userId: "real", orgId: null, orgRole: "org:member" },
-    { userId: "real", orgId: "other", orgRole: "org:admin" },
-    { userId: "real", orgId: "org_lane", orgRole: "unknown" },
-    { userId: "real", orgId: "org_lane", orgRole: "org:guest" },
-  ])("never marks workspace or role denial as expiry: %o", async denied => {
-    session = denied;
-    const { guardCanChange } = await import("./auth-guard");
-    await expect(guardCanChange("org_lane", "Not found")).resolves.toEqual({ error: "Not found" });
-  });
-});
-
-
-it("keeps Viewer personal state and Guest contributions distinct from replayable expiry in one auth read", async () => {
-  const { auth } = await import("@clerk/nextjs/server");
-  const { guardActiveMember, guardCanChange, guardCanContribute, guardOwnerOrAdmin, VIEWER_REFUSAL } = await import("./auth-guard");
-  for (const role of ["guest", "viewer", "member", "admin"] as const) {
-    session = { userId: "person", orgId: "org_lane", orgRole: `org:${role}` };
-    for (const guard of [guardActiveMember, guardCanContribute, guardCanChange, guardOwnerOrAdmin]) {
-      vi.mocked(auth).mockClear();
-      const result = await guard("org_lane", "Not permitted");
-      expect(auth).toHaveBeenCalledTimes(1);
-      const allowed = guard === guardActiveMember || (guard === guardCanContribute && role !== "viewer") || (guard === guardCanChange && ["admin", "member"].includes(role)) || (guard === guardOwnerOrAdmin && role === "admin");
-      expect(result).toEqual(allowed ? { userId: "person", orgId: "org_lane", role } : { error: role === "viewer" ? VIEWER_REFUSAL : "Not permitted" });
+    const setLastUsed = async (userId: string, workspaceId: string | null) => {
+      await connection`update profiles set last_workspace_id = ${workspaceId} where id = ${userId}`
     }
+    /** A person in three workspaces: Guest in the oldest, Viewer in the next, Admin in the newest; none active or last used. */
+    async function inThreeWorkspaces(label: string) {
+      const person = await signedIn(outbound, label)
+      // Created newest first, so the order of the rows is not the order of the memberships.
+      const [newest, middle, oldest] = [await createWorkspace(person.browser), await createWorkspace(person.browser), await createWorkspace(person.browser)]
+      const joined = (workspaceId: string, role: string, at: string) =>
+        connection`update member set role = ${role}, created_at = ${at} where user_id = ${person.userId} and organization_id = ${workspaceId}`
+      await joined(oldest, "guest", "2026-01-01T00:00:00Z")
+      await joined(middle, "viewer", "2026-02-01T00:00:00Z")
+      await joined(newest, "admin", "2026-03-01T00:00:00Z")
+      await setActive(person.userId, null)
+      await setLastUsed(person.userId, null)
+      const leave = (workspaceId: string) => connection`delete from member where user_id = ${person.userId} and organization_id = ${workspaceId}`
+      return { ...person, oldest, middle, newest, leave }
+    }
+
+    it("is the active workspace before the last-used one", async () => {
+      const { browser, userId, middle, newest } = await inThreeWorkspaces("active-first")
+      await setActive(userId, newest)
+      await setLastUsed(userId, middle)
+      expect(await read(browser)).toEqual({ userId, orgId: newest, role: "admin" })
+    })
+
+    it("is the last-used workspace when none is active", async () => {
+      const { browser, userId, middle } = await inThreeWorkspaces("last-used")
+      await setLastUsed(userId, middle)
+      expect(await read(browser)).toEqual({ userId, orgId: middle, role: "viewer" })
+    })
+
+    it("is the oldest membership when none is active or last used", async () => {
+      const { browser, userId, oldest } = await inThreeWorkspaces("oldest")
+      expect(await read(browser)).toEqual({ userId, orgId: oldest, role: "guest" })
+    })
+
+    it("is none, with no role, without a membership", async () => {
+      const { browser, userId } = await signedIn(outbound, "no-workspace")
+      expect(await read(browser)).toEqual({ userId, orgId: null, role: null })
+    })
+
+    it("skips an active workspace without a member row for the last-used one", async () => {
+      const { browser, userId, middle, newest, leave } = await inThreeWorkspaces("active-left")
+      await setActive(userId, newest)
+      await setLastUsed(userId, middle)
+      await leave(newest)
+      expect(await read(browser)).toEqual({ userId, orgId: middle, role: "viewer" })
+    })
+
+    it("skips an active and a last-used workspace without member rows for the oldest membership", async () => {
+      const { browser, userId, oldest, middle, newest, leave } = await inThreeWorkspaces("both-left")
+      await setActive(userId, newest)
+      await setLastUsed(userId, middle)
+      await leave(newest)
+      await leave(middle)
+      expect(await read(browser)).toEqual({ userId, orgId: oldest, role: "guest" })
+    })
+
+    it("never uses someone else's membership in the active or last-used workspace", async () => {
+      const owner = await inThreeWorkspaces("stranger-owner")
+      const stranger = await signedIn(outbound, "stranger")
+      await setActive(stranger.userId, owner.newest)
+      await setLastUsed(stranger.userId, owner.middle)
+      expect(await read(stranger.browser)).toEqual({ userId: stranger.userId, orgId: null, role: null })
+    })
+
+    it("is found in one query, whichever step answers", async () => {
+      const { browser, userId, middle, newest, leave } = await inThreeWorkspaces("one-query")
+      const statements = async () => (await queryCounter.measure(() => read(browser))).statements
+      await setActive(userId, newest)
+      await setLastUsed(userId, middle)
+      expect(await statements()).toBe(1)
+      await leave(newest)
+      expect(await statements()).toBe(1)
+      await leave(middle)
+      expect(await statements()).toBe(1)
+      await connection`delete from member where user_id = ${userId}`
+      expect(await statements()).toBe(1)
+    })
+  })
+
+  it("stops trusting the active workspace once the person is removed from it", async () => {
+    const admin = await signedIn(outbound, "remover")
+    const workspaceId = await createWorkspace(admin.browser)
+    const removed = await join(outbound, admin.browser, "member")
+    expect(await read(removed.browser)).toEqual({ userId: removed.userId, orgId: workspaceId, role: "member" })
+
+    doorData(await doorRemove(admin.browser, { memberIdOrEmail: removed.memberId }))
+    // Better Auth leaves the removed person's session pointing at the workspace.
+    expect((await connection`select active_organization_id from session where user_id = ${removed.userId}`)[0].active_organization_id).toBe(workspaceId)
+    expect(await read(removed.browser)).toEqual({ userId: removed.userId, orgId: null, role: null })
+  })
+
+  it("has no role for a member row whose role Lane doesn't know", async () => {
+    const admin = await signedIn(outbound, "unknown-role")
+    const workspaceId = await createWorkspace(admin.browser)
+    await connection`update member set role = 'owner' where user_id = ${admin.userId}`
+    expect(await read(admin.browser)).toEqual({ userId: admin.userId, orgId: workspaceId, role: null })
+  })
+
+  it("shows a role change on the next read", async () => {
+    const admin = await signedIn(outbound, "changer")
+    const workspaceId = await createWorkspace(admin.browser)
+    const guest = await join(outbound, admin.browser, "guest")
+    expect(await read(guest.browser)).toEqual({ userId: guest.userId, orgId: workspaceId, role: "guest" })
+
+    doorData(await doorChangeRole(admin.browser, { memberId: guest.memberId, role: "viewer" }))
+    expect(await read(guest.browser)).toEqual({ userId: guest.userId, orgId: workspaceId, role: "viewer" })
+  })
+
+  it("doesn't renew the session, even one old enough for Better Auth to renew", async () => {
+    const { browser, userId } = await signedIn(outbound, "renewal")
+    // Six days into seven, past Better Auth's one-day update age.
+    await connection`update session set expires_at = date_trunc('second', now()) + interval '1 day' where user_id = ${userId}`
+    const expiry = async () => (await connection`select expires_at, updated_at from session where user_id = ${userId}`)[0]
+    const before = await expiry()
+
+    expect(await read(browser)).toEqual({ userId, orgId: null, role: null })
+    expect(await expiry()).toEqual(before)
+  })
+
+  it("reads the __Secure- cookie Better Auth sets when its URL is https", async () => {
+    const admin = await signedIn(outbound, "secure")
+    const workspaceId = await createWorkspace(admin.browser)
+    const cookie = admin.browser.cookies.get(SESSION_COOKIE)!
+    admin.browser.cookies.delete(SESSION_COOKIE)
+    admin.browser.cookies.set(`__Secure-${SESSION_COOKIE}`, cookie)
+    expect(await read(admin.browser)).toEqual({ userId: admin.userId, orgId: workspaceId, role: "admin" })
+  })
+})
+
+describe("the signed-in account", () => {
+  const account = (browser: AuthBrowser) => browser.action(() => readAccount())
+
+  it("is the person's name and email from their profile, with no image", async () => {
+    const { browser, person } = await signedIn(outbound, "account")
+    expect(await account(browser)).toEqual({ name: person.name, email: person.email })
+  })
+
+  it("is null for anyone signed out", async () => {
+    expect(await account(new AuthBrowser())).toBeNull()
+  })
+})
+
+describe("sending a signed-out visitor to sign in", () => {
+  async function sentTo(address?: string) {
+    const headers: Record<string, string> = address === undefined ? {} : { [RETURN_ADDRESS_HEADER]: address }
+    const error = await new AuthBrowser().action(() => sendToSignIn(), headers).catch((thrown: { digest: string }) => thrown)
+    return error.digest.split(";")[2]
   }
-});
+
+  it("keeps the page they opened, with its query, as the return address", async () => {
+    expect(await sentTo("/requests/LAN-7?view=board&item=1")).toBe("/login?redirect_url=%2Frequests%2FLAN-7%3Fview%3Dboard%26item%3D1")
+  })
+
+  it("needs no return address for Lane's home, or when the proxy named no page", async () => {
+    expect(await sentTo("/")).toBe("/login")
+    expect(await sentTo()).toBe("/login")
+  })
+
+  it.each(["https://x", "//x", "/\\x"])("never returns to another site: %s", async (address) => {
+    expect(await sentTo(address)).toBe("/login")
+  })
+})

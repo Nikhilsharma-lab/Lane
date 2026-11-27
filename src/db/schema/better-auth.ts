@@ -5,7 +5,7 @@ import { organizations, profiles } from "./users";
  * Migration 0055 (#370, spec #369): Better Auth's own tables, in the shape Better Auth 1.7.26 generates for Drizzle
  * on Postgres, with timestamptz. Export and property names are Better Auth's model and field names, so its Drizzle
  * adapter reads them as they are; Better Auth's `user` is `profiles` and its `organization` is `organizations`
- * (users.ts). Dormant: nothing in the app reads or writes these until increment 5.
+ * (users.ts). Outside Better Auth, the session read (src/lib/better-auth-session.ts) was their first reader (#387).
  */
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 

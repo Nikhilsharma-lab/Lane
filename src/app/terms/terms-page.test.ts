@@ -36,6 +36,17 @@ describe("Plan item L1: the Terms of service page", () => {
     expect(`${metadata.title} ${metadata.description}`).not.toMatch(dashes);
   });
 
+  // #404: Better Auth runs inside Lane.
+  it("says Lane handles accounts and workspaces itself, and never names Clerk", () => {
+    expect(text).toContain("Lane handles sign-in, sessions, workspaces, memberships and invitations.");
+    expect(html).not.toMatch(/clerk/i);
+  });
+
+  it("names the four roles as Lane does", () => {
+    expect(text).toContain("Each workspace has at least one Admin, and may have Members, Guests and Viewers:");
+    for (const role of ["Admins", "Members", "Guests", "Viewers"]) expect(html).toContain(`<strong>${role}</strong>`);
+  });
+
   it("numbers its sections in order", () => {
     const numbers = [...html.matchAll(/<h2>(\d+)\. /g)].map((match) => Number(match[1]));
     expect(numbers).toEqual(numbers.map((_, index) => index + 1));
@@ -67,6 +78,31 @@ describe("Plan item L1: the Privacy policy page", () => {
     expect(privacyText).toContain("4. The Request AI check");
     expect(privacyText).toContain("When you run the Request AI check,");
     expect(privacyText).not.toContain("Intake AI check");
+  });
+
+  // #404 (spec #383, #345 Q7): Better Auth runs inside Lane, so the processors are the services around it.
+  const listed = [...privacy.matchAll(/<li><strong>([^<]+?):<\/strong>/g)].map((match) => match[1]);
+
+  it("lists the services that handle accounts now, and not Clerk", () => {
+    expect(listed).toEqual(expect.arrayContaining(["Supabase", "Vercel", "Resend", "Cloudflare Turnstile", "Google sign-in", "Have I Been Pwned", "Upstash", "Anthropic"]));
+    expect(privacy).not.toMatch(/clerk/i);
+  });
+
+  it("says Have I Been Pwned receives only a 5-character prefix of the password's hash", () => {
+    expect(privacyText).toContain("It receives only a 5-character prefix of the password’s hash.");
+  });
+
+  it("says Lane stores the tokens Google returns, and that account deletion removes them", () => {
+    expect(privacyText).toContain("Lane stores the sign-in tokens Google returns, which can contain basic profile details. Account deletion removes them.");
+  });
+
+  it("claims no picture of anyone", () => {
+    expect(privacy).not.toMatch(/avatar|profile picture|photo/i);
+  });
+
+  it("keeps both deletion deadlines and says what account deletion removes", () => {
+    expect(privacyText).toContain("We acknowledge privacy requests within 3 working days and aim to complete verified deletion requests within 30 days.");
+    expect(privacyText).toContain("Account deletion removes your sign-in methods, sessions, workspace memberships and pending invitations, and removes your name and email address from Lane’s profile record.");
   });
 
   // Nikhil, 2026-11-18: Terms use the same name.

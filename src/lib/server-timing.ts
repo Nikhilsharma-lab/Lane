@@ -20,11 +20,10 @@ export type RoutePattern =
   | "Attachment download";
 
 /**
- * The named steps, in the order they're reported. `session` checks the Clerk session, `workspace` finds the
- * profile and workspace, `shell` is the app frame's own reads (Projects, labels, saved views), `data` is the page's
- * own reads and `clerk` is any call to Clerk's servers.
+ * The named steps, in the order they're reported. `session` is the session seam's read, `workspace` finds the profile,
+ * the workspace and its people, `shell` is the app frame's own reads (Projects, labels, saved views) and `data` is the page's own reads.
  */
-export const TIMING_STEPS = ["session", "workspace", "shell", "data", "clerk"] as const;
+export const TIMING_STEPS = ["session", "workspace", "shell", "data"] as const;
 export type TimingStep = (typeof TIMING_STEPS)[number];
 
 /**
@@ -66,7 +65,7 @@ export const round = (ms: number) => Math.round(ms * 10) / 10;
 
 /**
  * The proxy's Server-Timing entry, on every response it passes (public pages too) while the switch is on: the
- * time Clerk's session check took, and nothing else.
+ * time the proxy took, and nothing else.
  */
 export const proxyTiming = (ms: number) => `proxy;dur=${round(ms)}`;
 

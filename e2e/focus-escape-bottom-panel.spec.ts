@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { cleanupTestWorkspace, provisionTestWorkspace, seedTestRequest } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser, signInTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
+import { streamedIn } from "./helpers/streamed";
 
 // #263 (Build 2.4, spec #256 "Focus, Escape and confirmations" and "Phone bottom panel"): focus moves into what
 // opens and back to what opened it, Escape closes only the top layer and asks before dropping typed text, the
@@ -230,6 +231,8 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
         await add.click();
         await expect(question).toHaveValue("Asked before the behaviour arrived");
         await page.keyboard.press("Escape");
+        // Gone, so the next Escape is the confirmation's.
+        await expect(popover).toHaveCount(0);
         await expect(page).toHaveURL(new RegExp(`/requests/${id}$`));
         const prompt = discardPrompt(page);
 
@@ -458,6 +461,7 @@ test.describe("#263 focus, Escape and the phone bottom panel", () => {
       await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
       await behaviourReady(page);
       // #285 (C23): /intake's launcher says New Request, as every other way to start one does.
+      await streamedIn(page);
       const launcher = page.locator("[data-intake-launcher]");
       await expect(launcher).toHaveAccessibleName("New Request");
       await launcher.click();

@@ -1,6 +1,6 @@
 /**
  * #196: Settings → Metrics as the server renders it, with the library read from the real test database.
- * The session's workspace and role are faked; Clerk's own profile widgets are stubbed.
+ * The session's workspace and role are faked.
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import postgres from "postgres";
@@ -19,9 +19,8 @@ vi.mock("next/navigation", async (original) => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock("@/components/auth/clerk-members-profile", () => ({ ClerkWorkspaceProfile: () => null }));
 vi.mock("@/components/settings/workspace-members-loader", () => ({ WorkspaceMembersLoader: () => null }));
-vi.mock("@/components/settings/account-profile", () => ({ AccountProfile: () => null, AccountSecurity: () => null }));
+vi.mock("../../profile/account-panels", () => ({ accountPanels: async () => ({}) }));
 vi.mock("../../profile/profile-form", () => ({ ProfileForm: () => null }));
 vi.mock("../../profile/theme-preference", () => ({ ThemePreference: () => null }));
 
@@ -123,10 +122,5 @@ describe("Settings → Metrics", () => {
     await expect(open()).rejects.toThrow("redirect:/");
   });
 
-  it("sends someone signed out to sign in, and someone new to onboarding", async () => {
-    session.workspace = null;
-    await expect(open()).rejects.toThrow("redirect:/login");
-    session.workspace = { needsOnboarding: true };
-    await expect(open()).rejects.toThrow("redirect:/onboarding");
-  });
+  // Signed out, or with no workspace: src/app/member-less-visitors.test.ts.
 });

@@ -2,7 +2,7 @@ import type { ActionFailure } from "./action-session-failure";
 import { canChangeThings } from "./role-rules";
 import { readSession, type Session } from "./session";
 
-/** Clerk owns workspace membership. Profile labels never grant these capabilities. */
+/** Roles come from the workspace membership behind the session. Profile labels never grant these capabilities. */
 export type WorkspacePermission = "admin" | "member" | "guest" | "viewer";
 export type MemberAuth = { userId: string; orgId: string; role: WorkspacePermission };
 export type AdminAuth = MemberAuth & { role: "admin" };
@@ -19,13 +19,20 @@ export function activeMemberOf(session: Session | null): MemberAuth | null {
 }
 
 /** One session snapshot decides identity, workspace and expiry before any change.
- * Wrong-workspace, role and validation refusals never permit a session replay. */
+ * Wrong-workspace, role and validation refusals never say the session ended. */
 export async function guardActiveMember(orgId: string, copy: string): Promise<MemberAuth | ActionFailure> {
   const session = await readSession();
   if (!session) return { error: SESSION_ENDED, sessionExpired: true };
   const member = activeMemberOf(session);
   if (!member || member.orgId !== orgId) return { error: copy };
   return member;
+}
+
+/** `guardActiveMember` for an action that answers codes: a tab whose workspace isn't the session's any more gets `WORKSPACE_NOT_OPEN`. */
+export async function activeMemberOrCode(orgId: string): Promise<MemberAuth | { ok: false; code: "UNAUTHORIZED" | "WORKSPACE_NOT_OPEN" }> {
+  const member = await guardActiveMember(orgId, "");
+  if (!("error" in member)) return member;
+  return { ok: false, code: member.sessionExpired ? "UNAUTHORIZED" : "WORKSPACE_NOT_OPEN" };
 }
 
 /** Admin or Member may change shared workspace data. */

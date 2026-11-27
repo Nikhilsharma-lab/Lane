@@ -31,10 +31,9 @@ const ALERT_ID = "reset-alert"
 const FOCUS_ORDER: FocusOrder<PasswordResetState> = [["email", `#${FIELD_IDS.email}`], ["code", CODE_INPUT], ["password", `#${FIELD_IDS.password}`]]
 
 /**
- * #378 (#376 "Forgot and reset"): Lane's own forgot and reset password screen, through Lane's browser auth client,
- * beside today's Clerk recovery (which it doesn't change; increment 5 deletes that). The email and Send reset code,
- * then the code, a new password and Save new password; then it signs in with the new password. Dormant: no route
- * mounts it until increment 5.
+ * #378 (#376 "Forgot and reset"): Lane's own forgot and reset password screen, through Lane's browser auth client. The
+ * email and Send reset code, then the code, a new password and Save new password; then it signs in with the new
+ * password.
  */
 export function PasswordResetForm({ email }: PasswordResetFormProps) {
   // A full page load after signing in, so every server read sees the new session.

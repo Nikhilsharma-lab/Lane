@@ -2,13 +2,13 @@ import "server-only";
 import { inArray } from "drizzle-orm";
 import { db, profiles } from "@/db";
 import type { MemberAuth } from "./auth-guard";
-import type { WorkspacePerson } from "./workspace-roster";
+import type { RosterPerson } from "./workspace-roster";
 import { RequestChangeError, type RequestTx } from "./request-change-store";
 import { FORMER_MEMBER, journeyActions, requesterOf, type ActionAvailability, type JourneyActions, type JourneyFacts, type JourneyGoal, type JourneyViewer } from "./request-journey";
 import type { ReleaseState } from "./request-release";
 
 /** This person's live roster entry as an active non-guest member, or undefined. */
-export const rosterMember = (roster: readonly WorkspacePerson[] | null, id: string) =>
+export const rosterMember = (roster: readonly RosterPerson[] | null, id: string) =>
   roster?.find((p) => p.nominee.kind === "member" && p.nominee.userId === id)
 
 /**
@@ -16,10 +16,10 @@ export const rosterMember = (roster: readonly WorkspacePerson[] | null, id: stri
  * session and the roster to say so. `roster` is null when it couldn't be read: the viewer is then inactive,
  * so every action is refused rather than guessed.
  */
-export function journeyViewer(auth: MemberAuth, roster: readonly WorkspacePerson[] | null): JourneyViewer {
+export function journeyViewer(auth: MemberAuth, roster: readonly RosterPerson[] | null): JourneyViewer {
   if (auth.role === "guest" || auth.role === "viewer") return { id: auth.userId, role: auth.role, active: false }
   const entry = rosterMember(roster, auth.userId)
-  return { id: auth.userId, role: auth.role === "admin" && entry?.role === "org:admin" ? "admin" : "member", active: Boolean(entry) }
+  return { id: auth.userId, role: auth.role === "admin" && entry?.role === "admin" ? "admin" : "member", active: Boolean(entry) }
 }
 
 /**
@@ -29,7 +29,7 @@ export function journeyViewer(auth: MemberAuth, roster: readonly WorkspacePerson
 export function journeyActionsFor(
   request: JourneyFacts & JourneyGoal & { createdBy: string; takenOnBy: string | null; releaseState: ReleaseState | null },
   auth: MemberAuth,
-  roster: readonly WorkspacePerson[] | null,
+  roster: readonly RosterPerson[] | null,
   requesterName: string,
   now: Date,
 ): JourneyActions {
@@ -46,7 +46,7 @@ export function allow(action: ActionAvailability): void {
  * People's names for reasons and history, by id: the live roster first, then their saved profile (which covers
  * departed people and guests, who get no roster), else FORMER_MEMBER. One query, only for ids the roster lacks.
  */
-export async function peopleNames(reader: RequestTx | typeof db, roster: readonly WorkspacePerson[] | null, ids: readonly string[]): Promise<Record<string, string>> {
+export async function peopleNames(reader: RequestTx | typeof db, roster: readonly RosterPerson[] | null, ids: readonly string[]): Promise<Record<string, string>> {
   const unique = [...new Set(ids)]
   const live = new Map(unique.flatMap(id => { const name = rosterMember(roster, id)?.name; return name ? [[id, name] as const] : [] }))
   const missing = unique.filter(id => !live.has(id))
@@ -55,6 +55,6 @@ export async function peopleNames(reader: RequestTx | typeof db, roster: readonl
 }
 
 /** One person's name, as peopleNames reads it. */
-export async function personName(reader: RequestTx | typeof db, roster: readonly WorkspacePerson[] | null, id: string): Promise<string> {
+export async function personName(reader: RequestTx | typeof db, roster: readonly RosterPerson[] | null, id: string): Promise<string> {
   return (await peopleNames(reader, roster, [id]))[id]
 }

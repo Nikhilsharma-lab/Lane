@@ -32,18 +32,8 @@ export type SecurityHeaderOptions = {
   errorReportingDsn?: string;
 };
 
-// Clerk: the dev instance lives on *.clerk.accounts.dev, production on
-// clerk.uselane.app (plus accounts.uselane.app for hosted pages).
-const CLERK_HOSTS = [
-  "https://*.clerk.accounts.dev",
-  "https://clerk.uselane.app",
-  "https://*.uselane.app",
-];
-const CLERK_SOCKETS = ["wss://*.clerk.accounts.dev", "wss://clerk.uselane.app"];
-// Clerk's bot protection widget.
-const CLOUDFLARE_CHALLENGE = "https://challenges.cloudflare.com";
-// Clerk profile images.
-const CLERK_IMAGES = "https://img.clerk.com";
+// Cloudflare Turnstile, the human check on sign-up, code sends and reset (src/components/auth/better-auth/turnstile-widget.tsx).
+const TURNSTILE = "https://challenges.cloudflare.com";
 // Private attachment storage. Signed download URLs point here.
 const SUPABASE_HOSTS = ["https://*.supabase.co"];
 const SUPABASE_SOCKETS = ["wss://*.supabase.co"];
@@ -94,33 +84,30 @@ export function contentSecurityPolicyDirectives(
         "'self'",
         "'unsafe-inline'",
         ...(options.development ? ["'unsafe-eval'"] : []),
-        ...CLERK_HOSTS,
-        CLOUDFLARE_CHALLENGE,
+        TURNSTILE,
         ...VERCEL_HOSTS,
       ],
     ],
     ["style-src", ["'self'", "'unsafe-inline'", GOOGLE_FONT_STYLES]],
     ["font-src", ["'self'", "data:", GOOGLE_FONT_FILES]],
-    ["img-src", ["'self'", "data:", "blob:", CLERK_IMAGES, ...CLERK_HOSTS, ...supabase, ...VERCEL_HOSTS]],
+    ["img-src", ["'self'", "data:", "blob:", ...supabase, ...VERCEL_HOSTS]],
     [
       "connect-src",
       [
         "'self'",
-        ...CLERK_HOSTS,
-        ...CLERK_SOCKETS,
-        CLOUDFLARE_CHALLENGE,
+        TURNSTILE,
         ...supabase,
         ...supabaseSockets,
         ...VERCEL_HOSTS,
         ...(errorReportingOrigin ? [errorReportingOrigin] : []),
       ],
     ],
-    ["frame-src", [...CLERK_HOSTS, CLOUDFLARE_CHALLENGE, "https://vercel.live"]],
+    ["frame-src", [TURNSTILE, "https://vercel.live"]],
     ["worker-src", ["'self'", "blob:"]],
     ["manifest-src", ["'self'"]],
     ["object-src", ["'none'"]],
     ["base-uri", ["'self'"]],
-    ["form-action", ["'self'", ...CLERK_HOSTS]],
+    ["form-action", ["'self'"]],
     ["frame-ancestors", ["'none'"]],
   ];
 }

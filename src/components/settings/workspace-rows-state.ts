@@ -1,6 +1,7 @@
 import { settle, type AuthAnswer } from "@/lib/auth-answer"
 import { authErrorCopy } from "@/lib/auth-error-copy"
 import { createExternalStore } from "@/lib/external-store"
+import { readName } from "@/lib/name-rules"
 
 export type WorkspaceNameState = { value: string; saved: string; busy: boolean; error: string | null }
 
@@ -23,7 +24,12 @@ export function createWorkspaceNameDraft(name: string) {
     async save(rename: (name: string) => Promise<AuthAnswer>): Promise<boolean> {
       const state = store.get()
       if (!canSaveName(state)) return false
-      const next = state.value.trim()
+      const read = readName(state.value)
+      if (!read.ok) {
+        store.set({ ...state, error: authErrorCopy(read.code) })
+        return false
+      }
+      const next = read.name
       store.set({ ...state, busy: true, error: null })
       const answer = await settle(() => rename(next))
       if (answer.ok) store.set({ value: next, saved: next, busy: false, error: null })

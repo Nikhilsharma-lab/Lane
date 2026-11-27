@@ -2,22 +2,19 @@ import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
 import { assertE2ETarget } from "./e2e/helpers/safety";
 
-// Clerk testing tokens only work with a Development instance. Load its keys
-// from the ignored local env, then overlay Lane Staging's database settings.
-// Production credentials are never used by this harness.
+// Loads the ignored local env, then overlays Lane Staging's settings (its
+// database, its storage and its BETTER_AUTH_SECRET, pinned by fingerprint in
+// e2e/helpers/safety.ts). Production credentials are never used by this harness.
 //
 // #257: LANE_E2E_LOCAL_DATABASE=1 runs against a local `lane_test_*` database
 // instead (DATABASE_URL from the shell, which .env.local doesn't override), with
-// the app on E2E_BASE_URL's local port; e2e/helpers/safety.ts checks both.
-// LANE_E2E_REUSE_USERS=1 lets fixtures borrow existing lane-e2e users when Clerk's
-// development instance is at its user cap (e2e/helpers/test-user.ts), on one worker
-// so two workers never borrow the same user. docs/agents/local-browser-checks.md §7.
+// the app on E2E_BASE_URL's local port and .env.local's own BETTER_AUTH_SECRET;
+// e2e/helpers/safety.ts checks them. docs/agents/local-browser-checks.md §7.
 const localDatabase = process.env.LANE_E2E_LOCAL_DATABASE === "1";
 // LANE_E2E_START=1 serves the production build already in .next (`pnpm build`) with `next start` instead of
 // starting `next dev`, so a local run checks what ships. docs/agents/local-browser-checks.md §7.
 const serveBuild = process.env.LANE_E2E_START === "1";
 const distDir = serveBuild ? ".next" : ".next-e2e";
-const borrowUsers = process.env.LANE_E2E_REUSE_USERS === "1";
 dotenv.config({ path: ".env.local" });
 if (!localDatabase) {
   dotenv.config({ path: ".env.staging.local", override: true });
@@ -52,8 +49,15 @@ const perfConfig = perfBaseURL ? defineConfig({
   projects: [{ name: "perf", use: { ...devices["Desktop Chrome"] } }],
 }) : null;
 
-// Includes real Clerk provisioning/authentication and cross-region Supabase
-// round trips. Workspace isolation took 57s; leave room for provider variance.
+// Cloudflare's published always-pass Turnstile keys, for the app this config starts. `pnpm build` writes the site key
+// into the browser bundle, so a build served with LANE_E2E_START=1 needs it in its own environment too.
+// https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+const TURNSTILE_TEST_KEYS = {
+  TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+};
+
+// A staging run makes cross-region Supabase round trips; leave room for them.
 function e2eConfig() {
   const target = assertE2ETarget();
   // Fixtures keep their verified session connection; the app matches hosted
@@ -65,7 +69,6 @@ function e2eConfig() {
     testDir: "./e2e",
     timeout: 120_000,
     retries: 0,
-    ...(borrowUsers ? { workers: 1 } : {}),
     expect: { timeout: 15_000 },
     // The perf spec runs only in the perf configuration above.
     testIgnore: /perf\.spec\.ts/,
@@ -78,7 +81,7 @@ function e2eConfig() {
     projects: [
       {
         name: "setup",
-        testMatch: /clerk\.setup\.ts/,
+        testMatch: /better-auth\.setup\.ts/,
       },
       {
         name: "chromium",
@@ -97,10 +100,12 @@ function e2eConfig() {
             NEXT_DIST_DIR: distDir,
             DATABASE_URL: runtimeDatabaseUrl.toString(),
             PORT: port,
+            BETTER_AUTH_URL: target.baseURL,
+            ...TURNSTILE_TEST_KEYS,
           },
           url: target.baseURL,
           reuseExistingServer: false,
-          // A fresh checkout compiles both the app entry and Clerk sign-in before
+          // A fresh checkout compiles both the app entry and the sign-in page before
           // Playwright's readiness request completes.
           timeout: 120_000,
         },

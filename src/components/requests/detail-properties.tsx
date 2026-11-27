@@ -135,7 +135,7 @@ export function DetailProperties({ inSheet = false }: { inSheet?: boolean }) {
       {/* #281 (B33): Priority never vanishes. It's a menu while Open (canEditRequest) and text from In progress on, Done and Closed included. */}
       <Row label="Priority" data-detail-priority="" data-priority={priority}>{priorityControl}</Row>
       <Row label="Assignee">{assignee
-        ? <Value icon={<Avatar name={assignee} src={request.assigneeAvatarUrl ?? undefined} unoptimized size="sm" className={styles.avatar} aria-hidden="true" />}>{assignee}</Value>
+        ? <Value icon={<Avatar name={assignee} size="sm" className={styles.avatar} aria-hidden="true" />}>{assignee}</Value>
         : <span className={styles.propertyMuted}>No one yet</span>}</Row>
       <Row label="Project"><Value icon={<ProjectMarker projectId={request.projectId} />}>{request.projectId ? request.projectName ?? "Unavailable Project" : "No Project"}</Value></Row>
       <Row label="Labels"><RequestLabels request={request} /></Row>

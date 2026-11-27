@@ -1,4 +1,5 @@
 import { CODE_COULD_NOT_SEND, INVITATION_COULD_NOT_SEND } from "./auth-email-copy"
+import { NAME_MAX } from "./name-rules"
 
 /**
  * #369: what a person reads when an auth call fails, keyed by the error code in Better Auth's answer (or the
@@ -17,7 +18,7 @@ export const GOOGLE_ONLY_METHOD = "Google is your only sign-in method. Set a pas
 const SLUG_TAKEN = "Another workspace already uses this URL. Choose a different one, then try again."
 
 /** #346's googleFailed line, for every way Google sign-in can come back unfinished. */
-const GOOGLE_FAILED = "Google sign-in didn’t finish. Try again, or use your email."
+export const GOOGLE_FAILED = "Google sign-in didn’t finish. Try again, or use your email."
 
 /**
  * Every `error` the redirect back from Google sign-in can carry (Better Auth 1.7). Each one means the sign-in didn't
@@ -109,6 +110,9 @@ export const AUTH_ERROR_COPY = {
   // code; checking or changing a URL, the second.
   ORGANIZATION_ALREADY_EXISTS: SLUG_TAKEN,
   ORGANIZATION_SLUG_ALREADY_TAKEN: SLUG_TAKEN,
+  // Proposed for Nikhil: a workspace's or person's name past Lane's rule (name-rules.ts).
+  NAME_TOO_LONG: `Use at most ${NAME_MAX} characters.`,
+  NAME_NOT_PLAIN: "Use one line of plain text.",
   ORGANIZATION_DELETION_DISABLED:"Workspaces can’t be deleted in Lane. To stop someone using this one, remove them on the Members page in Settings.",
   YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER: ONLY_ADMIN,
   YOU_CANNOT_LEAVE_THE_ORGANIZATION_WITHOUT_AN_OWNER: ONLY_ADMIN,
@@ -122,6 +126,9 @@ export const AUTH_ERROR_COPY = {
   ROLE_NOT_IN_LANE: "Lane has no such role. Choose Admin, Member, Guest or Viewer.",
   // Invitations (#373).
   INVITATION_LIMIT_REACHED: "This workspace already has 100 invitations waiting. Cancel some on the Members page in Settings, then invite again.",
+  // Proposed for Nikhil (#396): Lane's code for inviting someone into a workspace that has 100 people. Better Auth
+  // refuses only as they accept, with the next one.
+  WORKSPACE_FULL: "This workspace already has 100 people, Lane’s limit. Remove someone, then invite again.",
   ORGANIZATION_MEMBERSHIP_LIMIT_REACHED: "This workspace already has 100 people, Lane’s limit. Ask an Admin to remove someone, then accept again.",
   // Expired, cancelled, or already accepted.
   INVITATION_NOT_FOUND: "This invitation has expired or is no longer open. Ask the person who invited you to send a new one.",
@@ -129,12 +136,22 @@ export const AUTH_ERROR_COPY = {
   EMAIL_VERIFICATION_REQUIRED_BEFORE_ACCEPTING_OR_REJECTING_INVITATION: "Confirm your email before you accept. Email yourself a code to confirm it.",
   // Workspace rows (#381). Lane's own last-Admin refusal reads as Better Auth's only-owner codes do.
   ONLY_ADMIN,
+  // Proposed for Nikhil (#395): a Settings page whose workspace the session isn't in now. The person opened another
+  // workspace in another tab, or was removed from this one.
+  WORKSPACE_NOT_OPEN: "This page’s workspace isn’t open any more. Reload the page to continue.",
   // Proposed for Nikhil (#381): removing someone another Admin removed first.
   MEMBER_NOT_FOUND: "This person is no longer in this workspace. Reload the page to see who’s in it now.",
+  // Proposed for Nikhil (#396): Lane's code for an Admin removing themselves, which the screen never offers.
+  CANNOT_REMOVE_YOURSELF: "You can’t remove yourself. Leave the workspace in Settings instead.",
   // Settings → Profile's account section (#380). Changing a password with the wrong current one, and unlinking the
   // last sign-in method: #346's words.
   INVALID_PASSWORD: "That isn’t your current password.",
   FAILED_TO_UNLINK_LAST_ACCOUNT: GOOGLE_ONLY_METHOD,
+  // Proposed for Nikhil (#394): a first password sent from a page opened before one was set; Better Auth disconnects
+  // Google only within a day of signing in; a device another tab, or that device, already signed out.
+  PASSWORD_ALREADY_SET: "Your account already has a password. Reload the page to change it.",
+  SESSION_NOT_FRESH: "You signed in more than a day ago. Sign out and sign in again, then try this again.",
+  DEVICE_NOT_FOUND: "This device is already signed out. Reload the page to see where you’re signed in now.",
   // Lane's codes for Google's redirect back to Settings after Connect Google (`googleConnectionCode`): its
   // `email_does_not_match`, its `account_already_linked_to_different_user`, and any other `error`. The redirect's own
   // codes keep the sign-in line, which tells a person to use their email instead. Nikhil's words (2026-11-23).

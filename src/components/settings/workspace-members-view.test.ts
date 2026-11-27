@@ -1,9 +1,17 @@
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { PendingInvitation, WorkspaceMember } from "@/lib/member-role-rules"
 import { Dialog } from "@/components/popup/adaptive-dialog"
 import { InvitePeopleForm, WorkspaceMembersView, type WorkspaceMembersViewProps } from "./workspace-members-view"
+
+// Radix renders a Select's list only once it opens in a browser, so the test reads each role picker's options instead.
+const pickers = vi.hoisted(() => new Map<string, { label: string; disabled?: boolean }[]>())
+vi.mock("@/components/arc/select/select", async importOriginal => {
+  const actual = await importOriginal<typeof import("@/components/arc/select/select")>()
+  return { ...actual, Select: (props: Parameters<typeof actual.Select>[0]) => { pickers.set(props.label, props.options); return createElement(actual.Select, props) } }
+})
+beforeEach(() => pickers.clear())
 
 const people: WorkspaceMember[] = [
   { userId: "user_admin", name: "Avery Admin", email: "avery@example.test", role: "admin" },
@@ -13,8 +21,9 @@ const people: WorkspaceMember[] = [
 const invitations: PendingInvitation[] = [{ id: "orginv_1", email: "new@example.test", role: "member" }]
 const done = async () => ({ success: true as const })
 const base: WorkspaceMembersViewProps = {
-  people, invitations, selfId: "user_admin", canManage: true, roles: ["admin", "member"], state: "ready",
+  people, invitations, selfId: "user_admin", canManage: true, state: "ready",
   onInvite: done, onChangeRole: done, onRevoke: done, onRetry: () => {},
+  remove: { workspaceName: "Acme Design", onRemove: async () => ({ ok: true }) },
 }
 const render = (props: Partial<WorkspaceMembersViewProps> = {}) => renderToStaticMarkup(createElement(WorkspaceMembersView, { ...base, ...props }))
 
@@ -73,25 +82,31 @@ describe("Settings → Members (#210, #288)", () => {
     expect(text(html)).toContain("Only Admins invite people or change roles.")
   })
 
-  it("puts the Clerk removal row under the lists and the role guide, folded, at the bottom", () => {
-    const html = render({ manage: createElement("p", null, "Manage members in Clerk") })
+  it("puts the role guide, folded, under the lists", () => {
+    const html = render()
     const at = (needle: string) => html.indexOf(needle)
-    expect(at('aria-label="Pending invitations"')).toBeLessThan(at("Manage members in Clerk"))
-    expect(at("Manage members in Clerk")).toBeLessThan(at("What each role can do"))
+    expect(at('aria-label="Pending invitations"')).toBeLessThan(at("What each role can do"))
     expect(html).toMatch(/<details(?![^>]*\bopen\b)[^>]*><summary>/)
   })
 
-  it("explains each role from the shared rules, Guest and Viewer marked unavailable while they're off", () => {
+  it("offers all four roles in every role picker, whatever the person's role is now (#393)", () => {
+    render({ people: [...people, { userId: "user_guest", name: "Gale Guest", email: "gale@example.test", role: "guest" }] })
+    for (const name of ["Morgan Member", "Vic Leader", "Gale Guest"]) {
+      const options = pickers.get(`Role for ${name}`)
+      expect([name, options?.map(option => option.label)]).toEqual([name, ["Admin", "Member", "Guest", "Viewer"]])
+      expect([name, options?.some(option => option.disabled)]).toEqual([name, false])
+    }
+  })
+
+  it("explains all four roles from the shared rules, with none called unavailable (#393)", () => {
     const html = render()
     expect(html).toMatch(/<table[\s\S]*<th scope="col">Admin<\/th><th scope="col">Member<\/th><th scope="col">Guest<\/th><th scope="col">Viewer<\/th>/)
     expect(html).toMatch(/<th scope="row">Invite people and change roles<\/th><td>Yes<\/td><td>No<\/td><td>No<\/td><td>No<\/td>/)
     expect(html).toMatch(/role="region" aria-label="What each role can do" tabindex="0"/)
-    expect(text(html)).toContain("Guest and Viewer aren’t available in this workspace yet.")
-    expect(text(render({ roles: ["admin", "member", "guest", "viewer"] }))).not.toContain("aren’t available")
+    expect(text(html)).not.toContain("available")
   })
 
-  it("says so while loading, and offers a retry when Clerk can't be reached", () => {
-    expect(render({ state: "loading", people: [], invitations: [] })).toContain("Loading people…")
+  it("offers a retry when the people couldn't be read", () => {
     const failed = render({ state: "error", people: [], invitations: [] })
     expect(failed).toContain("People couldn’t be loaded")
     expect(failed).toContain(">Try again<")
@@ -104,28 +119,19 @@ describe("Settings → Members (#210, #288)", () => {
 
 describe("Invite people (#288)", () => {
   const form = (props: Partial<Parameters<typeof InvitePeopleForm>[0]> = {}) => renderToStaticMarkup(createElement(Dialog, null, createElement(InvitePeopleForm, {
-    email: "", role: "member", roles: ["admin", "member"], confirmPaidSeats: false, busy: false, fieldError: null, error: null,
+    email: "", role: "member", confirmPaidSeats: false, busy: false, fieldError: null, error: null,
     onEmail: () => {}, onRole: () => {}, onSubmit: () => {}, ...props,
   })))
 
-  it("offers Admin and Member while Guest and Viewer are switched off, without calling them free (D28)", () => {
+  it("offers all four roles, each explained, with Guests and Viewers called free (D28, #393)", () => {
     const html = form()
     expect(html).toContain(">Email address<")
-    expect(html).toContain(">Admin<")
-    expect(html).toContain(">Member<")
-    expect(html).not.toContain(">Guest<")
-    expect(text(html)).toContain("Admins and Members are paid seats.")
-    expect(text(html)).not.toContain("Guests and Viewers are free.")
-    expect(text(html)).toContain("Guest and Viewer aren’t available in this workspace yet.")
+    expect([...html.matchAll(/<input[^>]*type="radio"[^>]*>/g)].map(([radio]) => /value="([^"]*)"/.exec(radio)?.[1])).toEqual(["admin", "member", "guest", "viewer"])
+    for (const words of ["Paid seat. Everything a Member does", "Paid seat. Files, reviews", "Free. Files Requests", "Free. Reads everything a Member reads"]) expect(html).toContain(words)
+    expect(text(html)).toContain("Admins and Members are paid seats. Guests and Viewers are free.")
+    expect(text(html)).not.toContain("available")
     expect(html).toMatch(/<button[^>]*_secondary[^>]*type="button"[^>]*>(?:<span[^>]*>)+Cancel</)
     expect(html).toContain(">Send invitation<")
-  })
-
-  it("offers all four roles, each explained, once the switch is on", () => {
-    const html = form({ roles: ["admin", "member", "guest", "viewer"] })
-    for (const words of ["Paid seat. Everything a Member does", "Paid seat. Files, reviews", "Free. Files Requests", "Free. Reads everything a Member reads"]) expect(html).toContain(words)
-    expect(text(html)).toContain("Guests and Viewers are free.")
-    expect(text(html)).not.toContain("aren’t available")
   })
 
   it("shows the address's problem on the field (D26, D27)", () => {

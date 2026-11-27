@@ -6,13 +6,11 @@ import type { WorkspaceSidebarProps } from "@/components/arc/blocks/workspace-si
 import { AppProviders } from "@/test/app-providers";
 
 // #258: opening the account menu loads its Settings destinations ahead. Members is offered, and loaded
-// ahead, only to an Admin or a Member: never to a Viewer (#210) or a Guest (#212). The development Clerk
-// instance has neither role, so this is where they are covered.
+// ahead, only to an Admin or a Member: never to a Viewer (#210) or a Guest (#212). This is where those roles are covered.
 
 const prefetch = vi.fn();
 let sidebar: WorkspaceSidebarProps | null = null;
 
-vi.mock("@clerk/nextjs", () => ({ useOrganization: () => ({ isLoaded: false }), useClerk: () => ({ signOut: vi.fn() }) }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
   useSearchParams: () => new URLSearchParams(),

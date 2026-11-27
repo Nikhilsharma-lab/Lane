@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createReviewTeam, createRequestThroughIntake, type ReviewTeam } from './helpers/reviewers';
-import { assertOwnedOrganization } from './helpers/fixtures';
-import { renewSessionToken } from './helpers/test-user';
+import { removeTestMember, setTestMemberRole } from './helpers/workspaces';
 import { answerIsItLive, chooseJourneyMore, journey, journeyPopup, journeyStep } from './helpers/journey';
 import { expectOpenFormSurvivesReturn, observeJourneyReads } from './helpers/journey-refresh';
 
@@ -103,11 +102,10 @@ test('Is it live? Not yet keeps Undo; exception closure, correction, follow-up a
     }
     // Transfer: the former owner loses authority; the new owner closes.
     const path = await releasedRequest(team, page, 'Outcome transfer acceptance');
-    const client = await assertOwnedOrganization(team.orgId);
-    await client.organizations.updateOrganizationMembership({ organizationId: team.orgId, userId: team.users[1].id, role: 'org:admin' });
-    await client.organizations.deleteOrganizationMembership({ organizationId: team.orgId, userId: team.users[0].id });
-    // The new Admin's tab picks up the role change before it reads the Request.
-    const admin = team.pages[1]; await renewSessionToken(admin); await admin.goto(path); await admin.reload();
+    await setTestMemberRole(team.orgId, team.users[1].id, 'admin');
+    await removeTestMember(team.orgId, team.users[0].id);
+    // The role change applies on the new Admin's next request.
+    const admin = team.pages[1]; await admin.goto(path);
     await expect(admin.getByRole('region', { name: 'Journey', exact: true }).getByRole('button', { name: 'Close without a result', exact: true })).toHaveCount(0);
     const release = admin.getByRole('region', { name: 'Journey', exact: true });
     await chooseJourneyMore(admin, 'Hand over to a new Requester');

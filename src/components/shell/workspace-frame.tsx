@@ -1,9 +1,11 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { WorkspaceLabelsProvider } from "@/components/requests/workspace-labels";
 import { Sidebar } from "@/components/shell/sidebar";
 import { RequestListViewProvider } from "@/components/requests/list-view-state";
+import { FrameWatch } from "@/components/shell/frame-watch";
+import { requestSessionOnceUsable } from "@/components/shell/session-request";
 import { StableRouterProvider } from "@/components/shell/stable-router";
 import { NewRequestProvider } from "@/components/requests/new-request-provider";
 import { PendingMutationsProvider } from "@/components/requests/pending-mutations-provider";
@@ -16,6 +18,7 @@ import { OfflineGuard } from "@/components/shell/offline-guard";
 import { PopupNotices } from "@/components/popup/lazy-popup";
 import { AppMotionFeatures } from "@/components/motion/app-motion-features";
 import type { PaletteRole } from "./command-palette-entries";
+import type { OwnWorkspace } from "@/lib/data/workspaces";
 import type { SavedView } from "@/lib/saved-view-nav";
 import type { ProjectOption } from "@/lib/request-constants";
 import type { LabelCatalogue } from "@/lib/data/labels";
@@ -30,6 +33,8 @@ export type WorkspaceFrameProps = {
   fullName: string;
   email: string;
   needsYouCount: Promise<number>;
+  /** #389: the person's workspaces, for the switcher; null when they couldn't be read. */
+  workspaces: OwnWorkspace[] | null;
   savedViews: SavedView[];
   projects: ProjectOption[];
   labels: LabelCatalogue;
@@ -52,7 +57,8 @@ export const useInWorkspaceFrame = () => useContext(InWorkspaceFrame);
  * data and renders it around each page. #271: the root not-found renders the same frame around "Page not found"
  * for a signed-in person, through lazy-workspace-frame.tsx, so it never joins every route's first load.
  */
-export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceName, fullName, email, needsYouCount, savedViews, projects, labels, canCreate, canAddReviewers, withoutPrediction, pageAddress, children }: WorkspaceFrameProps) {
+export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceName, fullName, email, needsYouCount, workspaces, savedViews, projects, labels, canCreate, canAddReviewers, withoutPrediction, pageAddress, children }: WorkspaceFrameProps) {
+  useEffect(requestSessionOnceUsable, []);
   const shell = (
     <Sidebar
       workspaceName={workspaceName}
@@ -63,6 +69,7 @@ export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceNam
       orgId={orgId}
       userId={userId}
       needsYouCount={needsYouCount}
+      workspaces={workspaces}
       savedViews={savedViews}
       pageAddress={pageAddress}
     >
@@ -79,6 +86,8 @@ export function WorkspaceFrame({ orgId, userId, role, membersLabel, workspaceNam
     <OfflineGuard>
     {/* #267: where a popup whose code couldn't load says so. */}
     <PopupNotices />
+    {/* #402: after each move, whether the session is still in this frame's workspace and role. */}
+    <FrameWatch orgId={orgId} userId={userId} role={role} />
     <StableRouterProvider>
     <RequestListViewProvider key={`${orgId}:${userId}`}>
       {/* Pending Request changes live here, above every page, so a navigation

@@ -6,7 +6,7 @@ import { useContext, useEffect, useMemo, useState, type ComponentType, type Reac
 // check that this path still exists and that push/replace offline are still held (e2e/offline-stays-in-lane.spec.ts).
 import { AppRouterContext, type AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
 import { afterPageLoad } from "@/lib/after-page-load"
-import { noteNavigation } from "@/lib/navigation-intent"
+import { noteNavigation, noteRouterMove } from "@/lib/navigation-intent"
 import { plainLinkClick } from "@/lib/plain-link-click"
 import { holdsOffline, loadsWholeLanePageOffline } from "@/lib/offline-navigation"
 
@@ -28,8 +28,8 @@ export function OfflineGuard({ children }: { children: ReactNode }) {
   const router = useContext(AppRouterContext)
   const guarded = useMemo<AppRouterInstance | null>(() => router && {
     ...router,
-    push: (href, options) => { if (!holdsOffline(href)) { noteNavigation(); router.push(href, options) } },
-    replace: (href, options) => { if (!holdsOffline(href)) { noteNavigation(); router.replace(href, options) } },
+    push: (href, options) => { if (!holdsOffline(href)) { noteRouterMove(); router.push(href, options) } },
+    replace: (href, options) => { if (!holdsOffline(href)) { noteRouterMove(); router.replace(href, options) } },
   }, [router])
   const [Line, setLine] = useState<ComponentType | null>(null)
 

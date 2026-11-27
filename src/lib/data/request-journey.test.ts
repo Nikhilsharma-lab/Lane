@@ -23,13 +23,6 @@ vi.mock("@/lib/session", () => ({
     return userId ? { userId, ...rest } : null;
   },
 }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({ organizations: { getOrganizationMembershipList: async () => {
-    boundary.rosterReads++;
-    if (boundary.rosterFailed) throw new Error("Clerk unavailable");
-    return { totalCount: 1, data: [{ organization: { id: "org_journey" }, role: "org:member", publicUserData: { userId: "viewer", firstName: "Live viewer", lastName: "", identifier: "viewer@example.test" } }] };
-  } } }),
-}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/db", async () => {
   const { drizzle } = await import("drizzle-orm/pg-proxy");
@@ -37,6 +30,11 @@ vi.mock("@/db", async () => {
   const schema = await import("@/db/schema");
   return { ...schema, db: drizzle(async (sql, params) => {
     boundary.queries.push({ sql, params });
+    if (sql.includes('from "member"')) {
+      boundary.rosterReads++;
+      if (boundary.rosterFailed) throw new Error("Roster query failed");
+      return { rows: [["viewer", "member", "Live viewer", "viewer@example.test"]] };
+    }
     if (sql.includes('from "profiles"')) {
       boundary.nameReads++;
       if (boundary.namesFailed) throw new Error("Profile query failed");
@@ -144,28 +142,22 @@ it("keeps a guest's Request and follow-up queries scoped to their own workspace 
   expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn’t load the journey. Try again." });
 });
 
-it("refuses foreign workspaces before loading facts and uses explicit expiry recovery", async () => {
+it("refuses foreign workspaces and an ended session before loading facts", async () => {
   boundary.session.orgId = "foreign";
   expect(await readRequestJourney(id, context)).toEqual({ error: "Couldn’t load the journey. Try again." });
   expect(boundary.queries).toHaveLength(0);
   boundary.session.userId = null;
-  const result = await callAction(() => readRequestJourney(id, context), {
-    current: async () => "stale",
-    renew: async () => {
-      boundary.session = { userId: "viewer", orgId: "org_journey", role: "member" };
-      return "usable";
-    },
-  });
-  expect(result).toHaveProperty("release.revision", 41);
-  expect(boundary.authReads).toBe(3);
-  expect(boundary.primaryReads).toBe(1);
+  const result = await callAction(() => readRequestJourney(id, context));
+  expect(result).toEqual({ error: "Your session ended. Sign in again to continue.", sessionExpired: true });
+  expect(boundary.authReads).toBe(2);
+  expect(boundary.queries).toHaveLength(0);
 });
 
 it("standalone Release avoids follow-up, event and parent queries", async () => {
   boundary.row.follow_up_of = "parent";
   const result = await readRequestRelease(id, context);
   expect(result).toMatchObject({ revision: 41, today: "2026-10-24", requesterName: "Saved Requester" });
-  expect(boundary.queries).toHaveLength(2); // primary Request + missing saved name
+  expect(boundary.queries).toHaveLength(3); // primary Request + roster + missing saved name
   expect(boundary.primaryReads).toBe(1);
 });
 

@@ -84,11 +84,19 @@ test("each signed-in page names its tab, a Request uses its typed title, and mis
   }
 });
 
-test("signed out, a missing page shows the Lane mark and Sign in, without the app frame, and answers 404", async ({ browser }) => {
+// #387: signed out, an address that could be a page goes to sign-in, as one that is does, and comes back to it. What a
+// signed-out visitor may open (an invitation link) still answers with the missing page.
+test("signed out, a missing page goes to sign-in, or shows the Lane mark and Sign in, without the app frame, and answers 404", async ({ browser }) => {
   const context = await browser.newContext();
   try {
     const page = await context.newPage();
     for (const path of ["/nope", "/settings/nope"]) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL((url) => url.pathname === "/login" && url.searchParams.get("redirect_url") === path);
+      await expect(page.getByRole("heading", { name: "Sign in to Lane", exact: true })).toBeVisible();
+      await expect(sidebar(page)).toHaveCount(0);
+    }
+    for (const path of ["/invite/nope", "/invite/nope/nope"]) {
       const response = await page.goto(path, { waitUntil: "domcontentloaded" });
       expect(response?.status(), path).toBe(404);
       await expect(page).toHaveTitle("Page not found · Lane");
@@ -111,7 +119,7 @@ test("signed out, a missing page shows the Lane mark and Sign in, without the ap
 
 test("signed in without a workspace, a missing page shows the Lane mark and Go to Lane, which leads on, and answers 404", async ({ page }) => {
   test.setTimeout(300_000);
-  // A person in no workspace yet: Clerk's choose-a-workspace step is still ahead of them.
+  // A person in no workspace yet: Onboarding is still ahead of them.
   const user = await createTestUser("not-found-no-workspace");
   try {
     await signInTestUser(page, user);
@@ -128,8 +136,9 @@ test("signed in without a workspace, a missing page shows the Lane mark and Go t
     }
     // "/" takes them on to where they stopped: choosing or creating a workspace, never the sign-in form.
     await page.getByRole("main").getByRole("link", { name: "Go to Lane", exact: true }).click();
-    await expect(page).not.toHaveURL(/\/nope|\/settings\/nope/);
-    await expect(page.locator('input[name="identifier"]')).toHaveCount(0);
+    await expect(page).toHaveURL("/onboarding");
+    await expect(page.getByRole("heading", { name: "Create your workspace" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to Lane" })).toHaveCount(0);
   } finally {
     await deleteTestUser(user.id);
   }

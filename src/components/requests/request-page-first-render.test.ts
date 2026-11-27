@@ -8,7 +8,7 @@ import { journeyOutline } from "./request-timeline-model"
 import type { RequestDetail } from "./detail-view"
 
 // #295: what the Request page draws before the Journey's, the Reviewers' and the Iterations' reads arrive. Those reads
-// can take a second (the Journey's ask Clerk), so the first render holds their shape and Conversation does not move.
+// take longer, so the first render holds their shape and Conversation does not move.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }), useSearchParams: () => new URLSearchParams(), usePathname: () => "/requests/request-1" }))
 vi.mock("@/app/(app)/requests/[id]/actions", () => ({ addComment: vi.fn(), pickUpRequest: vi.fn(), markDone: vi.fn(), undoMarkDone: vi.fn(), setRequestPriority: vi.fn(), deleteRequest: vi.fn(), getAttachmentDownloadUrl: vi.fn() }))
 
@@ -18,7 +18,7 @@ const open = {
   id: "request-1", requestNumber: 7, priority: "none", title: "Checkout fails on mobile", description: "People can't pay on phones.",
   affectedPeople: null, desiredChange: null, observedEvidence: null, uncertainty: null, usefulLink: null,
   reframedProblem: null, extractedSolution: null, classification: "problem", status: "open", assignedTo: null,
-  createdBy: "user_reader", createdAt: new Date("2026-10-20T10:00:00Z"), creatorName: "Robin", assigneeName: null, assigneeAvatarUrl: null,
+  createdBy: "user_reader", createdAt: new Date("2026-10-20T10:00:00Z"), creatorName: "Robin", assigneeName: null,
   agreementRevision: 1, reviewerOutline: [],
 } as unknown as RequestDetail
 const inProgress = { ...open, status: "in_progress", assignedTo: "user_dev", assigneeName: "Dev" } as RequestDetail

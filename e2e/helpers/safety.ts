@@ -1,15 +1,17 @@
-import { clerkClient } from "@clerk/nextjs/server";
+import { createHash } from "node:crypto";
+import { STAGING_AUTH_SECRET_SHA256, STAGING_REF } from "./staging-pin";
 
-// Explicit identities, not substring matches or a production bypass flag.
-const STAGING_REF = "jznepeqghjixcrpuddym";
-const CLERK_INSTANCE = "ins_3JlFEUdZ5q4X4z6DI7c8i7k0tYZ";
-const CLERK_HOST = "thankful-caiman-3665.clerk.accounts.dev";
 const LOCAL_HOSTS = ["localhost", "127.0.0.1"];
 
+/**
+ * The one check before any fixture. A run targets Lane Staging (its database ref, its storage and, by fingerprint,
+ * its BETTER_AUTH_SECRET) or, with LANE_E2E_LOCAL_DATABASE=1, a local `lane_test_*` database and a local app, whose
+ * own secret it signs with. Anything else throws, saying what's wrong and never a value.
+ */
 export function assertE2ETarget(env: NodeJS.ProcessEnv = process.env) {
   const fail = (): never => {
     throw new Error(
-      "[e2e] Refusing remote fixtures: require explicit opt-in, the pinned Clerk development instance, and either the pinned Lane staging database and URL or (LANE_E2E_LOCAL_DATABASE=1) a local lane_test_* database and local app."
+      "[e2e] Refusing fixtures: require explicit opt-in, Lane Staging's storage, and either the pinned Lane staging database and URL or (LANE_E2E_LOCAL_DATABASE=1) a local lane_test_* database and local app."
     );
   };
   const parse = (value: string) => {
@@ -21,7 +23,7 @@ export function assertE2ETarget(env: NodeJS.ProcessEnv = process.env) {
   };
   if (env.LANE_E2E_ALLOW_REMOTE !== "1") fail();
   // LANE_E2E_LOCAL_DATABASE=1: the app runs on this machine (any port) against a local `lane_test_*` database,
-  // so a run touches neither Lane Staging's data nor its lagging schema. Clerk stays the pinned instance below.
+  // so a run touches neither Lane Staging's data nor its lagging schema.
   const localDatabase = env.LANE_E2E_LOCAL_DATABASE === "1";
   const base = parse(env.E2E_BASE_URL || "http://localhost:3100");
   const allowedBase = localDatabase
@@ -46,29 +48,17 @@ export function assertE2ETarget(env: NodeJS.ProcessEnv = process.env) {
     storage.origin !== `https://${STAGING_REF}.supabase.co` || storage.pathname !== "/" ||
     storage.search || storage.hash || storage.username || storage.password
   ) fail();
-  const pk = env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "";
-  if (
-    !pk.startsWith("pk_test_") ||
-    Buffer.from(pk.slice(8), "base64").toString() !== `${CLERK_HOST}$` ||
-    !env.CLERK_SECRET_KEY?.startsWith("sk_test_")
-  ) fail();
-  for (const key of ["CLERK_API_URL", "CLERK_PROXY_URL", "NEXT_PUBLIC_CLERK_PROXY_URL"]) {
-    if (env[key]) fail();
-  }
-  // clerkSetup() (the setup project) writes the pinned instance's Frontend API
-  // host here, and workers reload this config afterwards. Only that exact host passes.
-  if (env.CLERK_FAPI && env.CLERK_FAPI !== CLERK_HOST) fail();
+  const secret = env.BETTER_AUTH_SECRET;
+  if (!secret?.trim())
+    throw new Error("[e2e] Refusing fixtures: BETTER_AUTH_SECRET is not set. A local database takes any local one, from .env.local; staging needs Lane Staging's in .env.staging.local.");
+  if (!localDatabase && createHash("sha256").update(secret, "utf8").digest("hex") !== STAGING_AUTH_SECRET_SHA256)
+    throw new Error("[e2e] Refusing fixtures: BETTER_AUTH_SECRET is not Lane Staging's (its fingerprint isn't the one in e2e/helpers/staging-pin.ts).");
   // A local Postgres has no SSL; Lane Staging's always does.
   return { databaseUrl, baseURL: base.origin, ssl: localDatabase ? (false as const) : ("require" as const) };
 }
 
-export async function safeClerkClient() {
+/** The checked target's Better Auth secret, trimmed as the app reads it. Never print it. */
+export function e2eAuthSecret(): string {
   assertE2ETarget();
-  const client = await clerkClient();
-  // Prefixes cannot prove which instance the secret key belongs to.
-  const instance = await client.instance.get();
-  if (instance.id !== CLERK_INSTANCE || instance.environmentType !== "development") {
-    throw new Error("[e2e] Clerk secret key does not belong to the pinned development instance.");
-  }
-  return client;
+  return process.env.BETTER_AUTH_SECRET!.trim();
 }

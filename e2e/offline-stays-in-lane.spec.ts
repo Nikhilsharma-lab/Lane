@@ -5,6 +5,7 @@ import { provisionAndSignIn } from "./helpers/auth";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { intakeDraftScope, intakeDraftStorageKey, type IntakeDraft } from "../src/lib/intake-draft";
 import { createTriageToken } from "../src/lib/triage-token";
+import { streamedIn } from "./helpers/streamed";
 
 // #260 (walk findings A21, C6, A127, C1, A18): going offline never sends the tab to the browser's
 // "No internet" page, never loses typed text and never queues a change for later.
@@ -62,6 +63,7 @@ test("offline, list changes roll back, pages stay put, and Try again works once 
     await page.setViewportSize(desktop);
 
     await page.goto("/");
+    await streamedIn(page);
     await expect(row(page, pickUp.id)).toBeVisible();
     await expect(row(page, priority.id)).toBeVisible();
     await markDocument(page);
@@ -158,6 +160,7 @@ test("a page move still loading when the connection drops keeps Lane on screen",
     await provisionAndSignIn(page, user, { name: "Offline PM", workspaceName: "Lane E2E Offline midway", role: "pm" });
     const request = await seedTestRequest(user.id, "Offline midway Request");
     await page.goto("/");
+    await streamedIn(page);
     await expect(row(page, request.id)).toBeVisible();
     await markDocument(page);
 

@@ -135,26 +135,20 @@ function catalogueContract<Entry extends { id: string; name: string }, Metadata,
       stopAgain();
     });
 
-    it("preserves explicit session recovery and the original workspace", async () => {
-      const getToken = vi.fn().mockResolvedValue("test-token");
-      vi.stubGlobal("Clerk", { session: { getToken } });
-      vi.mocked(options.read).mockImplementationOnce(async () => options.failure("Session expired", true)).mockImplementationOnce(async () => options.success([current], currentMetadata));
+    it("reads once and keeps its entries when the session ended", async () => {
+      vi.mocked(options.read).mockImplementationOnce(async () => options.failure("Your session ended. Sign in again to continue.", true));
       const catalogue = options.create("workspace-a");
       await catalogue.getSnapshot().reload();
-      expect(catalogue.getSnapshot()).toMatchObject({ entries: [current], metadata: currentMetadata, error: null });
-      expect(vi.mocked(options.read).mock.calls).toEqual([[{ orgId: "workspace-a" }], [{ orgId: "workspace-a" }]]);
-      expect(getToken.mock.calls).toEqual([[], [{ skipCache: true }]]);
+      expect(catalogue.getSnapshot()).toMatchObject({ entries: [seed], metadata: seedMetadata, error: "Your session ended. Sign in again to continue.", loading: false });
+      expect(vi.mocked(options.read).mock.calls).toEqual([[{ orgId: "workspace-a" }]]);
     });
 
-    it("does not replay a permission failure based on authentication words", async () => {
-      const getToken = vi.fn().mockResolvedValue("test-token");
-      vi.stubGlobal("Clerk", { session: { getToken } });
+    it("reads once on a permission failure with authentication words", async () => {
       vi.mocked(options.read).mockImplementationOnce(async () => options.failure("Unauthorized token: permission refused"));
       const catalogue = options.create("workspace-a");
       await catalogue.getSnapshot().reload();
       expect(catalogue.getSnapshot()).toMatchObject({ entries: [seed], metadata: seedMetadata, error: "Unauthorized token: permission refused", loading: false });
       expect(vi.mocked(options.read).mock.calls).toEqual([[{ orgId: "workspace-a" }]]);
-      expect(getToken.mock.calls).toEqual([[]]);
     });
   });
 }

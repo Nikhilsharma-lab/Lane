@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { cleanupTestWorkspace, e2eDatabase } from "./helpers/cleanup";
 import { createTestUser, deleteTestUser, type TestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
+import { streamedIn } from "./helpers/streamed";
 
 /**
  * Build 5.4 of #256 (#275): the list remembers your place and feels instant. Its address carries the order, grouping,
@@ -66,6 +67,7 @@ async function withList(page: Page, label: string, run: (seeded: Seeded, owner: 
 async function openList(page: Page, path = "/") {
   await page.goto(path);
   await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 30_000 });
+  await streamedIn(page);
   await expect(grid(page)).toBeVisible();
   // What the page loads on its own (the preview's code, the row menus' behaviour) has arrived before the test acts.
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});

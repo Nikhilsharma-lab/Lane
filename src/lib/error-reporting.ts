@@ -10,7 +10,7 @@
  * - SDK v11 collects user info, cookies, request bodies, query params, AI
  *   prompt text, DB query data and local variables by default. All of that is
  *   off here ("support, not surveillance", AGENTS.md): a Request's text or a
- *   Clerk session must never ride along with a stack trace. The URL path, the
+ *   session must never ride along with a stack trace. The URL path, the
  *   method and a few harmless headers stay so an error is still locatable.
  * - `scrubEvent` is the belt to that braces: cookies, auth headers and any
  *   user block are dropped again right before an event leaves the server.

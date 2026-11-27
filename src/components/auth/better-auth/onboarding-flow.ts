@@ -2,9 +2,10 @@ import { settle, type AuthAnswer } from "@/lib/auth-answer"
 import { authErrorCopy, eachCode, forCode } from "@/lib/auth-error-copy"
 import { createExternalStore } from "@/lib/external-store"
 import type { WorkspacePermission } from "@/lib/auth-guard"
+import { readName } from "@/lib/name-rules"
 import { invitationRefusal } from "./invitation-copy"
 
-/** An invitation waiting for the person's email, as increment 5 reads it. */
+/** An invitation waiting for the person's email, as Onboarding reads it. */
 export type PendingWorkspaceInvitation = {
   id: string
   workspace: string
@@ -15,8 +16,8 @@ export type PendingWorkspaceInvitation = {
 
 export const WORKSPACE_NAME_MISSING = "Name your workspace."
 
-/** Codes whose line belongs on the name field: a workspace URL another workspace has. */
-const NAME_CODES = eachCode(["ORGANIZATION_ALREADY_EXISTS", "ORGANIZATION_SLUG_ALREADY_TAKEN"], true)
+/** Codes whose line belongs on the name field: a workspace URL another workspace has, or a name past the rule. */
+const NAME_CODES = eachCode(["ORGANIZATION_ALREADY_EXISTS", "ORGANIZATION_SLUG_ALREADY_TAKEN", "NAME_TOO_LONG", "NAME_NOT_PLAIN"], true)
 
 export type OnboardingState = {
   nameError: string | null
@@ -42,14 +43,16 @@ export function createOnboardingFlow({ invitations, onJoin, onCreate }: Options)
 
   /**
    * Runs one callback at a time, answering its refusal, or null when it succeeded or a call was already answering.
-   * A throw is a refusal with no code, which reads as the generic line.
+   * A throw is a refusal with no code, which reads as the generic line. After a success it stays pending while the
+   * page loads where the callback went, so a second press can't create another workspace (#391).
    */
   async function run(pending: OnboardingState["pending"], call: () => Promise<AuthAnswer>): Promise<{ code?: string } | null> {
     if (store.get().pending) return null
     set({ pending, alert: null })
     const answer = await settle(call)
+    if (answer.ok) return null
     set({ pending: null })
-    return answer.ok ? null : answer
+    return answer
   }
 
   return {
@@ -68,10 +71,10 @@ export function createOnboardingFlow({ invitations, onJoin, onCreate }: Options)
     },
     async create(name: string) {
       if (store.get().pending) return
-      const trimmed = name.trim()
-      if (!trimmed) return set({ nameError: WORKSPACE_NAME_MISSING, alert: null })
+      const read = readName(name)
+      if (!read.ok) return set({ nameError: read.code ? authErrorCopy(read.code) : WORKSPACE_NAME_MISSING, alert: null })
       set({ nameError: null })
-      const refused = await run("create", () => onCreate(trimmed))
+      const refused = await run("create", () => onCreate(read.name))
       if (!refused) return
       if (forCode(NAME_CODES, refused.code)) set({ nameError: authErrorCopy(refused.code) })
       else set({ alert: { at: "create", title: authErrorCopy(refused.code), detail: null } })

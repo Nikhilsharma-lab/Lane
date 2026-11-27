@@ -73,8 +73,8 @@ async function holdJourneyReads(page: Page, matches: (request: Request) => boole
   };
 }
 
-/** The workspace's rows go where they can: one with release history keeps them (history is immutable). The user and
- * their Clerk workspace go either way. */
+/** The workspace's rows go where they can: one with release history keeps them (history is immutable). Its
+ * person's sessions and sign-in methods go either way. */
 async function cleanup(userId: string) {
   try {
     await cleanupTestWorkspace(userId).catch(error => console.warn(`[e2e] kept the local rows of ${userId}'s workspace:`, (error as Error).message));

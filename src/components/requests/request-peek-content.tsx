@@ -86,7 +86,6 @@ export function RequestPeekContent({ requestId, serverRow, orgId, isGuest, viewe
     if (serverRow.requestType !== undefined) merged.requestType = serverRow.requestType
     if (serverRow.priority !== undefined) merged.priority = serverRow.priority
     if (serverRow.assignedTo !== undefined) merged.assignedTo = serverRow.assignedTo
-    if (serverRow.assigneeAvatarUrl !== undefined) merged.assigneeAvatarUrl = serverRow.assigneeAvatarUrl
     if (serverRow.reviewState !== undefined) merged.reviewState = serverRow.reviewState
     // #133: the journey facts too, so the peek's status and due tag read the same as the row's.
     if (serverRow.releaseState !== undefined) merged.releaseState = serverRow.releaseState

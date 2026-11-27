@@ -1,45 +1,26 @@
 /**
- * #213 (spec #195, seam 5: billing). The billing module against the real test database, with Clerk (the only outside
- * service it asks, for a workspace's creator) as a stand-in. Paying through the payment provider is
+ * #213 (spec #195, seam 5: billing). The billing module against the real test database. Paying through the payment provider is
  * `billing-payment.test.ts` (#214); here a paying or lapsed plan is written straight into the module's table.
  */
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { requireTestDatabase } from "@/test/test-database";
 
-const clerk = vi.hoisted(() => ({
-  creators: {} as Record<string, string | undefined>,
-  emails: {} as Record<string, string>,
-  down: false,
-}));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganization: async ({ organizationId }: { organizationId: string }) => {
-        if (clerk.down) throw new Error("Clerk is unavailable");
-        return { id: organizationId, createdBy: clerk.creators[organizationId] };
-      },
-    },
-    users: {
-      getUser: async (userId: string) => ({ primaryEmailAddress: { emailAddress: clerk.emails[userId] }, emailAddresses: [{ emailAddress: clerk.emails[userId] }] }),
-    },
-  }),
-}));
 
 const ORGS = ["org_billing_a", "org_billing_b", "org_billing_c", "org_billing_d", "org_billing_e", "org_billing_f", "org_billing_g", "org_billing_h", "org_billing_i"];
-const MEMBER = "billing_member";
+const MEMBER = "billing_member", CREATOR = "billing_creator";
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
 
 beforeAll(async () => {
   for (const id of ORGS) await connection`insert into organizations(id,name,slug) values (${id},'Billing',${id})`;
-  await connection`insert into profiles(id,full_name,email) values (${MEMBER},'Member','member@billing.test')`;
+  await connection`insert into profiles(id,full_name,email) values (${MEMBER},'Member','member@billing.test'), (${CREATOR},'Creator','creator@billing-beta.example')`;
 });
-afterEach(() => { vi.unstubAllEnvs(); clerk.down = false; });
+afterEach(() => vi.unstubAllEnvs());
 afterAll(async () => {
   await connection`delete from organizations where id in ${connection(ORGS)}`;
-  await connection`delete from profiles where id = ${MEMBER}`;
+  await connection`delete from profiles where id in (${MEMBER}, ${CREATOR})`;
   await connection.end();
 });
 
@@ -97,22 +78,23 @@ describe("one allowance per company domain, personal domains per person, shared 
 });
 
 describe("finding the workspace's creator", () => {
-  it("leaves the allowance undecided, without failing, when Clerk can't say who created the workspace", async () => {
-    const { decideFreeRequests, readFreeRequests } = await billing();
-    clerk.down = true;
-    await expect(decideFreeRequests({ orgId: "org_billing_g" })).resolves.toBeUndefined();
-    clerk.down = false;
-    clerk.creators.org_billing_g = undefined;
-    await decideFreeRequests({ orgId: "org_billing_g" });
-    expect((await readFreeRequests({ orgId: "org_billing_g" })).free).toMatchObject({ total: 4, usedElsewhere: null });
+  const G = { orgId: "org_billing_g" };
+  const free = async () => (await (await billing()).readFreeRequests(G)).free;
+
+  it("leaves the allowance undecided, without failing, when the workspace's creator isn't known", async () => {
+    const { decideFreeRequests, freeRequestsDecided } = await billing();
+    await expect(decideFreeRequests(G)).resolves.toBeUndefined();
+    await expect(decideFreeRequests({ orgId: "org_billing_unknown" })).resolves.toBeUndefined();
+    await connection`update organizations set owner_id = 'billing_nobody' where id = ${G.orgId}`;
+    await decideFreeRequests(G);
+    expect(await freeRequestsDecided(G)).toBe(false);
+    expect(await free()).toMatchObject({ total: 4, usedElsewhere: null });
   });
 
-  it("asks Clerk for the creator's email address, unless the person loading is the creator", async () => {
-    const { decideFreeRequests, readFreeRequests } = await billing();
-    clerk.creators.org_billing_g = "billing_creator";
-    clerk.emails.billing_creator = "creator@billing-beta.example";
-    await decideFreeRequests({ orgId: "org_billing_g" }, { createdBy: "billing_creator", userId: "someone_else", email: "other@billing-new.example" });
-    expect((await readFreeRequests({ orgId: "org_billing_g" })).free).toMatchObject({ left: 1, usedElsewhere: { domain: "billing-beta.example", used: 3 } });
+  it("decides it from the email in the profile of the person in owner_id", async () => {
+    await connection`update organizations set owner_id = ${CREATOR} where id = ${G.orgId}`;
+    await (await billing()).decideFreeRequests(G);
+    expect(await free()).toMatchObject({ left: 1, usedElsewhere: { domain: "billing-beta.example", used: 3 } });
   });
 });
 

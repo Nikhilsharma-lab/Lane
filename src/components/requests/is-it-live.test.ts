@@ -22,7 +22,7 @@ function app() {
   const pending = createPendingMutationsStore({ now: () => 1 })
   const optimisticDeps = {
     overlay: pending.view(pending.getSnapshot()), refresh: vi.fn(),
-    session: { current: async () => {}, renew: async () => {} }, notifyError: vi.fn(),
+    notifyError: vi.fn(),
   }
 
   let view: IsItLiveView | null = null

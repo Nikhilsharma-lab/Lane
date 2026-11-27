@@ -41,7 +41,7 @@ test("the list's title filter is a filter, kept in the address and in saved view
   test.setTimeout(600_000);
   let owner: TestUser | undefined;
   try {
-    owner = await createTestUser("title-filter-owner", undefined, { borrowFrom: "last" });
+    owner = await createTestUser("title-filter-owner");
     const orgId = await provisionAndSignIn(page, owner, { name: "Title Filter Owner", workspaceName: "Title filter" });
     const checkout = await seedProject(orgId, owner.id, "Checkout");
     const misaligned = await seedTestRequest(owner.id, "Checkout button misaligned");
@@ -162,7 +162,7 @@ test("workspace search: recent searches, empty results, names, labels, the phone
   test.setTimeout(600_000);
   let owner: TestUser | undefined;
   try {
-    owner = await createTestUser("search-polish-owner", undefined, { borrowFrom: "last" });
+    owner = await createTestUser("search-polish-owner");
     const orgId = await provisionAndSignIn(page, owner, { name: "Search Polish Owner", workspaceName: "Search polish" });
     const website = await seedProject(orgId, owner.id, "Website");
     const first = await seedTestRequest(owner.id, "Checkout button misaligned");

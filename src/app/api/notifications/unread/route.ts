@@ -1,16 +1,18 @@
-import { requireActiveMember } from "@/lib/auth-guard";
 import { countNeedsYou } from "@/lib/data/inbox";
 import { countInboxUnread } from "@/lib/data/notifications";
 import { authorizeReadRoute, json } from "../../_lib/read-route";
+import { frameAnswer } from "../../_lib/read-route-answers";
 
 /**
  * GET /api/notifications/unread?org= (plan item 1.16; #205): the Inbox's counts. `count` is what the bell shows,
  * the Needs-you items; `unread` is the unread For-your-information items the Inbox page shows by its heading.
- * Reading them writes nothing.
+ * Reading them writes nothing. `?only=role` answers the person and their role there instead, from the session read
+ * alone: what the app frame asks after a move (#402, src/components/shell/frame-check.ts).
  */
 export async function GET(request: Request) {
-  const access = await authorizeReadRoute(request, requireActiveMember);
+  const access = await authorizeReadRoute(request);
   if (!access.ok) return access.response;
+  if (access.params.get("only") === "role") return json(frameAnswer(access.auth));
 
   try {
     const [count, unread] = await Promise.all([countNeedsYou(access.auth), countInboxUnread(access.auth)]);

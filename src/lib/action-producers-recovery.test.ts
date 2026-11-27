@@ -52,26 +52,22 @@ describe("production action guard signals", () => {
   it.each(actions)("%s preserves explicit expiry before database/provider work", async (_name, action) => {
     boundary.session = null;
     const run = vi.fn(action);
-    const renew = vi.fn(async () => "renewed");
-    const observed = await queryCounter.measure(() => callAction(run, { current: async () => "old", renew }));
+    const observed = await queryCounter.measure(() => callAction(run));
     expect(isSessionFailure({ value: observed.result })).toBe(true);
-    expect(run).toHaveBeenCalledTimes(2);
-    expect(renew).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledTimes(1);
     expect(observed.statements).toBe(0);
   });
-  it.each(actions)("%s never calls renewal for a wrong workspace or unknown role", async (_name, action) => {
+  it.each(actions)("%s never says the session ended for a wrong workspace or unknown role", async (_name, action) => {
     for (const session of [
       { userId: "user_test_member_a", orgId: "different_workspace", role: "member" as const },
       { userId: "user_test_member_a", orgId, role: null },
     ]) {
       boundary.session = session;
       const run = vi.fn(action);
-      const renew = vi.fn(async () => "renewed");
-      const observed = await queryCounter.measure(() => callAction(run, { current: async () => "current", renew }));
+      const observed = await queryCounter.measure(() => callAction(run));
       expect(isSessionFailure({ value: observed.result })).toBe(false);
       expect(observed.result).toHaveProperty("error");
       expect(run).toHaveBeenCalledTimes(1);
-      expect(renew).not.toHaveBeenCalled();
       expect(observed.statements).toBe(0);
     }
   });

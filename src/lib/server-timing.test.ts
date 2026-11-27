@@ -70,7 +70,7 @@ describe("server timings", () => {
     const person = { userId: "user_3L7k6ORNFLJ2l6Mo305CMux2XO1", orgId: "org_3LOc8dZ4obIQeybxxmEYDJnuVIL", email: "pm@example.com" };
 
     await timings.time("data", async () => { clock.advance(5); return { id: requestId, title: "Checkout drop-off", ...person }; });
-    await timings.time("clerk", async () => { throw new Error(`no organization ${person.orgId}`); }).catch(() => undefined);
+    await timings.time("workspace", async () => { throw new Error(`no organization ${person.orgId}`); }).catch(() => undefined);
     timings.markFirstByte();
 
     for (const written of [timings.header(), timings.logLine()]) {
@@ -78,7 +78,7 @@ describe("server timings", () => {
         expect(written).not.toContain(secret);
       }
     }
-    expect(timings.header()).toBe('route;desc="Request page", data;dur=5, clerk;dur=0, render;dur=5');
+    expect(timings.header()).toBe('route;desc="Request page", workspace;dur=0, data;dur=5, render;dur=5');
   });
 
   it("sends the header only while LANE_SERVER_TIMING_HEADER is exactly 1", () => {
@@ -90,7 +90,7 @@ describe("server timings", () => {
 });
 
 describe("the proxy's timing", () => {
-  it("carries the session check's duration and nothing else", () => {
+  it("carries the proxy's duration and nothing else", () => {
     expect(proxyTiming(12.345)).toBe("proxy;dur=12.3");
   });
 });

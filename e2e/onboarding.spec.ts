@@ -1,17 +1,20 @@
-import { setupClerkTestingToken } from "@clerk/testing/playwright";
-import { expect, test, type Page, type Request } from "@playwright/test";
+import { expect, type Page, type Request } from "@playwright/test";
 
+import { openForm, test } from "./helpers/auth-forms";
 import {
   cleanupTestWorkspace,
   getProfileFullName,
+  getProfileRole,
 } from "./helpers/cleanup";
 import {
-  createClerkTestOrganization,
   createTestUser,
   deleteTestUser,
+  readTestSession,
   signInTestUser,
 } from "./helpers/test-user";
+import { addTestMember, createTestInvitation, createTestWorkspace, removeTestMember } from "./helpers/workspaces";
 import { registerBrowserTestOrganization } from "./helpers/fixtures";
+import { ROLE_STEP_URL } from "../src/lib/onboarding-address";
 
 /** Plan item 2.2: the requests Continue causes. Server action POSTs go in
  * `actions`; RSC GETs a person waits for go in `paths`. Prefetches are left out. */
@@ -32,26 +35,33 @@ function recordRscNavigations(page: Page) {
   return { paths, actions, stop: () => page.off("request", listener) };
 }
 
-/** #289 (D8): Clerk's create-workspace step speaks Lane's words, and signing out is the header's "Wrong account? Sign
- * out", as on the role step after it, not Clerk's "Signed in as … Sign out" inside the card. */
-async function expectWorkspaceStepInLaneWords(page: Page) {
-  await expect(page.getByRole("heading", { name: "Name your workspace" })).toBeVisible();
-  await expect(page.getByText("You can change it later in Settings.", { exact: true })).toBeVisible();
-  const header = page.getByRole("banner");
-  await expect(header.getByText("Wrong account?", { exact: true })).toBeVisible();
-  await expect(header.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
-  await expect(page.getByText(/^Signed in as /)).toBeHidden();
+/** #289 (D8), #346: the workspace step in Lane's words, with the header's "Wrong account? Sign out" as on the role step
+ * after it, and how a teammate expecting an invitation gets one. */
+async function expectWorkspaceStepInLaneWords(page: Page, email: string) {
+  await expect(page).toHaveTitle("Create or join a workspace · Lane");
+  await expect(page.getByRole("heading", { name: "Create your workspace" })).toBeVisible();
+  await expect(page.getByText("A workspace is where your team’s Requests live. You can invite people next.", { exact: true })).toBeVisible();
+  await expect(page.getByText(`Expecting an invitation? Ask an Admin to invite ${email}. It shows up here.`, { exact: true })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Invitations" })).toHaveCount(0);
+  await expectHeaderSignOut(page);
+  await expect(page.getByText(/^Signed in as /)).toHaveCount(0);
   await expect(page.getByText("Sign in to access your Lane workspace.")).toHaveCount(0);
 }
 
-/** #289 (D2): on a 390px phone the step has no sideways scroll, the name field and Continue are fully on screen, and
+async function expectHeaderSignOut(page: Page) {
+  const header = page.getByRole("banner");
+  await expect(header.getByText("Wrong account?", { exact: true })).toBeVisible();
+  await expect(header.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+}
+
+/** #289 (D2): on a 390px phone the step has no sideways scroll, the name field and Create workspace are fully on screen, and
  * the name starts empty. */
 async function expectWorkspaceStepFitsPhone(page: Page) {
   const desktop = page.viewportSize();
   await page.setViewportSize({ width: 390, height: 844 });
   try {
-    const name = page.locator('input[name="name"]');
-    const proceed = page.getByRole("button", { name: "Continue", exact: true });
+    const name = page.getByLabel("Workspace name");
+    const proceed = page.getByRole("button", { name: "Create workspace", exact: true });
     await expect(name).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.scrollingElement!.scrollWidth - document.scrollingElement!.clientWidth)).toBe(0);
     for (const part of [name, proceed]) {
@@ -60,8 +70,7 @@ async function expectWorkspaceStepFitsPhone(page: Page) {
       expect(box.x + box.width).toBeLessThanOrEqual(390);
       await expect(part).toBeInViewport({ ratio: 1 });
     }
-    // D7: the name starts empty, with no guess from the email's domain. Clerk's "organization creation defaults" are
-    // off on the instance (Nikhil, 2026-11-18); @clerk/ui 1.33.1's TaskChooseOrganization has no option of its own.
+    // D7: the name starts empty, with no guess from the email's domain.
     await expect(name).toHaveValue("");
   } finally {
     if (desktop) await page.setViewportSize(desktop);
@@ -82,23 +91,26 @@ async function expectNoVerticalScroll(page: Page) {
   expect(overflow).toEqual({ listPane: 0, content: 0, document: 0 });
 }
 
-test("a Clerk user chooses a Lane role and enters their active workspace", async ({
+test("a person chooses a Lane role and enters their active workspace", async ({
   page,
   browser,
 }) => {
   const user = await createTestUser("onboarding-existing-org");
-  const orgId = await createClerkTestOrganization(
+  const orgId = await createTestWorkspace(
     user.id,
     "Lane E2E Existing Workspace"
   );
 
   try {
     await signInTestUser(page, user, orgId);
-    await page.goto("/onboarding");
+    await page.goto(ROLE_STEP_URL);
 
     await expect(
       page.getByRole("heading", { name: "Choose your role" })
     ).toBeVisible();
+    await expect(page).toHaveTitle("Choose your role · Lane");
+    // #391: shown once, so its marker is off the address.
+    await expect(page).toHaveURL("/onboarding");
     await expect(page.getByText(/^Step \d of \d$/)).toHaveCount(0);
     await page.getByRole("radio", { name: "Designer" }).click();
 
@@ -148,7 +160,6 @@ test("a Clerk user chooses a Lane role and enters their active workspace", async
     });
     try {
       const phone = await touch.newPage();
-      await setupClerkTestingToken({ page: phone });
       await phone.goto("/");
       await expect(phone.locator("[data-requests-welcome]")).toBeVisible();
       await expect(phone.getByText("to create a Request.")).toBeHidden();
@@ -171,11 +182,11 @@ test("the role step names its 1, 2 and 3 keys on desktop and no keys on a phone"
   browser,
 }) => {
   const user = await createTestUser("onboarding-role-keys");
-  const orgId = await createClerkTestOrganization(user.id, "Lane E2E Role Keys Workspace");
+  const orgId = await createTestWorkspace(user.id, "Lane E2E Role Keys Workspace");
 
   try {
     await signInTestUser(page, user, orgId);
-    await page.goto("/onboarding");
+    await page.goto(ROLE_STEP_URL);
     await expect(page.getByRole("heading", { name: "Choose your role" })).toBeVisible();
     await expect(page.getByText("C to create")).toHaveCount(0);
     await expect(page.getByText("to search")).toHaveCount(0);
@@ -193,8 +204,7 @@ test("the role step names its 1, 2 and 3 keys on desktop and no keys on a phone"
     });
     try {
       const phone = await touch.newPage();
-      await setupClerkTestingToken({ page: phone });
-      await phone.goto("/onboarding");
+      await phone.goto(ROLE_STEP_URL);
       await expect(phone.getByRole("heading", { name: "Choose your role" })).toBeVisible();
       await expect(phone.getByText("Press 1, 2 or 3 to choose", { exact: true })).toBeHidden();
       await expect(phone.locator("kbd").filter({ visible: true })).toHaveCount(0);
@@ -208,37 +218,27 @@ test("the role step names its 1, 2 and 3 keys on desktop and no keys on a phone"
   }
 });
 
-// Risk 1 in the 2.1/2.2 spec: signing in soft-navigates to /, which redirects to
-// /onboarding and can sit in the client router cache for 30 s. Choosing a role
-// inside that window must still land on / and stay there.
-test("a role chosen right after signing in through the form stays on Requests", async ({
+// Risk 1 in the 2.1/2.2 spec: signing in opens /, which redirects someone with no workspace to /onboarding and can sit
+// in the client router cache for 30 s. A role chosen after it must still land on / and stay there.
+test("a role chosen right after signing in through the form and creating a workspace stays on Requests", async ({
   page,
 }) => {
   test.setTimeout(180_000);
   const user = await createTestUser("onboarding-form-sign-in");
-  const orgId = await createClerkTestOrganization(
-    user.id,
-    "Lane E2E Form Sign-in Workspace"
-  );
+  const workspaceName = `Lane E2E Form Sign-in ${Date.now()}`;
 
   try {
-    // Make the workspace the last active one, so the form's sign-in resumes it
-    // without Clerk's choose-organization task, then sign out.
-    await signInTestUser(page, user, orgId);
-    await page.evaluate(async () => { await window.Clerk.signOut(); });
-
-    await setupClerkTestingToken({ page });
-    await page.goto("/login");
-    await page.locator('input[name="identifier"]').fill(user.email);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await page.locator('input[name="password"]').fill(user.password);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-    const code = page.getByRole("textbox", { name: "Enter verification code" });
-    await expect(code.or(page.getByRole("heading", { name: "Choose your role" }))).toBeVisible({ timeout: 30_000 });
-    if (await code.isVisible()) await code.pressSequentially("424242");
-
+    await openForm(page, "/login");
+    await page.getByLabel("Email address").fill(user.email);
+    await page.getByLabel("Password", { exact: true }).fill(user.password);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page).toHaveURL("/onboarding", { timeout: 30_000 });
     const landed = Date.now();
+    await page.getByLabel("Workspace name").fill(workspaceName);
+    await page.getByRole("button", { name: "Create workspace", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Choose your role" })).toBeVisible();
+    await registerBrowserTestOrganization((await readTestSession(page))!.orgId!, user.id, workspaceName);
+
     await page.evaluate(() => { (window as unknown as { __laneSameDocument: boolean }).__laneSameDocument = true; });
     await page.getByRole("radio", { name: "PM" }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -265,42 +265,34 @@ test("workspace membership comes before a Lane role, including after an interrup
 
   try {
     await signInTestUser(page, user);
-    await expect
-      .poll(() => page.evaluate(() => window.Clerk.session?.currentTask?.key))
-      .toBe("choose-organization");
+    expect(await readTestSession(page)).toEqual({ userId: user.id, orgId: null });
 
-    // D1 (#257): a reload of Requests, a bookmark or a teammate's Request link ends on the sign-in
-    // page's workspace step, never "Page not found", and Clerk's return address survives the hop.
-    for (const path of ["/", "/requests/LAN-1?from=link"]) {
+    // D1 (#257): a reload of Requests, a bookmark or a teammate's Request link, and the role step's own address, end
+    // on Onboarding's workspace step, never "Page not found" or the role step.
+    for (const path of ["/", "/requests/LAN-1?from=link", ROLE_STEP_URL, "/onboarding"]) {
       await page.goto(path);
-      await expect(page).toHaveURL((url) => url.pathname === "/login");
-      const returnTo = new URL(new URL(page.url()).searchParams.get("redirect_url") ?? "", page.url());
-      expect(`${returnTo.pathname}${returnTo.search}`).toBe(path);
-      await expect(page.locator('input[name="name"]')).toBeVisible();
+      await expect(page).toHaveURL((url) => url.pathname === "/onboarding");
+      await expect(page.getByLabel("Workspace name")).toBeVisible();
       await expect(page.getByRole("heading", { name: "Page not found" })).toHaveCount(0);
+      await expect(page.getByRole("radio", { name: "PM", exact: true })).toHaveCount(0);
     }
 
-    // Returning directly to Lane must resume Clerk's pending membership task.
-    await page.goto("/onboarding");
-    await expect(page.locator('input[name="name"]')).toBeVisible();
-    await expect(page.getByRole("radio", { name: "PM", exact: true })).toHaveCount(0);
-    expect(await getProfileFullName(user.id)).toBeNull();
-
     await page.reload();
-    await expect(page.locator('input[name="name"]')).toBeVisible();
+    await expect(page.getByLabel("Workspace name")).toBeVisible();
     await expect(page.getByRole("radio", { name: "PM", exact: true })).toHaveCount(0);
 
-    await expectWorkspaceStepInLaneWords(page);
+    await expectWorkspaceStepInLaneWords(page, user.email);
     await expectWorkspaceStepFitsPhone(page);
 
-    await page.locator('input[name="name"]').fill(workspaceName);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByLabel("Workspace name").fill(workspaceName);
+    await page.getByRole("button", { name: "Create workspace", exact: true }).click();
 
     await expect(
       page.getByRole("heading", { name: "Choose your role" })
     ).toBeVisible();
-    const createdOrgId = await page.evaluate(() => window.Clerk.organization?.id);
-    await registerBrowserTestOrganization(createdOrgId!, user.id, workspaceName);
+    const session = (await readTestSession(page))!;
+    expect(session.userId).toBe(user.id);
+    await registerBrowserTestOrganization(session.orgId!, user.id, workspaceName);
     await page.getByRole("radio", { name: "PM" }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
 
@@ -312,8 +304,87 @@ test("workspace membership comes before a Lane role, including after an interrup
       page.getByRole("complementary").getByText(workspaceName, { exact: true })
     ).toBeVisible();
     expect(await getProfileFullName(user.id)).toBe("Lane E2E");
+    expect(await getProfileRole(user.id)).toBe("pm");
+
+    // With a workspace, Onboarding is over.
+    await page.goto("/onboarding");
+    await expect(page).toHaveURL("/");
   } finally {
     await cleanupTestWorkspace(user.id);
     await deleteTestUser(user.id);
+  }
+});
+
+// #346: a pending invitation comes before starting a workspace, and joining asks the role of someone new to Lane.
+test("someone invited joins from Onboarding, chooses a role and lands in that workspace", async ({ page }) => {
+  const admin = await createTestUser("onboarding-inviter");
+  const invited = await createTestUser("onboarding-invited");
+  const workspaceName = `Lane E2E Invited ${Date.now()}`;
+
+  try {
+    const orgId = await createTestWorkspace(admin.id, workspaceName);
+    const otherOrgId = await createTestWorkspace(admin.id, "Lane E2E Not Pending");
+    const inviteTo = (id: string, options?: Parameters<typeof createTestInvitation>[3]) => createTestInvitation(id, admin.id, invited.email, options);
+    await inviteTo(orgId);
+    await inviteTo(otherOrgId, { status: "accepted" });
+    await inviteTo(otherOrgId, { expired: true });
+
+    await signInTestUser(page, invited);
+    await page.goto("/");
+    await expect(page).toHaveURL("/onboarding");
+    await expect(page.getByRole("heading", { name: "Join your team" })).toBeVisible();
+    await expect(page.getByText(`You’ve been invited to these workspaces as ${invited.email}.`, { exact: true })).toBeVisible();
+    // Only the one still pending: not the one already answered, nor the expired one.
+    const row = page.getByRole("list", { name: "Invitations" }).getByRole("listitem");
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText(workspaceName);
+    await expect(row).toContainText("Lane E2E invited you as a Member");
+    await expect(page.getByText("Or start a workspace of your own.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create workspace", exact: true })).toBeVisible();
+    await expect(page.getByText(/^Expecting an invitation/)).toHaveCount(0);
+    await expectHeaderSignOut(page);
+
+    await page.getByRole("button", { name: `Join ${workspaceName}`, exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Choose your role" })).toBeVisible();
+    await page.getByRole("radio", { name: "Developer" }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page).toHaveURL("/");
+    await expect(page.getByRole("complementary").getByText(workspaceName, { exact: true })).toBeVisible();
+    expect(await readTestSession(page)).toEqual({ userId: invited.id, orgId });
+    expect(await getProfileRole(invited.id)).toBe("developer");
+  } finally {
+    await cleanupTestWorkspace(admin.id);
+    await deleteTestUser(admin.id);
+    await deleteTestUser(invited.id);
+  }
+});
+
+// #346: after a removal that leaves no workspace.
+test("someone removed from their only workspace is told so on Onboarding, and can sign out", async ({ page }) => {
+  const admin = await createTestUser("onboarding-remover");
+  const removed = await createTestUser("onboarding-removed");
+  const workspaceName = `Lane E2E Removed ${Date.now()}`;
+
+  try {
+    const orgId = await createTestWorkspace(admin.id, workspaceName);
+    await addTestMember(orgId, removed.id, "member");
+    await signInTestUser(page, removed, orgId);
+    await page.goto("/");
+    await expect(page.getByRole("complementary").getByText(workspaceName, { exact: true })).toBeVisible();
+
+    await removeTestMember(orgId, removed.id);
+    await page.reload();
+    await expect(page).toHaveURL("/onboarding");
+    await expect(page.getByText(`You’re no longer in ${workspaceName}`, { exact: true })).toBeVisible();
+    await expect(page.getByText("Your Requests and comments stay in that workspace.", { exact: true })).toBeVisible();
+    await expectWorkspaceStepInLaneWords(page, removed.email);
+
+    await page.getByRole("banner").getByRole("button", { name: "Sign out", exact: true }).click();
+    await expect(page).toHaveURL("/login");
+    expect(await readTestSession(page)).toBeNull();
+  } finally {
+    await cleanupTestWorkspace(admin.id);
+    await deleteTestUser(admin.id);
+    await deleteTestUser(removed.id);
   }
 });

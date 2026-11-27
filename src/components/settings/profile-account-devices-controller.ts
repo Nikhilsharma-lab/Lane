@@ -15,8 +15,8 @@ type Target = string | "others"
 
 export type SignedInDevicesState = {
   busy: Target | null
-  /** A refused sign-out, on the row it belongs to, with Try again. */
-  problem: { target: Target; line: string; retry: () => void } | null
+  /** A refused sign-out, on the row it belongs to, with Try again when sending it again could help. */
+  problem: { target: Target; line: string; retry?: () => void } | null
   /** Signed out here, so gone from the list before it's next read. */
   signedOut: readonly string[]
   /** Every other device was signed out here. */
@@ -30,13 +30,21 @@ export function createSignedInDevices(initial: SignedInDevicesCallbacks) {
   const store = createExternalStore<SignedInDevicesState>({ busy: null, problem: null, signedOut: [], othersSignedOut: false, status: "" })
   const set = (next: Partial<SignedInDevicesState>) => store.set({ ...store.get(), ...next })
 
-  /** One sign-out. `gone` is what leaves the list once it's done; a refusal stays on its row with Try again. */
-  async function run(target: Target, send: () => Promise<AuthAnswer>, gone: () => Partial<SignedInDevicesState>, success: string): Promise<void> {
-    if (store.get().busy) return
+  /**
+   * One sign-out. `gone` is what leaves the list once it's done; a refusal stays on its row with Try again. Answers
+   * whether it was done.
+   */
+  async function run(target: Target, send: () => Promise<AuthAnswer>, gone: () => Partial<SignedInDevicesState>, success: string): Promise<boolean> {
+    if (store.get().busy) return false
     set({ busy: target, problem: null, status: "" })
     const answer = await settle(send)
     if (answer.ok) set({ busy: null, ...gone(), status: success })
-    else set({ busy: null, problem: { target, line: authErrorCopy(answer.code), retry: () => { void run(target, send, gone, success) } } })
+    else {
+      // A device that is already signed out stays so, so sending it again can't help.
+      const retry = answer.code === "DEVICE_NOT_FOUND" ? undefined : () => { void run(target, send, gone, success) }
+      set({ busy: null, problem: { target, line: authErrorCopy(answer.code), retry } })
+    }
+    return answer.ok
   }
 
   return {

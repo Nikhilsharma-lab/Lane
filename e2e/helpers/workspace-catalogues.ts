@@ -2,6 +2,7 @@ import { expect, type Page, type Request, type Route } from "@playwright/test";
 import type { ProjectOption } from "../../src/lib/request-properties";
 import type { RequestLabel } from "../../src/lib/request-labels";
 import { nextActionResponse } from "./action-response";
+import { readTestSession } from "./test-user";
 
 export const catalogueSurfaces = [
   { width: 1440, colorScheme: "light" }, { width: 1440, colorScheme: "dark" },
@@ -60,13 +61,12 @@ async function abortCreate(page: Page, match: (request: Request) => boolean, sub
 
 export async function openCatalogueDraft(page: Page, orgId: string) {
   await page.goto("/intake");
-  await expect.poll(() => page.evaluate(expectedOrg => {
-    const clerk = window.Clerk;
-    return Boolean(clerk?.loaded && clerk.user && clerk.session?.status === "active" && clerk.organization?.id === expectedOrg);
-  }, orgId), { timeout: 30_000 }).toBe(true);
+  expect((await readTestSession(page))?.orgId).toBe(orgId);
   // #285 (C23): /intake's launcher reads New Request, like every other way to start one.
   const start = page.getByRole("region", { name: "Start a Request" }).getByRole("link", { name: "New Request", exact: true });
   await expect(composer(page).or(start)).toBeVisible();
+  // The composer's idle preload marks a hydrated page: before it, the link loads /intake again instead of opening it.
+  await expect(page.locator('[data-composer-ready="true"]')).toBeAttached({ timeout: 60_000 });
   if (!await composer(page).isVisible()) await start.click();
   await composer(page).getByRole("textbox", { name: "Request title", exact: true }).fill(draftTitle);
 }

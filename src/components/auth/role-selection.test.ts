@@ -35,7 +35,7 @@ describe("the role step", async () => {
   it("links Sign in to continue to sign-in and the workspace message to the workspace step", () => {
     expect(roleSaveError({ error: "Sign in to continue.", sessionExpired: true })).toEqual({ message: "Sign in to continue.", link: { href: "/login", label: "Sign in" } })
     expect(roleSaveError({ error: "Create or join a workspace before choosing your role.", needsWorkspace: true }))
-      .toEqual({ message: "Create or join a workspace before choosing your role.", link: { href: "/login", label: "Create or join a workspace" } })
+      .toEqual({ message: "Create or join a workspace before choosing your role.", link: { href: "/onboarding", label: "Create or join a workspace" } })
     expect(roleSaveError({ error: "Choose a valid role." })).toEqual({ message: "Choose a valid role." })
   })
 })

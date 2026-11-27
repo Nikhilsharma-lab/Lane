@@ -1,4 +1,4 @@
-import { fixtureClerkClient } from "@/test/member-fixtures";
+import { addMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
@@ -14,7 +14,6 @@ import { queryCounter } from "@/db";
 const session = vi.hoisted((): Session => ({ userId: "", orgId: "", role: "member" }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/session", () => ({ readSession: async () => ({ ...session }) }));
-vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, REQUESTER]) }));
 
 const ORG = "org_statement_ceilings";
 const MEMBER = "user_ceilings_member", REQUESTER = "user_ceilings_requester";
@@ -30,6 +29,7 @@ beforeAll(async () => {
   connection = postgres(databaseUrl, { max: 2, prepare: false });
   await connection`insert into organizations (id,name,slug) values (${ORG},'Statement ceilings','statement-ceilings')`;
   for (const id of [MEMBER, REQUESTER]) await connection`insert into profiles (id,full_name,email) values (${id},${id},${id + "@example.test"})`;
+  await addMembers(ORG, { [MEMBER]: "member", [REQUESTER]: "member" });
   session.userId = MEMBER; session.orgId = ORG; session.role = "member";
 });
 beforeEach(async () => {

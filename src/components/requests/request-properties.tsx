@@ -61,7 +61,7 @@ export function RequestProperty({ request, property, tabIndex }: { request: Over
     <PopoverTrigger asChild><button type="button" tabIndex={tabIndex} data-property={property} className={[styles.propertyTrigger, property === "pickedUpBy" && avatarStyles.trigger].filter(Boolean).join(" ")} aria-label={`${item.label}: ${item.value}`}>
       {property === "requestType" ? <RequestLabels request={request} compact /> : compact && property === "createdAt" ? <LocalTime className={styles.submittedDate} iso={request.createdAt} year={false} />
         : property === "pickedUpBy" ? request.assignedTo
-        ? <Avatar name={pickerName} src={request.assigneeAvatarUrl ?? undefined} unoptimized size="sm" className={avatarStyles.avatar} data-avatar-tone={compact ? projectToneForId(request.assignedTo) : undefined} aria-hidden="true" />
+        ? <Avatar name={pickerName} size="sm" className={avatarStyles.avatar} data-avatar-tone={compact ? projectToneForId(request.assignedTo) : undefined} aria-hidden="true" />
         : <span className={avatarStyles.unassigned} aria-hidden="true"><UserRound data-icon-size="xs" /></span>
         : <Badge size="sm" tone={item.tone} icon={item.icon} className={styles.propertyBadge}><span className={styles.propertyValue}>{item.value}</span></Badge>}
     </button></PopoverTrigger>

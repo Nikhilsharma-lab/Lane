@@ -1,4 +1,4 @@
-import { fixtureClerkClient } from "@/test/member-fixtures";
+import { addMembers } from "@/test/member-fixtures";
 import { requireTestDatabase } from "@/test/test-database";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
@@ -17,7 +17,6 @@ import { canChange, canSee } from "./request-access-rules";
 const session = vi.hoisted(() => ({ current: null as Session | null }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("./session", () => ({ readSession: async () => session.current }));
-vi.mock("@clerk/nextjs/server", () => ({ clerkClient: async () => fixtureClerkClient(ORG, [MEMBER, ADMIN]) }));
 vi.mock("@/lib/supabase/admin", () => ({
   createServiceClient: () => ({ storage: { from: () => ({ createSignedUrl: async () => ({ data: { signedUrl: "https://files.test/signed" }, error: null }), remove: async () => ({ error: null }) }) } }),
 }));
@@ -39,6 +38,7 @@ beforeAll(async () => {
   sql = postgres(url.toString(), { max: 2 });
   await sql`insert into organizations(id,name,slug) values (${ORG},'Access','request-access'),(${OTHER},'Other access','request-access-other')`;
   for (const id of Object.keys(ROLES)) await sql`insert into profiles(id,full_name,email) values (${id},${id},${id + "@access.test"})`;
+  await addMembers(ORG, { [MEMBER]: "member", [ADMIN]: "admin" });
 });
 beforeEach(async () => {
   await sql`delete from requests where org_id = ${ORG}`;

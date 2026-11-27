@@ -27,10 +27,11 @@ export async function holdNextAction(page: Page, filename: string, exportedName:
     await released.promise;
     await route.continue().finally(() => sent.resolve());
   };
-  // Only the Request page's own posts: Clerk's requests have routes of their own in these tests.
+  // Only the Request page's own posts.
   await page.route(path, handler);
   return {
     seen: seen.promise,
-    async release() { released.resolve(); await sent.promise; await page.unroute(path, handler); },
+    // Its route stays, passing everything on: taking a route off can lose a request the page sends that moment (helpers/action-response.ts).
+    async release() { released.resolve(); await sent.promise; },
   };
 }

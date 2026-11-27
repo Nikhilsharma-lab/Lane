@@ -1,6 +1,6 @@
 import { callAction } from "@/lib/action-call";
 import { queryCounter } from "@/db";
-import { fixtureClerkClient } from "@/test/member-fixtures";
+import { addMembers } from "@/test/member-fixtures";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Session } from "@/lib/session";
 import {
@@ -21,9 +21,6 @@ let sessionQueue: Session[] = [];
 
 vi.mock("@/lib/session", () => ({
   readSession: vi.fn(async () => sessionQueue.shift() ?? null),
-}));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => fixtureClerkClient(WORKSPACE_ID, [REQUESTER_ID,FIRST_MEMBER_ID,SECOND_MEMBER_ID]),
 }));
 
 const WORKSPACE_ID = "00000000-0000-4000-a000-00000000a101";
@@ -69,6 +66,7 @@ beforeAll(async () => {
       role: "developer",
     },
   ]);
+  await addMembers(WORKSPACE_ID, { [REQUESTER_ID]: "member", [FIRST_MEMBER_ID]: "member", [SECOND_MEMBER_ID]: "member" });
   await db.insert(requests).values({
     id: REQUEST_ID,
     orgId: WORKSPACE_ID,
@@ -238,9 +236,9 @@ it("forwards pre-write expiry through both the single and bulk adapters", async 
   const { markDone, markDoneMany } = await import("./actions");
   for (const action of [() => markDone(REQUEST_ID, { orgId: WORKSPACE_ID }), () => markDoneMany([REQUEST_ID], { orgId: WORKSPACE_ID })]) {
     const run = vi.fn(action);
-    const observed = await queryCounter.measure(() => callAction(run, { current: async () => "old", renew: async () => "renewed" }));
+    const observed = await queryCounter.measure(() => callAction(run));
     expect(observed.result).toMatchObject({ sessionExpired: true });
-    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledTimes(1);
     expect(observed.statements).toBe(0);
   }
 });
@@ -248,11 +246,9 @@ it("never retries a real role denial containing the former matched phrase", asyn
   sessionQueue = [{ userId: SECOND_MEMBER_ID, orgId: WORKSPACE_ID, role: "guest" }];
   const { markDone } = await import("./actions");
   const run = vi.fn(() => markDone(REQUEST_ID, { orgId: WORKSPACE_ID }));
-  const renew = vi.fn(async () => "renewed");
-  const observed = await queryCounter.measure(() => callAction(run, { current: async () => "old", renew }));
+  const observed = await queryCounter.measure(() => callAction(run));
   expect(observed.result).toEqual({ error: "You can’t change Requests in this workspace." });
   expect(run).toHaveBeenCalledTimes(1);
-  expect(renew).not.toHaveBeenCalled();
   expect(observed.statements).toBe(0);
 });
 it("never marks or replays a batch with a committed move and a refused row", async () => {
@@ -260,10 +256,8 @@ it("never marks or replays a batch with a committed move and a refused row", asy
   sessionQueue = [{ userId: FIRST_MEMBER_ID, orgId: WORKSPACE_ID, role: "member" }];
   const { markDoneMany } = await import("./actions");
   const run = vi.fn(() => markDoneMany([row.id, MISSING_REQUEST_ID], { orgId: WORKSPACE_ID }));
-  const renew = vi.fn(async () => "renewed");
-  const result = await callAction(run, { current: async () => "old", renew });
+  const result = await callAction(run);
   expect(result).toEqual({ moved: [row.id], failed: [{ id: MISSING_REQUEST_ID, error: "Not found" }] });
   expect(run).toHaveBeenCalledTimes(1);
-  expect(renew).not.toHaveBeenCalled();
   expect(await db.select({ status: requests.status }).from(requests).where(eq(requests.id, row.id))).toEqual([{ status: "done" }]);
 });

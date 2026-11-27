@@ -1,7 +1,7 @@
 /**
- * #371 (spec #369): Lane's one Better Auth server, dormant. Only `/api/auth/[...all]` uses it, and only once
- * BETTER_AUTH_SECRET is set, which isn't on staging or production until increment 6. Lint keeps every other file
- * from importing this module or Better Auth's server entry points.
+ * #371 (spec #369): Lane's one Better Auth server. `/api/auth/[...all]` uses it, and Lane's Server Actions through
+ * its one door (`askAuthServer`, #389), only once BETTER_AUTH_SECRET is set, which isn't on staging or production
+ * until increment 6. Lint keeps every other file from importing this module or Better Auth's server entry points.
  *
  * The instance is built the first time it's asked for, so importing this module opens no connection and needs no
  * secret. Its settings are the ones #333 and #344 settled; the comments name where each came from.
@@ -16,12 +16,14 @@ import { nextCookies } from "better-auth/next-js"
 import { captcha, emailOTP, haveIBeenPwned, organization } from "better-auth/plugins"
 import { createAccessControl } from "better-auth/plugins/access"
 import { and, eq, gt, inArray, sql } from "drizzle-orm"
+import { headers } from "next/headers"
 import { account, db, invitation, member, organizations, profiles, rateLimit, session, verification } from "@/db"
+import type { DoorAnswer } from "./auth-answer"
 import { CODE_LIFETIME_MINUTES, CODE_LIFETIME_SECONDS } from "./auth-code-rules"
 import { sendAuthEmail, type AuthEmail } from "./auth-email"
 import { AUTH_ERROR_COPY, authErrorCode } from "./auth-error-copy"
 import { isWorkspacePermission, managesWorkspace } from "./role-rules"
-import type { BetterAuthServer } from "./feature-switches"
+import { betterAuthServer, type BetterAuthServer } from "./feature-switches"
 
 type Config = Extract<BetterAuthServer, { on: true }>
 
@@ -141,10 +143,47 @@ const roles = {
 }
 
 /**
- * Better Auth endpoints Lane doesn't use. Each would send a code or set a password without Lane's checks, or
- * belongs to a flow that is off (link-based verification and reset, email change, account deletion).
+ * Better Auth's routes a browser can't reach (Nikhil on #349, 2026-11-25): all but the ones Lane's browser auth client
+ * calls. Lane's door (`askAuthServer`) still makes the calls it needs, behind the Server Actions' guards. The route's
+ * auth-routes.test.ts reads Better Auth's own table, so one an upgrade adds is turned off here or listed there.
  */
 const DISABLED_PATHS = [
+  // Workspaces, people and invitations, but for accepting and declining an invitation.
+  "/organization/create",
+  "/organization/update",
+  "/organization/delete",
+  "/organization/set-active",
+  "/organization/check-slug",
+  "/organization/has-permission",
+  "/organization/list",
+  "/organization/get-organization",
+  "/organization/get-full-organization",
+  "/organization/list-members",
+  "/organization/get-active-member",
+  "/organization/get-active-member-role",
+  "/organization/update-member-role",
+  "/organization/remove-member",
+  "/organization/leave",
+  "/organization/invite-member",
+  "/organization/cancel-invitation",
+  "/organization/get-invitation",
+  "/organization/list-invitations",
+  "/organization/list-user-invitations",
+  // Sessions and Google's tokens.
+  "/list-sessions",
+  "/revoke-session",
+  "/revoke-sessions",
+  "/revoke-other-sessions",
+  "/update-session",
+  "/get-access-token",
+  "/refresh-token",
+  "/account-info",
+  // Checks of a password or a code apart from what uses it, and a health check.
+  "/verify-password",
+  "/email-otp/check-verification-otp",
+  "/ok",
+  // Each would send a code or set a password without Lane's checks, or belongs to a flow that is off (link-based
+  // verification and reset, email change, account deletion).
   "/send-verification-email",
   "/verify-email",
   "/request-password-reset",
@@ -152,6 +191,7 @@ const DISABLED_PATHS = [
   "/forget-password/email-otp",
   "/change-email",
   "/delete-user",
+  "/delete-user/callback",
   "/email-otp/request-email-change",
   "/email-otp/change-email",
 ]
@@ -211,6 +251,22 @@ const beforeEndpoint = createAuthMiddleware(async (ctx) => {
 })
 
 /**
+ * Where Have I Been Pwned's plugin checks a new password: its own default paths, which the option replaces, and
+ * setting a first password (Nikhil, 2026-11-24, #394). That call is server-only and has no path, and Better Auth's
+ * endpoints without one run as "virtual:"; of those, only it sets a password.
+ */
+const CHECKED_PASSWORD_PATHS = [
+  "/sign-up/email",
+  "/change-password",
+  "/reset-password",
+  "/email-otp/reset-password",
+  "/phone-number/reset-password",
+  "/admin/create-user",
+  "/admin/set-user-password",
+  "virtual:",
+]
+
+/**
  * How long a new password's check may take before Lane gives up on it. Have I Been Pwned's range API is served
  * from Cloudflare's cache and usually answers in well under a second; 3 seconds leaves room for a slow answer while
  * someone waits on sign-up, reset or a password change, and is a third of the 10 seconds Turnstile's check gets.
@@ -218,8 +274,8 @@ const beforeEndpoint = createAuthMiddleware(async (ctx) => {
 const PASSWORD_CHECK_TIMEOUT_MS = 3_000
 
 /**
- * Have I Been Pwned's plugin checks a new password inside Better Auth's password hash, on sign-up, reset and
- * password change. When its range API can't be reached it fails closed (the password is refused, nothing is
+ * Have I Been Pwned's plugin checks a new password inside Better Auth's password hash, on sign-up, reset, password
+ * change and a first password. When its range API can't be reached it fails closed (the password is refused, nothing is
  * written, an emailed code isn't used up), but with a 500 that has no code, and a range API that never answers
  * holds the request open: its fetch has no timeout and takes no signal. This plugin runs after it, around the
  * same hash. It gives that failure Lane's code, and gives up on a check that takes longer than the timeout with the
@@ -312,6 +368,8 @@ function build(config: Config) {
       },
     },
     emailAndPassword: { enabled: true, minPasswordLength: 8, requireEmailVerification: true, autoSignIn: false, revokeSessionsOnPasswordReset: true },
+    // Nikhil, 2026-11-23 (#388): confirming an email with its code signs the person in.
+    emailVerification: { autoSignInAfterVerification: true },
     socialProviders: config.google ? { google: config.google } : {},
     // #333 Q11: Google links to an existing account only when Google says the email is verified. Google isn't a
     // trusted provider, because Better Auth links a trusted provider's account even when its email is unverified.
@@ -346,7 +404,6 @@ function build(config: Config) {
             workspaceName: organization.name,
             inviterName: inviter.user.name,
             role,
-            // Nothing serves /invite/<id> until increment 5.
             acceptUrl: `${config.baseURL}/invite/${id}`,
             expiresAt: invitation.expiresAt,
           })
@@ -388,7 +445,7 @@ function build(config: Config) {
         },
       }),
       captcha({ provider: "cloudflare-turnstile", secretKey: config.turnstileSecretKey ?? "", endpoints: [...TURNSTILE_PATHS] }),
-      haveIBeenPwned(),
+      haveIBeenPwned({ paths: CHECKED_PASSWORD_PATHS }),
       // After haveIBeenPwned, so it wraps the hash that plugin checks in.
       lanePasswordCheck,
       nextCookies(),
@@ -415,6 +472,35 @@ function getAuth(config: Config): Auth {
  */
 export async function handleAuthRequest(config: Config, request: Request): Promise<Response> {
   return withLaneCode(config, request, await requestEmails.run({ codeCounted: false }, () => getAuth(config).handler(request)))
+}
+
+/** What every door call passes on from the request: spread it into the call's argument. */
+type AsCaller = { headers: Headers }
+
+/**
+ * #389 (spec #383): Lane's door to Better Auth for Server Actions. Runs one `auth.api` call as the person whose
+ * request this is, in its own email store as the route does, and answers as the browser auth client does: Better
+ * Auth's answer, or the code of its refusal. Anything else that goes wrong is thrown, as from any action. Lint lets
+ * the Server Actions that need it import it, by name. It checks nothing itself: the action's guard comes first, and
+ * the call names its workspace rather than leaving Better Auth its active one.
+ *
+ *   askAuthServer((api, asCaller) => api.setActiveOrganization({ ...asCaller, body: { organizationId } }))
+ *
+ * It writes no cookie and renews no session; the app frame's session request does (`auth-client.ts`). No call made
+ * here changes the session's token, and a cookie written in a Server Action makes Next draw the page again in the
+ * action's answer, which after a switch would be the old page in the new workspace.
+ */
+export async function askAuthServer<T>(call: (api: Auth["api"], asCaller: AsCaller) => Promise<T>): Promise<DoorAnswer<T>> {
+  const config = betterAuthServer()
+  if (!config.on) return { ok: false }
+  // `_flag` is how Better Auth's router tells nextCookies that the caller handles cookies.
+  const asCaller = { headers: new Headers(await headers()), query: { disableRefresh: true }, _flag: "router" } satisfies AsCaller & Record<string, unknown>
+  try {
+    return { ok: true, data: await requestEmails.run({ codeCounted: false }, () => call(getAuth(config).api, asCaller)) }
+  } catch (error) {
+    if (!isAPIError(error)) throw error
+    return { ok: false, code: errorCode(error) }
+  }
 }
 
 /** The path under `/api/auth`, as Better Auth matches it. */

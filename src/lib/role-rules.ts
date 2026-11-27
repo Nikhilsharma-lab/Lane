@@ -1,7 +1,7 @@
 import type { WorkspacePermission } from "./auth-guard"
 
 /**
- * What each Clerk role may do, safe in the browser (#210). The server guards in auth-guard.ts enforce the same
+ * What each workspace role may do, safe in the browser (#210). The server guards in auth-guard.ts enforce the same
  * rules; screens read these only to hide controls a person can't use.
  *
  * - Admin and Member are paid seats and can change things.
@@ -17,19 +17,18 @@ export function isWorkspacePermission(value: string): value is WorkspacePermissi
   return (WORKSPACE_ROLES as readonly string[]).includes(value)
 }
 
-/** The Lane role for a Clerk role key; anything else (a role Lane doesn't know) is null, which means no access. */
-export function clerkWorkspacePermission(orgRole: string | null | undefined): WorkspacePermission | null {
-  if (orgRole === "org:admin") return "admin"
-  if (orgRole === "org:member") return "member"
-  if (orgRole === "org:guest") return "guest"
-  if (orgRole === "org:viewer") return "viewer"
-  return null
-}
+/** The Lane role a stored role names; null for none, or one Lane doesn't know, which grants nothing. */
+export const laneRole = (stored: string | null | undefined): WorkspacePermission | null => (stored && isWorkspacePermission(stored) ? stored : null)
 
 /** Admin or Member. */
 export function canChangeThings(role: WorkspacePermission): boolean {
   return role === "admin" || role === "member"
 }
+
+/** #215: the paid seats are the Admins and Members, who can change things; Guests and Viewers are free. */
+export const isPaidSeat = (role: WorkspacePermission | null): boolean => role !== null && canChangeThings(role)
+export const PAID_ROLES = WORKSPACE_ROLES.filter(isPaidSeat)
+export const FREE_ROLES = WORKSPACE_ROLES.filter((role) => !isPaidSeat(role))
 
 /** Admin only: invites people, changes roles and runs the workspace's settings (Billing, Slack). */
 export function managesWorkspace(role: WorkspacePermission): boolean {

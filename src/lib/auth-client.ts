@@ -1,7 +1,7 @@
 /**
  * #377 (spec #376): Lane's browser auth client. One Better Auth client from its browser entry, with the email-code
- * and organization client plugins, talking to increment 3's server at `/api/auth`. Dormant: only Lane's new auth
- * screens and their tests import it (eslint.config.mjs), and no route mounts those until increment 5.
+ * and organization client plugins, talking to increment 3's server at `/api/auth`. Lint (eslint.config.mjs) names the
+ * files that may import it.
  *
  * Each call answers an `AuthAnswer` (`auth-answer.ts`): `{ ok: true, data }` or `{ ok: false, code }`. The code is read
  * with `authErrorCode`, and a fetch that throws (offline, blocked) is a failure with no code, which `authErrorCopy`
@@ -62,9 +62,12 @@ export function signInWithCode({ email, code }: { email: string; code: string })
   return answer(() => client.signIn.emailOtp({ email, otp: code }))
 }
 
-/** Confirms a new account's email with its code. Lane's server doesn't sign in from this (increment 3). */
+/** Confirms a new account's email with its code, which signs in (#388): `signedIn` says whether a session came with it. */
 export function confirmEmail({ email, code }: { email: string; code: string }) {
-  return answer(() => client.emailOtp.verifyEmail({ email, otp: code }))
+  return answer(async () => {
+    const { data, error } = await client.emailOtp.verifyEmail({ email, otp: code })
+    return { data: { signedIn: Boolean(data?.token) }, error }
+  })
 }
 
 /** Turnstile. Emails a reset code. */
@@ -87,6 +90,39 @@ export function signInWithGoogle({ returnTo, errorTo }: { returnTo: string; erro
 
 export function signOut() {
   return answer(() => client.signOut())
+}
+
+/** Asks for this browser's session. Better Auth renews it, and its cookie, when it is more than a day old. */
+export function requestSession() {
+  return answer(() => client.getSession())
+}
+
+/** Renames the signed-in person. */
+export function rename({ name }: { name: string }) {
+  return answer(() => client.updateUser({ name }))
+}
+
+/** Changes the signed-in person's password, ending their other sessions when asked to. */
+export function changePassword({ currentPassword, newPassword, signOutOthers }: { currentPassword: string; newPassword: string; signOutOthers: boolean }) {
+  return answer(() => client.changePassword({ currentPassword, newPassword, revokeOtherSessions: signOutOthers }))
+}
+
+/**
+ * Starts connecting a Google account, as `signInWithGoogle` starts a sign-in. Google comes back to `returnTo`, with
+ * `?error=<code>` when nothing changed.
+ */
+export function connectGoogle({ returnTo }: { returnTo: string }) {
+  return answer(() => client.linkSocial({ provider: "google", callbackURL: returnTo, errorCallbackURL: returnTo }))
+}
+
+/** Disconnects the signed-in person's Google account. One already disconnected elsewhere is a success. */
+export function disconnectGoogle() {
+  return answer<unknown>(async () => {
+    const { data, error } = await client.listAccounts()
+    if (error) return { data, error }
+    const google = data.find(({ providerId }) => providerId === "google")
+    return google ? client.unlinkAccount({ accountId: google.id }) : { data: null, error: null }
+  })
 }
 
 export function acceptInvitation(invitationId: string) {

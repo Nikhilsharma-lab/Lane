@@ -1,5 +1,5 @@
 /**
- * #217: the first run, per person per workspace. The workspace's Clerk creator is guided to file a first real
+ * #217: the first run, per person per workspace. The workspace's creator (`organizations.owner_id`) is guided to file a first real
  * Request; everyone who joins later gets a short first run that shows their Inbox. Progress is saved per person,
  * the first run can be skipped and reopened from help, and nothing is created for it but the person's progress.
  * Real database, faked session seam.
@@ -9,35 +9,23 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { requireTestDatabase } from "@/test/test-database";
 
 const ORG = "org_first_run";
-const OTHER = "org_first_run_other";
+const OTHER = "org_first_run_other", OWNERLESS = "org_first_run_ownerless";
 const FOUNDER = "first_run_founder", TEAMMATE = "first_run_teammate", VIEWER = "first_run_viewer";
 const session = vi.hoisted(() => ({ userId: "first_run_founder", orgId: "org_first_run", role: "admin" }));
-const clerk = vi.hoisted(() => ({ createdBy: "first_run_founder" as string | null, down: false, calls: 0 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/session", () => ({ readSession: async () => (session.userId ? { ...session } : null) }));
-vi.mock("@clerk/nextjs/server", () => ({
-  clerkClient: async () => ({
-    organizations: {
-      getOrganization: async ({ organizationId }: { organizationId: string }) => {
-        clerk.calls += 1;
-        if (clerk.down) throw new Error("Clerk is unavailable");
-        return { id: organizationId, createdBy: clerk.createdBy };
-      },
-    },
-  }),
-}));
 
 const url = new URL(process.env.DATABASE_URL!);
 requireTestDatabase(process.env.DATABASE_URL);
 const connection = postgres(url.toString(), { max: 1, prepare: false, onnotice: () => {} });
 
 beforeAll(async () => {
-  await connection`insert into organizations(id,name,slug) values (${ORG},'First run','first-run'), (${OTHER},'Other','first-run-other')`;
+  await connection`insert into organizations(id,name,slug,owner_id) values (${ORG},'First run','first-run',${FOUNDER}), (${OTHER},'Other','first-run-other',${FOUNDER}), (${OWNERLESS},'Ownerless','first-run-ownerless',null)`;
   for (const id of [FOUNDER, TEAMMATE, VIEWER]) await connection`insert into profiles(id,full_name,email) values (${id},${id},${id + "@first-run.test"})`;
 });
-afterEach(() => { Object.assign(session, { userId: FOUNDER, orgId: ORG, role: "admin" }); Object.assign(clerk, { createdBy: FOUNDER, down: false }); });
+afterEach(() => { Object.assign(session, { userId: FOUNDER, orgId: ORG, role: "admin" }); });
 afterAll(async () => {
-  await connection`delete from organizations where id in (${ORG}, ${OTHER})`;
+  await connection`delete from organizations where id in (${ORG}, ${OTHER}, ${OWNERLESS})`;
   await connection`delete from profiles where id in (${FOUNDER}, ${TEAMMATE}, ${VIEWER})`;
   await connection.end();
 });
@@ -65,11 +53,10 @@ describe("the workspace's first person", () => {
     expect(await workspaceContents(ORG)).toEqual(before);
   });
 
-  it("asks Clerk who created the workspace only once", async () => {
-    const calls = clerk.calls;
-    await load();
-    await load();
-    expect(clerk.calls).toBe(calls);
+  it("keeps the guide decided at their first visit, whoever owner_id names later", async () => {
+    await connection`update organizations set owner_id = ${TEAMMATE} where id = ${ORG}`;
+    expect((await load())?.view).toMatchObject({ guide: "first_request" });
+    await connection`update organizations set owner_id = ${FOUNDER} where id = ${ORG}`;
   });
 
   it("saves each step read, so the first run resumes where it was", async () => {
@@ -134,6 +121,11 @@ describe("people who join later", () => {
     expect((await load())?.view).toBeNull();
   });
 
+  it("includes everyone while the workspace's creator isn't known", async () => {
+    as(FOUNDER, "admin", OWNERLESS);
+    expect((await load())?.view).toEqual({ guide: "joined" });
+  });
+
   it("starts a creator who already filed a Request with the first Request guide finished", async () => {
     as(FOUNDER, "admin", OTHER);
     await connection`insert into requests(org_id,title,description,created_by,no_measurable_impact_reason) values (${OTHER},'Filed before first runs','Fixture',${FOUNDER},'Fixture')`;
@@ -143,16 +135,7 @@ describe("people who join later", () => {
   });
 });
 
-describe("when the first run can't be worked out or changed", () => {
-  it("shows no first run, and stores nothing, while Clerk can't say who created the workspace", async () => {
-    as(TEAMMATE, "member", OTHER);
-    clerk.down = true;
-    expect(await load()).toBeNull();
-    expect(await connection`select user_id from first_run_progress where org_id = ${OTHER} and user_id = ${TEAMMATE}`).toEqual([]);
-    clerk.down = false;
-    expect((await load())?.view).toEqual({ guide: "joined" });
-  });
-
+describe("when the first run can't be changed", () => {
   it("changes nothing for another workspace than the session's, or when signed out", async () => {
     expect(await update({ change: "skip" }, OTHER)).toEqual({ error: "You can’t change the first run in this workspace." });
     Object.assign(session, { userId: null, orgId: null, role: null });
@@ -163,7 +146,6 @@ describe("when the first run can't be worked out or changed", () => {
 
   it("refuses to change a first run that hasn't started", async () => {
     as(TEAMMATE, "member", OTHER);
-    await connection`delete from first_run_progress where org_id = ${OTHER} and user_id = ${TEAMMATE}`;
     expect(await update({ change: "skip" }, OTHER)).toEqual({ error: "Your first run isn’t ready yet. Reload the page and try again." });
   });
 });

@@ -264,8 +264,7 @@
   --lane-gradient-line: linear-gradient(100deg, var(--ring), var(--ring));
   --lane-gradient-ink: linear-gradient(100deg, var(--lane-accent-strong), var(--lane-accent-strong));
 
-  /* Link ink: readable link text, separate from the button plate. Clerk's sign-in links read it,
-     because Clerk would otherwise paint links with the plate, too dark on a dark page (#93). */
+  /* Link ink: readable link text, separate from the button plate, which is too dark for text on a dark page (#93). */
   --lane-link-ink: var(--lane-accent-strong);
 
   /* Raised and floating shadows and the button edge: tweakcn's shadow model can't reproduce

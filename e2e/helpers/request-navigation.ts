@@ -42,9 +42,15 @@ export async function openNavigation(page: Page) {
 
 export async function chooseSidebarProject(page: Page, name: string) {
   const link = (await openNavigation(page)).getByRole("link", { name, exact: true });
+  const peek = page.locator("#lane-sidebar[data-peeking]");
+  const peeked = await peek.count() > 0;
+  // Chosen by keyboard, so the pointer leaves the expand control it opened the peek with. Left on it, the control drawn
+  // again under it as the list changes reopens the peek on hover, and a press beside an open peek only closes it (A15).
+  if (peeked) { const size = page.viewportSize()!; await page.mouse.move(size.width - 2, size.height - 2); }
   await link.focus();
   await expect(link).toBeFocused();
   await link.press("Enter");
+  if (peeked) await expect(peek).toHaveCount(0);
 }
 
 export async function createNavigationProject(page: Page, name: string, orgId?: string, confirmed?: (project: { id: string; name: string }) => Promise<void>) {
@@ -330,8 +336,7 @@ async function holdResponse(page: Page, match: (request: Request) => boolean) {
   let error: unknown;
   let finished = false;
   const delivery = Promise.withResolvers<void>();
-  // Keep Clerk's context-level testing-token route intact. A broad page
-  // route with continue() would skip that existing handler on auth requests.
+  // fallback(), not continue(): another handler on this page or its context still sees every other request.
   const pattern = `${new URL(page.url()).origin}/**`;
   const handler = async (route: Route) => {
     if (claimed || !match(route.request())) return route.fallback();
@@ -357,7 +362,8 @@ async function holdResponse(page: Page, match: (request: Request) => boolean) {
       if (error && !(allowCanceled && claimed?.failure())) throw error;
       await page.waitForTimeout(300);
     },
-    async stop() { delivery.resolve(); await page.unroute(pattern, handler); },
+    // Its route stays, passing everything on: taking a route off can lose a request the page sends that moment (helpers/action-response.ts).
+    async stop() { delivery.resolve(); },
   };
 }
 

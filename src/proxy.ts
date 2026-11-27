@@ -1,45 +1,52 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
-import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
+import { RETURN_ADDRESS_HEADER, SIGN_IN_URL, SIGN_UP_URL, signInReturningTo } from "@/lib/auth-return-address";
 import { serverTimingHeader } from "@/lib/feature-switches";
 import { READ_TIMING_ID_HEADER, TIMING_ID_HEADER, newTimingId, proxyTiming } from "@/lib/server-timing";
-import { SIGN_IN_URL, SIGN_UP_URL, sessionTaskRedirect } from "@/lib/session-task-urls";
+import { sessionCookie } from "@/lib/session-cookies";
 
-// D1 (#257): Clerk's middleware takes no `taskUrls`, so its server-side task address
-// (`/login/tasks`) is sent to Lane's page for the task, as the browser's taskUrls do.
-// #265: each request passed on carries a random timing id, which ties its timings
-// to its response (src/lib/request-timings.ts). A route handler under /api times
-// itself rather than as a page render, so its id has a name of its own.
-const clerk = clerkMiddleware((_auth, request) => {
-  const taskPage = sessionTaskRedirect(request.nextUrl);
-  if (taskPage) return NextResponse.redirect(taskPage);
-  const [timingHeader, otherTimingHeader] = request.nextUrl.pathname.startsWith("/api/") ? [READ_TIMING_ID_HEADER, TIMING_ID_HEADER] : [TIMING_ID_HEADER, READ_TIMING_ID_HEADER];
+/** The pages anyone may open signed out; every `/invite/<id>` is one too. */
+const SIGNED_OUT_PAGES = new Set([SIGN_IN_URL, SIGN_UP_URL, "/forgot-password", "/reset-password", "/privacy", "/terms"]);
+
+/** A page being opened or read ahead, by someone who must sign in first. A POST is a Server Action, which answers for itself. */
+function needsSignIn({ method, cookies, nextUrl: { pathname } }: NextRequest): boolean {
+  if (method !== "GET" && method !== "HEAD") return false;
+  if (pathname === "/api" || pathname.startsWith("/api/")) return false;
+  if (SIGNED_OUT_PAGES.has(pathname) || pathname.startsWith("/invite/")) return false;
+  return !sessionCookie(cookies);
+}
+
+// #387: the session check here is optimistic (is there a session cookie?) and asks the database nothing. The guards
+// inside pages, actions and routes are the real check.
+function answer(request: NextRequest): NextResponse {
+  const { pathname, search } = request.nextUrl;
+  const address = `${pathname}${search}`;
+  if (needsSignIn(request)) return NextResponse.redirect(new URL(signInReturningTo(address), request.url));
+  // #265: each request passed on carries a random timing id, which ties its timings
+  // to its response (src/lib/request-timings.ts). A route handler under /api times
+  // itself rather than as a page render, so its id has a name of its own.
+  const [timingHeader, otherTimingHeader] = pathname.startsWith("/api/") ? [READ_TIMING_ID_HEADER, TIMING_ID_HEADER] : [TIMING_ID_HEADER, READ_TIMING_ID_HEADER];
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(timingHeader, newTimingId());
   requestHeaders.delete(otherTimingHeader);
+  // For `sendToSignIn`, when the cookie turns out not to be a session.
+  requestHeaders.set(RETURN_ADDRESS_HEADER, address);
   return NextResponse.next({ request: { headers: requestHeaders } });
-}, { signInUrl: SIGN_IN_URL, signUpUrl: SIGN_UP_URL });
+}
 
-// #265: Clerk's session check runs here, before the page, so its time is the
-// `proxy` step of the response's Server-Timing header while the switch is on.
-export default async function proxy(request: NextRequest, event: NextFetchEvent) {
+// #265: the proxy runs before the page, so its time is the `proxy` step of the
+// response's Server-Timing header while the switch is on.
+export default function proxy(request: NextRequest): NextResponse {
   const start = performance.now();
-  const response = await clerk(request, event);
-  if (response && serverTimingHeader()) {
-    response.headers.append("Server-Timing", proxyTiming(performance.now() - start));
-  }
+  const response = answer(request);
+  if (serverTimingHeader()) response.headers.append("Server-Timing", proxyTiming(performance.now() - start));
   return response;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * Let resource-level guards protect data. Proxy only establishes Clerk's
-     * request context and skips static assets.
-     */
+    // Every path except Next's own files and static assets.
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
-    "/__clerk/(.*)",
   ],
 };

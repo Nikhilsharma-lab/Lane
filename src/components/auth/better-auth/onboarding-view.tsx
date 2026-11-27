@@ -20,13 +20,13 @@ export type OnboardingWorkspaceStepProps = {
   email: string
   /** Invitations waiting for that email, which come first (#333 Q12). */
   invitations: PendingWorkspaceInvitation[]
-  /** The workspace an Admin removed them from, when that left them with none. */
+  /** The workspace they were removed from or left, when that left them with none. */
   removedFrom?: string
-  /** The header's Sign out: increment 5 passes `BetterAuthSignOut`, so this view never imports the browser client. */
+  /** The header's Sign out: Onboarding passes `BetterAuthSignOut`, so this view never imports the browser client. */
   signOut: ReactNode
-  /** Joins with the invitation; answers success or an error code. */
+  /** Joins with the invitation and goes there; answers success or an error code. */
   onJoin: (invitationId: string) => Promise<AuthAnswer>
-  /** Creates a workspace with the trimmed name; answers success or an error code. */
+  /** Creates a workspace with the trimmed name and goes there; answers success or an error code. */
   onCreate: (name: string) => Promise<AuthAnswer>
 }
 
@@ -41,8 +41,8 @@ function focusRefusal({ nameError, alert }: OnboardingState) {
 
 /**
  * #379 (#376 "The onboarding workspace step", #346): between signing in and having a workspace. Pending invitations
- * first, each with Join, then "Or start a workspace of your own"; with none, Create your workspace. Increment 5 goes
- * on to the existing `RoleForm` after either. Dormant: no route mounts it until increment 5.
+ * first, each with Join, then "Or start a workspace of your own"; with none, Create your workspace. Onboarding's
+ * `WorkspaceStep` (#391) mounts it with its calls.
  */
 export function OnboardingWorkspaceStep({ email, invitations, removedFrom, signOut, onJoin, onCreate }: OnboardingWorkspaceStepProps) {
   const [flow] = useState<OnboardingFlow>(() => createOnboardingFlow({ invitations, onJoin, onCreate }))
@@ -74,7 +74,7 @@ export function OnboardingWorkspaceStep({ email, invitations, removedFrom, signO
       title={invited ? "Join your team" : "Create your workspace"}
       description={invited ? `You’ve been invited to these workspaces as ${email}.` : "A workspace is where your team’s Requests live. You can invite people next."}>
       <div className={styles.stack}>
-        {removedFrom && <Alert tone="info" title={`You’re no longer in ${removedFrom}`}>An Admin removed you. Your Requests and comments stay in that workspace.</Alert>}
+        {removedFrom && <Alert tone="info" title={`You’re no longer in ${removedFrom}`}>Your Requests and comments stay in that workspace.</Alert>}
         {invited && <>
           <ul className={invitationStyles.list} aria-label="Invitations">
             {invitations.map((invitation) => {

@@ -27,10 +27,14 @@ export type EnvCheckOptions = {
 };
 
 const present = z.string().min(1);
+// Better Auth reads its names trimmed (src/lib/feature-switches.ts), so a blank one is unset.
+const filled = z.string().trim().min(1);
+
+/** Better Auth's names and Turnstile's public site key: what Lane needs to sign anyone in (#398). */
+const SIGN_IN_NAMES = [...BETTER_AUTH_NAMES, TURNSTILE_SITE_KEY_NAME] as const;
 
 const baseSchema = z.object({
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: present,
-  CLERK_SECRET_KEY: present,
+  ...(Object.fromEntries(SIGN_IN_NAMES.map((name) => [name, filled])) as Record<(typeof SIGN_IN_NAMES)[number], typeof filled>),
   NEXT_PUBLIC_SUPABASE_URL: present,
   SUPABASE_SECRET_KEY: present,
   DATABASE_URL: present,
@@ -61,11 +65,6 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
     : Array.from(new Set(result.error.issues.map((issue) => String(issue.path[0]))));
 
   const warnings: string[] = [];
-  if (production && !env.CLERK_JWT_KEY) {
-    warnings.push(
-      "CLERK_JWT_KEY is not set. Clerk will fetch its JWKS over the network on cold starts, which adds latency.",
-    );
-  }
   if (production && !env.NEXT_PUBLIC_SENTRY_DSN) {
     warnings.push(
       "NEXT_PUBLIC_SENTRY_DSN is not set. Errors will not reach GlitchTip (src/lib/error-reporting.ts).",
@@ -81,17 +80,16 @@ export function checkServerEnv(options: EnvCheckOptions = {}): EnvCheck {
       );
   }
 
-  // #358: auth email (src/lib/auth-email.ts) sends only with both names. Neither is required until increment 5.
+  // #358: auth email (src/lib/auth-email.ts) sends only with both names. Outside production neither is needed.
   const authEmailUnset = ["RESEND_API_KEY", "LANE_AUTH_EMAIL_FROM"].filter((name) => !env[name]?.trim());
-  if (authEmailUnset.length === 1)
+  if (authEmailUnset.length === 1 || (production && authEmailUnset.length))
     warnings.push(
-      `Auth email is half configured: ${authEmailUnset[0]} is not set, so no sign-up, sign-in, reset or invitation email is sent.`,
+      `Auth email is ${authEmailUnset.length === 1 ? "half configured" : "not configured"}: ${authEmailUnset.join(", ")} ${authEmailUnset.length === 1 ? "is" : "are"} not set, so no sign-up, sign-in, reset or invitation email is sent.`,
     );
 
-  // #371: the Better Auth server is dormant until its secret is set. Set, it needs the other four names, and Lane's
-  // auth screens need Turnstile's site key (#377); none is required until increment 5.
+  // #371, #377: the schema above names what's missing; this says what each one's absence costs.
   if (env.BETTER_AUTH_SECRET?.trim()) {
-    const unset = [...BETTER_AUTH_NAMES, TURNSTILE_SITE_KEY_NAME].filter((name) => name !== "BETTER_AUTH_SECRET" && !env[name]?.trim());
+    const unset = SIGN_IN_NAMES.filter((name) => name !== "BETTER_AUTH_SECRET" && !env[name]?.trim());
     if (unset.length)
       warnings.push(
         `BETTER_AUTH_SECRET is set but ${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} not set. Without the Google names there is no Google sign-in; without the Turnstile secret, sign-up and every code send are refused; without the Turnstile site key, the screens can’t show the human check, so they offer only password and Google sign-in.`,

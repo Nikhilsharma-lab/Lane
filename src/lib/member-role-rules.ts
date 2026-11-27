@@ -1,19 +1,14 @@
 import * as z from "zod"
 import type { WorkspacePermission } from "./auth-guard"
 import { emailAddressProblem } from "./email-address-rules"
-import { canChangeThings, canContribute, canCreateRequests, managesWorkspace, readsWholeWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "./role-rules"
+import { canChangeThings, canContribute, canCreateRequests, FREE_ROLES, isPaidSeat, managesWorkspace, PAID_ROLES, readsWholeWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "./role-rules"
 
 /**
  * Settings → Members (#210), safe in the browser: the roles an Admin can give, what each one means, and the
- * shapes the invite and role actions accept. Clerk stores every membership and invitation; Lane only asks it.
+ * shapes the Members actions accept. Better Auth stores every membership and invitation; Lane only asks it.
  */
 
 export { WORKSPACE_ROLES }
-
-/** Admin and Member always; Guest and Viewer only while the custom roles switch is on (Clerk Enhanced B2B). */
-export function rolesOffered(customRolesOn: boolean): WorkspacePermission[] {
-  return customRolesOn ? [...WORKSPACE_ROLES] : ["admin", "member"]
-}
 
 /** One line per role, as the invite form and role picker explain it. Paid seats are Admin and Member. */
 export const ROLE_DESCRIPTIONS: Record<WorkspacePermission, string> = {
@@ -22,14 +17,6 @@ export const ROLE_DESCRIPTIONS: Record<WorkspacePermission, string> = {
   guest: "Free. Files Requests and sees and comments on only their own.",
   viewer: "Free. Reads everything a Member reads, including Impact, and changes nothing.",
 }
-
-/** The Clerk role key for a Lane role. */
-export function clerkRoleOf(role: WorkspacePermission): `org:${WorkspacePermission}` {
-  return `org:${role}`
-}
-
-/** #215: Admins and Members are the paid seats; Guests and Viewers are free. */
-export const isPaidSeat = (role: WorkspacePermission | null): boolean => role === "admin" || role === "member"
 
 /** Whether giving someone `to` (who has `from` now, or nothing yet) adds a paid seat: a Guest or Viewer made a Member or Admin, or a new one. */
 export const addsPaidSeat = (from: WorkspacePermission | null, to: WorkspacePermission): boolean => isPaidSeat(to) && !isPaidSeat(from)
@@ -59,31 +46,13 @@ const inviteEmailSchema = z.string().trim().toLowerCase().superRefine((email, co
   if (problem) context.addIssue({ code: "custom", message: problem })
 })
 
-const PAID_ROLES = WORKSPACE_ROLES.filter(isPaidSeat)
-const FREE_ROLES = WORKSPACE_ROLES.filter(role => !isPaidSeat(role))
 const plural = (roles: WorkspacePermission[]) => roles.map(role => `${ROLE_NAMES[role]}s`).join(" and ")
 
-/**
- * #288 (D28): the invite's seat note. The free roles are named only while they can be given (`offered`), so the note
- * never calls a role free right above saying it isn't available.
- */
-export function inviteSeatNote(offered: readonly WorkspacePermission[]): string {
-  const free = freeRolesNote(offered)
-  return `${plural(PAID_ROLES)} are paid seats.${free ? ` ${free}` : ""}`
-}
+/** #288 (D28): the free roles, named for the invite's seat note and Billing's seats. */
+export const FREE_ROLES_NOTE = `${plural(FREE_ROLES)} are free.`
 
-/** #288 (D28): "Guests and Viewers are free.", for the invite note and Billing's seats, or "" while neither can be given. */
-export function freeRolesNote(offered: readonly WorkspacePermission[]): string {
-  const free = FREE_ROLES.filter(role => offered.includes(role))
-  return free.length ? `${plural(free)} are free.` : ""
-}
-
-/** The roles that exist but can't be given in this workspace yet (Clerk custom roles are off), or null for none. */
-export function unavailableRolesNote(offered: readonly WorkspacePermission[]): string | null {
-  const off = WORKSPACE_ROLES.filter(role => !offered.includes(role))
-  if (!off.length) return null
-  return `${off.length === 1 ? plural(off) : off.map(role => ROLE_NAMES[role]).join(" and ")} aren’t available in this workspace yet.`
-}
+/** #288 (D28): the invite's seat note. */
+export const INVITE_SEAT_NOTE = `${plural(PAID_ROLES)} are paid seats. ${FREE_ROLES_NOTE}`
 
 const yesNo = (allowed: boolean) => allowed ? "Yes" : "No"
 /**
@@ -117,7 +86,11 @@ export const revokeInvitationInputSchema = z.object({
   invitationId: z.string().trim().min(1).max(200),
 }).strict()
 
+export const removeMemberInputSchema = z.object({
+  userId: z.string().trim().min(1).max(200),
+}).strict()
+
 /** A pending invitation as Settings → Members lists it. */
 export type PendingInvitation = { id: string; email: string; role: WorkspacePermission | null }
 /** A person in the workspace as Settings → Members lists it. `role` is null for a role Lane doesn't know. */
-export type WorkspaceMember = { userId: string; name: string; email: string; role: WorkspacePermission | null; imageUrl?: string }
+export type WorkspaceMember = { userId: string; name: string; email: string; role: WorkspacePermission | null }

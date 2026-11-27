@@ -19,7 +19,7 @@ vi.mock("server-only", () => ({}))
 vi.mock("@/lib/workspace-roster", () => ({ workspaceRoster: async () => [{ nominee: { kind: "member", userId: "user-priya" } }, { nominee: { kind: "member", userId: "user-sam" } }] }))
 vi.mock("@/lib/ensure-workspace", () => ({
   getMember: async () => ({ userId: "user_test", orgId: "org_test", role: state.role }),
-  getWorkspace: async () => ({ needsOnboarding: false, role: state.role, profileRole: "pm", orgId: "org_test", userId: "user_test", workspaceName: "Studio", fullName: "Alex", email: "alex@example.com" }),
+  getWorkspace: async () => ({ role: state.role, profileRole: "pm", orgId: "org_test", userId: "user_test", workspaceName: "Studio", fullName: "Alex", email: "alex@example.com" }),
 }))
 vi.mock("@/db", async () => {
   const schema = await import("@/db/schema")

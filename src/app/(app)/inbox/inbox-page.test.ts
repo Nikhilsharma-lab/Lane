@@ -16,7 +16,7 @@ const session = vi.hoisted(() => ({ userId: "", role: "member" as "admin" | "mem
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ensure-workspace", () => ({
   getMember: async () => ({ userId: session.userId, orgId: ORG, role: session.role }),
-  getWorkspace: async () => ({ needsOnboarding: false, userId: session.userId, orgId: ORG, role: session.role, profileRole: "pm", fullName: "Pat", email: "pat@example.test", workspaceName: "Inbox page" }),
+  getWorkspace: async () => ({ userId: session.userId, orgId: ORG, role: session.role, profileRole: "pm", fullName: "Pat", email: "pat@example.test", workspaceName: "Inbox page" }),
 }));
 vi.mock("next/navigation", async (original) => ({
   ...(await original<typeof import("next/navigation")>()),

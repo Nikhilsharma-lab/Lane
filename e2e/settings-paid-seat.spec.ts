@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 import { cleanupTestWorkspace, provisionTestWorkspace } from "./helpers/cleanup";
+import { testEmail } from "./helpers/fixtures";
 import { createTestUser, deleteTestUser, signInTestUser } from "./helpers/test-user";
 
 // #288 (D37): the paid-seat confirmation, loaded only when it is first needed, opens on a production build while
 // billing is enforced. Run it on its own, against `pnpm build`, with billing switched on for the test server only:
 //   LANE_BILLING_ENFORCED=1 LANE_E2E_START=1 … playwright test e2e/settings-paid-seat.spec.ts
-// The invitation goes to a +clerk_test address (Clerk sends no email) and is revoked at the end. Nothing is paid.
+// The one invitation goes to Resend's test recipient and is revoked at the end. Nothing is paid.
 test.skip(process.env.LANE_BILLING_ENFORCED !== "1", "needs LANE_BILLING_ENFORCED=1 on the test server (and a production build)");
 
 test("adding a paid seat opens its confirmation, which cancels and confirms with focus back where it was", async ({ page }) => {
@@ -24,7 +25,7 @@ test("adding a paid seat opens its confirmation, which cancels and confirms with
     await page.getByRole("button", { name: "Invite people" }).click();
     const invite = page.getByRole("dialog", { name: "Invite people" });
     await expect(invite).toContainText("You’ll confirm each paid seat before it’s added.");
-    const invitee = `lane-e2e-paid-seat-${Date.now()}+clerk_test@example.com`;
+    const invitee = testEmail("paid-seat-invitee");
     await invite.getByLabel("Email address").fill(invitee);
     const send = invite.getByRole("button", { name: "Send invitation" });
     await send.click();

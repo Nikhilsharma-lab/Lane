@@ -1,6 +1,6 @@
 /* Search ranking adapted from licensed Arc Pro Settings Command, for Lane only. */
 import type { SettingDefinition, Result } from "@/components/arc/blocks/settings-command/settings-command";
-import { canChangeThings, isWorkspacePermission, managesWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "@/lib/role-rules";
+import { canChangeThings, laneRole, managesWorkspace, ROLE_NAMES, WORKSPACE_ROLES } from "@/lib/role-rules";
 
 /** `href` marks a section with a page of its own (it loads its own data); every other section shows on Profile's page. */
 /** `membersOnly` hides a section from Guests; `changersOnly` also from Viewers (#210), who manage no people and get no Needs-you items. */
@@ -10,21 +10,25 @@ export type SettingsEntry = SettingDefinition & { adminOnly?: boolean; membersOn
 /** The server's switches the catalog follows, passed down like the role; the catalog reads no environment itself. */
 export type SettingsSwitches = { billingEnforced?: boolean };
 export const settingsCatalog: SettingsEntry[] = [
-  { id: "profile", section: "profile", group: "Personal", label: "Profile", description: "Your personal details and role.", keywords: ["account", "name", "email", "photo", "avatar"] },
+  { id: "profile", section: "profile", group: "Personal", label: "Profile", description: "Your account, how you sign in, your devices and your role.", keywords: ["account", "name", "email"] },
   { id: "role", section: "profile", group: "Personal", label: "Role", description: "Your PM, Designer, or Developer label.", target: "role", keywords: ["designer", "developer", "pm"] },
   { id: "preferences", section: "preferences", group: "Personal", label: "Preferences", description: "Make Lane feel right for you." },
   { id: "theme", section: "preferences", group: "Personal", label: "Theme", description: "System, Light, or Dark for this browser.", target: "theme", keywords: ["appearance", "dark mode", "light mode"] },
   { id: "inbox-delivery", section: "inbox-delivery", group: "Personal", label: "Inbox delivery", description: "How items that need you reach you outside Lane, in this workspace.", membersOnly: true, changersOnly: true, keywords: ["inbox", "notifications", "email", "alerts", "needs you", "off"] },
-  { id: "account-security", section: "account-security", group: "Personal", label: "Security & access", description: "Manage sign-in methods and active sessions.", keywords: ["password", "sessions", "sign in"] },
+  { id: "account-security", section: "account-security", group: "Personal", label: "Security & access", description: "What Lane sends for the Request AI check. Your password and devices are in Profile." },
   { id: "connections", section: "connections", group: "Personal", label: "Personal integrations", description: "Connect external work tools to your personal Lane account. Sign-in connections are already managed in Profile.", soon: true, keywords: ["connected accounts", "slack", "calendar"] },
-  // #287 (D32): one row for the account, connected sign-in accounts included, so "Google" lands on it.
-  { id: "manage-account", section: "profile", group: "Personal", label: "Manage account", description: "Name, photo, email and connected accounts such as Google.", target: "manage-account", keywords: ["google", "connected accounts", "login"] },
+  // #394: the account's rows in Profile, each found by its own words; "Google" lands on the Google row (D32).
+  { id: "account-name", section: "profile", group: "Personal", label: "Name", description: "The name shown on your Requests and comments.", target: "account-name", keywords: ["account", "rename"] },
+  { id: "account-email", section: "profile", group: "Personal", label: "Email", description: "The email your account uses.", target: "account-email", keywords: ["account", "address"] },
+  { id: "account-google", section: "profile", group: "Personal", label: "Google", description: "Connect or disconnect the Google account you sign in with.", target: "account-google", keywords: ["connected accounts", "login", "sign in"] },
+  { id: "account-password", section: "profile", group: "Personal", label: "Password", description: "Change your password, or set one.", target: "account-password", keywords: ["account", "login", "sign in", "security"] },
+  { id: "signed-in-devices", section: "profile", group: "Personal", label: "Signed-in devices", description: "Where you’re signed in, and signing out.", target: "devices-heading", keywords: ["sessions", "security", "sign out", "log out"] },
   { id: "ai-data", section: "account-security", group: "Personal", label: "AI data use", description: "What Lane sends for the Request AI check.", target: "ai-data", keywords: ["privacy", "anthropic"] },
-  { id: "leave-workspace", section: "workspace", group: "Workspace", label: "Leave workspace", description: "Review the Leave workspace option in Clerk.", target: "workspace-management", membersOnly: true },
+  { id: "leave-workspace", section: "workspace", group: "Workspace", label: "Leave workspace", description: "Give up your access to this workspace.", target: "leave-workspace" },
   { id: "intake-templates", section: "intake-templates", group: "Requests", label: "Intake templates", description: "Reusable starting points for a clear Request.", soon: true },
   { id: "project-labels", section: "project-labels", group: "Projects", label: "Labels", description: "Organize Projects with shared labels.", soon: true },
   { id: "project-templates", section: "project-templates", group: "Projects", label: "Templates", description: "Reusable starting points for Projects.", soon: true },
-  { id: "workspace", section: "workspace", group: "Workspace", label: "Workspace details", description: "Your workspace and membership.", membersOnly: true },
+  { id: "workspace", section: "workspace", group: "Workspace", label: "Workspace details", description: "Your workspace and membership." },
   { id: "members", section: "members", group: "Workspace", label: "Members", description: "Manage workspace members and invitations.", nonAdminDescription: "People in this workspace and their roles.", membersOnly: true, changersOnly: true, keywords: ["invite", "teammates"] },
   { id: "metrics", section: "metrics", group: "Workspace", label: "Metrics", description: "What your workspace measures, and how each metric is counted.", membersOnly: true, href: "/settings/metrics", keywords: ["metrics library", "metric definitions", "units", "conversion rate", "adoption", "customer satisfaction"] },
   { id: "slack", section: "slack", group: "Workspace", label: "Slack", description: "Connect Slack so people here can choose Slack DM for items that need them.", adminOnly: true, keywords: ["slack", "slack dm", "direct message", "connect", "disconnect", "integrations", "inbox delivery"] },
@@ -40,7 +44,7 @@ export const settingsCatalog: SettingsEntry[] = [
 ];
 
 export function availableSettings(role: string, { billingEnforced = false }: SettingsSwitches = {}): SettingsEntry[] {
-  const known = isWorkspacePermission(role) ? role : null;
+  const known = laneRole(role);
   const admin = !!known && managesWorkspace(known);
   return settingsCatalog.filter(entry => (!entry.adminOnly || admin) && (!entry.membersOnly || role !== "guest") && (!entry.changersOnly || (!!known && canChangeThings(known))))
     .map(entry => !admin && entry.nonAdminDescription ? { ...entry, description: entry.nonAdminDescription } : entry)
@@ -125,11 +129,12 @@ export const SETTINGS_SECTION_EVENT = "lane-settings-navigation"
 /**
  * Shows a Settings section in place, as the frame's own sidebar and search do and as the ⌘K palette does
  * when already on Settings: the URL takes the section (a history entry, so Back returns) and the frame follows.
+ * `target` is a place in it, which the URL's fragment then names.
  */
-export function showSettingsSection(id: string) {
+export function showSettingsSection(id: string, target = "") {
   const url = new URL(window.location.href)
   url.searchParams.set("section", id)
-  url.hash = ""
+  url.hash = target
   window.history.pushState(null, "", url)
   window.dispatchEvent(new Event(SETTINGS_SECTION_EVENT))
 }

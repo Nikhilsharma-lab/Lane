@@ -5,7 +5,6 @@ import { cleanupTestWorkspace, seedRowIdentityFixtures } from "./helpers/cleanup
 import { createTestUser, deleteTestUser } from "./helpers/test-user";
 import { provisionAndSignIn } from "./helpers/auth";
 import { capturePaintedTheme } from "./theme-parity/capture";
-import { clerkColourTokens } from "./theme-parity/clerk-colours";
 import { contrastRatio } from "./theme-parity/contrast";
 import {
   compareThemes,
@@ -33,26 +32,16 @@ const MODES: Mode[] = ["light", "dark"];
  */
 const BODY_TEXT_CONTRAST = 4.5;
 
-/** Every Clerk colour key and the theme-file name it reads (spec #87 *Clerk*). */
-const CLERK_COLOURS = (() => {
-  const read = (file: string) => readFileSync(path.join(__dirname, "..", file), "utf8");
-  return clerkColourTokens(
-    read("src/components/auth/clerk-appearance.ts"),
-    read("node_modules/@clerk/ui/dist/internal/appearance.d.ts"),
-    // Since #326 some names Clerk reads are bridged: theme-bridge.css points them at theme-file names (and
-    // design:check refuses any value there), so a bridged name counts as defined by the theme.
-    `${read("src/styles/theme.css")}\n${read("src/styles/theme-bridge.css")}`
-  );
-})();
-
 /** Differences the switch is allowed to make, by name (spec #87, Further Notes). */
 const ALLOWED: (keyof typeof KNOWN_EXCEPTIONS)[] = [
   "wide-gamut dark primary",
   "wide-gamut destructive text",
   "pre-Geist fallback font",
   "retired destructive-foreground meaning",
-  "sign-in without a subtitle",
 ];
+
+/** Sign-in's submit button, there once the page has painted. */
+const signInButton = (page: Page) => page.getByRole("button", { name: "Sign in", exact: true });
 
 async function settle(page: Page, mode: Mode) {
   if (mode === "dark") await expect(page.locator("html")).toHaveClass(/dark/);
@@ -94,24 +83,14 @@ test("Lane paints the same theme on every page in light and dark", async ({
     const page = await signedOut.newPage();
     await record(captured, page, "sign-in", async () => {
       await page.goto("/login");
-      // Clerk's card mounts on the client; its submit button means it has painted.
-      await expect(page.locator(".cl-formButtonPrimary").first()).toBeVisible();
-      // Every Clerk colour key reads a theme name that paints something on this page.
-      const unresolved = await page.evaluate(
-        (names) =>
-          names.filter((name) => !getComputedStyle(document.documentElement).getPropertyValue(name).trim()),
-        Object.values(CLERK_COLOURS.tokens)
-      );
-      expect(unresolved, "Clerk colour keys whose theme name is empty on the sign-in page").toEqual([]);
+      await expect(signInButton(page)).toBeVisible();
     });
-    expect(CLERK_COLOURS.problems, "Clerk colour keys not on a theme or additions token").toEqual([]);
-    // Clerk's card is flush (transparent), so the link sits on the page colour.
     const darkSignIn = captured["sign-in"].dark?.elements;
-    const link = darkSignIn?.clerkFooterLink?.color ?? "";
+    const link = darkSignIn?.link?.color ?? "";
     const background = darkSignIn?.body?.["background-color"] ?? "";
     expect(
       contrastRatio(link, background),
-      `dark "Sign up" link ${link} on ${background}`
+      `dark "Forgot password?" link ${link} on ${background}`
     ).toBeGreaterThanOrEqual(BODY_TEXT_CONTRAST);
   } finally {
     await signedOut.close();
@@ -151,6 +130,8 @@ test("Lane paints the same theme on every page in light and dark", async ({
       await page.goto("/settings/profile");
       // The loading skeleton also says "Settings"; only the loaded page has this region.
       await expect(page.getByRole("region", { name: "Settings content" })).toBeVisible();
+      // #394: the account section's Name field and its Save are the page's first input and submit.
+      await expect(page.getByRole("textbox", { name: "Name", exact: true })).toBeVisible();
     });
   } finally {
     await signedIn.close();
@@ -199,7 +180,7 @@ test("the error page paints the saved light/dark setting", async ({ browser }) =
       await context.addInitScript((theme) => localStorage.setItem("theme", theme), saved);
       const page = await context.newPage();
       await page.goto("/login");
-      await expect(page.locator(".cl-formButtonPrimary").first()).toBeVisible();
+      await expect(signInButton(page)).toBeVisible();
       await settle(page, expected);
       const paint = () =>
         page.evaluate(() => ({
@@ -208,10 +189,13 @@ test("the error page paints the saved light/dark setting", async ({ browser }) =
         }));
       const appPaint = await paint();
 
-      await page.evaluate(() =>
-        window.dispatchEvent(new StorageEvent("storage", { key: "theme", newValue: "crash test" }))
-      );
-      await expect(page.getByRole("heading", { name: "Lane can’t load right now" })).toBeVisible();
+      // The form is in the server's HTML, so the first event may come before the theme provider listens.
+      await expect(async () => {
+        await page.evaluate(() =>
+          window.dispatchEvent(new StorageEvent("storage", { key: "theme", newValue: "crash test" }))
+        );
+        await expect(page.getByRole("heading", { name: "Lane can’t load right now" })).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 15_000 });
       await settle(page, expected);
       const html = page.locator("html");
       await expect(html).toHaveAttribute("data-theme", expected);
@@ -237,7 +221,7 @@ test("the tab colour follows the saved light/dark setting", async ({ browser }) 
       await context.addInitScript((theme) => localStorage.setItem("theme", theme), saved);
       const page = await context.newPage();
       await page.goto("/login");
-      await expect(page.locator(".cl-formButtonPrimary").first()).toBeVisible();
+      await expect(signInButton(page)).toBeVisible();
       await settle(page, expected);
       const tabColour = () =>
         page.evaluate(() => {
