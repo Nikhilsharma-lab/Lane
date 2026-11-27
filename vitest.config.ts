@@ -16,7 +16,7 @@ for (const key of Object.keys(process.env)) {
 
 export default defineConfig({
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     fileParallelism: false,
     // Several sessions share this machine; a busy one must not fail a test on time alone.
     testTimeout: 20_000,
