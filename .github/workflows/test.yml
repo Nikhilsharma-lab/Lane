@@ -118,4 +118,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The cutover kit's tests (#412) dump and restore scratch copies on the postgres:17 service. Ubuntu's own
+      # client is older, and pg_dump refuses a newer server, so PostgreSQL's 17 client goes first on PATH. gpg and tar
+      # are already on the runner.
+      - name: PostgreSQL 17 client tools
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+
       - run: pnpm test
