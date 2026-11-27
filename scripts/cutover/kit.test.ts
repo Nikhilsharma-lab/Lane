@@ -135,3 +135,45 @@ describe("refusals", () => {
     }
   });
 });
+
+describe("check-blanks", () => {
+  it("passes when no profile image, workspace logo or workspace metadata holds a value", async () => {
+    const run = await runKit(["check-blanks", "rehearsal"], { dir, clipboard: [scratch.url] });
+
+    expect(run.code).toBe(0);
+    expect(run.stdout).toMatch(/Check blanks: ok/);
+    expect(stepLog(dir, "rehearsal")).toEqual([
+      expect.objectContaining({ environment: "rehearsal", step: "check-blanks", result: "ok", counts: { profileImages: 0, workspaceLogos: 0, workspaceMetadata: 0 } }),
+    ]);
+  });
+
+  it.each([
+    {
+      column: "profiles.image",
+      set: (sql: Scratch["sql"]) => sql`update public.profiles set image = 'https://lh3.googleusercontent.com/a/made-up' where id = (select min(id) from public.profiles)`,
+      counts: { profileImages: 1, workspaceLogos: 0, workspaceMetadata: 0 },
+    },
+    {
+      column: "organizations.logo",
+      set: (sql: Scratch["sql"]) => sql`update public.organizations set logo = 'https://example.test/logo.png' where id = 'org_agreement_legacy'`,
+      counts: { profileImages: 0, workspaceLogos: 1, workspaceMetadata: 0 },
+    },
+    {
+      column: "organizations.metadata",
+      set: (sql: Scratch["sql"]) => sql`update public.organizations set metadata = '' where id = 'org_agreement_legacy'`,
+      counts: { profileImages: 0, workspaceLogos: 0, workspaceMetadata: 1 },
+    },
+  ])("fails when $column holds a value", async ({ column, set, counts }) => {
+    await set(scratch.sql);
+    try {
+      const run = await runKit(["check-blanks", "rehearsal"], { dir, clipboard: [scratch.url] });
+
+      expect(run.code).toBe(1);
+      expect(run.stdout).toContain(`STOP: ${column} holds a value in 1 row`);
+      expect(stepLog(dir, "rehearsal")).toEqual([expect.objectContaining({ step: "check-blanks", result: "stop", counts })]);
+    } finally {
+      await scratch.sql`update public.profiles set image = null`;
+      await scratch.sql`update public.organizations set logo = null, metadata = null`;
+    }
+  });
+});
