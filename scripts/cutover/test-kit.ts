@@ -1,7 +1,7 @@
 // The cutover kit's test setup (#411): a scratch database copied from this checkout's lane_test database, a scratch
 // folder standing in for the bucket, a working folder for the step log, and a way to run the kit as the runbook
 // does, with a stand-in clipboard. Every scratch thing is dropped afterwards; the shared lane_test is only read.
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -118,9 +118,9 @@ export function runKit(
   const clipboardFile = path.join(clipboardDir, "clipboard");
   writeFileSync(clipboardFile, "");
   const queue = [...(options.clipboard ?? [])];
-  const child = spawn(process.execPath, [KIT, ...args, "--dir", options.dir], {
+  const child: ChildProcessWithoutNullStreams = spawn(process.execPath, [KIT, ...args, "--dir", options.dir], {
     cwd: path.resolve(__dirname, "../.."),
-    env: { PATH: process.env.PATH, HOME: process.env.HOME, LANE_CUTOVER_CLIPBOARD: clipboardFile },
+    env: { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: process.env.NODE_ENV, LANE_CUTOVER_CLIPBOARD: clipboardFile },
     stdio: ["pipe", "pipe", "pipe"],
   });
   let stdout = "";
