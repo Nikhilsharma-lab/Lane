@@ -156,3 +156,13 @@ export function stepLog(dir: string, environment: string): Record<string, unknow
     throw error;
   }
 }
+
+/** Every public table's row count, to show a run changed nothing in the database. */
+export async function tableRows(sql: Scratch["sql"]): Promise<Record<string, number>> {
+  const rows = await sql<{ name: string; rows: string }[]>`
+    select c.relname as name,
+      (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from public.%I', c.relname), false, true, '')))[1]::text as rows
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r', 'p') order by 1`;
+  return Object.fromEntries(rows.map((row) => [row.name, Number(row.rows)]));
+}
