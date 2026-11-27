@@ -10,6 +10,11 @@ let dir: string;
 
 beforeAll(async () => {
   scratch = await makeScratch();
+  // lane_test holds whatever earlier test files left in it. The checks below start from none of what they look for.
+  await scratch.sql`delete from public.slack_connections`;
+  await scratch.sql`update public.workspace_billing set provider_customer_id = null, provider_subscription_id = null`;
+  await scratch.sql`update public.profiles set image = null`;
+  await scratch.sql`update public.organizations set logo = null, metadata = null`;
   putFile(scratch.folder, "org_a/request_1/brief.pdf", "%PDF one");
   putFile(scratch.folder, "org_a/request_2/deep/notes.txt", "two");
 });
@@ -21,23 +26,32 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("state", () => {
   it("reports the migrations, every public table's rows and the folder's files, and logs them", async () => {
-    // Copied from a dashboard with a character nobody sees on its end (2026-10-26).
-    const run = await runKit(["state", "rehearsal", "--folder", scratch.folder], { dir, clipboard: [`${scratch.url}\u2028\n`] });
+    // A table no kit file names, with three rows: state reads the tables from the catalog as it finds them.
+    await scratch.sql`create table public.made_up_later (id int)`;
+    await scratch.sql`insert into public.made_up_later values (1), (2), (3)`;
+    try {
+      const rows = Object.fromEntries(Object.entries(await tableDigests(scratch.sql)).map(([table, digest]) => [table, Number(digest.split(":")[0])]));
 
-    expect(run.code).toBe(0);
-    expect(run.clipboard).toBe("");
-    expect(run.stdout).toMatch(/Latest migration: 0055/);
-    expect(run.stdout).toMatch(/^ {2}profiles +11$/m);
-    expect(run.stdout).toMatch(/^ {2}workspace_billing +12$/m);
-    expect(run.stdout).toMatch(/Files in request-attachments: 2/);
-    const [line] = stepLog(dir, "rehearsal");
-    expect(line).toMatchObject({
-      environment: "rehearsal",
-      step: "state",
-      result: "ok",
-      counts: { files: 2, caseDuplicateEmails: 0, stripeIds: 0, slackIds: 0, tables: expect.objectContaining({ profiles: 11, workspace_billing: 12 }) },
-    });
-    expect(new Date(line.at as string).toISOString()).toBe(line.at);
+      // Copied from a dashboard with a character nobody sees on its end (2026-10-26).
+      const run = await runKit(["state", "rehearsal", "--folder", scratch.folder], { dir, clipboard: [`${scratch.url}\u2028\n`] });
+
+      expect(run.code).toBe(0);
+      expect(run.clipboard).toBe("");
+      expect(run.stdout).toMatch(/Latest migration: 0055/);
+      expect(run.stdout).toMatch(/^ {2}made_up_later +3$/m);
+      expect(run.stdout).toMatch(new RegExp(`^ {2}profiles +${rows.profiles}$`, "m"));
+      expect(run.stdout).toMatch(/Files in request-attachments: 2/);
+      const [line] = stepLog(dir, "rehearsal");
+      expect(line).toMatchObject({
+        environment: "rehearsal",
+        step: "state",
+        result: "ok",
+        counts: { files: 2, caseDuplicateEmails: 0, stripeIds: 0, slackIds: 0, tables: rows },
+      });
+      expect(new Date(line.at as string).toISOString()).toBe(line.at);
+    } finally {
+      await scratch.sql`drop table public.made_up_later`;
+    }
   });
   it.each([
     {
