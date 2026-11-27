@@ -141,3 +141,43 @@ describe("empty", () => {
     await scratch.sql`drop table public.made_up_later_413`;
   });
 });
+
+describe("empty-bucket", () => {
+  it("finishes on a rerun after a partial run, and leaves the folder standing in for the bucket", async () => {
+    // More than one batch, at several depths, and two files it can't remove the first time.
+    for (let index = 0; index < 150; index++) putFile(scratch.folder, `org_b/request_${index % 7}/${index}.txt`, `made-up ${index}`, "text/plain");
+    putFile(scratch.folder, "org_c/locked/a.txt", "made-up locked");
+    putFile(scratch.folder, "org_c/locked/b.txt", "made-up locked too");
+    const locked = path.join(scratch.folder, "org_c/locked");
+    chmodSync(locked, 0o500);
+    let partial: KitRun;
+    try {
+      partial = await emptyBucket();
+    } finally {
+      chmodSync(locked, 0o700);
+    }
+
+    expect(partial.code).toBe(1);
+    expect(partial.stdout).toMatch(/STOP: A batch of \d+ files wasn't all removed: 2 of \d+ couldn't be removed: org_c\/locked\/a\.txt \(EACCES\)/);
+    expect(partial.stdout).toContain("Files left in request-attachments: 2");
+    expect(partial.stdout).toContain("Empty bucket: stop. 2 files are left. Run empty-bucket rehearsal again until it reports 0.");
+    expect(stepLog(dir, "rehearsal").at(-1)).toMatchObject({ step: "empty-bucket", result: "stop", counts: { found: 153, removed: 151, left: 2 } });
+
+    const rerun = await emptyBucket();
+    const again = await emptyBucket();
+
+    expect(rerun.code).toBe(0);
+    expect(rerun.stdout).toContain("Files left in request-attachments: 0");
+    expect(rerun.stdout).toMatch(/Empty bucket: ok\. request-attachments holds 0 files; the bucket and its settings are as they were\. Next: promote the Better Auth build, then check-zero rehearsal\./);
+    expect(again.code).toBe(0);
+    expect(again.stdout).toContain("Files left in request-attachments: 0");
+    expect(stepLog(dir, "rehearsal").slice(-2)).toEqual([
+      expect.objectContaining({ step: "empty-bucket", result: "ok", counts: { found: 2, removed: 2, left: 0 } }),
+      expect.objectContaining({ step: "empty-bucket", result: "ok", counts: { found: 0, removed: 0, left: 0 } }),
+    ]);
+    expect(existsSync(scratch.folder)).toBe(true);
+    expect(Object.keys(snapshotFolder(scratch.folder))).toEqual([".content-types.json"]);
+    expect(JSON.parse(readFileSync(path.join(scratch.folder, ".content-types.json"), "utf8"))).toEqual({});
+    expectNoSecret(partial!, rerun, again);
+  });
+});
