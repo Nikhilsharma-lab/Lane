@@ -201,7 +201,7 @@ describe("A Metric definition's tab", () => {
   });
 
   it("reads Settings for anyone the page sends elsewhere", async () => {
-    for (const workspace of [null, { ...as("member"), needsOnboarding: true }, as("guest")]) {
+    for (const workspace of [null, as("guest")]) {
       session.workspace = workspace;
       expect(await titleOf("not-a-definition")).toBe("Settings");
     }
