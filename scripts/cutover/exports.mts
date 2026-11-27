@@ -135,8 +135,12 @@ export function tableDifferences(exported: Manifest["tables"], now: Readonly<Rec
   return differences;
 }
 
-/** How a bucket's objects differ from the export's files. Checksums are compared when `now` carries them. */
-export function fileDifferences(exported: readonly ExportedFile[], now: ReadonlyArray<StoredObject & { sha256?: string }>): string[] {
+/**
+ * How a bucket's objects differ from the export's files: which paths are missing or extra and, unless `pathsOnly`,
+ * each file's size and type, and its checksum when `now` carries one. Lane's object paths are new IDs, never reused,
+ * so the writes check compares paths only and needs no download.
+ */
+export function fileDifferences(exported: readonly ExportedFile[], now: ReadonlyArray<StoredObject & { sha256?: string }>, pathsOnly = false): string[] {
   const differences: string[] = [];
   const current = new Map(now.map((object) => [object.path, object]));
   const then = new Map(exported.map((file) => [file.path, file]));
@@ -145,7 +149,7 @@ export function fileDifferences(exported: readonly ExportedFile[], now: Readonly
   const extra = now.filter((object) => !then.has(object.path)).map((object) => object.path);
   const changed = exported.flatMap((file) => {
     const object = current.get(file.path);
-    if (!object) return [];
+    if (!object || pathsOnly) return [];
     const what = [
       object.size !== file.size && `size ${file.size} in the export, ${object.size} now`,
       object.sha256 !== undefined && object.sha256 !== file.sha256 && "a different SHA256",
