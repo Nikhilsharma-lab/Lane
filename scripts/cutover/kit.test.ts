@@ -1,9 +1,9 @@
 // The cutover kit's seam (#410 Testing Decisions): each test runs a subcommand the way the runbook does, against a
 // scratch database and folder, and checks what changed in the database, the folder and the step log.
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { MADE_UP_PASSWORD, makeScratch, makeWorkingFolder, putFile, runKit, snapshotFolder, stepLog, tableRows, type Scratch } from "./test-kit";
+import { MADE_UP_PASSWORD, makeScratch, makeWorkingFolder, putFile, runKit, snapshotFolder, stepLog, tableDigests, type Scratch } from "./test-kit";
 
 let scratch: Scratch;
 let dir: string;
@@ -122,14 +122,14 @@ describe("refusals", () => {
       mkdirSync(path.join(dir, environment));
       writeFileSync(path.join(dir, environment, "steps.log"), `{"at":"2026-11-27T00:00:00.000Z","environment":"${environment}","step":"state","result":"ok"}\n`);
     }
-    const before = { rows: await tableRows(scratch.sql), folder: snapshotFolder(scratch.folder), dir: snapshotFolder(dir) };
+    const before = { rows: await tableDigests(scratch.sql), folder: snapshotFolder(scratch.folder), dir: snapshotFolder(dir) };
 
     const run = await runKit(args.map((arg) => folders[arg] ?? arg), { dir, clipboard: clipboard.map((value) => values[value] ?? value) });
 
     expect(run.code).toBe(2);
     expect(run.stderr).toMatch(message);
     expect(run.stderr).toMatch(/Nothing was done/);
-    expect({ rows: await tableRows(scratch.sql), folder: snapshotFolder(scratch.folder), dir: snapshotFolder(dir) }).toEqual(before);
+    expect({ rows: await tableDigests(scratch.sql), folder: snapshotFolder(scratch.folder), dir: snapshotFolder(dir) }).toEqual(before);
     for (const secret of [SECRET, MADE_UP_PASSWORD, "made-up-signature-411", "sb_publishable_made_up_411"]) {
       expect(run.stdout + run.stderr).not.toContain(secret);
     }
@@ -226,5 +226,79 @@ describe("schema-diff", () => {
     } finally {
       await scratch.sql`drop policy if exists made_up_policy on public.projects`;
     }
+  });
+});
+
+const SUBCOMMANDS = [
+  { subcommand: "state", args: () => ["state", "rehearsal", "--folder", scratch.folder], copies: 1 },
+  { subcommand: "schema-diff", args: () => ["schema-diff", "rehearsal", "rehearsal"], copies: 2 },
+  { subcommand: "check-blanks", args: () => ["check-blanks", "rehearsal"], copies: 1 },
+];
+
+/** Whatever the kit left in its working folder besides step logs: the secret file, if it wasn't deleted. */
+const leftovers = () => Object.keys(snapshotFolder(dir)).filter((file) => !/^(rehearsal|staging|production)\/steps\.log$/.test(file));
+
+describe("secrets", () => {
+  it.each(SUBCOMMANDS)("$subcommand prints and logs no secret, and deletes the secret file when it's done", async ({ args, copies }) => {
+    const password = decodeURIComponent(new URL(scratch.url).password);
+    let pgpass: { mode: number; holdsPassword: boolean } | undefined;
+
+    const run = await runKit(args(), {
+      dir,
+      clipboard: Array(copies).fill(scratch.url),
+      // Once the first connection string is in, the owner-only file holds it.
+      atPrompt: (index) => {
+        if (index !== copies - 1 || copies === 1) return;
+        const [file] = leftovers();
+        pgpass = { mode: statSync(path.join(dir, file)).mode & 0o777, holdsPassword: readFileSync(path.join(dir, file), "utf8").includes(password) };
+      },
+    });
+
+    expect(run.code).toBe(0);
+    expect(run.clipboard).toBe("");
+    const log = readFileSync(path.join(dir, "rehearsal", "steps.log"), "utf8");
+    for (const output of [run.stdout, run.stderr, log]) expect(output).not.toContain(password);
+    if (copies === 2) expect(pgpass).toEqual({ mode: 0o600, holdsPassword: true });
+    expect(leftovers()).toEqual([]);
+  });
+
+  it.each(SUBCOMMANDS)("$subcommand deletes the secret file when it fails, and logs the failure without the secret", async ({ subcommand, args, copies }) => {
+    const missing = Object.assign(new URL(scratch.url), { pathname: "/lane_rehearsal_missing_411", password: SECRET }).toString();
+
+    const run = await runKit(args(), { dir, clipboard: Array(copies).fill(missing) });
+
+    expect(run.code).toBe(1);
+    expect(run.stderr).toMatch(/FAILED: .*lane_rehearsal_missing_411/);
+    expect(stepLog(dir, "rehearsal")).toEqual([expect.objectContaining({ step: subcommand, result: "failed", detail: expect.stringContaining("does not exist") })]);
+    const log = readFileSync(path.join(dir, "rehearsal", "steps.log"), "utf8");
+    for (const output of [run.stdout, run.stderr, log]) expect(output).not.toContain(SECRET);
+    expect(leftovers()).toEqual([]);
+  });
+
+  it("deletes the secret file when the session is stopped mid-step", async () => {
+    const run = await runKit(["schema-diff", "rehearsal", "rehearsal"], { dir, clipboard: [scratch.url], atPrompt: (index) => (index === 1 ? "terminate" : undefined) });
+
+    expect(run.code).not.toBe(0);
+    expect(run.stderr).toMatch(/Stopped by SIGTERM/);
+    expect(leftovers()).toEqual([]);
+  });
+});
+
+describe("reruns", () => {
+  it.each(SUBCOMMANDS)("$subcommand gives the same result again, and writes nothing to the database or the folder", async ({ subcommand, args, copies }) => {
+    const before = { database: await tableDigests(scratch.sql), folder: snapshotFolder(scratch.folder) };
+
+    const first = await runKit(args(), { dir, clipboard: Array(copies).fill(scratch.url) });
+    const second = await runKit(args(), { dir, clipboard: Array(copies).fill(scratch.url) });
+
+    expect(first.code).toBe(0);
+    expect(second.code).toBe(first.code);
+    const report = (stdout: string) => stdout.split("\n").filter((line) => !/^(Last logged step|No step logged yet)/.test(line));
+    expect(report(second.stdout)).toEqual(report(first.stdout));
+    // The rerun starts from the last line the first run logged.
+    expect(second.stdout).toMatch(new RegExp(`^Last logged step: \\S+Z rehearsal ${subcommand}.*: ok$`, "m"));
+    const [one, two] = stepLog(dir, "rehearsal");
+    expect({ ...two, at: one.at }).toEqual(one);
+    expect({ database: await tableDigests(scratch.sql), folder: snapshotFolder(scratch.folder) }).toEqual(before);
   });
 });

@@ -107,9 +107,13 @@ export type KitRun = Readonly<{ code: number | null; stdout: string; stderr: str
 /**
  * Runs `node scripts/cutover/kit.mts <args> --dir <dir>` as the runbook does. Each time the kit asks for something
  * to be copied, the next value goes on the stand-in clipboard and Enter is pressed. When the values run out, the
- * kit's input is closed. `clipboard` is what the stand-in clipboard holds once the kit has exited.
+ * kit's input is closed. `clipboard` is what the stand-in clipboard holds once the kit has exited. `atPrompt` runs
+ * as each prompt appears (0 for the first); returning "terminate" stops the kit with SIGTERM instead of answering.
  */
-export function runKit(args: string[], options: { dir: string; clipboard?: string[] }): Promise<KitRun> {
+export function runKit(
+  args: string[],
+  options: { dir: string; clipboard?: string[]; atPrompt?: (index: number) => "terminate" | void },
+): Promise<KitRun> {
   const clipboardDir = mkdtempSync(path.join(tmpdir(), "lane-cutover-clipboard-"));
   const clipboardFile = path.join(clipboardDir, "clipboard");
   writeFileSync(clipboardFile, "");
@@ -127,7 +131,11 @@ export function runKit(args: string[], options: { dir: string; clipboard?: strin
     stderr += chunk;
     const asked = stderr.match(/press Enter/g)?.length ?? 0;
     while (prompts < asked) {
-      prompts++;
+      const index = prompts++;
+      if (options.atPrompt?.(index) === "terminate") {
+        child.kill("SIGTERM");
+        return;
+      }
       const next = queue.shift();
       if (next === undefined) child.stdin.end();
       else {
@@ -157,12 +165,14 @@ export function stepLog(dir: string, environment: string): Record<string, unknow
   }
 }
 
-/** Every public table's row count, to show a run changed nothing in the database. */
-export async function tableRows(sql: Scratch["sql"]): Promise<Record<string, number>> {
-  const rows = await sql<{ name: string; rows: string }[]>`
+/** Every public table's row count and a digest of its rows, to show a run changed nothing in the database. */
+export async function tableDigests(sql: Scratch["sql"]): Promise<Record<string, string>> {
+  const rows = await sql<{ name: string; digest: string }[]>`
     select c.relname as name,
-      (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from public.%I', c.relname), false, true, '')))[1]::text as rows
+      (xpath('/row/d/text()', query_to_xml(format(
+        'select count(*) || '':'' || coalesce(md5(string_agg(to_jsonb(t)::text, '','' order by to_jsonb(t)::text)), '''') as d from public.%I t',
+        c.relname), false, true, '')))[1]::text as digest
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind in ('r', 'p') order by 1`;
-  return Object.fromEntries(rows.map((row) => [row.name, Number(row.rows)]));
+  return Object.fromEntries(rows.map((row) => [row.name, row.digest]));
 }
