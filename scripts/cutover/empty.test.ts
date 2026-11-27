@@ -181,3 +181,55 @@ describe("empty-bucket", () => {
     expectNoSecret(partial!, rerun, again);
   });
 });
+
+describe("check-zero", () => {
+  const ROLL_BACK = "Check zero: stop. Something is in rehearsal after the emptying. Roll back with restore rehearsal, then repeat the cutover. Never delete rows or files by hand.";
+
+  it("passes when every public table and the bucket are at 0, again on a rerun, and changes nothing", async () => {
+    const before = { rows: await tableDigests(scratch.sql), folder: snapshotFolder(scratch.folder) };
+
+    const first = await checkZero();
+    const second = await checkZero();
+
+    for (const run of [first, second]) {
+      expect(run.code).toBe(0);
+      expect(run.stdout).toContain("Check zero: ok. Every table in public is at 0 rows and request-attachments holds 0 files. Nothing was changed.");
+    }
+    expect(stepLog(dir, "rehearsal").slice(-2)).toEqual([
+      expect.objectContaining({ step: "check-zero", result: "ok", counts: { tables: Object.keys(before.rows).length, rows: 0, files: 0, notEmpty: {} } }),
+      expect.objectContaining({ step: "check-zero", result: "ok", counts: { tables: Object.keys(before.rows).length, rows: 0, files: 0, notEmpty: {} } }),
+    ]);
+    expect({ rows: await tableDigests(scratch.sql), folder: snapshotFolder(scratch.folder) }).toEqual(before);
+    expectNoSecret(first, second);
+  });
+
+  it("stops on one row, saying to roll back", async () => {
+    await scratch.sql`insert into public.profiles (id, full_name, email) values ('user_early_413', 'Early', 'early-413@example.test')`;
+    try {
+      const run = await checkZero();
+
+      expect(run.code).toBe(1);
+      expect(run.stdout).toContain("STOP: profiles holds 1 row(s).");
+      expect(run.stdout).toContain(ROLL_BACK);
+      expect(stepLog(dir, "rehearsal").at(-1)).toMatchObject({ step: "check-zero", result: "stop", counts: { rows: 1, files: 0, notEmpty: { profiles: 1 } } });
+      expectNoSecret(run);
+    } finally {
+      await scratch.sql`delete from public.profiles where id = 'user_early_413'`;
+    }
+  });
+
+  it("stops on one file, saying to roll back", async () => {
+    putFile(scratch.folder, "org_d/request_1/early.txt", "made-up early");
+    try {
+      const run = await checkZero();
+
+      expect(run.code).toBe(1);
+      expect(run.stdout).toContain("STOP: request-attachments holds 1 file(s).");
+      expect(run.stdout).toContain(ROLL_BACK);
+      expect(stepLog(dir, "rehearsal").at(-1)).toMatchObject({ step: "check-zero", result: "stop", counts: { rows: 0, files: 1, notEmpty: {} } });
+      expectNoSecret(run);
+    } finally {
+      rmSync(path.join(scratch.folder, "org_d"), { recursive: true, force: true });
+    }
+  });
+});

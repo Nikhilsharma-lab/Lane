@@ -281,6 +281,8 @@ describe("secrets", () => {
     // #412's subcommands that reach a database first (rehearse and check-writes look for an export before that).
     { subcommand: "export", args: () => ["export", "rehearsal", "--folder", scratch.folder], copies: 1 },
     { subcommand: "apply", args: () => ["apply", "rehearsal"], copies: 1 },
+    // #413's subcommand that reaches a database first (empty, empty-bucket and restore read the step log first).
+    { subcommand: "check-zero", args: () => ["check-zero", "rehearsal", "--folder", scratch.folder], copies: 1 },
   ])("$subcommand deletes the secret file when it fails, and logs the failure without the secret", async ({ subcommand, args, copies }) => {
     const missing = Object.assign(new URL(scratch.url), { pathname: "/lane_rehearsal_missing_411", password: SECRET }).toString();
 
