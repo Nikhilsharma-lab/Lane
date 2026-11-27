@@ -1,32 +1,8 @@
 // `state`, read-only (#410): what an environment holds before it's exported and emptied. Stops the runbook on two
 // profiles emails that differ only in case (0055's unique index, #369) and on any Stripe or Slack ID (#345 Q1).
-import { readOnly, rowCounts, type Sql } from "../database.mts";
 import type { Command } from "../command.mts";
-
-// What each migration leaves behind, as the 0035–0053 release kit probed them. 0040 and 0044 change only rows.
-const SIGNS: Readonly<Record<string, string>> = {
-  "0034": "select count(*) from information_schema.columns where table_schema='public' and table_name='requests' and column_name='done_at'",
-  "0035": "select count(*) from information_schema.tables where table_schema='public' and table_name='request_expected_impact_revisions'",
-  "0036": "select count(*) from information_schema.columns where table_schema='public' and table_name='requests' and column_name='no_measurable_impact_reason'",
-  "0037": "select count(*) from information_schema.tables where table_schema='public' and table_name='metric_definitions'",
-  "0038": "select count(*) from information_schema.tables where table_schema='public' and table_name='metric_definition_aliases'",
-  "0039": "select count(*) from pg_proc p join pg_namespace s on s.oid=p.pronamespace where s.nspname='public' and p.proname='prediction_definition_ids'",
-  "0041": "select count(*) from information_schema.tables where table_schema='public' and table_name='delivery_log'",
-  "0042": "select count(*) from information_schema.tables where table_schema='public' and table_name='slack_connections'",
-  "0043": "select count(*) from information_schema.tables where table_schema='public' and table_name='quarter_notes'",
-  "0045": "select count(*) from information_schema.columns where table_schema='public' and table_name='requests' and column_name='guest_submission'",
-  "0046": "select count(*) from information_schema.tables where table_schema='public' and table_name='workspace_billing'",
-  "0047": "select count(*) from information_schema.columns where table_schema='public' and table_name='workspace_billing' and column_name='billing_period'",
-  "0048": "select count(*) from information_schema.columns where table_schema='public' and table_name='workspace_billing' and column_name='billed_seats'",
-  "0049": "select count(*) from information_schema.columns where table_schema='public' and table_name='workspace_billing' and column_name='plan_ends_at'",
-  "0050": "select count(*) from information_schema.tables where table_schema='public' and table_name='first_run_progress'",
-  "0051": "select count(*) from information_schema.tables where table_schema='public' and table_name='same_problem_members'",
-  "0052": "select count(*) from information_schema.tables where table_schema='public' and table_name='saved_views'",
-  "0053": "select count(*) from pg_proc p join pg_namespace s on s.oid=p.pronamespace where s.nspname='public' and p.proname='valid_corrected_value'",
-  // 0054 adds the custom pass/fail check to the v5 validator.
-  "0054": "select count(*) from pg_proc p join pg_namespace s on s.oid=p.pronamespace where s.nspname='public' and p.proname='request_measurement_valid_v5' and p.prosrc like '%''recovery'',''custom''%'",
-  "0055": "select count(*) from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='email_verified'",
-};
+import { readOnly, rowCounts, type Sql } from "../database.mts";
+import { caseDuplicateEmails, presentMigrations, SIGNS } from "../migrations.mts";
 
 async function tableExists(sql: Sql, table: string): Promise<boolean> {
   const [row] = await sql`select to_regclass(${`public.${table}`}) is not null as present`;
@@ -40,15 +16,9 @@ export const state: Command = {
   bucket: true,
   async run({ targets: [target], print, logStep }) {
     const read = await readOnly(target.database, async (sql) => {
-      const present: string[] = [];
-      for (const [migration, sign] of Object.entries(SIGNS)) {
-        const [row] = await sql.unsafe(sign);
-        if (Number(row.count) > 0) present.push(migration);
-      }
+      const present = await presentMigrations(sql);
       const tables = await rowCounts(sql);
-      const duplicates = await sql<{ email: string; profiles: number }[]>`
-        select lower(email) as email, count(*)::int as profiles from public.profiles
-        where email is not null group by lower(email) having count(*) > 1 order by 1`;
+      const duplicates = await caseDuplicateEmails(sql);
       const stripe = (await tableExists(sql, "workspace_billing"))
         ? await sql<{ org_id: string }[]>`
             select org_id from public.workspace_billing

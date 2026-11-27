@@ -14,14 +14,26 @@ export type Target = Readonly<{
 }>;
 
 export type CommandContext = Readonly<{
+  /** The first environment named: whose step log the subcommand writes, and whose exports it reads. */
+  environment: Environment;
+  /** Every named environment's database (and bucket), checked. Empty for a subcommand that connects to the local server. */
   targets: readonly Target[];
-  /** The kit's working folder (default backups/better-auth-cutover): step logs, and later exports, live here. */
+  /** The local Postgres server, for a subcommand that makes throwaway copies there (`connects: "local server"`). */
+  localServer?: DatabaseTarget;
+  /** The kit's working folder (default backups/better-auth-cutover): step logs and exports live here. */
   workingFolder: string;
   /** The owner-only pgpass file holding every target database's credentials, for pg_dump, pg_restore and psql. */
   pgpassFile: string;
+  /**
+   * This run's owner-only folder (0700), beside the pgpass file, for anything plain a step must hold for a moment:
+   * an export before it's encrypted, a decrypted rehearsal. The kit deletes it when it exits, however it exits.
+   */
+  privateFolder: string;
+  /** Registers something to undo synchronously if the kit exits before the subcommand does (a signal, an exit). */
+  atExit: (undo: () => void) => void;
   /** Prints a line on stdout, with any secret removed. */
   print: (line: string) => void;
-  /** Appends a line to the first target's step log. */
+  /** Appends a line to the first environment's step log. */
   logStep: (line: Omit<StepLine, "at" | "environment">) => void;
 }>;
 
@@ -32,6 +44,11 @@ export type Command = Readonly<{
   environments: 1 | 2;
   /** Whether it reaches the bucket (and so needs the storage key, or --folder for a rehearsal). */
   bucket: boolean;
+  /**
+   * What the kit asks for: each named environment's database (the default), or only the local Postgres server, for
+   * a subcommand that works on throwaway copies of an environment's export and never reaches the environment.
+   */
+  connects?: "environments" | "local server";
   /** "ok" exits 0; "stop" exits 1 and means the runbook doesn't go on. */
   run: (context: CommandContext) => Promise<Exclude<StepResult, "failed">>;
 }>;

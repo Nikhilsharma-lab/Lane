@@ -14,6 +14,8 @@ export type StepLine = Readonly<{
   result: StepResult;
   /** The environment a comparison ran against (schema-diff). */
   against?: Environment;
+  /** The export the step took, rehearsed or compared against: its folder's name. */
+  export?: string;
   counts?: Readonly<Record<string, unknown>>;
   sha256?: Readonly<Record<string, string>>;
   /** Why a step stopped or failed, in a sentence with no secret in it. */
@@ -33,16 +35,20 @@ export function appendStep(workingFolder: string, line: Omit<StepLine, "at">, re
   return entry;
 }
 
-/** The last line logged for an environment, where a broken session resumes. */
-export function lastStep(workingFolder: string, environment: Environment): StepLine | undefined {
+/** Every line logged for an environment, oldest first. */
+export function readSteps(workingFolder: string, environment: Environment): StepLine[] {
   let text: string;
   try {
     text = readFileSync(stepLogFile(workingFolder, environment), "utf8");
   } catch {
-    return undefined;
+    return [];
   }
-  const last = text.trim().split("\n").filter(Boolean).at(-1);
-  return last ? (JSON.parse(last) as StepLine) : undefined;
+  return text.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as StepLine);
+}
+
+/** The last line logged for an environment, where a broken session resumes. */
+export function lastStep(workingFolder: string, environment: Environment): StepLine | undefined {
+  return readSteps(workingFolder, environment).at(-1);
 }
 
 export function describeStep(line: StepLine): string {

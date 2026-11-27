@@ -1,7 +1,7 @@
 // The attachment bucket, reached through one interface (#410 Testing Decisions): Supabase Storage's
 // request-attachments for staging and production, and a local folder for a rehearsal and the kit's tests. The folder
 // is what a rehearsal restores into, so the tests need no fake of their own.
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
@@ -14,6 +14,19 @@ export interface Bucket {
   readonly description: string;
   /** Every object at any depth, sorted by path. */
   list(): Promise<StoredObject[]>;
+  /** One object's bytes. */
+  read(objectPath: string): Promise<Buffer>;
+  /** Puts an object at its path with its content type, replacing one already there. */
+  write(objectPath: string, bytes: Buffer, contentType: string): Promise<void>;
+}
+
+/** An object path a bucket can hold: relative, with no empty, "." or ".." part, so it can't reach outside a folder. */
+function checkedPath(objectPath: string): string {
+  const parts = objectPath.split("/");
+  if (!objectPath || objectPath.startsWith("/") || parts.some((part) => part === "" || part === "." || part === "..")) {
+    throw new Error(`Not an object path: ${objectPath}`);
+  }
+  return objectPath;
 }
 
 /** A folder holds each object as a file at its path. Content types live in this file at its root, which isn't an object. */
@@ -43,6 +56,15 @@ export function folderBucket(folder: string): Bucket {
           contentType: known[objectPath] ?? UNKNOWN_TYPE,
         }));
     },
+    async read(objectPath) {
+      return readFileSync(path.join(folder, checkedPath(objectPath)));
+    },
+    async write(objectPath, bytes, contentType) {
+      const file = path.join(folder, checkedPath(objectPath));
+      mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+      writeFileSync(file, bytes, { mode: 0o600 });
+      writeFileSync(path.join(folder, FOLDER_CONTENT_TYPES), JSON.stringify({ ...types(), [objectPath]: contentType }), { mode: 0o600 });
+    },
   };
 }
 
@@ -71,6 +93,15 @@ export function supabaseBucket(projectRef: string, secretKey: string): Bucket {
       };
       await walk("");
       return objects.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+    },
+    async read(objectPath) {
+      const { data, error } = await storage.download(checkedPath(objectPath));
+      if (error) throw new Error(`Downloading ${objectPath} from ${BUCKET} failed: ${error.message}`);
+      return Buffer.from(await data.arrayBuffer());
+    },
+    async write(objectPath, bytes, contentType) {
+      const { error } = await storage.upload(checkedPath(objectPath), bytes, { contentType, upsert: true });
+      if (error) throw new Error(`Uploading ${objectPath} to ${BUCKET} failed: ${error.message}`);
     },
   };
 }

@@ -37,7 +37,8 @@ function pgpassField(value: string): string {
   return value.replace(/[\\:]/g, (character) => `\\${character}`);
 }
 
-function alive(pid: number): boolean {
+/** Whether a process is still running: a leftover named for a dead one is safe to delete. */
+export function alive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
@@ -89,6 +90,15 @@ export class SecretSession {
     this.clipboard.clear();
     this.hold(value);
     return value;
+  }
+
+  /**
+   * Stops reading the terminal once every secret is in, so a tool the kit runs next (gpg asking for the export's
+   * passphrase) has the terminal to itself.
+   */
+  stopAsking(): void {
+    this.reader?.close();
+    (this.input as NodeJS.ReadableStream & { pause?: () => void }).pause?.();
   }
 
   /** Remembers a secret so nothing the kit prints or logs can contain it. */

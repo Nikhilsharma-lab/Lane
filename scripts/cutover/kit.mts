@@ -4,31 +4,35 @@
 //
 // Options: --dir <folder> is the working folder for step logs and exports (default backups/better-auth-cutover,
 // git-ignored); --folder <lane_rehearsal_… folder> is the local folder standing in for request-attachments in a
-// rehearsal. Every secret is copied to the clipboard when the kit asks, never typed or passed as an argument.
+// rehearsal. Every secret is copied to the clipboard when the kit asks, never typed or passed as an argument; the
+// export's passphrase is the one exception, which gpg asks for itself.
 //
 // Exit codes: 0 ok; 1 stop (the runbook doesn't go on) or failed; 2 refused or misused, with nothing touched.
-import { realpathSync } from "node:fs";
+import { mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { folderBucket, supabaseBucket } from "./bucket.mts";
 import type { Command, Target } from "./command.mts";
 import { checkBlanks } from "./commands/check-blanks.mts";
+import { exportCommand } from "./commands/export.mts";
 import { schemaDiff } from "./commands/schema-diff.mts";
 import { state } from "./commands/state.mts";
 import {
   databaseTarget,
   ENVIRONMENT_NAMES,
   isEnvironment,
+  localServer,
   PROJECT_REFS,
   Refusal,
   rehearsalFolder,
   storageKey,
+  type DatabaseTarget,
   type Environment,
 } from "./environments.mts";
 import { SecretSession, systemClipboard } from "./secrets.mts";
 import { appendStep, describeStep, lastStep } from "./step-log.mts";
 
-export const COMMANDS: readonly Command[] = [state, schemaDiff, checkBlanks];
+export const COMMANDS: readonly Command[] = [state, schemaDiff, exportCommand, checkBlanks];
 const DEFAULT_WORKING_FOLDER = path.resolve(import.meta.dirname, "../../backups/better-auth-cutover");
 const FLAGS = ["--dir", "--folder"] as const;
 
@@ -64,9 +68,17 @@ function databaseLabel(environment: Environment, label: string): string {
   return `${ENVIRONMENT_NAMES[environment]}'s database connection string (Supabase → ${PROJECT_REFS[environment]} → Connect → Session pooler, password filled in)`;
 }
 
+const LOCAL_SERVER_LABEL = "the connection string of your local Postgres server, for the throwaway copy (postgresql://<you>@127.0.0.1:5432/postgres)";
+
 /** Checks every target and takes every secret, refusing before anything is touched. */
-async function resolveTargets(invocation: Invocation, session: SecretSession): Promise<Target[]> {
+async function resolveTargets(invocation: Invocation, session: SecretSession): Promise<{ targets: Target[]; localServer?: DatabaseTarget }> {
   const { command, environments, flags } = invocation;
+  if (command.connects === "local server") {
+    const server = localServer(await session.ask(LOCAL_SERVER_LABEL));
+    // One pgpass line for every database on that server: the throwaway copies are made there.
+    session.holdDatabase({ ...server, database: "*" });
+    return { targets: [], localServer: server };
+  }
   const labels = environments.map((environment, index) =>
     environments.indexOf(environment) !== environments.lastIndexOf(environment) ? `${environment} ${index + 1}` : environment);
   // The folder isn't secret, so it's checked before anything is asked for.
@@ -85,22 +97,32 @@ async function resolveTargets(invocation: Invocation, session: SecretSession): P
     }
     targets.push({ environment, label: labels[index], database, bucket });
   }
-  return targets;
+  return { targets };
 }
 
 export async function main(argv: string[]): Promise<number> {
   let session: SecretSession | undefined;
+  const undos: (() => void)[] = [];
+  // What a subcommand registered to undo (a throwaway database, a plain copy), newest first, then the secret file.
+  const cleanUp = () => {
+    for (const undo of undos.splice(0).reverse()) {
+      try {
+        undo();
+      } catch {}
+    }
+    session?.close();
+  };
   const say = (stream: NodeJS.WriteStream, text: string) => stream.write(`${session ? session.redact(text) : text}\n`);
   const closeAndExit = (signal: NodeJS.Signals) => {
-    session?.close();
-    say(process.stderr, `Stopped by ${signal}. The secret file is deleted. Rerun the step to carry on.`);
+    cleanUp();
+    say(process.stderr, `Stopped by ${signal}. The secret file and anything plain the step held are deleted. Rerun the step to carry on.`);
     process.exit(130);
   };
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.once(signal, closeAndExit);
-  process.once("exit", () => session?.close());
+  process.once("exit", cleanUp);
 
-  let targets: Target[] | undefined;
   let invocation: Invocation | undefined;
+  let resolved = false;
   try {
     invocation = parse(argv);
     const workingFolder = path.resolve(invocation.flags["--dir"] ?? DEFAULT_WORKING_FOLDER);
@@ -109,15 +131,22 @@ export async function main(argv: string[]): Promise<number> {
       const last = lastStep(workingFolder, environment);
       say(process.stdout, last ? `Last logged step: ${describeStep(last)}` : `No step logged yet for ${environment}.`);
     }
-    targets = await resolveTargets(invocation, session);
+    const { targets, localServer: server } = await resolveTargets(invocation, session);
+    session.stopAsking();
+    resolved = true;
     const activeSession = session;
-    const [first, second] = targets;
+    const [environment, against] = invocation.environments;
+    mkdirSync(activeSession.folder, { recursive: true, mode: 0o700 });
     const result = await invocation.command.run({
+      environment,
       targets,
+      localServer: server,
       workingFolder,
       pgpassFile: activeSession.pgpassFile,
+      privateFolder: activeSession.folder,
+      atExit: (undo) => void undos.push(undo),
       print: (line) => say(process.stdout, line),
-      logStep: (line) => appendStep(workingFolder, { environment: first.environment, ...(second ? { against: second.environment } : {}), ...line }, (text) => activeSession.redact(text)),
+      logStep: (line) => appendStep(workingFolder, { environment, ...(against ? { against } : {}), ...line }, (text) => activeSession.redact(text)),
     });
     return result === "ok" ? 0 : 1;
   } catch (error) {
@@ -127,17 +156,18 @@ export async function main(argv: string[]): Promise<number> {
     }
     const message = error instanceof Error ? error.message : String(error);
     say(process.stderr, `FAILED: ${message}`);
-    if (targets && invocation && session) {
+    if (resolved && invocation && session) {
       const activeSession = session;
+      const [environment, against] = invocation.environments;
       appendStep(
         path.resolve(invocation.flags["--dir"] ?? DEFAULT_WORKING_FOLDER),
-        { environment: targets[0].environment, step: invocation.command.name, result: "failed", detail: message, ...(targets[1] ? { against: targets[1].environment } : {}) },
+        { environment, step: invocation.command.name, result: "failed", detail: message, ...(against ? { against } : {}) },
         (text) => activeSession.redact(text),
       );
     }
     return 1;
   } finally {
-    session?.close();
+    cleanUp();
   }
 }
 

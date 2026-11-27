@@ -53,9 +53,9 @@ function hostedRef(url: URL, user: string): string | undefined {
   return undefined;
 }
 
-/** The database `raw` names, if and only if it is `environment`'s. */
-export function databaseTarget(environment: Environment, raw: string): DatabaseTarget {
-  const name = ENVIRONMENT_NAMES[environment];
+type Parsed = Readonly<{ url: URL; user: string; password: string; database: string; port: number; local: boolean }>;
+
+function parseConnection(raw: string, name: string): Parsed {
   const cleaned = raw.replace(EDGE_JUNK, "");
   if (!cleaned) throw new Refusal(`The clipboard held no connection string for ${name}. ${nothingDone}`);
   if (PLACEHOLDER.test(cleaned)) throw new Refusal(`The connection string still has a placeholder such as [YOUR-PASSWORD]. ${nothingDone}`);
@@ -80,7 +80,13 @@ export function databaseTarget(environment: Environment, raw: string): DatabaseT
     throw new Refusal(`That is Supabase's transaction pooler (port 6543). The kit needs the session pooler (port 5432) or the direct connection. ${nothingDone}`);
   }
   if (!user) throw new Refusal(`The connection string names no user. ${nothingDone}`);
-  const local = LOOPBACK.includes(url.hostname);
+  return { url, user, password, database, port, local: LOOPBACK.includes(url.hostname) };
+}
+
+/** The database `raw` names, if and only if it is `environment`'s. */
+export function databaseTarget(environment: Environment, raw: string): DatabaseTarget {
+  const name = ENVIRONMENT_NAMES[environment];
+  const { url, user, password, database, port, local } = parseConnection(raw, name);
 
   if (environment === "rehearsal") {
     if (!local || !new RegExp(`^${REHEARSAL_PREFIX}[a-z0-9_]+$`).test(database)) {
@@ -96,6 +102,16 @@ export function databaseTarget(environment: Environment, raw: string): DatabaseT
   if (port !== 5432 || database !== "postgres") throw new Refusal(`That isn't ${name}'s session connection (port 5432, database postgres). ${nothingDone}`);
   if (!password) throw new Refusal(`The connection string has no password. ${nothingDone}`);
   return { environment, host: url.hostname, port, user, password, database, local };
+}
+
+/**
+ * The local Postgres server `raw` names, where a rehearsal makes its throwaway copy: loopback only, never hosted.
+ * The kit connects to the database it names only to create and drop throwaway lane_rehearsal_… databases.
+ */
+export function localServer(raw: string): DatabaseTarget {
+  const { url, user, password, database, port, local } = parseConnection(raw, "the local Postgres server");
+  if (!local) throw new Refusal(`A rehearsal's throwaway copy is made only on the local Postgres server (127.0.0.1 or localhost). ${nothingDone}`);
+  return { environment: "rehearsal", host: url.hostname, port, user, password, database: database || "postgres", local };
 }
 
 /** Supabase's secret key for `environment`'s storage: a secret key, or a legacy service_role key for that project. */

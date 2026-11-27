@@ -19,6 +19,6 @@ it.each(kitFiles)("%s imports only Node, the Postgres client, the Supabase clien
 
 it.each(kitFiles)("%s runs only the local tools the kit is allowed", (file) => {
   const source = readFileSync(path.join(KIT, file), "utf8");
-  const tools = [...source.matchAll(/\b(?:execFileSync|execFile|spawnSync|spawn)\(\s*"([^"]+)"/g)].map((match) => match[1]);
+  const tools = [...source.matchAll(/\b(?:execFileSync|execFile|spawnSync|spawn|runTool)\(\s*"([^"]+)"/g)].map((match) => match[1]);
   expect(tools.filter((tool) => !TOOLS.includes(tool))).toEqual([]);
 });
