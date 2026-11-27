@@ -31,7 +31,7 @@ import { settingsMetadata } from "../../settings-metadata";
  */
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const [{ id }, workspace] = await Promise.all([params, getWorkspace()]);
-  if (!workspace || workspace.needsOnboarding || workspace.role === "guest") return settingsMetadata;
+  if (!workspace || workspace.role === "guest") return settingsMetadata;
   return (await readMetricPage(workspace, id)) ? settingsMetadata : { title: "Page not found" };
 }
 
