@@ -1,9 +1,9 @@
 // #412: `check-writes`, run as the runbook runs it: after export, rehearse and apply, the target must still hold
 // exactly what the export holds. Any write since is a stop that sends Nikhil back to export and rehearse again.
-import { rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { localServerUrl, makeGnupg, makeScratch, makeWorkingFolder, putFile, runKit, snapshotFolder, stepLog, tableDigests, type Gnupg, type Scratch } from "./test-kit";
+import { localServerUrl, MADE_UP_PASSPHRASE, makeGnupg, makeScratch, makeWorkingFolder, putFile, runKit, snapshotFolder, stepLog, tableDigests, type Gnupg, type Scratch } from "./test-kit";
 
 let scratch: Scratch;
 let gnupg: Gnupg;
@@ -44,6 +44,11 @@ describe("check-writes", () => {
       expect.objectContaining({ step: "check-writes", result: "ok", counts: { differences: 0 } }),
     ]);
     expect({ rows: await tableDigests(scratch.sql), folder: snapshotFolder(scratch.folder) }).toEqual(before);
+    const log = readFileSync(path.join(dir, "rehearsal", "steps.log"), "utf8");
+    for (const output of [first.stdout, first.stderr, second.stdout, second.stderr, log]) {
+      expect(output).not.toContain(decodeURIComponent(new URL(scratch.url).password));
+      expect(output).not.toContain(MADE_UP_PASSPHRASE);
+    }
   }, 60_000);
 
   it.each([

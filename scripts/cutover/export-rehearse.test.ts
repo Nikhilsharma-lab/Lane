@@ -2,7 +2,7 @@
 // folder standing in for request-attachments. Each test checks what is in the export folder, the throwaway copy and
 // the step log, never how the kit got there.
 import { execFileSync } from "node:child_process";
-import { appendFileSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -207,6 +207,24 @@ describe("rehearse", () => {
     expect(await leftBehind(run.stdout)).toEqual({ copy: expect.stringMatching(/^lane_rehearsal_kit_/), database: false, plain: [] });
     expect(stepLog(dir, "rehearsal").at(-1)).toMatchObject({ step: "rehearse", result: "failed" });
   }, 60_000);
+
+  it("gives the same result on a rerun, as export does", async () => {
+    const exports = [await exportSource(), await exportSource()];
+    const rehearsals = [await rehearseSource(), await rehearseSource()];
+
+    expect([...exports, ...rehearsals].map((run) => run.code)).toEqual([0, 0, 0, 0]);
+    const names = readdirSync(path.join(dir, "rehearsal")).filter((entry) => entry !== "steps.log").sort();
+    expect(names).toHaveLength(2);
+    // Each export has its own time and encryption; what it holds is the same.
+    const held = names.map((name) => {
+      const { environment, latestMigration, tables, files } = JSON.parse(readFileSync(path.join(dir, "rehearsal", name, "manifest.json"), "utf8"));
+      return { environment, latestMigration, tables, files };
+    });
+    expect(held[1]).toEqual(held[0]);
+    const [first, second] = stepLog(dir, "rehearsal").filter((line) => line.step === "rehearse");
+    expect(first).toMatchObject({ result: "ok", export: names[1] });
+    expect({ ...second, at: first.at }).toEqual(first);
+  }, 120_000);
 
   it("stops before restoring anything when the archive changed after it was exported", async () => {
     expect((await exportSource()).code).toBe(0);

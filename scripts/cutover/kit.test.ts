@@ -276,7 +276,12 @@ describe("secrets", () => {
     expect(leftovers()).toEqual([]);
   });
 
-  it.each(SUBCOMMANDS)("$subcommand deletes the secret file when it fails, and logs the failure without the secret", async ({ subcommand, args, copies }) => {
+  it.each([
+    ...SUBCOMMANDS,
+    // #412's subcommands that reach a database first (rehearse and check-writes look for an export before that).
+    { subcommand: "export", args: () => ["export", "rehearsal", "--folder", scratch.folder], copies: 1 },
+    { subcommand: "apply", args: () => ["apply", "rehearsal"], copies: 1 },
+  ])("$subcommand deletes the secret file when it fails, and logs the failure without the secret", async ({ subcommand, args, copies }) => {
     const missing = Object.assign(new URL(scratch.url), { pathname: "/lane_rehearsal_missing_411", password: SECRET }).toString();
 
     const run = await runKit(args(), { dir, clipboard: Array(copies).fill(missing) });

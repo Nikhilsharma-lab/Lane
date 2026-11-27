@@ -3,7 +3,7 @@
 import { readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { localServerUrl, makeGnupg, makeScratch, makeWorkingFolder, runKit, sha256, stepLog, tableDigests, type Gnupg, type Scratch } from "./test-kit";
+import { localServerUrl, MADE_UP_PASSWORD, makeGnupg, makeScratch, makeWorkingFolder, runKit, sha256, stepLog, tableDigests, type Gnupg, type Scratch } from "./test-kit";
 
 const MIGRATION_0055 = path.resolve(__dirname, "../../src/db/migrations/0055_better_auth.sql");
 
@@ -66,6 +66,8 @@ describe("apply on a database at 0054 whose export was rehearsed", () => {
     expect(rerun.stdout).toMatch(/already at 0055\. Nothing was changed/);
     expect({ schema: await schema(scratch.sql), rows: await tableDigests(scratch.sql) }).toEqual({ schema: after, rows: digests });
     expect(stepLog(dir, "rehearsal").at(-1)).toMatchObject({ step: "apply", result: "ok", counts: { alreadyAt0055: true } });
+    const log = readFileSync(path.join(dir, "rehearsal", "steps.log"), "utf8");
+    for (const output of [run.stdout, run.stderr, rerun.stdout, rerun.stderr, log]) expect(output).not.toContain(MADE_UP_PASSWORD);
   }, 120_000);
 });
 
