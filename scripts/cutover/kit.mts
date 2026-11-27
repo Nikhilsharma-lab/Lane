@@ -16,6 +16,7 @@ import type { Command, Target } from "./command.mts";
 import { apply } from "./commands/apply.mts";
 import { checkBlanks } from "./commands/check-blanks.mts";
 import { checkWrites } from "./commands/check-writes.mts";
+import { empty } from "./commands/empty.mts";
 import { exportCommand } from "./commands/export.mts";
 import { rehearse } from "./commands/rehearse.mts";
 import { schemaDiff } from "./commands/schema-diff.mts";
@@ -35,7 +36,7 @@ import {
 import { SecretSession, systemClipboard } from "./secrets.mts";
 import { appendStep, describeStep, lastStep } from "./step-log.mts";
 
-export const COMMANDS: readonly Command[] = [state, schemaDiff, exportCommand, rehearse, apply, checkWrites, checkBlanks];
+export const COMMANDS: readonly Command[] = [state, schemaDiff, exportCommand, rehearse, apply, checkWrites, empty, checkBlanks];
 const DEFAULT_WORKING_FOLDER = path.resolve(import.meta.dirname, "../../backups/better-auth-cutover");
 const FLAGS = ["--dir", "--folder"] as const;
 

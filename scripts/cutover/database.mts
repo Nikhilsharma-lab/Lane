@@ -56,13 +56,24 @@ export async function readOnly<T>(target: DatabaseTarget, read: (sql: Sql) => Pr
   }
 }
 
+/**
+ * Every base table in `public` (plain and partitioned), read from pg_catalog now. The catalog, not
+ * information_schema: information_schema leaves out a table the connected role has no privilege on, and emptying
+ * must not leave one out quietly.
+ */
+export async function publicTables(sql: Sql): Promise<string[]> {
+  const rows = await sql<{ name: string }[]>`
+    select c.relname as name from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r', 'p') order by c.relname`;
+  return rows.map((row) => row.name);
+}
+
 /** Every base table in `public`, read from the catalog now, with its row count. */
 export async function rowCounts(sql: Sql): Promise<Record<string, number>> {
-  const rows = await sql<{ table_name: string; rows: number }[]>`
-    select table_name,
-      (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from public.%I', table_name), false, true, '')))[1]::text::bigint as rows
-    from information_schema.tables
-    where table_schema = 'public' and table_type = 'BASE TABLE'
-    order by table_name`;
-  return Object.fromEntries(rows.map((row) => [row.table_name, Number(row.rows)]));
+  const counts: Record<string, number> = {};
+  for (const table of await publicTables(sql)) {
+    const [row] = await sql.unsafe(`select count(*)::bigint as rows from public."${table.replaceAll('"', '""')}"`);
+    counts[table] = Number(row.rows);
+  }
+  return counts;
 }
