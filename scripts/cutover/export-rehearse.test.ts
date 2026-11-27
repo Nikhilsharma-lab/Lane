@@ -144,6 +144,10 @@ describe("rehearse", () => {
 
     expect(run.code).toBe(0);
     expect(run.stdout).toMatch(/Rehearse: ok/);
+    // #413: after 0055, the rollback drill on the copy: empty, restore as restore does, check again.
+    expect(run.stdout).toMatch(
+      /Apply 0055 to the copy: ok\nRollback drill: empty the copy: ok\nEmptied \d+ tables in public \(0 rows\) in one transaction\.\nRemoved 0 files from [^\n]+\.\nRestored the export's rows into the schema as it stands\.\nUploaded 2 files under their paths and content types\.\nRollback drill: restore the export into the copy and check it again: ok\n/,
+    );
     expect(await leftBehind(run.stdout)).toEqual({ copy: expect.stringMatching(/^lane_rehearsal_kit_/), database: false, plain: [] });
     const rows = Object.fromEntries(Object.entries(record.tables).map(([table, summary]) => [table, (summary as { rows: number }).rows]));
     expect(stepLog(dir, "rehearsal").at(-1)).toMatchObject({

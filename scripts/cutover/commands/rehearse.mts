@@ -2,22 +2,23 @@
 // relies on it. It never reaches the environment: it decrypts the export into this run's owner-only folder, restores
 // it into a throwaway lane_rehearsal_kit_… database on the local server (anon and authenticated created first, as the
 // 2026-10-10 runbook did) and a throwaway folder, checks every count and checksum against the manifest, and applies
-// 0055 to the copy. The copy and the folder are dropped afterwards, after a pass, a stop, a failure or a signal.
+// 0055 to the copy. Then it drills the rollback on the copy (#413, story 27): empty it, then restore the export into
+// it as `restore` does, and check it again. The copy and the folder are dropped afterwards, after a pass, a stop, a
+// failure or a signal.
 //
-// The work is a list of stages (REHEARSAL_STAGES). #413 appends the rollback drill after 0055: empty the copy,
-// restore the export into it as a rollback would, and run `checkCopy` again.
+// The work is a list of stages (REHEARSAL_STAGES), run in order.
 import { execFileSync } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { extractTar } from "../archive.mts";
 import { folderBucket } from "../bucket.mts";
 import type { Command, Target } from "../command.mts";
-import { connect, type Sql } from "../database.mts";
+import { connect, rowCounts } from "../database.mts";
+import { emptyBucket, emptyTables } from "../emptying.mts";
 import type { DatabaseTarget, Environment } from "../environments.mts";
-import { DUMP, fileDifferences, fileSha256, FILES, latestExport, MANIFEST, readTables, tableDifferences, type FoundExport, type Manifest } from "../exports.mts";
-import { decrypt } from "../gpg.mts";
+import { DUMP, FILES, latestExport, MANIFEST, type FoundExport, type Manifest } from "../exports.mts";
 import { applyBetterAuth, betterAuthMigrationSha256, hasBetterAuth, presentMigrations } from "../migrations.mts";
+import { checkAgainstManifest, openArchive, rollBack } from "../rollback.mts";
 import { alive } from "../secrets.mts";
 import { pgConnection, runTool } from "../tools.mts";
 
@@ -56,20 +57,31 @@ export async function restoreIntoCopy(copy: RehearsalCopy): Promise<string[]> {
 
 /** Every table's rows and newest timestamps, and every file's path, size, type and SHA256, against the manifest. */
 export async function checkCopy(copy: RehearsalCopy): Promise<string[]> {
+  return checkAgainstManifest(copy.target, copy.manifest);
+}
+
+/** The drill's first half, as `empty` and `empty-bucket` do it: every table in the copy and every file at 0. */
+async function emptyCopy(copy: RehearsalCopy): Promise<string[]> {
+  await emptyTables(copy.target.database);
+  const { failures } = await emptyBucket(copy.target.bucket!);
   const sql = connect(copy.target.database);
-  let tables;
+  let tables: Record<string, number>;
   try {
-    tables = await sql.begin("read only", (transaction) => readTables(transaction as unknown as Sql));
+    tables = await rowCounts(sql);
   } finally {
     await sql.end();
   }
-  const bucket = copy.target.bucket!;
-  const objects = [];
-  for (const object of await bucket.list()) {
-    const bytes = await bucket.read(object.path);
-    objects.push({ ...object, size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") });
-  }
-  return [...tableDifferences(copy.manifest.tables, tables), ...fileDifferences(copy.manifest.files, objects)];
+  const files = (await copy.target.bucket!.list()).length;
+  return [
+    ...failures,
+    ...Object.entries(tables).filter(([, rows]) => rows > 0).map(([table, rows]) => `${table} still holds ${rows} rows after emptying.`),
+    ...(files ? [`${files} files are still in the copy's folder after emptying.`] : []),
+  ];
+}
+
+/** The drill's second half: the rollback `restore` runs, on the copy at 0055, then the same check against the manifest. */
+async function restoreCopy(copy: RehearsalCopy): Promise<string[]> {
+  return rollBack({ target: copy.target, manifest: copy.manifest, opened: copy.opened, pgpassFile: copy.pgpassFile, print: copy.print });
 }
 
 async function applyToCopy(copy: RehearsalCopy): Promise<string[]> {
@@ -90,34 +102,9 @@ export const REHEARSAL_STAGES: readonly RehearsalStage[] = [
   { name: "Restore the export into the copy", run: restoreIntoCopy },
   { name: "Check the copy against the manifest", run: checkCopy },
   { name: "Apply 0055 to the copy", run: applyToCopy },
-  // #413: the rollback drill goes here (empty the copy, restore the export into it as a rollback would, checkCopy).
+  { name: "Rollback drill: empty the copy", run: emptyCopy },
+  { name: "Rollback drill: restore the export into the copy and check it again", run: restoreCopy },
 ];
-
-/**
- * Decrypts the export into `opened` and checks it is the export the manifest beside it describes. Gives back what
- * is wrong with it; nothing is restored from an export that has anything wrong.
- */
-async function openArchive(found: FoundExport, opened: string): Promise<string[]> {
-  const { record } = found;
-  const archive = path.join(found.folder, record.archive.file);
-  if ((await fileSha256(archive)) !== record.archive.sha256) {
-    return [`The archive's SHA256 isn't the one exported (${record.archive.sha256}). Export again.`];
-  }
-  mkdirSync(opened, { recursive: true, mode: 0o700 });
-  let names: string[] = [];
-  await decrypt(archive, async (plain) => {
-    names = await extractTar(plain, opened);
-  });
-  const problems: string[] = [];
-  const beside: Record<string, unknown> = { ...record };
-  delete beside.archive;
-  const inside = JSON.parse(readFileSync(path.join(opened, MANIFEST), "utf8"));
-  if (JSON.stringify(inside) !== JSON.stringify(beside)) problems.push("The manifest inside the archive isn't the one beside it. Export again.");
-  const expected = [MANIFEST, DUMP, ...record.files.map((file) => `${FILES}/${file.path}`)].sort();
-  if (JSON.stringify(names) !== JSON.stringify(expected)) problems.push(`The archive holds ${names.length} entries; its manifest lists ${expected.length}. Export again.`);
-  if ((await fileSha256(path.join(opened, DUMP))) !== record.dump.sha256) problems.push("The dump's SHA256 isn't the one in the manifest. Export again.");
-  return problems;
-}
 
 /** Drops throwaway copies a killed rehearsal left behind (named for a process that no longer runs). */
 async function sweepCopies(server: DatabaseTarget, print: (line: string) => void): Promise<void> {
@@ -224,7 +211,9 @@ export const rehearse: Command = {
         counts: { tables: Object.fromEntries(Object.entries(record.tables).map(([table, summary]) => [table, summary.rows])), files: record.files.length, copyMigration },
         sha256: { archive: record.archive.sha256, dump: record.dump.sha256, migration: betterAuthMigrationSha256() },
       });
-      print(`Rehearse: ok. Every count and checksum matched ${found.name}, and the copy reached ${copyMigration}. The copy and its folder are dropped.`);
+      print(
+        `Rehearse: ok. Every count and checksum matched ${found.name}, the copy reached ${copyMigration}, and the rollback drill emptied it and restored it to match again. The copy and its folder are dropped.`,
+      );
       return "ok";
     } finally {
       removeWorkspace();
